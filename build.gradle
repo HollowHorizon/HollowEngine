@@ -1,0 +1,190 @@
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+', changing: true
+        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.7.20-RC'
+    }
+}
+
+plugins {
+    id "org.jetbrains.kotlin.jvm" version "1.7.20"
+    id "org.jetbrains.kotlin.plugin.serialization" version "1.7.20"
+}
+apply plugin: 'kotlin'
+apply plugin: "java"
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'org.spongepowered.mixin'
+
+group = 'ru.hollowhorizon'
+version = '1.0'
+
+java {
+    archivesBaseName = 'hollowstory'
+    toolchain.languageVersion = JavaLanguageVersion.of(8)
+}
+
+minecraft {
+    mappings channel: 'official', version: '1.16.5'
+
+    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+
+            mods {
+                hollowstory {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+
+            mods {
+                hollowstory {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        data {
+            workingDirectory project.file('run')
+
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            args '--mod', 'hollowstory', '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+
+            mods {
+                hollowstory {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+ext {
+    imguiVersion = '1.86.4'
+}
+
+mixin {
+    add sourceSets.main, "hollowstory.refmap.json"
+
+    config "hollowstory.mixins.json"
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://zoidberg.ukp.informatik.tu-darmstadt.de/artifactory/public-releases/' }
+    flatDir {
+        dir "C:\\Users\\user\\Desktop\\papka_with_papkami\\MyJavaProjects\\HollowCore\\build\\libs"
+        dir 'libs'
+    }
+}
+
+configurations {
+    implementation.extendsFrom(shade)
+}
+
+compileJava.options.encoding = "UTF-8"
+compileTestJava.options.encoding = "UTF-8"
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.16.5-36.2.35'
+
+    if (file("libs").exists()) {
+        file("libs").eachFile { file ->
+            def splitPos = file.name.lastIndexOf("-")
+            def modartifact = file.name.substring(0, splitPos)
+            def modversion = file.name.substring(splitPos + 1, file.name.length() - 4)
+            def modreference = "lib:$modartifact:$modversion"
+
+            dependencies {
+                implementation fg.deobf(project.dependencies.create(modreference) {
+                    transitive = false
+                })
+            }
+        }
+    }
+
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
+    implementation fg.deobf('ru.hollowhorizon:hc:1.0-dev')
+
+    implementation 'org.jetbrains:annotations:23.0.0'
+
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.7.20'
+    implementation 'org.jetbrains.kotlin:kotlin-reflect:1.7.20'
+    implementation 'gnu.trove:trove:3.0.3'
+
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-common:1.7.20'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-jvm-host:1.7.20'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:1.7.20'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-dependencies:1.7.20'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-dependencies-maven:1.7.20'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-jvm:1.7.20-RC'
+
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4'
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-core:1.4.1'
+
+    implementation('com.google.guava:guava') {
+        version {
+            strictly '21.0'
+        }
+    }
+
+    implementation("io.github.spair:imgui-java-binding:$imguiVersion")
+    implementation("io.github.spair:imgui-java-lwjgl3:$imguiVersion")
+    implementation("io.github.spair:imgui-java-natives-windows:$imguiVersion")
+    implementation("io.github.spair:imgui-java-natives-macos:$imguiVersion")
+    implementation("io.github.spair:imgui-java-natives-linux:$imguiVersion")
+}
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+}
+jar {
+    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+
+    from sourceSets.main.output
+
+    exclude()
+
+    from { configurations.shade.collect { it.isDirectory() ? it : zipTree(it) } }
+
+    manifest {
+        attributes([
+                "Specification-Title"     : "hollowstory",
+                //"Specification-Vendor": "hollowstory authors",
+                "Specification-Version"   : "1", // We are version 1 of ourselves
+                "Implementation-Title"    : project.name,
+                "Implementation-Version"  : project.jar.archiveVersion,
+                //"Implementation-Vendor": "hollowstory authors",
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+
+    finalizedBy('reobfJar')
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
+    kotlinOptions {
+        freeCompilerArgs = Arrays.asList("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
+        jvmTarget = "1.8"
+        languageVersion = "1.4"
+    }
+}
+

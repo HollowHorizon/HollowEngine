@@ -1,0 +1,8 @@
+{
+  "slider_button": {
+    "category": "master",
+    "sounds": [
+      "hollowstory:button_click"
+    ]
+  }
+}

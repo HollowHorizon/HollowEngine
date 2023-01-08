@@ -1,0 +1,4 @@
+rootProject.name = 'hollowstory'
+
+include ":HollowCore"
+project(":HollowCore").projectDir = file("../HollowCore")
