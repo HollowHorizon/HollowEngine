@@ -25,6 +25,8 @@ data class NPCSettings(
     var data: NPCData = NPCData(),
 )
 
+fun makeSettings(builder: NPCSettings.() -> Unit): NPCSettings = NPCSettings().apply(builder)
+
 @Serializable
 data class NPCData(
     var health: Float = 20f,

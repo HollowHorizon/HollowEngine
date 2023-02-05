@@ -23,6 +23,7 @@ open class StoryEvent(val team: StoryTeam, val variables: StoryVariables, val ev
     var hideInEventList = true
     var safeForExit = false
     val progressManager = StoryProgressManager()
+    val level = team.getAllOnline().first().mcPlayer!!.level
 
     fun play(sound: String) {
         HollowCore.LOGGER.info("Playing sound ${ForgeRegistries.SOUND_EVENTS.getValue(sound.toRL())}")

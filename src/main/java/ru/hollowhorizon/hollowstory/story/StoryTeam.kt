@@ -7,10 +7,21 @@ import ru.hollowhorizon.hollowstory.common.exceptions.StoryEventException
 import ru.hollowhorizon.hollowstory.common.exceptions.StoryPlayerNotFoundException
 import ru.hollowhorizon.hollowstory.common.npcs.IHollowNPC
 import java.util.*
+import kotlin.collections.HashSet
 
 @Serializable
 class StoryTeam {
-    val players = ArrayList<StoryPlayer>()
+    val players = HashSet<StoryPlayer>()
+
+    fun add(player: PlayerEntity): StoryPlayer {
+        val storyPlayer = StoryPlayer(player)
+        players.add(storyPlayer)
+        return storyPlayer
+    }
+
+    fun remove(player: PlayerEntity) {
+        players.removeIf { it.uuid == player.uuid }
+    }
 
     fun forAllOnline(action: (StoryPlayer) -> Unit) {
         players.filter { it.isOnline() }.forEach(action)
@@ -81,5 +92,13 @@ class StoryTeam {
 
     fun sendMessage(text: String) {
         forAllOnline { it.send(text) }
+    }
+
+    operator fun contains(player: PlayerEntity): Boolean {
+        return isFromTeam(player)
+    }
+
+    fun updatePlayer(player: PlayerEntity) {
+        this.players.find { it.uuid == player.uuid }?.mcPlayer = player
     }
 }

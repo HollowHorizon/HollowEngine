@@ -5,10 +5,15 @@ import net.minecraft.client.audio.SimpleSound
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.toRL
-import ru.hollowhorizon.hollowstory.client.gui.DialogueScreen
+import ru.hollowhorizon.hc.client.utils.toSTC
+import ru.hollowhorizon.hollowstory.client.screen.DialogueScreen
 
 open class DialogueScriptBase(val screen: DialogueScreen, val player: HDCharacter) {
     val scene = screen.scene
+
+    init {
+
+    }
 
     infix fun HDCharacter.say(text: String) {
         val characters = screen.scene.characters
@@ -20,6 +25,12 @@ open class DialogueScriptBase(val screen: DialogueScreen, val player: HDCharacte
         }
         screen.textBox?.text = text
         screen.currentName = this.name
+        waitClick()
+    }
+
+    fun say(character: String, text: String) {
+        screen.textBox?.text = text
+        screen.currentName = character.toSTC()
         waitClick()
     }
 

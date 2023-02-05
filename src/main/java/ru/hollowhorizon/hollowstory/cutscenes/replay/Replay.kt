@@ -10,6 +10,7 @@ import ru.hollowhorizon.hc.client.utils.nbt.deserialize
 import ru.hollowhorizon.hc.client.utils.nbt.loadAsNBT
 import ru.hollowhorizon.hc.client.utils.nbt.serialize
 import ru.hollowhorizon.hc.client.utils.toIS
+import java.io.File
 
 @Serializable
 class Replay {
@@ -44,6 +45,10 @@ class Replay {
 
         fun fromResourceLocation(location: ResourceLocation): Replay {
             return fromNBT(location.toIS().loadAsNBT())
+        }
+
+        fun fromFile(path: File): Replay {
+            return fromNBT(path.inputStream().loadAsNBT())
         }
     }
 }

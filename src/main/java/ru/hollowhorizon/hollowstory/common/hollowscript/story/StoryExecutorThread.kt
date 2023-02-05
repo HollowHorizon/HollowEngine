@@ -1,36 +1,34 @@
 package ru.hollowhorizon.hollowstory.common.hollowscript.story
 
 import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.util.ResourceLocation
 import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.loading.FMLLoader
-import ru.hollowhorizon.hc.client.utils.toIS
 import ru.hollowhorizon.hc.common.scripting.HSCompiler
+import ru.hollowhorizon.hollowstory.common.capabilities.storyTeam
+import ru.hollowhorizon.hollowstory.common.files.HollowStoryDirHelper
 import ru.hollowhorizon.hollowstory.story.StoryEvent
 import ru.hollowhorizon.hollowstory.story.StoryScript
 import ru.hollowhorizon.hollowstory.story.StoryTeam
 import ru.hollowhorizon.hollowstory.story.StoryVariables
+import java.io.File
 import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.api.valueOrThrow
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
 
-class StoryExecutorThread(val team: StoryTeam, val variables: StoryVariables, private val storyName: String, private val code: String) : Thread() {
+class StoryExecutorThread(val team: StoryTeam, val variables: StoryVariables, val file: File) : Thread() {
     override fun run() {
-        team.sendMessage("[DEBUG] Compiling Story Event")
 
         try {
             if(FMLLoader.isProduction()) System.setProperty("kotlin.java.stdlib.jar", ModList.get().getModFileById("hc").file.filePath.toFile().absolutePath)
 
-            val story = HSCompiler().compile<StoryScript>(
-                storyName.replace(".", "/"),
-                code
+            val story = HSCompiler.COMPILER.compile<StoryScript>(
+                HollowStoryDirHelper.CACHE_DIR,
+                file
             )
 
-            team.sendMessage("[DEBUG] Story Event compiled")
-
             val res = story.execute {
-                constructorArgs(team, variables, storyName)
+                constructorArgs(team, variables, file.name)
                 jvm {
                     loadDependencies(false)
                 }
@@ -40,10 +38,8 @@ class StoryExecutorThread(val team: StoryTeam, val variables: StoryVariables, pr
 
             resScript.clearEvent()
 
-            team.sendMessage("[DEBUG] Story Event executed")
-
             res.reports.forEach {
-                team.sendMessage("[DEBUG] ${it.render()}")
+                team.sendMessage("[ERROR] ${it.render()}")
             }
         } catch (e: Exception) {
             team.sendMessage("[DEBUG] Error while compiling dialogue: ${e.stackTraceToString()}")
@@ -51,12 +47,8 @@ class StoryExecutorThread(val team: StoryTeam, val variables: StoryVariables, pr
     }
 }
 
-fun executeStory(player: PlayerEntity, storyPath: ResourceLocation) {
-    val stream = storyPath.toIS()
+fun executeStory(player: PlayerEntity, storyPath: File) {
+    val team = player.storyTeam()
 
-    val team = StoryStorage.getTeam(player)
-
-    val storyName = storyPath.namespace+ "."+ storyPath.path.substringBefore(".se.kts").replace("/", ".")
-
-    StoryExecutorThread(team, StoryVariables(), storyName, stream.bufferedReader().readText()).start()
+    StoryExecutorThread(team, StoryVariables(), storyPath).start()
 }

@@ -2,14 +2,14 @@ package ru.hollowhorizon.hollowstory.common.capabilities
 
 import kotlinx.serialization.Serializable
 import net.minecraft.world.World
-import ru.hollowhorizon.hc.common.capabilities.HollowCapability
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2
+import ru.hollowhorizon.hc.common.capabilities.IHollowCapability
 import ru.hollowhorizon.hollowstory.cutscenes.replay.Replay
 import ru.hollowhorizon.hollowstory.cutscenes.replay.ReplayPlayer
 
 @HollowCapabilityV2(World::class)
 @Serializable
-class ReplayStorageCapability : HollowCapability<ReplayStorageCapability>() {
+class ReplayStorageCapability : IHollowCapability {
     private val replays: HashMap<String, Replay> = HashMap()
 
     fun addReplay(name: String, replay: Replay) {

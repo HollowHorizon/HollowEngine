@@ -13,13 +13,14 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import ru.hollowhorizon.hollowstory.common.npcs.IHollowNPC;
 import ru.hollowhorizon.hollowstory.common.npcs.NPCSettings;
+import ru.hollowhorizon.hollowstory.common.npcs.tasks.TaskManager;
 import ru.hollowhorizon.hollowstory.dialogues.HDCharacterKt;
 
 public class NPCEntity extends CreatureEntity implements IHollowNPC {
     private NPCSettings options = new NPCSettings();
     private Entity puppet;
     public static final DataParameter<String> NAME_PARAM = EntityDataManager.defineId(NPCEntity.class, DataSerializers.STRING);
-
+    private final TaskManager taskManager = new TaskManager(this);
 
     public NPCEntity(NPCSettings options, World level) {
         super(ModEntities.NPC_ENTITY.get(), level);
@@ -38,6 +39,10 @@ public class NPCEntity extends CreatureEntity implements IHollowNPC {
         }
         puppet = EntityType.loadEntityRecursive(HDCharacterKt.generateEntityNBT(entity, nbt), level, e -> e);
         this.entityData.set(NAME_PARAM, options.getPuppetEntity());
+    }
+
+    public TaskManager getTaskManager() {
+        return taskManager;
     }
 
     @Override

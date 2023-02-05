@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowstory.dialogues
 
-import ru.hollowhorizon.hollowstory.client.gui.DialogueScreen
+import ru.hollowhorizon.hollowstory.client.screen.DialogueScreen
 
 class HDScene(val screen: DialogueScreen) {
     val characters = ArrayList<HDCharacter>()
