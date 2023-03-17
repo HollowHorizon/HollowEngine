@@ -13,8 +13,8 @@ import java.util.UUID;
 public class PrivateNPCEntity extends NPCEntity {
     private static final DataParameter<Optional<UUID>> DATA_CALLER_UUID = EntityDataManager.defineId(PrivateNPCEntity.class, DataSerializers.OPTIONAL_UUID);
 
-    public PrivateNPCEntity(NPCSettings options, World level) {
-        super(options, level);
+    public PrivateNPCEntity(World level) {
+        super(level);
     }
 
     @Override

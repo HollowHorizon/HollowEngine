@@ -47,7 +47,9 @@ public class HollowStory {
         forgeBus.addListener(this::registerCommands);
         forgeBus.addListener(this::addReloadListenerEvent);
         forgeBus.addListener(ClientEvents::renderLast);
+        forgeBus.addListener(ClientEvents::onKeyPressed);
         forgeBus.addListener(StoryHandler::onPlayerJoin);
+        forgeBus.addListener(StoryHandler::onPlayerTick);
         forgeBus.addListener(StoryHandler::onPlayerClone);
 
         modBus.addListener(this::setup);
@@ -64,7 +66,17 @@ public class HollowStory {
     }
 
     private void clientInit(FMLClientSetupEvent event) {
-        RenderingRegistry.registerEntityRenderingHandler(ModEntities.NPC_ENTITY.get(), NPCRenderer::new);
+        ClientEvents.INSTANCE.initKeys();
+
+        RenderingRegistry.registerEntityRenderingHandler(ModEntities.NPC_ENTITY.get(), manager -> {
+            try {
+                return new NPCRenderer(manager);
+            } catch (Exception ex) {
+                HollowCore.LOGGER.error("ERROR_ERROR");
+                ex.printStackTrace();
+            }
+            return null;
+        });
 
         RenderingRegistry.registerEntityRenderingHandler(ModEntities.THOMAS.get(), (manager) -> new ThomasRenderer(manager, (IReloadableResourceManager) event.getMinecraftSupplier().get().getResourceManager()));
     }
@@ -81,6 +93,7 @@ public class HollowStory {
     private void onAttributeCreation(EntityAttributeCreationEvent event) {
         event.put(ModEntities.NPC_ENTITY.get(), ZombieEntity.createAttributes().build());
         event.put(ModEntities.THOMAS.get(), VillagerEntity.createAttributes().build());
+        event.put(ModEntities.SINDY, VillagerEntity.createAttributes().build());
     }
 
     private void registerCommands(RegisterCommandsEvent event) {

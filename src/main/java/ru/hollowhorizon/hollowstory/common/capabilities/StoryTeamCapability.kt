@@ -11,11 +11,11 @@ import ru.hollowhorizon.hollowstory.story.StoryTeam
 @HollowCapabilityV2(World::class)
 @Serializable
 class StoryTeamCapability : IHollowCapability {
-    val teams = ArrayList<StoryTeam>()
+    val teams = HashSet<StoryTeam>()
 
     fun getTeam(player: PlayerEntity): StoryTeam {
-        val team = teams.find { it.isFromTeam(player) }
-            ?: return if (StoryHandler.shouldAddToHostTeam) {
+        val team = teams.find { it.isFromTeam(player) } ?:
+            if (StoryHandler.shouldAddToHostTeam) {
                 teams.firstOrNull() ?: teams.add(StoryTeam()).let { teams.first() }
             } else {
                 teams.add(StoryTeam()).let { teams.last() }
@@ -23,6 +23,10 @@ class StoryTeamCapability : IHollowCapability {
 
         if (player !in team) {
             team.add(player)
+        } else {
+            if(team.getPlayer(player).mcPlayer == null) {
+                team.updatePlayer(player)
+            }
         }
 
         return team
@@ -31,6 +35,6 @@ class StoryTeamCapability : IHollowCapability {
 }
 
 fun PlayerEntity.storyTeam(): StoryTeam {
-    val cap = server?.overworld()?.getCapability(HollowCapabilityV2.get<StoryTeamCapability>())
-    return cap!!.orElseThrow { IllegalStateException("StoryTeamCapability is not found!") }.getTeam(this)
+    val cap = this.level.getCapability(HollowCapabilityV2.get<StoryTeamCapability>())
+    return cap.orElseThrow { IllegalStateException("No capability found!") }.getTeam(this)
 }

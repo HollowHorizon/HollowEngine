@@ -2,9 +2,10 @@ package ru.hollowhorizon.hollowstory.client.screen
 
 import com.mojang.blaze3d.matrix.MatrixStack
 import ru.hollowhorizon.hc.client.screens.HollowScreen
+import ru.hollowhorizon.hc.client.utils.drawCentredScaled
 import ru.hollowhorizon.hc.client.utils.toSTC
 
-class OverlayScreen : HollowScreen("".toSTC()) {
+class OverlayScreen(val text: String? = null) : HollowScreen("".toSTC()) {
     private var alpha = 0xFF
     private var ticks = 0
     private var maxTicks = 0
@@ -13,6 +14,8 @@ class OverlayScreen : HollowScreen("".toSTC()) {
     override fun render(stack: MatrixStack, mouseX: Int, mouseY: Int, particalTick: Float) {
 
         fill(stack, 0, 0, this.width, this.height, ARGB(alpha, 0, 0, 0).toInt())
+
+        if(text != null) font.drawCentredScaled(stack, text.toSTC(), this.width / 2, this.height / 2, 0xFFFFFF, 3.0F)
 
         if (ticks > 0) {
             when (fadeType) {
@@ -38,7 +41,7 @@ class OverlayScreen : HollowScreen("".toSTC()) {
     }
 
     fun makeBlack(time: Float) {
-        ticks = (time * 20).toInt()
+        ticks = (time * 60).toInt()
         maxTicks = ticks
 
         alpha = 0x0
@@ -47,7 +50,7 @@ class OverlayScreen : HollowScreen("".toSTC()) {
     }
 
     fun makeTransparent(time: Float) {
-        ticks = (time * 20).toInt()
+        ticks = (time * 60).toInt()
         maxTicks = ticks
 
         alpha = 0xFF

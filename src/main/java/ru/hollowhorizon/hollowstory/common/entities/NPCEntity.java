@@ -4,69 +4,53 @@ import net.minecraft.entity.CreatureEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ai.goal.Goal;
-import net.minecraft.network.datasync.DataParameter;
-import net.minecraft.network.datasync.DataSerializers;
-import net.minecraft.network.datasync.EntityDataManager;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.util.ActionResultType;
 import net.minecraft.util.DamageSource;
+import net.minecraft.util.Hand;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.world.World;
+import net.minecraftforge.common.capabilities.Capability;
 import org.jetbrains.annotations.NotNull;
+import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2;
+import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2Kt;
+import ru.hollowhorizon.hc.common.capabilities.ICapabilitySyncer;
+import ru.hollowhorizon.hollowstory.common.capabilities.NPCEntityCapability;
 import ru.hollowhorizon.hollowstory.common.npcs.IHollowNPC;
+import ru.hollowhorizon.hollowstory.common.npcs.IconType;
 import ru.hollowhorizon.hollowstory.common.npcs.NPCSettings;
-import ru.hollowhorizon.hollowstory.common.npcs.tasks.TaskManager;
+import ru.hollowhorizon.hollowstory.common.npcs.tasks.HollowNPCTask;
 import ru.hollowhorizon.hollowstory.dialogues.HDCharacterKt;
 
-public class NPCEntity extends CreatureEntity implements IHollowNPC {
-    private NPCSettings options = new NPCSettings();
+public class NPCEntity extends CreatureEntity implements IHollowNPC, ICapabilitySyncer {
     private Entity puppet;
-    public static final DataParameter<String> NAME_PARAM = EntityDataManager.defineId(NPCEntity.class, DataSerializers.STRING);
-    private final TaskManager taskManager = new TaskManager(this);
+    public final Object interactionWaiter = new Object();
 
-    public NPCEntity(NPCSettings options, World level) {
+    public NPCEntity(World level) {
         super(ModEntities.NPC_ENTITY.get(), level);
-
-        this.setCustomName(new StringTextComponent(options.getName()));
-        this.setCustomNameVisible(true);
-
-        this.options = options;
-        String entity = options.getPuppetEntity();
-        String nbt = "";
-        if (entity.contains("@")) {
-            String[] split = entity.split("@");
-
-            entity = split[0];
-            nbt = split[1];
-        }
-        puppet = EntityType.loadEntityRecursive(HDCharacterKt.generateEntityNBT(entity, nbt), level, e -> e);
-        this.entityData.set(NAME_PARAM, options.getPuppetEntity());
-    }
-
-    public TaskManager getTaskManager() {
-        return taskManager;
     }
 
     @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(NAME_PARAM, "minecraft:skeleton");
+    protected ActionResultType mobInteract(PlayerEntity pPlayer, Hand pHand) {
+        synchronized (interactionWaiter) {
+            interactionWaiter.notifyAll();
+        }
+        return super.mobInteract(pPlayer, pHand);
     }
 
-    @Override
-    public void onSyncedDataUpdated(DataParameter<?> p_184206_1_) {
-        super.onSyncedDataUpdated(p_184206_1_);
-        if (p_184206_1_ == NAME_PARAM) {
-            String name = this.entityData.get(NAME_PARAM);
-            if(!name.equals("")) {
-                String nbt = "";
-                if (name.contains("@")) {
-                    String[] split = name.split("@");
+    public void setIcon(@NotNull IconType type) {
+        this.getCapability(HollowCapabilityV2.Companion.get(NPCEntityCapability.class)).ifPresent((cap) -> {
+            cap.setIconType(type);
 
-                    name = split[0];
-                    nbt = split[1];
-                }
-                this.setPuppet(EntityType.loadEntityRecursive(HDCharacterKt.generateEntityNBT(name, nbt), this.level, e -> e));
-            }
-        }
+            HollowCapabilityV2Kt.syncEntity(cap, this);
+        });
+    }
+
+    public IconType getIcon() {
+        return this.getCapability(HollowCapabilityV2.Companion.get(NPCEntityCapability.class))
+                .orElseThrow(() -> new IllegalStateException("NPCEntity Capability not found!")).getIconType();
     }
 
     @Override
@@ -77,10 +61,10 @@ public class NPCEntity extends CreatureEntity implements IHollowNPC {
     public NPCEntity(EntityType<NPCEntity> type, World world) {
         super(type, world);
 
-        this.setCustomName(new StringTextComponent(options.getName()));
-        this.setCustomNameVisible(true);
-
-        puppet = null;
+        this.getCapability(HollowCapabilityV2.Companion.get(NPCEntityCapability.class)).ifPresent((cap) -> {
+            this.setCustomName(new StringTextComponent(cap.getSettings().getName()));
+            this.setCustomNameVisible(true);
+        });
     }
 
     @Override
@@ -90,7 +74,7 @@ public class NPCEntity extends CreatureEntity implements IHollowNPC {
 
     @Override
     public boolean isInvulnerable() {
-        return this.options.getData().isUndead();
+        return this.getCapability(HollowCapabilityV2.Companion.get(NPCEntityCapability.class)).orElseThrow(() -> new IllegalStateException("NPCEntity Capability not found!")).getSettings().getData().isUndead();
     }
 
     @Override
@@ -109,8 +93,18 @@ public class NPCEntity extends CreatureEntity implements IHollowNPC {
     }
 
     @Override
-    public void stopFollow() {
+    public void onCapabilitySync(@NotNull Capability<?> capability) {
+        if (level.isClientSide) {
+            this.getCapability(HollowCapabilityV2.Companion.get(NPCEntityCapability.class)).ifPresent((cap) -> {
+                String[] entity = cap.getSettings().getPuppetEntity().split("@");
+                String nbt = entity.length > 1 ? entity[1] : "";
+                if (puppet != null) {
+                    if (puppet.getType().getRegistryName().equals(new ResourceLocation(entity[0]))) return;
+                }
+                puppet = EntityType.loadEntityRecursive(HDCharacterKt.generateEntityNBT(entity[0], nbt), level, e -> e);
 
+            });
+        }
     }
 
     private static class NPCArtificialIntelligence extends Goal {
@@ -139,4 +133,6 @@ public class NPCEntity extends CreatureEntity implements IHollowNPC {
     public void setPuppet(Entity puppet) {
         this.puppet = puppet;
     }
+
+
 }

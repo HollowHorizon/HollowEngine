@@ -2,9 +2,9 @@ package ru.hollowhorizon.hollowstory.common.commands;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import kotlinx.serialization.Serializable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
@@ -13,18 +13,13 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.util.math.vector.Vector3d;
 import net.minecraft.util.text.StringTextComponent;
-import net.minecraftforge.server.command.EnumArgument;
 import ru.hollowhorizon.hc.HollowCore;
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2;
-import ru.hollowhorizon.hc.common.network.HollowPacketV2;
-import ru.hollowhorizon.hc.common.network.Packet;
-import ru.hollowhorizon.hc.common.story.events.StoryEventStarter;
 import ru.hollowhorizon.hollowstory.client.screen.CutsceneWorldEditScreen;
-import ru.hollowhorizon.hollowstory.client.screen.DialogueScreen;
 import ru.hollowhorizon.hollowstory.client.screen.NPCBuilderScreen;
 import ru.hollowhorizon.hollowstory.common.capabilities.ReplayStorageCapability;
 import ru.hollowhorizon.hollowstory.common.capabilities.ReplayStorageCapabilityKt;
-import ru.hollowhorizon.hollowstory.common.capabilities.StoryTeamCapabilityKt;
+import ru.hollowhorizon.hollowstory.common.capabilities.StoryTeamCapability;
 import ru.hollowhorizon.hollowstory.common.entities.NPCEntity;
 import ru.hollowhorizon.hollowstory.common.files.HollowStoryDirHelper;
 import ru.hollowhorizon.hollowstory.common.hollowscript.story.StoryExecutorThread;
@@ -34,16 +29,17 @@ import ru.hollowhorizon.hollowstory.cutscenes.replay.Replay;
 import ru.hollowhorizon.hollowstory.cutscenes.replay.ReplayPlayer;
 import ru.hollowhorizon.hollowstory.cutscenes.replay.ReplayRecorder;
 import ru.hollowhorizon.hollowstory.story.StoryTeam;
-import ru.hollowhorizon.hollowstory.story.StoryVariables;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Set;
 
 public class HSCommands {
     public static void register(CommandDispatcher<CommandSource> dispatcher) {
         dispatcher.register(Commands.literal("hollow-story")
                 .then(Commands.literal("open-dialogue")
                         .then(Commands.argument("dialogue", StringArgumentType.greedyString()).suggests((context, builder) -> {
-                            HollowStoryDirHelper.INSTANCE.getAllDialogues().forEach(file -> builder.suggest(HollowStoryDirHelper.INSTANCE.toReadablePath(file)));
+                            HollowStoryDirHelper.INSTANCE.getAllDialogues().forEach(file -> builder.suggest(HollowStoryDirHelper.toReadablePath(file)));
                             return builder.buildFuture();
                         }).executes(context -> {
                             String dialogue = StringArgumentType.getString(context, "dialogue");
@@ -67,25 +63,89 @@ public class HSCommands {
                     Minecraft.getInstance().setScreen(new NPCBuilderScreen());
                     return 1;
                 }))
+                .then(Commands.literal("reset").executes(context -> {
+                    context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(StoryTeamCapability.class)).ifPresent(team -> {
+                        try {
+                            StoryTeam storyTeam = team.getTeam(context.getSource().getPlayerOrException());
+                            storyTeam.getCompletedEvents().clear();
+                            context.getSource().getPlayerOrException().sendMessage(new StringTextComponent("§6[§bHollow Story§6] §bCompleted events reset successfully!"), context.getSource().getPlayerOrException().getUUID());
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    });
+                    return 1;
+                }))
                 .then(Commands.literal("start-script")
-                        .then(Commands.argument("script", StringArgumentType.greedyString()).suggests((context, builder) -> {
-                            HollowStoryDirHelper.INSTANCE.getAllStoryEvents().forEach(file -> builder.suggest(HollowStoryDirHelper.INSTANCE.toReadablePath(file)));
-                            return builder.buildFuture();
-                        }).executes(context -> {
-                            String raw = StringArgumentType.getString(context, "script");
-                            File script = HollowStoryDirHelper.INSTANCE.fromReadablePath(raw);
+                        .then(Commands.argument("ignore_sequence", BoolArgumentType.bool())
+                                .then(Commands.argument("script", StringArgumentType.greedyString()).suggests((context, builder) -> {
+                                    HollowStoryDirHelper.INSTANCE.getAllStoryEvents().forEach(file -> builder.suggest(HollowStoryDirHelper.INSTANCE.toReadablePath(file)));
+                                    return builder.buildFuture();
+                                }).executes(context -> {
+                                    String raw = StringArgumentType.getString(context, "script");
+                                    boolean ignoreSequence = BoolArgumentType.getBool(context, "ignore_sequence");
+                                    File script = HollowStoryDirHelper.INSTANCE.fromReadablePath(raw);
 
-                            try {
-                                StoryTeam team = new StoryTeam();
-                                team.add(context.getSource().getPlayerOrException());
-                                new StoryExecutorThread(team, new StoryVariables(), script).start();
-                            } catch (Exception e) {
-                                e.printStackTrace();
+
+                                    context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(StoryTeamCapability.class)).ifPresent(team -> {
+                                        try {
+                                            StoryTeam storyTeam = team.getTeam(context.getSource().getPlayerOrException());
+                                            new StoryExecutorThread(storyTeam, storyTeam.getVariables(), script, ignoreSequence).start();
+                                        } catch (Exception e) {
+                                            e.printStackTrace();
+                                        }
+                                    });
+                                    HollowCore.LOGGER.info("Started script " + script);
+
+                                    return 1;
+                                }))))
+                .then(Commands.literal("active-events").executes(context -> {
+                    PlayerEntity player = context.getSource().getPlayerOrException();
+                    context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(StoryTeamCapability.class)).ifPresent(team -> {
+                        try {
+                            StoryTeam storyTeam = team.getTeam(player);
+                            Set<String> entries = storyTeam.getCurrentEvents().keySet();
+                            player.sendMessage(new StringTextComponent("§6[§bActive Events§6]"), player.getUUID());
+                            for (String entry : entries) {
+                                player.sendMessage(new StringTextComponent("§6- §b" + entry), player.getUUID());
                             }
-                            HollowCore.LOGGER.info("Started script " + script);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    });
+                    return 1;
+                }))
+                .then(Commands.literal("stop-event").then(Commands.argument("event", StringArgumentType.greedyString()).suggests((context, builder) -> {
+                    PlayerEntity player = context.getSource().getPlayerOrException();
+                    context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(StoryTeamCapability.class)).ifPresent(team -> {
+                        try {
+                            StoryTeam storyTeam = team.getTeam(player);
+                            Set<String> entries = storyTeam.getCurrentEvents().keySet();
+                            for (String entry : entries) {
+                                builder.suggest(entry);
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    });
+                    return builder.buildFuture();
+                }).executes(context -> {
+                    PlayerEntity player = context.getSource().getPlayerOrException();
+                    String event = StringArgumentType.getString(context, "event");
+                    context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(StoryTeamCapability.class)).ifPresent(team -> {
+                        try {
+                            HashMap<String, StoryExecutorThread> currentEvents = team.getTeam(player).getCurrentEvents();
 
-                            return 1;
-                        })))
+                            currentEvents.get(event).interrupt();
+
+                            player.sendMessage(new StringTextComponent("§6[§bHollow Story§6] §bForcedly stopped event §6" + event), player.getUUID());
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            player.sendMessage(new StringTextComponent("§6[§bHollow Story§6] §bFailed to stop event §6" + event), player.getUUID());
+                            player.sendMessage(new StringTextComponent("§6[§bHollow Story§6] §bSee logs for more info."), player.getUUID());
+                        }
+                    });
+                    return 1;
+                })))
                 .then(CommandBuilderKt.buildStringCommand("replay-create", (context, name) -> {
                     PlayerEntity player;
                     try {
@@ -122,10 +182,9 @@ public class HSCommands {
                                     context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(ReplayStorageCapability.class)).ifPresent(storage -> {
                                         Replay replay = storage.getReplay(replayName);
 
-                                        NPCEntity npc = new NPCEntity(new NPCSettings("Какой-то крутой NPC", npcName, new NPCData()), context.getSource().getLevel());
 
-                                        ReplayPlayer player = new ReplayPlayer(npc);
-                                        player.play(context.getSource().getLevel(), replay);
+
+
                                     });
 
                                     return 1;
@@ -144,13 +203,7 @@ public class HSCommands {
                 .then(Commands.literal("summon-npc").then(Commands.argument("entity", StringArgumentType.greedyString()).executes(context -> {
                     String entity = StringArgumentType.getString(context, "entity");
 
-                    NPCEntity npc = new NPCEntity(new NPCSettings("ЫыыЫыы", entity, new NPCData()), context.getSource().getLevel());
 
-                    Vector3d playerPos = context.getSource().getPosition();
-
-                    npc.setPos(playerPos.x, playerPos.y, playerPos.z);
-
-                    context.getSource().getLevel().addFreshEntity(npc);
                     return 1;
                 })))
                 .then(Commands.literal("edit-action").executes(context -> {

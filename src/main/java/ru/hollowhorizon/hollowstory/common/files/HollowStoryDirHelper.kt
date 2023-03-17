@@ -50,12 +50,14 @@ object HollowStoryDirHelper {
         return scripts[0]
     }
 
-    fun toReadablePath(file: File): String {
-        return file.path.substringAfter(FMLPaths.GAMEDIR.get().resolve("hollowscript").toFile().path+"\\").replace("\\", "/")
+    @JvmStatic
+    fun File.toReadablePath(): String {
+        return this.path.substringAfter(FMLPaths.GAMEDIR.get().resolve("hollowscript").toFile().path+"\\").replace("\\", "/")
     }
 
-    fun fromReadablePath(path: String): File {
-        return FMLPaths.GAMEDIR.get().resolve("hollowscript").resolve(path).toFile()
+    @JvmStatic
+    fun String.fromReadablePath(): File {
+        return FMLPaths.GAMEDIR.get().resolve("hollowscript").resolve(this).toFile()
     }
 
     private fun collectAllFiles(list: MutableList<File>, startDir: File, predicate: (File) -> Boolean) {

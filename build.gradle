@@ -128,18 +128,16 @@ dependencies {
 
     implementation fg.deobf('ru.hollowhorizon:hc:1.0-dev')
 
-    implementation 'org.jetbrains:annotations:23.0.0'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.7.22'
 
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.7.20'
-    implementation 'org.jetbrains.kotlin:kotlin-reflect:1.7.20'
-    implementation 'gnu.trove:trove:3.0.3'
-
-    implementation 'org.jetbrains.kotlin:kotlin-scripting-common:1.7.20'
-    implementation 'org.jetbrains.kotlin:kotlin-scripting-jvm-host:1.7.20'
-    implementation 'org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:1.7.20'
-    implementation 'org.jetbrains.kotlin:kotlin-scripting-dependencies:1.7.20'
-    implementation 'org.jetbrains.kotlin:kotlin-scripting-dependencies-maven:1.7.20'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-jvm-host:1.7.22'
     implementation 'org.jetbrains.kotlin:kotlin-scripting-jvm:1.7.20-RC'
+
+    implementation 'org.jetbrains.kotlin:kotlin-compiler-embeddable:1.7.22'
+    implementation 'org.jetbrains.kotlin:kotlin-script-runtime:1.7.22'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:1.7.22'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-dependencies:1.7.22'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-dependencies-maven:1.7.22'
 
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4'
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-core:1.4.1'
@@ -150,6 +148,7 @@ dependencies {
         }
     }
 
+    implementation 'com.upokecenter:cbor:4.5.2'
     implementation("io.github.spair:imgui-java-binding:$imguiVersion")
     implementation("io.github.spair:imgui-java-lwjgl3:$imguiVersion")
     implementation("io.github.spair:imgui-java-natives-windows:$imguiVersion")

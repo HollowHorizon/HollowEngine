@@ -10,13 +10,14 @@ inline fun <reified T : Event> waitForgeEvent(noinline function: (T) -> Boolean)
     event.waitEvent()
 }
 
-inline fun <reified T : Event> whenForgeEvent(noinline function: (T) -> Unit) {
+inline fun <reified T : Event> StoryScript.whenForgeEvent(noinline function: (T) -> Unit) {
     val event = ForgeEvent(T::class.java) { function(it); return@ForgeEvent false }
     MinecraftForge.EVENT_BUS.register(event)
+    this.forgeEvents.add(event)
 }
 
 class ForgeEvent<T : Event>(private val type: Class<T>, private val function: (T) -> Boolean) {
-    private val waiter: Object = Object()
+    private val waiter = Object()
 
     @SubscribeEvent
     fun onEvent(event: T) {

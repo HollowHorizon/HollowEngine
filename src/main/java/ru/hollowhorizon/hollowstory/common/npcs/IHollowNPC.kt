@@ -1,19 +1,41 @@
 package ru.hollowhorizon.hollowstory.common.npcs
 
-import net.minecraft.entity.LivingEntity
+import kotlinx.coroutines.runBlocking
 import ru.hollowhorizon.hollowstory.common.entities.NPCEntity
+import ru.hollowhorizon.hollowstory.common.npcs.tasks.HollowNPCTask
 
 interface IHollowNPC {
     val npcEntity: NPCEntity
 
+    fun makeTask(task: HollowNPCTask.() -> Unit) {
+        val pendingTask = HollowNPCTask(this)
+        npcEntity.goalSelector.addGoal(0, pendingTask)
 
-    fun stopFollow()
-
-    fun attackTarget(entity: LivingEntity, damage: Float) {
-
+        pendingTask.task()
     }
 
-    fun runAway(time: Float) {
-
+    fun waitInteract(icon: IconType) {
+        setIcon(icon)
+        synchronized(npcEntity.interactionWaiter) { (npcEntity.interactionWaiter as Object).wait() }
+        setIcon(IconType.NONE)
     }
+
+    fun asyncTask(task: HollowNPCTask.() -> Unit) {
+        val pendingTask = HollowNPCTask(this)
+
+        runBlocking { // Необходимо, чтобы игра не зависла, пока внутренние действия не будут выполнены
+            pendingTask.task()
+        }
+
+        npcEntity.goalSelector.addGoal(0, pendingTask)
+        pendingTask.async()
+    }
+
+    fun setIcon(icon: IconType) {
+        npcEntity.icon = icon
+    }
+}
+
+enum class IconType {
+    NONE, DIALOGUE, WARNING, QUESTION
 }

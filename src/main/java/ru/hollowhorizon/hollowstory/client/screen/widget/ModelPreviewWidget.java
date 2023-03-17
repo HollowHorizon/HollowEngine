@@ -77,7 +77,7 @@ public class ModelPreviewWidget extends Widget {
         this.originalHeight = height;
         this.parentWidth = pwidth;
         this.parentHeight = pheight;
-        this.previeNPC = new NPCEntity(new NPCSettings(), MC.level);
+        this.previeNPC = new NPCEntity(MC.level);
         Button.ITooltip tooltip = (button, matrixStack, mouseX, mouseY) -> {
 
         };

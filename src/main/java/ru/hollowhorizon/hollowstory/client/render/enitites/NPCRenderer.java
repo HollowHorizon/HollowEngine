@@ -3,21 +3,33 @@ package ru.hollowhorizon.hollowstory.client.render.enitites;
 import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.vertex.IVertexBuilder;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.AbstractGui;
 import net.minecraft.client.renderer.IRenderTypeBuffer;
+import net.minecraft.client.renderer.ItemRenderer;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.culling.ClippingHelper;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererManager;
+import net.minecraft.client.renderer.entity.LivingRenderer;
+import net.minecraft.client.renderer.model.ItemCameraTransforms;
 import net.minecraft.command.arguments.EntityAnchorArgument;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.EquipmentSlotType;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.vector.Matrix4f;
 import net.minecraft.util.math.vector.Vector3d;
 import ru.hollowhorizon.hc.HollowCore;
+import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2;
+import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2Kt;
+import ru.hollowhorizon.hollowstory.common.capabilities.NPCEntityCapability;
 import ru.hollowhorizon.hollowstory.common.entities.NPCEntity;
 import ru.hollowhorizon.hollowstory.common.entities.PrivateNPCEntity;
+import ru.hollowhorizon.hollowstory.common.npcs.IconType;
+import ru.hollowhorizon.hollowstory.common.registry.ModItems;
 
 import java.util.Arrays;
 import java.util.Optional;
@@ -125,6 +137,39 @@ public class NPCRenderer extends EntityRenderer<NPCEntity> {
                 return builder;
             }, packetLight);
         }
+
+        this.renderInteraction(entity, stack, buffer, packetLight, LivingRenderer.getOverlayCoords(entity, 0.0f));
+    }
+
+    private void renderInteraction(NPCEntity entity, MatrixStack stack, IRenderTypeBuffer buffer, int light, int overlay) {
+        if(entity.getIcon() == IconType.NONE) return;
+
+        float height = entity.getBbHeight() + 0.7f;
+        stack.pushPose();
+        stack.translate(0f, height, 0f);
+        stack.mulPose(this.entityRenderDispatcher.cameraOrientation());
+        stack.scale(0.8f,0.8f,0.8f);
+
+        ItemRenderer itemRenderer = Minecraft.getInstance().getItemRenderer();
+
+        ItemStack icon = ItemStack.EMPTY;
+        switch (entity.getIcon()) {
+            case DIALOGUE:
+                icon = new ItemStack(ModItems.DIALOGUE_ICON);
+                break;
+            case WARNING:
+                icon = new ItemStack(ModItems.WARN_ICON);
+                break;
+            case QUESTION:
+                icon = new ItemStack(ModItems.QUESTION_ICON);
+                break;
+            case NONE:
+                break;
+        }
+
+        itemRenderer.renderStatic(icon, ItemCameraTransforms.TransformType.GROUND, light, overlay, stack, buffer);
+
+        stack.popPose();
     }
 
     @Override

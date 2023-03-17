@@ -5,7 +5,9 @@ import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.loading.FMLLoader
 import ru.hollowhorizon.hc.common.scripting.HSCompiler
 import ru.hollowhorizon.hollowstory.common.capabilities.storyTeam
+import ru.hollowhorizon.hollowstory.common.events.StoryHandler
 import ru.hollowhorizon.hollowstory.common.files.HollowStoryDirHelper
+import ru.hollowhorizon.hollowstory.common.files.HollowStoryDirHelper.toReadablePath
 import ru.hollowhorizon.hollowstory.story.StoryEvent
 import ru.hollowhorizon.hollowstory.story.StoryScript
 import ru.hollowhorizon.hollowstory.story.StoryTeam
@@ -16,11 +18,38 @@ import kotlin.script.experimental.api.valueOrThrow
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
 
-class StoryExecutorThread(val team: StoryTeam, val variables: StoryVariables, val file: File) : Thread() {
+class StoryExecutorThread @JvmOverloads constructor(
+    val team: StoryTeam,
+    val variables: StoryVariables,
+    val file: File,
+    val ignoreSequence: Boolean = false,
+) : Thread() {
     override fun run() {
+        if (!ignoreSequence) {
+            val text = file.readText()
+
+            //Вообще говоря правильнее было бы анализировать аннотации при refineConfiguration, но я понятия не имею как оттуда отменить выполнение скрипта
+            val startAfter = if (text.contains("@file:StartAfter(")) {
+                val startAfterIndex = text.indexOf("@file:StartAfter(")
+                val startAfterEndIndex = text.indexOf(")", startAfterIndex)
+                text.substring(startAfterIndex + 18, startAfterEndIndex - 1)
+            } else {
+                ""
+            }
+
+            if (startAfter != "" && !team.completedEvents.contains(startAfter)) return
+            if (team.currentEvents.containsKey(file.toReadablePath()) || team.completedEvents.contains(file.toReadablePath())) return
+
+            team.currentEvents[file.toReadablePath()] = this
+
+        }
+        var hasErrors = false
 
         try {
-            if(FMLLoader.isProduction()) System.setProperty("kotlin.java.stdlib.jar", ModList.get().getModFileById("hc").file.filePath.toFile().absolutePath)
+            if (FMLLoader.isProduction()) System.setProperty(
+                "kotlin.java.stdlib.jar",
+                ModList.get().getModFileById("hc").file.filePath.toFile().absolutePath
+            )
 
             val story = HSCompiler.COMPILER.compile<StoryScript>(
                 HollowStoryDirHelper.CACHE_DIR,
@@ -40,9 +69,22 @@ class StoryExecutorThread(val team: StoryTeam, val variables: StoryVariables, va
 
             res.reports.forEach {
                 team.sendMessage("[ERROR] ${it.render()}")
+                hasErrors = true
             }
         } catch (e: Exception) {
-            team.sendMessage("[DEBUG] Error while compiling dialogue: ${e.stackTraceToString()}")
+            team.sendMessage("[DEBUG] Error while compiling event: ${e.stackTraceToString()}")
+            hasErrors = true
+        }
+
+        if (!ignoreSequence) {
+            team.currentEvents.remove(file.toReadablePath())
+
+            if (!hasErrors) {
+
+                team.completedEvents.add(file.toReadablePath())
+
+                StoryHandler.runAllPossible(team)
+            }
         }
     }
 }

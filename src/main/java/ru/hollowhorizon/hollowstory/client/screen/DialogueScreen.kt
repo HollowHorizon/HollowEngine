@@ -84,7 +84,6 @@ class DialogueScreen(location: File, val onCloseCallback: () -> Unit = {}) : Hol
                 WidgetPlacement.configureWidget(
                     { x, y, w, h ->
                         BaseButton(x, y, w, h, StringTextComponent(choice), { button ->
-                            Minecraft.getInstance().soundManager.play(SimpleSound.forUI(ForgeRegistries.SOUND_EVENTS.getValue("hollowstory:button_0".toRL()), 1F, 1F))
 
                             val c = choices[choice]!!
                             this.choices = emptyMap()
@@ -373,7 +372,7 @@ class DialogueScreen(location: File, val onCloseCallback: () -> Unit = {}) : Hol
                             if (!newType.format().equals(renderType.format())) renderBuffer.getBuffer(renderType)
                             else renderBuffer.getBuffer(newType)
                         } else {
-                            HollowCore.LOGGER.info("If you see this, then there is an error with rendering that you should report as a bug.")
+                            //HollowCore.LOGGER.info("If you see this, then there is an error with rendering that you should report as a bug.")
                             renderBuffer.getBuffer(renderType)
                         }
                     } else {

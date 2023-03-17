@@ -1,17 +1,34 @@
 package ru.hollowhorizon.hollowstory.story
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.util.ResourceLocation
 import ru.hollowhorizon.hollowstory.common.exceptions.StoryEventException
 import ru.hollowhorizon.hollowstory.common.exceptions.StoryPlayerNotFoundException
+import ru.hollowhorizon.hollowstory.common.hollowscript.story.StoryExecutorThread
 import ru.hollowhorizon.hollowstory.common.npcs.IHollowNPC
 import java.util.*
 import kotlin.collections.HashSet
 
 @Serializable
 class StoryTeam {
+    /**
+     * List of players in this team
+     */
     val players = HashSet<StoryPlayer>()
+    val variables = StoryVariables()
+    /**
+     * List of completed events from this team
+     */
+    var completedEvents = HashSet<String>()
+    /**
+     * List of current events from this team
+     */
+    @Transient //Transient because after restart we don't need to save story events, they will be started again
+    var currentEvents = HashMap<String, StoryExecutorThread>()
+
+    var progressManager = StoryProgressManager()
 
     fun add(player: PlayerEntity): StoryPlayer {
         val storyPlayer = StoryPlayer(player)
@@ -71,19 +88,7 @@ class StoryTeam {
     }
 
     fun nearestTo(npc: IHollowNPC): StoryPlayer {
-        var nearestPlayer: StoryPlayer? = null
-        var nearestDistance = Float.MAX_VALUE
-        for (player in this.players) {
-            if(!player.isOnline()) continue
-
-            val distance = player.mcPlayer?.distanceToSqr(npc.npcEntity)?.toFloat() ?: Float.MAX_VALUE
-            if (distance < nearestDistance) {
-                nearestDistance = distance
-                nearestPlayer = player
-            }
-        }
-
-        return nearestPlayer ?: throw StoryEventException("No players in team")
+        return getAllOnline().minByOrNull { it.mcPlayer!!.distanceTo(npc.npcEntity) } ?: throw StoryEventException("No players in team")
     }
 
     fun openDialogue(toRL: ResourceLocation) {

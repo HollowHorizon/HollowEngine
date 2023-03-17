@@ -15,6 +15,9 @@ open class DialogueScriptBase(val screen: DialogueScreen, val player: HDCharacte
 
     }
 
+    infix fun HDCharacter.play(sound: String): HDCharacter {
+        return this
+    }
     infix fun HDCharacter.say(text: String) {
         val characters = screen.scene.characters
         if (screen.scene.autoSwitch && !characters.contains(this)) {

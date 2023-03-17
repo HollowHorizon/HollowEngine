@@ -11,7 +11,7 @@ import ru.hollowhorizon.hollowstory.common.entities.NPCEntity
 import ru.hollowhorizon.hollowstory.common.npcs.NPCSettings
 
 class NPCBuilderScreen : HollowScreen("".toSTC()) {
-    val npc: NPCEntity = NPCEntity(NPCSettings(), Minecraft.getInstance().level)
+    val npc: NPCEntity = NPCEntity(Minecraft.getInstance().level)
 
     override fun init() {
         super.init()

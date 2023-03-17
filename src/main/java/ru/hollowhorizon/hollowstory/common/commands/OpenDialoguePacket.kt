@@ -8,7 +8,5 @@ import ru.hollowhorizon.hollowstory.common.files.HollowStoryDirHelper.fromReadab
 
 @HollowPacketV2
 class OpenDialoguePacket : Packet<String>({ player, file ->
-    Minecraft.getInstance().setScreen(DialogueScreen(
-        fromReadablePath(file)
-    ) { null })
+    Minecraft.getInstance().setScreen(DialogueScreen(file.fromReadablePath()) {})
 })
