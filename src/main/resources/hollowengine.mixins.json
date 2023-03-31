@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "ru.hollowhorizon.hollowengine.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "hollowstory.refmap.json",
+  "mixins": [
+  ],
+  "client": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
