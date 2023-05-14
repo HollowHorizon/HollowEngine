@@ -139,61 +139,94 @@ object IMGUIHandler {
     }
 
     /**
-     * [ImGuiCol_Text] = Цвет для текста, который будет использоваться для всего меню.
-     * [ImGuiCol_TextDisabled] = Цвет для "не активного/отключенного текста".
-     * [ImGuiCol_WindowBg] = Цвет заднего фона.
-     * [ImGuiCol_PopupBg] = Цвет,который используется для заднего фона в ImGui::Combo и ImGui::MenuBar.
-     * [ImGuiCol_Border] = Цвет,который используется для обводки вашего меню.
-     * [ImGuiCol_BorderShadow] = Цвет для тени обводки.
-     * [ImGuiCol_FrameBg] = Цвет для ImGui::InputText и для заднего фона ImGui::Checkbox
-     * [ImGuiCol_FrameBgHovered] = Цвет,который используется практически так же что и тот, который выше, кроме того, что он изменяет цвет при наводке на ImGui::Checkbox.
-     * [ImGuiCol_FrameBgActive] = Активный цвет.
-     * [ImGuiCol_TitleBg] = Цвет для изменения главного места в самом верху меню.
-     * [ImGuiCol_TitleBgCollapsed] = Свернутый цвет тайтла.
-     * [ImGuiCol_TitleBgActive] = Цвет активного окна тайтла, т.е если вы имеете меню с несколькими окнами, то этот цвет будет использоваться для окна, в котором вы будете находиться на данный момент.
-     * [ImGuiCol_MenuBarBg] = Цвет для меню бара. (Не во всех сурсах видел такое, но все же)
-     * [ImGuiCol_ScrollbarBg] = Цвет для заднего фона "полоски", через которую можно "листать" функции в софте по вертикале.
-     * [ImGuiCol_ScrollbarGrab] = Цвет для сколл бара, т.е для "полоски", которая используется для передвижения меню по вертикали.
-     * [ImGuiCol_ScrollbarGrabHovered] = Цвет для "свернутого/не используемого" скролл бара.
-     * [ImGuiCol_ScrollbarGrabActive] = Цвет для "активной" деятельности в том окне, где находится скролл бар.
-     * [ImGuiCol_ComboBg] = Цвет для заднего фона для ImGui::Combo.
-     * [ImGuiCol_CheckMark] = Цвет для вашего ImGui::Checkbox.
-     * [ImGuiCol_SliderGrab] = Цвет для ползунка ImGui::SliderInt и ImGui::SliderFloat.
-     * [ImGuiCol_SliderGrabActive] = Цвет ползунка, который будет отображаться при использовании SliderFloat и SliderInt.
-     * [ImGuiCol_Button] = цвет для кнопки.
-     * [ImGuiCol_ButtonHovered] = Цвет, при наведении на кнопку.
-     * [ImGuiCol_ButtonActive] = Используемый цвет кнопки.
-     * [ImGuiCol_Header] = Цвет для ImGui::CollapsingHeader.
-     * [ImGuiCol_HeaderHovered] = Цвет,при наведении на ImGui::CollapsingHeader.
-     * [ImGuiCol_HeaderActive] = Используемый цвет ImGui::CollapsingHeader.
-     * [ImGuiCol_Column] = Цвет для "полоски отделения" ImGui::Column и ImGui::NextColumn.
-     * [ImGuiCol_ColumnHovered] = Цвет,при наведении на "полоску отделения" ImGui::Column и ImGui::NextColumn.
-     * [ImGuiCol_ColumnActive] = Используемый цвет для "полоски отделения" ImGui::Column и ImGui::NextColumn.
-     * [ImGuiCol_ResizeGrip] = Цвет для "треугольника" в правом нижнем углу, который используется для увеличения или уменьшения размеров меню.
-     * [ImGuiCol_ResizeGripHovered] = Цвет, при наведении на "треугольника" в правом нижнем углу, который используется для увеличения или уменьшения размеров меню.
-     * [ImGuiCol_ResizeGripActive] = Используемый цвет для "треугольника" в правом нижнем углу, который используется для увеличения или уменьшения размеров меню.
-     * [ImGuiCol_CloseButton] = Цвет для кнопки-закрытия меню.
-     * [ImGuiCol_CloseButtonHovered] = Цвет, при наведении на кнопку-закрытия меню.
-     * [ImGuiCol_CloseButtonActive] = Используемый цвет для кнопки-закрытия меню.
+     * [ImGuiCol.Text] = Цвет для текста, который будет использоваться для всего меню.
      *
-     * <-------------------------------------------------------------------------------------------------------------->
-     * Данные параметры для меня не известны, т.к. не использую их на деле. Но это что-то про графики
+     * [ImGuiCol.TextDisabled] = Цвет для "не активного/отключенного текста".
      *
-     * [ImGuiCol_PlotLines] =
-     * [ImGuiCol_PlotLinesHovered] =
-     * [ImGuiCol_PlotHistogram] =
-     * [ImGuiCol_PlotHistogramHovered] =
-     * <-------------------------------------------------------------------------------------------------------------->
-     * [ImGuiCol_TextSelectedBg] = Цвет выбранного текста,в ImGui::MenuBar.
-     * [ImGuiCol_ModalWindowDarkening] = Цвет "Затемнения окна" вашего меню.
+     * [ImGuiCol.WindowBg] = Цвет заднего фона.
+     *
+     * [ImGuiCol.PopupBg] = Цвет, который используется для заднего фона в ImGui::Combo и ImGui::MenuBar.
+     *
+     * [ImGuiCol.Border] = Цвет, который используется для обводки вашего меню.
+     *
+     * [ImGuiCol.BorderShadow] = Цвет для тени обводки.
+     *
+     * [ImGuiCol.FrameBg] = Цвет для ImGui::InputText и для заднего фона ImGui::Checkbox
+     *
+     * [ImGuiCol.FrameBgHovered] = Цвет,который используется практически так же что и тот, который выше, кроме того, что он изменяет цвет при наводке на ImGui::Checkbox.
+     *
+     * [ImGuiCol.FrameBgActive] = Активный цвет.
+     *
+     * [ImGuiCol.TitleBg] = Цвет для изменения главного места в самом верху меню.
+     *
+     * [ImGuiCol.TitleBgCollapsed] = Свернутый цвет тайтла.
+     *
+     * [ImGuiCol.TitleBgActive] = Цвет активного окна тайтла, т.е если вы имеете меню с несколькими окнами, то этот цвет будет использоваться для окна, в котором вы будете находиться на данный момент.
+     *
+     * [ImGuiCol.MenuBarBg] = Цвет для меню бара. (Не во всех сурсах видел такое, но все же)
+     *
+     * [ImGuiCol.ScrollbarBg] = Цвет для заднего фона "полоски", через которую можно "листать" функции в софте по вертикале.
+     *
+     * [ImGuiCol.ScrollbarGrab] = Цвет для сколл бара, т.е для "полоски", которая используется для передвижения меню по вертикали.
+     *
+     * [ImGuiCol.ScrollbarGrabHovered] = Цвет для "свернутого/не используемого" скролл бара.
+     *
+     * [ImGuiCol.ScrollbarGrabActive] = Цвет для "активной" деятельности в том окне, где находится скролл бар.
+     *
+     * [ImGuiCol.ComboBg] = Цвет для заднего фона для ImGui::Combo.
+     *
+     * [ImGuiCol.CheckMark] = Цвет для вашего ImGui::Checkbox.
+     *
+     * [ImGuiCol.SliderGrab] = Цвет для ползунка ImGui::SliderInt и ImGui::SliderFloat.
+     *
+     * [ImGuiCol.SliderGrabActive] = Цвет ползунка, который будет отображаться при использовании SliderFloat и SliderInt.
+     *
+     * [ImGuiCol.Button] = цвет для кнопки.
+     *
+     * [ImGuiCol.ButtonHovered] = Цвет, при наведении на кнопку.
+     *
+     * [ImGuiCol.ButtonActive] = Используемый цвет кнопки.
+     *
+     * [ImGuiCol.Header] = Цвет для ImGui::CollapsingHeader.
+     *
+     * [ImGuiCol.HeaderHovered] = Цвет,при наведении на ImGui::CollapsingHeader.
+     *
+     * [ImGuiCol.HeaderActive] = Используемый цвет ImGui::CollapsingHeader.
+     *
+     * [ImGuiCol.Column] = Цвет для "полоски отделения" ImGui::Column и ImGui::NextColumn.
+     *
+     * [ImGuiCol.ColumnHovered] = Цвет,при наведении на "полоску отделения" ImGui::Column и ImGui::NextColumn.
+     *
+     * [ImGuiCol.ColumnActive] = Используемый цвет для "полоски отделения" ImGui::Column и ImGui::NextColumn.
+     *
+     * [ImGuiCol.ResizeGrip] = Цвет для "треугольника" в правом нижнем углу, который используется для увеличения или уменьшения размеров меню.
+     *
+     * [ImGuiCol.ResizeGripHovered] = Цвет, при наведении на "треугольника" в правом нижнем углу, который используется для увеличения или уменьшения размеров меню.
+     *
+     * [ImGuiCol.ResizeGripActive] = Используемый цвет для "треугольника" в правом нижнем углу, который используется для увеличения или уменьшения размеров меню.
+     *
+     * [ImGuiCol.CloseButton] = Цвет для кнопки-закрытия меню.
+     *
+     * [ImGuiCol.CloseButtonHovered] = Цвет, при наведении на кнопку-закрытия меню.
+     *
+     * [ImGuiCol.CloseButtonActive] = Используемый цвет для кнопки-закрытия меню.
+     *
+     * [ImGuiCol.TextSelectedBg] = Цвет выбранного текста,в ImGui::MenuBar.
+     *
+     * [ImGuiCol.ModalWindowDarkening] = Цвет "Затемнения окна" вашего меню.
      *
      * Редко вижу данные обозначения, но все таки решил их сюда поместить.
-     * [ImGuiCol_Tab] = Цвет для табов в меню.
-     * [ImGuiCol_TabActive] = Активный цвет табов, т.е при нажатии на таб у вас будет этот цвет.
-     * [ImGuiCol_TabHovered] = Цвет, который будет отображаться при наведении на таб.
-     * [ImGuiCol_TabSelected] = Цвет,при котором,используется тогда, когда вы будете находится в одном из табов.
-     * [ImGuiCol_TabText] = Цвет текста, который распространяется только на табы.
-     * [ImGuiCol_TabTextActive] = Активный цвет текста для табов.
+     * [ImGuiCol.Tab] = Цвет для табов в меню.
+     *
+     * [ImGuiCol.TabActive] = Активный цвет табов, т.е при нажатии на таб у вас будет этот цвет.
+     *
+     * [ImGuiCol.TabHovered] = Цвет, который будет отображаться при наведении на таб.
+     *
+     * [ImGuiCol.TabSelected] = Цвет,при котором, используется тогда, когда вы будете находиться в одном из табов.
+     *
+     * [ImGuiCol.TabText] = Цвет текста, который распространяется только на табы.
+     *
+     * [ImGuiCol.TabTextActive] = Активный цвет текста для табов.
      */
 
     fun loadFont(font: ResourceLocation, size: Float): ImFont {

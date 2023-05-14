@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.dialogues
 
-import net.minecraft.client.Minecraft
 import net.minecraft.entity.Entity
 import net.minecraft.entity.EntityType
 import net.minecraft.entity.LivingEntity
@@ -10,35 +9,41 @@ import net.minecraft.item.Items
 import net.minecraft.nbt.CompoundNBT
 import net.minecraft.nbt.JsonToNBT
 import net.minecraft.util.text.ITextComponent
+import net.minecraftforge.fml.server.ServerLifecycleHooks
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.utils.toRL
 import ru.hollowhorizon.hc.client.utils.toSTC
+import ru.hollowhorizon.hollowengine.common.npcs.ICharacter
 
-class HDCharacter(val entity: LivingEntity) : HDObject() {
-    var name: ITextComponent = entity.displayName
+class HDCharacter(val type: LivingEntity) : HDObject(), ICharacter {
+    var mcName: ITextComponent = type.displayName
+    override val characterName
+        get() = mcName.string
+    override val entityType: CompoundNBT
+        get() = type.serializeNBT()
 
     constructor(
         location: String,
         characterName: String = "%default%",
         nbt: String = "",
     ) : this(EntityType.loadEntityRecursive(
-        generateEntityNBT(location, nbt), Minecraft.getInstance().player!!.level
+        generateEntityNBT(location, nbt), ServerLifecycleHooks.getCurrentServer().overworld()
     ) { entity: Entity ->
         entity
     } as LivingEntity) {
 
         if (characterName != "%default%") {
-            this.name = characterName.toSTC()
+            this.mcName = characterName.toSTC()
         }
     }
 
     init {
-        this.entity.customName = name
-        this.entity.isCustomNameVisible = true
+        this.type.customName = mcName
+        this.type.isCustomNameVisible = true
     }
 
     fun setItem(slot: EquipmentSlotType, item: String) {
-        if (item.isEmpty()) entity.setItemSlot(slot, ItemStack.EMPTY)
+        if (item.isEmpty()) type.setItemSlot(slot, ItemStack.EMPTY)
 
         val parsed = item.split("@")
 
@@ -52,7 +57,7 @@ class HDCharacter(val entity: LivingEntity) : HDObject() {
             if (parsed.size > 2) JsonToNBT.parseTag(parsed[2])
             else CompoundNBT()
 
-        entity.setItemSlot(slot, ItemStack(forgeItem, count, nbt))
+        type.setItemSlot(slot, ItemStack(forgeItem, count, nbt))
     }
 
 }

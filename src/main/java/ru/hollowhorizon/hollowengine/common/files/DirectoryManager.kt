@@ -39,6 +39,8 @@ object DirectoryManager {
         return getScripts().filter { it.path.endsWith(".se.kts") }
     }
 
+    fun getMainScripts(): Collection<File> = getScripts().filter { it.path.endsWith(".main.kts") }
+
     fun findMainScript(): File? {
         val scripts = getScripts().filter { it.endsWith(".main.kts") }
 

@@ -1,37 +1,47 @@
 package ru.hollowhorizon.hollowengine.story
 
+import com.google.common.reflect.TypeToken
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.client.audio.SimpleSound
-import net.minecraft.entity.EntityType
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.nbt.EndNBT
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.RayTraceContext
 import net.minecraft.util.math.RayTraceResult
 import net.minecraft.util.math.vector.Vector3d
 import net.minecraft.world.World
-import net.minecraftforge.common.MinecraftForge
-import net.minecraftforge.event.ServerChatEvent
 import net.minecraftforge.fml.loading.FMLEnvironment
 import net.minecraftforge.fml.server.ServerLifecycleHooks
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.utils.WorldHelper
+import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
+import ru.hollowhorizon.hc.client.utils.nbt.deserializeNoInline
+import ru.hollowhorizon.hc.client.utils.nbt.serializeNoInline
 import ru.hollowhorizon.hc.client.utils.toRL
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2.Companion.get
 import ru.hollowhorizon.hc.common.capabilities.syncEntity
 import ru.hollowhorizon.hollowengine.common.capabilities.NPCEntityCapability
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.exceptions.StoryVariableNotFoundException
-import ru.hollowhorizon.hollowengine.common.exceptions.StoryVariableWrongTypeException
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
-import ru.hollowhorizon.hollowengine.dialogues.generateEntityNBT
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
+import kotlin.reflect.KProperty
 
-open class StoryEvent(val team: StoryTeam, val variables: StoryVariables, val eventName: String) {
-    val forgeEvents = HashSet<ForgeEvent<*>>()
+
+open class StoryEvent(val team: StoryTeam, val eventPath: String) {
+    private val data = team.eventsData
+        .find { it.eventPath == eventPath } ?: StoryEventData(eventPath)
+        .also { team.eventsData.add(it) }
     private val eventNpcs: MutableList<IHollowNPC> = arrayListOf()
-    var name: String = "Event <${this.eventName}>"
+    private val atomicInteger = AtomicInteger()
+    private val executor = Executors.newSingleThreadExecutor()
+    private val delayedTasks = HashSet<DelayedTask>()
+    val forgeEvents = HashSet<ForgeEvent<*>>()
+    var name: String = "Event <${this.eventPath}>"
     var description: String = "No description"
     var hideInEventList = true
     var safeForExit = false
@@ -41,6 +51,20 @@ open class StoryEvent(val team: StoryTeam, val variables: StoryVariables, val ev
 
     fun lock() = synchronized(lock) { lock.wait() }
     fun unlock() = synchronized(lock) { lock.notifyAll() }
+
+    infix fun IHollowNPC.say(text: String) {
+        team.getAllOnline() //для всех игроков команды, которые в сети
+            .filter {
+                it.distToSqr(
+                    this.npcEntity.x,
+                    this.npcEntity.y,
+                    this.npcEntity.z
+                ) < 2500
+            } //Если игрок в радиусе 50 блоков от NPC
+            .forEach { it.send("§6[§7${this.characterName}§6]§7 $text") } //Вывод сообщения от лица NPC
+    }
+
+    fun <T> async(task: () -> T) = executor.submit(task) //Создать асинхронную задачу
 
     fun randomPos(distance: Int = 25, canPlayerSee: Boolean = false): BlockPos {
         val player = team.getHost().mcPlayer ?: team.getAllOnline().first().mcPlayer
@@ -55,20 +79,6 @@ open class StoryEvent(val team: StoryTeam, val variables: StoryVariables, val ev
             if (abs(start.y - player.blockPosition().y) > 10) continue // Если игрок слишком далеко от точки, то ищем другую
             if (!player.canSee(start) || canPlayerSee) return start
         }
-    }
-
-    fun input(vararg values: String): String {
-        var input = ""
-        waitForgeEvent<ServerChatEvent> { event ->
-            input = event.message
-
-            if(values.isEmpty()) return@waitForgeEvent true
-
-            return@waitForgeEvent event.message in values
-
-        }
-
-        return input
     }
 
     private fun PlayerEntity.canSee(pos: BlockPos): Boolean {
@@ -86,7 +96,7 @@ open class StoryEvent(val team: StoryTeam, val variables: StoryVariables, val ev
     fun play(sound: String) {
         Minecraft.getInstance().soundManager.play(
             SimpleSound.forUI(
-                ForgeRegistries.SOUND_EVENTS.getValue(sound.toRL()),
+                ForgeRegistries.SOUND_EVENTS.getValue(sound.toRL())!!,
                 1F,
                 1F
             )
@@ -99,25 +109,27 @@ open class StoryEvent(val team: StoryTeam, val variables: StoryVariables, val ev
         }
     }
 
+    fun wait(predicate: () -> Boolean) {
+        while (predicate()) {
+            Thread.sleep(1000)
+        }
+    }
+
     fun whenOnServer(task: () -> Unit) {
         if (!FMLEnvironment.dist.isClient) {
             task()
         }
     }
 
-    fun makeNPC(fromName: NPCSettings, level: World = this.level, pos: BlockPos): IHollowNPC {
+    fun makeNPC(settings: NPCSettings, level: World = this.level, pos: BlockPos): IHollowNPC {
         val npc = NPCEntity(level)
-        npc.setPos(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
+        npc.setPos(pos.x.toDouble() + 0.5, pos.y.toDouble(), pos.z.toDouble() + 0.5)
         level.addFreshEntity(npc)
         this.eventNpcs.add(npc)
 
-        npc.getCapability(get<NPCEntityCapability>()).ifPresent { cap: NPCEntityCapability ->
-            cap.settings = fromName
-            val entity = cap.settings.puppetEntity.split("@".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
-            val nbt = if (entity.size > 1) entity[1] else ""
-            npc.puppet = EntityType.loadEntityRecursive(generateEntityNBT(entity[0], nbt), level) { e -> e }
-
-            cap.syncEntity(npc)
+        npc.getCapability(get<NPCEntityCapability>()).ifPresent { capability ->
+            capability.settings = settings
+            capability.syncEntity(npc)
         }
 
         return npc
@@ -146,32 +158,85 @@ open class StoryEvent(val team: StoryTeam, val variables: StoryVariables, val ev
     fun clearEvent() {
         this.eventNpcs.forEach { it.npcEntity.remove() }
         this.progressManager.clear()
-        this.forgeEvents.forEach { MinecraftForge.EVENT_BUS.unregister(it) }
+        this.team.eventsData.removeIf { this.eventPath == it.eventPath }
     }
-}
 
-@Serializable
-class StoryVariables {
-    private val variables = ArrayList<StoryVariable>()
+    @Suppress("UnstableApiUsage")
+    inner class StoryStorage<T : Any?>(var default: T) {
+        private val typeToken = TypeToken.of(default!!.javaClass)
 
-    @Suppress("UNCHECKED_CAST")
-    fun <T> get(name: String): T {
-        val variable = variables.find { it.name == name }
-        if (variable != null) {
-            return variable.value as T ?: throw StoryVariableWrongTypeException(name)
-        } else {
-            throw StoryVariableNotFoundException(name)
+        @Suppress("UNCHECKED_CAST")
+        operator fun getValue(current: Any?, property: KProperty<*>): T {
+            val nbt = data.variables.get(property.name)
+
+            if (nbt == null || nbt is EndNBT) {
+                return default
+            }
+
+            return NBTFormat.deserializeNoInline(nbt, typeToken.rawType) as T
+        }
+
+        operator fun setValue(current: Any?, property: KProperty<*>, any: T) {
+            default = any
+
+            if (default == null) {
+                data.variables.put(property.name, EndNBT.INSTANCE)
+                return
+            }
+            data.variables.put(property.name, NBTFormat.serializeNoInline(default!!, typeToken.rawType))
         }
     }
 
-    fun <T> set(name: String, value: T) {
-        val res = variables.find { it.name == name }
+    inner class StagedTask(vararg subTasks: () -> Unit) {
+        private val thread = Thread {
+            while (subTaskId < subTasks.size) {
+                subTasks[subTaskId++]()
+                data.stagedTasksStates[taskId] = subTaskId
+            }
+        }
+        private val taskId = atomicInteger.getAndIncrement()
+        private var subTaskId = data.stagedTasksStates.computeIfAbsent(taskId) { 0 }
 
-        if (res == null) {
-            variables.add(StoryVariable(name, value))
-            return
-        } else {
-            res.value = value
+        val complete: Boolean
+            get() = thread.isAlive
+
+        init {
+            thread.start()
+        }
+
+        fun await() {
+            while (thread.isAlive) {
+                Thread.sleep(1000)
+            }
+        }
+    }
+
+    inner class DelayedTask(time: Float, task: () -> Unit) {
+        private val taskId = atomicInteger.getAndIncrement()
+        private val timer = data.delayedTaskStates.computeIfAbsent(taskId) { Timer(time) }
+
+        val complete: Boolean
+            get() = thread.isAlive
+
+        private val thread = Thread {
+            while (timer.decrease() > 0) {
+                Thread.sleep(1000)
+            }
+
+            task()
+
+            delayedTasks.remove(this)
+        }
+
+        init {
+            delayedTasks.add(this)
+            thread.start()
+        }
+
+        fun await() {
+            while (thread.isAlive) {
+                Thread.sleep(1000)
+            }
         }
     }
 }

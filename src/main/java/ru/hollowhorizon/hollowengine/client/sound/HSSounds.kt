@@ -8,7 +8,7 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 
 object HSSounds {
     @JvmField
-    val SLIDER_BUTTON = HollowSoundEvent(HollowEngine.MODID, "slider_button")
+    val SLIDER_BUTTON = HollowSoundEvent(HollowEngine.MODID, "button_0")
 
     @JvmStatic
     fun init() {

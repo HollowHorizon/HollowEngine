@@ -1,26 +1,12 @@
 package ru.hollowhorizon.hollowengine.dialogues
 
-/**
- * Интерфейс, обрабатывающий скрипт диалога. Желательно, чтобы скрипт обрабатывался на сервере во избежание уязвимостей.
- */
 interface IDialogueExecutor {
-    /**
-     * Метод [waitContinue] вызывается в скриптах, например при [DialogueScriptBase.waitClick], он просто ждёт, пока ему не позволят продолжить скрипт.
-     */
-    fun waitContinue()
+    fun waitAction()
 
-    /**
-     * Метод [updateScene] вызывается в скриптах, при каких либо изменениях в сцене, например добавление/удаление персонажа, его положения, добавление картинок и т.д.
-     */
-    fun updateScene(scene: HDScene)
+    fun updateScene(scene: DialogueScene)
 
-    /**
-     * Метод [applyChoice] вызывается в скриптах, при запросе выбора одного из вариантов ответа, возвращается индекс выбранного ответа.
-     */
     fun applyChoice(choices: Collection<String>): Int
 
-    /**
-     * Метод [say] вызывается, когда персонаж что-то говорит, в разных случаях это должно обрабатываться по-разному, т.е. если диалог в чате, то и вывод в чат, если диалог в кастомном GUI, то и вывод должен идти в него.
-     */
-    fun say(character: HDCharacter, text: String)
+    fun stop()
+
 }

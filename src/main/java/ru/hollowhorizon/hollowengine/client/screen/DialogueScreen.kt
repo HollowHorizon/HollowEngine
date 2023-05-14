@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.client.screen;
+package ru.hollowhorizon.hollowengine.client.screen
 
 import com.mojang.blaze3d.matrix.MatrixStack
 import com.mojang.blaze3d.systems.RenderSystem
@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.audio.SimpleSound
 import net.minecraft.client.renderer.RenderHelper
 import net.minecraft.client.renderer.RenderType
+import net.minecraft.entity.EntityType
 import net.minecraft.entity.LivingEntity
 import net.minecraft.util.ResourceLocation
 import net.minecraft.util.math.vector.Vector3f
@@ -20,33 +21,20 @@ import ru.hollowhorizon.hc.client.screens.util.WidgetPlacement
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hollowengine.client.screen.widget.dialogue.DialogueTextBox
-import ru.hollowhorizon.hollowengine.common.hollowscript.dialogues.DialogueExecutorThread
-import ru.hollowhorizon.hollowengine.dialogues.HDImage
-import ru.hollowhorizon.hollowengine.dialogues.HDScene
-import java.io.File
+import ru.hollowhorizon.hollowengine.client.sound.HSSounds
+import ru.hollowhorizon.hollowengine.dialogues.DialogueScene
 import java.util.*
 import kotlin.math.atan
 import kotlin.math.pow
 
-class DialogueScreen(location: File, private val onCloseCallback: () -> Unit = {}) : HollowScreen(StringTextComponent("")) {
+class DialogueScreen : HollowScreen(StringTextComponent("")) {
     var background: String? = null
-    private var imageToRemove: HDImage? = null
-    private var imageToAdd: HDImage? = null
-    private val images: ArrayList<HDImage> = ArrayList()
-    val scene = HDScene(this)
     private val clickWaiter = Object()
-    private val animAddCharacter = Object()
-    private val animRemoveCharacter = Object()
-    private val animDelay = Object()
-    private val imageAnimAddWaiter = Object()
-    private val imageAnimRemoveWaiter = Object()
     var textBox: DialogueTextBox? = null
-    private var choices: Map<String, DialogueChoice> = emptyMap()
-    private var animAddCounter = 0
-    private var animRemoveCounter = 0
+
     var currentName: ITextComponent = StringTextComponent("")
-    var crystalAnimator = GuiAnimator.Looped(0, 20, 1.5F) { x ->
-        if(x < 0.5F) 4F * x * x * x
+    var crystalAnimator = GuiAnimator.Reversed(0, 20, 1.5F) { x ->
+        if (x < 0.5F) 4F * x * x * x
         else 1F - (-2 * x + 2.0).pow(3.0).toFloat() / 2F
     }
     private var hasChoice = false
@@ -59,10 +47,10 @@ class DialogueScreen(location: File, private val onCloseCallback: () -> Unit = {
     var OVERLAY = "hollowengine:textures/gui/dialogues/overlay.png"
     var NAME_OVERLAY = "hollowengine:textures/gui/dialogues/name_overlay.png"
     var CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/choice_button.png"
-
-    init {
-        DialogueExecutorThread(this, location).start()
-    }
+    val characters = ArrayList<LivingEntity>()
+    val choices = ArrayList<String>()
+    var currentChoice = 0
+    private val choiceWaiter = Object()
 
 
     override fun init() {
@@ -75,34 +63,29 @@ class DialogueScreen(location: File, private val onCloseCallback: () -> Unit = {
             )
         )
 
-        for ((i, choice) in choices.keys.withIndex()) {
+        for ((i, choice) in choices.withIndex()) {
 
             this.addButton(
                 WidgetPlacement.configureWidget(
                     { x, y, w, h ->
                         BaseButton(x, y, w, h, StringTextComponent(choice), { button ->
 
-                            val c = choices[choice]!!
-                            this.choices = emptyMap()
-                            init()
-
-                            if (c.action != null) {
-                                Thread {
-                                    hasChoice = true
-                                    waitClick()
-                                    hasChoice = false
-                                    c.action!!.invoke()
-                                }.start()
-
-
+                            synchronized(this.choiceWaiter) {
+                                this.choiceWaiter.notifyAll()
                             }
 
+                            currentChoice = i
 
-                        }, CHOICE_BUTTON.toRL(), textColor = 0xFFFFFF, textColorHovered = 0xEDC213)
+                            init()
+
+                        }, CHOICE_BUTTON.toRL(), textColor = 0xFFFFFF, textColorHovered = 0xEDC213).apply {
+
+                        }
                     }, Alignment.CENTER, 0, this.height / 3 - 25 * i, this.width, this.height, 320, 20
                 )
             )
         }
+        choices.clear()
     }
 
     @Suppress("DEPRECATION")
@@ -110,8 +93,8 @@ class DialogueScreen(location: File, private val onCloseCallback: () -> Unit = {
 
         //Я не знаю почему при выборе варианта ответа скипается одно сообщение, но если в этот момент запустить ожидание клика, а после кликнуть, то все работает как надо
         //Очень странный костыль... Когда-нибудь я разберусь?
-        if(hasChoice) {
-            if(hasChoiceTicker > 10) {
+        if (hasChoice) {
+            if (hasChoiceTicker > 10) {
                 notifyClick()
                 hasChoiceTicker = 0
             } else {
@@ -128,7 +111,7 @@ class DialogueScreen(location: File, private val onCloseCallback: () -> Unit = {
             blit(stack, 0, 0, 0F, 0F, this.width, this.height, this.width, this.height)
         }
         drawCharacters(mouseX, mouseY)
-        drawImages(stack)
+        //drawImages(stack)
 
         RenderSystem.color4f(col.r, col.g, col.b, col.a)
         drawStatus(stack, partialTick)
@@ -151,9 +134,6 @@ class DialogueScreen(location: File, private val onCloseCallback: () -> Unit = {
 
         if (delayTicks > 0) delayTicks--
         else if (delayTicks == 0) {
-            synchronized(animDelay) {
-                animDelay.notify()
-            }
             delayTicks = -1
         }
     }
@@ -187,96 +167,38 @@ class DialogueScreen(location: File, private val onCloseCallback: () -> Unit = {
     }
 
     private fun drawStatus(stack: MatrixStack, partialTick: Float) {
-        if (this.textBox?.isComplete == true) {
+        if (this.textBox?.complete == true) {
             Minecraft.getInstance().textureManager.bind(STATUS_ICON.toRL())
             blit(stack, this.width - 60 + crystalAnimator.value, this.height - 47, 0F, 0F, 40, 40, 40, 40)
             crystalAnimator.update(partialTick)
         }
     }
 
-    override fun tick() {
-        crystalAnimator.tick()
-        super.tick()
-    }
-
-    private fun drawImages(stack: MatrixStack) {
-        for (image in images) {
-            if (image == imageToAdd) {
-                if (!image.animate) synchronized(imageAnimAddWaiter) {
-                    imageAnimAddWaiter.notify()
-                }
-
-                image.alpha += 0.07F
-
-                if (image.alpha >= 1F) {
-                    image.alpha = 1F
-                    synchronized(imageAnimAddWaiter) {
-                        imageAnimAddWaiter.notify()
-                    }
-                }
-            }
-
-            image.render(stack, width, height)
-
-            if (image == imageToRemove) {
-                if (!image.animate) synchronized(imageAnimRemoveWaiter) {
-                    imageAnimRemoveWaiter.notify()
-                }
-                image.alpha -= 0.07F
-                if (image.alpha <= 0F) {
-                    image.alpha = 0F
-                    synchronized(imageAnimRemoveWaiter) {
-                        imageAnimRemoveWaiter.notify()
-                    }
-                }
-            }
-        }
-    }
 
     private fun drawCharacters(mouseX: Int, mouseY: Int) {
-        val count = scene.characters.size
+        val count = characters.size
         val w = this.width / (count + 1)
 
         for (i in 0 until count) {
-            val character = scene.characters[i]
+            val character = characters[i]
 
             var x = (i + 1F) * w
             var y = this.height * 0.85F
 
-            if (character == scene.characterToAdd) {
-                if (animAddCounter < 100) {
-                    y += 100 - animAddCounter
-                    animAddCounter += 4
-                } else {
-                    synchronized(animAddCharacter) {
-                        animAddCharacter.notify()
-                    }
-                }
-            } else if (character == scene.characterToRemove) {
-                if (animRemoveCounter < 100) {
-                    y += animRemoveCounter
-                    animRemoveCounter += 4
-                } else {
-                    synchronized(animRemoveCharacter) {
-                        animRemoveCharacter.notify()
-                    }
-                    break
-                }
-            }
-
-            var scale = if (scene.currentCharacter == character) 72F else 70F
-            scale *= character.scale
-            x += character.translate.x
-            y += character.translate.y
-            val brightness = if (scene.currentCharacter == character) 1F else 0.5F
+            //var scale = if (scene.currentCharacter == character) 72F else 70F
+            //scale *= character.scale
+            //x += character.translate.x
+            //y += character.translate.y
+            //val brightness = if (scene.currentCharacter == character) 1F else 0.5F
+            //character.type.customName = character.mcName
             drawEntity(
                 x,
                 y,
-                scale,
-                x - mouseX - character.rotate.x,
-                y - this.height * 0.35f - mouseY - character.rotate.y,
-                character.entity,
-                brightness
+                70f,
+                x - mouseX,
+                y - this.height * 0.35f - mouseY,
+                character,
+                1.0F
             )
         }
 
@@ -284,39 +206,22 @@ class DialogueScreen(location: File, private val onCloseCallback: () -> Unit = {
     }
 
     override fun mouseClicked(p_231044_1_: Double, p_231044_3_: Double, p_231044_5_: Int): Boolean {
-        if (this.textBox?.isComplete == true) notifyClick()
-        else this.textBox?.complete()
+        if (this.textBox?.complete == true) notifyClick()
+        else this.textBox?.complete = true
         return super.mouseClicked(p_231044_1_, p_231044_3_, p_231044_5_)
     }
 
     fun notifyClick() {
-        Minecraft.getInstance().soundManager.play(SimpleSound.forUI(ForgeRegistries.SOUND_EVENTS.getValue("hollowengine:button_0".toRL()), 1F, 1F))
+        mc.soundManager.play(SimpleSound.forUI(HSSounds.SLIDER_BUTTON, 1F, 1F))
 
         synchronized(this.clickWaiter) {
-            this.clickWaiter.notify()
+            this.clickWaiter.notifyAll()
         }
     }
 
     fun waitClick() {
         synchronized(this.clickWaiter) {
             this.clickWaiter.wait()
-        }
-    }
-
-    fun waitAddAnim() {
-        synchronized(this.animAddCharacter) {
-            this.animAddCharacter.wait()
-            animAddCounter = 0
-            scene.characterToAdd = null
-        }
-    }
-
-    fun waitRemoveAnim() {
-        synchronized(this.animRemoveCharacter) {
-            this.animRemoveCharacter.wait()
-            animRemoveCounter = 0
-            scene.characters.remove(scene.characterToRemove)
-            scene.characterToRemove = null
         }
     }
 
@@ -382,7 +287,7 @@ class DialogueScreen(location: File, private val onCloseCallback: () -> Unit = {
                         renderBuffer.getBuffer(renderType)
                     }
 
-                    return@render object:IVertexBuilder {
+                    return@render object : IVertexBuilder {
                         override fun vertex(x: Double, y: Double, z: Double): IVertexBuilder {
                             return builder.vertex(x, y, z)
                         }
@@ -435,71 +340,28 @@ class DialogueScreen(location: File, private val onCloseCallback: () -> Unit = {
         RenderSystem.popMatrix()
     }
 
-    fun delay(ticks: Int) {
-        this.delayTicks = ticks
-        synchronized(animDelay) {
-            animDelay.wait()
+    fun update(scene: DialogueScene) {
+        background = scene.background
+        characters.clear()
+        characters.addAll(scene.characters.map {
+            val entity = EntityType.loadEntityRecursive(it.entityType, Minecraft.getInstance().level!!) { e -> e }!!
+
+            if(it.isNPC) entity.deserializeNBT(it.entityType)
+
+            return@map entity as LivingEntity
+        })
+        scene.actions.removeIf {
+            it.call(this)
+            true
         }
     }
 
-    fun createChoice(pairs: Array<out Pair<String, () -> Unit>>) {
-        val map = mutableMapOf<String, DialogueChoice>()
-        val currentChoiceWaiter = Object()
-        for (pair in pairs) {
-            val choice = DialogueChoice()
-            choice.action = {
-                pair.second.invoke()
-
-                synchronized(currentChoiceWaiter) {
-                    currentChoiceWaiter.notify()
-                }
-            }
-            map[pair.first] = choice
-        }
-        this.choices = map
-
-        val text = this.textBox?.text ?: "Загрузка..."
+    fun applyChoices(choices: Collection<String>): Int {
+        this.choices.addAll(choices)
         init()
-        this.textBox?.text = text
-        this.textBox?.complete()
-        synchronized(currentChoiceWaiter) {
-            currentChoiceWaiter.wait()
+        synchronized(this.choiceWaiter) {
+            this.choiceWaiter.wait()
         }
+        return currentChoice
     }
-
-    fun addImage(image: HDImage) {
-        image.alpha = 0F
-        this.imageToAdd = image
-        this.images.add(image)
-
-        synchronized(imageAnimAddWaiter) {
-            imageAnimAddWaiter.wait()
-        }
-
-        this.imageToAdd = null
-    }
-
-    override fun onClose() {
-        onCloseCallback.invoke()
-        super.onClose()
-    }
-
-    fun removeImage(image: HDImage) {
-        this.imageToRemove = image
-
-        synchronized(this.imageAnimRemoveWaiter) {
-            this.imageAnimRemoveWaiter.wait()
-        }
-
-        this.images.remove(image)
-    }
-
-    fun waitFocusAnim() {
-
-    }
-}
-
-class DialogueChoice {
-    val waiter = Object()
-    var action: (() -> Unit)? = null
 }

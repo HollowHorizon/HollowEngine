@@ -3,31 +3,24 @@ package ru.hollowhorizon.hollowengine.story
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.nbt.CompoundNBT
 import net.minecraft.util.ResourceLocation
+import ru.hollowhorizon.hc.client.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hollowengine.common.exceptions.StoryEventException
 import ru.hollowhorizon.hollowengine.common.exceptions.StoryPlayerNotFoundException
 import ru.hollowhorizon.hollowengine.common.hollowscript.story.StoryExecutorThread
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
 import java.util.*
-import kotlin.collections.HashSet
+import kotlin.collections.HashMap
 
 @Serializable
 class StoryTeam {
-    /**
-     * List of players in this team
-     */
     val players = HashSet<StoryPlayer>()
-    val variables = StoryVariables()
-    /**
-     * List of completed events from this team
-     */
     var completedEvents = HashSet<String>()
-    /**
-     * List of current events from this team
-     */
+
     @Transient //Transient because after restart we don't need to save story events, they will be started again
     var currentEvents = HashMap<String, StoryExecutorThread>()
-
+    val eventsData = HashSet<StoryEventData>()
     var progressManager = StoryProgressManager()
 
     fun add(player: PlayerEntity): StoryPlayer {
@@ -88,7 +81,8 @@ class StoryTeam {
     }
 
     fun nearestTo(npc: IHollowNPC): StoryPlayer {
-        return getAllOnline().minByOrNull { it.mcPlayer!!.distanceTo(npc.npcEntity) } ?: throw StoryEventException("No players in team")
+        return getAllOnline().minByOrNull { it.mcPlayer!!.distanceTo(npc.npcEntity) }
+            ?: throw StoryEventException("No players in team")
     }
 
     fun openDialogue(toRL: ResourceLocation) {
@@ -105,5 +99,25 @@ class StoryTeam {
 
     fun updatePlayer(player: PlayerEntity) {
         this.players.find { it.uuid == player.uuid }?.mcPlayer = player
+    }
+}
+
+@Serializable
+class StoryEventData(
+    val eventPath: String,
+    val variables: @Serializable(ForCompoundNBT::class) CompoundNBT = CompoundNBT(), //Данное свойство отвечает за переменные созданные через выражение "by StoryStorage(...)"
+    val stagedTasksStates: HashMap<Int, Int> = HashMap(), //Это свойство хранит индекс текущего блока кода
+    val delayedTaskStates: HashMap<Int, Timer> = HashMap(), //Это свойство хранит прошедшее время задачи на ожидание
+)
+
+@Serializable
+class Timer(var time: Float) {
+    fun decrease(): Timer {
+        time--
+        return this
+    }
+
+    operator fun compareTo(value: Int): Int {
+        return time.compareTo(value)
     }
 }

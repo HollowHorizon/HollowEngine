@@ -11,7 +11,6 @@ import ru.hollowhorizon.hollowengine.common.capabilities.storyTeam
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.hollowscript.story.StoryExecutorThread
 import ru.hollowhorizon.hollowengine.story.StoryTeam
-import ru.hollowhorizon.hollowengine.story.StoryVariables
 
 object StoryHandler {
     @JvmField
@@ -29,9 +28,10 @@ object StoryHandler {
     @JvmStatic
     fun onPlayerTick(event: TickEvent.PlayerTickEvent) {
         val team = event.player.storyTeam()
-        if(!event.player.level.isClientSide && team.progressManager.shouldUpdate) {
+        if (!event.player.level.isClientSide && team.progressManager.shouldUpdate) {
             team.progressManager.shouldUpdate = false
-            event.player.level.getCapability(HollowCapabilityV2.get<StoryTeamCapability>()).ifPresent { cap -> team.forAllOnline { cap.syncWorld(it.mcPlayer!! as ServerPlayerEntity) } }
+            event.player.level.getCapability(HollowCapabilityV2.get<StoryTeamCapability>())
+                .ifPresent { cap -> team.forAllOnline { cap.syncWorld(it.mcPlayer!! as ServerPlayerEntity) } }
         }
     }
 
@@ -39,7 +39,7 @@ object StoryHandler {
     fun runAllPossible(team: StoryTeam) {
         DirectoryManager.getAllStoryEvents().forEach { script ->
             try {
-                StoryExecutorThread(team, StoryVariables(), script).start()
+                StoryExecutorThread(team, script).start()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -48,10 +48,11 @@ object StoryHandler {
 
     @JvmStatic
     fun onPlayerClone(event: PlayerEvent.Clone) {
-        event.player.server?.overworld()?.getCapability(HollowCapabilityV2.get<StoryTeamCapability>())?.ifPresent { teamCap ->
-            val team = teamCap.getTeam(event.original)
+        event.player.server?.overworld()?.getCapability(HollowCapabilityV2.get<StoryTeamCapability>())
+            ?.ifPresent { teamCap ->
+                val team = teamCap.getTeam(event.original)
 
-            team.updatePlayer(event.player)
-        }
+                team.updatePlayer(event.player)
+            }
     }
 }

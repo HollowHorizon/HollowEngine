@@ -11,7 +11,6 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 import ru.hollowhorizon.hollowengine.story.StoryEvent
 import ru.hollowhorizon.hollowengine.story.StoryScript
 import ru.hollowhorizon.hollowengine.story.StoryTeam
-import ru.hollowhorizon.hollowengine.story.StoryVariables
 import java.io.File
 import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.api.valueOrThrow
@@ -20,7 +19,6 @@ import kotlin.script.experimental.jvm.loadDependencies
 
 class StoryExecutorThread @JvmOverloads constructor(
     val team: StoryTeam,
-    val variables: StoryVariables,
     val file: File,
     val ignoreSequence: Boolean = false,
 ) : Thread() {
@@ -57,7 +55,7 @@ class StoryExecutorThread @JvmOverloads constructor(
             )
 
             val res = story.execute {
-                constructorArgs(team, variables, file.name)
+                constructorArgs(team, file.toReadablePath())
                 jvm {
                     loadDependencies(false)
                 }
@@ -92,5 +90,5 @@ class StoryExecutorThread @JvmOverloads constructor(
 fun executeStory(player: PlayerEntity, storyPath: File) {
     val team = player.storyTeam()
 
-    StoryExecutorThread(team, StoryVariables(), storyPath).start()
+    StoryExecutorThread(team, storyPath).start()
 }

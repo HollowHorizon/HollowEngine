@@ -29,6 +29,8 @@ class StoryTeamCapability : HollowCapability() {
             }
         }
 
+        if(team.players.size == 1) team.players.first().isHost = true
+
         return team
 
     }

@@ -97,6 +97,10 @@ repositories {
         dir "C:\\Users\\user\\Desktop\\papka_with_papkami\\MyJavaProjects\\HollowCore\\build\\libs"
         dir 'libs'
     }
+    maven {
+        name = "TimeConqueror's Maven"
+        url = "https://repo.repsy.io/mvn/timeconqueror/mc/"
+    }
 }
 
 configurations {
@@ -128,19 +132,21 @@ dependencies {
 
     implementation fg.deobf('ru.hollowhorizon:hc:1.0-dev')
 
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.7.22'
+    implementation fg.deobf("ru.timeconqueror:TimeCore:1.16.5-3.5.0.0.build21:dev")
 
-    implementation 'org.jetbrains.kotlin:kotlin-scripting-jvm-host:1.7.22'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.10'
+
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-jvm-host:1.8.10'
     implementation 'org.jetbrains.kotlin:kotlin-scripting-jvm:1.7.20-RC'
 
-    implementation 'org.jetbrains.kotlin:kotlin-compiler-embeddable:1.7.22'
-    implementation 'org.jetbrains.kotlin:kotlin-script-runtime:1.7.22'
-    implementation 'org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:1.7.22'
-    implementation 'org.jetbrains.kotlin:kotlin-scripting-dependencies:1.7.22'
-    implementation 'org.jetbrains.kotlin:kotlin-scripting-dependencies-maven:1.7.22'
+    implementation 'org.jetbrains.kotlin:kotlin-compiler-embeddable:1.8.10'
+    implementation 'org.jetbrains.kotlin:kotlin-script-runtime:1.8.10'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:1.8.10'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-dependencies:1.8.10'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-dependencies-maven:1.8.10'
 
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4'
-    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-core:1.4.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-core:1.5.0'
 
     implementation('com.google.guava:guava') {
         version {
@@ -186,7 +192,6 @@ tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
     kotlinOptions {
         freeCompilerArgs = Arrays.asList("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
         jvmTarget = "1.8"
-        languageVersion = "1.4"
+        languageVersion = "1.6"
     }
 }
-

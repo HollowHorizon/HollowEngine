@@ -10,7 +10,7 @@ import ru.hollowhorizon.hollowengine.client.screen.widget.box.TypeBox
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 
 class NPCBuilderScreen : HollowScreen("".toSTC()) {
-    val npc: NPCEntity = NPCEntity(Minecraft.getInstance().level)
+    val npc: NPCEntity = NPCEntity(Minecraft.getInstance().level!!)
 
     override fun init() {
         super.init()

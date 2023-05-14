@@ -75,7 +75,7 @@ class HollowNPCTask(val npc: IHollowNPC) : Goal() {
     }
 
     private fun notifyUpdate() {
-        npc.npcEntity.goalSelector.removeGoal(this)
+        npc.npcEntity.removeGoalQueue.add(this)
         isActive = false
         synchronized(waiter) {
             waiter.notify()

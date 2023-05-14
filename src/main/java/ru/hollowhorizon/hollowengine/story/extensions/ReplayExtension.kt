@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.story.features
+package ru.hollowhorizon.hollowengine.story.extensions
 
 import net.minecraft.client.Minecraft
 import net.minecraftforge.fml.loading.FMLPaths

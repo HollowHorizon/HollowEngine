@@ -21,8 +21,15 @@ fun main() {
 @Serializable
 data class NPCSettings(
     var name: String = "NPC",
-    var puppetEntity: String = "minecraft:zombie",
+    var model: NPCModel = NPCModel(),
     var data: NPCData = NPCData(),
+)
+
+@Serializable
+data class NPCModel(
+    var modelPath: String = "hollowengine:models/entity/player_model.gltf",
+    var extraAnimations: String = "hollowengine:models/entity/player_animations.json",
+    var textureOverrides: HashMap<String, String> = HashMap()
 )
 
 @Serializable
