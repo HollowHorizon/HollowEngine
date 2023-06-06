@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.npcs
 
 import kotlinx.coroutines.runBlocking
 import net.minecraft.nbt.CompoundNBT
+import ru.hollowhorizon.hc.client.gltf.animation.PlayType
 import ru.hollowhorizon.hc.common.capabilities.AnimatedEntityCapability
 import ru.hollowhorizon.hc.common.capabilities.getCapability
 import ru.hollowhorizon.hc.common.capabilities.syncEntity
@@ -29,7 +30,17 @@ interface IHollowNPC : ICharacter {
     }
 
     infix fun play(animation: String) {
-        npcEntity.getCapability<AnimatedEntityCapability>().manager.addAnimation(animation, loop = false)
+        npcEntity.getCapability<AnimatedEntityCapability>().manager.addAnimation(animation, PlayType.ONCE)
+        npcEntity.getCapability<AnimatedEntityCapability>().syncEntity(npcEntity)
+    }
+
+    fun play(animation: String, mode: PlayType) {
+        npcEntity.getCapability<AnimatedEntityCapability>().manager.addAnimation(animation, mode)
+        npcEntity.getCapability<AnimatedEntityCapability>().syncEntity(npcEntity)
+    }
+
+    infix fun stop(animation: String) {
+        npcEntity.getCapability<AnimatedEntityCapability>().manager.stopAnimation(animation)
         npcEntity.getCapability<AnimatedEntityCapability>().syncEntity(npcEntity)
     }
 

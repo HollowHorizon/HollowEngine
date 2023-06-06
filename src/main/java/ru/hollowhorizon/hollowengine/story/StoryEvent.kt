@@ -2,18 +2,19 @@ package ru.hollowhorizon.hollowengine.story
 
 import com.google.common.reflect.TypeToken
 import kotlinx.serialization.Serializable
-import net.minecraft.client.Minecraft
-import net.minecraft.client.audio.SimpleSound
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.entity.player.ServerPlayerEntity
 import net.minecraft.nbt.EndNBT
+import net.minecraft.network.play.server.SPlaySoundPacket
+import net.minecraft.util.ResourceLocation
+import net.minecraft.util.SoundCategory
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.RayTraceContext
 import net.minecraft.util.math.RayTraceResult
 import net.minecraft.util.math.vector.Vector3d
 import net.minecraft.world.World
-import net.minecraftforge.fml.loading.FMLEnvironment
+import net.minecraft.world.server.ServerWorld
 import net.minecraftforge.fml.server.ServerLifecycleHooks
-import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.utils.WorldHelper
 import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
 import ru.hollowhorizon.hc.client.utils.nbt.deserializeNoInline
@@ -46,13 +47,16 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) {
     var hideInEventList = true
     var safeForExit = false
     val progressManager = team.progressManager
-    val level = team.getAllOnline().first().mcPlayer!!.level
+    val world = StoryWorld(
+        if (team.getHost().isOnline()) team.getHost().world as ServerWorld else team.getAllOnline()
+            .first().mcPlayer!!.level as ServerWorld
+    )
     val lock = Object()
 
     fun lock() = synchronized(lock) { lock.wait() }
     fun unlock() = synchronized(lock) { lock.notifyAll() }
 
-    infix fun IHollowNPC.say(text: String) {
+    infix fun IHollowNPC.say(text: String): StoryEvent {
         team.getAllOnline() //для всех игроков команды, которые в сети
             .filter {
                 it.distToSqr(
@@ -62,6 +66,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) {
                 ) < 2500
             } //Если игрок в радиусе 50 блоков от NPC
             .forEach { it.send("§6[§7${this.characterName}§6]§7 $text") } //Вывод сообщения от лица NPC
+        return this@StoryEvent
     }
 
     fun <T> async(task: () -> T) = executor.submit(task) //Создать асинхронную задачу
@@ -72,7 +77,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) {
 
         while (true) {
             val start = WorldHelper.getHighestBlock(
-                level,
+                world.level,
                 player.blockPosition().x + ((Math.random() * distance) - distance / 2).toInt(),
                 player.blockPosition().z + ((Math.random() * distance) - distance / 2).toInt()
             )
@@ -94,20 +99,21 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) {
     }
 
     fun play(sound: String) {
-        Minecraft.getInstance().soundManager.play(
-            SimpleSound.forUI(
-                ForgeRegistries.SOUND_EVENTS.getValue(sound.toRL())!!,
-                1F,
-                1F
-            )
-        )
+        team.getAllOnline() //для всех игроков команды, которые в сети
+            .forEach {
+                (it.mcPlayer as ServerPlayerEntity).connection.send(
+                    SPlaySoundPacket(
+                        ResourceLocation(sound),
+                        SoundCategory.MASTER,
+                        it.mcPlayer!!.position(),
+                        1.0f,
+                        1.0f
+                    )
+                )
+            }
+
     }
 
-    fun whenOnClient(task: () -> Unit) {
-        if (FMLEnvironment.dist.isClient) {
-            task()
-        }
-    }
 
     fun wait(predicate: () -> Boolean) {
         while (predicate()) {
@@ -115,13 +121,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) {
         }
     }
 
-    fun whenOnServer(task: () -> Unit) {
-        if (!FMLEnvironment.dist.isClient) {
-            task()
-        }
-    }
-
-    fun makeNPC(settings: NPCSettings, level: World = this.level, pos: BlockPos): IHollowNPC {
+    fun makeNPC(settings: NPCSettings, level: World = this.world.level, pos: BlockPos): IHollowNPC {
         val npc = NPCEntity(level)
         npc.setPos(pos.x.toDouble() + 0.5, pos.y.toDouble(), pos.z.toDouble() + 0.5)
         level.addFreshEntity(npc)
@@ -194,6 +194,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) {
                 data.stagedTasksStates[taskId] = subTaskId
             }
         }
+
         private val taskId = atomicInteger.getAndIncrement()
         private var subTaskId = data.stagedTasksStates.computeIfAbsent(taskId) { 0 }
 

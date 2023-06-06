@@ -5,12 +5,15 @@ import java.io.File
 import java.lang.IllegalStateException
 
 object DirectoryManager {
-    private val SCRIPTS_DIR = FMLPaths.GAMEDIR.get().resolve("hollowengine").toFile().apply {
+    private val SCRIPTS_DIR = FMLPaths.GAMEDIR.get().resolve("hollowengine/scripts").toFile().apply {
         if(!exists()) mkdirs()
     }
     val CACHE_DIR = SCRIPTS_DIR.resolve(".cache").apply {
         if(!exists()) mkdirs()
     }
+
+    @JvmStatic
+    fun getScriptsDir(): File = SCRIPTS_DIR;
 
     @JvmStatic
     fun init() {

@@ -17,6 +17,7 @@ class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
         "ru.hollowhorizon.hollowengine.story.*",
         "ru.hollowhorizon.hollowengine.dialogues.*",
         "net.minecraftforge.event.*",
+        "net.minecraft.util.math.BlockPos",
         "ru.hollowhorizon.hc.client.utils.*",
         "ru.hollowhorizon.hollowengine.common.npcs.*",
         "ru.hollowhorizon.hollowengine.story.features.*"

@@ -5,6 +5,9 @@ import net.minecraftforge.event.TickEvent
 import ru.hollowhorizon.hollowengine.story.StoryEvent
 import ru.hollowhorizon.hollowengine.story.waitForgeEvent
 
+/**
+ * Если в параметрах ничего, то принимается любое сообщение, если есть строки, то допускаются только они, другие сообщения игнорируются
+ */
 fun StoryEvent.input(vararg values: String): String {
     var input = ""
     waitForgeEvent<ServerChatEvent> { event ->
@@ -18,6 +21,16 @@ fun StoryEvent.input(vararg values: String): String {
 
     return input
 }
+
+fun StoryEvent.execute(command: String): Int {
+    val server = this.world.level.server
+    val src = server.createCommandSourceStack()
+
+    if(team.getHost().isOnline()) src.withEntity(team.getHost().mcPlayer!!)
+
+    return server.commands.performCommand(src.withPermission(4), command)
+}
+
 fun StoryEvent.waitLocation(x: Int, y: Int, z: Int, radius: Int, inverse: Boolean = false) {
     waitForgeEvent<TickEvent.ServerTickEvent> { _ ->
         var result = false

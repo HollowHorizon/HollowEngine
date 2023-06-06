@@ -19,7 +19,7 @@ private val PlayerEntity.scriptName: String?
     get() = if (this.persistentData.contains("hs_name")) this.persistentData.getString("hs_name") else null
 
 @Serializable
-class StoryPlayer(val uuid: @Serializable(ForUuid::class) UUID): ICharacter {
+class StoryPlayer(val uuid: @Serializable(ForUuid::class) UUID) : ICharacter {
     constructor(player: PlayerEntity) : this(player.uuid) {
         this.mcPlayer = player
     }
@@ -31,9 +31,13 @@ class StoryPlayer(val uuid: @Serializable(ForUuid::class) UUID): ICharacter {
         } else {
             ServerLifecycleHooks.getCurrentServer().playerList.getPlayer(uuid)
         }
+        set(value) {
+            field = value
+            world = mcPlayer?.commandSenderWorld ?: ServerLifecycleHooks.getCurrentServer().overworld()
+        }
 
     @Transient
-    val world: World? =
+    var world: World? =
         if (FMLEnvironment.dist.isClient) {
             Minecraft.getInstance().level
         } else {

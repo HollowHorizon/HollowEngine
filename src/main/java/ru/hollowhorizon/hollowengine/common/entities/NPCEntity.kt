@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
+import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.entity.CreatureEntity
 import net.minecraft.entity.EntityType
 import net.minecraft.entity.ai.goal.SwimGoal
@@ -11,12 +12,14 @@ import net.minecraft.world.World
 import net.minecraftforge.api.distmarker.Dist
 import net.minecraftforge.api.distmarker.OnlyIn
 import net.minecraftforge.common.capabilities.Capability
+import org.lwjgl.opengl.GLCapabilities
 import ru.hollowhorizon.hc.client.gltf.GlTFModelManager
 import ru.hollowhorizon.hc.client.gltf.IAnimatedEntity
 import ru.hollowhorizon.hc.client.gltf.RenderedGltfModel
 import ru.hollowhorizon.hc.client.gltf.animation.AnimationTypes
 import ru.hollowhorizon.hc.client.gltf.animation.GLTFAnimation
 import ru.hollowhorizon.hc.client.gltf.animation.loadAnimations
+import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.capabilities.*
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2.Companion.get
 import ru.hollowhorizon.hollowengine.common.capabilities.NPCEntityCapability
@@ -159,6 +162,9 @@ open class NPCEntity : CreatureEntity, IHollowNPC, IAnimatedEntity, ICapabilityS
         if (!level.isClientSide) {
             if (capability == get<NPCEntityCapability>()) { //При обновлении NPC на сервере обновляем данные о модели на клиенте
                 val npcCapability = this.getCapability<NPCEntityCapability>()
+
+                this.customName = npcCapability.settings.name.mcText
+
                 val animCapability = this.getCapability<AnimatedEntityCapability>()
 
                 val model = npcCapability.settings.model
@@ -178,10 +184,12 @@ open class NPCEntity : CreatureEntity, IHollowNPC, IAnimatedEntity, ICapabilityS
     }
 
     fun updateModels(capability: AnimatedEntityCapability) {
-        renderedGltfModel = GlTFModelManager.getOrCreate(this, capability)
-        animationList = renderedGltfModel!!.loadAnimations()
+        RenderSystem.recordRenderCall {
+            renderedGltfModel = GlTFModelManager.getOrCreate(this, capability)
+            animationList = renderedGltfModel!!.loadAnimations()
 
-        AnimationTypes.values().forEach { tryAddAnimation(it, capability, animationList) }
+            AnimationTypes.values().forEach { tryAddAnimation(it, capability, animationList) }
+        }
     }
 
     override fun canPickUpLoot(): Boolean {
