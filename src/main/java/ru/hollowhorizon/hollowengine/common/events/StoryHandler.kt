@@ -9,8 +9,8 @@ import ru.hollowhorizon.hc.common.capabilities.syncWorld
 import ru.hollowhorizon.hollowengine.common.capabilities.StoryTeamCapability
 import ru.hollowhorizon.hollowengine.common.capabilities.storyTeam
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
-import ru.hollowhorizon.hollowengine.common.hollowscript.story.StoryExecutorThread
-import ru.hollowhorizon.hollowengine.story.StoryTeam
+import ru.hollowhorizon.hollowengine.common.scripting.story.StoryExecutorThread
+import ru.hollowhorizon.hollowengine.common.scripting.story.StoryTeam
 
 object StoryHandler {
     @JvmField

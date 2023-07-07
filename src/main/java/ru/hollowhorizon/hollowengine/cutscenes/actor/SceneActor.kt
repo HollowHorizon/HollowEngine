@@ -6,8 +6,8 @@ import net.minecraft.entity.Entity
 import net.minecraft.entity.EntityType
 import net.minecraft.util.math.vector.TransformationMatrix
 import net.minecraft.world.World
+import ru.hollowhorizon.hollowengine.common.scripting.dialogues.generateEntityNBT
 import ru.hollowhorizon.hollowengine.cutscenes.actor.animation.ActorAnimation
-import ru.hollowhorizon.hollowengine.dialogues.generateEntityNBT
 
 @Serializable
 class SceneActor(val entity: String) {

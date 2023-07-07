@@ -21,13 +21,13 @@ import ru.hollowhorizon.hc.client.gltf.GltfModelSources;
 import ru.hollowhorizon.hc.client.gltf.PathSource;
 import ru.hollowhorizon.hollowengine.client.ClientEvents;
 import ru.hollowhorizon.hollowengine.client.sound.HSSounds;
-import ru.hollowhorizon.hollowengine.common.actions.PointTypes;
 import ru.hollowhorizon.hollowengine.common.commands.HECommands;
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler;
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager;
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings;
 import ru.hollowhorizon.hollowengine.common.npcs.NPCStorage;
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities;
+import ru.hollowhorizon.hollowengine.common.scripting.mod.ModScriptKt;
 
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
 
@@ -37,6 +37,8 @@ public class HollowEngine {
     public static final String MODID = "hollowengine";
 
     public HollowEngine() {
+        DirectoryManager.INSTANCE.getModScripts().forEach(ModScriptKt::runModScript);
+
         IEventBus forgeBus = MinecraftForge.EVENT_BUS;
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
 
@@ -62,8 +64,6 @@ public class HollowEngine {
             modBus.addListener(this::clientInit);
             HSSounds.init();
         }
-
-        PointTypes.init();
     }
 
     public void addReloadListenerEvent(AddReloadListenerEvent event) {

@@ -15,12 +15,12 @@ import ru.hollowhorizon.hollowengine.common.capabilities.ReplayStorageCapability
 import ru.hollowhorizon.hollowengine.common.capabilities.ReplayStorageCapabilityKt;
 import ru.hollowhorizon.hollowengine.common.capabilities.StoryTeamCapability;
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager;
-import ru.hollowhorizon.hollowengine.common.hollowscript.dialogues.DialogueExecutorThread;
-import ru.hollowhorizon.hollowengine.common.hollowscript.story.StoryExecutorThread;
+import ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueExecutorThread;
+import ru.hollowhorizon.hollowengine.common.scripting.story.StoryExecutorThread;
+import ru.hollowhorizon.hollowengine.common.scripting.story.StoryTeam;
 import ru.hollowhorizon.hollowengine.cutscenes.replay.Replay;
 import ru.hollowhorizon.hollowengine.cutscenes.replay.ReplayPlayer;
 import ru.hollowhorizon.hollowengine.cutscenes.replay.ReplayRecorder;
-import ru.hollowhorizon.hollowengine.story.StoryTeam;
 
 import java.io.File;
 import java.util.HashMap;

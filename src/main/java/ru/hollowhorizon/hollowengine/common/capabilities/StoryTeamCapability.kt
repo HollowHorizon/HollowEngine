@@ -6,7 +6,7 @@ import net.minecraft.world.World
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2
 import ru.hollowhorizon.hc.common.capabilities.HollowCapability
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
-import ru.hollowhorizon.hollowengine.story.StoryTeam
+import ru.hollowhorizon.hollowengine.common.scripting.story.StoryTeam
 
 @HollowCapabilityV2(World::class)
 @Serializable

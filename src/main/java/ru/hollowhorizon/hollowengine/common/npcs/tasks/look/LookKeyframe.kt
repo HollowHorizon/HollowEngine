@@ -4,7 +4,7 @@ import net.minecraft.command.arguments.EntityAnchorArgument
 import net.minecraft.entity.Entity
 import net.minecraft.util.math.vector.Vector3d
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
-import ru.hollowhorizon.hollowengine.story.StoryTeam
+import ru.hollowhorizon.hollowengine.common.scripting.story.StoryTeam
 
 interface LookKeyframe {
     val config: NPCLook.LookConfig

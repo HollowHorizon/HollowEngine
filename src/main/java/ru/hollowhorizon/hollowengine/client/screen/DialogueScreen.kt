@@ -22,7 +22,7 @@ import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hollowengine.client.screen.widget.dialogue.DialogueTextBox
 import ru.hollowhorizon.hollowengine.client.sound.HSSounds
-import ru.hollowhorizon.hollowengine.dialogues.DialogueScene
+import ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueScene
 import java.util.*
 import kotlin.math.atan
 import kotlin.math.pow
@@ -340,7 +340,7 @@ class DialogueScreen : HollowScreen(StringTextComponent("")) {
         RenderSystem.popMatrix()
     }
 
-    fun update(scene: DialogueScene) {
+    fun update(scene: ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueScene) {
         background = scene.background
         characters.clear()
         characters.addAll(scene.characters.map {

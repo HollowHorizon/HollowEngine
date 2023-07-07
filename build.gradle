@@ -9,13 +9,13 @@ buildscript {
         classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+', changing: true
         classpath 'org.parchmentmc:librarian:1.+'
         classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
-        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.7.20-RC'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0-RC'
     }
 }
 
 plugins {
-    id "org.jetbrains.kotlin.jvm" version "1.7.20"
-    id "org.jetbrains.kotlin.plugin.serialization" version "1.7.20"
+    id "org.jetbrains.kotlin.jvm" version "1.9.0-RC"
+    id "org.jetbrains.kotlin.plugin.serialization" version "1.9.0-RC"
 }
 apply plugin: 'kotlin'
 apply plugin: "java"
@@ -78,10 +78,6 @@ minecraft {
     }
 }
 
-ext {
-    imguiVersion = '1.86.4'
-}
-
 mixin {
     add sourceSets.main, "hollowengine.refmap.json"
 
@@ -92,14 +88,9 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
     mavenCentral()
-    maven { url = 'https://zoidberg.ukp.informatik.tu-darmstadt.de/artifactory/public-releases/' }
     flatDir {
-        dir "C:\\Users\\user\\Desktop\\papka_with_papkami\\MyJavaProjects\\HollowCore\\build\\libs"
         dir 'libs'
-    }
-    maven {
-        name = "TimeConqueror's Maven"
-        url = "https://repo.repsy.io/mvn/timeconqueror/mc/"
+        dir 'hc'
     }
 }
 
@@ -128,38 +119,22 @@ dependencies {
         }
     }
 
-    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    implementation fg.deobf('ru.hollowhorizon:hc:1.1.0-dev')
 
-    implementation fg.deobf('ru.hollowhorizon:hc:1.0-dev')
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.0-RC'
 
-    implementation fg.deobf("ru.timeconqueror:TimeCore:1.16.5-3.5.0.0.build21:dev")
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-jvm-host:1.9.0-RC'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-jvm:1.9.0-RC'
 
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.10'
-
-    implementation 'org.jetbrains.kotlin:kotlin-scripting-jvm-host:1.8.10'
-    implementation 'org.jetbrains.kotlin:kotlin-scripting-jvm:1.7.20-RC'
-
-    implementation 'org.jetbrains.kotlin:kotlin-compiler-embeddable:1.8.10'
-    implementation 'org.jetbrains.kotlin:kotlin-script-runtime:1.8.10'
-    implementation 'org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:1.8.10'
-    implementation 'org.jetbrains.kotlin:kotlin-scripting-dependencies:1.8.10'
-    implementation 'org.jetbrains.kotlin:kotlin-scripting-dependencies-maven:1.8.10'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:1.9.0-RC'
+    implementation 'org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:1.9.0-RC'
+    implementation 'org.jetbrains.kotlin:kotlin-compiler-embeddable:1.9.0-RC'
+    implementation 'org.jetbrains.kotlin:kotlin-script-runtime:1.9.0-RC'
 
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4'
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-core:1.5.0'
 
-    implementation('com.google.guava:guava') {
-        version {
-            strictly '21.0'
-        }
-    }
-
-    implementation 'com.upokecenter:cbor:4.5.2'
-    implementation("io.github.spair:imgui-java-binding:$imguiVersion")
-    implementation("io.github.spair:imgui-java-lwjgl3:$imguiVersion")
-    implementation("io.github.spair:imgui-java-natives-windows:$imguiVersion")
-    implementation("io.github.spair:imgui-java-natives-macos:$imguiVersion")
-    implementation("io.github.spair:imgui-java-natives-linux:$imguiVersion")
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 tasks.withType(JavaCompile) {
     options.encoding = "UTF-8"

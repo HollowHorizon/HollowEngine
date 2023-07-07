@@ -8,8 +8,6 @@ import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import ru.hollowhorizon.hollowengine.client.screen.imgui.IMGUIWidget;
-import ru.hollowhorizon.hollowengine.client.screen.imgui.ImGuiKt;
 import ru.hollowhorizon.hollowengine.client.render.GUIHelper;
 import ru.hollowhorizon.hollowengine.client.screen.widget.DropListWidget;
 import ru.hollowhorizon.hollowengine.client.screen.widget.ListElement;
@@ -42,13 +40,13 @@ public class NPCCreationScreen extends Screen {
             @Override
             protected void init() {
                 super.init();
-                this.addButton(new IMGUIWidget(10, 10, this.width - 10, this.height - 10));
+                //this.addButton(new IMGUIWidget(10, 10, this.width - 10, this.height - 10));
             }
 
             @Override
             public void onClose() {
                 super.onClose();
-                ImGuiKt.unlockLists();
+                //ImGuiKt.unlockLists();
             }
         });
     }

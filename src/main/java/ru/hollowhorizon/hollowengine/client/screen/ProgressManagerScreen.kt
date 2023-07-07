@@ -10,7 +10,7 @@ import ru.hollowhorizon.hc.client.screens.widget.layout.box
 import ru.hollowhorizon.hc.client.utils.drawCentredScaled
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hollowengine.HollowEngine.MODID
-import ru.hollowhorizon.hollowengine.story.StoryProgressManager
+import ru.hollowhorizon.hollowengine.common.scripting.story.StoryProgressManager
 
 class ProgressManagerScreen(val manager: StoryProgressManager) : HollowScreen("Progress Manager".toSTC()) {
     override fun init() {

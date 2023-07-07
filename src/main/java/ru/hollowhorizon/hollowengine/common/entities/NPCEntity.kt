@@ -19,6 +19,7 @@ import ru.hollowhorizon.hc.client.gltf.RenderedGltfModel
 import ru.hollowhorizon.hc.client.gltf.animation.AnimationTypes
 import ru.hollowhorizon.hc.client.gltf.animation.GLTFAnimation
 import ru.hollowhorizon.hc.client.gltf.animation.loadAnimations
+import ru.hollowhorizon.hc.client.gltf.animations.AnimationManager
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.capabilities.*
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2.Companion.get
@@ -187,7 +188,7 @@ open class NPCEntity : CreatureEntity, IHollowNPC, IAnimatedEntity, ICapabilityS
         RenderSystem.recordRenderCall {
             renderedGltfModel = GlTFModelManager.getOrCreate(this, capability)
             animationList = renderedGltfModel!!.loadAnimations()
-
+            animationManager = AnimationManager(renderedGltfModel!!)
             AnimationTypes.values().forEach { tryAddAnimation(it, capability, animationList) }
         }
     }
@@ -197,6 +198,7 @@ open class NPCEntity : CreatureEntity, IHollowNPC, IAnimatedEntity, ICapabilityS
     }
 
     override var animationList: List<GLTFAnimation> = ArrayList()
+    override var animationManager: AnimationManager? = null
     override var renderedGltfModel: RenderedGltfModel? = null
 
 }

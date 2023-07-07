@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.common.npcs.tasks.movement
 import net.minecraft.entity.Entity
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
-import ru.hollowhorizon.hollowengine.story.StoryTeam
+import ru.hollowhorizon.hollowengine.common.scripting.story.StoryTeam
 
 class NPCMovement(val task: HollowNPCTask) {
     val keyframes = arrayListOf<MovementKeyframe>()
