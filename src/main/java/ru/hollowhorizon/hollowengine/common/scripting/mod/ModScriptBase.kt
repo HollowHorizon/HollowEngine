@@ -9,6 +9,6 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.IForgeEventScriptSup
 open class ModScriptBase : IForgeEventScriptSupport {
     override val forgeEvents = HashSet<ForgeEvent<*>>()
     val FORGE_BUS = MinecraftForge.EVENT_BUS
-    val MOD_BUS = FMLJavaModLoadingContext.get()
+    val MOD_BUS = FMLJavaModLoadingContext.get().modEventBus
     val dist = FMLEnvironment.dist
 }
