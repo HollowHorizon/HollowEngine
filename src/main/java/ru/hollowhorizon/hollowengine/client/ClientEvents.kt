@@ -8,7 +8,7 @@ import net.minecraftforge.client.event.InputEvent
 import net.minecraftforge.client.event.RenderWorldLastEvent
 import net.minecraftforge.fml.client.registry.ClientRegistry
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.HollowEngine.MODID
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
 import ru.hollowhorizon.hollowengine.common.capabilities.storyTeam
 
@@ -20,7 +20,7 @@ object ClientEvents {
     val VIEW_MAT = Matrix4f().apply { setIdentity() }
 
     private fun keyBindName(name: String): String {
-        return java.lang.String.format("key.%s.%s", MODID, name)
+        return java.lang.String.format("key.%s.%s", HollowEngine.MODID, name)
     }
 
     @JvmStatic

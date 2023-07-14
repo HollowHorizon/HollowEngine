@@ -1,0 +1,10 @@
+{
+  "generator": {
+    "type": "hollowengine:storyteller_dimension",
+    "biome_source": {
+      "type": "minecraft:fixed",
+      "biome": "minecraft:plains"
+    }
+  },
+  "type": "hollowengine:storyteller_dimension"
+}

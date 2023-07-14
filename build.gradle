@@ -42,7 +42,7 @@ minecraft {
 
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-
+            arg "-mixin.config=hollowengine.mixins.json"
             mods {
                 hollowengine {
                     source sourceSets.main
@@ -54,7 +54,7 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-
+            arg "-mixin.config=hollowengine.mixins.json"
             mods {
                 hollowengine {
                     source sourceSets.main
@@ -82,6 +82,13 @@ mixin {
     add sourceSets.main, "hollowengine.refmap.json"
 
     config "hollowengine.mixins.json"
+
+    checks.interfaces = true
+
+    debug = true
+    debug.countInjections = true
+    debug.verbose = true
+    debug.export = true
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
@@ -89,7 +96,7 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 repositories {
     mavenCentral()
     flatDir {
-        dir 'libs'
+        dir '../HollowCore/build/libs'
         dir 'hc'
     }
 }
@@ -119,7 +126,7 @@ dependencies {
         }
     }
 
-    implementation fg.deobf('ru.hollowhorizon:hc:1.1.0-dev')
+    implementation fg.deobf('ru.hollowhorizon:hc:1.1.0-original')
 
     implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.0-RC'
 
@@ -136,9 +143,11 @@ dependencies {
 
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
+
 tasks.withType(JavaCompile) {
     options.encoding = "UTF-8"
 }
+
 jar {
     duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
 
@@ -156,7 +165,8 @@ jar {
                 "Implementation-Title"    : project.name,
                 "Implementation-Version"  : project.jar.archiveVersion,
                 //"Implementation-Vendor": "hollowengine authors",
-                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                "MixinConfigs"            : "hollowengine.mixins.json"
         ])
     }
 

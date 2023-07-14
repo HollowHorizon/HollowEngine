@@ -1,10 +1,11 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "ru.hollowhorizon.hollowengine.mixin",
+  "package": "ru.hollowhorizon.hollowengine.mixins",
   "compatibilityLevel": "JAVA_8",
   "refmap": "hollowstory.refmap.json",
   "mixins": [
+    "ChunkLoaderMixin"
   ],
   "client": [
   ],

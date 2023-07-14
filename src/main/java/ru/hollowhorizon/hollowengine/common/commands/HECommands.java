@@ -26,13 +26,14 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class HECommands {
     public static void register(CommandDispatcher<CommandSource> dispatcher) {
         dispatcher.register(Commands.literal("hollowengine")
                 .then(Commands.literal("open-dialogue")
                         .then(Commands.argument("dialogue", StringArgumentType.greedyString()).suggests((context, builder) -> {
-                            DirectoryManager.INSTANCE.getAllDialogues().forEach(file -> builder.suggest(DirectoryManager.toReadablePath(file)));
+                            DirectoryManager.INSTANCE.getAllDialogues().stream().map(DirectoryManager::toReadablePath).collect(Collectors.toSet()).forEach(builder::suggest);
                             return builder.buildFuture();
                         }).executes(context -> {
                             String dialogue = StringArgumentType.getString(context, "dialogue");

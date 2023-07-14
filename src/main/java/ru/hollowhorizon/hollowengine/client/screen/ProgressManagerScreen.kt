@@ -9,7 +9,7 @@ import ru.hollowhorizon.hc.client.screens.widget.layout.PlacementType
 import ru.hollowhorizon.hc.client.screens.widget.layout.box
 import ru.hollowhorizon.hc.client.utils.drawCentredScaled
 import ru.hollowhorizon.hc.client.utils.toSTC
-import ru.hollowhorizon.hollowengine.HollowEngine.MODID
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryProgressManager
 
 class ProgressManagerScreen(val manager: StoryProgressManager) : HollowScreen("Progress Manager".toSTC()) {
@@ -24,7 +24,7 @@ class ProgressManagerScreen(val manager: StoryProgressManager) : HollowScreen("P
                     size = 100.pc x 15.pc
                     align = Alignment.TOP_CENTER
                     renderer = { stack, x, y, w, h ->
-                        bind(MODID, "gui/event_list/event_list.png")
+                        bind(HollowEngine.MODID, "gui/event_list/event_list.png")
                         blit(stack, x, y, 0f, 0f, w, h, w, h)
 
                         font.drawCentredScaled(
@@ -72,7 +72,7 @@ class ProgressManagerScreen(val manager: StoryProgressManager) : HollowScreen("P
 
                 renderer = { stack, x, y, w, h ->
                     RenderSystem.enableBlend()
-                    bind(MODID, "gui/event_list/event_list_value.png")
+                    bind(HollowEngine.MODID, "gui/event_list/event_list_value.png")
                     blit(stack, x, y, 0f, 0f, w, h, w, h)
 
                     val lines = font.split(message, w)

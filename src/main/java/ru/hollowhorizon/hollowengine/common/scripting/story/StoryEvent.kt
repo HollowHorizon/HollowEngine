@@ -8,9 +8,8 @@ import net.minecraft.nbt.EndNBT
 import net.minecraft.network.play.server.SPlaySoundPacket
 import net.minecraft.util.ResourceLocation
 import net.minecraft.util.SoundCategory
+import net.minecraft.util.math.AxisAlignedBB
 import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.RayTraceContext
-import net.minecraft.util.math.RayTraceResult
 import net.minecraft.util.math.vector.Vector3d
 import net.minecraft.world.World
 import net.minecraft.world.server.ServerWorld
@@ -20,6 +19,7 @@ import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
 import ru.hollowhorizon.hc.client.utils.nbt.deserializeNoInline
 import ru.hollowhorizon.hc.client.utils.nbt.serializeNoInline
 import ru.hollowhorizon.hc.client.utils.toRL
+import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2.Companion.get
 import ru.hollowhorizon.hc.common.capabilities.syncEntity
 import ru.hollowhorizon.hollowengine.common.capabilities.NPCEntityCapability
@@ -33,7 +33,7 @@ import kotlin.math.abs
 import kotlin.reflect.KProperty
 
 
-open class StoryEvent(val team: StoryTeam, val eventPath: String): IForgeEventScriptSupport {
+open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventScriptSupport {
     private val data = team.eventsData
         .find { it.eventPath == eventPath } ?: StoryEventData(eventPath)
         .also { team.eventsData.add(it) }
@@ -75,27 +75,24 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String): IForgeEventSc
         val player = team.getHost().mcPlayer ?: team.getAllOnline().first().mcPlayer
         ?: throw IllegalStateException("No players in team online")
 
-        while (true) {
-            val start = WorldHelper.getHighestBlock(
+        var pos: BlockPos
+        do {
+            pos = WorldHelper.getHighestBlock(
                 world.level,
                 player.blockPosition().x + ((Math.random() * distance) - distance / 2).toInt(),
                 player.blockPosition().z + ((Math.random() * distance) - distance / 2).toInt()
             )
-            if (abs(start.y - player.blockPosition().y) > 10) continue // Если игрок слишком далеко от точки, то ищем другую
-            if (!player.canSee(start) || canPlayerSee) return start
-        }
+            if (abs(pos.y - player.y) > 10) continue // Если игрок слишком далеко от точки, то ищем другую
+        } while (player.canSee(pos) || canPlayerSee)
+
+        return pos
     }
 
     private fun PlayerEntity.canSee(pos: BlockPos): Boolean {
-        return this.level.clip(
-            RayTraceContext(
-                this.position(),
-                Vector3d(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble()),
-                RayTraceContext.BlockMode.COLLIDER,
-                RayTraceContext.FluidMode.NONE,
-                entity
-            )
-        ).type == RayTraceResult.Type.MISS
+        val from: Vector3d = this.getEyePosition(1f)
+        val to = from.add(this.lookAngle.scale(128.0))
+
+        return AxisAlignedBB(from, to).contains(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
     }
 
     fun play(sound: String) {
@@ -117,7 +114,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String): IForgeEventSc
 
     fun wait(predicate: () -> Boolean) {
         while (predicate()) {
-            Thread.sleep(1000)
+            Thread.sleep(100)
         }
     }
 
@@ -131,6 +128,8 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String): IForgeEventSc
             capability.settings = settings
             capability.syncEntity(npc)
         }
+        npc.customName = settings.name.toSTC()
+        npc.isCustomNameVisible = true
 
         return npc
     }

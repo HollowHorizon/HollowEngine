@@ -1,6 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
 import com.mojang.blaze3d.systems.RenderSystem
+import de.javagl.jgltf.model.Optionals
+import de.javagl.jgltf.model.TextureModel
+import de.javagl.jgltf.model.image.PixelDatas
+import de.javagl.jgltf.model.impl.DefaultGltfModel
+import de.javagl.jgltf.model.impl.DefaultImageModel
 import net.minecraft.entity.CreatureEntity
 import net.minecraft.entity.EntityType
 import net.minecraft.entity.ai.goal.SwimGoal
@@ -9,20 +14,20 @@ import net.minecraft.util.ActionResultType
 import net.minecraft.util.DamageSource
 import net.minecraft.util.Hand
 import net.minecraft.world.World
-import net.minecraftforge.api.distmarker.Dist
-import net.minecraftforge.api.distmarker.OnlyIn
 import net.minecraftforge.common.capabilities.Capability
-import org.lwjgl.opengl.GLCapabilities
+import org.lwjgl.opengl.GL11
+import org.lwjgl.opengl.GL12
+import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.gltf.GlTFModelManager
 import ru.hollowhorizon.hc.client.gltf.IAnimatedEntity
 import ru.hollowhorizon.hc.client.gltf.RenderedGltfModel
-import ru.hollowhorizon.hc.client.gltf.animation.AnimationTypes
-import ru.hollowhorizon.hc.client.gltf.animation.GLTFAnimation
-import ru.hollowhorizon.hc.client.gltf.animation.loadAnimations
-import ru.hollowhorizon.hc.client.gltf.animations.AnimationManager
+import ru.hollowhorizon.hc.client.gltf.animations.AnimationType
 import ru.hollowhorizon.hc.client.utils.mcText
-import ru.hollowhorizon.hc.common.capabilities.*
+import ru.hollowhorizon.hc.common.capabilities.AnimatedEntityCapability
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2.Companion.get
+import ru.hollowhorizon.hc.common.capabilities.ICapabilitySyncer
+import ru.hollowhorizon.hc.common.capabilities.getCapability
+import ru.hollowhorizon.hc.common.capabilities.syncEntity
 import ru.hollowhorizon.hollowengine.common.capabilities.NPCEntityCapability
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
 import ru.hollowhorizon.hollowengine.common.npcs.IconType
@@ -66,64 +71,6 @@ open class NPCEntity : CreatureEntity, IHollowNPC, IAnimatedEntity, ICapabilityS
         super.die(source)
     }
 
-    @OnlyIn(Dist.CLIENT)
-    private fun tryAddAnimation(
-        type: AnimationTypes,
-        capability: AnimatedEntityCapability,
-        animationList: List<GLTFAnimation>
-    ) {
-        when (type) {
-            AnimationTypes.IDLE -> capability.animations[type] = animationList.find { it.name.contains("idle") }?.name
-                ?: ""
-
-            AnimationTypes.IDLE_SNEAKED -> capability.animations[type] =
-                animationList.find { it.name.contains("idle") && it.name.contains("sneak") }?.name
-                    ?: capability.animations[AnimationTypes.IDLE] ?: ""
-
-            AnimationTypes.WALK -> capability.animations[type] = animationList
-                .filter {
-                    it.name.contains("walk") || it.name.contains("go") || it.name.contains("run") || it.name.contains("move")
-                }.minByOrNull {
-                    when {
-                        it.name.contains("walk") -> 0
-                        it.name.contains("go") -> 1
-                        it.name.contains("run") -> 2
-                        it.name.contains("move") -> 3
-                        else -> 4
-                    }
-                }?.name ?: ""
-
-            AnimationTypes.WALK_SNEAKED -> capability.animations[type] =
-                animationList.find { it.name.contains("walk") && it.name.contains("sneak") }?.name
-                    ?: capability.animations[AnimationTypes.WALK] ?: ""
-
-            AnimationTypes.RUN -> capability.animations[type] = animationList.find { it.name.contains("run") }?.name
-                ?: capability.animations[AnimationTypes.WALK] ?: ""
-
-            AnimationTypes.SWIM -> capability.animations[type] = animationList.find { it.name.contains("swim") }?.name
-                ?: capability.animations[AnimationTypes.WALK] ?: ""
-
-            AnimationTypes.FALL -> capability.animations[type] = animationList.find { it.name.contains("fall") }?.name
-                ?: capability.animations[AnimationTypes.IDLE] ?: ""
-
-            AnimationTypes.FLY -> capability.animations[type] = animationList.find { it.name.contains("fly") }?.name
-                ?: capability.animations[AnimationTypes.IDLE] ?: ""
-
-            AnimationTypes.SIT -> capability.animations[type] = animationList.find { it.name.contains("sit") }?.name
-                ?: capability.animations[AnimationTypes.IDLE] ?: ""
-
-            AnimationTypes.SLEEP -> capability.animations[type] = animationList.find { it.name.contains("sleep") }?.name
-                ?: capability.animations[AnimationTypes.SLEEP] ?: ""
-
-            AnimationTypes.SWING -> capability.animations[type] =
-                animationList.find { it.name.contains("attack") || it.name.contains("swing") }?.name ?: ""
-
-            AnimationTypes.DEATH -> capability.animations[type] =
-                animationList.find { it.name.contains("death") }?.name ?: ""
-
-        }
-    }
-
     override fun registerGoals() {
         goalSelector.addGoal(0, SwimGoal(this)) //Если NPC решит утонить будет не кайф...
     }
@@ -160,36 +107,45 @@ open class NPCEntity : CreatureEntity, IHollowNPC, IAnimatedEntity, ICapabilityS
     }
 
     override fun onCapabilitySync(capability: Capability<*>) {
-        if (!level.isClientSide) {
-            if (capability == get<NPCEntityCapability>()) { //При обновлении NPC на сервере обновляем данные о модели на клиенте
-                val npcCapability = this.getCapability<NPCEntityCapability>()
+        if (capability == get<NPCEntityCapability>()) {
+            val npcCapability = this.getCapability<NPCEntityCapability>()
 
-                this.customName = npcCapability.settings.name.mcText
+            this.customName = npcCapability.settings.name.mcText
+            this.isCustomNameVisible = true
+        }
 
-                val animCapability = this.getCapability<AnimatedEntityCapability>()
+        if (level.isClientSide && capability == get<AnimatedEntityCapability>()) {
+            val animCapability = this.getCapability<AnimatedEntityCapability>()
 
-                val model = npcCapability.settings.model
-
-                animCapability.model = model.modelPath
-                animCapability.textures = model.textureOverrides
-
-                animCapability.syncEntity(this)
-            }
-        } else {
-            if (capability == get<AnimatedEntityCapability>()) {
-                val animCapability = this.getCapability<AnimatedEntityCapability>()
-
-                updateModels(animCapability)
-            }
+            updateModels(animCapability)
         }
     }
 
     fun updateModels(capability: AnimatedEntityCapability) {
         RenderSystem.recordRenderCall {
-            renderedGltfModel = GlTFModelManager.getOrCreate(this, capability)
-            animationList = renderedGltfModel!!.loadAnimations()
-            animationManager = AnimationManager(renderedGltfModel!!)
-            AnimationTypes.values().forEach { tryAddAnimation(it, capability, animationList) }
+            model = GlTFModelManager.getOrCreate(capability.model)
+
+            AnimationType.load(model!!.gltfModel, capability)
+
+            val textures = capability.textures
+
+            updateTextures(textures, model!!)
+        }
+    }
+
+    private fun updateTextures(textures: HashMap<String, String>, model: RenderedGltfModel) {
+        (model.gltfModel as? DefaultGltfModel)?.let { gltf ->
+
+            val size = gltf.textureModels.size
+
+            for (i in 0 until size) {
+                val texture = gltf.getTextureModel(i)
+
+                if (textures.contains(texture.name)) {
+                    (texture.imageModel as? DefaultImageModel)?.imageData = GlTFModelManager.getInstance().getImageResource(textures[texture.name])
+                    model.textureModelToGlTexture[texture] = null //Сбрасываем предыдущую текстуру
+                }
+            }
         }
     }
 
@@ -197,8 +153,6 @@ open class NPCEntity : CreatureEntity, IHollowNPC, IAnimatedEntity, ICapabilityS
         return true
     }
 
-    override var animationList: List<GLTFAnimation> = ArrayList()
-    override var animationManager: AnimationManager? = null
-    override var renderedGltfModel: RenderedGltfModel? = null
+    override var model: RenderedGltfModel? = null
 
 }
