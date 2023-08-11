@@ -1,9 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.scripting.dialogues
 
-import net.minecraft.util.math.vector.Vector2f
+import net.minecraft.world.phys.Vec2
+
 
 open class HDObject {
-    var rotate: Vector2f = Vector2f.ZERO
-    var translate: Vector2f = Vector2f.ZERO
+    var rotate: Vec2 = Vec2.ZERO
+    var translate: Vec2 = Vec2.ZERO
     var scale = 1.0f
 }

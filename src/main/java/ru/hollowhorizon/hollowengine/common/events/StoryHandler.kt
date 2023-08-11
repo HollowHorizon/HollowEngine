@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.events
 
-import net.minecraft.entity.player.ServerPlayerEntity
+import net.minecraft.server.level.ServerPlayer
 import net.minecraftforge.event.TickEvent
 import net.minecraftforge.event.entity.player.PlayerEvent
 import ru.hollowhorizon.hc.api.utils.HollowConfig
@@ -19,8 +19,8 @@ object StoryHandler {
 
     @JvmStatic
     fun onPlayerJoin(event: PlayerEvent.PlayerLoggedInEvent) {
-        event.player.commandSenderWorld.getCapability(HollowCapabilityV2.get<StoryTeamCapability>()).ifPresent {
-            val team = it.getTeam(event.player)
+        event.entity.commandSenderWorld.getCapability(HollowCapabilityV2.get(StoryTeamCapability::class.java)).ifPresent {
+            val team = it.getTeam(event.entity)
             runAllPossible(team)
         }
     }
@@ -30,8 +30,8 @@ object StoryHandler {
         val team = event.player.storyTeam()
         if (!event.player.level.isClientSide && team.progressManager.shouldUpdate) {
             team.progressManager.shouldUpdate = false
-            event.player.level.getCapability(HollowCapabilityV2.get<StoryTeamCapability>())
-                .ifPresent { cap -> team.forAllOnline { cap.syncWorld(it.mcPlayer!! as ServerPlayerEntity) } }
+            event.player.level.getCapability(HollowCapabilityV2.get(StoryTeamCapability::class.java))
+                .ifPresent { cap -> team.forAllOnline { cap.syncWorld(it.mcPlayer!! as ServerPlayer) } }
         }
     }
 
@@ -48,11 +48,11 @@ object StoryHandler {
 
     @JvmStatic
     fun onPlayerClone(event: PlayerEvent.Clone) {
-        event.player.server?.overworld()?.getCapability(HollowCapabilityV2.get<StoryTeamCapability>())
+        event.entity.server?.overworld()?.getCapability(HollowCapabilityV2.get(StoryTeamCapability::class.java))
             ?.ifPresent { teamCap ->
                 val team = teamCap.getTeam(event.original)
 
-                team.updatePlayer(event.player)
+                team.updatePlayer(event.entity)
             }
     }
 }

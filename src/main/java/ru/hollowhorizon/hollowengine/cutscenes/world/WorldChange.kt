@@ -4,7 +4,7 @@ package ru.hollowhorizon.hollowengine.cutscenes.world
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import net.minecraft.util.math.BlockPos
+import net.minecraft.core.BlockPos
 import ru.hollowhorizon.hc.client.utils.nbt.ForBlockPos
 
 @Serializable

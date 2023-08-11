@@ -1,16 +1,16 @@
 package ru.hollowhorizon.hollowengine.client.screen
 
+import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.math.Vector3d
+import com.mojang.math.Vector3f
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.GLAllocation
-import net.minecraft.util.math.vector.Vector3d
-import net.minecraft.util.math.vector.Vector3f
 import ru.hollowhorizon.hollowengine.client.ClientEvents
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import kotlin.math.abs
 
 object CameraHelper {
-    private var mouseBasedViewVector = Vector3d.ZERO
+    private var mouseBasedViewVector = Vector3d(0.0, 0.0, 0.0)
     private var oldMouseX = 0.0
     private var oldMouseY = 0.0
     private var oldPlayerXRot = 0.0F
@@ -46,20 +46,21 @@ object CameraHelper {
     private fun calculateResultingVector(res: FloatBuffer): Vector3d {
         val v = Vector3f(res[0], res[1], res[2])
         v.normalize()
-        return Vector3d(v)
+        return Vector3d(v.x().toDouble(), v.y().toDouble(), v.z().toDouble())
     }
 
     private fun getModelViewMatrix(minecraft: Minecraft): FloatBuffer {
-        val modelViewBuffer = GLAllocation.createFloatBuffer(16)
-        val modelViewMatrix = ClientEvents.VIEW_MAT.copy()
+        val modelViewBuffer = FloatBuffer.allocate(16)
+        val modelViewMatrix = RenderSystem.getModelViewMatrix().copy()
         modelViewMatrix.store(modelViewBuffer)
         modelViewBuffer.rewind()
         return modelViewBuffer
     }
 
     private fun getProjectionMatrix(minecraft: Minecraft): FloatBuffer {
-        val projectionBuffer = GLAllocation.createFloatBuffer(16)
-        ClientEvents.PROJ_MAT.store(projectionBuffer)
+        val projectionBuffer = FloatBuffer.allocate(16)
+        val projectionMatrix = RenderSystem.getProjectionMatrix().copy()
+        projectionMatrix.store(projectionBuffer)
         projectionBuffer.rewind()
         return projectionBuffer
     }

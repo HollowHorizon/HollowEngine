@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.files
 
-import net.minecraft.entity.player.PlayerEntity
 import net.minecraftforge.fml.loading.FMLPaths
 import java.io.File
 
@@ -34,12 +33,4 @@ object DirectoryManager {
     fun String.fromReadablePath(): File {
         return FMLPaths.GAMEDIR.get().resolve("hollowengine").resolve(this).toFile()
     }
-}
-
-fun PlayerEntity.sendProgress(data: String, progress: Int) = runPacket {
-    return@runPacket this
-}
-
-fun <T> runPacket(function: () -> T): T {
-    return function()
 }

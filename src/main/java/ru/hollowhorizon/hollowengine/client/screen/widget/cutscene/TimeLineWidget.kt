@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget.cutscene
 
-import com.mojang.blaze3d.matrix.MatrixStack
 import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.PoseStack
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.utils.ScissorUtil
 import ru.hollowhorizon.hc.client.utils.toRL
@@ -11,15 +11,14 @@ class TimeLineWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x, 
     private var isLeftKeyDown: Boolean = false
     private var cursorX = -1
 
-    override fun renderButton(stack: MatrixStack, mouseX: Int, mouseY: Int, ticks: Float) {
+    override fun renderButton(stack: PoseStack, mouseX: Int, mouseY: Int, ticks: Float) {
         RenderSystem.enableBlend()
-        RenderSystem.defaultAlphaFunc()
         RenderSystem.defaultBlendFunc()
 
         if (isHovered && isLeftKeyDown || cursorX == -1) cursorX = mouseX - x
 
         ScissorUtil.start(x, y, width, height)
-        textureManager.bind("hollowengine:textures/gui/cutscenes/cursor.png".toRL())
+        textureManager.bindForSetup("hollowengine:textures/gui/cutscenes/cursor.png".toRL())
         blit(stack, x + cursorX - height / 4, y, 0f, 0f, height / 2, height, height / 2, height)
         ScissorUtil.stop()
     }

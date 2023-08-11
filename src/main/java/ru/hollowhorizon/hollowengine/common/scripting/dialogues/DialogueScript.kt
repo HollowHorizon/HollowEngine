@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.dialogues
 
 
-import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.common.scripting.kotlin.AbstractHollowScriptConfiguration
 import ru.hollowhorizon.hollowengine.common.scripting.dialogues.executors.ServerDialogueExecutor
 import kotlin.script.experimental.annotations.KotlinScript
@@ -13,7 +13,7 @@ import kotlin.script.experimental.api.defaultImports
     fileExtension = "hds",
     compilationConfiguration = HollowDialogueConfiguration::class
 )
-abstract class HollowDialogue(player: PlayerEntity) :
+abstract class HollowDialogue(player: Player) :
     DialogueScriptBaseV2(ServerDialogueExecutor(player)) {
 
 }

@@ -2,16 +2,14 @@ package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.nbt.CompoundNBT
-import net.minecraft.util.ResourceLocation
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.client.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hollowengine.common.exceptions.StoryEventException
 import ru.hollowhorizon.hollowengine.common.exceptions.StoryPlayerNotFoundException
-import ru.hollowhorizon.hollowengine.common.scripting.story.StoryExecutorThread
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
 import java.util.*
-import kotlin.collections.HashMap
 
 @Serializable
 class StoryTeam {
@@ -23,13 +21,13 @@ class StoryTeam {
     val eventsData = HashSet<StoryEventData>()
     var progressManager = StoryProgressManager()
 
-    fun add(player: PlayerEntity): StoryPlayer {
+    fun add(player: Player): StoryPlayer {
         val storyPlayer = StoryPlayer(player)
         players.add(storyPlayer)
         return storyPlayer
     }
 
-    fun remove(player: PlayerEntity) {
+    fun remove(player: Player) {
         players.removeIf { it.uuid == player.uuid }
     }
 
@@ -59,7 +57,7 @@ class StoryTeam {
         return player ?: throw StoryPlayerNotFoundException(name)
     }
 
-    fun getPlayer(player: PlayerEntity): StoryPlayer {
+    fun getPlayer(player: Player): StoryPlayer {
         val fplayer = players.find { it.uuid == player.uuid }
         return fplayer ?: throw StoryPlayerNotFoundException(player.uuid)
     }
@@ -72,11 +70,11 @@ class StoryTeam {
         return players.find { it.mcPlayer?.name?.string == name } != null
     }
 
-    fun isFromTeam(player: PlayerEntity): Boolean {
+    fun isFromTeam(player: Player): Boolean {
         return players.find { it.uuid == player.uuid } != null
     }
 
-    fun hasPlayer(player: PlayerEntity): Boolean {
+    fun hasPlayer(player: Player): Boolean {
         return players.find { it.uuid == player.uuid } != null
     }
 
@@ -93,11 +91,11 @@ class StoryTeam {
         forAllOnline { it.send(text) }
     }
 
-    operator fun contains(player: PlayerEntity): Boolean {
+    operator fun contains(player: Player): Boolean {
         return isFromTeam(player)
     }
 
-    fun updatePlayer(player: PlayerEntity) {
+    fun updatePlayer(player: Player) {
         this.players.find { it.uuid == player.uuid }?.mcPlayer = player
     }
 }
@@ -105,7 +103,7 @@ class StoryTeam {
 @Serializable
 class StoryEventData(
     val eventPath: String,
-    val variables: @Serializable(ForCompoundNBT::class) CompoundNBT = CompoundNBT(), //Данное свойство отвечает за переменные созданные через выражение "by StoryStorage(...)"
+    val variables: @Serializable(ForCompoundNBT::class) CompoundTag = CompoundTag(), //Данное свойство отвечает за переменные созданные через выражение "by StoryStorage(...)"
     val stagedTasksStates: HashMap<Int, Int> = HashMap(), //Это свойство хранит индекс текущего блока кода
     val delayedTaskStates: HashMap<Int, Timer> = HashMap(), //Это свойство хранит прошедшее время задачи на ожидание
 )

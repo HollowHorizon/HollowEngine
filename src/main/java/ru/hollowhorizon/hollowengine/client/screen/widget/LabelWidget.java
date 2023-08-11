@@ -1,21 +1,24 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
-import net.minecraft.client.audio.SoundHandler;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.widget.Widget;
-import net.minecraft.util.text.*;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.locale.Language;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
+import net.minecraft.network.chat.Style;
+import ru.hollowhorizon.hc.client.screens.widget.HollowWidget;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class LabelWidget extends Widget {
-    public final FontRenderer font;
+public class LabelWidget extends HollowWidget {
+    public final Font font;
     private final AnchorX anchorX;
     private final AnchorY anchorY;
-    private List<? extends ITextProperties> texts;
+    private List<? extends FormattedText> texts;
     @Nullable
     private Tooltip tooltip;
     private int left;
@@ -26,18 +29,18 @@ public class LabelWidget extends Widget {
     private int lastY = y;
 
     public LabelWidget(
-            int x, int y, FontRenderer font, AnchorX anchorX, AnchorY anchorY, ITextComponent... messages) {
+            int x, int y, Font font, AnchorX anchorX, AnchorY anchorY, Component... messages) {
         this(x, y, font, anchorX, anchorY, Arrays.asList(messages));
     }
 
     public LabelWidget(
             int x,
             int y,
-            FontRenderer font,
+            Font font,
             AnchorX anchorX,
             AnchorY anchorY,
-            List<? extends ITextComponent> texts) {
-        super(x, y, 0, 0, new StringTextComponent(""));
+            List<? extends FormattedText> texts) {
+        super(x, y, 0, 0, Component.literal(""));
         this.font = font;
         this.anchorX = anchorX;
         this.anchorY = anchorY;
@@ -45,9 +48,9 @@ public class LabelWidget extends Widget {
         this.recalculateBounds();
     }
 
-    private static int getMaxWidth(FontRenderer font, List<? extends ITextProperties> messages) {
+    private static int getMaxWidth(Font font, List<? extends FormattedText> messages) {
         int width = 0;
-        for (ITextProperties message : messages) {
+        for (FormattedText message : messages) {
             width = Math.max(width, font.width(message));
         }
         return width;
@@ -91,7 +94,7 @@ public class LabelWidget extends Widget {
     }
 
     @Override
-    public void render(MatrixStack poseStack, int mouseX, int mouseY, float partialTicks) {
+    public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTicks) {
         if (visible) {
             if (lastX != x || lastY != y) {
                 this.recalculateBounds();
@@ -101,31 +104,18 @@ public class LabelWidget extends Widget {
 
             isHovered = mouseX >= left && mouseY >= top && mouseX < right && mouseY < bottom;
 
-            if (isHovered != this.isHovered()) {
-                if (this.isHovered()) {
-                    if (isFocused()) {
-                        this.queueNarration(200);
-                    } else {
-                        this.queueNarration(750);
-                    }
-                } else {
-                    nextNarration = Long.MAX_VALUE;
-                }
-            }
-
             if (visible) {
                 this.renderButton(poseStack, mouseX, mouseY, partialTicks);
             }
 
-            this.narrate();
-            isHovered = this.isHovered();
+            isHovered = this.isHoveredOrFocused();
         }
     }
 
     @Override
-    public void renderButton(MatrixStack stack, int mouseX, int mouseY, float partialTicks) {
+    public void renderButton(PoseStack stack, int mouseX, int mouseY, float partialTicks) {
         for (int i = 0, count = texts.size(); i < count; i++) {
-            final ITextProperties text = texts.get(i);
+            final FormattedText text = texts.get(i);
             final int w = font.width(text);
             final int h = font.lineHeight;
 
@@ -161,15 +151,15 @@ public class LabelWidget extends Widget {
                     break;
             }
 
-            font.drawShadow(stack, LanguageMap.getInstance().getVisualOrder(text), x, y, -1);
+            font.drawShadow(stack, Language.getInstance().getVisualOrder(text), x, y, -1);
         }
-        if (tooltip != null && this.isHovered()) {
+        if (tooltip != null && this.isHoveredOrFocused()) {
             tooltip.render(this, stack, mouseX, mouseY);
         }
     }
 
     @Override
-    public void playDownSound(SoundHandler p_230988_1_) {
+    public void playDownSound(SoundManager p_230988_1_) {
 
     }
 
@@ -183,19 +173,19 @@ public class LabelWidget extends Widget {
         return active && visible && isHovered;
     }
 
-    public void setTexts(ITextProperties... texts) {
+    public void setTexts(FormattedText... texts) {
         this.setTexts(Arrays.asList(texts));
     }
 
-    public void setTexts(List<? extends ITextProperties> texts) {
+    public void setTexts(List<? extends FormattedText> texts) {
         this.texts = texts;
         this.recalculateBounds();
     }
 
     public void wrap(int wrapWidth) {
-        final List<ITextProperties> wrapped = new ArrayList<>(texts.size());
-        final CharacterManager splitter = font.getSplitter();
-        for (ITextProperties text : texts) {
+        final List<FormattedText> wrapped = new ArrayList<>(texts.size());
+        final var splitter = font.getSplitter();
+        for (FormattedText text : texts) {
             if (font.width(text) > wrapWidth) {
                 wrapped.addAll(splitter.splitLines(text, wrapWidth, Style.EMPTY));
             } else {
@@ -218,6 +208,6 @@ public class LabelWidget extends Widget {
     }
 
     public interface Tooltip {
-        void render(LabelWidget label, MatrixStack poseStack, int mouseX, int mouseY);
+        void render(LabelWidget label, PoseStack poseStack, int mouseX, int mouseY);
     }
 }

@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.npcs
 
 import kotlinx.serialization.Serializable
-import net.minecraft.util.SoundEvent
+import net.minecraft.sounds.SoundEvent
 import ru.hollowhorizon.hc.client.utils.nbt.*
 import java.io.File
 

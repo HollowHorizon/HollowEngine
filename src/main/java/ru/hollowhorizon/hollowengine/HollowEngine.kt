@@ -1,8 +1,9 @@
 package ru.hollowhorizon.hollowengine
 
-import net.minecraft.entity.monster.ZombieEntity
+import net.minecraft.world.entity.monster.Zombie
 import net.minecraftforge.api.distmarker.Dist
 import net.minecraftforge.api.distmarker.OnlyIn
+import net.minecraftforge.client.event.EntityRenderersEvent
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.event.AddReloadListenerEvent
 import net.minecraftforge.event.RegisterCommandsEvent
@@ -18,6 +19,9 @@ import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.api.registy.HollowMod
 import ru.hollowhorizon.hc.client.gltf.GltfModelSources.addSource
 import ru.hollowhorizon.hc.client.gltf.PathSource
+import ru.hollowhorizon.hc.client.render.entity.GLTFEntityRenderer
+import ru.hollowhorizon.hc.common.registry.HollowModProcessor
+import ru.hollowhorizon.hc.common.registry.RegistryLoader
 import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.client.ClientEvents.initKeys
 import ru.hollowhorizon.hollowengine.client.sound.HSSounds
@@ -35,6 +39,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.mod.runModScript
 @Mod(HollowEngine.MODID)
 class HollowEngine {
     init {
+        HollowModProcessor.initMod()
         getModScripts().forEach(::runModScript)
         val forgeBus = MinecraftForge.EVENT_BUS
         val modBus = FMLJavaModLoadingContext.get().modEventBus
@@ -56,11 +61,19 @@ class HollowEngine {
             HSSounds.init()
         }
 
-        ModDimensions
+        modBus.addListener(this::entityRenderers)
+        ModDimensions.CHUNK_GENERATORS.register(modBus)
+        ModDimensions.DIMENSIONS.register(modBus)
+        RegistryLoader.registerAll()
+        //ModDimensions
     }
 
     fun addReloadListenerEvent(event: AddReloadListenerEvent?) {
         //event.addListener(new DialogueReloadListener());
+    }
+
+    fun entityRenderers(event: EntityRenderersEvent.RegisterRenderers) {
+        event.registerEntityRenderer(ModEntities.NPC_ENTITY.get(), ::GLTFEntityRenderer)
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -75,7 +88,7 @@ class HollowEngine {
 
     private fun onLoadingComplete(event: FMLLoadCompleteEvent) {}
     private fun onAttributeCreation(event: EntityAttributeCreationEvent) {
-        event.put(ModEntities.NPC_ENTITY, ZombieEntity.createAttributes().build())
+        event.put(ModEntities.NPC_ENTITY.get(), Zombie.createAttributes().build())
     }
 
     private fun registerCommands(event: RegisterCommandsEvent) {

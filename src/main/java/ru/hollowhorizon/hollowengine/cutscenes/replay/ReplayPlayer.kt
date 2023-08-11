@@ -1,9 +1,10 @@
 package ru.hollowhorizon.hollowengine.cutscenes.replay
 
-import net.minecraft.entity.LivingEntity
-import net.minecraft.world.GameType
-import net.minecraft.world.World
-import net.minecraft.world.server.ServerWorld
+import net.minecraft.server.level.ServerLevel
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.level.GameType
+import net.minecraft.world.level.Level
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.common.util.FakePlayer
 import net.minecraftforge.common.util.FakePlayerFactory
@@ -21,11 +22,11 @@ class ReplayPlayer(val target: LivingEntity) {
     var applyWorldChanges = true
     var waitOthersReplays = true
     var saveEntity = false
-    val fakePlayer: FakePlayer = FakePlayerFactory.getMinecraft(target.level as ServerWorld).also {
+    val fakePlayer: FakePlayer = FakePlayerFactory.getMinecraft(target.level as ServerLevel).also {
         it.setGameMode(GameType.CREATIVE)
     }
 
-    fun play(world: World, replay: Replay) {
+    fun play(world: Level, replay: Replay) {
         reset()
 
         ACTIVE_REPLAYS.add(this)
@@ -58,7 +59,7 @@ class ReplayPlayer(val target: LivingEntity) {
         reset()
         isPlaying = false
         isPaused = false
-        if(!saveEntity) target.remove()
+        if(!saveEntity) target.remove(Entity.RemovalReason.DISCARDED)
         MinecraftForge.EVENT_BUS.unregister(this)
     }
 

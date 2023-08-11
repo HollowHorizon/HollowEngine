@@ -1,16 +1,16 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget.dialogue
 
-import com.mojang.blaze3d.matrix.MatrixStack
-import net.minecraft.util.text.ITextComponent
-import net.minecraft.util.text.StringTextComponent
+import com.mojang.blaze3d.vertex.PoseStack
+import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.utils.GuiAnimator
 import ru.hollowhorizon.hc.client.utils.ScissorUtil
 import ru.hollowhorizon.hc.client.utils.math.Interpolation
+import ru.hollowhorizon.hc.client.utils.mcText
 
 
-class FadeInLabelWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x, y, width, height, StringTextComponent("")) {
-    private var text: ITextComponent = StringTextComponent("")
+class FadeInLabelWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x, y, width, height, "".mcText) {
+    private var text = "".mcText
     private var onFadeInComplete: Runnable? = null
     private var animator: GuiAnimator? = null
     private var isUpdated = false
@@ -19,12 +19,12 @@ class FadeInLabelWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(
         animator = GuiAnimator.Single(0, width, 1f, Interpolation::easeOutSine)
     }
 
-    fun setText(text: ITextComponent) {
+    fun setText(text: Component) {
         this.text = text
     }
 
     fun setText(text: String) {
-        setText(StringTextComponent(text))
+        setText(text.mcText)
     }
 
     fun reset() {
@@ -35,7 +35,7 @@ class FadeInLabelWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(
         this.onFadeInComplete = onFadeInComplete
     }
 
-    override fun renderButton(stack: MatrixStack, mouseX: Int, mouseY: Int, ticks: Float) {
+    override fun renderButton(stack: PoseStack, mouseX: Int, mouseY: Int, ticks: Float) {
         super.renderButton(stack, mouseX, mouseY, ticks)
         ScissorUtil.start(x, y, animator!!.value, height)
         stack.pushPose()

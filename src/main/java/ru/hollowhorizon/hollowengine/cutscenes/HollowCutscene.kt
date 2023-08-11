@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.cutscenes
 
 import kotlinx.serialization.Serializable
-import net.minecraft.world.World
+import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.cutscenes.actor.SceneActor
 import ru.hollowhorizon.hollowengine.cutscenes.camera.SceneCamera
 import ru.hollowhorizon.hollowengine.cutscenes.custom.SceneScript
@@ -18,7 +18,7 @@ class HollowCutscene {
     val maxIndex: Int
         get() = maxOf(sceneCamera.maxIndex(), sceneWorld.maxIndex(), sceneScript.maxIndex())
 
-    fun init(level: World) {
+    fun init(level: Level) {
         sceneActors.forEach { it.init(level) }
     }
 

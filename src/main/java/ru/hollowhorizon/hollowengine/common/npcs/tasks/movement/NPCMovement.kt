@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.npcs.tasks.movement
 
-import net.minecraft.entity.Entity
+import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryTeam

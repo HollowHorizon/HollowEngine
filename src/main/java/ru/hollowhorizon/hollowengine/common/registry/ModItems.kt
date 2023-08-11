@@ -1,22 +1,15 @@
 package ru.hollowhorizon.hollowengine.common.registry
 
-import net.minecraft.item.Item
+import net.minecraft.world.item.Item
 import ru.hollowhorizon.hc.api.registy.HollowRegister
+import ru.hollowhorizon.hc.common.registry.HollowRegistry
 
-object ModItems {
-    @HollowRegister(auto_model = true)
-    @JvmField
-    val DIALOGUE_ICON = Item(Item.Properties().stacksTo(1))
+object ModItems : HollowRegistry() {
+    val DIALOGUE_ICON by register("dialogue_icon") { Item(Item.Properties().stacksTo(1)) }
 
-    @HollowRegister(auto_model = true)
-    @JvmField
-    val QUESTION_ICON = Item(Item.Properties().stacksTo(1))
+    val QUESTION_ICON by register("question_icon") { Item(Item.Properties().stacksTo(1)) }
 
-    @HollowRegister(auto_model = true)
-    @JvmField
-    val WARN_ICON = Item(Item.Properties().stacksTo(1))
+    val WARN_ICON by register("warn_icon") { Item(Item.Properties().stacksTo(1)) }
 
-    @HollowRegister(auto_model = true)
-    @JvmField
-    val STORYTELLER_DIM_TELEPORTER = Item(Item.Properties().stacksTo(1))
+    val STORYTELLER_DIM_TELEPORTER by register("storyteller_dim_teleporter") { Item(Item.Properties().stacksTo(1)) }
 }

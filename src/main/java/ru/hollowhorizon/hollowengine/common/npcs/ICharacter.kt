@@ -9,14 +9,13 @@ import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import net.minecraft.nbt.CompoundNBT
-import ru.hollowhorizon.hc.client.gltf.IAnimatedEntity
+import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hc.client.utils.nbt.ForCompoundNBT
 
 @Serializable(ForCharacter::class)
 interface ICharacter {
     val characterName: String
-    val entityType: CompoundNBT
+    val entityType: CompoundTag
     val isNPC: Boolean
         get() = false
 

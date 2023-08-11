@@ -1,18 +1,18 @@
 package ru.hollowhorizon.hollowengine.client.screen
 
-import com.mojang.blaze3d.matrix.MatrixStack
+import com.mojang.blaze3d.vertex.PoseStack
+import com.mojang.math.Quaternion
+import com.mojang.math.Vector3f
 import net.minecraft.client.Minecraft
+import net.minecraft.client.renderer.LevelRenderer
 import net.minecraft.client.renderer.RenderType
-import net.minecraft.client.renderer.WorldRenderer
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.item.BlockItem
-import net.minecraft.util.Direction
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.BlockRayTraceResult
-import net.minecraft.util.math.RayTraceContext
-import net.minecraft.util.math.vector.Quaternion
-import net.minecraft.util.math.vector.Vector3f
-import net.minecraftforge.client.event.RenderWorldLastEvent
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.BlockItem
+import net.minecraft.world.level.ClipContext
+import net.minecraft.world.phys.HitResult
+import net.minecraftforge.client.event.RenderLevelStageEvent
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import ru.hollowhorizon.hc.client.screens.HollowScreen
@@ -26,12 +26,12 @@ class CutsceneWorldEditScreen : HollowScreen("".toSTC()) {
         MinecraftForge.EVENT_BUS.register(this)
     }
 
-    override fun render(p_230430_1_: MatrixStack, mouseX: Int, mouseY: Int, p_230430_4_: Float) {
+    override fun render(p_230430_1_: PoseStack, mouseX: Int, mouseY: Int, p_230430_4_: Float) {
         super.render(p_230430_1_, mouseX, mouseY, p_230430_4_)
 
         val player = Minecraft.getInstance().player!!
 
-        val blockPos = player.pick(mouseX.toDouble(), mouseY.toDouble()).blockPos
+        val blockPos = BlockPos(player.pick(mouseX.toDouble(), mouseY.toDouble()).location)
 
         val state = player.level.getBlockState(blockPos)
 
@@ -54,14 +54,16 @@ class CutsceneWorldEditScreen : HollowScreen("".toSTC()) {
     }
 
     @SubscribeEvent
-    fun renderWorld(event: RenderWorldLastEvent) {
+    fun renderWorld(event: RenderLevelStageEvent) {
+        if(event.stage != RenderLevelStageEvent.Stage.AFTER_SKY) return
+
         if (lookPos != null) {
             val level = Minecraft.getInstance().level!!
             val shape = level.getBlockState(lookPos!!).getShape(level, lookPos!!)
 
             val buffer = Minecraft.getInstance().renderBuffers().bufferSource()
-            WorldRenderer.renderVoxelShape(
-                event.matrixStack,
+            LevelRenderer.renderVoxelShape(
+                event.poseStack,
                 buffer.getBuffer(RenderType.lines()),
                 shape,
                 -lookPos!!.x.toDouble(),
@@ -117,7 +119,7 @@ class CutsceneWorldEditScreen : HollowScreen("".toSTC()) {
     }
 }
 
-fun PlayerEntity.pick(mouseX: Double, mouseY: Double): BlockRayTraceResult {
+fun Player.pick(mouseX: Double, mouseY: Double): HitResult {
     val disctance = 50.0F
 
     val eyePosition = getEyePosition(0.0F)
@@ -125,11 +127,11 @@ fun PlayerEntity.pick(mouseX: Double, mouseY: Double): BlockRayTraceResult {
     val toVector = eyePosition.add(lookVector.x * disctance, lookVector.y * disctance, lookVector.z * disctance)
 
     return level.clip(
-        RayTraceContext(
+        ClipContext(
             eyePosition,
             toVector,
-            RayTraceContext.BlockMode.OUTLINE,
-            RayTraceContext.FluidMode.NONE,
+            ClipContext.Block.OUTLINE,
+            ClipContext.Fluid.NONE,
             this
         )
     )

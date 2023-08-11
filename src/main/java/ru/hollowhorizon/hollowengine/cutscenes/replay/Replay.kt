@@ -1,10 +1,10 @@
 package ru.hollowhorizon.hollowengine.cutscenes.replay
 
+import com.mojang.math.Vector3d
 import kotlinx.serialization.Serializable
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.nbt.INBT
-import net.minecraft.util.ResourceLocation
-import net.minecraft.util.math.vector.Vector3d
+import net.minecraft.nbt.Tag
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
 import ru.hollowhorizon.hc.client.utils.nbt.deserialize
 import ru.hollowhorizon.hc.client.utils.nbt.loadAsNBT
@@ -20,7 +20,7 @@ class Replay {
         points.add(point)
     }
 
-    fun addPointFromPlayer(recorder: ReplayRecorder, player: PlayerEntity) {
+    fun addPointFromPlayer(recorder: ReplayRecorder, player: Player) {
         points.add(ReplayFrame.loadFromPlayer(recorder, player))
     }
 
@@ -35,11 +35,11 @@ class Replay {
     }
 
     companion object {
-        fun fromNBT(nbt: INBT): Replay {
+        fun fromNBT(nbt: Tag): Replay {
             return NBTFormat.deserialize(nbt)
         }
 
-        fun toNBT(replay: Replay): INBT {
+        fun toNBT(replay: Replay): Tag {
             return NBTFormat.serialize(replay)
         }
 

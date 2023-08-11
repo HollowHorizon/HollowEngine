@@ -1,11 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.extensions
 
-import net.minecraft.entity.item.ItemEntity
-import net.minecraft.inventory.EquipmentSlotType
-import net.minecraft.item.ItemStack
-import net.minecraft.item.Items
-import net.minecraft.nbt.CompoundNBT
-import net.minecraft.nbt.JsonToNBT
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.TagParser
+import net.minecraft.world.entity.EquipmentSlot
+import net.minecraft.world.entity.item.ItemEntity
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.utils.toRL
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
@@ -27,13 +27,13 @@ fun IHollowNPC.dropItem(item: String) {
         else 1
 
     val nbt =
-        if (parsed.size > 2) JsonToNBT.parseTag(parsed[2])
-        else CompoundNBT()
+        if (parsed.size > 2) TagParser.parseTag(parsed[2])
+        else CompoundTag()
 
     dropItem(ItemStack(forgeItem, count, nbt))
 }
 
-fun IHollowNPC.equip(slot: EquipmentSlotType, item: String) {
+fun IHollowNPC.equip(slot: EquipmentSlot, item: String) {
     if (item.isEmpty()) this.npcEntity.setItemSlot(slot, ItemStack.EMPTY)
 
     val parsed = item.split("@")
@@ -45,8 +45,8 @@ fun IHollowNPC.equip(slot: EquipmentSlotType, item: String) {
         else 1
 
     val nbt =
-        if (parsed.size > 2) JsonToNBT.parseTag(parsed[2])
-        else CompoundNBT()
+        if (parsed.size > 2) TagParser.parseTag(parsed[2])
+        else CompoundTag()
 
     this.npcEntity.setItemSlot(slot, ItemStack(forgeItem, count, nbt))
 }

@@ -1,10 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.scripting.dialogues
 
-import com.mojang.blaze3d.matrix.MatrixStack
 import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.AbstractGui
-import net.minecraft.util.ResourceLocation
+import net.minecraft.client.gui.GuiComponent.blit
+import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hc.client.utils.toRL
 
 class HDImage(image: String) : HDObject() {
@@ -19,17 +19,15 @@ class HDImage(image: String) : HDObject() {
     }
 
     @Suppress("DEPRECATION")
-    fun render(stack: MatrixStack, screenWidth: Int, screenHeight: Int) {
-        RenderSystem.enableAlphaTest()
+    fun render(stack: PoseStack, screenWidth: Int, screenHeight: Int) {
         RenderSystem.enableBlend()
-        RenderSystem.defaultAlphaFunc()
         RenderSystem.defaultBlendFunc()
-        RenderSystem.color4f(1.0f, 1.0f, 1.0f, alpha)
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, alpha)
         val w: Int = (width * scale).toInt()
         val h: Int = (height * scale).toInt()
 
-        Minecraft.getInstance().textureManager.bind(image)
-        AbstractGui.blit(
+        Minecraft.getInstance().textureManager.bindForSetup(image)
+        blit(
             stack,
             ((screenWidth / 2 - w / 2) + translate.x).toInt(),
             ((screenHeight / 2 - h / 2) + translate.y).toInt(),

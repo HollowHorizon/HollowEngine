@@ -1,13 +1,14 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
+
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.audio.SimpleSound;
-import net.minecraft.client.gui.widget.Widget;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.text.IFormattableTextComponent;
-import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
+import ru.hollowhorizon.hc.client.screens.widget.HollowWidget;
 import ru.hollowhorizon.hollowengine.client.render.GUIHelper;
 import ru.hollowhorizon.hollowengine.client.sound.HSSounds;
 
@@ -16,11 +17,11 @@ import java.util.function.Consumer;
 
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
 
-public class DropListWidget extends Widget {
+public class DropListWidget extends HollowWidget {
     public static final ResourceLocation LIST = new ResourceLocation(MODID, "textures/gui/list_icon.png");
     private final ArrayList<ListElement> elements;
     private final Consumer<ListElement> onClick;
-    private final IFormattableTextComponent text;
+    private final Component text;
     private ListElement currentElement;
     private int elementOffset = 0;
     private int elementLimit = 5;
@@ -28,8 +29,8 @@ public class DropListWidget extends Widget {
     private int waitCounter = 0;
     private int animCounter = 0;
 
-    public DropListWidget(IFormattableTextComponent text, ArrayList<ListElement> elements, Consumer<ListElement> onClick, int x, int y, int w, int h) {
-        super(x, y, w, h, new StringTextComponent(""));
+    public DropListWidget(Component text, ArrayList<ListElement> elements, Consumer<ListElement> onClick, int x, int y, int w, int h) {
+        super(x, y, w, h, Component.empty());
 
         this.elements = elements;
         this.onClick = onClick;
@@ -38,7 +39,7 @@ public class DropListWidget extends Widget {
     }
 
     @Override
-    public void render(MatrixStack stack, int mouseX, int mouseY, float p_230430_4_) {
+    public void render(PoseStack stack, int mouseX, int mouseY, float p_230430_4_) {
         if (!isLastHovered) {
             boolean isHovered = mouseX >= this.x && mouseY >= this.y && mouseX < this.x + this.width && mouseY < this.y + this.height;
             if (isHovered) waitCounter++;
@@ -56,10 +57,8 @@ public class DropListWidget extends Widget {
 
         stack.pushPose();
 
-        RenderSystem.enableAlphaTest();
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
-        RenderSystem.defaultAlphaFunc();
         float color = this.isHovered ? 0.3F : 1.0F;
         GUIHelper.drawIcon(stack, LIST, this.x + this.width - this.height, this.y, this.height, this.height, 0.6F, color, color, color, 1.0F);
 
@@ -118,7 +117,7 @@ public class DropListWidget extends Widget {
         if (b != -1) {
             this.currentElement = this.elements.get(elementOffset + b);
             this.onClick.accept(this.currentElement);
-            Minecraft.getInstance().getSoundManager().play(SimpleSound.forUI(HSSounds.SLIDER_BUTTON, 1.0F));
+            Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(HSSounds.SLIDER_BUTTON, 1.0F));
             this.animCounter = 0;
             this.isLastHovered = false;
             this.isHovered = false;

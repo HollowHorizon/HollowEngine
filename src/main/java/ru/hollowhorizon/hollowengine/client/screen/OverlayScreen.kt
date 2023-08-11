@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.screen
 
-import com.mojang.blaze3d.matrix.MatrixStack
+import com.mojang.blaze3d.vertex.PoseStack
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.utils.drawCentredScaled
 import ru.hollowhorizon.hc.client.utils.toSTC
@@ -12,12 +12,19 @@ class OverlayScreen(val text: String? = null) : HollowScreen("".toSTC()) {
     private var fadeType = FadeType.FADE_IN
     var subTitle: String? = null
 
-    override fun render(stack: MatrixStack, mouseX: Int, mouseY: Int, particalTick: Float) {
+    override fun render(stack: PoseStack, mouseX: Int, mouseY: Int, particalTick: Float) {
 
         fill(stack, 0, 0, this.width, this.height, ARGB(alpha, 0, 0, 0).toInt())
 
-        if(text != null) font.drawCentredScaled(stack, text.toSTC(), this.width / 2, this.height / 3, 0xFFFFFF, 3.0F)
-        if(subTitle != null) font.drawCentredScaled(stack, subTitle!!.toSTC(), this.width / 2, this.height / 3 + font.lineHeight * 3, 0xFFFFFF, 1.5F)
+        if (text != null) font.drawCentredScaled(stack, text.toSTC(), this.width / 2, this.height / 3, 0xFFFFFF, 3.0F)
+        if (subTitle != null) font.drawCentredScaled(
+            stack,
+            subTitle!!.toSTC(),
+            this.width / 2,
+            this.height / 3 + font.lineHeight * 3,
+            0xFFFFFF,
+            1.5F
+        )
 
         if (ticks > 0) {
             when (fadeType) {

@@ -1,21 +1,21 @@
 package ru.hollowhorizon.hollowengine.client.screen;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.Widget;
-import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.network.chat.Component;
+import ru.hollowhorizon.hc.client.screens.HollowScreen;
 import ru.hollowhorizon.hc.client.utils.ScissorUtil;
 import ru.hollowhorizon.hollowengine.client.screen.widget.ModelEditWidget;
 import ru.hollowhorizon.hollowengine.client.screen.widget.ModelPreviewWidget;
 
-public class SMDEditModelScreen extends Screen {
+public class SMDEditModelScreen extends HollowScreen {
     private final NPCModelChoicerScreen lastScreen;
     private final NPCCreationScreen npcScreen;
     private ModelPreviewWidget preview;
 
     protected SMDEditModelScreen(NPCModelChoicerScreen lastScreen, NPCCreationScreen screen) {
-        super(new StringTextComponent("EDIT_MODEL_SCREEN"));
+        super(Component.literal("EDIT_MODEL_SCREEN"));
         this.lastScreen = lastScreen;
         this.npcScreen = screen;
 
@@ -25,18 +25,19 @@ public class SMDEditModelScreen extends Screen {
     @Override
     protected void init() {
 
-        this.addButton(new ModelEditWidget(0, 0, this.width / 2, this.height, this.lastScreen, this.npcScreen));
+        this.addRenderableWidget(new ModelEditWidget(0, 0, this.width / 2, this.height, this.lastScreen, this.npcScreen));
         //this.preview = new ModelPreviewWidget(this.npcScreen, this.width / 2, 0, this.width / 2, this.height, new NPCEntity(new NPCSettings(), Minecraft.getInstance().level), this::renderWidgetTooltip);
-        this.addWidget(this.preview);
+        this.addRenderableWidget(this.preview);
     }
 
-    public void renderWidgetTooltip(Widget widget, MatrixStack stack, int mouseX, int mouseY) {
+
+    public void renderWidgetTooltip(AbstractWidget widget, PoseStack stack, int mouseX, int mouseY) {
         this.renderTooltip(stack, widget.getMessage(), mouseX, mouseY);
 
     }
 
     @Override
-    public void render(MatrixStack stack, int mouseX, int mouseY, float partialTicks) {
+    public void render(PoseStack stack, int mouseX, int mouseY, float partialTicks) {
         super.renderBackground(stack);
 
         preview.render(stack, mouseX, mouseY, partialTicks);
@@ -75,7 +76,7 @@ public class SMDEditModelScreen extends Screen {
 
     @Override
     public boolean keyReleased(int p_223281_1_, int p_223281_2_, int p_223281_3_) {
-        this.children.forEach(iGuiEventListener -> iGuiEventListener.keyReleased(p_223281_1_, p_223281_2_, p_223281_3_));
+        this.children().forEach(iGuiEventListener -> iGuiEventListener.keyReleased(p_223281_1_, p_223281_2_, p_223281_3_));
         return super.keyReleased(p_223281_1_, p_223281_2_, p_223281_3_);
     }
 

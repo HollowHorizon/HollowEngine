@@ -1,16 +1,17 @@
 package ru.hollowhorizon.hollowengine.cutscenes.replay
 
-import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.world.entity.player.Player
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.event.TickEvent
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.event.entity.player.PlayerInteractEvent
-import net.minecraftforge.event.world.BlockEvent
+import net.minecraftforge.event.level.BlockEvent
+
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import ru.hollowhorizon.hc.client.utils.nbt.save
 import java.io.File
 
-class ReplayRecorder(val player: PlayerEntity) {
+class ReplayRecorder(val player: Player) {
     val replay = Replay()
     var isRecording = false
     val brokenBlocks: ArrayList<ReplayBlock> = ArrayList()
@@ -56,27 +57,27 @@ class ReplayRecorder(val player: PlayerEntity) {
     @SubscribeEvent
     fun onBlockPlaced(event: BlockEvent.BreakEvent) {
         if (isRecording) {
-            brokenBlocks.add(ReplayBlock(event.pos, event.state.block.registryName!!.toString()))
+            //brokenBlocks.add(ReplayBlock(event.pos, event.state.block.registryName!!.toString()))
         }
     }
 
     @SubscribeEvent
     fun onBlockBroken(event: BlockEvent.EntityPlaceEvent) {
         if (isRecording) {
-            placedBlocks.add(ReplayBlock(event.pos, event.state.block.registryName!!.toString()))
+            //placedBlocks.add(ReplayBlock(event.pos, event.state.block.registryName!!.toString()))
         }
     }
 
     fun onBlockUse(event: PlayerInteractEvent.RightClickBlock) {
         if (isRecording) {
-            usedBlocks.add(ReplayBlock(event.pos, event.itemStack.item.registryName!!.toString()))
+            //usedBlocks.add(ReplayBlock(event.pos, event.itemStack.item.registryName!!.toString()))
         }
     }
 
     companion object {
-        val recorders: HashMap<PlayerEntity, ReplayRecorder> = HashMap()
+        val recorders: HashMap<Player, ReplayRecorder> = HashMap()
 
-        fun getRecorder(player: PlayerEntity): ReplayRecorder {
+        fun getRecorder(player: Player): ReplayRecorder {
             if (!recorders.containsKey(player)) {
                 recorders[player] = ReplayRecorder(player)
             }

@@ -1,23 +1,17 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
 import com.mojang.blaze3d.systems.RenderSystem
-import de.javagl.jgltf.model.Optionals
-import de.javagl.jgltf.model.TextureModel
-import de.javagl.jgltf.model.image.PixelDatas
 import de.javagl.jgltf.model.impl.DefaultGltfModel
 import de.javagl.jgltf.model.impl.DefaultImageModel
-import net.minecraft.entity.CreatureEntity
-import net.minecraft.entity.EntityType
-import net.minecraft.entity.ai.goal.SwimGoal
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.util.ActionResultType
-import net.minecraft.util.DamageSource
-import net.minecraft.util.Hand
-import net.minecraft.world.World
+import net.minecraft.world.InteractionHand
+import net.minecraft.world.InteractionResult
+import net.minecraft.world.damagesource.DamageSource
+import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.PathfinderMob
+import net.minecraft.world.entity.ai.goal.FloatGoal
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.level.Level
 import net.minecraftforge.common.capabilities.Capability
-import org.lwjgl.opengl.GL11
-import org.lwjgl.opengl.GL12
-import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.gltf.GlTFModelManager
 import ru.hollowhorizon.hc.client.gltf.IAnimatedEntity
 import ru.hollowhorizon.hc.client.gltf.RenderedGltfModel
@@ -34,15 +28,15 @@ import ru.hollowhorizon.hollowengine.common.npcs.IconType
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
-open class NPCEntity : CreatureEntity, IHollowNPC, IAnimatedEntity, ICapabilitySyncer {
+open class NPCEntity : PathfinderMob, IHollowNPC, IAnimatedEntity, ICapabilitySyncer {
     val interactionWaiter = Object()
     val goalQueue = ArrayList<HollowNPCTask>()
     val removeGoalQueue = ArrayList<HollowNPCTask>()
 
-    constructor(level: World) : super(ModEntities.NPC_ENTITY, level)
-    constructor(type: EntityType<NPCEntity>, world: World) : super(type, world)
+    constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
+    constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
 
-    override fun mobInteract(pPlayer: PlayerEntity, pHand: Hand): ActionResultType {
+    override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         synchronized(interactionWaiter) { interactionWaiter.notifyAll() }
         return super.mobInteract(pPlayer, pHand)
     }
@@ -72,7 +66,8 @@ open class NPCEntity : CreatureEntity, IHollowNPC, IAnimatedEntity, ICapabilityS
     }
 
     override fun registerGoals() {
-        goalSelector.addGoal(0, SwimGoal(this)) //Если NPC решит утонить будет не кайф...
+
+        goalSelector.addGoal(0, FloatGoal(this)) //Если NPC решит утонить будет не кайф...
     }
 
     override fun isInvulnerable(): Boolean {
@@ -107,15 +102,15 @@ open class NPCEntity : CreatureEntity, IHollowNPC, IAnimatedEntity, ICapabilityS
     }
 
     override fun onCapabilitySync(capability: Capability<*>) {
-        if (capability == get<NPCEntityCapability>()) {
-            val npcCapability = this.getCapability<NPCEntityCapability>()
+        if (capability == get(NPCEntityCapability::class.java)) {
+            val npcCapability = this.getCapability(NPCEntityCapability::class)
 
             this.customName = npcCapability.settings.name.mcText
             this.isCustomNameVisible = true
         }
 
-        if (level.isClientSide && capability == get<AnimatedEntityCapability>()) {
-            val animCapability = this.getCapability<AnimatedEntityCapability>()
+        if (level.isClientSide && capability == get(NPCEntityCapability::class.java)) {
+            val animCapability = this.getCapability(AnimatedEntityCapability::class)
 
             updateModels(animCapability)
         }
@@ -142,8 +137,9 @@ open class NPCEntity : CreatureEntity, IHollowNPC, IAnimatedEntity, ICapabilityS
                 val texture = gltf.getTextureModel(i)
 
                 if (textures.contains(texture.name)) {
-                    (texture.imageModel as? DefaultImageModel)?.imageData = GlTFModelManager.getInstance().getImageResource(textures[texture.name])
-                    model.textureModelToGlTexture[texture] = null //Сбрасываем предыдущую текстуру
+                    (texture.imageModel as? DefaultImageModel)?.imageData =
+                        GlTFModelManager.getInstance().getImageResource(textures[texture.name])
+                    //model.textureModelToGlTexture[texture] = null //Сбрасываем предыдущую текстуру
                 }
             }
         }

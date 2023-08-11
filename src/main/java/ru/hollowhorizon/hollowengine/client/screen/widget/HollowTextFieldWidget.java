@@ -1,25 +1,25 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.text.ITextComponent;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.function.Consumer;
 
-public class HollowTextFieldWidget extends TextFieldWidget {
+public class HollowTextFieldWidget extends EditBox {
     private final ResourceLocation texture;
     private String oldSuggestion = "";
 
-    public HollowTextFieldWidget(FontRenderer fr, int x, int y, int w, int h, ITextComponent text, ResourceLocation texture, Consumer<String> consumer) {
+    public HollowTextFieldWidget(Font fr, int x, int y, int w, int h, Component text, ResourceLocation texture, Consumer<String> consumer) {
         this(fr, x, y, w, h, text, texture);
         this.setResponder(consumer);
     }
 
-    public HollowTextFieldWidget(FontRenderer fr, int x, int y, int w, int h, ITextComponent text, ResourceLocation texture) {
+    public HollowTextFieldWidget(Font fr, int x, int y, int w, int h, Component text, ResourceLocation texture) {
         super(fr, x, y, w, h, text);
         //this.setSuggestion(text.getString());
         this.texture = texture;
@@ -27,14 +27,13 @@ public class HollowTextFieldWidget extends TextFieldWidget {
     }
 
     @Override
-    public void render(MatrixStack stack, int p_230430_2_, int p_230430_3_, float p_230430_4_) {
+    public void render(PoseStack stack, int p_230430_2_, int p_230430_3_, float p_230430_4_) {
         RenderSystem.enableBlend();
-        RenderSystem.enableAlphaTest();
         RenderSystem.defaultBlendFunc();
         stack.pushPose();
 
-        Minecraft.getInstance().textureManager.bind(texture);
-        blit(stack, x, y, 0, this.isHovered() ? this.height : 0, this.width, this.height, this.width, this.height * 2);
+        Minecraft.getInstance().textureManager.bindForSetup(texture);
+        blit(stack, x, y, 0, this.isHoveredOrFocused() ? this.height : 0, this.width, this.height, this.width, this.height * 2);
 
         stack.translate(this.width / 60F, this.height / 2F - 4, 0F);
 

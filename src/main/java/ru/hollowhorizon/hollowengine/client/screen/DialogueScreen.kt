@@ -1,20 +1,13 @@
 package ru.hollowhorizon.hollowengine.client.screen
 
-import com.mojang.blaze3d.matrix.MatrixStack
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.vertex.IVertexBuilder
+import com.mojang.blaze3d.vertex.PoseStack
+import com.mojang.math.Vector3f
 import net.minecraft.client.Minecraft
-import net.minecraft.client.audio.SimpleSound
-import net.minecraft.client.renderer.RenderHelper
-import net.minecraft.client.renderer.RenderType
-import net.minecraft.entity.EntityType
-import net.minecraft.entity.LivingEntity
-import net.minecraft.util.ResourceLocation
-import net.minecraft.util.math.vector.Vector3f
-import net.minecraft.util.text.ITextComponent
-import net.minecraft.util.text.StringTextComponent
-import net.minecraftforge.registries.ForgeRegistries
-import ru.hollowhorizon.hc.HollowCore
+import net.minecraft.client.resources.sounds.SimpleSoundInstance
+import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.LivingEntity
+import org.lwjgl.opengl.GL11
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.util.Alignment
 import ru.hollowhorizon.hc.client.screens.util.WidgetPlacement
@@ -23,16 +16,15 @@ import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hollowengine.client.screen.widget.dialogue.DialogueTextBox
 import ru.hollowhorizon.hollowengine.client.sound.HSSounds
 import ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueScene
-import java.util.*
 import kotlin.math.atan
 import kotlin.math.pow
 
-class DialogueScreen : HollowScreen(StringTextComponent("")) {
+class DialogueScreen : HollowScreen("".mcText) {
     var background: String? = null
     private val clickWaiter = Object()
     var textBox: DialogueTextBox? = null
 
-    var currentName: ITextComponent = StringTextComponent("")
+    var currentName = "".mcText
     var crystalAnimator = GuiAnimator.Reversed(0, 20, 1.5F) { x ->
         if (x < 0.5F) 4F * x * x * x
         else 1F - (-2 * x + 2.0).pow(3.0).toFloat() / 2F
@@ -54,10 +46,10 @@ class DialogueScreen : HollowScreen(StringTextComponent("")) {
 
 
     override fun init() {
-        this.children.clear()
-        this.buttons.clear()
+        this.children().clear()
+        this.renderables.clear()
 
-        this.textBox = this.addButton(
+        this.textBox = this.addRenderableWidget(
             WidgetPlacement.configureWidget(
                 ::DialogueTextBox, Alignment.BOTTOM_CENTER, 0, 0, this.width, this.height, 300, 50
             )
@@ -65,13 +57,13 @@ class DialogueScreen : HollowScreen(StringTextComponent("")) {
 
         for ((i, choice) in choices.withIndex()) {
 
-            this.addButton(
+            this.addRenderableWidget(
                 WidgetPlacement.configureWidget(
                     { x, y, w, h ->
-                        BaseButton(x, y, w, h, StringTextComponent(choice), { button ->
+                        BaseButton(x, y, w, h, choice.mcText, {
 
-                            synchronized(this.choiceWaiter) {
-                                this.choiceWaiter.notifyAll()
+                            synchronized(this@DialogueScreen.choiceWaiter) {
+                                this@DialogueScreen.choiceWaiter.notifyAll()
                             }
 
                             currentChoice = i
@@ -89,7 +81,7 @@ class DialogueScreen : HollowScreen(StringTextComponent("")) {
     }
 
     @Suppress("DEPRECATION")
-    override fun render(stack: MatrixStack, mouseX: Int, mouseY: Int, partialTick: Float) {
+    override fun render(stack: PoseStack, mouseX: Int, mouseY: Int, partialTick: Float) {
 
         //Я не знаю почему при выборе варианта ответа скипается одно сообщение, но если в этот момент запустить ожидание клика, а после кликнуть, то все работает как надо
         //Очень странный костыль... Когда-нибудь я разберусь?
@@ -106,25 +98,23 @@ class DialogueScreen : HollowScreen(StringTextComponent("")) {
 
         renderBackground(stack)
         if (background != null) {
-            RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0F)
-            Minecraft.getInstance().textureManager.bind(background!!.toRL())
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F)
+            Minecraft.getInstance().textureManager.bindForSetup(background!!.toRL())
             blit(stack, 0, 0, 0F, 0F, this.width, this.height, this.width, this.height)
         }
         drawCharacters(mouseX, mouseY)
         //drawImages(stack)
 
-        RenderSystem.color4f(col.r, col.g, col.b, col.a)
+        RenderSystem.setShaderColor(col.r, col.g, col.b, col.a)
         drawStatus(stack, partialTick)
-        RenderSystem.color4f(1f, 1f, 1f, 1f)
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
 
-        RenderSystem.enableAlphaTest()
         RenderSystem.enableBlend()
-        RenderSystem.defaultAlphaFunc()
         RenderSystem.defaultBlendFunc()
-        RenderSystem.color4f(col.r, col.g, col.b, col.a)
-        Minecraft.getInstance().textureManager.bind(OVERLAY.toRL())
+        RenderSystem.setShaderColor(col.r, col.g, col.b, col.a)
+        Minecraft.getInstance().textureManager.bindForSetup(OVERLAY.toRL())
         blit(stack, 0, this.height - 55, 0F, 0F, this.width, 55, this.width, 55)
-        RenderSystem.color4f(1F, 1F, 1F, 1F)
+        RenderSystem.setShaderColor(1F, 1F, 1F, 1F)
 
         super.render(stack, mouseX, mouseY, partialTick)
 
@@ -138,15 +128,13 @@ class DialogueScreen : HollowScreen(StringTextComponent("")) {
         }
     }
 
-    private fun drawNameBox(stack: MatrixStack, col: RGBA) {
-        RenderSystem.enableAlphaTest()
+    private fun drawNameBox(stack: PoseStack, col: RGBA) {
         RenderSystem.enableBlend()
-        RenderSystem.defaultAlphaFunc()
         RenderSystem.defaultBlendFunc()
-        RenderSystem.color4f(col.r, col.g, col.b, col.a)
+        RenderSystem.setShaderColor(col.r, col.g, col.b, col.a)
         stack.pushPose()
         stack.translate(0.0, 0.0, 700.0)
-        Minecraft.getInstance().textureManager.bind(NAME_OVERLAY.toRL())
+        Minecraft.getInstance().textureManager.bindForSetup(NAME_OVERLAY.toRL())
         blit(
             stack,
             5,
@@ -158,7 +146,7 @@ class DialogueScreen : HollowScreen(StringTextComponent("")) {
             this.font.width(this.currentName) + 10,
             15
         )
-        RenderSystem.color4f(1F, 1F, 1F, 1F)
+        RenderSystem.setShaderColor(1F, 1F, 1F, 1F)
 
         this.font.drawShadow(
             stack, this.currentName, 10F, this.height - 60F - font.lineHeight, 0xFFFFFF
@@ -166,9 +154,9 @@ class DialogueScreen : HollowScreen(StringTextComponent("")) {
         stack.popPose()
     }
 
-    private fun drawStatus(stack: MatrixStack, partialTick: Float) {
+    private fun drawStatus(stack: PoseStack, partialTick: Float) {
         if (this.textBox?.complete == true) {
-            Minecraft.getInstance().textureManager.bind(STATUS_ICON.toRL())
+            Minecraft.getInstance().textureManager.bindForSetup(STATUS_ICON.toRL())
             blit(stack, this.width - 60 + crystalAnimator.value, this.height - 47, 0F, 0F, 40, 40, 40, 40)
             crystalAnimator.update(partialTick)
         }
@@ -212,7 +200,7 @@ class DialogueScreen : HollowScreen(StringTextComponent("")) {
     }
 
     fun notifyClick() {
-        mc.soundManager.play(SimpleSound.forUI(HSSounds.SLIDER_BUTTON, 1F, 1F))
+        mc.soundManager.play(SimpleSoundInstance.forUI(HSSounds.SLIDER_BUTTON, 1F, 1F))
 
         synchronized(this.clickWaiter) {
             this.clickWaiter.notifyAll()
@@ -232,15 +220,11 @@ class DialogueScreen : HollowScreen(StringTextComponent("")) {
         val f = atan((xRot / 40.0)).toFloat()
         val f1 = atan((yRot / 40.0)).toFloat()
 
-        RenderSystem.pushMatrix()
+        GL11.glPushMatrix()
+        GL11.glTranslatef(x, y, 100.0f)
+        GL11.glScalef(1.0f, 1.0f, -1.0f)
 
-        RenderHelper.turnBackOn()
-
-        RenderSystem.translatef(x, y, 100.0f)
-
-        RenderSystem.scalef(1.0f, 1.0f, -1.0f)
-
-        val matrixstack = MatrixStack()
+        val matrixstack = PoseStack()
 
         matrixstack.scale(scale, scale, scale)
         val quaternion = Vector3f.ZP.rotationDegrees(180.0f)
@@ -266,65 +250,14 @@ class DialogueScreen : HollowScreen(StringTextComponent("")) {
         val renderBuffer = Minecraft.getInstance().renderBuffers().bufferSource()
 
         RenderSystem.runAsFancy {
-            RenderSystem.enableAlphaTest()
             RenderSystem.enableBlend()
-            RenderSystem.defaultAlphaFunc()
             RenderSystem.defaultBlendFunc()
             entityrenderermanager.render(
-                entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrixstack, { renderType ->
-                    val builder = if (renderType is RenderType.Type) {
-                        val rs: Optional<ResourceLocation> = renderType.state.textureState.texture
-                        if (rs.isPresent) {
-                            val newType: RenderType = RenderType.entityTranslucent(rs.get())
-                            if (!newType.format().equals(renderType.format())) renderBuffer.getBuffer(renderType)
-                            else renderBuffer.getBuffer(newType)
-                        } else {
-                            //HollowCore.LOGGER.info("If you see this, then there is an error with rendering that you should report as a bug.")
-                            renderBuffer.getBuffer(renderType)
-                        }
-                    } else {
-                        HollowCore.LOGGER.info("If you see this, then there is an error with rendering that you should report as a bug.")
-                        renderBuffer.getBuffer(renderType)
-                    }
-
-                    return@render object : IVertexBuilder {
-                        override fun vertex(x: Double, y: Double, z: Double): IVertexBuilder {
-                            return builder.vertex(x, y, z)
-                        }
-
-                        override fun color(r: Int, g: Int, b: Int, a: Int): IVertexBuilder {
-                            return builder.color((r * brightness).toInt(), (g * brightness).toInt(), (b * brightness).toInt(), a)
-                        }
-
-                        override fun uv(u: Float, v: Float): IVertexBuilder {
-                            return builder.uv(u, v)
-                        }
-
-                        override fun overlayCoords(u: Int, v: Int): IVertexBuilder {
-                            return builder.overlayCoords(u, v)
-                        }
-
-                        override fun uv2(u: Int, v: Int): IVertexBuilder {
-                            return builder.uv2(u, v)
-                        }
-
-                        override fun normal(x: Float, y: Float, z: Float): IVertexBuilder {
-                            return builder.normal(x, y, z)
-                        }
-
-                        override fun endVertex() {
-                            builder.endVertex()
-                        }
-
-                    }
-                }, 15728880
+                entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrixstack, renderBuffer, 15728880
             )
         }
 
-        RenderHelper.turnOff()
-        RenderSystem.disableLighting()
         RenderSystem.enableDepthTest()
-        RenderSystem.disableColorMaterial()
         renderBuffer.endBatch()
         entityrenderermanager.setRenderShadow(true)
 
@@ -336,17 +269,16 @@ class DialogueScreen : HollowScreen(StringTextComponent("")) {
         entity.yHeadRot = f6
 
         Minecraft.getInstance().gameRenderer.lightTexture().turnOffLightLayer()
-        RenderSystem.disableRescaleNormal()
-        RenderSystem.popMatrix()
+        GL11.glPopMatrix()
     }
 
-    fun update(scene: ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueScene) {
+    fun update(scene: DialogueScene) {
         background = scene.background
         characters.clear()
         characters.addAll(scene.characters.map {
             val entity = EntityType.loadEntityRecursive(it.entityType, Minecraft.getInstance().level!!) { e -> e }!!
 
-            if(it.isNPC) entity.deserializeNBT(it.entityType)
+            if (it.isNPC) entity.deserializeNBT(it.entityType)
 
             return@map entity as LivingEntity
         })

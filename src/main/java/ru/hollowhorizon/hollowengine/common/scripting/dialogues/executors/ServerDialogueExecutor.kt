@@ -1,10 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.scripting.dialogues.executors
 
-import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.scripting.dialogues.IDialogueExecutor
 import ru.hollowhorizon.hollowengine.common.scripting.story.waitForgeEvent
 
-class ServerDialogueExecutor(val player: PlayerEntity) : IDialogueExecutor {
+class ServerDialogueExecutor(val player: Player) : IDialogueExecutor {
     init {
         OpenScreenPacket().send(0, player)
     }

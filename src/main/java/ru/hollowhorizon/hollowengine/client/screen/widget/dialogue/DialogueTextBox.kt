@@ -1,15 +1,13 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget.dialogue
 
-import com.mojang.blaze3d.matrix.MatrixStack
-import net.minecraft.client.gui.chat.NarratorChatListener
-import net.minecraft.util.text.StringTextComponent
+import com.mojang.blaze3d.vertex.PoseStack
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.utils.GuiAnimator
 import ru.hollowhorizon.hc.client.utils.ScissorUtil
 import ru.hollowhorizon.hc.client.utils.mcText
 
 
-class DialogueTextBox(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x, y, width, height, NarratorChatListener.NO_TITLE) {
+class DialogueTextBox(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x, y, width, height, "".mcText) {
     var animator: GuiAnimator? = null
     var text: String = ""
         set(value) {
@@ -33,7 +31,7 @@ class DialogueTextBox(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x,
         animator = GuiAnimator.Single(0, width, 1f) { f -> f }
     }
 
-    override fun renderButton(stack: MatrixStack, mouseX: Int, mouseY: Int, ticks: Float) {
+    override fun renderButton(stack: PoseStack, mouseX: Int, mouseY: Int, ticks: Float) {
         super.renderButton(stack, mouseX, mouseY, ticks)
 
         val lines = font.split(text.mcText, width)

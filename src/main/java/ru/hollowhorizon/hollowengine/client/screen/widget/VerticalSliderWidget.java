@@ -1,36 +1,37 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
-import net.minecraft.client.gui.widget.Widget;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.text.StringTextComponent;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import ru.hollowhorizon.hc.client.utils.ScissorUtil;
 
 import java.util.function.Consumer;
 
 import static ru.hollowhorizon.hollowengine.client.screen.widget.ModelPreviewWidget.BORDER_WIDTH;
 
-public class VerticalSliderWidget extends Widget {
+public class VerticalSliderWidget extends AbstractWidget {
     private final int maxHeight;
     private int yHeight;
     private boolean isClicked;
     private Consumer<Float> consumer;
 
     public VerticalSliderWidget(int x, int y, int w, int h) {
-        super(x, y, w, h, new StringTextComponent(""));
+        super(x, y, w, h, Component.literal(""));
 
         this.maxHeight = this.height - 30;
         yHeight = this.y + 30;
     }
 
     public int clamp(int value) {
-        return MathHelper.clamp(value, this.y + 15, this.y + this.height - 15);
+        return Mth.clamp(value, this.y + 15, this.y + this.height - 15);
     }
 
     @Override
-    public void render(MatrixStack stack, int p_230430_2_, int mouseY, float p_230430_4_) {
+    public void render(PoseStack stack, int p_230430_2_, int mouseY, float p_230430_4_) {
         if (isClicked) {
-            yHeight =clamp(mouseY);
+            yHeight = clamp(mouseY);
             this.consumer.accept(getScroll());
         }
 
@@ -83,5 +84,10 @@ public class VerticalSliderWidget extends Widget {
             return true;
         }
         return false;
+    }
+
+    @Override
+    public void updateNarration(NarrationElementOutput pNarrationElementOutput) {
+
     }
 }

@@ -4,7 +4,7 @@ package ru.hollowhorizon.hollowengine.cutscenes.camera
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import net.minecraft.util.ResourceLocation
+import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hc.client.utils.nbt.ForResourceLocation
 
 @Serializable

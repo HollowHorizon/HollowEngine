@@ -3,12 +3,13 @@ package ru.hollowhorizon.hollowengine.common.commands;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.command.CommandSource;
-import net.minecraft.command.Commands;
-import net.minecraft.command.arguments.EntityArgument;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.ServerPlayerEntity;
-import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.commands.CommandSource;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import ru.hollowhorizon.hc.HollowCore;
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2;
 import ru.hollowhorizon.hollowengine.common.capabilities.ReplayStorageCapability;
@@ -29,7 +30,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class HECommands {
-    public static void register(CommandDispatcher<CommandSource> dispatcher) {
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("hollowengine")
                 .then(Commands.literal("open-dialogue")
                         .then(Commands.argument("dialogue", StringArgumentType.greedyString()).suggests((context, builder) -> {
@@ -64,7 +65,7 @@ public class HECommands {
                         try {
                             StoryTeam storyTeam = team.getTeam(context.getSource().getPlayerOrException());
                             storyTeam.getCompletedEvents().clear();
-                            context.getSource().getPlayerOrException().sendMessage(new StringTextComponent("§6[§bHollow Story§6] §bCompleted events reset successfully!"), context.getSource().getPlayerOrException().getUUID());
+                            context.getSource().getPlayerOrException().sendSystemMessage(Component.literal("§6[§bHollow Story§6] §bCompleted events reset successfully!"));
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
@@ -78,7 +79,7 @@ public class HECommands {
                                     return builder.buildFuture();
                                 }).executes(context -> {
                                     String raw = StringArgumentType.getString(context, "script");
-                                    ServerPlayerEntity player = EntityArgument.getPlayer(context, "player");
+                                    ServerPlayer player = EntityArgument.getPlayer(context, "player");
                                     File script = DirectoryManager.fromReadablePath(raw);
 
 
@@ -95,14 +96,14 @@ public class HECommands {
                                     return 1;
                                 }))))
                 .then(Commands.literal("active-events").executes(context -> {
-                    PlayerEntity player = context.getSource().getPlayerOrException();
+                    Player player = context.getSource().getPlayerOrException();
                     context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(StoryTeamCapability.class)).ifPresent(team -> {
                         try {
                             StoryTeam storyTeam = team.getTeam(player);
                             Set<String> entries = storyTeam.getCurrentEvents().keySet();
-                            player.sendMessage(new StringTextComponent("§6[§bActive Events§6]"), player.getUUID());
+                            player.sendSystemMessage(Component.literal("§6[§bActive Events§6]"));
                             for (String entry : entries) {
-                                player.sendMessage(new StringTextComponent("§6- §b" + entry), player.getUUID());
+                                player.sendSystemMessage(Component.literal("§6- §b" + entry));
                             }
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -111,7 +112,7 @@ public class HECommands {
                     return 1;
                 }))
                 .then(Commands.literal("stop-event").then(Commands.argument("event", StringArgumentType.greedyString()).suggests((context, builder) -> {
-                    PlayerEntity player = context.getSource().getPlayerOrException();
+                    Player player = context.getSource().getPlayerOrException();
                     context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(StoryTeamCapability.class)).ifPresent(team -> {
                         try {
                             StoryTeam storyTeam = team.getTeam(player);
@@ -123,7 +124,7 @@ public class HECommands {
                     });
                     return builder.buildFuture();
                 }).executes(context -> {
-                    PlayerEntity player = context.getSource().getPlayerOrException();
+                    Player player = context.getSource().getPlayerOrException();
                     String event = StringArgumentType.getString(context, "event");
                     context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(StoryTeamCapability.class)).ifPresent(team -> {
                         try {
@@ -131,17 +132,17 @@ public class HECommands {
 
                             currentEvents.get(event).interrupt();
 
-                            player.sendMessage(new StringTextComponent("§6[§bHollow Story§6] §bForcedly stopped event §6" + event), player.getUUID());
+                            player.sendSystemMessage(Component.literal("§6[§bHollow Story§6] §bForcedly stopped event §6" + event));
                         } catch (Exception e) {
                             e.printStackTrace();
-                            player.sendMessage(new StringTextComponent("§6[§bHollow Story§6] §bFailed to stop event §6" + event), player.getUUID());
-                            player.sendMessage(new StringTextComponent("§6[§bHollow Story§6] §bSee logs for more info."), player.getUUID());
+                            player.sendSystemMessage(Component.literal("§6[§bHollow Story§6] §bFailed to stop event §6" + event));
+                            player.sendSystemMessage(Component.literal("§6[§bHollow Story§6] §bSee logs for more info."));
                         }
                     });
                     return 1;
                 })))
                 .then(CommandBuilderKt.buildStringCommand("replay-create", (context, name) -> {
-                    PlayerEntity player;
+                    Player player;
                     try {
                         player = context.getPlayerOrException();
                     } catch (CommandSyntaxException e) {
@@ -150,20 +151,20 @@ public class HECommands {
                     ReplayRecorder recorder = ReplayRecorder.Companion.getRecorder(player);
                     if (!recorder.isRecording()) {
                         recorder.startRecording(name);
-                        player.sendMessage(new StringTextComponent("Started recording"), player.getUUID());
+                        player.sendSystemMessage(Component.literal("Started recording"));
                     } else {
-                        player.sendMessage(new StringTextComponent("Already recording"), player.getUUID());
+                        player.sendSystemMessage(Component.literal("Already recording"));
                     }
                     return null;
                 }))
                 .then(Commands.literal("replay-stop").executes(context -> {
-                    PlayerEntity player = context.getSource().getPlayerOrException();
+                    Player player = context.getSource().getPlayerOrException();
                     ReplayRecorder recorder = ReplayRecorder.Companion.getRecorder(player);
                     if (recorder.isRecording()) {
                         recorder.stopRecording();
-                        player.sendMessage(new StringTextComponent("Stopped recording, total frames: " + recorder.getReplay().getPoints().size()), player.getUUID());
+                        player.sendSystemMessage(Component.literal("Stopped recording, total frames: " + recorder.getReplay().getPoints().size()));
                     } else {
-                        player.sendMessage(new StringTextComponent("Not recording"), player.getUUID());
+                        player.sendSystemMessage(Component.literal("Not recording"));
                     }
                     return 1;
                 }))
@@ -187,8 +188,8 @@ public class HECommands {
                     return 1;
                 }))
                 .then(Commands.literal("show-all-replays").executes(context -> {
-                    PlayerEntity player = context.getSource().getPlayerOrException();
-                    player.sendMessage(new StringTextComponent("Найдено записей: " + ReplayStorageCapabilityKt.getACTIVE_REPLAYS().size()), player.getUUID());
+                    Player player = context.getSource().getPlayerOrException();
+                    player.sendSystemMessage(Component.literal("Найдено записей: " + ReplayStorageCapabilityKt.getACTIVE_REPLAYS().size()));
 
                     return 1;
                 }))

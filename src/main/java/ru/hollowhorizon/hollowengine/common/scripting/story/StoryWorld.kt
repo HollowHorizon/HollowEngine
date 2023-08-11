@@ -1,14 +1,14 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
-import net.minecraft.nbt.INBT
-import net.minecraft.util.Rotation
-import net.minecraft.util.math.BlockPos
-import net.minecraft.world.gen.feature.template.PlacementSettings
-import net.minecraft.world.server.ServerWorld
+import net.minecraft.core.BlockPos
+import net.minecraft.nbt.Tag
+import net.minecraft.server.level.ServerLevel
+import net.minecraft.world.level.block.Rotation
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings
 import ru.hollowhorizon.hc.client.utils.rl
 
-class StoryWorld(val level: ServerWorld) {
-    fun placeBlock(block: String, pos: BlockPos, facing: FacingType, nbt: INBT? = null, playSound: Boolean = true) {
+class StoryWorld(val level: ServerLevel) {
+    fun placeBlock(block: String, pos: BlockPos, facing: FacingType, nbt: Tag? = null, playSound: Boolean = true) {
 
     }
 
@@ -35,8 +35,8 @@ class StoryWorld(val level: ServerWorld) {
             else -> Rotation.NONE
         }
 
-        this.level.structureManager.get(name.rl)
-            ?.placeInWorld(level, pos, PlacementSettings().setRotation(rotation), level.random)
+        this.level.structureManager.get(name.rl).orElseThrow()
+            .placeInWorld(level, pos, pos, StructurePlaceSettings().setRotation(rotation), level.random, 3)
     }
 
     fun changeWeather(weather: WeatherType) {

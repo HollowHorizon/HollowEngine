@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.npcs.tasks.movement
 
-import net.minecraft.entity.Entity
-import net.minecraft.entity.ai.RandomPositionGenerator
-import net.minecraft.pathfinding.Path
-import net.minecraft.util.math.vector.Vector3d
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.ai.util.DefaultRandomPos
+import net.minecraft.world.level.pathfinder.Path
+import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryTeam
 
@@ -124,7 +124,7 @@ class AvoidBlockPosKeyframe(
 
     override fun tick() {
         if (path == null) {
-            val pos = RandomPositionGenerator.getPosAvoid(task.npc.npcEntity, 16, 7, Vector3d(x, y, z))
+            val pos = DefaultRandomPos.getPosAway(task.npc.npcEntity, 16, 7, Vec3(x, y, z))
             path = if (pos != null) navigator.createPath(pos.x, pos.y, pos.z, 0)
             else navigator.createPath(x, y, z, 0)
         }
@@ -156,7 +156,7 @@ class AvoidEntityKeyframe(
     override fun tick() {
         if (path == null || lastRecalc++ >= 20) {
             lastRecalc = 0
-            val pos = RandomPositionGenerator.getPosAvoid(task.npc.npcEntity, 16, 7, entity.position())
+            val pos = DefaultRandomPos.getPosAway(task.npc.npcEntity, 16, 7, entity.position())
             if (pos != null) {
                 path = navigator.createPath(pos.x, pos.y, pos.z, 0)
             }
@@ -189,11 +189,8 @@ class AvoidTeamKeyframe(
     override fun tick() {
         if (path == null || lastRecalc++ >= 20) {
             lastRecalc = 0
-            val pos = RandomPositionGenerator.getPosAvoid(
-                task.npc.npcEntity,
-                16,
-                7,
-                team.nearestTo(task.npc).mcPlayer!!.position()
+            val pos = DefaultRandomPos.getPosAway(
+                task.npc.npcEntity, 16, 7, team.nearestTo(task.npc).mcPlayer!!.position()
             )
             if (pos != null) {
                 path = navigator.createPath(pos.x, pos.y, pos.z, 0)

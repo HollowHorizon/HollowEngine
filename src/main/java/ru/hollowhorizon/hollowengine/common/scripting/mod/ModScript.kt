@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.scripting.mod
 
-import net.minecraftforge.fml.ModList
-import net.minecraftforge.fml.loading.FMLLoader
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
 import ru.hollowhorizon.hc.common.scripting.kotlin.AbstractHollowScriptConfiguration
@@ -23,18 +21,17 @@ abstract class ModScript : ModScriptBase()
 fun runModScript(script: File) {
     HollowCore.LOGGER.info("[ModScriptCompiler]: loading script \"${script.name}\"")
 
-    if (FMLLoader.isProduction()) System.setProperty(
-        "kotlin.java.stdlib.jar",
-        ModList.get().getModFileById("hc").file.filePath.toFile().absolutePath
-    )
-
     val result = ScriptingCompiler.compileFile<ModScript>(script)
+
+    HollowCore.LOGGER.info("[ModScriptCompiler]: Script compiled: \"${result}\"")
 
     val res = result.execute {
         jvm {
             loadDependencies(false)
         }
     }
+
+    HollowCore.LOGGER.info("[ModScriptCompiler]: Script evaluated: \"${res}\"")
 
     res.reports.forEach {
         HollowCore.LOGGER.info("[ModScriptCompiler]: ${it.render(withStackTrace = true)}")

@@ -1,13 +1,14 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.texture.TextureManager;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
+import static net.minecraft.client.gui.components.Button.NO_TOOLTIP;
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
 
 public class IconButton extends HollowButton{
@@ -32,7 +33,7 @@ public class IconButton extends HollowButton{
             int textureHeight,
             int textureWidth,
             int yDiffText,
-            IPressable press) {
+            Button.OnPress press) {
         this(
                 x,
                 y,
@@ -46,7 +47,7 @@ public class IconButton extends HollowButton{
                 yDiffText,
                 press,
                 NO_TOOLTIP,
-                new StringTextComponent(""));
+                Component.empty());
     }
 
     public IconButton(
@@ -60,9 +61,9 @@ public class IconButton extends HollowButton{
             int textureHeight,
             int textureWidth,
             int yDiffText,
-            IPressable press,
-            ITooltip tooltip,
-            ITextComponent title) {
+            Button.OnPress press,
+            Button.OnTooltip tooltip,
+            Component title) {
         super(x, y, width, height, title, press, tooltip);
         this.textureWidth = textureWidth;
         this.textureHeight = textureHeight;
@@ -74,14 +75,14 @@ public class IconButton extends HollowButton{
 
     @SuppressWarnings("deprecation")
     @Override
-    public void renderButton(MatrixStack poseStack, int mouseX, int mouseY, float partialTicks) {
-        TEXTURE_MANAGER.bind(resourceLocation);
-        final int yTex = yTexStart + (yDiffText * this.getYImage(this.isHovered()));
-        RenderSystem.color4f(1.0F, 1.0F, 1.0F, alpha);
+    public void renderButton(PoseStack poseStack, int mouseX, int mouseY, float partialTicks) {
+        TEXTURE_MANAGER.bindForSetup(resourceLocation);
+        final int yTex = yTexStart + (yDiffText * this.getYImage(this.isHoveredOrFocused()));
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, alpha);
         RenderSystem.enableDepthTest();
         RenderSystem.enableBlend();
         blit(poseStack, x, y, xTexStart, yTex, width, height, textureWidth, textureHeight);
-        if (this.isHovered()) {
+        if (this.isHoveredOrFocused()) {
             this.renderToolTip(poseStack, mouseX, mouseY);
         }
         RenderSystem.disableBlend();

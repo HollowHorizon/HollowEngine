@@ -2,10 +2,10 @@
 
 package ru.hollowhorizon.hollowengine.cutscenes.camera
 
+import com.mojang.math.Vector3d
+import com.mojang.math.Vector3f
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
-import net.minecraft.util.math.vector.Vector3d
-import net.minecraft.util.math.vector.Vector3f
 import ru.hollowhorizon.hc.client.utils.nbt.ForVector3d
 import ru.hollowhorizon.hc.client.utils.nbt.ForVector3f
 

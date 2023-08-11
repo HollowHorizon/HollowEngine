@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.npcs.tasks
 
-import net.minecraft.entity.ai.goal.Goal
+import net.minecraft.world.entity.ai.goal.Goal
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.look.NPCLook
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.movement.NPCMovement

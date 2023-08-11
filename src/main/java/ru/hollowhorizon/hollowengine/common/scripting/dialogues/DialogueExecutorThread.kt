@@ -1,17 +1,18 @@
 package ru.hollowhorizon.hollowengine.common.scripting.dialogues
 
-import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.world.entity.player.Player
 import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.loading.FMLLoader
-import ru.hollowhorizon.hc.client.utils.toSTC
+import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
 import java.io.File
 import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
 
-class DialogueExecutorThread(val player: PlayerEntity, val file: File) : Thread() {
+class DialogueExecutorThread(val player: Player, val file: File) : Thread() {
     override fun run() {
+
         try {
             if (FMLLoader.isProduction()) System.setProperty(
                 "kotlin.java.stdlib.jar",
@@ -28,10 +29,10 @@ class DialogueExecutorThread(val player: PlayerEntity, val file: File) : Thread(
             }
 
             res.reports.forEach {
-                player.sendMessage(it.render().toSTC(), player.uuid)
+                player.sendSystemMessage(it.render().mcText)
             }
         } catch (e: Exception) {
-            player.sendMessage("[DEBUG] Error while compiling dialogue: ${e.stackTraceToString()}".toSTC(), player.uuid)
+            player.sendSystemMessage("[DEBUG] Error while compiling dialogue: ${e.stackTraceToString()}".mcText)
         }
     }
 }

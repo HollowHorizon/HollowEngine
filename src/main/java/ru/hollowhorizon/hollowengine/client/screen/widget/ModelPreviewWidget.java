@@ -1,26 +1,24 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.block.Blocks;
-import net.minecraft.client.MainWindow;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Quaternion;
+import com.mojang.math.Vector3f;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.audio.SoundHandler;
-import net.minecraft.client.gui.widget.Widget;
-import net.minecraft.client.gui.widget.button.Button;
-import net.minecraft.client.renderer.IRenderTypeBuffer;
-import net.minecraft.client.renderer.entity.EntityRendererManager;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.AxisAlignedBB;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.vector.Quaternion;
-import net.minecraft.util.math.vector.Vector3f;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.StringTextComponent;
-import net.minecraftforge.client.model.data.EmptyModelData;
+import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
+import net.minecraftforge.client.model.data.ModelData;
 import org.lwjgl.opengl.GL11;
-import ru.hollowhorizon.hc.client.utils.PlayerRotationHelper;
+import ru.hollowhorizon.hc.client.screens.widget.HollowWidget;
 import ru.hollowhorizon.hc.client.utils.ScissorUtil;
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity;
 
@@ -29,7 +27,7 @@ import java.util.List;
 
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
 
-public class ModelPreviewWidget extends Widget {
+public class ModelPreviewWidget extends HollowWidget {
     protected static final int BORDER_WIDTH = 2;
     protected static final int BUTTON_SIZE = 20;
     protected static final ResourceLocation BUTTONS_TEXTURE =
@@ -69,7 +67,7 @@ public class ModelPreviewWidget extends Widget {
             int height,
             int pwidth,
             int pheight) {
-        super(x, y, width, height, new StringTextComponent("Model Preview"));
+        super(x, y, width, height, Component.literal("Model Preview"));
         this.originalX = x;
         this.originalY = y;
         this.originalWidth = width;
@@ -77,7 +75,7 @@ public class ModelPreviewWidget extends Widget {
         this.parentWidth = pwidth;
         this.parentHeight = pheight;
         this.previeNPC = new NPCEntity(MC.level);
-        Button.ITooltip tooltip = (button, matrixStack, mouseX, mouseY) -> {
+        Button.OnTooltip tooltip = (button, matrixStack, mouseX, mouseY) -> {
 
         };
         resetButton =
@@ -86,12 +84,12 @@ public class ModelPreviewWidget extends Widget {
                         new ResourceLocation("hollowengine:textures/gui/reload.png"),
                         0,
                         0,
-                        BUTTON_SIZE*2,
+                        BUTTON_SIZE * 2,
                         BUTTON_SIZE,
                         BUTTON_SIZE,
                         b -> this.resetPreview(),
                         tooltip,
-                        new StringTextComponent("Сбросить предпросмотр")
+                        Component.literal("Сбросить предпросмотр")
                 );
         this.buttons.add(resetButton);
         fullscreenButton =
@@ -102,19 +100,19 @@ public class ModelPreviewWidget extends Widget {
                             fullscreen = !fullscreen;
                         },
                         tooltip,
-                        new StringTextComponent("Полноэкранный Режим"));
+                        Component.literal("Полноэкранный Режим"));
         bottomButtons =
                 new IconButton[]{
                         this.makeButton(
                                 4,
                                 b -> doTurntable = !doTurntable,
                                 tooltip,
-                                new StringTextComponent("Поворачивать Модель")),
+                                Component.literal("Поворачивать Модель")),
                         this.makeButton(
                                 3,
                                 b -> renderFloor = !renderFloor,
                                 tooltip,
-                                new StringTextComponent("Отображать Землю")),
+                                Component.literal("Отображать Землю")),
                         this.addButton(
                                 new PlayerIconButton(
                                         0,
@@ -122,12 +120,12 @@ public class ModelPreviewWidget extends Widget {
                                         MC.getUser().getGameProfile(),
                                         b -> showPlayer = !showPlayer,
                                         tooltip,
-                                        new StringTextComponent("Отображать Игрока"))),
+                                        Component.literal("Отображать Игрока"))),
                         this.makeButton(
                                 2,
                                 b -> renderBoundingBoxes = !renderBoundingBoxes,
                                 tooltip,
-                                new StringTextComponent("Отображать Хитбоксы"))
+                                Component.literal("Отображать Хитбоксы"))
                 };
         title =
                 new LabelWidget(
@@ -142,7 +140,7 @@ public class ModelPreviewWidget extends Widget {
     }
 
     protected IconButton makeButton(
-            int index, Button.IPressable press, Button.ITooltip tooltip, ITextComponent title) {
+            int index, Button.OnPress press, Button.OnTooltip tooltip, Component title) {
         // x and y are controlled by resetWidgetPositions
         final IconButton button =
                 new IconButton(
@@ -207,12 +205,12 @@ public class ModelPreviewWidget extends Widget {
     }
 
     @Override
-    public void playDownSound(SoundHandler p_230988_1_) {
+    public void playDownSound(SoundManager p_230988_1_) {
     }
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if(!this.isHovered) return false;
+        if (!this.isHovered) return false;
 
         if (button == 0) {
             previewYaw += (float) (dragX * 0.5F);
@@ -240,7 +238,7 @@ public class ModelPreviewWidget extends Widget {
 
     @SuppressWarnings("deprecation")
     @Override
-    public void renderButton(MatrixStack stack, int mouseX, int mouseY, float partialTicks) {
+    public void renderButton(PoseStack stack, int mouseX, int mouseY, float partialTicks) {
 
 
         if (transitioning) {
@@ -266,18 +264,19 @@ public class ModelPreviewWidget extends Widget {
                     transitioning = false;
                 }
             }
-            x = (int) MathHelper.lerp(fullscreenness, originalX, 0.0F);
-            y = (int) MathHelper.lerp(fullscreenness, originalY, 0.0F);
-            width = MathHelper.ceil(MathHelper.lerp(fullscreenness, originalWidth, parentWidth));
-            height = MathHelper.ceil(MathHelper.lerp(fullscreenness, originalHeight, parentHeight));
+            x = (int) Mth.lerp(fullscreenness, originalX, 0.0F);
+            y = (int) Mth.lerp(fullscreenness, originalY, 0.0F);
+            width = Mth.ceil(Mth.lerp(fullscreenness, originalWidth, parentWidth));
+            height = Mth.ceil(Mth.lerp(fullscreenness, originalHeight, parentHeight));
             this.resetWidgetPositions();
         }
         if (doTurntable) {
             previewYaw += 0.4F;
         }
 
-        final AxisAlignedBB bounds = new AxisAlignedBB(0, 0, 0, 0, 0, 0);
-        final MainWindow window = MC.getWindow();
+
+        final AABB bounds = new AABB(0, 0, 0, 0, 0, 0);
+        final var window = MC.getWindow();
         final double guiScale = window.getGuiScale();
         fill(stack, x, y, x + width, y + height, 0x66FFFFFF);
         ScissorUtil.start(
@@ -288,24 +287,24 @@ public class ModelPreviewWidget extends Widget {
         fillGradient(stack, x, y, x + width, y + height, 0x66000000, 0xCC000000);
 
         // We reset the projection matrix here in order to change the clip plane distances
-        RenderSystem.pushMatrix();
-        RenderSystem.matrixMode(GL11.GL_PROJECTION);
-        RenderSystem.loadIdentity();
-        RenderSystem.ortho(
+        GL11.glPushMatrix();
+        GL11.glMatrixMode(GL11.GL_PROJECTION);
+        GL11.glLoadIdentity();
+        GL11.glOrtho(
                 0.0D,
                 (double) window.getWidth() / guiScale,
                 (double) window.getHeight() / guiScale,
                 0.0D,
                 10.0D,
                 300000.0D);
-        RenderSystem.matrixMode(GL11.GL_MODELVIEW);
-        RenderSystem.loadIdentity();
-        RenderSystem.translatef(0.0F, 0.0F, -2000.0F);
+        GL11.glMatrixMode(GL11.GL_MODELVIEW);
+        GL11.glLoadIdentity();
+        GL11.glTranslatef(0.0F, 0.0F, -2000.0F);
 
-        RenderSystem.translatef(
+        GL11.glTranslatef(
                 x + (width / 2.0F) + previewX, y + (height / 2.0F) + previewY, 0.0F);
-        RenderSystem.scalef(1.0F, 1.0F, -1.0F);
-        final MatrixStack entityPS = new MatrixStack();
+        GL11.glScalef(1.0F, 1.0F, -1.0F);
+        final PoseStack entityPS = new PoseStack();
         entityPS.translate(0.0D, 0.0D, -400.0D);
         // This is me trying to make some scale to fit thing... poorly
         final int dm = Math.min(width, height);
@@ -323,24 +322,25 @@ public class ModelPreviewWidget extends Widget {
         quaternion.mul(quaternion1);
         entityPS.mulPose(quaternion);
         quaternion1.conj();
-        IRenderTypeBuffer.Impl buffers = MC.renderBuffers().bufferSource();
+        MultiBufferSource.BufferSource buffers = MC.renderBuffers().bufferSource();
         final double yOff = -(bounds.minY + (bounds.maxY / 2.0D));
         // Render the floor
         if (renderFloor) {
             entityPS.pushPose();
             entityPS.translate(-0.5F, yOff - 1.0F, -0.5F);
             MC.getBlockRenderer()
-                    .renderBlock(
+                    .renderSingleBlock(
                             Blocks.GRASS_BLOCK.defaultBlockState(),
                             entityPS,
                             buffers,
                             0xF000F0,
                             OverlayTexture.NO_OVERLAY,
-                            EmptyModelData.INSTANCE);
+                            ModelData.EMPTY,
+                            RenderType.solid());
             entityPS.popPose();
         }
         // Render the preview puppet
-        EntityRendererManager dispatcher = MC.getEntityRenderDispatcher();
+        var dispatcher = MC.getEntityRenderDispatcher();
         dispatcher.overrideCameraOrientation(quaternion1);
         dispatcher.setRenderShadow(false);
         final boolean renderHitBoxes = dispatcher.shouldRenderHitBoxes();
@@ -366,18 +366,19 @@ public class ModelPreviewWidget extends Widget {
                 entityPS.pushPose();
                 entityPS.translate(xOff - 0.5F, yOff - 1.0F, -0.5F);
                 MC.getBlockRenderer()
-                        .renderBlock(
+                        .renderSingleBlock(
                                 Blocks.GRASS_BLOCK.defaultBlockState(),
                                 entityPS,
                                 buffers,
                                 0xF000F0,
                                 OverlayTexture.NO_OVERLAY,
-                                EmptyModelData.INSTANCE);
+                                ModelData.EMPTY,
+                                RenderType.solid());
                 entityPS.popPose();
             }
             dispatcher.setRenderHitBoxes(false);
-            PlayerRotationHelper.save();
-            PlayerRotationHelper.clear();
+            //PlayerRotationHelper.save();
+            //PlayerRotationHelper.clear();
             RenderSystem.runAsFancy(
                     () ->
                             dispatcher.render(
@@ -390,13 +391,13 @@ public class ModelPreviewWidget extends Widget {
                                     entityPS,
                                     buffers,
                                     0xF000F0));
-            PlayerRotationHelper.load();
+            //PlayerRotationHelper.load();
         }
         dispatcher.setRenderHitBoxes(renderHitBoxes);
         dispatcher.setRenderShadow(true);
 
         buffers.endBatch();
-        RenderSystem.popMatrix();
+        GL11.glPopMatrix();
         ScissorUtil.stop();
 
         stack.pushPose();
@@ -417,9 +418,9 @@ public class ModelPreviewWidget extends Widget {
     }
 
     protected void renderFire(
-            MatrixStack entityPS,
-            IRenderTypeBuffer.Impl buffers,
-            EntityRendererManager manager,
+            PoseStack entityPS,
+            MultiBufferSource.BufferSource buffers,
+            EntityRenderDispatcher manager,
             double yOff) {
         // The preview copy will never be on fire otherwise, so doing this directly is fine
         if (false) {

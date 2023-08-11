@@ -11,11 +11,9 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.waitForgeEvent
 fun StoryEvent.input(vararg values: String): String {
     var input = ""
     waitForgeEvent<ServerChatEvent> { event ->
-        input = event.message
+        input = event.message.string
 
-        if(values.isEmpty()) return@waitForgeEvent true
-
-        return@waitForgeEvent event.message in values
+        return@waitForgeEvent values.isEmpty() || input in values
 
     }
 
@@ -28,7 +26,7 @@ fun StoryEvent.execute(command: String): Int {
 
     if(team.getHost().isOnline()) src.withEntity(team.getHost().mcPlayer!!)
 
-    return server.commands.performCommand(src.withPermission(4), command)
+    return server.commands.performPrefixedCommand(src.withPermission(4), command)
 }
 
 fun StoryEvent.waitLocation(x: Int, y: Int, z: Int, radius: Int, inverse: Boolean = false) {

@@ -38,11 +38,6 @@ class StoryExecutorThread @JvmOverloads constructor(
         var hasErrors = false
 
         try {
-            if (FMLLoader.isProduction()) System.setProperty(
-                "kotlin.java.stdlib.jar",
-                ModList.get().getModFileById("hc").file.filePath.toFile().absolutePath
-            )
-
             val story = ScriptingCompiler.compileFile<StoryScript>(
                 file
             )
@@ -63,7 +58,7 @@ class StoryExecutorThread @JvmOverloads constructor(
                 hasErrors = true
             }
         } catch (e: Exception) {
-            team.sendMessage("[DEBUG] Error while compiling event: ${e.stackTraceToString()}")
+            team.sendMessage("[DEBUG] Error while loading event: ${e.stackTraceToString()}")
             hasErrors = true
         }
 

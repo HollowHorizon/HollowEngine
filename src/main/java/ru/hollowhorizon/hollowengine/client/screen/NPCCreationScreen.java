@@ -1,13 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.screen;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.text.StringTextComponent;
-import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import ru.hollowhorizon.hc.client.screens.HollowScreen;
 import ru.hollowhorizon.hollowengine.client.render.GUIHelper;
 import ru.hollowhorizon.hollowengine.client.screen.widget.DropListWidget;
 import ru.hollowhorizon.hollowengine.client.screen.widget.ListElement;
@@ -20,7 +19,7 @@ import java.util.HashMap;
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
 
 @OnlyIn(Dist.CLIENT)
-public class NPCCreationScreen extends Screen {
+public class NPCCreationScreen extends HollowScreen {
     public static final int startY = 20;
     private final HashMap<String, ResourceLocation> animations = new HashMap<>();
     private ResourceLocation modelLocation;
@@ -32,54 +31,33 @@ public class NPCCreationScreen extends Screen {
     private Boolean isUndead;
 
     protected NPCCreationScreen() {
-        super(new StringTextComponent("NPC_CREATION_SCREEN"));
     }
 
-    public static void openGUI() {
-        Minecraft.getInstance().setScreen(new Screen(new TranslationTextComponent("")) {
-            @Override
-            protected void init() {
-                super.init();
-                //this.addButton(new IMGUIWidget(10, 10, this.width - 10, this.height - 10));
-            }
-
-            @Override
-            public void onClose() {
-                super.onClose();
-                //ImGuiKt.unlockLists();
-            }
-        });
-    }
 
     @Override
     protected void init() {
         int halfWidth = this.width / 2;
 
         ArrayList<ListElement> elements = new ArrayList<>();
-        elements.add(new ListElement(new ResourceLocation(MODID, "public"), new StringTextComponent("Публичный"), new ResourceLocation(MODID, "textures/gui/planet.png")));
-        elements.add(new ListElement(new ResourceLocation(MODID, "private"), new StringTextComponent("Персональный"), new ResourceLocation(MODID, "textures/gui/private.png")));
-        elements.add(new ListElement(new ResourceLocation(MODID, "companion"), new StringTextComponent("Компаньон"), new ResourceLocation(MODID, "textures/gui/heart.png")));
+        elements.add(new ListElement(new ResourceLocation(MODID, "public"), Component.literal("Публичный"), new ResourceLocation(MODID, "textures/gui/planet.png")));
+        elements.add(new ListElement(new ResourceLocation(MODID, "private"), Component.literal("Персональный"), new ResourceLocation(MODID, "textures/gui/private.png")));
+        elements.add(new ListElement(new ResourceLocation(MODID, "companion"), Component.literal("Компаньон"), new ResourceLocation(MODID, "textures/gui/heart.png")));
 
-        this.addButton(new SliderWidget(halfWidth + 100, startY + 60, 50, 20, this::setShouldDespawn));
-        this.addButton(new SliderWidget(halfWidth + 100, startY + 80, 50, 20, this::setUndead));
-        this.addButton(new SizedButton(halfWidth - 150, startY + 40, 300, 20, new StringTextComponent("Модель NPC"), button -> Minecraft.getInstance().setScreen(new NPCModelChoicerScreen(this)), GUIHelper.TEXT_FIELD, GUIHelper.TEXT_FIELD_LIGHT));
+        this.addRenderableWidget(new SliderWidget(halfWidth + 100, startY + 60, 50, 20, this::setShouldDespawn));
+        this.addRenderableWidget(new SliderWidget(halfWidth + 100, startY + 80, 50, 20, this::setUndead));
+        this.addRenderableWidget(new SizedButton(halfWidth - 150, startY + 40, 300, 20, Component.literal("Модель NPC"), button -> Minecraft.getInstance().setScreen(new NPCModelChoicerScreen(this)), GUIHelper.TEXT_FIELD, GUIHelper.TEXT_FIELD_LIGHT));
 
-        this.list = new DropListWidget(new StringTextComponent("Выберите тип NPC"), elements, (element -> System.out.println(element.getTextComponent().getString())), halfWidth - 150, startY + 20, 300, 20);
-    }
-
-    private void setUndead(Boolean aBoolean) {
-        this.isChanged = true;
-        this.isUndead = aBoolean;
+        this.list = new DropListWidget(Component.literal("Выберите тип NPC"), elements, (element -> System.out.println(element.getTextComponent().getString())), halfWidth - 150, startY + 20, 300, 20);
     }
 
     @Override
-    public void render(MatrixStack stack, int p_230430_2_, int p_230430_3_, float p_230430_4_) {
+    public void render(PoseStack stack, int p_230430_2_, int p_230430_3_, float p_230430_4_) {
         this.renderBackground(stack);
         int halfWidth = this.width / 2;
 
-        GUIHelper.drawTextInBox(stack, new StringTextComponent("Создание NPC"), halfWidth - 150, startY, 300);
-        GUIHelper.drawTextInBox(stack, new StringTextComponent("Сделать ли NPC бессмертным?"), halfWidth - 150, startY + 60, 250);
-        GUIHelper.drawTextInBox(stack, new StringTextComponent("Исчезнет ли NPC при мирной сложности?"), halfWidth - 150, startY + 80, 250);
+        GUIHelper.drawTextInBox(stack, Component.literal("Создание NPC"), halfWidth - 150, startY, 300);
+        GUIHelper.drawTextInBox(stack, Component.literal("Сделать ли NPC бессмертным?"), halfWidth - 150, startY + 60, 250);
+        GUIHelper.drawTextInBox(stack, Component.literal("Исчезнет ли NPC при мирной сложности?"), halfWidth - 150, startY + 80, 250);
 
         super.render(stack, p_230430_2_, p_230430_3_, p_230430_4_);
 
@@ -130,12 +108,6 @@ public class NPCCreationScreen extends Screen {
         this.animations.put(str, anim);
     }
 
-    public void setAnimations(HashMap<String, ResourceLocation> animations) {
-        isChanged = true;
-        this.animations.clear();
-        this.animations.putAll(animations);
-    }
-
     public void setShouldDespawn(boolean shouldDespawn) {
         isChanged = true;
         this.shouldDespawn = shouldDespawn;
@@ -157,7 +129,18 @@ public class NPCCreationScreen extends Screen {
         return animations;
     }
 
+    public void setAnimations(HashMap<String, ResourceLocation> animations) {
+        isChanged = true;
+        this.animations.clear();
+        this.animations.putAll(animations);
+    }
+
     public boolean isUndead() {
         return this.isUndead;
+    }
+
+    private void setUndead(Boolean aBoolean) {
+        this.isChanged = true;
+        this.isUndead = aBoolean;
     }
 }

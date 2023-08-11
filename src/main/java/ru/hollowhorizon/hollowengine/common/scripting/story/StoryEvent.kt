@@ -1,26 +1,29 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import com.google.common.reflect.TypeToken
+import com.mojang.math.Vector3d
 import kotlinx.serialization.Serializable
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.entity.player.ServerPlayerEntity
-import net.minecraft.nbt.EndNBT
-import net.minecraft.network.play.server.SPlaySoundPacket
-import net.minecraft.util.ResourceLocation
-import net.minecraft.util.SoundCategory
-import net.minecraft.util.math.AxisAlignedBB
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.vector.Vector3d
-import net.minecraft.world.World
-import net.minecraft.world.server.ServerWorld
-import net.minecraftforge.fml.server.ServerLifecycleHooks
-import ru.hollowhorizon.hc.client.utils.WorldHelper
+import net.minecraft.core.BlockPos
+import net.minecraft.nbt.EndTag
+import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.server.level.ServerLevel
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.sounds.SoundSource
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.level.Level
+import net.minecraft.world.level.levelgen.Heightmap
+import net.minecraft.world.phys.AABB
+import net.minecraft.world.phys.Vec3
+import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
 import ru.hollowhorizon.hc.client.utils.nbt.deserializeNoInline
 import ru.hollowhorizon.hc.client.utils.nbt.serializeNoInline
 import ru.hollowhorizon.hc.client.utils.toRL
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2.Companion.get
+import ru.hollowhorizon.hc.common.capabilities.getCapability
 import ru.hollowhorizon.hc.common.capabilities.syncEntity
 import ru.hollowhorizon.hollowengine.common.capabilities.NPCEntityCapability
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
@@ -48,8 +51,8 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
     var safeForExit = false
     val progressManager = team.progressManager
     val world = StoryWorld(
-        if (team.getHost().isOnline()) team.getHost().world as ServerWorld else team.getAllOnline()
-            .first().mcPlayer!!.level as ServerWorld
+        if (team.getHost().isOnline()) team.getHost().world as ServerLevel else team.getAllOnline()
+            .first().mcPlayer!!.level as ServerLevel
     )
     val lock = Object()
 
@@ -77,10 +80,13 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
 
         var pos: BlockPos
         do {
-            pos = WorldHelper.getHighestBlock(
-                world.level,
-                player.blockPosition().x + ((Math.random() * distance) - distance / 2).toInt(),
-                player.blockPosition().z + ((Math.random() * distance) - distance / 2).toInt()
+            pos = world.level.getHeightmapPos(
+                Heightmap.Types.WORLD_SURFACE_WG,
+                BlockPos(
+                    player.blockPosition().x + ((Math.random() * distance) - distance / 2).toInt(),
+                    -666,
+                    player.blockPosition().z + ((Math.random() * distance) - distance / 2).toInt()
+                )
             )
             if (abs(pos.y - player.y) > 10) continue // Если игрок слишком далеко от точки, то ищем другую
         } while (player.canSee(pos) || canPlayerSee)
@@ -88,23 +94,24 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
         return pos
     }
 
-    private fun PlayerEntity.canSee(pos: BlockPos): Boolean {
-        val from: Vector3d = this.getEyePosition(1f)
+    private fun Player.canSee(pos: BlockPos): Boolean {
+        val from: Vec3 = this.getEyePosition(1f)
         val to = from.add(this.lookAngle.scale(128.0))
 
-        return AxisAlignedBB(from, to).contains(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
+        return AABB(from, to).contains(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
     }
 
     fun play(sound: String) {
         team.getAllOnline() //для всех игроков команды, которые в сети
             .forEach {
-                (it.mcPlayer as ServerPlayerEntity).connection.send(
-                    SPlaySoundPacket(
+                (it.mcPlayer as ServerPlayer).connection.send(
+                    ClientboundCustomSoundPacket(
                         ResourceLocation(sound),
-                        SoundCategory.MASTER,
+                        SoundSource.MASTER,
                         it.mcPlayer!!.position(),
                         1.0f,
-                        1.0f
+                        1.0f,
+                        it.mcPlayer!!.random.nextLong()
                     )
                 )
             }
@@ -118,13 +125,13 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
         }
     }
 
-    fun makeNPC(settings: NPCSettings, level: World = this.world.level, pos: BlockPos): IHollowNPC {
+    fun makeNPC(settings: NPCSettings, level: Level = this.world.level, pos: BlockPos): IHollowNPC {
         val npc = NPCEntity(level)
         npc.setPos(pos.x.toDouble() + 0.5, pos.y.toDouble(), pos.z.toDouble() + 0.5)
         level.addFreshEntity(npc)
         this.eventNpcs.add(npc)
 
-        npc.getCapability(get<NPCEntityCapability>()).ifPresent { capability ->
+        npc.getCapability(NPCEntityCapability::class).also { capability ->
             capability.settings = settings
             capability.syncEntity(npc)
         }
@@ -147,7 +154,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
 
     fun removeNPC(npc: IHollowNPC) {
         this.eventNpcs.remove(npc)
-        npc.npcEntity.remove()
+        npc.npcEntity.remove(Entity.RemovalReason.DISCARDED)
     }
 
     fun wait(time: Float) {
@@ -155,7 +162,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
     }
 
     fun clearEvent() {
-        this.eventNpcs.forEach { it.npcEntity.remove() }
+        this.eventNpcs.forEach { it.npcEntity.remove(Entity.RemovalReason.DISCARDED) }
         this.progressManager.clear()
         this.team.eventsData.removeIf { this.eventPath == it.eventPath }
     }
@@ -168,7 +175,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
         operator fun getValue(current: Any?, property: KProperty<*>): T {
             val nbt = data.variables.get(property.name)
 
-            if (nbt == null || nbt is EndNBT) {
+            if (nbt == null || nbt is EndTag) {
                 return default
             }
 
@@ -179,7 +186,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
             default = any
 
             if (default == null) {
-                data.variables.put(property.name, EndNBT.INSTANCE)
+                data.variables.put(property.name, EndTag.INSTANCE)
                 return
             }
             data.variables.put(property.name, NBTFormat.serializeNoInline(default!!, typeToken.rawType))

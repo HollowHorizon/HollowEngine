@@ -1,12 +1,11 @@
 package ru.hollowhorizon.hollowengine.cutscenes.replay
 
 import kotlinx.serialization.Serializable
-import net.minecraft.entity.LivingEntity
-import net.minecraft.entity.Pose
-import net.minecraft.inventory.EquipmentSlotType
+import net.minecraft.world.entity.EquipmentSlot
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.Pose
 import net.minecraftforge.common.util.FakePlayer
 import java.util.*
-import kotlin.collections.HashSet
 
 @Serializable
 data class ReplayFrame(
@@ -35,7 +34,7 @@ data class ReplayFrame(
     val placedBlocks: HashSet<ReplayBlock> = HashSet(),
     val usedBlocks: HashSet<ReplayBlock> = HashSet(),
 
-    val armorAndWeapon: Map<EquipmentSlotType, ReplayItem> = EnumMap(net.minecraft.inventory.EquipmentSlotType::class.java),
+    val armorAndWeapon: Map<EquipmentSlot, ReplayItem> = EnumMap(EquipmentSlot::class.java),
 ) {
     fun apply(entity: LivingEntity, fakePlayer: FakePlayer) {
         entity.setPos(x, y, z)
@@ -83,11 +82,11 @@ data class ReplayFrame(
     }
 }
 
-private fun LivingEntity.saveItems(): Map<EquipmentSlotType, ReplayItem> {
-    val map: MutableMap<EquipmentSlotType, ReplayItem> = EnumMap(net.minecraft.inventory.EquipmentSlotType::class.java)
-    EquipmentSlotType.values().forEach {
+private fun LivingEntity.saveItems(): Map<EquipmentSlot, ReplayItem> {
+    val map: MutableMap<EquipmentSlot, ReplayItem> = EnumMap(EquipmentSlot::class.java)
+    EquipmentSlot.entries.forEach {
         val stack = getItemBySlot(it)
-        if(!stack.isEmpty) {
+        if (!stack.isEmpty) {
             map[it] = ReplayItem(stack)
         }
     }

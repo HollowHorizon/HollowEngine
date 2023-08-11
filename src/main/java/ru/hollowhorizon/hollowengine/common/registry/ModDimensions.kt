@@ -1,16 +1,20 @@
 package ru.hollowhorizon.hollowengine.common.registry
 
-import net.minecraft.util.RegistryKey
-import net.minecraft.util.registry.Registry
-import net.minecraft.world.World
-import ru.hollowhorizon.hc.client.utils.rl
+import net.minecraft.core.Registry
+import net.minecraft.resources.ResourceKey
+import net.minecraft.resources.ResourceLocation
+import net.minecraftforge.registries.DeferredRegister
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.dimensions.StoryTellerWorldChunkGenerator
 
 
 object ModDimensions {
-    val VOID_WORLD: RegistryKey<World> = RegistryKey.create(Registry.DIMENSION_REGISTRY, "hollowengine:storyteller_dimension".rl)
+    val CHUNK_GENERATORS = DeferredRegister.create(Registry.CHUNK_GENERATOR_REGISTRY, HollowEngine.MODID)
+    val DIMENSIONS = DeferredRegister.create(Registry.DIMENSION_REGISTRY, HollowEngine.MODID)
+
+    val VOID_WORLD = ResourceKey.create(Registry.DIMENSION_REGISTRY, ResourceLocation(HollowEngine.MODID, "storyteller_dimension"))
 
     init {
-        Registry.register(Registry.CHUNK_GENERATOR, "hollowengine:storyteller_dimension".rl, StoryTellerWorldChunkGenerator.CODEC)
+        CHUNK_GENERATORS.register("storyteller_dimension") { StoryTellerWorldChunkGenerator.CODEC }
     }
 }

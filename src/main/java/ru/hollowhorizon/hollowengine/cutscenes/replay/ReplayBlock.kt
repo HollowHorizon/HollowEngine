@@ -1,14 +1,14 @@
 package ru.hollowhorizon.hollowengine.cutscenes.replay
 
 import kotlinx.serialization.Serializable
-import net.minecraft.block.DoorBlock
-import net.minecraft.entity.LivingEntity
-import net.minecraft.item.BlockItem
-import net.minecraft.item.ItemStack
-import net.minecraft.item.ItemUseContext
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.BlockRayTraceResult
-import net.minecraft.world.World
+import net.minecraft.core.BlockPos
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.item.BlockItem
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.context.UseOnContext
+import net.minecraft.world.level.Level
+import net.minecraft.world.level.block.DoorBlock
+import net.minecraft.world.phys.BlockHitResult
 import net.minecraftforge.common.util.FakePlayer
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.utils.nbt.ForBlockPos
@@ -20,13 +20,19 @@ class ReplayBlock(
     val pos: @Serializable(ForBlockPos::class) BlockPos,
     val block: String,
 ) {
-    fun place(level: World, target: LivingEntity, fakePlayer: FakePlayer) {
+    fun place(level: Level, target: LivingEntity, fakePlayer: FakePlayer) {
         val block =
             ForgeRegistries.BLOCKS.getValue(block.toRL()) ?: throw IllegalArgumentException("Block $block not found")
         val blockItem = block.asItem()
 
         if (blockItem is BlockItem) {
-            blockItem.useOn(ItemUseContext(fakePlayer, target.usedItemHand, BlockRayTraceResult(target.lookAngle, target.direction, pos, false)))
+            blockItem.useOn(
+                UseOnContext(
+                    fakePlayer,
+                    target.usedItemHand,
+                    BlockHitResult(target.lookAngle, target.direction, pos, false)
+                )
+            )
         } else {
             level.setBlockAndUpdate(pos, block.defaultBlockState())
 
@@ -36,7 +42,7 @@ class ReplayBlock(
         }
     }
 
-    fun placeWorld(level: World) {
+    fun placeWorld(level: Level) {
         val block =
             ForgeRegistries.BLOCKS.getValue(block.toRL()) ?: throw IllegalArgumentException("Block $block not found")
         level.setBlockAndUpdate(pos, block.defaultBlockState())
@@ -48,13 +54,19 @@ class ReplayBlock(
         manager.destroyBlock(pos)
     }
 
-    fun destroyWorld(level: World) {
+    fun destroyWorld(level: Level) {
         level.destroyBlock(pos, false)
     }
 
-    fun use(level: World, target: LivingEntity, fakePlayer: FakePlayer) {
+    fun use(level: Level, target: LivingEntity, fakePlayer: FakePlayer) {
         val manager = fakePlayer.gameMode
 
-        manager.useItemOn(fakePlayer, level, target.useItem, target.usedItemHand, BlockRayTraceResult(target.lookAngle, target.direction, pos, false))
+        manager.useItemOn(
+            fakePlayer,
+            level,
+            target.useItem,
+            target.usedItemHand,
+            BlockHitResult(target.lookAngle, target.direction, pos, false)
+        )
     }
 }

@@ -1,14 +1,15 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget;
 
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.text.ITextComponent;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 public class ListElement {
     private final ResourceLocation regName;
-    private final ITextComponent textComponent;
+    private final Component textComponent;
     private final ResourceLocation icon;
 
-    public ListElement(ResourceLocation regName, ITextComponent textComponent, ResourceLocation icon) {
+    public ListElement(ResourceLocation regName, Component textComponent, ResourceLocation icon) {
         this.regName = regName;
 
         this.textComponent = textComponent;
@@ -23,7 +24,7 @@ public class ListElement {
         return regName;
     }
 
-    public ITextComponent getTextComponent() {
+    public Component getTextComponent() {
         return textComponent;
     }
 }

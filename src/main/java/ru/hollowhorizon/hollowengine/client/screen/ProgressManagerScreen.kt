@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.screen
 
-import com.mojang.blaze3d.matrix.MatrixStack
 import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.PoseStack
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.util.Alignment
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
@@ -45,7 +45,9 @@ class ProgressManagerScreen(val manager: StoryProgressManager) : HollowScreen("P
                     placementType = PlacementType.VERTICAL
 
                     renderer = { stack, x, y, w, h ->
-                        if(manager.tasks().size == 0) font.drawCentredScaled(stack, "Заданий пока нету, возможно они появятся позже!".toSTC(), x + w/2, y+h/2, 0xFFFFFF, 1.0f)
+                        if(manager.tasks().size == 0) font.drawCentredScaled(
+                            stack, "Заданий пока нету, возможно они появятся позже!".toSTC(), x + w/2, y+h/2, 0xFFFFFF, 1.0f
+                        )
                     }
 
                     elements {
@@ -60,7 +62,7 @@ class ProgressManagerScreen(val manager: StoryProgressManager) : HollowScreen("P
         }
     }
 
-    override fun render(pMatrixStack: MatrixStack, pMouseX: Int, pMouseY: Int, pPartialTicks: Float) {
+    override fun render(pMatrixStack: PoseStack, pMouseX: Int, pMouseY: Int, pPartialTicks: Float) {
         renderBackground(pMatrixStack)
         super.render(pMatrixStack, pMouseX, pMouseY, pPartialTicks)
     }

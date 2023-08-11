@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.text.StringTextComponent;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.gui.Font;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import ru.hollowhorizon.hollowengine.client.screen.widget.button.IconHollowButton;
 
 import java.util.function.Consumer;
@@ -14,14 +14,14 @@ public class ResourceFieldWidget extends HollowTextFieldWidget {
 
     private final IconHollowButton button;
 
-    public ResourceFieldWidget(FontRenderer fr, int x, int y, int w, int h, ResourceLocation texture, Consumer<String> stringConsumer) {
+    public ResourceFieldWidget(Font fr, int x, int y, int w, int h, ResourceLocation texture, Consumer<String> stringConsumer) {
         this(fr, x, y, w, h, texture);
         this.setResponder(stringConsumer);
     }
 
-    public ResourceFieldWidget(FontRenderer fr, int x, int y, int w, int h, ResourceLocation texture) {
-        super(fr, x, y, w, h, new StringTextComponent(""), texture);
-        this.button = new IconHollowButton(this.x + this.width - this.height, this.y, this.height, this.height, new StringTextComponent(""), button -> {
+    public ResourceFieldWidget(Font fr, int x, int y, int w, int h, ResourceLocation texture) {
+        super(fr, x, y, w, h, Component.literal(""), texture);
+        this.button = new IconHollowButton(this.x + this.width - this.height, this.y, this.height, this.height, Component.literal(""), () -> {
 //            HollowJavaUtils.chooseFile(
 //                    fileChooser -> fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Model File", "*.smd")),
 //                    file -> {
@@ -34,7 +34,7 @@ public class ResourceFieldWidget extends HollowTextFieldWidget {
     }
 
     @Override
-    public void render(MatrixStack stack, int p_230430_2_, int p_230430_3_, float p_230430_4_) {
+    public void render(PoseStack stack, int p_230430_2_, int p_230430_3_, float p_230430_4_) {
         super.render(stack, p_230430_2_, p_230430_3_, p_230430_4_);
         this.button.render(stack, p_230430_2_, p_230430_3_, p_230430_4_);
     }

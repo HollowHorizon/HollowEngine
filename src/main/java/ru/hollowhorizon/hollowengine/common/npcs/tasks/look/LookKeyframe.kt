@@ -1,8 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.npcs.tasks.look
 
-import net.minecraft.command.arguments.EntityAnchorArgument
-import net.minecraft.entity.Entity
-import net.minecraft.util.math.vector.Vector3d
+import com.mojang.math.Vector3d
+import net.minecraft.commands.arguments.EntityAnchorArgument
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryTeam
 
@@ -38,7 +39,7 @@ class BlockPosLookKeyframe(
     }
 
     override fun onFinish() {
-        task.npc.npcEntity.lookAt(EntityAnchorArgument.Type.EYES, Vector3d(x, y, z))
+        task.npc.npcEntity.lookAt(EntityAnchorArgument.Anchor.EYES, Vec3(x, y, z))
     }
 
     override fun isFinished() = currentRot >= config.rotTime
@@ -60,7 +61,7 @@ class EntityLookKeyframe(
     }
 
     override fun onFinish() {
-        task.npc.npcEntity.lookAt(EntityAnchorArgument.Type.EYES, entity.position())
+        task.npc.npcEntity.lookAt(EntityAnchorArgument.Anchor.EYES, entity.position())
     }
 
     override fun isFinished() = currentRot >= config.rotTime
@@ -82,7 +83,7 @@ class TeamLookKeyframe(
     }
 
     override fun onFinish() {
-        task.npc.npcEntity.lookAt(EntityAnchorArgument.Type.EYES, team.nearestTo(task.npc).mcPlayer!!.position())
+        task.npc.npcEntity.lookAt(EntityAnchorArgument.Anchor.EYES, team.nearestTo(task.npc).mcPlayer!!.position())
     }
 
     override fun isFinished() = currentRot >= config.rotTime

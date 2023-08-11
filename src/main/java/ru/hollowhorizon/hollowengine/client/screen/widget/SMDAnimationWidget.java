@@ -1,29 +1,29 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.widget.Widget;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import ru.hollowhorizon.hc.client.screens.widget.HollowWidget;
 import ru.hollowhorizon.hollowengine.client.render.GUIHelper;
 import ru.hollowhorizon.hollowengine.client.screen.widget.button.IconHollowButton;
 
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
 
-public class SMDAnimationWidget extends Widget implements ISaveable {
+public class SMDAnimationWidget extends HollowWidget implements ISaveable {
     private final HollowTextFieldWidget animNameWidget;
     private final ResourceFieldWidget animWidget;
     private final IconHollowButton playButton;
     private final IAnimationValue animValue;
 
     public SMDAnimationWidget(int x, int y, int w, int h, IAnimationValue value, IAnimationValue onPlay) {
-        super(x, y, w, h, new StringTextComponent("smd_textfield"));
+        super(x, y, w, h, Component.literal("smd_textfield"));
         int width = w - 20;
 
         this.animValue = value;
-        playButton = new IconHollowButton(x + w - 20, y, 20, 20, new StringTextComponent(""), (button) -> {
+        playButton = new IconHollowButton(x + w - 20, y, 20, 20, Component.literal(""), () -> {
         }, new ResourceLocation(MODID, "textures/gui/text_field_mini.png"), new ResourceLocation(MODID, "textures/gui/play.png"));
-        animNameWidget = new HollowTextFieldWidget(Minecraft.getInstance().font, x, y, width / 3, h, new StringTextComponent(""), GUIHelper.TEXT_FIELD);
+        animNameWidget = new HollowTextFieldWidget(Minecraft.getInstance().font, x, y, width / 3, h, Component.literal(""), GUIHelper.TEXT_FIELD);
         animWidget = new ResourceFieldWidget(Minecraft.getInstance().font, x + width / 3, y, (int) (0.667F * width), h, GUIHelper.TEXT_FIELD);
     }
 
@@ -32,7 +32,7 @@ public class SMDAnimationWidget extends Widget implements ISaveable {
     }
 
     @Override
-    public void render(MatrixStack stack, int mouseX, int mouseY, float partialTicks) {
+    public void render(PoseStack stack, int mouseX, int mouseY, float partialTicks) {
         updatePosition();
         this.animNameWidget.render(stack, mouseX, mouseY, partialTicks);
         this.animWidget.render(stack, mouseX, mouseY, partialTicks);
@@ -109,7 +109,6 @@ public class SMDAnimationWidget extends Widget implements ISaveable {
         this.playButton.charTyped(p_231042_1_, p_231042_2_);
         return super.charTyped(p_231042_1_, p_231042_2_);
     }
-
 
 
     public interface IAnimationValue {

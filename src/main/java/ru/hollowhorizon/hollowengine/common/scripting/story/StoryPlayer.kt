@@ -3,29 +3,29 @@ package ru.hollowhorizon.hollowengine.common.scripting.story
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.client.Minecraft
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.nbt.CompoundNBT
-import net.minecraft.util.math.MathHelper
-import net.minecraft.world.World
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.util.Mth
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.level.Level
 import net.minecraftforge.fml.loading.FMLEnvironment
-import net.minecraftforge.fml.server.ServerLifecycleHooks
+import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.nbt.ForUuid
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hollowengine.common.npcs.ICharacter
 import java.util.*
 
-private val PlayerEntity.scriptName: String?
+private val Player.scriptName: String?
     get() = if (this.persistentData.contains("hs_name")) this.persistentData.getString("hs_name") else null
 
 @Serializable
 class StoryPlayer(val uuid: @Serializable(ForUuid::class) UUID) : ICharacter {
-    constructor(player: PlayerEntity) : this(player.uuid) {
+    constructor(player: Player) : this(player.uuid) {
         this.mcPlayer = player
     }
 
     @Transient
-    var mcPlayer: PlayerEntity? =
+    var mcPlayer: Player? =
         if (FMLEnvironment.dist.isClient) {
             Minecraft.getInstance().singleplayerServer?.playerList?.getPlayer(uuid)
         } else {
@@ -37,7 +37,7 @@ class StoryPlayer(val uuid: @Serializable(ForUuid::class) UUID) : ICharacter {
         }
 
     @Transient
-    var world: World? =
+    var world: Level? =
         if (FMLEnvironment.dist.isClient) {
             Minecraft.getInstance().level
         } else {
@@ -52,7 +52,7 @@ class StoryPlayer(val uuid: @Serializable(ForUuid::class) UUID) : ICharacter {
             HollowCore.LOGGER.warn("Player $name is not online!")
             return
         }
-        mcPlayer?.sendMessage(message.toSTC(), mcPlayer!!.uuid)
+        mcPlayer?.sendSystemMessage(message.toSTC())
     }
 
     fun isOnline(): Boolean {
@@ -74,7 +74,7 @@ class StoryPlayer(val uuid: @Serializable(ForUuid::class) UUID) : ICharacter {
     }
 
     fun distTo(x: Int, y: Int, z: Int): Float {
-        return MathHelper.sqrt(distToSqr(x, y, z))
+        return Mth.sqrt(distToSqr(x, y, z))
     }
 
     fun distToSqr(x: Int, y: Int, z: Int): Float {
@@ -95,6 +95,6 @@ class StoryPlayer(val uuid: @Serializable(ForUuid::class) UUID) : ICharacter {
 
     override val characterName: String
         get() = this.name
-    override val entityType: CompoundNBT
-        get() = this.mcPlayer?.serializeNBT() ?: CompoundNBT().apply { putString("id", "minecraft:zombie") }
+    override val entityType: CompoundTag
+        get() = this.mcPlayer?.serializeNBT() ?: CompoundTag().apply { putString("id", "minecraft:zombie") }
 }
