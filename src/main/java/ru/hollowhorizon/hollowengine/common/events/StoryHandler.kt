@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.events
 
 import net.minecraft.entity.player.ServerPlayerEntity
+import net.minecraftforge.common.capabilities.Capability
 import net.minecraftforge.event.TickEvent
 import net.minecraftforge.event.entity.player.PlayerEvent
 import ru.hollowhorizon.hc.api.utils.HollowConfig
@@ -30,7 +31,7 @@ object StoryHandler {
         val team = event.player.storyTeam()
         if (!event.player.level.isClientSide && team.progressManager.shouldUpdate) {
             team.progressManager.shouldUpdate = false
-            val cap = HollowCapabilityV2.get<StoryTeamCapability>()?
+            val cap: Capability<StoryTeamCapability>? = HollowCapabilityV2.get<StoryTeamCapability>()
             
             if (cap != null) {
                 event.player.level.getCapability(cap)
