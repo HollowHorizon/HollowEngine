@@ -31,9 +31,9 @@ object StoryHandler {
         val team = event.player.storyTeam()
         if (!event.player.level.isClientSide && team.progressManager.shouldUpdate) {
             team.progressManager.shouldUpdate = false
-            val teamCap: Capability<StoryTeamCapability>? = HollowCapabilityV2.get<StoryTeamCapability>()
             
-            if (teamCap != null) {
+            if (HollowCapabilityV2.get<StoryTeamCapability>() != null) {
+                val teamCap: Capability<StoryTeamCapability> = HollowCapabilityV2.get<StoryTeamCapability>()
                 event.player.level.getCapability(teamCap)
                     .ifPresent { cap -> team.forAllOnline { cap.syncWorld(it.mcPlayer!! as ServerPlayerEntity) } }
             }
