@@ -95,9 +95,15 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
     mavenCentral()
-    flatDir {
-        dir '../HollowCore/build/libs'
-        dir 'hc'
+    if (System.getProperty("user.name").equals("user")) {
+        flatDir {
+            dir '../HollowCore/build/libs'
+            dir 'hc'
+        }
+    } else {
+        flatDir {
+            dir "libs"
+        }
     }
 }
 
@@ -111,7 +117,7 @@ compileTestJava.options.encoding = "UTF-8"
 dependencies {
     minecraft 'net.minecraftforge:forge:1.16.5-36.2.35'
 
-    if (file("libs").exists()) {
+    if (System.getProperty("user.name").equals("user") && file("libs").exists()) {
         file("libs").eachFile { file ->
             def splitPos = file.name.lastIndexOf("-")
             def modartifact = file.name.substring(0, splitPos)
