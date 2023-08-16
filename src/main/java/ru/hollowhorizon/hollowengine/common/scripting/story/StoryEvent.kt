@@ -2,6 +2,8 @@ package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import com.google.common.reflect.TypeToken
 import kotlinx.serialization.Serializable
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.toasts.SystemToast
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.entity.player.ServerPlayerEntity
 import net.minecraft.nbt.EndNBT
@@ -13,6 +15,7 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.vector.Vector3d
 import net.minecraft.world.World
 import net.minecraft.world.server.ServerWorld
+import net.minecraftforge.fml.loading.FMLEnvironment
 import net.minecraftforge.fml.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.client.utils.WorldHelper
 import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
@@ -248,6 +251,12 @@ class StoryProgressManager {
 
     fun addTask(task: String) {
         tasks.add(task)
+        if (FMLEnvironment.dist.isClient) SystemToast.add(
+            Minecraft.getInstance().toasts, 
+            SystemToast.Type.valueOf("HOLLOWENGINE_TOAST"),
+            TranslationTextComponent("hollowengine.task.updated"),
+            TranslationTextComponent("hollowengine.task.check")
+        )
         shouldUpdate = true
     }
 
