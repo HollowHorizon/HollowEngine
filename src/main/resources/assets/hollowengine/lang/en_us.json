@@ -6,6 +6,8 @@
   "gui.hollowstory.progress_manager.fail_task": "§7Задание \"%s\" провалено!",
   "gui.hollowstory.progress_manager.success_fail_task": "§7Задание \"%s\" успешно провалено :D",
 
-  "key.categories.mod.hollowengine": "HollowStory: Клавиши",
-  "key.hollowengine.event_list": "Список Событий"
+  "key.categories.mod.hollowengine": "HollowEngine: Buttons",
+  "key.hollowengine.event_list": "Event List",
+  "hollowengine.task.updated": "Task list has been updated!",
+  "hollowengine.task.check": "Press %s for check him"
 }
