@@ -25,6 +25,7 @@ import ru.hollowhorizon.hc.client.utils.toRL
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2.Companion.get
 import ru.hollowhorizon.hc.common.capabilities.syncEntity
+import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.common.capabilities.NPCEntityCapability
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.exceptions.StoryVariableNotFoundException
@@ -255,7 +256,10 @@ class StoryProgressManager {
             Minecraft.getInstance().toasts, 
             SystemToast.Type.valueOf("HOLLOWENGINE_TOAST"),
             TranslationTextComponent("hollowengine.task.updated"),
-            TranslationTextComponent("hollowengine.task.check")
+            TranslationTextComponent(
+                "hollowengine.task.check",
+                ClientEvents.OPEN_EVENT_LIST.key.displayName.string
+            )
         )
         shouldUpdate = true
     }
