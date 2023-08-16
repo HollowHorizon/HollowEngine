@@ -24,7 +24,7 @@ public class SystemToastTypeMixin {
     }
 
     private static SystemToast.Type hollowengine$addValue(String enid) {
-        ArrayList<SystemToast.Type> storyvalues = new ArrayList<>(Arrays.asList(TypeMixin.$VALUES));
+        ArrayList<SystemToast.Type> storyvalues = new ArrayList<>(Arrays.asList(SystemToastTypeMixin.$VALUES));
         SystemToast.Type toastType = hollowengine$invokeInit(enid, storyvalues.get(storyvalues.size() -1).ordinal() + 1);
         storyvalues.add(toastType);
         SystemToastTypeMixin.$VALUES = storyvalues.toArray(new SystemToast.Type[0]);
