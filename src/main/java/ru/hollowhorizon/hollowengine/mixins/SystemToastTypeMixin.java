@@ -10,7 +10,7 @@ import java.util.Arrays;
 @SuppressWarnings("MissingUnique")
 @Mixin(SystemToast.Type.class)
 @Unique
-public class TypeMixin {
+public class SystemToastTypeMixin {
     @Final
     @Mutable
     @Shadow
