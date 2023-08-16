@@ -10,7 +10,7 @@ import java.util.Arrays;
 @SuppressWarnings("MissingUnique")
 @Mixin(SystemToast.Type.class)
 @Unique
-public class TypeMixin {
+public class SystemToastTypeMixin {
     @Final
     @Mutable
     @Shadow
@@ -24,10 +24,10 @@ public class TypeMixin {
     }
 
     private static SystemToast.Type hollowengine$addValue(String enid) {
-        ArrayList<SystemToast.Type> storyvalues = new ArrayList<>(Arrays.asList(TypeMixin.$VALUES));
+        ArrayList<SystemToast.Type> storyvalues = new ArrayList<>(Arrays.asList(SystemToastTypeMixin.$VALUES));
         SystemToast.Type toastType = hollowengine$invokeInit(enid, storyvalues.get(storyvalues.size() -1).ordinal() + 1);
         storyvalues.add(toastType);
-        TypeMixin.$VALUES = storyvalues.toArray(new SystemToast.Type[0]);
+        SystemToastTypeMixin.$VALUES = storyvalues.toArray(new SystemToast.Type[0]);
         return toastType;
     }
 }
