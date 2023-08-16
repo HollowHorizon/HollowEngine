@@ -16,7 +16,7 @@ public class TypeMixin {
     @Shadow
     private static SystemToast.Type[] $VALUES;
 
-    private static final SystemToast.Type STORY_TOAST = hollowengine$addValue("STORY_TOAST");
+    private static final SystemToast.Type HOLLOWENGINE_TOAST = hollowengine$addValue("HOLLOWENGINE_TOAST");
 
     @Invoker("<init>")
     public static SystemToast.Type hollowengine$invokeInit(String par1, int par2) {
