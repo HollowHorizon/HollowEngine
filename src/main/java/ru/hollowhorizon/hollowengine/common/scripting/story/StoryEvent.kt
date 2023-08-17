@@ -252,8 +252,7 @@ class StoryProgressManager {
     var shouldUpdate = false
 
     fun addTask(task: String) {
-        tasks.add(task)
-        if (FMLEnvironment.dist.isClient) SystemToast.add(
+        if (FMLEnvironment.dist.isClient && !this.tasks.contains(task)) SystemToast.add(
             Minecraft.getInstance().toasts, 
             SystemToast.Type.valueOf("HOLLOWENGINE_TOAST"),
             TranslationTextComponent("hollowengine.task.updated"),
@@ -262,6 +261,7 @@ class StoryProgressManager {
                 ClientEvents.OPEN_EVENT_LIST.key.displayName.string
             )
         )
+        tasks.add(task)
         shouldUpdate = true
     }
 
