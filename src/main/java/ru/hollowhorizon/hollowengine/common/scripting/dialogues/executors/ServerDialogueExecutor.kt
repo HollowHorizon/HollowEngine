@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.dialogues.executors
 
 import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.common.scripting.dialogues.IDialogueExecutor
 import ru.hollowhorizon.hollowengine.common.scripting.story.waitForgeEvent
 

@@ -17,8 +17,6 @@ import net.minecraftforge.fml.loading.FMLEnvironment
 import net.minecraftforge.fml.loading.FMLPaths
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.api.registy.HollowMod
-import ru.hollowhorizon.hc.client.gltf.GltfModelSources.addSource
-import ru.hollowhorizon.hc.client.gltf.PathSource
 import ru.hollowhorizon.hc.client.render.entity.GLTFEntityRenderer
 import ru.hollowhorizon.hc.common.registry.HollowModProcessor
 import ru.hollowhorizon.hc.common.registry.RegistryLoader
@@ -52,8 +50,6 @@ class HollowEngine {
         modBus.addListener { event: FMLCommonSetupEvent -> setup(event) }
         modBus.addListener { event: EntityAttributeCreationEvent -> onAttributeCreation(event) }
         modBus.addListener { event: FMLLoadCompleteEvent -> onLoadingComplete(event) }
-        addSource(PathSource(FMLPaths.GAMEDIR.get().resolve("hollowengine")))
-        addSource(PathSource(FMLPaths.GAMEDIR.get().resolve("hollowengine").resolve("models")))
         if (FMLEnvironment.dist.isClient) {
             forgeBus.addListener(ClientEvents::renderLast)
             forgeBus.addListener(ClientEvents::onKeyPressed)

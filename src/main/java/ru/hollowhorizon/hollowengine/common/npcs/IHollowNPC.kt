@@ -4,7 +4,6 @@ import kotlinx.coroutines.runBlocking
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hc.client.gltf.animations.PlayType
 import ru.hollowhorizon.hc.client.utils.mcText
-import ru.hollowhorizon.hc.common.capabilities.AnimatedEntityCapability
 import ru.hollowhorizon.hc.common.capabilities.getCapability
 import ru.hollowhorizon.hc.common.capabilities.syncEntity
 import ru.hollowhorizon.hollowengine.common.capabilities.NPCEntityCapability
@@ -27,25 +26,16 @@ interface IHollowNPC : ICharacter {
         pendingTask.task()
     }
 
-    fun configure(config: AnimatedEntityCapability.() -> Unit) {
-        val animCapability = npcEntity.getCapability(AnimatedEntityCapability::class)
-        config(animCapability)
-        animCapability.syncEntity(npcEntity)
-    }
-
     infix fun play(animation: String) {
-        npcEntity.getCapability(AnimatedEntityCapability::class).animationsToStart.add(animation)
-        npcEntity.getCapability(AnimatedEntityCapability::class).syncEntity(npcEntity)
+        npcEntity.manager.startAnimation(animation)
     }
 
-    fun play(animation: String, mode: PlayType) {
-        npcEntity.getCapability(AnimatedEntityCapability::class).animationsToStart.add(animation)
-        npcEntity.getCapability(AnimatedEntityCapability::class).syncEntity(npcEntity)
+    fun play(name: String, priority: Float = 1.0f, playType: PlayType = PlayType.ONCE, speed: Float = 1.0f) {
+        npcEntity.manager.startAnimation(name, priority, playType, speed)
     }
 
     infix fun stop(animation: String) {
-        npcEntity.getCapability(AnimatedEntityCapability::class).animationsToStop.add(animation)
-        npcEntity.getCapability(AnimatedEntityCapability::class).syncEntity(npcEntity)
+        npcEntity.manager.stopAnimation(animation)
     }
 
     fun waitInteract(icon: IconType) {

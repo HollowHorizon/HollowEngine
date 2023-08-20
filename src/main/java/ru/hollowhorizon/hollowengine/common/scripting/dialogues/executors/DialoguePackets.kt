@@ -9,6 +9,7 @@ import net.minecraftforge.eventbus.api.Event
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.Packet
+import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.screen.DialogueScreen
 
 @OnlyIn(Dist.CLIENT)

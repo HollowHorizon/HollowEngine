@@ -1,8 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
-import com.mojang.blaze3d.systems.RenderSystem
-import de.javagl.jgltf.model.impl.DefaultGltfModel
-import de.javagl.jgltf.model.impl.DefaultImageModel
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.damagesource.DamageSource
@@ -11,16 +8,10 @@ import net.minecraft.world.entity.PathfinderMob
 import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
-import net.minecraftforge.common.capabilities.Capability
-import ru.hollowhorizon.hc.client.gltf.GlTFModelManager
-import ru.hollowhorizon.hc.client.gltf.IAnimatedEntity
-import ru.hollowhorizon.hc.client.gltf.RenderedGltfModel
-import ru.hollowhorizon.hc.client.gltf.animations.AnimationType
-import ru.hollowhorizon.hc.client.utils.mcText
-import ru.hollowhorizon.hc.common.capabilities.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.gltf.IAnimated
+import ru.hollowhorizon.hc.client.gltf.animations.manager.IModelManager
+import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2.Companion.get
-import ru.hollowhorizon.hc.common.capabilities.ICapabilitySyncer
-import ru.hollowhorizon.hc.common.capabilities.getCapability
 import ru.hollowhorizon.hc.common.capabilities.syncEntity
 import ru.hollowhorizon.hollowengine.common.capabilities.NPCEntityCapability
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
@@ -28,7 +19,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.IconType
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
-open class NPCEntity : PathfinderMob, IHollowNPC, IAnimatedEntity, ICapabilitySyncer {
+open class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
     val interactionWaiter = Object()
     val goalQueue = ArrayList<HollowNPCTask>()
     val removeGoalQueue = ArrayList<HollowNPCTask>()
@@ -101,54 +92,12 @@ open class NPCEntity : PathfinderMob, IHollowNPC, IAnimatedEntity, ICapabilitySy
         }
     }
 
-    override fun onCapabilitySync(capability: Capability<*>) {
-        if (capability == get(NPCEntityCapability::class.java)) {
-            val npcCapability = this.getCapability(NPCEntityCapability::class)
-
-            this.customName = npcCapability.settings.name.mcText
-            this.isCustomNameVisible = true
-        }
-
-        if (level.isClientSide && capability == get(NPCEntityCapability::class.java)) {
-            val animCapability = this.getCapability(AnimatedEntityCapability::class)
-
-            updateModels(animCapability)
-        }
-    }
-
-    fun updateModels(capability: AnimatedEntityCapability) {
-        RenderSystem.recordRenderCall {
-            model = GlTFModelManager.getOrCreate(capability.model)
-
-            AnimationType.load(model!!.gltfModel, capability)
-
-            val textures = capability.textures
-
-            updateTextures(textures, model!!)
-        }
-    }
-
-    private fun updateTextures(textures: HashMap<String, String>, model: RenderedGltfModel) {
-        (model.gltfModel as? DefaultGltfModel)?.let { gltf ->
-
-            val size = gltf.textureModels.size
-
-            for (i in 0 until size) {
-                val texture = gltf.getTextureModel(i)
-
-                if (textures.contains(texture.name)) {
-                    (texture.imageModel as? DefaultImageModel)?.imageData =
-                        GlTFModelManager.getInstance().getImageResource(textures[texture.name])
-                    //model.textureModelToGlTexture[texture] = null //Сбрасываем предыдущую текстуру
-                }
-            }
-        }
-    }
 
     override fun canPickUpLoot(): Boolean {
         return true
     }
 
-    override var model: RenderedGltfModel? = null
+    override var model = "hollowengine:models/entity/player_model.gltf".rl
+    override val manager by lazy { IModelManager.create(this) }
 
 }
