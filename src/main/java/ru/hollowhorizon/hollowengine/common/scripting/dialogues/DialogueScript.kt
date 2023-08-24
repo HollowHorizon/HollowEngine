@@ -13,7 +13,7 @@ import kotlin.script.experimental.api.defaultImports
     fileExtension = "hds",
     compilationConfiguration = HollowDialogueConfiguration::class
 )
-abstract class HollowDialogue(player: Player) :
+abstract class DialogueScript(player: Player) :
     DialogueScriptBaseV2(ServerDialogueExecutor(player)) {
 
 }

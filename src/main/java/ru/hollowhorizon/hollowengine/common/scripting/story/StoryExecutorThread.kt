@@ -54,11 +54,15 @@ class StoryExecutorThread @JvmOverloads constructor(
             resScript.clearEvent()
 
             res.reports.forEach {
-                team.sendMessage("[ERROR] ${it.render()}")
+                it.render().lines().forEach { line ->
+                    team.sendMessage("§c[ERROR]§r $line")
+                }
                 hasErrors = true
             }
         } catch (e: Exception) {
-            team.sendMessage("[DEBUG] Error while loading event: ${e.stackTraceToString()}")
+            team.sendMessage("§c Error while loading event: ${e.message}.")
+            team.sendMessage("§eCheck logs for more details.")
+            e.printStackTrace()
             hasErrors = true
         }
 

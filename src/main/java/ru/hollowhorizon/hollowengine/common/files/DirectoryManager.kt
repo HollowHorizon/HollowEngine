@@ -4,7 +4,8 @@ import net.minecraftforge.fml.loading.FMLPaths
 import java.io.File
 
 object DirectoryManager {
-    private val SCRIPTS_DIR = FMLPaths.GAMEDIR.get().resolve("hollowengine/scripts").toFile().apply {
+    val HOLLOW_ENGINE = FMLPaths.GAMEDIR.get().resolve("hollowengine").toFile()
+    private val SCRIPTS_DIR = HOLLOW_ENGINE.resolve("scripts").apply {
         if (!exists()) mkdirs()
     }
 

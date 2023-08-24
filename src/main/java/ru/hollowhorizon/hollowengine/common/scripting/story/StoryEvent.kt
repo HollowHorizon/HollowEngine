@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import com.google.common.reflect.TypeToken
-import com.mojang.math.Vector3d
 import kotlinx.serialization.Serializable
 import net.minecraft.core.BlockPos
 import net.minecraft.nbt.EndTag
@@ -12,24 +11,14 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
-import net.minecraft.world.level.Level
+import net.minecraft.world.level.ClipContext
 import net.minecraft.world.level.levelgen.Heightmap
-import net.minecraft.world.phys.AABB
+import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.Vec3
-import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
 import ru.hollowhorizon.hc.client.utils.nbt.deserializeNoInline
 import ru.hollowhorizon.hc.client.utils.nbt.serializeNoInline
-import ru.hollowhorizon.hc.client.utils.toRL
-import ru.hollowhorizon.hc.client.utils.toSTC
-import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2.Companion.get
-import ru.hollowhorizon.hc.common.capabilities.getCapability
-import ru.hollowhorizon.hc.common.capabilities.syncEntity
-import ru.hollowhorizon.hollowengine.common.capabilities.NPCEntityCapability
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
-import ru.hollowhorizon.hollowengine.common.exceptions.StoryVariableNotFoundException
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
-import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
@@ -78,8 +67,10 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
         val player = team.getHost().mcPlayer ?: team.getAllOnline().first().mcPlayer
         ?: throw IllegalStateException("No players in team online")
 
+        var attempt = 0
         var pos: BlockPos
         do {
+            attempt++
             pos = world.level.getHeightmapPos(
                 Heightmap.Types.WORLD_SURFACE_WG,
                 BlockPos(
@@ -89,16 +80,23 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
                 )
             )
             if (abs(pos.y - player.y) > 10) continue // Если игрок слишком далеко от точки, то ищем другую
-        } while (player.canSee(pos) || canPlayerSee)
+        } while ((player.canSee(pos) || canPlayerSee) && attempt < 1000)
 
         return pos
     }
 
-    private fun Player.canSee(pos: BlockPos): Boolean {
+    fun Player.canSee(to: BlockPos): Boolean {
         val from: Vec3 = this.getEyePosition(1f)
-        val to = from.add(this.lookAngle.scale(128.0))
 
-        return AABB(from, to).contains(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
+        return this.level.clip(
+            ClipContext(
+                from,
+                Vec3(to.x.toDouble(), to.y.toDouble(), to.z.toDouble()),
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
+                this
+            )
+        ).type == HitResult.Type.MISS
     }
 
     fun play(sound: String) {
@@ -123,33 +121,6 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
         while (predicate()) {
             Thread.sleep(100)
         }
-    }
-
-    fun makeNPC(settings: NPCSettings, level: Level = this.world.level, pos: BlockPos): IHollowNPC {
-        val npc = NPCEntity(level)
-        npc.setPos(pos.x.toDouble() + 0.5, pos.y.toDouble(), pos.z.toDouble() + 0.5)
-        level.addFreshEntity(npc)
-        this.eventNpcs.add(npc)
-
-        npc.getCapability(NPCEntityCapability::class).also { capability ->
-            capability.settings = settings
-            capability.syncEntity(npc)
-        }
-        npc.customName = settings.name.toSTC()
-        npc.isCustomNameVisible = true
-
-        return npc
-    }
-
-    fun makeNPC(fromName: NPCSettings, level: String, pos: BlockPos): IHollowNPC {
-        println("Level key: $level")
-        val levelKeys = ServerLifecycleHooks.getCurrentServer().levelKeys()
-        val levelKey = levelKeys.find { it.location().equals(level.toRL()) }
-
-        val world = ServerLifecycleHooks.getCurrentServer()
-            .getLevel(levelKey ?: throw StoryVariableNotFoundException("Dimension $level not found. Or not loaded"))!!
-        println(world)
-        return makeNPC(fromName, world, pos)
     }
 
     fun removeNPC(npc: IHollowNPC) {

@@ -1,7 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.npcs
 
 import kotlinx.serialization.Serializable
-import net.minecraft.sounds.SoundEvent
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.Vec2
 import ru.hollowhorizon.hc.client.utils.nbt.*
 import java.io.File
 
@@ -21,23 +22,13 @@ fun main() {
 @Serializable
 data class NPCSettings(
     var name: String = "NPC",
-    var model: NPCModel = NPCModel(),
-    var data: NPCData = NPCData(),
+    var model: String = "hollowengine:models/entity/player_model.gltf",
+    var data: Attributes = Attributes(),
 )
 
-@Serializable
-data class NPCModel(
-    var modelPath: String = "hollowengine:models/entity/player_model.gltf",
-    var extraAnimations: String = "hollowengine:models/entity/player_animations.json",
-    var textureOverrides: HashMap<String, String> = HashMap()
-)
+data class SpawnLocation(val world: String = "minecraft:overworld", val pos: BlockPos, val rotation: Vec2 = Vec2.ZERO)
 
 @Serializable
-data class NPCData(
-    var health: Float = 20f,
-    var damage: Float = 1f,
-    var armor: Float = 0f,
-    var ignoreLighting: Boolean = false,
-    var isUndead: Boolean = false,
-    var sound: @Serializable(ForSoundEvent::class) SoundEvent? = null,
-)
+data class Attributes(val attributes: Map<String, Float> = mapOf()) {
+    constructor(vararg attributes: Pair<String, Float>) : this(attributes.toMap())
+}

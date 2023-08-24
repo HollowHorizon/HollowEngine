@@ -8,48 +8,33 @@ import net.minecraft.world.entity.PathfinderMob
 import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
+import net.minecraftforge.common.capabilities.ICapabilityProvider
+import net.minecraftforge.registries.ForgeRegistries
+import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.client.gltf.IAnimated
+import ru.hollowhorizon.hc.client.gltf.animations.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.gltf.animations.manager.IModelManager
+import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2.Companion.get
-import ru.hollowhorizon.hc.common.capabilities.syncEntity
-import ru.hollowhorizon.hollowengine.common.capabilities.NPCEntityCapability
+import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
-import ru.hollowhorizon.hollowengine.common.npcs.IconType
+import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
+import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
-open class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
+class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
     val interactionWaiter = Object()
     val goalQueue = ArrayList<HollowNPCTask>()
     val removeGoalQueue = ArrayList<HollowNPCTask>()
 
-    constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
+    constructor(level: Level, model: String) : super(ModEntities.NPC_ENTITY.get(), level)
+
     constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         synchronized(interactionWaiter) { interactionWaiter.notifyAll() }
         return super.mobInteract(pPlayer, pHand)
-    }
-
-    fun setEntityIcon(type: IconType) {
-        this.getCapability(
-            get(
-                NPCEntityCapability::class.java
-            )
-        ).ifPresent { cap: NPCEntityCapability ->
-            cap.iconType = type
-            cap.syncEntity(this)
-        }
-    }
-
-    fun getEntityIcon(): IconType {
-        return this.getCapability(
-            get(
-                NPCEntityCapability::class.java
-            )
-        )
-            .orElseThrow { IllegalStateException("NPCEntity Capability not found!") }.iconType
     }
 
     override fun die(source: DamageSource) {
@@ -61,22 +46,13 @@ open class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
         goalSelector.addGoal(0, FloatGoal(this)) //Если NPC решит утонить будет не кайф...
     }
 
-    override fun isInvulnerable(): Boolean {
-        return this.getCapability(
-            get(
-                NPCEntityCapability::class.java
-            )
-        ).orElseThrow { IllegalStateException("NPCEntity Capability not found!") }.settings.data.isUndead
-    }
+    override fun isInvulnerable() = true
 
-    override fun shouldDespawnInPeaceful(): Boolean {
-        return false
-    }
+    override fun shouldDespawnInPeaceful() = false
 
     //не думаю, что NPC можно деспавниться...
     override fun checkDespawn() {}
-    override val npcEntity: NPCEntity
-        get() = this
+    override val npcEntity = this
 
     override fun tick() {
         super.tick()
@@ -97,7 +73,43 @@ open class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
         return true
     }
 
-    override var model = "hollowengine:models/entity/player_model.gltf".rl
     override val manager by lazy { IModelManager.create(this) }
 
+    companion object {
+        fun getOrCreate(npc: NPCSettings, location: SpawnLocation): NPCEntity {
+            val server = ServerLifecycleHooks.getCurrentServer()
+            val dimension = server.levelKeys().find { it.location() == location.world.rl }
+                ?: throw IllegalStateException("Dimension ${location.world} not found. Or not loaded!")
+            val level = server.getLevel(dimension)
+                ?: throw IllegalStateException("Dimension ${location.world} not found. Or not loaded")
+
+            val entities = level.getEntities(ModEntities.NPC_ENTITY.get()) { entity ->
+                return@getEntities entity.model == npc.model.rl && entity.characterName == npc.name && entity.isAlive
+            }
+
+            val entity = entities.firstOrNull() ?: NPCEntity(level, npc.model).apply {
+                level.addFreshEntity(this)
+            }
+            entity.getCapability(CapabilityStorage.getCapability(AnimatedEntityCapability::class.java)).ifPresent {
+                it.model = npc.model
+            }
+            entity.moveTo(
+                location.pos.x.toDouble() + 0.5,
+                location.pos.y.toDouble(),
+                location.pos.z.toDouble() + 0.5,
+                location.rotation.x,
+                location.rotation.y
+            )
+
+            npc.data.attributes.forEach { (name, value) ->
+                entity.getAttribute(ForgeRegistries.ATTRIBUTES.getValue(name.rl) ?: return@forEach)?.baseValue =
+                    value.toDouble()
+            }
+
+            entity.isCustomNameVisible = true
+            entity.customName = npc.name.mcText
+
+            return entity
+        }
+    }
 }

@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.common.commands;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.commands.CommandSource;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -11,7 +10,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import ru.hollowhorizon.hc.HollowCore;
-import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2;
+import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage;
 import ru.hollowhorizon.hollowengine.common.capabilities.ReplayStorageCapability;
 import ru.hollowhorizon.hollowengine.common.capabilities.ReplayStorageCapabilityKt;
 import ru.hollowhorizon.hollowengine.common.capabilities.StoryTeamCapability;
@@ -39,9 +38,9 @@ public class HECommands {
                         }).executes(context -> {
                             String dialogue = StringArgumentType.getString(context, "dialogue");
 
-                            context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(StoryTeamCapability.class)).ifPresent(team -> {
+                            context.getSource().getLevel().getCapability(CapabilityStorage.getCapability(StoryTeamCapability.class)).ifPresent(team -> {
                                 try {
-                                    StoryTeam storyTeam = team.getTeam(context.getSource().getPlayerOrException());
+                                    StoryTeam storyTeam = team.getOrCreateTeam(context.getSource().getPlayerOrException());
 
                                     storyTeam.getAllOnline().forEach(storyPlayer -> new DialogueExecutorThread(Objects.requireNonNull(storyPlayer.getMcPlayer()), DirectoryManager.fromReadablePath(dialogue)).start());
                                 } catch (Exception e) {
@@ -61,9 +60,9 @@ public class HECommands {
                     return 1;
                 }))
                 .then(Commands.literal("reset").executes(context -> {
-                    context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(StoryTeamCapability.class)).ifPresent(team -> {
+                    context.getSource().getLevel().getCapability(CapabilityStorage.getCapability(StoryTeamCapability.class)).ifPresent(team -> {
                         try {
-                            StoryTeam storyTeam = team.getTeam(context.getSource().getPlayerOrException());
+                            StoryTeam storyTeam = team.getOrCreateTeam(context.getSource().getPlayerOrException());
                             storyTeam.getCompletedEvents().clear();
                             context.getSource().getPlayerOrException().sendSystemMessage(Component.literal("§6[§bHollow Story§6] §bCompleted events reset successfully!"));
                         } catch (Exception e) {
@@ -83,9 +82,9 @@ public class HECommands {
                                     File script = DirectoryManager.fromReadablePath(raw);
 
 
-                                    context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(StoryTeamCapability.class)).ifPresent(team -> {
+                                    context.getSource().getLevel().getCapability(CapabilityStorage.getCapability(StoryTeamCapability.class)).ifPresent(team -> {
                                         try {
-                                            StoryTeam storyTeam = team.getTeam(player);
+                                            StoryTeam storyTeam = team.getOrCreateTeam(player);
                                             new StoryExecutorThread(storyTeam, script, true).start();
                                         } catch (Exception e) {
                                             e.printStackTrace();
@@ -97,9 +96,9 @@ public class HECommands {
                                 }))))
                 .then(Commands.literal("active-events").executes(context -> {
                     Player player = context.getSource().getPlayerOrException();
-                    context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(StoryTeamCapability.class)).ifPresent(team -> {
+                    context.getSource().getLevel().getCapability(CapabilityStorage.getCapability(StoryTeamCapability.class)).ifPresent(team -> {
                         try {
-                            StoryTeam storyTeam = team.getTeam(player);
+                            StoryTeam storyTeam = team.getOrCreateTeam(player);
                             Set<String> entries = storyTeam.getCurrentEvents().keySet();
                             player.sendSystemMessage(Component.literal("§6[§bActive Events§6]"));
                             for (String entry : entries) {
@@ -113,9 +112,9 @@ public class HECommands {
                 }))
                 .then(Commands.literal("stop-event").then(Commands.argument("event", StringArgumentType.greedyString()).suggests((context, builder) -> {
                     Player player = context.getSource().getPlayerOrException();
-                    context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(StoryTeamCapability.class)).ifPresent(team -> {
+                    context.getSource().getLevel().getCapability(CapabilityStorage.getCapability(StoryTeamCapability.class)).ifPresent(team -> {
                         try {
-                            StoryTeam storyTeam = team.getTeam(player);
+                            StoryTeam storyTeam = team.getOrCreateTeam(player);
                             Set<String> entries = storyTeam.getCurrentEvents().keySet();
                             for (String entry : entries) builder.suggest(entry);
                         } catch (Exception e) {
@@ -126,9 +125,9 @@ public class HECommands {
                 }).executes(context -> {
                     Player player = context.getSource().getPlayerOrException();
                     String event = StringArgumentType.getString(context, "event");
-                    context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(StoryTeamCapability.class)).ifPresent(team -> {
+                    context.getSource().getLevel().getCapability(CapabilityStorage.getCapability(StoryTeamCapability.class)).ifPresent(team -> {
                         try {
-                            HashMap<String, StoryExecutorThread> currentEvents = team.getTeam(player).getCurrentEvents();
+                            HashMap<String, StoryExecutorThread> currentEvents = team.getOrCreateTeam(player).getCurrentEvents();
 
                             currentEvents.get(event).interrupt();
 
@@ -174,7 +173,7 @@ public class HECommands {
                                     String replayName = StringArgumentType.getString(context, "replay");
                                     String npcName = StringArgumentType.getString(context, "npc");
 
-                                    context.getSource().getLevel().getCapability(HollowCapabilityV2.Companion.get(ReplayStorageCapability.class)).ifPresent(storage -> {
+                                    context.getSource().getLevel().getCapability(CapabilityStorage.getCapability(ReplayStorageCapability.class)).ifPresent(storage -> {
                                         Replay replay = storage.getReplay(replayName);
 
 

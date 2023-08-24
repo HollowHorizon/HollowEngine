@@ -19,7 +19,7 @@ class DialogueExecutorThread(val player: Player, val file: File) : Thread() {
                 ModList.get().getModFileById("hc").file.filePath.toFile().absolutePath
             )
 
-            val dialogue = ScriptingCompiler.compileFile<HollowDialogue>(file)
+            val dialogue = ScriptingCompiler.compileFile<DialogueScript>(file)
 
             val res = dialogue.execute {
                 constructorArgs(player)

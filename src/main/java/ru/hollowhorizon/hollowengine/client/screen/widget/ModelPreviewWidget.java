@@ -74,7 +74,7 @@ public class ModelPreviewWidget extends HollowWidget {
         this.originalHeight = height;
         this.parentWidth = pwidth;
         this.parentHeight = pheight;
-        this.previeNPC = new NPCEntity(MC.level);
+        this.previeNPC = new NPCEntity(MC.level, "");
         Button.OnTooltip tooltip = (button, matrixStack, mouseX, mouseY) -> {
 
         };
