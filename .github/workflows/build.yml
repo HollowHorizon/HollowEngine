@@ -40,6 +40,6 @@ jobs:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "lasted-1.19.2"
           prerelease: false
-          title: "[AUTHOMATIC BUILD 1.19.2]"
+          title: "[AUTOMATIC BUILD 1.19.2]"
           files: |
             build/libs/*.jar
