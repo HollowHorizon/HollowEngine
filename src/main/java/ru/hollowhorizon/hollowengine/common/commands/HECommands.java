@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.commands;
 
+import com.mojang.blaze3d.platform.ClipboardManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -9,12 +10,16 @@ import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.registries.ForgeRegistries;
+import org.apache.commons.lang3.StringEscapeUtils;
 import ru.hollowhorizon.hc.HollowCore;
 import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage;
+import ru.hollowhorizon.hc.common.network.HollowPacketV2Kt;
 import ru.hollowhorizon.hollowengine.common.capabilities.ReplayStorageCapability;
 import ru.hollowhorizon.hollowengine.common.capabilities.ReplayStorageCapabilityKt;
 import ru.hollowhorizon.hollowengine.common.capabilities.StoryTeamCapability;
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager;
+import ru.hollowhorizon.hollowengine.common.network.CopyItemPacket;
 import ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueExecutorThread;
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryExecutorThread;
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryTeam;
@@ -51,6 +56,27 @@ public class HECommands {
                             return 1;
                         }))
                 )
+                .then(Commands.literal("hand").executes(ctx -> {
+                    var player = ctx.getSource().getPlayerOrException();
+                    var item = player.getMainHandItem();
+
+                    var location = ForgeRegistries.ITEMS.getKey(item.getItem()).toString();
+                    var count = item.getCount();
+                    var nbt = item.hasTag() ? item.getOrCreateTag() : null;
+
+                    String itemCommand;
+                    if(nbt == null) {
+                        if(count > 1) itemCommand = "item(" + location + ", " + count + ")";
+                        else itemCommand = "item(" + location + ")";
+                    } else {
+
+                        itemCommand = "item(" + location + ", " + count + ", \"" + nbt + "\")";
+                    }
+
+                    HollowPacketV2Kt.send(new CopyItemPacket(), itemCommand, player);
+
+                    return 1;
+                }))
                 .then(Commands.literal("cutscene").executes(context -> {
                     //Minecraft.getInstance().setScreen(new CutsceneWorldEditScreen());
                     return 1;

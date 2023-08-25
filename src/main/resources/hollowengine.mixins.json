@@ -5,7 +5,8 @@
   "compatibilityLevel": "JAVA_8",
   "refmap": "hollowstory.refmap.json",
   "mixins": [
-    "ChunkLoaderMixin"
+    "ChunkLoaderMixin",
+    "RecipeManagerAccessor"
   ],
   "client": [
   ],

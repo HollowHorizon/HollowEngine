@@ -1,9 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.scripting.content
 
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.item.crafting.Recipe
 import net.minecraft.world.item.crafting.RecipeManager
+import net.minecraft.world.item.crafting.RecipeType
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
 import ru.hollowhorizon.hc.common.scripting.kotlin.AbstractHollowScriptConfiguration
+import ru.hollowhorizon.hollowengine.mixins.RecipeManagerAccessor
 import java.io.File
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.baseClass
@@ -18,31 +22,42 @@ import kotlin.script.experimental.jvm.loadDependencies
     fileExtension = "content.kts",
     compilationConfiguration = ContentScriptConfiguration::class
 )
-abstract class ContentScript(recipeManager: RecipeManager) : ContentScriptBase(recipeManager)
+abstract class ContentScript(recipes: MutableMap<RecipeType<*>, MutableMap<ResourceLocation, Recipe<*>>>, byName: MutableMap<ResourceLocation, Recipe<*>>) : ContentScriptBase(recipes, byName)
 
-fun runContentScript(recipeManager: RecipeManager, script: File) {
+fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
     HollowCore.LOGGER.info("[RecipeScriptCompiler]: loading script \"${script.name}\"")
 
     val result = ScriptingCompiler.compileFile<ContentScript>(script)
 
     HollowCore.LOGGER.info("[RecipeScriptCompiler]: Script compiled: \"${result}\"")
 
+    val recipes = recipeManager.recipes.toMutableMap()
+    val byName = recipeManager.byName.toMutableMap()
+
+    recipes.keys.forEach {
+        recipes[it] = recipes[it]?.toMutableMap() ?: hashMapOf()
+    }
+
     val res = result.execute {
         jvm {
-            constructorArgs(recipeManager)
+            constructorArgs(recipes, byName)
             loadDependencies(false)
         }
     }
 
+    recipeManager.recipes = recipes
+    recipeManager.byName = byName
+
     HollowCore.LOGGER.info("[RecipeScriptCompiler]: Script evaluated: \"${res}\"")
 
     res.reports.forEach {
-        HollowCore.LOGGER.info("[ModScriptCompiler]: ${it.render(withStackTrace = true)}")
+        HollowCore.LOGGER.error("[ModScriptCompiler]: ${it.render(withStackTrace = true)}")
     }
 }
 
 class ContentScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
+        "import ru.hollowhorizon.hollowengine.common.recipes.*",
         "ru.hollowhorizon.hc.client.utils.*"
     )
 

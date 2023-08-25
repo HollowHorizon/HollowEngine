@@ -5,6 +5,7 @@ import net.minecraft.server.packs.resources.ResourceManager
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.content.runContentScript
+import ru.hollowhorizon.hollowengine.mixins.RecipeManagerAccessor
 
 
 object RecipeReloadListener : ResourceManagerReloadListener {
@@ -13,8 +14,9 @@ object RecipeReloadListener : ResourceManagerReloadListener {
     override fun onResourceManagerReload(manager: ResourceManager) {
         val recipeManager = resources?.recipeManager ?: return
 
+        RecipeHelper.latestId = 0
         DirectoryManager.getContentScripts().forEach {
-            runContentScript(recipeManager, it)
+            runContentScript(recipeManager as RecipeManagerAccessor, it)
         }
     }
 }

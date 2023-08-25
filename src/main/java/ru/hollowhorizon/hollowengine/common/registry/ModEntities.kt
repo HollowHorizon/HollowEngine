@@ -24,13 +24,3 @@ object ModEntities : HollowRegistry() {
         ).sized(0.6f, 1.8f).build("npc_entity")
     }
 }
-
-fun test() {
-    val data = object : StoryEvent(StoryTeam(), "test") {
-        init {
-            this.whenForgeEvent<ServerChatEvent> { event ->
-
-            }
-        }
-    }
-}

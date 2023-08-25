@@ -60,7 +60,8 @@ class StoryExecutorThread @JvmOverloads constructor(
                 hasErrors = true
             }
         } catch (e: Exception) {
-            team.sendMessage("§c Error while loading event: ${e.message}.")
+            team.sendMessage("§c Error while loading event \"${file.toReadablePath()}\".")
+            team.sendMessage("${e.message}")
             team.sendMessage("§eCheck logs for more details.")
             e.printStackTrace()
             hasErrors = true
