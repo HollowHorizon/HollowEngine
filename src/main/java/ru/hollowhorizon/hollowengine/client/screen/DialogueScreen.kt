@@ -220,10 +220,6 @@ class DialogueScreen : HollowScreen("".mcText) {
         val f = atan((xRot / 40.0)).toFloat()
         val f1 = atan((yRot / 40.0)).toFloat()
 
-        GL11.glPushMatrix()
-        GL11.glTranslatef(x, y, 100.0f)
-        GL11.glScalef(1.0f, 1.0f, -1.0f)
-
         val matrixstack = PoseStack()
 
         matrixstack.scale(scale, scale, scale)
@@ -269,7 +265,6 @@ class DialogueScreen : HollowScreen("".mcText) {
         entity.yHeadRot = f6
 
         Minecraft.getInstance().gameRenderer.lightTexture().turnOffLightLayer()
-        GL11.glPopMatrix()
     }
 
     fun update(scene: DialogueScene) {
