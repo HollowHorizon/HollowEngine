@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.content
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.TagParser
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.tags.TagKey
 import net.minecraft.world.item.Item
@@ -70,6 +71,10 @@ open class ContentScriptBase(
         count,
         nbt
     )
+
+    fun item(item: String, count: Int = 1, nbt: String): ItemStack {
+        return item(item, count, TagParser.parseTag(nbt))
+    }
 
     fun tag(tag: String): TagKey<Item> {
         val manager = ForgeRegistries.ITEMS.tags() ?: throw IllegalStateException("Tag $tag not found!")

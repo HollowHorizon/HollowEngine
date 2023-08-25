@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.recipes
 
 import net.minecraft.core.NonNullList
-import net.minecraft.nbt.CompoundTag
 import net.minecraft.tags.TagKey
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
@@ -9,10 +8,6 @@ import net.minecraft.world.item.crafting.Ingredient
 import net.minecraft.world.item.crafting.RecipeType
 import net.minecraft.world.item.crafting.ShapedRecipe
 import net.minecraft.world.item.crafting.ShapelessRecipe
-import net.minecraftforge.registries.ForgeRegistries
-import net.minecraftforge.registries.tags.ITag
-import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hollowengine.common.scripting.content.ContentScriptBase
 
 class CraftingTable(val isShapeless: Boolean = false) {
     val grid = Grid()
@@ -25,7 +20,8 @@ class CraftingTable(val isShapeless: Boolean = false) {
             val width = grid.maxBy { it.length }.length
             val height = grid.size
 
-            val recipe = ShapedRecipe(RecipeHelper.createRecipeId(), group, width, height, craft.context.assembly(), item)
+            val recipe =
+                ShapedRecipe(RecipeHelper.createRecipeId(), group, width, height, craft.context.assembly(), item)
             RecipeHelper.currentScript?.addRecipe(recipe)
         }
 
@@ -66,6 +62,16 @@ class CraftingTable(val isShapeless: Boolean = false) {
 
     fun items(vararg tags: TagKey<Item>) {
         this.context.ingredients.addAll(tags.map { Ingredient.of(it) })
+    }
+
+    fun items(vararg items: Any) {
+        this.context.ingredients.addAll(items.map {
+            when (it) {
+                is TagKey<*> -> Ingredient.of(it as TagKey<Item>)
+                is ItemStack -> Ingredient.of(it)
+                else -> throw IllegalStateException("Not item reference in CraftingTable.items() method!")
+            }
+        })
     }
 
     inner class Grid {

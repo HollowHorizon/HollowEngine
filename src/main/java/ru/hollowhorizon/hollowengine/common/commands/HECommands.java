@@ -60,7 +60,7 @@ public class HECommands {
                     var player = ctx.getSource().getPlayerOrException();
                     var item = player.getMainHandItem();
 
-                    var location = ForgeRegistries.ITEMS.getKey(item.getItem()).toString();
+                    var location = "\"" + ForgeRegistries.ITEMS.getKey(item.getItem()).toString() + "\"";
                     var count = item.getCount();
                     var nbt = item.hasTag() ? item.getOrCreateTag() : null;
 
