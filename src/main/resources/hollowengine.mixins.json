@@ -3,7 +3,7 @@
   "minVersion": "0.8",
   "package": "ru.hollowhorizon.hollowengine.mixins",
   "compatibilityLevel": "JAVA_8",
-  "refmap": "hollowstory.refmap.json",
+  "refmap": "hollowengine.refmap.json",
   "mixins": [
     "ChunkLoaderMixin",
     "RecipeManagerAccessor"

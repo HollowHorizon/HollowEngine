@@ -31,8 +31,8 @@ fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
 
     HollowCore.LOGGER.info("[RecipeScriptCompiler]: Script compiled: \"${result}\"")
 
-    val recipes = recipeManager.recipes.toMutableMap()
-    val byName = recipeManager.byName.toMutableMap()
+    val recipes = recipeManager.`hollowcore$getRecipes`().toMutableMap()
+    val byName = recipeManager.`hollowcore$getByName`().toMutableMap()
 
     recipes.keys.forEach {
         recipes[it] = recipes[it]?.toMutableMap() ?: hashMapOf()
@@ -45,8 +45,8 @@ fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
         }
     }
 
-    recipeManager.recipes = recipes
-    recipeManager.byName = byName
+    recipeManager.`hollowcore$setRecipes`(recipes)
+    recipeManager.`hollowcore$setByName`(byName)
 
     HollowCore.LOGGER.info("[RecipeScriptCompiler]: Script evaluated: \"${res}\"")
 

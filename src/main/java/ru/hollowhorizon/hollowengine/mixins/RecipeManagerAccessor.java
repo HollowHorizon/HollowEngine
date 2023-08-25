@@ -12,14 +12,14 @@ import java.util.Map;
 @Mixin(RecipeManager.class)
 public interface RecipeManagerAccessor {
     @Accessor("recipes")
-    Map<RecipeType<?>, Map<ResourceLocation, Recipe<?>>> getRecipes();
+    Map<RecipeType<?>, Map<ResourceLocation, Recipe<?>>> hollowcore$getRecipes();
 
     @Accessor("recipes")
-    void setRecipes(Map<RecipeType<?>, Map<ResourceLocation, Recipe<?>>> recipeMap);
+    void hollowcore$setRecipes(Map<RecipeType<?>, Map<ResourceLocation, Recipe<?>>> recipeMap);
 
     @Accessor("byName")
-    Map<ResourceLocation, Recipe<?>> getByName();
+    Map<ResourceLocation, Recipe<?>> hollowcore$getByName();
 
     @Accessor("byName")
-    void setByName(Map<ResourceLocation, Recipe<?>> byName);
+    void hollowcore$setByName(Map<ResourceLocation, Recipe<?>> byName);
 }
