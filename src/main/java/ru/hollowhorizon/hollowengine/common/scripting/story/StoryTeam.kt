@@ -98,6 +98,10 @@ class StoryTeam {
     fun updatePlayer(player: Player) {
         this.players.find { it.uuid == player.uuid }?.mcPlayer = player
     }
+
+    fun isHost(player: Player): Boolean {
+        return this.getHost().uuid == player.uuid
+    }
 }
 
 @Serializable

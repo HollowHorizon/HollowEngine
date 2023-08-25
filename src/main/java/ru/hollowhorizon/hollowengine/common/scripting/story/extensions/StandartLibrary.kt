@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.extensions
 
+import net.minecraft.core.BlockPos
+import net.minecraft.server.level.ServerPlayer
 import net.minecraftforge.event.ServerChatEvent
 import net.minecraftforge.event.TickEvent
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
@@ -8,17 +10,24 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.waitForgeEvent
 /**
  * Если в параметрах ничего, то принимается любое сообщение, если есть строки, то допускаются только они, другие сообщения игнорируются
  */
-fun StoryEvent.input(vararg values: String): String {
+fun StoryEvent.input(vararg values: String, onlyHostMode: Boolean = false): String {
     var input = ""
+
+    fun canChoice(player: ServerPlayer): Boolean {
+        return if(onlyHostMode) team.isHost(player) else team.isFromTeam(player)
+    }
+
     waitForgeEvent<ServerChatEvent> { event ->
         input = event.message.string
 
-        return@waitForgeEvent values.isEmpty() || input in values
+        return@waitForgeEvent (values.isEmpty() || input in values) || !canChoice(event.player)
 
     }
 
     return input
 }
+
+fun StoryEvent.pos(x: Int, y: Int, z: Int) = BlockPos(x, y, z)
 
 fun StoryEvent.execute(command: String): Int {
     val server = this.world.level.server

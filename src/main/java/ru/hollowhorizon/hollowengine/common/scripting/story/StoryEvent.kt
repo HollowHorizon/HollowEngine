@@ -15,10 +15,22 @@ import net.minecraft.world.level.ClipContext
 import net.minecraft.world.level.levelgen.Heightmap
 import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.Vec3
+import net.minecraftforge.registries.ForgeRegistries
+import net.minecraftforge.server.ServerLifecycleHooks
+import ru.hollowhorizon.hc.client.gltf.animations.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
 import ru.hollowhorizon.hc.client.utils.nbt.deserializeNoInline
 import ru.hollowhorizon.hc.client.utils.nbt.serializeNoInline
+import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage
+import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
+import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
+import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
+import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
@@ -61,6 +73,45 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
         return this@StoryEvent
     }
 
+    fun NPCEntity.Companion.getOrCreate(npc: NPCSettings, location: SpawnLocation): NPCEntity {
+        val server = ServerLifecycleHooks.getCurrentServer()
+        val dimension = server.levelKeys().find { it.location() == location.world.rl }
+            ?: throw IllegalStateException("Dimension ${location.world} not found. Or not loaded!")
+        val level = server.getLevel(dimension)
+            ?: throw IllegalStateException("Dimension ${location.world} not found. Or not loaded")
+
+        val entities = level.getEntities(ModEntities.NPC_ENTITY.get()) { entity ->
+            return@getEntities entity.model == npc.model.rl && entity.characterName == npc.name && entity.isAlive
+        }
+
+        val entity = entities.firstOrNull() ?: NPCEntity(level, npc.model).apply {
+            level.addFreshEntity(this)
+        }
+        entity.getCapability(CapabilityStorage.getCapability(AnimatedEntityCapability::class.java)).ifPresent {
+            it.model = npc.model
+        }
+        entity.moveTo(
+            location.pos.x.toDouble() + 0.5,
+            location.pos.y.toDouble(),
+            location.pos.z.toDouble() + 0.5,
+            location.rotation.x,
+            location.rotation.y
+        )
+
+        npc.data.attributes.forEach { (name, value) ->
+            entity.getAttribute(ForgeRegistries.ATTRIBUTES.getValue(name.rl) ?: return@forEach)?.baseValue =
+                value.toDouble()
+        }
+
+        entity.isCustomNameVisible = true
+        entity.customName = npc.name.mcText
+
+        bindNpc(entity)
+        return entity
+    }
+
+    fun bindNpc(npc: IHollowNPC) = eventNpcs.add(npc)
+
     fun <T> async(task: () -> T) = executor.submit(task) //Создать асинхронную задачу
 
     fun randomPos(distance: Int = 25, canPlayerSee: Boolean = false): BlockPos {
@@ -84,6 +135,8 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
 
         return pos
     }
+
+    fun chain(vararg task: () -> Unit) = StagedTask(*task)
 
     fun Player.canSee(to: BlockPos): Boolean {
         val from: Vec3 = this.getEyePosition(1f)
@@ -139,29 +192,33 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
     }
 
     @Suppress("UnstableApiUsage")
-    inner class StoryStorage<T : Any?>(var default: T) {
-        private val typeToken = TypeToken.of(default!!.javaClass)
+    inner class Local<T : Any?>(var initial: T, private val customName: String? = null) {
+        private val typeToken = TypeToken.of(initial!!.javaClass)
 
         @Suppress("UNCHECKED_CAST")
         operator fun getValue(current: Any?, property: KProperty<*>): T {
-            val nbt = data.variables.get(property.name)
+            val nbt = data.variables.get(customName ?: property.name)
 
             if (nbt == null || nbt is EndTag) {
-                return default
+                return initial
             }
 
             return NBTFormat.deserializeNoInline(nbt, typeToken.rawType) as T
         }
 
         operator fun setValue(current: Any?, property: KProperty<*>, any: T) {
-            default = any
+            initial = any
 
-            if (default == null) {
-                data.variables.put(property.name, EndTag.INSTANCE)
+            if (initial == null) {
+                data.variables.put(customName ?: property.name, EndTag.INSTANCE)
                 return
             }
-            data.variables.put(property.name, NBTFormat.serializeNoInline(default!!, typeToken.rawType))
+            data.variables.put(customName ?: property.name, NBTFormat.serializeNoInline(initial!!, typeToken.rawType))
         }
+    }
+
+    fun startScript(path: String) {
+        StoryExecutorThread(team, path.fromReadablePath(), false).run()
     }
 
     inner class StagedTask(vararg subTasks: () -> Unit) {

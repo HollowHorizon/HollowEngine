@@ -1,7 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.npcs.tasks.movement
 
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
+import net.minecraft.tags.BlockTags
+import net.minecraft.util.Mth
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.util.DefaultRandomPos
+import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.pathfinder.Path
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
@@ -13,6 +19,79 @@ interface MovementKeyframe {
 
     fun tick()
     fun isFinished(): Boolean
+}
+
+class BackMovementKeyframe(
+    override val task: HollowNPCTask,
+    override val config: NPCMovement.MoveConfig,
+    x: Int, y: Int, z: Int
+) : MovementKeyframe {
+    val mob = this.task.npc.npcEntity
+    private val navigator = task.npc.npcEntity.navigation
+    val x = x.toDouble() + 0.5
+    val y = y.toDouble()
+    val z = z.toDouble() + 0.5
+    var timer = 0f
+
+    override fun tick() {
+        val d0: Double = this.x - mob.x
+        val d1: Double = this.z - mob.z
+        val d2: Double = this.y - mob.y
+        val d3 = d0 * d0 + d2 * d2 + d1 * d1
+        if (d3 < 2.5000003E-7) {
+            mob.setZza(0.0f)
+            return
+        }
+
+        val f9 = (Mth.atan2(d1, d0) * (180f / Math.PI.toFloat()).toDouble()).toFloat() + 90.0f
+        mob.yRot = this.rotlerp(this.mob.yRot, f9, 90.0f)
+        mob.speed = -(config.speed * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED)).toFloat()
+        mob.setDeltaMovement(d0 * mob.speed, 0.0, d1 * mob.speed)
+        val blockpos: BlockPos = this.mob.blockPosition()
+        val blockstate: BlockState = this.mob.level.getBlockState(blockpos)
+        val voxelshape = blockstate.getCollisionShape(this.mob.level, blockpos)
+        if (
+            d2 > this.mob.stepHeight.toDouble() &&
+            d0 * d0 + d1 * d1 < 1.0f.coerceAtLeast(this.mob.bbWidth).toDouble() ||
+            !voxelshape.isEmpty && this.mob.y < voxelshape.max(Direction.Axis.Y) + blockpos.y.toDouble() &&
+            !blockstate.`is`(BlockTags.DOORS) && !blockstate.`is`(BlockTags.FENCES)
+        ) {
+            mob.jumpControl.jump()
+        }
+
+        if (navigator.isStuck) config.onStuck(task)
+        if (timer >= config.timeOut && config.timeOut > 0f) config.onTimeout(task)
+
+        config.onTick(task)
+
+        timer += 0.05f //0.05f * 20 = 1 second
+    }
+
+    protected fun rotlerp(pSourceAngle: Float, pTargetAngle: Float, pMaximumChange: Float): Float {
+        var f = Mth.wrapDegrees(pTargetAngle - pSourceAngle)
+        if (f > pMaximumChange) {
+            f = pMaximumChange
+        }
+        if (f < -pMaximumChange) {
+            f = -pMaximumChange
+        }
+        var f1 = pSourceAngle + f
+        if (f1 < 0.0f) {
+            f1 += 360.0f
+        } else if (f1 > 360.0f) {
+            f1 -= 360.0f
+        }
+        return f1
+    }
+
+    override fun isFinished(): Boolean {
+        return (navigator.path != null && navigator.isDone && task.npc.npcEntity.isOnGround) || (timer >= config.timeOut && config.timeOut > 0f) || task.npc.npcEntity.distanceToSqr(
+            x,
+            y,
+            z
+        ) <= config.endDistance
+    }
+
 }
 
 class BlockPosKeyframe(

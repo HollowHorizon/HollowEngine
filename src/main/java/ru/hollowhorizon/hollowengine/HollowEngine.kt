@@ -35,6 +35,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getModScripts
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.NPCStorage
+import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
 import ru.hollowhorizon.hollowengine.common.registry.ModDimensions
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.scripting.mod.runModScript
@@ -49,7 +50,7 @@ class HollowEngine {
         val modBus = FMLJavaModLoadingContext.get().modEventBus
         HollowCore.LOGGER.info("HollowEngine mod loading...")
         forgeBus.addListener { event: RegisterCommandsEvent -> registerCommands(event) }
-        forgeBus.addListener { event: AddReloadListenerEvent? -> addReloadListenerEvent(event) }
+        forgeBus.addListener(this::addReloadListenerEvent)
         forgeBus.addListener(StoryHandler::onPlayerJoin)
         forgeBus.addListener(StoryHandler::onPlayerTick)
         forgeBus.addListener(StoryHandler::onPlayerClone)
@@ -83,8 +84,9 @@ class HollowEngine {
         }
     }
 
-    fun addReloadListenerEvent(event: AddReloadListenerEvent?) {
-        //event.addListener(new DialogueReloadListener());
+    private fun addReloadListenerEvent(event: AddReloadListenerEvent) {
+        event.addListener(RecipeReloadListener)
+        RecipeReloadListener.resources = event.serverResources
     }
 
     fun entityRenderers(event: EntityRenderersEvent.RegisterRenderers) {

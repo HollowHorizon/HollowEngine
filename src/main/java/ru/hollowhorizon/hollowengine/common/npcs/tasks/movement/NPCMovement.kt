@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.npcs.tasks.movement
 
+import net.minecraft.core.Direction
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
@@ -9,6 +10,37 @@ class NPCMovement(val task: HollowNPCTask) {
     val keyframes = arrayListOf<MovementKeyframe>()
     val waiter = Object()
     var isActive = false
+
+    fun front(distance: Int, moveConfig: MoveConfig.() -> Unit = {}): NPCMovement {
+        if (isActive) return this
+
+        val pos = task.npc.npcEntity.blockPosition()
+
+        return when (task.npc.npcEntity.direction) {
+            Direction.NORTH -> go(pos.x + distance, pos.y, pos.z, moveConfig)
+            Direction.SOUTH -> go(pos.x - distance, pos.y, pos.z, moveConfig)
+            Direction.EAST -> go(pos.x, pos.y, pos.z + distance, moveConfig)
+            Direction.WEST -> go(pos.x, pos.y, pos.z - distance, moveConfig)
+            else -> throw IllegalStateException("Can't go front when npc looking up/down?")
+        }
+    }
+
+    fun back(distance: Int, moveConfig: MoveConfig.() -> Unit = {}): NPCMovement {
+        if (isActive) return this
+
+        val pos = task.npc.npcEntity.blockPosition()
+
+        val keyframe = when (task.npc.npcEntity.direction) {
+            Direction.EAST -> BackMovementKeyframe(task, MoveConfig().apply { moveConfig() }, pos.x + distance, pos.y, pos.z)
+            Direction.WEST -> BackMovementKeyframe(task, MoveConfig().apply { moveConfig() }, pos.x - distance, pos.y, pos.z)
+            Direction.NORTH -> BackMovementKeyframe(task, MoveConfig().apply { moveConfig() }, pos.x, pos.y, pos.z + distance)
+            Direction.SOUTH -> BackMovementKeyframe(task, MoveConfig().apply { moveConfig() }, pos.x, pos.y, pos.z - distance)
+            else -> throw IllegalStateException("Can't go front when npc looking up/down?")
+        }
+        keyframes.add(keyframe)
+
+        return this
+    }
 
     fun go(blockX: Int, blockY: Int, blockZ: Int, moveConfig: MoveConfig.() -> Unit = {}): NPCMovement {
         if (isActive) return this
@@ -86,8 +118,7 @@ class NPCMovement(val task: HollowNPCTask) {
         var timeOut: Float = -1f
         var endDistance: Double = 1.0
             set(value) {
-                field =
-                    value * value //Необходимо для сравнения с расстоянием до цели, чтобы каждый тик не вычислять квадратный корень, пустая трата ресурсов
+                field = value * value //сразу берём квадрат, чтобы не вычислять каждый раз корень
             }
 
         var onTimeout: (HollowNPCTask) -> Unit = {}

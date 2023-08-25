@@ -22,6 +22,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
+import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
 
 class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
     val interactionWaiter = Object()
@@ -76,40 +77,6 @@ class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
     override val manager by lazy { IModelManager.create(this) }
 
     companion object {
-        fun getOrCreate(npc: NPCSettings, location: SpawnLocation): NPCEntity {
-            val server = ServerLifecycleHooks.getCurrentServer()
-            val dimension = server.levelKeys().find { it.location() == location.world.rl }
-                ?: throw IllegalStateException("Dimension ${location.world} not found. Or not loaded!")
-            val level = server.getLevel(dimension)
-                ?: throw IllegalStateException("Dimension ${location.world} not found. Or not loaded")
 
-            val entities = level.getEntities(ModEntities.NPC_ENTITY.get()) { entity ->
-                return@getEntities entity.model == npc.model.rl && entity.characterName == npc.name && entity.isAlive
-            }
-
-            val entity = entities.firstOrNull() ?: NPCEntity(level, npc.model).apply {
-                level.addFreshEntity(this)
-            }
-            entity.getCapability(CapabilityStorage.getCapability(AnimatedEntityCapability::class.java)).ifPresent {
-                it.model = npc.model
-            }
-            entity.moveTo(
-                location.pos.x.toDouble() + 0.5,
-                location.pos.y.toDouble(),
-                location.pos.z.toDouble() + 0.5,
-                location.rotation.x,
-                location.rotation.y
-            )
-
-            npc.data.attributes.forEach { (name, value) ->
-                entity.getAttribute(ForgeRegistries.ATTRIBUTES.getValue(name.rl) ?: return@forEach)?.baseValue =
-                    value.toDouble()
-            }
-
-            entity.isCustomNameVisible = true
-            entity.customName = npc.name.mcText
-
-            return entity
-        }
     }
 }

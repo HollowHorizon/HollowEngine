@@ -14,7 +14,7 @@ import kotlin.script.experimental.jvm.loadDependencies
 @KotlinScript(
     displayName = "Mod Script",
     fileExtension = "mod.kts",
-    compilationConfiguration = StoryScriptConfiguration::class
+    compilationConfiguration = ModScriptConfiguration::class
 )
 abstract class ModScript : ModScriptBase()
 
@@ -42,7 +42,7 @@ fun main() {
     runModScript(File("run/hollowengine/scripts/hollow_engine_test.mod.kts"))
 }
 
-class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
+class ModScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.scripting.story.waitForgeEvent",
         "ru.hollowhorizon.hollowengine.common.scripting.story.onForgeEvent",

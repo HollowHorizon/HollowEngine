@@ -2,9 +2,13 @@ package ru.hollowhorizon.hollowengine.common.npcs
 
 import kotlinx.coroutines.runBlocking
 import net.minecraft.nbt.CompoundTag
+import ru.hollowhorizon.hc.client.gltf.Transform
 import ru.hollowhorizon.hc.client.gltf.animations.PlayType
+import ru.hollowhorizon.hc.client.gltf.animations.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
+import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
 
 interface IHollowNPC : ICharacter {
     val npcEntity: NPCEntity
@@ -25,6 +29,20 @@ interface IHollowNPC : ICharacter {
     infix fun play(animation: String) {
         npcEntity.manager.startAnimation(animation)
     }
+
+    fun setTransform(transform: Transform) {
+        npcEntity.getCapability(CapabilityStorage.getCapability(AnimatedEntityCapability::class.java))
+            .orElseThrow { IllegalStateException("AnimatedEntityCapability not found!") }
+            .transform = transform
+    }
+
+    fun StoryEvent.despawn() {
+        removeNPC(this@IHollowNPC)
+    }
+
+    fun getTransform() = npcEntity.getCapability(CapabilityStorage.getCapability(AnimatedEntityCapability::class.java))
+        .orElseThrow { IllegalStateException("AnimatedEntityCapability not found!") }
+        .transform
 
     fun play(name: String, priority: Float = 1.0f, playType: PlayType = PlayType.ONCE, speed: Float = 1.0f) {
         npcEntity.manager.startAnimation(name, priority, playType, speed)
