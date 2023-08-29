@@ -14,7 +14,6 @@ import ru.hollowhorizon.hc.client.screens.util.WidgetPlacement
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hollowengine.client.screen.widget.dialogue.DialogueTextBox
-import ru.hollowhorizon.hollowengine.client.sound.HSSounds
 import ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueScene
 import kotlin.math.atan
 import kotlin.math.pow
@@ -200,7 +199,7 @@ class DialogueScreen : HollowScreen("".mcText) {
     }
 
     fun notifyClick() {
-        mc.soundManager.play(SimpleSoundInstance.forUI(HSSounds.SLIDER_BUTTON, 1F, 1F))
+        //mc.soundManager.play(SimpleSoundInstance.forUI(HSSounds.SLIDER_BUTTON, 1F, 1F))
 
         synchronized(this.clickWaiter) {
             this.clickWaiter.notifyAll()

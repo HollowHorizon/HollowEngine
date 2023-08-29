@@ -7,10 +7,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.FormattedCharSequence;
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget;
 import ru.hollowhorizon.hollowengine.client.render.GUIHelper;
-import ru.hollowhorizon.hollowengine.client.sound.HSSounds;
 
 import java.util.ArrayList;
 import java.util.function.Consumer;
@@ -117,7 +115,7 @@ public class DropListWidget extends HollowWidget {
         if (b != -1) {
             this.currentElement = this.elements.get(elementOffset + b);
             this.onClick.accept(this.currentElement);
-            Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(HSSounds.SLIDER_BUTTON, 1.0F));
+            //Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(HSSounds.SLIDER_BUTTON, 1.0F));
             this.animCounter = 0;
             this.isLastHovered = false;
             this.isHovered = false;

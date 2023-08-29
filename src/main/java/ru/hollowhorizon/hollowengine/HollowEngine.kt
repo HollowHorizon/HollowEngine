@@ -27,7 +27,6 @@ import ru.hollowhorizon.hc.common.registry.HollowModProcessor
 import ru.hollowhorizon.hc.common.registry.RegistryLoader
 import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.client.ClientEvents.initKeys
-import ru.hollowhorizon.hollowengine.client.sound.HSSounds
 import ru.hollowhorizon.hollowengine.common.commands.HECommands
 import ru.hollowhorizon.hollowengine.common.data.HollowStoryPack
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
@@ -61,7 +60,6 @@ class HollowEngine {
             forgeBus.addListener(ClientEvents::renderLast)
             forgeBus.addListener(ClientEvents::onKeyPressed)
             modBus.addListener { event: FMLClientSetupEvent -> clientInit(event) }
-            HSSounds.init()
         }
 
         modBus.addListener(this::entityRenderers)
@@ -77,7 +75,7 @@ class HollowEngine {
             adder.accept(
                 creator.create(
                     HollowStoryPack.name, HollowStoryPack.name.mcText, true, { HollowStoryPack },
-                    PackMetadataSection(Component.translatable("fml.resources.modresources"), 0),
+                    PackMetadataSection(Component.translatable("fml.resources.modresources"), 9),
                     Pack.Position.TOP, PackSource.BUILT_IN, false
                 )
             )

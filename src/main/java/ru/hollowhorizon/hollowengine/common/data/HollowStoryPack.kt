@@ -8,7 +8,7 @@ import java.io.InputStream
 
 object HollowStoryPack : FolderPackResources(DirectoryManager.HOLLOW_ENGINE) {
 
-    val PACK_META_BYTES = Util.make(JsonObject()) { json ->
+    private val PACK_META_BYTES = Util.make(JsonObject()) { json ->
         json.add("pack", JsonObject().apply {
             addProperty("description", "HollowEngine Folder Resources")
             addProperty("pack_format", 9)

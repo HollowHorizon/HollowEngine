@@ -8,7 +8,6 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget;
-import ru.hollowhorizon.hollowengine.client.sound.HSSounds;
 
 import java.util.function.Consumer;
 
@@ -74,7 +73,7 @@ public class SliderWidget extends HollowWidget {
             this.value = !this.value;
             this.consumer.accept(this.value);
             this.processAnim = true;
-            Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(HSSounds.SLIDER_BUTTON, 1.0F));
+            //Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(HSSounds.SLIDER_BUTTON, 1.0F));
             return true;
         }
         return false;
