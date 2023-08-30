@@ -6,6 +6,7 @@
   "gui.hollowstory.progress_manager.fail_task": "§7Задание \"%s\" провалено!",
   "gui.hollowstory.progress_manager.success_fail_task": "§7Задание \"%s\" успешно провалено :D",
 
+  "item.hollowengine.storyteller_dim_teleporter": "Телепорт: Измерение Рассказчика",
   "key.categories.mod.hollowengine": "HollowStory: Клавиши",
   "key.hollowengine.event_list": "Список Событий"
 }

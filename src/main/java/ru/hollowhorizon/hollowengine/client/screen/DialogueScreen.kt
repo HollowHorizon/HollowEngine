@@ -4,10 +4,8 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Vector3f
 import net.minecraft.client.Minecraft
-import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.LivingEntity
-import org.lwjgl.opengl.GL11
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.util.Alignment
 import ru.hollowhorizon.hc.client.screens.util.WidgetPlacement
@@ -98,7 +96,7 @@ class DialogueScreen : HollowScreen("".mcText) {
         renderBackground(stack)
         if (background != null) {
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F)
-            Minecraft.getInstance().textureManager.bindForSetup(background!!.toRL())
+            bind(background!!.rl.namespace, background!!.rl.path)
             blit(stack, 0, 0, 0F, 0F, this.width, this.height, this.width, this.height)
         }
         drawCharacters(mouseX, mouseY)
@@ -111,7 +109,7 @@ class DialogueScreen : HollowScreen("".mcText) {
         RenderSystem.enableBlend()
         RenderSystem.defaultBlendFunc()
         RenderSystem.setShaderColor(col.r, col.g, col.b, col.a)
-        Minecraft.getInstance().textureManager.bindForSetup(OVERLAY.toRL())
+        bind(OVERLAY.rl.namespace, OVERLAY.rl.path)
         blit(stack, 0, this.height - 55, 0F, 0F, this.width, 55, this.width, 55)
         RenderSystem.setShaderColor(1F, 1F, 1F, 1F)
 
@@ -133,7 +131,7 @@ class DialogueScreen : HollowScreen("".mcText) {
         RenderSystem.setShaderColor(col.r, col.g, col.b, col.a)
         stack.pushPose()
         stack.translate(0.0, 0.0, 700.0)
-        Minecraft.getInstance().textureManager.bindForSetup(NAME_OVERLAY.toRL())
+        bind(NAME_OVERLAY.rl.namespace, NAME_OVERLAY.rl.path)
         blit(
             stack,
             5,
@@ -155,7 +153,7 @@ class DialogueScreen : HollowScreen("".mcText) {
 
     private fun drawStatus(stack: PoseStack, partialTick: Float) {
         if (this.textBox?.complete == true) {
-            Minecraft.getInstance().textureManager.bindForSetup(STATUS_ICON.toRL())
+            bind(STATUS_ICON.rl.namespace, STATUS_ICON.rl.path)
             blit(stack, this.width - 60 + crystalAnimator.value, this.height - 47, 0F, 0F, 40, 40, 40, 40)
             crystalAnimator.update(partialTick)
         }

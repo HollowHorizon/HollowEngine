@@ -4,6 +4,8 @@ import net.minecraft.core.BlockPos
 import net.minecraft.server.level.ServerPlayer
 import net.minecraftforge.event.ServerChatEvent
 import net.minecraftforge.event.TickEvent
+import ru.hollowhorizon.hc.common.network.send
+import ru.hollowhorizon.hollowengine.common.network.OpenChatPacket
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
 import ru.hollowhorizon.hollowengine.common.scripting.story.waitForgeEvent
 
@@ -13,6 +15,9 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.waitForgeEvent
 fun StoryEvent.input(vararg values: String, onlyHostMode: Boolean = false): String {
     var input = ""
 
+    if(team.getHost().isOnline()) OpenChatPacket().send("", team.getHost().mcPlayer!!)
+    else if(!onlyHostMode) OpenChatPacket().send("", *team.getAllOnline().map { it.mcPlayer!! }.toTypedArray())
+
     fun canChoice(player: ServerPlayer): Boolean {
         return if(onlyHostMode) team.isHost(player) else team.isFromTeam(player)
     }
@@ -20,7 +25,7 @@ fun StoryEvent.input(vararg values: String, onlyHostMode: Boolean = false): Stri
     waitForgeEvent<ServerChatEvent> { event ->
         input = event.message.string
 
-        return@waitForgeEvent (values.isEmpty() || input in values) || !canChoice(event.player)
+        return@waitForgeEvent (values.isEmpty() || values.any { it.equals(input, true) }) || !canChoice(event.player)
 
     }
 

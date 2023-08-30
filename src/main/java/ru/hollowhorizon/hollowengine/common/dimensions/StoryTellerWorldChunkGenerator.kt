@@ -1,28 +1,31 @@
 package ru.hollowhorizon.hollowengine.common.dimensions
 
+import com.mojang.serialization.Codec
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import net.minecraft.core.BlockPos
-import net.minecraft.data.BuiltinRegistries
+import net.minecraft.core.Registry
+import net.minecraft.resources.RegistryOps
 import net.minecraft.server.level.WorldGenRegion
 import net.minecraft.world.level.LevelHeightAccessor
 import net.minecraft.world.level.NoiseColumn
 import net.minecraft.world.level.StructureManager
 import net.minecraft.world.level.biome.BiomeManager
 import net.minecraft.world.level.biome.BiomeSource
+import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.level.chunk.ChunkGenerator
 import net.minecraft.world.level.levelgen.GenerationStep
 import net.minecraft.world.level.levelgen.Heightmap
 import net.minecraft.world.level.levelgen.RandomState
 import net.minecraft.world.level.levelgen.blending.Blender
+import net.minecraft.world.level.levelgen.structure.StructureSet
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
-import java.util.function.Function
 
 
-class StoryTellerWorldChunkGenerator(biomeSource: BiomeSource) :
-    ChunkGenerator(BuiltinRegistries.STRUCTURE_SETS, Optional.empty(), biomeSource) {
+class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSource: BiomeSource) :
+    ChunkGenerator(structures, Optional.empty(), biomeSource) {
     override fun codec() = CODEC
     override fun applyCarvers(
         pLevel: WorldGenRegion,
@@ -56,6 +59,14 @@ class StoryTellerWorldChunkGenerator(biomeSource: BiomeSource) :
         pStructureManager: StructureManager,
         pChunk: ChunkAccess
     ): CompletableFuture<ChunkAccess> {
+        if (pChunk.pos.x == 0 && pChunk.pos.z == 0) {
+            val heightmapOcean = pChunk.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG)
+            val heightmapSurface = pChunk.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG)
+            pChunk.setBlockState(BlockPos(0, 49, 0), Blocks.DIAMOND_BLOCK.defaultBlockState(), false)
+            heightmapOcean.update(0, 49, 0, Blocks.DIAMOND_BLOCK.defaultBlockState())
+            heightmapSurface.update(0, 49, 0, Blocks.DIAMOND_BLOCK.defaultBlockState())
+        }
+
         return CompletableFuture.completedFuture(pChunk)
     }
 
@@ -82,13 +93,12 @@ class StoryTellerWorldChunkGenerator(biomeSource: BiomeSource) :
     }
 
     companion object {
-        val CODEC = RecordCodecBuilder.create { instance: RecordCodecBuilder.Instance<StoryTellerWorldChunkGenerator> ->
-            instance.group(
-                BiomeSource.CODEC.fieldOf("biome_source").forGetter { it.biomeSource }
-            ).apply(
-                instance,
-                instance.stable(Function { biomeSource: BiomeSource -> StoryTellerWorldChunkGenerator(biomeSource) })
-            )
-        }
+        val CODEC: Codec<StoryTellerWorldChunkGenerator> =
+            RecordCodecBuilder.create { instance: RecordCodecBuilder.Instance<StoryTellerWorldChunkGenerator> ->
+                instance.group(
+                    RegistryOps.retrieveRegistry(Registry.STRUCTURE_SET_REGISTRY).forGetter { it.structureSets },
+                    BiomeSource.CODEC.fieldOf("biome_source").forGetter { it.biomeSource }
+                ).apply(instance, ::StoryTellerWorldChunkGenerator)
+            }
     }
 }

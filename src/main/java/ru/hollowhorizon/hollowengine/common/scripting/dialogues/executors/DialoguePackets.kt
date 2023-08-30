@@ -6,6 +6,7 @@ import net.minecraftforge.api.distmarker.Dist
 import net.minecraftforge.api.distmarker.OnlyIn
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.eventbus.api.Event
+import net.minecraftforge.network.NetworkDirection
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.Packet
@@ -33,7 +34,7 @@ class WaitActionPacketS2C : Packet<Int>({ player, value ->
     }.start()
 })
 
-@HollowPacketV2
+@HollowPacketV2(toTarget = NetworkDirection.PLAY_TO_SERVER)
 class WaitActionPacketC2S : Packet<Int>({ player, value ->
     MinecraftForge.EVENT_BUS.post(WaitActionEvent(player))
 })
@@ -54,7 +55,7 @@ class ApplyChoicePacketS2C : Packet<ChoicesContainer>({ player, choices ->
     }.start()
 })
 
-@HollowPacketV2
+@HollowPacketV2(toTarget = NetworkDirection.PLAY_TO_SERVER)
 class ApplyChoicePacketC2S : Packet<Int>({ player, value ->
     MinecraftForge.EVENT_BUS.post(ApplyChoiceEvent(player, value))
 })

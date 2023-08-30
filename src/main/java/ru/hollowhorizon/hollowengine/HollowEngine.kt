@@ -57,8 +57,9 @@ class HollowEngine {
         modBus.addListener { event: EntityAttributeCreationEvent -> onAttributeCreation(event) }
         modBus.addListener { event: FMLLoadCompleteEvent -> onLoadingComplete(event) }
         if (FMLEnvironment.dist.isClient) {
-            forgeBus.addListener(ClientEvents::renderLast)
+            forgeBus.addListener(ClientEvents::renderOverlay)
             forgeBus.addListener(ClientEvents::onKeyPressed)
+            forgeBus.addListener(ClientEvents::onClicked)
             modBus.addListener { event: FMLClientSetupEvent -> clientInit(event) }
         }
 

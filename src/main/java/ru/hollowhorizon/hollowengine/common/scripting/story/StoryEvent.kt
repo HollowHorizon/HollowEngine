@@ -24,9 +24,12 @@ import ru.hollowhorizon.hc.client.utils.nbt.deserializeNoInline
 import ru.hollowhorizon.hc.client.utils.nbt.serializeNoInline
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage
+import ru.hollowhorizon.hc.common.network.send
+import ru.hollowhorizon.hollowengine.client.screen.DrawMousePacket
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
+import ru.hollowhorizon.hollowengine.common.network.*
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
@@ -174,6 +177,19 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
         while (predicate()) {
             Thread.sleep(100)
         }
+    }
+
+    @JvmName("waitAction")
+    fun wait() {
+        DrawMousePacket().send(true, *team.getAllOnline().map { it.mcPlayer!! }.toTypedArray())
+        MouseButtonWaitPacket().send(Container(MouseButton.RIGHT), *team.getAllOnline().map { it.mcPlayer!! }.toTypedArray())
+
+        waitForgeEvent<ServerMouseClickedEvent> { event ->
+            event.button == MouseButton.RIGHT && event.entity in team
+        }
+
+        MouseButtonWaitResetPacket().send("", *team.getAllOnline().map { it.mcPlayer!! }.toTypedArray())
+        DrawMousePacket().send(false, *team.getAllOnline().map { it.mcPlayer!! }.toTypedArray())
     }
 
     fun removeNPC(npc: IHollowNPC) {
