@@ -1,11 +1,14 @@
 package ru.hollowhorizon.hollowengine.client.screen
 
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.vertex.PoseStack
+import com.mojang.blaze3d.vertex.*
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiComponent.blit
+import net.minecraft.client.gui.Gui
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.util.Mth
 import net.minecraftforge.network.NetworkDirection
+import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.use
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
@@ -18,15 +21,19 @@ object MouseDriver {
             startTime = currentTime
             field = value
         }
-    val currentTime: Int
+    private val currentTime: Int
         get() = (Minecraft.getInstance().level?.gameTime ?: 0).toInt()
     private var startTime = 0
 
-    fun draw(stack: PoseStack, x: Int, y: Int, partialTick: Float) {
-        var progress = Mth.clamp((currentTime - startTime + partialTick) / 10f, 0f, 1f)
+    fun draw(gui: Gui, stack: PoseStack, x: Int, y: Int, partialTick: Float) {
+        var progress = Mth.clamp((currentTime - startTime + partialTick) / 20f, 0f, 1f)
 
         if(!enable) progress = 1f - progress
         if(progress > 0f) {
+            if(progress != 1.0f) HollowCore.LOGGER.info(progress)
+            RenderSystem.enableBlend()
+            RenderSystem.defaultBlendFunc()
+
             RenderSystem.setShaderTexture(0, texture)
             RenderSystem.setShaderColor(
                 1.0f,
@@ -36,9 +43,15 @@ object MouseDriver {
             )
 
             stack.use {
-                stack.translate(0.0, 0.0, -90.0)
-                blit(stack, x - 6, y - 6, 0f, 0f, 12, 12, 12, 12)
+                Screen.blit(stack, x - 6, y - 6, 0f, 0f, 12, 12, 12, 12)
             }
+
+            RenderSystem.setShaderColor(
+                1.0f,
+                1.0f,
+                1.0f,
+                1.0f
+            )
         }
     }
 }

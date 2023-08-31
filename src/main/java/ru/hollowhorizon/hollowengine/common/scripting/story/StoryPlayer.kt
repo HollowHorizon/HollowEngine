@@ -95,6 +95,6 @@ class StoryPlayer(val uuid: @Serializable(ForUuid::class) UUID) : ICharacter {
 
     override val characterName: String
         get() = this.name
-    override val entityType: CompoundTag
-        get() = this.mcPlayer?.serializeNBT() ?: CompoundTag().apply { putString("id", "minecraft:zombie") }
+    override val entityType: Player
+        get() = this.mcPlayer!!
 }

@@ -12,8 +12,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
 
 interface IHollowNPC : ICharacter {
     val npcEntity: NPCEntity
-    override val entityType: CompoundTag
-        get() = npcEntity.serializeNBT()
+    override val entityType: NPCEntity
+        get() = npcEntity
     override val characterName: String
         get() = npcEntity.displayName.string
 

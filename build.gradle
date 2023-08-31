@@ -47,7 +47,7 @@ minecraft {
     runs {
         client {
             workingDirectory project.file('run')
-
+            jvmArg "-XX:+AllowEnhancedClassRedefinition"
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             arg "-mixin.config=hollowengine.mixins.json"
@@ -60,6 +60,7 @@ minecraft {
 
         server {
             workingDirectory project.file('run')
+            jvmArg "-XX:+AllowEnhancedClassRedefinition"
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             arg "-mixin.config=hollowengine.mixins.json"
@@ -73,6 +74,7 @@ minecraft {
         data {
             workingDirectory project.file('run')
 
+            jvmArg "-XX:+AllowEnhancedClassRedefinition"
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             args '--mod', 'hollowengine', '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')

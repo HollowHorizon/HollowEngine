@@ -1,10 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.screen
 
+import com.mojang.blaze3d.platform.Lighting
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Vector3f
 import net.minecraft.client.Minecraft
-import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.util.Alignment
@@ -32,9 +32,9 @@ class DialogueScreen : HollowScreen("".mcText) {
     private var delayTicks = -1
     var shouldClose = false
     var color: Int = 0xFFFFFFFF.toInt()
-    var STATUS_ICON = "hollowengine:textures/gui/dialogues/status.png"
-    var OVERLAY = "hollowengine:textures/gui/dialogues/overlay.png"
-    var NAME_OVERLAY = "hollowengine:textures/gui/dialogues/name_overlay.png"
+    var STATUS_ICON = "hollowengine:gui/dialogues/status.png"
+    var OVERLAY = "hollowengine:gui/dialogues/overlay.png"
+    var NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
     var CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/choice_button.png"
     val characters = ArrayList<LivingEntity>()
     val choices = ArrayList<String>()
@@ -58,14 +58,13 @@ class DialogueScreen : HollowScreen("".mcText) {
                 WidgetPlacement.configureWidget(
                     { x, y, w, h ->
                         BaseButton(x, y, w, h, choice.mcText, {
+                            this@DialogueScreen.init()
+
+                            currentChoice = i
 
                             synchronized(this@DialogueScreen.choiceWaiter) {
                                 this@DialogueScreen.choiceWaiter.notifyAll()
                             }
-
-                            currentChoice = i
-
-                            init()
 
                         }, CHOICE_BUTTON.toRL(), textColor = 0xFFFFFF, textColorHovered = 0xEDC213).apply {
 
@@ -115,7 +114,7 @@ class DialogueScreen : HollowScreen("".mcText) {
 
         super.render(stack, mouseX, mouseY, partialTick)
 
-        if (!this.currentName.string.isEmpty()) drawNameBox(stack, col)
+        if (this.currentName.string.isNotEmpty()) drawNameBox(stack, col)
 
         if (shouldClose) onClose()
 
@@ -214,16 +213,22 @@ class DialogueScreen : HollowScreen("".mcText) {
     private fun drawEntity(
         x: Float, y: Float, scale: Float, xRot: Float, yRot: Float, entity: LivingEntity, brightness: Float = 1.0F,
     ) {
-        val f = atan((xRot / 40.0)).toFloat()
-        val f1 = atan((yRot / 40.0)).toFloat()
+        val f = atan(xRot / 40.0).toFloat()
+        val f1 = atan(yRot / 40.0).toFloat()
 
-        val matrixstack = PoseStack()
+        val modelView = RenderSystem.getModelViewStack()
+        modelView.pushPose()
+        modelView.translate(x.toDouble(), y.toDouble(), 1050.0)
+        modelView.scale(1f, 1f, -1f)
+        RenderSystem.applyModelViewMatrix()
 
-        matrixstack.scale(scale, scale, scale)
+        val stack = PoseStack()
+        stack.translate(0.0, 0.0, 1000.0)
+        stack.scale(scale, scale, scale)
         val quaternion = Vector3f.ZP.rotationDegrees(180.0f)
         val quaternion1 = Vector3f.XP.rotationDegrees(f1 * 20.0f)
         quaternion.mul(quaternion1)
-        matrixstack.mulPose(quaternion)
+        stack.mulPose(quaternion)
         val f2: Float = entity.yBodyRot
         val f3: Float = entity.yRot
         val f4: Float = entity.xRot
@@ -234,8 +239,11 @@ class DialogueScreen : HollowScreen("".mcText) {
         entity.xRot = -f1 * 20.0f
         entity.yHeadRot = entity.yRot
         entity.yHeadRotO = entity.yRot
+        Lighting.setupForEntityInInventory()
+
         val customName = entity.isCustomNameVisible
         entity.isCustomNameVisible = true
+
         val entityrenderermanager = Minecraft.getInstance().entityRenderDispatcher
         quaternion1.conj()
         entityrenderermanager.overrideCameraOrientation(quaternion1)
@@ -243,36 +251,39 @@ class DialogueScreen : HollowScreen("".mcText) {
         val renderBuffer = Minecraft.getInstance().renderBuffers().bufferSource()
 
         RenderSystem.runAsFancy {
-            RenderSystem.enableBlend()
-            RenderSystem.defaultBlendFunc()
             entityrenderermanager.render(
-                entity, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrixstack, renderBuffer, 15728880
+                entity,
+                0.0,
+                0.0,
+                0.0,
+                0.0f,
+                1.0f,
+                stack,
+                renderBuffer,
+                15728880
             )
         }
 
-        RenderSystem.enableDepthTest()
         renderBuffer.endBatch()
-        entityrenderermanager.setRenderShadow(true)
 
+        entityrenderermanager.setRenderShadow(true)
         entity.isCustomNameVisible = customName
         entity.yBodyRot = f2
         entity.yRot = f3
         entity.xRot = f4
         entity.yHeadRotO = f5
         entity.yHeadRot = f6
+        modelView.popPose()
 
-        Minecraft.getInstance().gameRenderer.lightTexture().turnOffLightLayer()
+        RenderSystem.applyModelViewMatrix()
+        Lighting.setupFor3DItems()
     }
 
     fun update(scene: DialogueScene) {
         background = scene.background
         characters.clear()
         characters.addAll(scene.characters.map {
-            val entity = EntityType.loadEntityRecursive(it.entityType, Minecraft.getInstance().level!!) { e -> e }!!
-
-            if (it.isNPC) entity.deserializeNBT(it.entityType)
-
-            return@map entity as LivingEntity
+            return@map it.entityType
         })
         scene.actions.removeIf {
             it.call(this)
@@ -287,5 +298,9 @@ class DialogueScreen : HollowScreen("".mcText) {
             this.choiceWaiter.wait()
         }
         return currentChoice
+    }
+
+    override fun isPauseScreen(): Boolean {
+        return false
     }
 }

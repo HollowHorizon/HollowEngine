@@ -28,15 +28,26 @@ object ClientEvents {
     }
 
     @JvmStatic
-    fun renderOverlay(event: RenderGuiOverlayEvent.Pre) {
-        if (event.overlay == VanillaGuiOverlay.CROSSHAIR.type()) {
-            val window = event.window
-            MouseDriver.draw(event.poseStack, window.width / 2, window.height / 2 + 16, event.partialTick)
+    fun renderOverlay(event: RenderGuiOverlayEvent.Post) {
+        val gui = Minecraft.getInstance().gui
+
+        val window = event.window
+        if(event.overlay == VanillaGuiOverlay.HOTBAR.type()) {
+            MouseDriver.draw(
+                gui,
+                event.poseStack,
+                window.guiScaledWidth / 2,
+                window.guiScaledHeight / 2 + 16,
+                event.partialTick
+            )
         }
+
     }
 
     @JvmStatic
     fun onClicked(event: InputEvent.MouseButton.Pre) {
+        if(event.action != 1) return
+
         val button = MouseButton.from(event.button)
         if (canceledButtons.isNotEmpty()) MouseClickedPacket().send(Container(button))
         if (canceledButtons.removeIf { it.ordinal == button.ordinal }) event.isCanceled = true

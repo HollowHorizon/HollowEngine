@@ -17,8 +17,7 @@ class HDCharacter(val type: LivingEntity) : HDObject(), ICharacter {
     var mcName = type.displayName
     override val characterName
         get() = mcName.string
-    override val entityType: CompoundTag
-        get() = type.serializeNBT()
+    override val entityType = type
 
     constructor(
         location: String,
