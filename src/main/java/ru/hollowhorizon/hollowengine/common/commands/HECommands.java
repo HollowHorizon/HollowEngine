@@ -69,8 +69,8 @@ public class HECommands {
                         if(count > 1) itemCommand = "item(" + location + ", " + count + ")";
                         else itemCommand = "item(" + location + ")";
                     } else {
-
-                        itemCommand = "item(" + location + ", " + count + ", \"" + nbt + "\")";
+                        
+                        itemCommand = "item(" + location + ", " + count + ", \"" + nbt.toString().replaceAll("\"", "\\\"") + "\")";
                     }
 
                     HollowPacketV2Kt.send(new CopyItemPacket(), itemCommand, player);

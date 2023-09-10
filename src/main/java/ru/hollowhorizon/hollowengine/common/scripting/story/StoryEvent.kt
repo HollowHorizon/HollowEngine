@@ -139,6 +139,8 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
         return pos
     }
 
+    fun NPCEntity.despawn() = removeNPC(this)
+
     fun chain(vararg task: () -> Unit) = StagedTask(*task)
 
     fun Player.canSee(to: BlockPos): Boolean {
@@ -201,11 +203,25 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
         Thread.sleep((time * 1000).toLong())
     }
 
+    fun wait(time: Int) = wait(time.toFloat())
+
     fun clearEvent() {
         this.eventNpcs.forEach { it.npcEntity.remove(Entity.RemovalReason.DISCARDED) }
         this.progressManager.clear()
         this.team.eventsData.removeIf { this.eventPath == it.eventPath }
     }
+
+    val Int.minutes
+        get() = this * 60
+
+    val Int.hours
+        get() = this * 60 * 60
+
+    val Float.minutes
+        get() = this * 60
+
+    val Float.hours
+        get() = this * 60 * 60
 
     @Suppress("UnstableApiUsage")
     inner class Local<T : Any?>(var initial: T, private val customName: String? = null) {

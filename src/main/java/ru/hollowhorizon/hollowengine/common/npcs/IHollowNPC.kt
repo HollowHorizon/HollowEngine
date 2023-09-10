@@ -36,10 +36,6 @@ interface IHollowNPC : ICharacter {
             .transform = transform
     }
 
-    fun StoryEvent.despawn() {
-        removeNPC(this@IHollowNPC)
-    }
-
     fun getTransform() = npcEntity.getCapability(CapabilityStorage.getCapability(AnimatedEntityCapability::class.java))
         .orElseThrow { IllegalStateException("AnimatedEntityCapability not found!") }
         .transform

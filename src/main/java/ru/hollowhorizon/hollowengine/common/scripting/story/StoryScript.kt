@@ -15,6 +15,7 @@ abstract class StoryScript(team: StoryTeam, name: String) : StoryEvent(team, nam
 class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.scripting.story.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.story.extensions.*",
         "ru.hollowhorizon.hollowengine.common.scripting.dialogues.*",
         "ru.hollowhorizon.hollowengine.common.npcs.*",
         "ru.hollowhorizon.hollowengine.common.entities.NPCEntity",
