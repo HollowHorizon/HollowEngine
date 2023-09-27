@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine
 
-import dev.ftb.mods.ftbteams.api.event.TeamEvent
-import net.minecraft.network.chat.Component
+import dev.ftb.mods.ftbteams.event.TeamEvent
 import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.repository.Pack
@@ -65,7 +64,7 @@ class HollowEngine {
         MOD_BUS.addListener(this::registerPacks)
 
         RegistryLoader.registerAll()
-        //ModDimensions
+
         TeamEvent.LOADED.register(StoryHandler::onTeamLoaded)
     }
 

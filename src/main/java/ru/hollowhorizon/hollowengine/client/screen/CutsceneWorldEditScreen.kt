@@ -26,8 +26,8 @@ class CutsceneWorldEditScreen : HollowScreen("".toSTC()) {
         MinecraftForge.EVENT_BUS.register(this)
     }
 
-    override fun render(p_230430_1_: PoseStack, mouseX: Int, mouseY: Int, p_230430_4_: Float) {
-        super.render(p_230430_1_, mouseX, mouseY, p_230430_4_)
+    override fun render(poseStack: PoseStack, mouseX: Int, mouseY: Int, partialTick: Float) {
+        super.render(poseStack, mouseX, mouseY, partialTick)
 
         val player = Minecraft.getInstance().player!!
 

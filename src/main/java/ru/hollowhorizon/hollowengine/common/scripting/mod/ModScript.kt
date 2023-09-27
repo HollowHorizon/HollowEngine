@@ -13,7 +13,6 @@ import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
 import kotlin.script.experimental.jvm.util.isError
 
-
 @KotlinScript(
     displayName = "Mod Script",
     fileExtension = "mod.kts",
@@ -57,7 +56,7 @@ fun main() {
     runModScript(File("run/hollowengine/scripts/hollow_engine_test.mod.kts"))
 }
 
-class ModScriptConfiguration : AbstractHollowScriptConfiguration({
+class ModScriptConfiguration : OpenHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.scripting.story.waitForgeEvent",
         "ru.hollowhorizon.hollowengine.common.scripting.story.onForgeEvent",

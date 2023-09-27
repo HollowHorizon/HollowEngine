@@ -4,6 +4,8 @@ import dev.ftb.mods.ftbteams.api.Team
 import dev.ftb.mods.ftbteams.api.event.TeamEvent
 import net.minecraft.nbt.CompoundTag
 import net.minecraftforge.event.TickEvent.ServerTickEvent
+import net.minecraft.world.entity.player.Player
+import net.minecraftforge.event.TickEvent
 import net.minecraftforge.event.entity.player.PlayerEvent
 import net.minecraftforge.event.level.LevelEvent
 import net.minecraftforge.event.server.ServerStoppingEvent
@@ -54,6 +56,7 @@ object StoryHandler {
                 stories.forEach { (path, story) ->
                     put(path, story.serialize())
                 }
+
             }
             team.extraData.put("hollowengine_stories", storiesNBT)
             team.save()
