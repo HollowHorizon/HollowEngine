@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.extensions
 
+import net.minecraft.commands.Commands
 import net.minecraft.core.BlockPos
 import net.minecraft.server.level.ServerPlayer
 import net.minecraftforge.event.ServerChatEvent
@@ -23,7 +24,7 @@ fun StoryEvent.input(vararg values: String, onlyHostMode: Boolean = false): Stri
     }
 
     waitForgeEvent<ServerChatEvent> { event ->
-        input = event.message.string
+        input = event.message
 
         return@waitForgeEvent (values.isEmpty() || values.any { it.equals(input, true) }) || !canChoice(event.player)
 
@@ -40,7 +41,9 @@ fun StoryEvent.execute(command: String): Int {
 
     if(team.getHost().isOnline()) src.withEntity(team.getHost().mcPlayer!!)
 
-    return server.commands.performPrefixedCommand(src.withPermission(4), command)
+    // server.commands.performPrefixedCommand(src.withPermission(4), command)
+
+    return server.commands.performCommand(src.withPermission(Commands.LEVEL_OWNERS), command)
 }
 
 fun StoryEvent.waitLocation(x: Int, y: Int, z: Int, radius: Int, inverse: Boolean = false) {

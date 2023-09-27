@@ -2,18 +2,16 @@ package ru.hollowhorizon.hollowengine.common.scripting.content
 
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.crafting.Recipe
-import net.minecraft.world.item.crafting.RecipeManager
 import net.minecraft.world.item.crafting.RecipeType
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
-import ru.hollowhorizon.hc.common.scripting.kotlin.AbstractHollowScriptConfiguration
+import ru.hollowhorizon.hc.common.scripting.kotlin.OpenHollowScriptConfiguration
 import ru.hollowhorizon.hollowengine.mixins.RecipeManagerAccessor
 import java.io.File
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.baseClass
 import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.api.defaultImports
-import kotlin.script.experimental.api.valueOrThrow
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
 
@@ -55,7 +53,7 @@ fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
     }
 }
 
-class ContentScriptConfiguration : AbstractHollowScriptConfiguration({
+class ContentScriptConfiguration : OpenHollowScriptConfiguration({
     defaultImports(
         "import ru.hollowhorizon.hollowengine.common.recipes.*",
         "ru.hollowhorizon.hc.client.utils.*"

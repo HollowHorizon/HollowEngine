@@ -7,5 +7,7 @@
   "gui.hollowstory.progress_manager.success_fail_task": "§7Задание \"%s\" успешно провалено :D",
 
   "key.categories.mod.hollowengine": "HollowStory: Клавиши",
-  "key.hollowengine.event_list": "Список Событий"
+  "key.hollowengine.event_list": "Список Событий",
+  "item.hollowengine.storyteller_dim_teleporter": "Телепорт: Измерение Рассказчика",
+  "core.hollowengine.founded_replays": "Найдено записей: %s"
 }

@@ -52,7 +52,7 @@ class StoryPlayer(val uuid: @Serializable(ForUuid::class) UUID) : ICharacter {
             HollowCore.LOGGER.warn("Player $name is not online!")
             return
         }
-        mcPlayer?.sendSystemMessage(message.toSTC())
+        mcPlayer?.sendMessage(message.toSTC(), mcPlayer!!.uuid)
     }
 
     fun isOnline(): Boolean {

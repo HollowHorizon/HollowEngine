@@ -20,8 +20,8 @@ public class ResourceFieldWidget extends HollowTextFieldWidget {
     }
 
     public ResourceFieldWidget(Font fr, int x, int y, int w, int h, ResourceLocation texture) {
-        super(fr, x, y, w, h, Component.literal(""), texture);
-        this.button = new IconHollowButton(this.x + this.width - this.height, this.y, this.height, this.height, Component.literal(""), () -> {
+        super(fr, x, y, w, h, new net.minecraft.network.chat.TextComponent(""), texture);
+        this.button = new IconHollowButton(this.x + this.width - this.height, this.y, this.height, this.height, new net.minecraft.network.chat.TextComponent(""), () -> {
 //            HollowJavaUtils.chooseFile(
 //                    fileChooser -> fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Model File", "*.smd")),
 //                    file -> {

@@ -1,5 +1,17 @@
 package ru.hollowhorizon.hollowengine.common.exceptions
 
-class StoryVariableNotFoundException(name: String) : StoryEventException("Variable $name not found!")
+import java.io.Serial
 
-class StoryVariableWrongTypeException(name: String) : StoryEventException("Variable $name has wrong type!")
+class StoryVariableNotFoundException(name: String) : StoryEventException("Variable $name not found!") {
+    companion object {
+        @Serial
+        private const val serialVersionUID = -45L
+    }
+}
+
+class StoryVariableWrongTypeException(name: String) : StoryEventException("Variable $name has wrong type!") {
+    companion object {
+        @Serial
+        private const val serialVersionUID = -20222L
+    }
+}

@@ -14,7 +14,6 @@ import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.utils.nbt.ForBlockPos
 import ru.hollowhorizon.hc.client.utils.toRL
 
-
 @Serializable
 class ReplayBlock(
     val pos: @Serializable(ForBlockPos::class) BlockPos,

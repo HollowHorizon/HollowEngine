@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
-import ru.hollowhorizon.hc.common.scripting.kotlin.AbstractHollowScriptConfiguration
+import ru.hollowhorizon.hc.common.scripting.kotlin.OpenHollowScriptConfiguration
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.baseClass
 import kotlin.script.experimental.api.defaultImports
@@ -12,7 +12,7 @@ import kotlin.script.experimental.api.defaultImports
 )
 abstract class StoryScript(team: StoryTeam, name: String) : StoryEvent(team, name)
 
-class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
+class StoryScriptConfiguration : OpenHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.scripting.story.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.extensions.*",

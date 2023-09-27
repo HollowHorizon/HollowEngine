@@ -8,5 +8,16 @@
 
   "item.hollowengine.storyteller_dim_teleporter": "Телепорт: Измерение Рассказчика",
   "key.categories.mod.hollowengine": "HollowStory: Клавиши",
-  "key.hollowengine.event_list": "Список Событий"
+  "key.hollowengine.event_list": "Список Событий",
+
+  "core.hollowengine.replay.founded": "Replays are found: %s",
+  "core.hollowengine.replay.recording": "Stopped recording, total frames: %s",
+  "core.hollowengine.replay.recording.stop": "§6[§bHollow Engine§6] §bForcedly stopped event §b'§6%s§b'.",
+  "core.hollowengine.replay.recording.stop.failed.1": "§6[§bHollow Engine§6] §bFailed to stop event §b'§6%s§b'.",
+  "core.hollowengine.replay.recording.stop.failed.2": "§6[§bHollow Engine§6] §bSee logs for more info.",
+  "core.hollowengine.replay.recording.no_active": "No active recordings is found!",
+
+  "core.hollowengine.event": "§6[§bActive Events§6]",
+
+  "core.hollowengine.indev": "This feature is under development! Expect it to be implemented in future versions!"
 }

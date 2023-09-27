@@ -39,7 +39,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 import kotlin.reflect.KProperty
 
-
 open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventScriptSupport {
     private val data = team.eventsData
         .find { it.eventPath == eventPath } ?: StoryEventData(eventPath)
@@ -166,12 +165,10 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
                         SoundSource.MASTER,
                         it.mcPlayer!!.position(),
                         1.0f,
-                        1.0f,
-                        it.mcPlayer!!.random.nextLong()
+                        1.0f
                     )
                 )
             }
-
     }
 
 
@@ -187,7 +184,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
         MouseButtonWaitPacket().send(Container(MouseButton.RIGHT), *team.getAllOnline().map { it.mcPlayer!! }.toTypedArray())
 
         waitForgeEvent<ServerMouseClickedEvent> { event ->
-            event.button == MouseButton.RIGHT && event.entity in team
+            event.button == MouseButton.RIGHT && (event.entity as Player) in team
         }
 
         MouseButtonWaitResetPacket().send("", *team.getAllOnline().map { it.mcPlayer!! }.toTypedArray())
