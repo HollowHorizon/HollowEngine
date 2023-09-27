@@ -40,7 +40,7 @@ public class LabelWidget extends HollowWidget {
             AnchorX anchorX,
             AnchorY anchorY,
             List<? extends FormattedText> texts) {
-        super(x, y, 0, 0, Component.literal(""));
+        super(x, y, 0, 0, new net.minecraft.network.chat.TextComponent(""));
         this.font = font;
         this.anchorX = anchorX;
         this.anchorY = anchorY;

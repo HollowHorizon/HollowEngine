@@ -8,38 +8,43 @@ import net.minecraft.resources.RegistryOps
 import net.minecraft.server.level.WorldGenRegion
 import net.minecraft.world.level.LevelHeightAccessor
 import net.minecraft.world.level.NoiseColumn
-import net.minecraft.world.level.StructureManager
+import net.minecraft.world.level.StructureFeatureManager
 import net.minecraft.world.level.biome.BiomeManager
 import net.minecraft.world.level.biome.BiomeSource
+import net.minecraft.world.level.biome.Climate
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.level.chunk.ChunkGenerator
 import net.minecraft.world.level.levelgen.GenerationStep
 import net.minecraft.world.level.levelgen.Heightmap
-import net.minecraft.world.level.levelgen.RandomState
 import net.minecraft.world.level.levelgen.blending.Blender
 import net.minecraft.world.level.levelgen.structure.StructureSet
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
-class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSource: BiomeSource) :
-    ChunkGenerator(structures, Optional.empty(), biomeSource) {
+class StoryTellerWorldChunkGenerator(
+    structures: Registry<StructureSet>,
+    biomeSource: BiomeSource,
+) : ChunkGenerator(structures, Optional.empty(), biomeSource) {
+
     override fun codec() = CODEC
+    override fun withSeed(pSeed: Long): ChunkGenerator = this
+
+    override fun climateSampler(): Climate.Sampler = Climate.empty()
+
     override fun applyCarvers(
         pLevel: WorldGenRegion,
         pSeed: Long,
-        pRandom: RandomState,
         pBiomeManager: BiomeManager,
-        pStructureManager: StructureManager,
+        pStructureManager: StructureFeatureManager,
         pChunk: ChunkAccess,
         pStep: GenerationStep.Carving
     ) {}
 
     override fun buildSurface(
         pLevel: WorldGenRegion,
-        pStructureManager: StructureManager,
-        pRandom: RandomState,
+        pStructureManager: StructureFeatureManager,
         pChunk: ChunkAccess
     ) {}
 
@@ -50,8 +55,7 @@ class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSo
     override fun fillFromNoise(
         pExecutor: Executor,
         pBlender: Blender,
-        pRandom: RandomState,
-        pStructureManager: StructureManager,
+        pStructureManager: StructureFeatureManager,
         pChunk: ChunkAccess
     ): CompletableFuture<ChunkAccess> {
         if (pChunk.pos.x == 0 && pChunk.pos.z == 0) {
@@ -73,17 +77,18 @@ class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSo
         pX: Int,
         pZ: Int,
         pType: Heightmap.Types,
-        pLevel: LevelHeightAccessor,
-        pRandom: RandomState
+        pLevel: LevelHeightAccessor
     ): Int {
         return pLevel.minBuildHeight
     }
 
-    override fun getBaseColumn(pX: Int, pZ: Int, pHeight: LevelHeightAccessor, pRandom: RandomState): NoiseColumn {
+    override fun getBaseColumn(pX: Int, pZ: Int, pHeight: LevelHeightAccessor): NoiseColumn {
         return NoiseColumn(0, arrayOf())
     }
 
-    override fun addDebugScreenInfo(pInfo: MutableList<String>, pRandom: RandomState, pPos: BlockPos) {}
+    override fun addDebugScreenInfo(pInfo: MutableList<String>, pPos: BlockPos) {
+
+    }
 
     companion object {
         val CODEC: Codec<StoryTellerWorldChunkGenerator> =

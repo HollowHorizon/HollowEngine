@@ -1,9 +1,9 @@
 name: build
 on: 
   push:
-    branches: [ 1.19.2 ]
+    branches: [ 1.18.2 ]
   pull_request:
-    branches: [ 1.19.2 ]
+    branches: [ 1.18.2 ]
 
 jobs:
   build:
@@ -35,8 +35,8 @@ jobs:
         uses: marvinpinto/action-automatic-releases@latest
         with: 
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "lasted-1.19.2"
+          automatic_release_tag: "lasted-1.18.2"
           prerelease: false
-          title: "[AUTOMATIC BUILD 1.19.2]"
+          title: "[AUTOMATIC BUILD 1.18.2]"
           files: |
             build/libs/*.jar

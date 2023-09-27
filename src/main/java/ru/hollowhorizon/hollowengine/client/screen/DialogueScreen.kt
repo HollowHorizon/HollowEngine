@@ -50,6 +50,42 @@ object DialogueScreen : HollowScreen("".mcText) {
     val characters = LinkedHashSet<LivingEntity>()
     val choices = ArrayList<Component>()
 
+    companion object {
+        @JvmField
+        var background: String? = null
+        @JvmField
+        var textBox: DialogueTextBox? = null
+        @JvmField
+        var currentName = "".mcText
+        @JvmField
+        var crystalAnimator = GuiAnimator.Reversed(0, 20, 1.5F) { x ->
+            if (x < 0.5F) 4F * x * x * x
+            else 1F - (-2 * x + 2.0).pow(3.0).toFloat() / 2F
+        }
+        @JvmField
+        var shouldClose = false
+        @JvmField
+        var color: Int = 0xFFFFFFFF.toInt()
+        @JvmField
+        var STATUS_ICON = "hollowengine:gui/dialogues/status.png"
+        @JvmField
+        var OVERLAY = "hollowengine:gui/dialogues/overlay.png"
+        @JvmField
+        var NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
+        @JvmField
+        var CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/choice_button.png"
+        @JvmField
+        val characters = ArrayList<LivingEntity>()
+        @JvmField
+        val choices = ArrayList<String>()
+        @JvmField
+        var currentChoice = 0
+
+        private var hasChoice = false
+        private var hasChoiceTicker = 0
+        private var lastCount = 0
+        private var delayTicks = -1
+    }
 
     override fun init() {
         val text = textBox?.text

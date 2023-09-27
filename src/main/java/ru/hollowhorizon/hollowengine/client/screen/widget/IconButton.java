@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 
 import static net.minecraft.client.gui.components.Button.NO_TOOLTIP;
@@ -46,8 +47,7 @@ public class IconButton extends HollowButton {
                 textureWidth,
                 yDiffText,
                 press,
-                NO_TOOLTIP,
-                Component.empty());
+                NO_TOOLTIP, new TextComponent(""));
     }
 
     public IconButton(

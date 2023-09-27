@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine
 
-import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.repository.Pack
 import net.minecraft.server.packs.repository.PackSource
@@ -45,6 +45,7 @@ class HollowEngine {
         forgeBus.addListener(this::addReloadListenerEvent)
         MOD_BUS.addListener(::setup)
         MOD_BUS.addListener(::onLoadingComplete)
+
         if (FMLEnvironment.dist.isClient) {
             forgeBus.addListener(ClientEvents::renderOverlay)
             forgeBus.addListener(ClientEvents::onKeyPressed)
@@ -60,8 +61,6 @@ class HollowEngine {
         MOD_BUS.addListener(this::registerPacks)
 
         RegistryLoader.registerAll()
-        //ModDimensions
-
     }
 
     fun registerPacks(event: AddPackFindersEvent) {
@@ -69,7 +68,7 @@ class HollowEngine {
             adder.accept(
                 creator.create(
                     HollowStoryPack.name, HollowStoryPack.name.mcText, true, { HollowStoryPack },
-                    PackMetadataSection(Component.translatable("fml.resources.modresources"), 9),
+                    PackMetadataSection(TranslatableComponent("fml.resources.modresources"), 9),
                     Pack.Position.TOP, PackSource.BUILT_IN, false
                 )
             )
