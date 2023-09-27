@@ -7,7 +7,6 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.content.runContentScript
 import ru.hollowhorizon.hollowengine.mixins.RecipeManagerAccessor
 
-
 object RecipeReloadListener : ResourceManagerReloadListener {
     var resources: ReloadableServerResources? = null
 

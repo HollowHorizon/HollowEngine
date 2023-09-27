@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine
 
 import dev.ftb.mods.ftbteams.event.TeamEvent
-import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.repository.Pack
 import net.minecraft.server.packs.repository.PackSource
@@ -49,12 +49,14 @@ class HollowEngine {
         forgeBus.addListener(::registerCommands)
         forgeBus.addListener(this::addReloadListenerEvent)
         forgeBus.addListener(StoryHandler::onPlayerJoin)
+
         forgeBus.addListener(StoryHandler::onServerTick)
         forgeBus.addListener(StoryHandler::onServerShutdown)
         forgeBus.addListener(StoryHandler::onWorldSave)
         MOD_BUS.addListener(::setup)
         MOD_BUS.addListener(::onAttributeCreation)
         MOD_BUS.addListener(::onLoadingComplete)
+
         if (FMLEnvironment.dist.isClient) {
             forgeBus.addListener(ClientEvents::renderOverlay)
             forgeBus.addListener(ClientEvents::onKeyPressed)
@@ -67,7 +69,7 @@ class HollowEngine {
         ModDimensions.CHUNK_GENERATORS.register(MOD_BUS)
         ModDimensions.DIMENSIONS.register(MOD_BUS)
         RegistryLoader.registerAll()
-        //ModDimensions
+
         TeamEvent.LOADED.register(StoryHandler::onTeamLoaded)
     }
 
@@ -76,7 +78,7 @@ class HollowEngine {
             adder.accept(
                 creator.create(
                     HollowStoryPack.name, HollowStoryPack.name.mcText, true, { HollowStoryPack },
-                    PackMetadataSection(Component.translatable("fml.resources.modresources"), 9),
+                    PackMetadataSection(TranslatableComponent("fml.resources.modresources"), 9),
                     Pack.Position.TOP, PackSource.BUILT_IN, false
                 )
             )

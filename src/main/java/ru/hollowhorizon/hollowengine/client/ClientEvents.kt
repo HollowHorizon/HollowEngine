@@ -3,10 +3,10 @@ package ru.hollowhorizon.hollowengine.client
 import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
+import net.minecraftforge.client.ClientRegistry
 import net.minecraftforge.client.event.InputEvent
-import net.minecraftforge.client.event.RegisterKeyMappingsEvent
-import net.minecraftforge.client.event.RenderGuiOverlayEvent
-import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay
+import net.minecraftforge.client.event.RenderGameOverlayEvent
+import net.minecraftforge.client.gui.ForgeIngameGui
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -23,28 +23,28 @@ object ClientEvents {
     val canceledButtons = hashSetOf<MouseButton>()
 
     private fun keyBindName(name: String): String {
-        return java.lang.String.format("key.%s.%s", HollowEngine.MODID, name)
+        return "key.${HollowEngine.MODID}.$name"
     }
 
     @JvmStatic
-    fun renderOverlay(event: RenderGuiOverlayEvent.Post) {
+    fun renderOverlay(event: RenderGameOverlayEvent.Post) {
         val gui = Minecraft.getInstance().gui
 
         val window = event.window
-        if(event.overlay == VanillaGuiOverlay.HOTBAR.type()) {
+        if(event.type == ForgeIngameGui.HOTBAR_ELEMENT) {
             MouseDriver.draw(
                 gui,
-                event.poseStack,
+                event.matrixStack,
                 window.guiScaledWidth / 2,
                 window.guiScaledHeight / 2 + 16,
-                event.partialTick
+                event.partialTicks
             )
         }
 
     }
 
     @JvmStatic
-    fun onClicked(event: InputEvent.MouseButton.Pre) {
+    fun onClicked(event: InputEvent.MouseInputEvent) {
         if(event.action != 1) return
 
         val button = MouseButton.from(event.button)
@@ -53,7 +53,7 @@ object ClientEvents {
     }
 
     @JvmStatic
-    fun onKeyPressed(event: InputEvent.Key) {
+    fun onKeyPressed(event: InputEvent.KeyInputEvent) {
         if (OPEN_EVENT_LIST.isActiveAndMatches(
                 InputConstants.getKey(
                     event.key,
@@ -66,8 +66,6 @@ object ClientEvents {
     }
 
     fun initKeys() {
-        MOD_BUS.addListener { event: RegisterKeyMappingsEvent ->
-            event.register(OPEN_EVENT_LIST)
-        }
+        ClientRegistry.registerKeyBinding(OPEN_EVENT_LIST)
     }
 }

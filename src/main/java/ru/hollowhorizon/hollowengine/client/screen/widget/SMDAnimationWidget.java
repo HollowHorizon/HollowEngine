@@ -17,13 +17,13 @@ public class SMDAnimationWidget extends HollowWidget implements ISaveable {
     private final IAnimationValue animValue;
 
     public SMDAnimationWidget(int x, int y, int w, int h, IAnimationValue value, IAnimationValue onPlay) {
-        super(x, y, w, h, Component.literal("smd_textfield"));
+        super(x, y, w, h, new net.minecraft.network.chat.TextComponent("smd_textfield"));
         int width = w - 20;
 
         this.animValue = value;
-        playButton = new IconHollowButton(x + w - 20, y, 20, 20, Component.literal(""), () -> {
+        playButton = new IconHollowButton(x + w - 20, y, 20, 20, new net.minecraft.network.chat.TextComponent(""), () -> {
         }, new ResourceLocation(MODID, "textures/gui/text_field_mini.png"), new ResourceLocation(MODID, "textures/gui/play.png"));
-        animNameWidget = new HollowTextFieldWidget(Minecraft.getInstance().font, x, y, width / 3, h, Component.literal(""), GUIHelper.TEXT_FIELD);
+        animNameWidget = new HollowTextFieldWidget(Minecraft.getInstance().font, x, y, width / 3, h, new net.minecraft.network.chat.TextComponent(""), GUIHelper.TEXT_FIELD);
         animWidget = new ResourceFieldWidget(Minecraft.getInstance().font, x + width / 3, y, (int) (0.667F * width), h, GUIHelper.TEXT_FIELD);
     }
 

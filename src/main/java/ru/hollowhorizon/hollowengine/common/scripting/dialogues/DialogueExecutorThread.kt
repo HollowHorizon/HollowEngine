@@ -29,10 +29,10 @@ class DialogueExecutorThread(val player: Player, val file: File) : Thread() {
             }
 
             res.reports.forEach {
-                player.sendSystemMessage(it.render().mcText)
+                player.sendMessage(it.render().mcText, player.uuid)
             }
         } catch (e: Exception) {
-            player.sendSystemMessage("[DEBUG] Error while compiling dialogue: ${e.stackTraceToString()}".mcText)
+            player.sendMessage("[DEBUG] Error while compiling dialogue: ${e.stackTraceToString()}".mcText, player.uuid)
         }
     }
 }

@@ -6,7 +6,7 @@ import net.minecraft.world.item.crafting.Recipe
 import net.minecraft.world.item.crafting.RecipeType
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
-import ru.hollowhorizon.hc.common.scripting.kotlin.AbstractHollowScriptConfiguration
+import ru.hollowhorizon.hc.common.scripting.kotlin.OpenHollowScriptConfiguration
 import ru.hollowhorizon.hollowengine.mixins.RecipeManagerAccessor
 import java.io.File
 import kotlin.script.experimental.annotations.KotlinScript
@@ -57,7 +57,7 @@ fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
     }
 }
 
-class ContentScriptConfiguration : AbstractHollowScriptConfiguration({
+class ContentScriptConfiguration : OpenHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.recipes.*",
         "ru.hollowhorizon.hollowengine.common.scripting.*",

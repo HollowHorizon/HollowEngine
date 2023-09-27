@@ -2,14 +2,13 @@ package ru.hollowhorizon.hollowengine.common.scripting.mod
 
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
-import ru.hollowhorizon.hc.common.scripting.kotlin.AbstractHollowScriptConfiguration
+import ru.hollowhorizon.hc.common.scripting.kotlin.OpenHollowScriptConfiguration
 import java.io.File
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.baseClass
 import kotlin.script.experimental.api.defaultImports
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
-
 
 @KotlinScript(
     displayName = "Mod Script",
@@ -42,7 +41,7 @@ fun main() {
     runModScript(File("run/hollowengine/scripts/hollow_engine_test.mod.kts"))
 }
 
-class ModScriptConfiguration : AbstractHollowScriptConfiguration({
+class ModScriptConfiguration : OpenHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.scripting.story.waitForgeEvent",
         "ru.hollowhorizon.hollowengine.common.scripting.story.onForgeEvent",

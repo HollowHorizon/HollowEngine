@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 import ru.hollowhorizon.hc.client.screens.HollowScreen;
 import ru.hollowhorizon.hollowengine.client.render.GUIHelper;
@@ -20,7 +21,7 @@ public class NPCModelChoicerScreen extends HollowScreen {
     private int thirdCounter = 0;
 
     protected NPCModelChoicerScreen(NPCCreationScreen lastScreen) {
-        super(Component.literal("NPC_MODEL_CHOICER_SCREEN"));
+        super(new TextComponent("NPC_MODEL_CHOICER_SCREEN"));
         this.lastScreen = lastScreen;
     }
 
@@ -44,9 +45,9 @@ public class NPCModelChoicerScreen extends HollowScreen {
         switch (modelType) {
             case 0:
                 GUIHelper.drawIcon(stack, HOLLOW_CORE, 0, 0, this.width / 3, this.height, firstCounter / 70F + 0.7F);
-                text = Component.literal("Hollow Core");
+                text = new TextComponent("Hollow Core");
                 GUIHelper.drawCentredSizedString(stack, fr, text, this.width / 6, this.height / 2, 0xFFFFFF, firstCounter / 40F + 0.7F);
-                GUIHelper.drawSizedStringWithWidth(stack, fr, Component.literal("Добавляет модели со скелетными анимациями. Поддерживаемые форматы: .smd"),
+                GUIHelper.drawSizedStringWithWidth(stack, fr, new TextComponent("Добавляет модели со скелетными анимациями. Поддерживаемые форматы: .smd"),
                         this.width / 6, (int) (this.height - this.height / 2.5F), 100,
                         0xFFFFFF, firstCounter / 40F + 0.7F);
                 if (mouseX < this.width / 3F) {
@@ -55,9 +56,9 @@ public class NPCModelChoicerScreen extends HollowScreen {
                 break;
             case 1:
                 GUIHelper.drawIcon(stack, TIME_CORE, this.width / 3, 0, this.width / 3, this.height, secondCounter / 70F + 0.7F);
-                text = Component.literal("Time Core");
+                text = new TextComponent("Time Core");
                 GUIHelper.drawCentredSizedString(stack, fr, text, this.width / 2, this.height / 2, 0xFFFFFF, secondCounter / 40F + 0.7F);
-                GUIHelper.drawSizedStringWithWidth(stack, fr, Component.literal("Добавляет модели из BlockBench, в том числе и анимированные. Поддерживаемые форматы: .json"),
+                GUIHelper.drawSizedStringWithWidth(stack, fr, new TextComponent("Добавляет модели из BlockBench, в том числе и анимированные. Поддерживаемые форматы: .json"),
                         this.width / 2, (int) (this.height - this.height / 2.5F), 100,
                         0xFFFFFF, secondCounter / 40F + 0.7F);
                 if (mouseX > this.width / 3F && mouseX < 0.6667F * this.width) {
@@ -66,9 +67,9 @@ public class NPCModelChoicerScreen extends HollowScreen {
                 break;
             case 2:
                 GUIHelper.drawIcon(stack, VANILLA, (int) (0.6667F * this.width), 0, this.width / 3, this.height, thirdCounter / 70F + 0.7F);
-                text = Component.literal("Vanilla");
+                text = new TextComponent("Vanilla");
                 GUIHelper.drawCentredSizedString(stack, fr, text, this.width - this.width / 6, this.height / 2, 0xFFFFFF, thirdCounter / 40F + 0.7F);
-                GUIHelper.drawSizedStringWithWidth(stack, fr, Component.literal("Добавляет модели, которые уже есть у других мобов в игре, пока только ванильных."),
+                GUIHelper.drawSizedStringWithWidth(stack, fr, new TextComponent("Добавляет модели, которые уже есть у других мобов в игре, пока только ванильных."),
                         this.width - this.width / 6, (int) (this.height - this.height / 2.5F), 100,
                         0xFFFFFF, thirdCounter / 40F + 0.7F);
                 if (mouseX > 0.6667F * this.width) {

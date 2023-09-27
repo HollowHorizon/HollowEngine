@@ -10,6 +10,7 @@
   "key.categories.mod.hollowengine": "HollowStory: Клавиши",
   "key.hollowengine.event_list": "Список Событий",
 
+
   "hollowengine.scripting.story.script_not_found": "Скрипт \"%s\" не найден!",
   "hollowengine.commands.pos.error": "§6[§bHollow Engine§6] §7Could not get position!",
   "hollowengine.commands.copy": "§6[§bHollow Engine§6] §7Value: %s",
