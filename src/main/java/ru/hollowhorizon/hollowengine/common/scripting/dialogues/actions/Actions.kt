@@ -38,8 +38,8 @@ class FocusCharacterAction(val character: ICharacter) : IAction {
 class UpdateTextAction(val character: String, val text: String): IAction {
     override fun call(screen: DialogueScreen) {
         "<$character>: $text".log().info()
-        screen.textBox?.text = text
-        screen.currentName = character.mcText
+        DialogueScreen.textBox?.text = text
+        DialogueScreen.currentName = character.mcText
     }
 
 }

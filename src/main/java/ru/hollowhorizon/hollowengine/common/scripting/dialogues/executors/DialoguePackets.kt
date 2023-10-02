@@ -46,7 +46,7 @@ class UpdateScenePacket :
     })
 
 @Serializable
-class ChoicesContainer(val choices: Collection<String>)
+class ChoicesContainer(val choices: MutableCollection<String>)
 
 @HollowPacketV2
 class ApplyChoicePacketS2C : Packet<ChoicesContainer>({ player, choices ->
