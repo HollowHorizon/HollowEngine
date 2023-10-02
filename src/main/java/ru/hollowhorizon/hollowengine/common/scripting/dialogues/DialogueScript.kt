@@ -1,7 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.scripting.dialogues
 
+
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hc.common.scripting.kotlin.OpenHollowScriptConfiguration
+import ru.hollowhorizon.hc.common.scripting.kotlin.AbstractHollowScriptConfiguration
 import ru.hollowhorizon.hollowengine.common.scripting.dialogues.executors.ServerDialogueExecutor
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.baseClass
@@ -17,7 +18,7 @@ abstract class DialogueScript(player: Player) :
 
 }
 
-class HollowDialogueConfiguration : OpenHollowScriptConfiguration({
+class HollowDialogueConfiguration : AbstractHollowScriptConfiguration({
     defaultImports("ru.hollowhorizon.hollowengine.dialogues.*")
     baseClass(DialogueScriptBaseV2::class)
 })

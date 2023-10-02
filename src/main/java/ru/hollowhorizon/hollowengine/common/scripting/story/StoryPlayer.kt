@@ -13,6 +13,7 @@ import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.nbt.ForUuid
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hollowengine.common.npcs.ICharacter
+import ru.hollowhorizon.hollowengine.common.sendMessage
 import java.util.*
 
 private val Player.scriptName: String?

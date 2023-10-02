@@ -53,7 +53,7 @@ tasks.withType<JavaCompile> {
 }
 
 configure<UserDevExtension> {
-    mappings("parchment", "2022.11.27-1.19.2")
+    mappings("parchment", "2022.11.06-1.18.2")
 
     accessTransformer("src/main/resources/META-INF/accesstransformer.cfg")
 
@@ -99,15 +99,17 @@ configure<MixinExtension> {
 dependencies {
     val minecraft = configurations["minecraft"]
     val fg = project.extensions.findByType(DependencyManagementExtension::class.java)!!
-    minecraft("net.minecraftforge:forge:1.19.2-43.2.21")
+
+    minecraft("net.minecraftforge:forge:1.18.2-40.2.10")
+
     annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
 
     implementation("thedarkcolour:kotlinforforge:3.12.0")
     implementation(fg.deobf("ru.hollowhorizon:hc:1.2.0"))
-    implementation(fg.deobf("curse.maven:ftb-teams-forge-404468:4611938"))
-    implementation(fg.deobf("curse.maven:ftb-library-forge-404465:4661834"))
-    implementation(fg.deobf("curse.maven:architectury-api-419699:4555749"))
-    implementation(fg.deobf("curse.maven:jei-238222:4712866"))
+    implementation(fg.deobf("curse.maven:ftb-teams-forge-404468:4623116"))
+    implementation(fg.deobf("curse.maven:ftb-library-forge-404465:4396792"))
+    implementation(fg.deobf("curse.maven:architectury-api-419699:4521465"))
+    implementation(fg.deobf("curse.maven:jei-238222:4593548"))
 }
 
 fun Jar.createManifest() = manifest {

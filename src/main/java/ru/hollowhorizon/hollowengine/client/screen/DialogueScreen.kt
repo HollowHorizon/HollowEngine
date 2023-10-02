@@ -18,9 +18,9 @@ import kotlin.math.atan
 import kotlin.math.pow
 
 class DialogueScreen : HollowScreen("".mcText) {
+    var background: String? = null
     private val clickWaiter = Object()
     var textBox: DialogueTextBox? = null
-
     var currentName = "".mcText
     var crystalAnimator = GuiAnimator.Reversed(0, 20, 1.5F) { x ->
         if (x < 0.5F) 4F * x * x * x
@@ -42,48 +42,11 @@ class DialogueScreen : HollowScreen("".mcText) {
     var currentChoice = 0
     private val choiceWaiter = Object()
 
-    companion object {
-        @JvmField
-        var background: String? = null
-        @JvmField
-        var textBox: DialogueTextBox? = null
-        @JvmField
-        var currentName = "".mcText
-        @JvmField
-        var crystalAnimator = GuiAnimator.Reversed(0, 20, 1.5F) { x ->
-            if (x < 0.5F) 4F * x * x * x
-            else 1F - (-2 * x + 2.0).pow(3.0).toFloat() / 2F
-        }
-        @JvmField
-        var shouldClose = false
-        @JvmField
-        var color: Int = 0xFFFFFFFF.toInt()
-        @JvmField
-        var STATUS_ICON = "hollowengine:gui/dialogues/status.png"
-        @JvmField
-        var OVERLAY = "hollowengine:gui/dialogues/overlay.png"
-        @JvmField
-        var NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
-        @JvmField
-        var CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/choice_button.png"
-        @JvmField
-        val characters = ArrayList<LivingEntity>()
-        @JvmField
-        val choices = ArrayList<String>()
-        @JvmField
-        var currentChoice = 0
-
-        private var hasChoice = false
-        private var hasChoiceTicker = 0
-        private var lastCount = 0
-        private var delayTicks = -1
-    }
-
     override fun init() {
         this.children().clear()
         this.renderables.clear()
 
-       textBox = this.addRenderableWidget(
+        this.textBox = this.addRenderableWidget(
             WidgetPlacement.configureWidget(
                 ::DialogueTextBox, Alignment.BOTTOM_CENTER, 0, 0, this.width, this.height, 300, 50
             )
@@ -99,8 +62,8 @@ class DialogueScreen : HollowScreen("".mcText) {
 
                             currentChoice = i
 
-                            synchronized(choiceWaiter) {
-                                choiceWaiter.notifyAll()
+                            synchronized(this@DialogueScreen.choiceWaiter) {
+                                this@DialogueScreen.choiceWaiter.notifyAll()
                             }
 
                         }, CHOICE_BUTTON.rl, textColor = 0xFFFFFF, textColorHovered = 0xEDC213).apply {
@@ -151,7 +114,7 @@ class DialogueScreen : HollowScreen("".mcText) {
 
         super.render(stack, mouseX, mouseY, partialTick)
 
-        if (currentName.string.isNotEmpty()) drawNameBox(stack, col)
+        if (this.currentName.string.isNotEmpty()) drawNameBox(stack, col)
 
         if (shouldClose) onClose()
 
@@ -176,21 +139,21 @@ class DialogueScreen : HollowScreen("".mcText) {
             this.height - 73,
             0F,
             0F,
-            this.font.width(currentName) + 10,
+            this.font.width(this.currentName) + 10,
             15,
-            this.font.width(currentName) + 10,
+            this.font.width(this.currentName) + 10,
             15
         )
         RenderSystem.setShaderColor(1F, 1F, 1F, 1F)
 
         this.font.drawShadow(
-            stack, currentName, 10F, this.height - 60F - font.lineHeight, 0xFFFFFF
+            stack, this.currentName, 10F, this.height - 60F - font.lineHeight, 0xFFFFFF
         )
         stack.popPose()
     }
 
     private fun drawStatus(stack: PoseStack, partialTick: Float) {
-        if (textBox?.complete == true) {
+        if (this.textBox?.complete == true) {
             bind(STATUS_ICON.rl.namespace, STATUS_ICON.rl.path)
             blit(stack, this.width - 60 + crystalAnimator.value, this.height - 47, 0F, 0F, 40, 40, 40, 40)
             crystalAnimator.update(partialTick)
@@ -229,22 +192,22 @@ class DialogueScreen : HollowScreen("".mcText) {
     }
 
     override fun mouseClicked(p_231044_1_: Double, p_231044_3_: Double, p_231044_5_: Int): Boolean {
-        if (textBox?.complete == true) notifyClick()
-        else textBox?.complete = true
+        if (this.textBox?.complete == true) notifyClick()
+        else this.textBox?.complete = true
         return super.mouseClicked(p_231044_1_, p_231044_3_, p_231044_5_)
     }
 
     fun notifyClick() {
         //mc.soundManager.play(SimpleSoundInstance.forUI(HSSounds.SLIDER_BUTTON, 1F, 1F))
 
-        synchronized(clickWaiter) {
-            clickWaiter.notifyAll()
+        synchronized(this.clickWaiter) {
+            this.clickWaiter.notifyAll()
         }
     }
 
     fun waitClick() {
-        synchronized( clickWaiter) {
-            clickWaiter.wait()
+        synchronized(this.clickWaiter) {
+            this.clickWaiter.wait()
         }
     }
 
@@ -330,11 +293,11 @@ class DialogueScreen : HollowScreen("".mcText) {
         }
     }
 
-    fun applyChoices(choices: MutableCollection<String>): Int {
-        choices.addAll(choices)
+    fun applyChoices(choices: Collection<String>): Int {
+        this.choices.addAll(choices)
         init()
-        synchronized(choiceWaiter) {
-            choiceWaiter.wait()
+        synchronized(this.choiceWaiter) {
+            this.choiceWaiter.wait()
         }
         return currentChoice
     }
