@@ -6,7 +6,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget;
 import ru.hollowhorizon.hollowengine.client.render.GUIHelper;
@@ -15,6 +14,7 @@ import java.util.ArrayList;
 import java.util.function.Consumer;
 
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
+import static ru.hollowhorizon.hollowengine.common.TextHelperKt.empty;
 
 public class DropListWidget extends HollowWidget {
     public static final ResourceLocation LIST = new ResourceLocation(MODID, "textures/gui/list_icon.png");
@@ -29,7 +29,7 @@ public class DropListWidget extends HollowWidget {
     private int animCounter = 0;
 
     public DropListWidget(Component text, ArrayList<ListElement> elements, Consumer<ListElement> onClick, int x, int y, int w, int h) {
-        super(x, y, w, h, new TextComponent(""));
+        super(x, y, w, h, empty());
 
         this.elements = elements;
         this.onClick = onClick;

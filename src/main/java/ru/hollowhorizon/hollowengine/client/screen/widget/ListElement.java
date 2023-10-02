@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget;
 
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 

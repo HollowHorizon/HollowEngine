@@ -7,6 +7,7 @@ import ru.hollowhorizon.hc.client.utils.GuiAnimator
 import ru.hollowhorizon.hc.client.utils.ScissorUtil
 import ru.hollowhorizon.hc.client.utils.mcText
 
+
 class DialogueTextBox(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x, y, width, height, "".mcText) {
     var animator: GuiAnimator? = null
     var text: String = ""

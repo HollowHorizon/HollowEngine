@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import static ru.hollowhorizon.hollowengine.common.TextHelperKt.literal;
+
 public class ModelEditWidget extends HollowWidget {
     private final List<AbstractWidget> buttons = new ArrayList<>();
     private final NPCCreationScreen npcScreen;

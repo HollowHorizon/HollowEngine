@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.client.screen.widget.button.IconHollowButto
 import java.util.function.Consumer;
 
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
+import static ru.hollowhorizon.hollowengine.common.TextHelperKt.literal;
 
 public class ResourceFieldWidget extends HollowTextFieldWidget {
 

@@ -7,6 +7,7 @@ import com.mojang.math.Vector3f;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.sounds.SoundManager;
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
+import static ru.hollowhorizon.hollowengine.common.TextHelperKt.literal;
 
 public class ModelPreviewWidget extends HollowWidget {
     protected static final int BORDER_WIDTH = 2;

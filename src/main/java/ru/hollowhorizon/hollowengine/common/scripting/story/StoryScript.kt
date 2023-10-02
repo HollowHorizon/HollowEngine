@@ -14,7 +14,7 @@ import kotlin.script.experimental.api.defaultImports
 )
 abstract class StoryScript(server: MinecraftServer, team: Team) : StoryStateMachine(server, team)
 
-class StoryScriptConfiguration : OpenHollowScriptConfiguration({
+class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*",

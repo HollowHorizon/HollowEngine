@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.client.render.GUIHelper;
 import ru.hollowhorizon.hollowengine.client.screen.widget.button.IconHollowButton;
 
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
+import static ru.hollowhorizon.hollowengine.common.TextHelperKt.literal;
 
 public class SMDAnimationWidget extends HollowWidget implements ISaveable {
     private final HollowTextFieldWidget animNameWidget;

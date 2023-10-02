@@ -6,12 +6,15 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraft.world.entity.player.Player
 import net.minecraftforge.event.TickEvent
+import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.event.entity.player.PlayerEvent
+
 import net.minecraftforge.event.level.LevelEvent
 import net.minecraftforge.event.server.ServerStoppingEvent
 import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.api.utils.HollowConfig
 import ru.hollowhorizon.hc.client.utils.isLogicalClient
+
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
@@ -21,6 +24,7 @@ object StoryHandler {
     @HollowConfig("mmo_mode", description = "In mmo mode all players will be have own team")
     var MMO_MODE = false
     private val events = HashMap<Team, HashMap<String, StoryStateMachine>>()
+
     fun getActiveEvents(team: Team) = events.computeIfAbsent(team) { HashMap() }.keys
 
     @JvmStatic
@@ -37,6 +41,7 @@ object StoryHandler {
     }
 
     @JvmStatic
+
     fun onServerShutdown(event: ServerStoppingEvent) {
         events.forEach { (team, stories) ->
             val storiesNBT = CompoundTag().apply {
@@ -82,6 +87,19 @@ object StoryHandler {
         }
         event.deserialize(storiesNBT.getCompound(eventPath))
         stories[eventPath] = event
+    }
+
+    fun onTeamLoaded(event: TeamEvent) {
+        val extras = event.team.extraData
+        if (!extras.contains("hollowengine_stories") || isLogicalClient) return
+
+        val stories = extras.getCompound("hollowengine_stories")
+
+        stories.allKeys.forEach { story ->
+            val file = story.fromReadablePath()
+
+            runScript(ServerLifecycleHooks.getCurrentServer(), event.team, file).start()
+        }
     }
 
     fun onTeamLoaded(event: TeamEvent) {

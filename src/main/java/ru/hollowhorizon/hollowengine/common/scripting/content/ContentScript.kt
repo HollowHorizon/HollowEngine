@@ -80,7 +80,7 @@ fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
     HollowCore.LOGGER.info("[RecipeScriptCompiler]: Script evaluated: \"${res}\"")
 }
 
-class ContentScriptConfiguration : OpenHollowScriptConfiguration({
+class ContentScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.recipes.*",
         "ru.hollowhorizon.hollowengine.common.scripting.*",

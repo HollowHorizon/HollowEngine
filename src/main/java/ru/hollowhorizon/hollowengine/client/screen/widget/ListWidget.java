@@ -17,6 +17,7 @@ import java.util.function.Supplier;
 
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
 import static ru.hollowhorizon.hollowengine.client.screen.widget.ModelPreviewWidget.BORDER_WIDTH;
+import static ru.hollowhorizon.hollowengine.common.TextHelperKt.literal;
 
 public class ListWidget extends AbstractWidget {
     private final VerticalSliderWidget slider;
