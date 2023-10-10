@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.scripting.content
 
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.crafting.Recipe
-import net.minecraft.world.item.crafting.RecipeManager
 import net.minecraft.world.item.crafting.RecipeType
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
@@ -13,7 +13,6 @@ import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.baseClass
 import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.api.defaultImports
-import kotlin.script.experimental.api.valueOrThrow
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
 
@@ -22,7 +21,10 @@ import kotlin.script.experimental.jvm.loadDependencies
     fileExtension = "content.kts",
     compilationConfiguration = ContentScriptConfiguration::class
 )
-abstract class ContentScript(recipes: MutableMap<RecipeType<*>, MutableMap<ResourceLocation, Recipe<*>>>, byName: MutableMap<ResourceLocation, Recipe<*>>) : ContentScriptBase(recipes, byName)
+abstract class ContentScript(
+    recipes: MutableMap<RecipeType<*>, MutableMap<ResourceLocation, Recipe<*>>>,
+    byName: MutableMap<ResourceLocation, Recipe<*>>
+) : ContentScriptBase(recipes, byName)
 
 fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
     HollowCore.LOGGER.info("[RecipeScriptCompiler]: loading script \"${script.name}\"")
@@ -57,9 +59,44 @@ fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
 
 class ContentScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
-        "import ru.hollowhorizon.hollowengine.common.recipes.*",
+        "ru.hollowhorizon.hollowengine.common.recipes.*",
         "ru.hollowhorizon.hc.client.utils.*"
     )
 
     baseClass(ContentScriptBase::class)
 })
+
+object Верстак {
+    fun форменыйРецепт(item: ItemStack, act: () -> Unit) {
+
+    }
+}
+
+fun вещь(name: String): ItemStack {
+    TODO()
+}
+
+fun сетка(vararg names: String) {}
+
+fun где(data: () -> Unit) {
+
+}
+
+private operator fun Char.minus(вещь: ItemStack) {
+
+}
+
+fun main() {
+    Верстак.форменыйРецепт(вещь("minecraft:iron_pickaxe")) {
+        сетка(
+            "xxx",
+            " y ",
+            " y "
+        )
+
+        где {
+            'x' - вещь("custom_items:iron_plate")
+            'y' - вещь("custom_items:iron_stick")
+        }
+    }
+}

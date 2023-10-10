@@ -2,9 +2,9 @@ package ru.hollowhorizon.hollowengine.common.npcs
 
 import kotlinx.coroutines.runBlocking
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hc.client.gltf.Transform
-import ru.hollowhorizon.hc.client.gltf.animations.PlayType
-import ru.hollowhorizon.hc.client.gltf.animations.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.models.gltf.Transform
+import ru.hollowhorizon.hc.client.models.gltf.animations.PlayType
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask

@@ -17,7 +17,7 @@ import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.Vec3
 import net.minecraftforge.registries.ForgeRegistries
 import net.minecraftforge.server.ServerLifecycleHooks
-import ru.hollowhorizon.hc.client.gltf.animations.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
 import ru.hollowhorizon.hc.client.utils.nbt.deserializeNoInline
@@ -27,7 +27,6 @@ import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.screen.DrawMousePacket
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.network.*
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
@@ -87,7 +86,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
             return@getEntities entity.model == npc.model.rl && entity.characterName == npc.name && entity.isAlive
         }
 
-        val entity = entities.firstOrNull() ?: NPCEntity(level, npc.model).apply {
+        val entity = entities.firstOrNull() ?: NPCEntity(level).apply {
             level.addFreshEntity(this)
         }
         entity.getCapability(CapabilityStorage.getCapability(AnimatedEntityCapability::class.java)).ifPresent {

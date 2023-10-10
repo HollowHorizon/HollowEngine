@@ -8,28 +8,18 @@ import net.minecraft.world.entity.PathfinderMob
 import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
-import net.minecraftforge.common.capabilities.ICapabilityProvider
-import net.minecraftforge.registries.ForgeRegistries
-import net.minecraftforge.server.ServerLifecycleHooks
-import ru.hollowhorizon.hc.client.gltf.IAnimated
-import ru.hollowhorizon.hc.client.gltf.animations.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hc.client.gltf.animations.manager.IModelManager
-import ru.hollowhorizon.hc.client.utils.mcText
-import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage
+import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
+import ru.hollowhorizon.hc.client.models.gltf.manager.IModelManager
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
-import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
-import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
-import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
 
 class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
     val interactionWaiter = Object()
     val goalQueue = ArrayList<HollowNPCTask>()
     val removeGoalQueue = ArrayList<HollowNPCTask>()
 
-    constructor(level: Level, model: String) : super(ModEntities.NPC_ENTITY.get(), level)
+    constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
 
     constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
 

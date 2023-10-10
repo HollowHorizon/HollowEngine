@@ -12,6 +12,7 @@ import ru.hollowhorizon.hc.client.screens.util.WidgetPlacement
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hollowengine.client.screen.widget.dialogue.DialogueTextBox
+import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueScene
 import kotlin.math.atan
 import kotlin.math.pow
@@ -26,6 +27,7 @@ class DialogueScreen : HollowScreen("".mcText) {
         if (x < 0.5F) 4F * x * x * x
         else 1F - (-2 * x + 2.0).pow(3.0).toFloat() / 2F
     }
+    val exampleEntity = NPCEntity(mc.level!!)
     private var hasChoice = false
     private var hasChoiceTicker = 0
     private var lastCount = 0
@@ -122,6 +124,8 @@ class DialogueScreen : HollowScreen("".mcText) {
         else if (delayTicks == 0) {
             delayTicks = -1
         }
+
+        //drawEntity(100f, 100f, 70f, 100f - mouseX, 100f - this.height * 0.35f - mouseY, exampleEntity, 1.0F)
     }
 
     private fun drawNameBox(stack: PoseStack, col: RGBA) {

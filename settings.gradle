@@ -1,4 +1,16 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven { url = 'https://maven.minecraftforge.net/' }
+        maven { url = 'https://maven.parchmentmc.org' }
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.5.0'
+}
+
 rootProject.name = 'HollowEngine'
 
-//include ":HollowCore"
-//project(":HollowCore").projectDir = file("../HollowCore")
+include ":Scripting"
+project(":Scripting").projectDir = file("run/hollowengine/scripts")
