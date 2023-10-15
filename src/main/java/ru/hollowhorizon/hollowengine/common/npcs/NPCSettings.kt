@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.npcs
 import kotlinx.serialization.Serializable
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec2
+import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hc.client.utils.nbt.*
 import java.io.File
 
@@ -26,7 +27,9 @@ data class NPCSettings(
     var data: Attributes = Attributes(),
 )
 
-data class SpawnLocation(val world: String = "minecraft:overworld", val pos: BlockPos, val rotation: Vec2 = Vec2.ZERO)
+data class SpawnLocation(val world: String = "minecraft:overworld", val pos: BlockPos, val rotation: Vec2 = Vec2.ZERO) {
+    constructor(world: String = "minecraft:overworld", pos: Vec3, rotation: Vec2 = Vec2.ZERO): this(world, BlockPos(pos), rotation)
+}
 
 @Serializable
 data class Attributes(val attributes: Map<String, Float> = mapOf()) {

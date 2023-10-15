@@ -15,14 +15,14 @@ suspend fun test(n: Long) {
 
 fun main() {
     ScriptContext.scope.async(ScriptContext.scriptContext) {
-        Thread.sleep(1000)
-        println(Thread.currentThread().name)
+
     }
     ScriptContext.scope.async(ScriptContext.scriptContext) {
-        Thread.sleep(2000)
-        println(Thread.currentThread().name)
+
     }
+    println(1)
     runBlocking {
         delay(3000)
     }
+    println(2)
 }

@@ -249,7 +249,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
     }
 
     fun startScript(path: String) {
-        StoryExecutorThread(team, path.fromReadablePath(), false).run()
+        //StoryExecutorThread(team, path.fromReadablePath(), false).run()
     }
 
     inner class StagedTask(vararg subTasks: () -> Unit) {

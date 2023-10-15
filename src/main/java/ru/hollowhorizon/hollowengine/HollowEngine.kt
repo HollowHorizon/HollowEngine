@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine
 
+import dev.ftb.mods.ftbteams.event.TeamEvent
+import dev.ftb.mods.ftbteams.event.TeamManagerEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.repository.Pack
@@ -51,7 +53,10 @@ class HollowEngine {
         forgeBus.addListener { event: RegisterCommandsEvent -> registerCommands(event) }
         forgeBus.addListener(this::addReloadListenerEvent)
         forgeBus.addListener(StoryHandler::onPlayerJoin)
+        forgeBus.addListener(StoryHandler::onServerTick)
+        forgeBus.addListener(StoryHandler::onServerShutdown)
         forgeBus.addListener(StoryHandler::onPlayerTick)
+        forgeBus.addListener(StoryHandler::onWorldSave)
         forgeBus.addListener(StoryHandler::onPlayerClone)
         modBus.addListener { event: FMLCommonSetupEvent -> setup(event) }
         modBus.addListener { event: EntityAttributeCreationEvent -> onAttributeCreation(event) }
@@ -69,6 +74,7 @@ class HollowEngine {
         ModDimensions.DIMENSIONS.register(modBus)
         RegistryLoader.registerAll()
         //ModDimensions
+        TeamEvent.LOADED.register(StoryHandler::onTeamLoaded)
     }
 
     fun registerPacks(event: AddPackFindersEvent) {
@@ -99,7 +105,6 @@ class HollowEngine {
 
     private fun setup(event: FMLCommonSetupEvent) {
         DirectoryManager.init()
-        NPCStorage.addNPC("Монстр", NPCSettings())
     }
 
     private fun onLoadingComplete(event: FMLLoadCompleteEvent) {}

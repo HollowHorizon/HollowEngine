@@ -1,9 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.commands;
 
-import com.mojang.blaze3d.platform.ClipboardManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import dev.ftb.mods.ftbteams.FTBTeamsAPI;
+import dev.ftb.mods.ftbteams.data.Team;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -11,7 +12,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.registries.ForgeRegistries;
-import org.apache.commons.lang3.StringEscapeUtils;
 import ru.hollowhorizon.hc.HollowCore;
 import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage;
 import ru.hollowhorizon.hc.common.network.HollowPacketV2Kt;
@@ -21,17 +21,16 @@ import ru.hollowhorizon.hollowengine.common.capabilities.StoryTeamCapability;
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager;
 import ru.hollowhorizon.hollowengine.common.network.CopyItemPacket;
 import ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueExecutorThread;
-import ru.hollowhorizon.hollowengine.common.scripting.story.StoryExecutorThread;
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryTeam;
 import ru.hollowhorizon.hollowengine.cutscenes.replay.Replay;
 import ru.hollowhorizon.hollowengine.cutscenes.replay.ReplayPlayer;
 import ru.hollowhorizon.hollowengine.cutscenes.replay.ReplayRecorder;
 
 import java.io.File;
-import java.util.HashMap;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
+
+import static ru.hollowhorizon.hollowengine.common.scripting.story.StoryExecutorThreadKt.runScript;
 
 public class HECommands {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -65,11 +64,11 @@ public class HECommands {
                     var nbt = item.hasTag() ? item.getOrCreateTag() : null;
 
                     String itemCommand;
-                    if(nbt == null) {
-                        if(count > 1) itemCommand = "item(" + location + ", " + count + ")";
+                    if (nbt == null) {
+                        if (count > 1) itemCommand = "item(" + location + ", " + count + ")";
                         else itemCommand = "item(" + location + ")";
                     } else {
-                        
+
                         itemCommand = "item(" + location + ", " + count + ", \"" + nbt.toString().replaceAll("\"", "\\\"") + "\")";
                     }
 
@@ -110,8 +109,8 @@ public class HECommands {
 
                                     context.getSource().getLevel().getCapability(CapabilityStorage.getCapability(StoryTeamCapability.class)).ifPresent(team -> {
                                         try {
-                                            StoryTeam storyTeam = team.getOrCreateTeam(player);
-                                            new StoryExecutorThread(storyTeam, script, true).start();
+                                            Team storyTeam = FTBTeamsAPI.getPlayerTeam(player);
+                                            runScript(player.server, storyTeam, script);
                                         } catch (Exception e) {
                                             e.printStackTrace();
                                         }
@@ -124,12 +123,7 @@ public class HECommands {
                     Player player = context.getSource().getPlayerOrException();
                     context.getSource().getLevel().getCapability(CapabilityStorage.getCapability(StoryTeamCapability.class)).ifPresent(team -> {
                         try {
-                            StoryTeam storyTeam = team.getOrCreateTeam(player);
-                            Set<String> entries = storyTeam.getCurrentEvents().keySet();
-                            player.sendSystemMessage(Component.literal("§6[§bActive Events§6]"));
-                            for (String entry : entries) {
-                                player.sendSystemMessage(Component.literal("§6- §b" + entry));
-                            }
+
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
@@ -141,8 +135,6 @@ public class HECommands {
                     context.getSource().getLevel().getCapability(CapabilityStorage.getCapability(StoryTeamCapability.class)).ifPresent(team -> {
                         try {
                             StoryTeam storyTeam = team.getOrCreateTeam(player);
-                            Set<String> entries = storyTeam.getCurrentEvents().keySet();
-                            for (String entry : entries) builder.suggest(entry);
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
@@ -153,11 +145,7 @@ public class HECommands {
                     String event = StringArgumentType.getString(context, "event");
                     context.getSource().getLevel().getCapability(CapabilityStorage.getCapability(StoryTeamCapability.class)).ifPresent(team -> {
                         try {
-                            HashMap<String, StoryExecutorThread> currentEvents = team.getOrCreateTeam(player).getCurrentEvents();
-
-                            currentEvents.get(event).interrupt();
-
-                            player.sendSystemMessage(Component.literal("§6[§bHollow Story§6] §bForcedly stopped event §6" + event));
+                            player.sendSystemMessage(Component.literal("§6[§bHollow Story§6] §bForcely stopped event §6" + event));
                         } catch (Exception e) {
                             e.printStackTrace();
                             player.sendSystemMessage(Component.literal("§6[§bHollow Story§6] §bFailed to stop event §6" + event));

@@ -11,6 +11,3 @@ plugins {
 }
 
 rootProject.name = 'HollowEngine'
-
-include ":Scripting"
-project(":Scripting").projectDir = file("run/hollowengine/scripts")

@@ -8,5 +8,7 @@
 
   "item.hollowengine.storyteller_dim_teleporter": "Телепорт: Измерение Рассказчика",
   "key.categories.mod.hollowengine": "HollowStory: Клавиши",
-  "key.hollowengine.event_list": "Список Событий"
+  "key.hollowengine.event_list": "Список Событий",
+
+  "hollowengine.scripting.story.script_not_found": "Скрипт \"%s\" не найден!"
 }

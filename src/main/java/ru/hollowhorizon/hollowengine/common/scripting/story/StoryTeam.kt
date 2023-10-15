@@ -16,8 +16,6 @@ class StoryTeam {
     val players = HashSet<StoryPlayer>()
     var completedEvents = HashSet<String>()
 
-    @Transient //Transient because after restart we don't need to save story events, they will be started again
-    var currentEvents = HashMap<String, StoryExecutorThread>()
     val eventsData = HashSet<StoryEventData>()
     var progressManager = StoryProgressManager()
 

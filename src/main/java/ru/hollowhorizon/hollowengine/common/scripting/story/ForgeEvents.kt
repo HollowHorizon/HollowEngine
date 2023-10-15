@@ -30,7 +30,7 @@ class ForgeEvent<T : Event>(private val type: Class<T>, private val function: (T
         if (!etype.isAssignableFrom(type)) return
 
         try {
-            if (function.invoke(event)) {
+            if (function(event)) {
                 MinecraftForge.EVENT_BUS.unregister(this)
                 synchronized(waiter) { waiter.notifyAll() }
             }

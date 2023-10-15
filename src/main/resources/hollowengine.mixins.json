@@ -6,9 +6,11 @@
   "refmap": "hollowengine.refmap.json",
   "mixins": [
     "ChunkLoaderMixin",
+    "LookControlInvoker",
     "RecipeManagerAccessor"
   ],
   "client": [
+    "CameraInvoker"
   ],
   "injectors": {
     "defaultRequire": 1

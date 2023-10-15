@@ -5,6 +5,9 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import net.minecraftforge.gradle.userdev.DependencyManagementExtension
+import org.jetbrains.kotlin.gradle.utils.extendsFrom
+import org.spongepowered.asm.gradle.plugins.MixinExtension
+
 buildscript {
     repositories {
         maven { url = uri("https://repo.spongepowered.org/repository/maven-public/") }
@@ -13,7 +16,6 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        //classpath("net.minecraftforge.gradle:ForgeGradle:5+") { isChanging = true }
         classpath("org.parchmentmc:librarian:1.+")
         classpath("org.spongepowered:mixingradle:0.7.38")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0")
@@ -49,9 +51,11 @@ tasks.withType<KotlinCompile> {
     kotlinOptions.freeCompilerArgs = listOf("-Xjvm-default=all", "-Xopt-in=kotlin.RequiresOptIn")
 }
 
-configure<UserDevExtension> {
-    //copyIdeResources.set(true)
+tasks.withType<JavaCompile> {
+    options.encoding = "UTF-8"
+}
 
+configure<UserDevExtension> {
     mappings("parchment", "2022.11.27-1.19.2")
 
     accessTransformer("src/main/resources/META-INF/accesstransformer.cfg")
@@ -78,11 +82,6 @@ configure<UserDevExtension> {
         }
     }
 
-    runs.all {
-        lazyToken("minecraft_classpath") {
-            configurations["library"].copyRecursive().resolve().joinToString(File.pathSeparator) { it.absolutePath }
-        }
-    }
 }
 
 repositories {
@@ -94,6 +93,10 @@ repositories {
         dir("hc")
         dir("libs")
     }
+}
+
+configure<MixinExtension> {
+    add(sourceSets.main.get(), "hollowengine.refmap.json")
 }
 
 dependencies {
@@ -130,6 +133,13 @@ fun Jar.createManifest() = manifest {
 
 val jar = tasks.named<Jar>("jar") {
     archiveClassifier.set("")
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    exclude(
+        "LICENSE.txt", "META-INF/MANIFSET.MF", "META-INF/maven/**",
+        "META-INF/*.RSA", "META-INF/*.SF", "META-INF/versions/**"
+    )
 
     createManifest()
 
