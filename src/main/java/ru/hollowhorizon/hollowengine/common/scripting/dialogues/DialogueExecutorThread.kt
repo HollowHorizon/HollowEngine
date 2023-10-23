@@ -5,6 +5,7 @@ import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.loading.FMLLoader
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
+import ru.hollowhorizon.hollowengine.common.sendMessage
 import java.io.File
 import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.jvm.jvm
@@ -29,10 +30,10 @@ class DialogueExecutorThread(val player: Player, val file: File) : Thread() {
             }
 
             res.reports.forEach {
-                player.sendMessage(it.render().mcText, player.uuid)
+                player.sendMessage(it.render().mcText)
             }
         } catch (e: Exception) {
-            player.sendMessage("[DEBUG] Error while compiling dialogue: ${e.stackTraceToString()}".mcText, player.uuid)
+            player.sendMessage("[DEBUG] Error while compiling dialogue: ${e.stackTraceToString()}".mcText)
         }
     }
 }

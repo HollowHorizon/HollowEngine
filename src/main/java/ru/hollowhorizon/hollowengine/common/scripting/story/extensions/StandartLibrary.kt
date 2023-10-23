@@ -41,8 +41,6 @@ fun StoryEvent.execute(command: String): Int {
 
     if(team.getHost().isOnline()) src.withEntity(team.getHost().mcPlayer!!)
 
-    // server.commands.performPrefixedCommand(src.withPermission(4), command)
-
     return server.commands.performCommand(src.withPermission(Commands.LEVEL_OWNERS), command)
 }
 

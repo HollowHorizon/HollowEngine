@@ -62,8 +62,8 @@ open class DialogueScriptBaseV2(val manager: IDialogueExecutor) {
     fun wait(time: Float) = delay(time)
     fun delay(time: Float) = Thread.sleep((time * 1000).toLong())
 
-    fun choice(pairs: ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueScriptBaseV2.ChoiceContext.() -> Unit) {
-        val context = ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueScriptBaseV2.ChoiceContext()
+    fun choice(pairs: ChoiceContext.() -> Unit) {
+        val context = ChoiceContext()
         pairs(context)
         val r = manager.applyChoice(context.choices.map { it.first })
         context.choices[r].second()

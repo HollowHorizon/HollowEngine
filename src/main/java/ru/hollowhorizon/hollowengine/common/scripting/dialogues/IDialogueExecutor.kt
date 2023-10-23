@@ -8,4 +8,5 @@ interface IDialogueExecutor {
     fun applyChoice(choices: Collection<String>): Int
 
     fun stop()
+
 }

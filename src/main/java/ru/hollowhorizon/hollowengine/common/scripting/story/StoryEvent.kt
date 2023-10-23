@@ -17,7 +17,7 @@ import net.minecraft.world.phys.HitResult
 import net.minecraft.world.phys.Vec3
 import net.minecraftforge.registries.ForgeRegistries
 import net.minecraftforge.server.ServerLifecycleHooks
-import ru.hollowhorizon.hc.client.gltf.animations.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
 import ru.hollowhorizon.hc.client.utils.nbt.deserializeNoInline
@@ -27,7 +27,6 @@ import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.screen.DrawMousePacket
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.network.*
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
@@ -38,6 +37,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 import kotlin.reflect.KProperty
+
 
 open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventScriptSupport {
     private val data = team.eventsData
@@ -86,7 +86,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
             return@getEntities entity.model == npc.model.rl && entity.characterName == npc.name && entity.isAlive
         }
 
-        val entity = entities.firstOrNull() ?: NPCEntity(level, npc.model).apply {
+        val entity = entities.firstOrNull() ?: NPCEntity(level).apply {
             level.addFreshEntity(this)
         }
         entity.getCapability(CapabilityStorage.getCapability(AnimatedEntityCapability::class.java)).ifPresent {
@@ -169,6 +169,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
                     )
                 )
             }
+
     }
 
 
@@ -184,7 +185,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
         MouseButtonWaitPacket().send(Container(MouseButton.RIGHT), *team.getAllOnline().map { it.mcPlayer!! }.toTypedArray())
 
         waitForgeEvent<ServerMouseClickedEvent> { event ->
-            event.button == MouseButton.RIGHT && (event.entity as Player) in team
+            event.button == MouseButton.RIGHT && event.entity as Player in team
         }
 
         MouseButtonWaitResetPacket().send("", *team.getAllOnline().map { it.mcPlayer!! }.toTypedArray())
@@ -247,7 +248,7 @@ open class StoryEvent(val team: StoryTeam, val eventPath: String) : IForgeEventS
     }
 
     fun startScript(path: String) {
-        StoryExecutorThread(team, path.fromReadablePath(), false).run()
+        //StoryExecutorThread(team, path.fromReadablePath(), false).run()
     }
 
     inner class StagedTask(vararg subTasks: () -> Unit) {

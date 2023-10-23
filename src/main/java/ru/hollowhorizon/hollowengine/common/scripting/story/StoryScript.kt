@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
-import ru.hollowhorizon.hc.common.scripting.kotlin.OpenHollowScriptConfiguration
+import dev.ftb.mods.ftbteams.api.Team
+import net.minecraft.server.MinecraftServer
+import ru.hollowhorizon.hc.common.scripting.kotlin.AbstractHollowScriptConfiguration
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.baseClass
 import kotlin.script.experimental.api.defaultImports
@@ -10,13 +12,12 @@ import kotlin.script.experimental.api.defaultImports
     fileExtension = "se.kts",
     compilationConfiguration = StoryScriptConfiguration::class
 )
-abstract class StoryScript(team: StoryTeam, name: String) : StoryEvent(team, name)
+abstract class StoryScript(server: MinecraftServer, team: Team) : StoryStateMachine(server, team)
 
-class StoryScriptConfiguration : OpenHollowScriptConfiguration({
+class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
-        "ru.hollowhorizon.hollowengine.common.scripting.story.*",
-        "ru.hollowhorizon.hollowengine.common.scripting.story.extensions.*",
-        "ru.hollowhorizon.hollowengine.common.scripting.dialogues.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*",
         "ru.hollowhorizon.hollowengine.common.npcs.*",
         "ru.hollowhorizon.hollowengine.common.entities.NPCEntity",
         "net.minecraftforge.event.*",
@@ -24,5 +25,5 @@ class StoryScriptConfiguration : OpenHollowScriptConfiguration({
         "ru.hollowhorizon.hc.client.utils.*"
     )
 
-    baseClass(StoryEvent::class)
+    baseClass(StoryStateMachine::class)
 })

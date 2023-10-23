@@ -5,7 +5,6 @@ import kotlinx.serialization.Transient
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.player.Player
-import org.jetbrains.annotations.ApiStatus.Internal
 import ru.hollowhorizon.hc.client.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hollowengine.common.exceptions.StoryEventException
 import ru.hollowhorizon.hollowengine.common.exceptions.StoryPlayerNotFoundException
@@ -17,8 +16,6 @@ class StoryTeam {
     val players = HashSet<StoryPlayer>()
     var completedEvents = HashSet<String>()
 
-    @Transient //Transient because after restart we don't need to save story events, they will be started again
-    var currentEvents = HashMap<String, StoryExecutorThread>()
     val eventsData = HashSet<StoryEventData>()
     var progressManager = StoryProgressManager()
 
@@ -84,8 +81,6 @@ class StoryTeam {
             ?: throw StoryEventException("No players in team")
     }
 
-    @Internal
-    @Deprecated(message = "It disabled as removal.", level = DeprecationLevel.HIDDEN)
     fun openDialogue(toRL: ResourceLocation) {
 
     }

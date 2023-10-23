@@ -21,7 +21,7 @@ class ServerDialogueExecutor(val player: Player) : IDialogueExecutor {
     }
 
     override fun applyChoice(choices: Collection<String>): Int {
-        ApplyChoicePacketS2C().send(ChoicesContainer(choices as MutableCollection<String>), player)
+        ApplyChoicePacketS2C().send(ChoicesContainer(choices), player)
         var choice = 0
         waitForgeEvent<ApplyChoiceEvent> {
             choice = it.choice
