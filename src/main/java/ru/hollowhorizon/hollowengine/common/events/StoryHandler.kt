@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.events
 
-import dev.ftb.mods.ftbteams.data.Team
-import dev.ftb.mods.ftbteams.event.TeamEvent
+import dev.ftb.mods.ftbteams.api.Team
+import dev.ftb.mods.ftbteams.api.event.TeamEvent
 import net.minecraft.nbt.CompoundTag
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.event.entity.player.PlayerEvent
@@ -79,6 +79,19 @@ object StoryHandler {
         }
         event.deserialize(storiesNBT.getCompound(eventPath))
         stories[eventPath] = event
+    }
+
+    fun onTeamLoaded(event: TeamEvent) {
+        val extras = event.team.extraData
+        if (!extras.contains("hollowengine_stories") || isLogicalClient) return
+
+        val stories = extras.getCompound("hollowengine_stories")
+
+        stories.allKeys.forEach { story ->
+            val file = story.fromReadablePath()
+
+            runScript(ServerLifecycleHooks.getCurrentServer(), event.team, file).start()
+        }
     }
 
     fun onTeamLoaded(event: TeamEvent) {

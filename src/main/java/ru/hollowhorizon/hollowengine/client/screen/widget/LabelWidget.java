@@ -14,6 +14,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static ru.hollowhorizon.hollowengine.common.TextHelperKt.empty;
+
 public class LabelWidget extends HollowWidget {
     public final Font font;
     private final AnchorX anchorX;
@@ -40,7 +42,7 @@ public class LabelWidget extends HollowWidget {
             AnchorX anchorX,
             AnchorY anchorY,
             List<? extends FormattedText> texts) {
-        super(x, y, 0, 0, new net.minecraft.network.chat.TextComponent(""));
+        super(x, y, 0, 0, empty());
         this.font = font;
         this.anchorX = anchorX;
         this.anchorY = anchorY;

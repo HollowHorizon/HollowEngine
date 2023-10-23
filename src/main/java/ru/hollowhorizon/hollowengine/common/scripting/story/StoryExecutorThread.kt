@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
-import dev.ftb.mods.ftbteams.data.Team
+import dev.ftb.mods.ftbteams.api.Team
 import kotlinx.coroutines.async
 import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
@@ -15,6 +15,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.coroutines.ScriptCon
 import java.io.File
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.constructorArgs
+import kotlin.script.experimental.api.valueOrNull
 import kotlin.script.experimental.api.valueOrThrow
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
@@ -59,3 +60,4 @@ fun runScript(server: MinecraftServer, team: Team, file: File, isCommand: Boolea
             HollowCore.LOGGER.error("(HollowEngine) Error while executing event \"${file.toReadablePath()}\"", e)
         }
     }
+

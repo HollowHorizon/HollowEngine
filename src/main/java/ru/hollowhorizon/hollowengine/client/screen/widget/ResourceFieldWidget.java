@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.client.screen.widget.button.IconHollowButto
 import java.util.function.Consumer;
 
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
+import static ru.hollowhorizon.hollowengine.common.TextHelperKt.literal;
 
 public class ResourceFieldWidget extends HollowTextFieldWidget {
 
@@ -20,8 +21,8 @@ public class ResourceFieldWidget extends HollowTextFieldWidget {
     }
 
     public ResourceFieldWidget(Font fr, int x, int y, int w, int h, ResourceLocation texture) {
-        super(fr, x, y, w, h, new net.minecraft.network.chat.TextComponent(""), texture);
-        this.button = new IconHollowButton(this.x + this.width - this.height, this.y, this.height, this.height, new net.minecraft.network.chat.TextComponent(""), () -> {
+        super(fr, x, y, w, h, literal(""), texture);
+        this.button = new IconHollowButton(this.x + this.width - this.height, this.y, this.height, this.height, literal(""), () -> {
 //            HollowJavaUtils.chooseFile(
 //                    fileChooser -> fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Model File", "*.smd")),
 //                    file -> {

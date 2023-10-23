@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
-import dev.ftb.mods.ftbteams.data.Team
+import dev.ftb.mods.ftbteams.api.Team
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hc.common.scripting.kotlin.AbstractHollowScriptConfiguration
 import kotlin.script.experimental.annotations.KotlinScript
@@ -14,7 +14,7 @@ import kotlin.script.experimental.api.defaultImports
 )
 abstract class StoryScript(server: MinecraftServer, team: Team) : StoryStateMachine(server, team)
 
-class StoryScriptConfiguration : OpenHollowScriptConfiguration({
+class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*",

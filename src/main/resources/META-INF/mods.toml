@@ -26,11 +26,3 @@ mandatory = true
 versionRange = "[1.1.0,2.0)"
 ordering = "AFTER"
 side = "BOTH"
-
-#FTBLibraries
-[[dependencies.hollowengine]]
-modId = "ftbteams"
-mandatory = false
-versionRange = "[1902.2.14,)"
-ordering = "AFTER"
-side = "BOTH"

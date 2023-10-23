@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.content
 
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.crafting.Recipe
 import net.minecraft.world.item.crafting.RecipeType
 import net.minecraftforge.server.ServerLifecycleHooks
@@ -79,7 +80,7 @@ fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
     HollowCore.LOGGER.info("[RecipeScriptCompiler]: Script evaluated: \"${res}\"")
 }
 
-class ContentScriptConfiguration : OpenHollowScriptConfiguration({
+class ContentScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.recipes.*",
         "ru.hollowhorizon.hollowengine.common.scripting.*",
