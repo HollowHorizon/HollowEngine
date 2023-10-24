@@ -6,9 +6,12 @@ import net.minecraft.nbt.ListTag
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
+import ru.hollowhorizon.hollowengine.common.literal
+import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
+import ru.hollowhorizon.hollowengine.common.sendMessage
+import ru.hollowhorizon.hollowengine.common.sendTranslate
 
 open class SimpleNode(val task: SimpleNode.() -> Unit) : Node() {
     override fun tick(): Boolean {
@@ -52,20 +55,12 @@ class CombinedNode(nodes: List<Node>) : Node() {
 }
 
 fun IContextBuilder.send(text: Component) = +SimpleNode {
-    manager.team.onlineMembers.forEach { it.sendSystemMessage(text) }
+    manager.team.onlineMembers.forEach { it.sendMessage(text, it.uuid) }
 }
 
 fun IContextBuilder.startScript(text: String) = +SimpleNode {
     val file = text.fromReadablePath()
-    if (!file.exists()) manager.team.onlineMembers.forEach {
-        it.sendMessage(
-            TranslatableComponent(
-                "hollowengine.scripting.story.script_not_found",
-                file.absolutePath
-            ),
-            it.uuid
-        )
-    }
+    if(!file.exists()) manager.team.onlineMembers.forEach { it.sendTranslate("hollowengine.scripting.story.script_not_found", file.absolutePath) }
 
     runScript(manager.server, manager.team, file)
 }

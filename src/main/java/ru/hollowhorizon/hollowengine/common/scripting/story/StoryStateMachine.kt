@@ -13,6 +13,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.serialize
 
 open class StoryStateMachine(val server: MinecraftServer, val team: Team) : IContextBuilder {
     val variables = ArrayList<StoryVariable<*>>()
+
     private val nodes = ArrayList<Node>()
     private var currentIndex = 0
     var isStarted = false
@@ -35,6 +36,7 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
     fun deserialize(nbt: CompoundTag) {
         nbt.deserializeNodes("\$nodes", nodes)
         currentIndex = nbt.getInt("\$current")
+
         variables.forEachIndexed { index, storyVariable ->
             storyVariable.deserializeNBT(nbt.getList("\$variables", 10).getCompound(index))
         }
