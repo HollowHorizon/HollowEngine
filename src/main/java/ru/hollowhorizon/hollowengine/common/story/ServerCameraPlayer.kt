@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.common.story
 
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
-import net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles
+import net.minecraftforge.client.event.EntityViewRenderEvent.CameraSetup
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import ru.hollowhorizon.hc.HollowCore
@@ -15,7 +15,8 @@ class ServerCameraPlayer(val player: Player, val callback: () -> Unit = {}, vara
         MinecraftForge.EVENT_BUS.register(this)
     }
 
-    private fun updateMovement(event: ComputeCameraAngles) {
+
+    private fun updateMovement(event: CameraSetup) {
         if(!isEnd) {
             val (point, rotation) = update()
             HollowCore.LOGGER.info("Position: x: ${point.x}, y: ${point.y}, z: ${point.z}; Rotation: x: ${rotation.x}, y: ${rotation.y}")
@@ -32,7 +33,7 @@ class ServerCameraPlayer(val player: Player, val callback: () -> Unit = {}, vara
     }
 
     @SubscribeEvent
-    fun onTick(event: ComputeCameraAngles) {
+    fun onTick(event: CameraSetup) {
         this.updateMovement(event)
     }
 }

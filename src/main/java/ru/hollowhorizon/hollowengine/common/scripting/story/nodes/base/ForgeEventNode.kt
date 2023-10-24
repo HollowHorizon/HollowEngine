@@ -58,6 +58,7 @@ open class ForgeEventNode<T : Event>(private val type: Class<T>, open val action
 
         if (!etype.isAssignableFrom(type)) return
 
+
         if (action(event)) {
             isEnded = true
             MinecraftForge.EVENT_BUS.unregister(this)
@@ -75,6 +76,7 @@ open class ForgeEventNode<T : Event>(private val type: Class<T>, open val action
     override fun serializeNBT() = CompoundTag()
     override fun deserializeNBT(nbt: CompoundTag) = Unit
 }
+
 
 inline fun <reified T : Event> IContextBuilder.waitForgeEvent(noinline function: (T) -> Boolean) =
     +ForgeEventNode(T::class.java, function)
