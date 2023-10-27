@@ -68,7 +68,7 @@ class DialogueScreen : HollowScreen("".mcText) {
                                 this@DialogueScreen.choiceWaiter.notifyAll()
                             }
 
-                        }, CHOICE_BUTTON.toRL(), textColor = 0xFFFFFF, textColorHovered = 0xEDC213).apply {
+                        }, CHOICE_BUTTON.rl, textColor = 0xFFFFFF, textColorHovered = 0xEDC213).apply {
 
                         }
                     }, Alignment.CENTER, 0, this.height / 3 - 25 * i, this.width, this.height, 320, 20

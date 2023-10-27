@@ -65,19 +65,4 @@ open class ContentScriptBase(
         recipes.computeIfAbsent(recipe.type) { hashMapOf() }[recipe.id] = recipe
         byName[recipe.id] = recipe
     }
-
-    fun item(item: String, count: Int = 1, nbt: CompoundTag? = null) = ItemStack(
-        ForgeRegistries.ITEMS.getValue(item.rl) ?: throw IllegalStateException("Item $item not found!"),
-        count,
-        nbt
-    )
-
-    fun item(item: String, count: Int = 1, nbt: String): ItemStack {
-        return item(item, count, TagParser.parseTag(nbt))
-    }
-
-    fun tag(tag: String): TagKey<Item> {
-        val manager = ForgeRegistries.ITEMS.tags() ?: throw IllegalStateException("Tag $tag not found!")
-        return manager.createTagKey(tag.rl)
-    }
 }

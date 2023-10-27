@@ -5,7 +5,7 @@ import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiComponent.blit
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hc.client.utils.toRL
+import ru.hollowhorizon.hc.client.utils.rl
 
 class HDImage(image: String) : HDObject() {
     var alpha: Float = 1.0f
@@ -15,7 +15,7 @@ class HDImage(image: String) : HDObject() {
     var height = 200
 
     init {
-        this.image = image.toRL()
+        this.image = image.rl
     }
 
     @Suppress("DEPRECATION")

@@ -5,7 +5,7 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
 
@@ -56,9 +56,23 @@ fun IContextBuilder.send(text: Component) = +SimpleNode {
 
 fun IContextBuilder.startScript(text: String) = +SimpleNode {
     val file = text.fromReadablePath()
-    if(!file.exists()) manager.team.onlineMembers.forEach { it.sendSystemMessage(Component.translatable("hollowengine.scripting.story.script_not_found", file.absolutePath)) }
+    if (!file.exists()) manager.team.onlineMembers.forEach {
+        it.sendSystemMessage(
+            Component.translatable(
+                "hollowengine.scripting.story.script_not_found",
+                file.absolutePath
+            )
+        )
+    }
 
     runScript(manager.server, manager.team, file)
+}
+
+fun IContextBuilder.execute(command: String) = +SimpleNode {
+    val server = this@execute.stateMachine.server
+    val src = server.createCommandSourceStack()
+
+    server.commands.performPrefixedCommand(src.withPermission(4), command)
 }
 
 fun IContextBuilder.send(text: String) = send(Component.literal(text))

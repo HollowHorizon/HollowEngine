@@ -11,14 +11,14 @@ class TextBox(
     var text: Component = "".toSTC(),
     var color: Int = 0xFFFFFF,
     val shade: Boolean = true,
-    val anchor: Anchor = Anchor.MIDDLE
+    val anchor: Anchor = Anchor.CENTER
 ) : HollowWidget(x, y, width, height, "".toSTC()) {
     override fun renderButton(stack: PoseStack, mouseX: Int, mouseY: Int, ticks: Float) {
         super.renderButton(stack, mouseX, mouseY, ticks)
         val x =
             x + when (anchor) {
                 Anchor.START -> 0
-                Anchor.MIDDLE -> width / 2 - font.width(text) / 2
+                Anchor.CENTER -> width / 2 - font.width(text) / 2
                 else -> width - font.width(
                     text
                 )

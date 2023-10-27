@@ -12,7 +12,7 @@ import net.minecraft.world.phys.BlockHitResult
 import net.minecraftforge.common.util.FakePlayer
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.utils.nbt.ForBlockPos
-import ru.hollowhorizon.hc.client.utils.toRL
+import ru.hollowhorizon.hc.client.utils.rl
 
 
 @Serializable
@@ -22,7 +22,7 @@ class ReplayBlock(
 ) {
     fun place(level: Level, target: LivingEntity, fakePlayer: FakePlayer) {
         val block =
-            ForgeRegistries.BLOCKS.getValue(block.toRL()) ?: throw IllegalArgumentException("Block $block not found")
+            ForgeRegistries.BLOCKS.getValue(block.rl) ?: throw IllegalArgumentException("Block $block not found")
         val blockItem = block.asItem()
 
         if (blockItem is BlockItem) {
@@ -44,7 +44,7 @@ class ReplayBlock(
 
     fun placeWorld(level: Level) {
         val block =
-            ForgeRegistries.BLOCKS.getValue(block.toRL()) ?: throw IllegalArgumentException("Block $block not found")
+            ForgeRegistries.BLOCKS.getValue(block.rl) ?: throw IllegalArgumentException("Block $block not found")
         level.setBlockAndUpdate(pos, block.defaultBlockState())
     }
 

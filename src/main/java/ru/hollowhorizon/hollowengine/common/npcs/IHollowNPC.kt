@@ -1,14 +1,12 @@
 package ru.hollowhorizon.hollowengine.common.npcs
 
-import kotlinx.coroutines.runBlocking
-import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hc.client.models.gltf.Transform
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayType
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
+import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
-import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
-import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
 
 interface IHollowNPC : ICharacter {
     val npcEntity: NPCEntity
@@ -17,17 +15,17 @@ interface IHollowNPC : ICharacter {
     override val characterName: String
         get() = npcEntity.displayName.string
 
-    fun makeTask(task: HollowNPCTask.() -> Unit) {
-        val pendingTask = HollowNPCTask(this)
-
-        npcEntity.goalQueue.add(pendingTask)
-        //npcEntity.goalSelector.addGoal(0, pendingTask)
-
-        pendingTask.task()
-    }
 
     infix fun play(animation: String) {
-        npcEntity.manager.startAnimation(animation)
+        npcEntity[AnimatedEntityCapability::class].layers.add(AnimationLayer(
+            animation, 1.0f, PlayType.LOOPED, 1.0f, 0
+        ))
+    }
+
+    infix fun playOnce(animation: String) {
+        npcEntity[AnimatedEntityCapability::class].layers.add(AnimationLayer(
+            animation, 1.0f, PlayType.ONCE, 1.0f, 0
+        ))
     }
 
     fun setTransform(transform: Transform) {
@@ -41,26 +39,17 @@ interface IHollowNPC : ICharacter {
         .transform
 
     fun play(name: String, priority: Float = 1.0f, playType: PlayType = PlayType.ONCE, speed: Float = 1.0f) {
-        npcEntity.manager.startAnimation(name, priority, playType, speed)
+        npcEntity[AnimatedEntityCapability::class].layers.add(AnimationLayer(
+            name, priority, playType, speed, 0
+        ))
     }
 
     infix fun stop(animation: String) {
-        npcEntity.manager.stopAnimation(animation)
+        npcEntity[AnimatedEntityCapability::class].layers.removeIf { it.animation == animation }
     }
 
     fun waitInteract(icon: IconType) {
         synchronized(npcEntity.interactionWaiter) { npcEntity.interactionWaiter.wait() }
-    }
-
-    fun asyncTask(task: HollowNPCTask.() -> Unit) {
-        val pendingTask = HollowNPCTask(this)
-
-        runBlocking { // Необходимо, чтобы игра не зависла, пока внутренние действия не будут выполнены
-            pendingTask.task()
-        }
-
-        npcEntity.goalSelector.addGoal(0, pendingTask)
-        pendingTask.async()
     }
 }
 

@@ -2,31 +2,39 @@ package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.network.chat.Component
-import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
+import net.minecraft.nbt.ListTag
 import net.minecraft.server.MinecraftServer
-import net.minecraft.sounds.SoundSource
-import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import net.minecraftforge.event.TickEvent
-import net.minecraftforge.event.TickEvent.PlayerTickEvent
 import net.minecraftforge.event.TickEvent.ServerTickEvent
-import ru.hollowhorizon.hc.client.models.gltf.animations.PlayType
-import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.client.models.gltf.animations.AnimationType
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
-import ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueScriptBaseV2
-import ru.hollowhorizon.hollowengine.common.scripting.dialogues.executors.ServerDialogueExecutor
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.deserializeNodes
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.serializeNodes
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NpcDelegate
 
-open class StoryStateMachine(val server: MinecraftServer, val team: Team): IContextBuilder {
+open class StoryStateMachine(val server: MinecraftServer, val team: Team) : IContextBuilder {
+    val variables = ArrayList<StoryVariable<*>>()
     private val nodes = ArrayList<Node>()
     private var currentIndex = 0
     val isEnded get() = currentIndex >= nodes.size
+
+    init {
+        val npc by NPCEntity.creating(NPCSettings(), SpawnLocation(pos = pos(-226, 64, -292)))
+        +SimpleNode {
+            npc().getCapability(CapabilityStorage.getCapability(AnimatedEntityCapability::class.java)).ifPresent {
+                it.customAnimations[AnimationType.FALL] = ""
+            }
+        }
+    }
 
     fun tick(event: ServerTickEvent) {
         if (event.phase != TickEvent.Phase.END) return
@@ -37,11 +45,17 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team): ICont
     fun serialize() = CompoundTag().apply {
         serializeNodes("\$nodes", nodes)
         putInt("\$current", currentIndex)
+        put("\$variables", ListTag().apply {
+            addAll(variables.map { it.serializeNBT() })
+        })
     }
 
     fun deserialize(nbt: CompoundTag) {
         nbt.deserializeNodes("\$nodes", nodes)
         currentIndex = nbt.getInt("\$current")
+        variables.forEachIndexed { index, storyVariable ->
+            storyVariable.deserializeNBT(nbt.getList("\$variables", 10).getCompound(index))
+        }
     }
 
     override operator fun Node.unaryPlus() {

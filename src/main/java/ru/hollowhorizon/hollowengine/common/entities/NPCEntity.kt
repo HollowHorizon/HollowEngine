@@ -9,15 +9,11 @@ import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
-import ru.hollowhorizon.hc.client.models.gltf.manager.IModelManager
 import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
-import ru.hollowhorizon.hollowengine.common.npcs.tasks.HollowNPCTask
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
 class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
     val interactionWaiter = Object()
-    val goalQueue = ArrayList<HollowNPCTask>()
-    val removeGoalQueue = ArrayList<HollowNPCTask>()
 
     constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
 
@@ -45,26 +41,10 @@ class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
     override fun checkDespawn() {}
     override val npcEntity = this
 
-    override fun tick() {
-        super.tick()
-
-        //Без этого при добавлении тасков может вылететь ConcurrentModificationException
-        if (goalQueue.size > 0) {
-            goalQueue.forEach { task -> goalSelector.addGoal(0, task) }
-            goalQueue.clear()
-        }
-        if (removeGoalQueue.size > 0) {
-            removeGoalQueue.forEach { pTask -> goalSelector.removeGoal(pTask) }
-            removeGoalQueue.clear()
-        }
-    }
-
 
     override fun canPickUpLoot(): Boolean {
         return true
     }
-
-    override val manager by lazy { IModelManager.create(this) }
 
     companion object {
 

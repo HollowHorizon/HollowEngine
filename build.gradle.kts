@@ -1,12 +1,9 @@
-import com.github.jengelman.gradle.plugins.shadow.relocation.SimpleRelocator
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import net.minecraftforge.gradle.userdev.DependencyManagementExtension
 import net.minecraftforge.gradle.userdev.UserDevExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.spongepowered.asm.gradle.plugins.MixinExtension
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import net.minecraftforge.gradle.userdev.DependencyManagementExtension
-import org.jetbrains.kotlin.gradle.utils.extendsFrom
-import org.spongepowered.asm.gradle.plugins.MixinExtension
 
 buildscript {
     repositories {
@@ -115,19 +112,16 @@ dependencies {
 
 fun Jar.createManifest() = manifest {
     attributes(
-        mapOf(
-            "Automatic-Module-Name" to "hollowengine",
-            "Specification-Title" to "HollowEngine",
-            "Specification-Vendor" to "HollowHorizon",
-            "Specification-Version" to "1", // We are version 1 of ourselves
-            "Implementation-Title" to project.name,
-            "Implementation-Version" to version,
-            "Implementation-Vendor" to "HollowHorizon",
-            "Implementation-Timestamp" to ZonedDateTime.now()
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssZ")),
-            "MixinConfigs" to "hollowengine.mixins.json"
-        ),
-        "hollowhorizon/hollowengine/"
+        "Automatic-Module-Name" to "hollowengine",
+        "Specification-Title" to "HollowEngine",
+        "Specification-Vendor" to "HollowHorizon",
+        "Specification-Version" to "1", // We are version 1 of ourselves
+        "Implementation-Title" to project.name,
+        "Implementation-Version" to version,
+        "Implementation-Vendor" to "HollowHorizon",
+        "Implementation-Timestamp" to ZonedDateTime.now()
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssZ")),
+        "MixinConfigs" to "hollowengine.mixins.json"
     )
 }
 
@@ -138,7 +132,7 @@ val jar = tasks.named<Jar>("jar") {
 
     exclude(
         "LICENSE.txt", "META-INF/MANIFSET.MF", "META-INF/maven/**",
-        "META-INF/*.RSA", "META-INF/*.SF", "META-INF/versions/**"
+        "META-INF/*.RSA", "META-INF/*.SF", "META-INF/versions/**", "**/module-info.class"
     )
 
     createManifest()

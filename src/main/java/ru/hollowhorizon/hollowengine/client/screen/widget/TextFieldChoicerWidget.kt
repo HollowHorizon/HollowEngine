@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.client.screen.widget
 
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.screens.widget.layout.box
-import ru.hollowhorizon.hc.client.utils.toRL
+import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toSTC
 
 class TextFieldChoicerWidget(
@@ -30,7 +30,7 @@ class TextFieldChoicerWidget(
                     100.pc.w().value,
                     100.pc.h().value,
                     text.toSTC(),
-                    "hollowengine:textures/gui/text_field.png".toRL()
+                    "hollowengine:textures/gui/text_field.png".rl
                 )
                 widget.setResponder {
                     this@TextFieldChoicerWidget.currentText = it

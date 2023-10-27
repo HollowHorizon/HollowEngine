@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs
 import net.minecraft.nbt.CompoundTag
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
 import ru.hollowhorizon.hc.client.utils.nbt.deserialize
@@ -28,7 +29,7 @@ class NpcDelegate(
             ?: throw IllegalStateException("Dimension ${location.world} not found. Or not loaded")
 
         val entities = level.getEntities(ModEntities.NPC_ENTITY.get()) { entity ->
-            return@getEntities entity.model == settings.model.rl && entity.characterName == settings.name && entity.isAlive
+            return@getEntities entity[AnimatedEntityCapability::class].model.rl == settings.model.rl && entity.characterName == settings.name && entity.isAlive
         }
 
         var isNpcSpawned = true

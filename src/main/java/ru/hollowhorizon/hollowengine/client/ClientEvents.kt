@@ -13,7 +13,6 @@ import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.screen.MouseDriver
 import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
-import ru.hollowhorizon.hollowengine.common.capabilities.storyTeam
 import ru.hollowhorizon.hollowengine.common.network.Container
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
@@ -62,9 +61,7 @@ object ClientEvents {
                 )
             ) && Minecraft.getInstance().screen == null
         ) {
-            val manager = Minecraft.getInstance().player?.storyTeam()?.progressManager
-
-            if (manager != null) Minecraft.getInstance().setScreen(ProgressManagerScreen(manager))
+            Minecraft.getInstance().setScreen(ProgressManagerScreen())
         }
     }
 

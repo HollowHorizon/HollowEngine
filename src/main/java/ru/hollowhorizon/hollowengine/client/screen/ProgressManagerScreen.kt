@@ -4,15 +4,15 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.util.Alignment
+import ru.hollowhorizon.hc.client.screens.util.Anchor
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.screens.widget.layout.PlacementType
 import ru.hollowhorizon.hc.client.screens.widget.layout.box
-import ru.hollowhorizon.hc.client.utils.drawCentredScaled
+import ru.hollowhorizon.hc.client.utils.drawScaled
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.scripting.story.StoryProgressManager
 
-class ProgressManagerScreen(val manager: StoryProgressManager) : HollowScreen("Progress Manager".toSTC()) {
+class ProgressManagerScreen() : HollowScreen("Progress Manager".toSTC()) {
     override fun init() {
         super.init()
 
@@ -27,8 +27,8 @@ class ProgressManagerScreen(val manager: StoryProgressManager) : HollowScreen("P
                         bind(HollowEngine.MODID, "gui/event_list/event_list.png")
                         blit(stack, x, y, 0f, 0f, w, h, w, h)
 
-                        font.drawCentredScaled(
-                            stack,
+                        font.drawScaled(
+                            stack, Anchor.CENTER,
                             "Список Событий".toSTC(),
                             x + w / 2,
                             y + h / 2 + 1,
@@ -45,16 +45,21 @@ class ProgressManagerScreen(val manager: StoryProgressManager) : HollowScreen("P
                     placementType = PlacementType.VERTICAL
 
                     renderer = { stack, x, y, w, h ->
-                        if(manager.tasks().size == 0) font.drawCentredScaled(
-                            stack, "Заданий пока нету, возможно они появятся позже!".toSTC(), x + w/2, y+h/2, 0xFFFFFF, 1.0f
+                        font.drawScaled(
+                            stack, Anchor.CENTER,
+                            "Заданий пока нету, возможно они появятся позже!".toSTC(),
+                            x + w / 2,
+                            y + h / 2,
+                            0xFFFFFF,
+                            1.0f
                         )
                     }
 
                     elements {
 
-                        manager.tasks().forEach { task ->
-                            +TaskWidget(task, 100.pc.w().value, 15.pc.h().value)
-                        }
+//                        manager.tasks().forEach { task ->
+//                            +TaskWidget(task, 100.pc.w().value, 15.pc.h().value)
+//                        }
 
                     }
                 }

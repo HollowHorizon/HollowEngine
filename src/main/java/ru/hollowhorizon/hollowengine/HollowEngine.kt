@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine
 
 import dev.ftb.mods.ftbteams.event.TeamEvent
-import dev.ftb.mods.ftbteams.event.TeamManagerEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.repository.Pack
@@ -34,8 +33,6 @@ import ru.hollowhorizon.hollowengine.common.data.HollowStoryPack
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getModScripts
-import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
-import ru.hollowhorizon.hollowengine.common.npcs.NPCStorage
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
 import ru.hollowhorizon.hollowengine.common.registry.ModDimensions
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
@@ -50,22 +47,20 @@ class HollowEngine {
         val forgeBus = MinecraftForge.EVENT_BUS
         val modBus = FMLJavaModLoadingContext.get().modEventBus
         HollowCore.LOGGER.info("HollowEngine mod loading...")
-        forgeBus.addListener { event: RegisterCommandsEvent -> registerCommands(event) }
+        forgeBus.addListener(::registerCommands)
         forgeBus.addListener(this::addReloadListenerEvent)
         forgeBus.addListener(StoryHandler::onPlayerJoin)
         forgeBus.addListener(StoryHandler::onServerTick)
         forgeBus.addListener(StoryHandler::onServerShutdown)
-        forgeBus.addListener(StoryHandler::onPlayerTick)
         forgeBus.addListener(StoryHandler::onWorldSave)
-        forgeBus.addListener(StoryHandler::onPlayerClone)
-        modBus.addListener { event: FMLCommonSetupEvent -> setup(event) }
-        modBus.addListener { event: EntityAttributeCreationEvent -> onAttributeCreation(event) }
-        modBus.addListener { event: FMLLoadCompleteEvent -> onLoadingComplete(event) }
+        modBus.addListener(::setup)
+        modBus.addListener(::onAttributeCreation)
+        modBus.addListener(::onLoadingComplete)
         if (FMLEnvironment.dist.isClient) {
             forgeBus.addListener(ClientEvents::renderOverlay)
             forgeBus.addListener(ClientEvents::onKeyPressed)
             forgeBus.addListener(ClientEvents::onClicked)
-            modBus.addListener { event: FMLClientSetupEvent -> clientInit(event) }
+            modBus.addListener(::clientInit)
         }
 
         modBus.addListener(this::entityRenderers)

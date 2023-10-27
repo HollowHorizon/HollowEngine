@@ -9,7 +9,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraftforge.registries.ForgeRegistries
 import net.minecraftforge.server.ServerLifecycleHooks
-import ru.hollowhorizon.hc.client.utils.toRL
+import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hollowengine.common.npcs.ICharacter
 
@@ -44,7 +44,7 @@ class HDCharacter(val type: LivingEntity) : HDObject(), ICharacter {
 
         val parsed = item.split("@")
 
-        val forgeItem = ForgeRegistries.ITEMS.getValue(parsed[0].toRL()) ?: Items.BEDROCK
+        val forgeItem = ForgeRegistries.ITEMS.getValue(parsed[0].rl) ?: Items.BEDROCK
 
         val count =
             if (parsed.size > 1) parsed[1].toInt()

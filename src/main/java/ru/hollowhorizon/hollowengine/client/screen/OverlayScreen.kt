@@ -2,7 +2,8 @@ package ru.hollowhorizon.hollowengine.client.screen
 
 import com.mojang.blaze3d.vertex.PoseStack
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hc.client.utils.drawCentredScaled
+import ru.hollowhorizon.hc.client.screens.util.Anchor
+import ru.hollowhorizon.hc.client.utils.drawScaled
 import ru.hollowhorizon.hc.client.utils.toSTC
 
 class OverlayScreen(val text: String? = null) : HollowScreen("".toSTC()) {
@@ -16,9 +17,8 @@ class OverlayScreen(val text: String? = null) : HollowScreen("".toSTC()) {
 
         fill(stack, 0, 0, this.width, this.height, ARGB(alpha, 0, 0, 0).toInt())
 
-        if (text != null) font.drawCentredScaled(stack, text.toSTC(), this.width / 2, this.height / 3, 0xFFFFFF, 3.0F)
-        if (subTitle != null) font.drawCentredScaled(
-            stack,
+        if (text != null) font.drawScaled(stack, Anchor.CENTER, text.toSTC(), this.width / 2, this.height / 3, 0xFFFFFF, 3.0F)
+        if (subTitle != null) font.drawScaled(stack, Anchor.CENTER,
             subTitle!!.toSTC(),
             this.width / 2,
             this.height / 3 + font.lineHeight * 3,
