@@ -26,3 +26,25 @@ mandatory = true
 versionRange = "[1.1.0,2.0)"
 ordering = "AFTER"
 side = "BOTH"
+
+#FTBLibraries
+[[dependencies.hollowengine]]
+modId = "ftbteams"
+mandatory = true
+versionRange = "[2001.1.4,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.hollowengine]]
+modId = "architectury"
+mandatory = true
+versionRange = "[9.0.8,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.hollowengine]]
+modId = "ftblibrary"
+mandatory = true
+versionRange = "[2001.1.2,)"
+ordering = "AFTER"
+side = "BOTH"
