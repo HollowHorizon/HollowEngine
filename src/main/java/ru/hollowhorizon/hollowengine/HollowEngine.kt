@@ -18,7 +18,6 @@ import net.minecraftforge.fml.common.Mod
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent
 import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext
 import net.minecraftforge.fml.loading.FMLEnvironment
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.api.registy.HollowMod
@@ -37,6 +36,7 @@ import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
 import ru.hollowhorizon.hollowengine.common.registry.ModDimensions
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.scripting.mod.runModScript
+import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
 @HollowMod(HollowEngine.MODID)
 @Mod(HollowEngine.MODID)
@@ -45,7 +45,6 @@ class HollowEngine {
         HollowModProcessor.initMod()
         getModScripts().forEach(::runModScript)
         val forgeBus = MinecraftForge.EVENT_BUS
-        val modBus = FMLJavaModLoadingContext.get().modEventBus
         HollowCore.LOGGER.info("HollowEngine mod loading...")
         forgeBus.addListener(::registerCommands)
         forgeBus.addListener(this::addReloadListenerEvent)
@@ -53,20 +52,20 @@ class HollowEngine {
         forgeBus.addListener(StoryHandler::onServerTick)
         forgeBus.addListener(StoryHandler::onServerShutdown)
         forgeBus.addListener(StoryHandler::onWorldSave)
-        modBus.addListener(::setup)
-        modBus.addListener(::onAttributeCreation)
-        modBus.addListener(::onLoadingComplete)
+        MOD_BUS.addListener(::setup)
+        MOD_BUS.addListener(::onAttributeCreation)
+        MOD_BUS.addListener(::onLoadingComplete)
         if (FMLEnvironment.dist.isClient) {
             forgeBus.addListener(ClientEvents::renderOverlay)
             forgeBus.addListener(ClientEvents::onKeyPressed)
             forgeBus.addListener(ClientEvents::onClicked)
-            modBus.addListener(::clientInit)
+            MOD_BUS.addListener(::clientInit)
         }
 
-        modBus.addListener(this::entityRenderers)
-        modBus.addListener(this::registerPacks)
-        ModDimensions.CHUNK_GENERATORS.register(modBus)
-        ModDimensions.DIMENSIONS.register(modBus)
+        MOD_BUS.addListener(this::entityRenderers)
+        MOD_BUS.addListener(this::registerPacks)
+        ModDimensions.CHUNK_GENERATORS.register(MOD_BUS)
+        ModDimensions.DIMENSIONS.register(MOD_BUS)
         RegistryLoader.registerAll()
         //ModDimensions
         TeamEvent.LOADED.register(StoryHandler::onTeamLoaded)

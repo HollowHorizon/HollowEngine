@@ -1,5 +1,5 @@
-modLoader = "javafml" #mandatory
-loaderVersion = "[36,)" #mandatory This is typically bumped every Minecraft version by Forge. See our download page for lists of versions.
+modLoader = "kotlinforforge" #mandatory
+loaderVersion = "[3,)" #mandatory This is typically bumped every Minecraft version by Forge. See our download page for lists of versions.
 license = "All Rights Reserved"
 [[mods]] #mandatory
 modId = "hollowengine" #mandatory

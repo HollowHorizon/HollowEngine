@@ -7,7 +7,6 @@ import net.minecraftforge.client.event.InputEvent
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent
 import net.minecraftforge.client.event.RenderGuiOverlayEvent
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -16,6 +15,7 @@ import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
 import ru.hollowhorizon.hollowengine.common.network.Container
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
+import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
 object ClientEvents {
     const val HS_CATEGORY = "key.categories.mod.hollowengine"
@@ -66,7 +66,7 @@ object ClientEvents {
     }
 
     fun initKeys() {
-        FMLJavaModLoadingContext.get().modEventBus.addListener { event: RegisterKeyMappingsEvent ->
+        MOD_BUS.addListener { event: RegisterKeyMappingsEvent ->
             event.register(OPEN_EVENT_LIST)
         }
     }
