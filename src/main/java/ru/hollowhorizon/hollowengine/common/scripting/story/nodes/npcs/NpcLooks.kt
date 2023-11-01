@@ -32,19 +32,23 @@ class NpcLookToBlockNode(npcConsumer: NPCProperty, var pos: Vec3, var speed: Vec
     }
 }
 
-class NpcLookToEntityNode(npcConsumer: NPCProperty, var target: () -> Entity, var speed: Vec2 = Vec2(10f, 30f)) : Node() {
+class NpcLookToEntityNode(npcConsumer: NPCProperty, var target: () -> Entity?, var speed: Vec2 = Vec2(10f, 30f)) : Node() {
     val npc by lazy { npcConsumer() }
+    private var ticks = 30
+
     override fun tick(): Boolean {
         val look = npc.lookControl
 
-        look.setLookAt(target(), speed.x, speed.y);
+        look.setLookAt(target() ?: return true, speed.x, speed.y)
 
-        return look.isLookingAtTarget
+        return ticks-- > 0
     }
 
     override fun serializeNBT() = CompoundTag().apply {
-        putString("level", target().level.dimension().location().toString())
-        putUUID("target", target().uuid)
+        val entity = target() ?: return@apply
+
+        putString("level", entity.level.dimension().location().toString())
+        putUUID("target", entity.uuid)
     }
 
     override fun deserializeNBT(nbt: CompoundTag) {

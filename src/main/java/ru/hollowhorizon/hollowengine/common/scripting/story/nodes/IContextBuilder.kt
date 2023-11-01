@@ -46,7 +46,7 @@ interface IContextBuilder {
     }, speed)
 
     infix fun NPCProperty.lookAt(target: Team) = +NpcLookToEntityNode(this, {
-        target.onlineMembers.minBy { it.distanceToSqr(this()) }
+        target.onlineMembers.minByOrNull { it.distanceToSqr(this()) }
     })
 
 
@@ -63,13 +63,18 @@ interface IContextBuilder {
         this@play().play(animation)
     }
 
+    infix fun NPCProperty.stop(animation: String) = +SimpleNode {
+        this@stop().stop(animation)
+    }
+
+
     infix fun NPCProperty.say(text: Component) = +SimpleNode {
         val component =
-            net.minecraft.network.chat.Component.literal("§6[§7" + this@say().characterName + "§6]§7 ").append(text)
+            Component.literal("§6[§7" + this@say().characterName + "§6]§7 ").append(text)
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
 
-    infix fun NPCProperty.say(text: String) = say(net.minecraft.network.chat.Component.literal(text))
+    infix fun NPCProperty.say(text: String) = say(Component.literal(text))
 
     fun NPCProperty.despawn(text: String) = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
 

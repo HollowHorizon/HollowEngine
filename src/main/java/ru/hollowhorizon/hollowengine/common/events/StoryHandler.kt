@@ -29,7 +29,10 @@ object StoryHandler {
     @JvmStatic
     fun onServerTick(event: ServerTickEvent) {
         events.values.forEach { stories ->
-            stories.values.removeIf { it.tick(event); it.isEnded }
+            stories
+                .filter { it.value.tick(event); it.value.isEnded }
+                .map { it.key }
+                .forEach(stories::remove)
         }
     }
 
@@ -62,15 +65,20 @@ object StoryHandler {
     fun addStoryEvent(eventPath: String, event: StoryStateMachine, beingRecompiled: Boolean = false) {
         val stories = events.computeIfAbsent(event.team) { HashMap() }
 
-        stories[eventPath] = event
-
         val extras = event.team.extraData
 
-        if (!extras.contains("hollowengine_stories") || beingRecompiled) return
+        if (!extras.contains("hollowengine_stories") || beingRecompiled) {
+            stories[eventPath] = event
+            return
+        }
         val storiesNBT = extras.getCompound("hollowengine_stories")
 
-        if (!storiesNBT.contains(eventPath)) return
+        if (!storiesNBT.contains(eventPath)) {
+            stories[eventPath] = event
+            return
+        }
         event.deserialize(storiesNBT.getCompound(eventPath))
+        stories[eventPath] = event
     }
 
     fun onTeamLoaded(event: TeamEvent) {
