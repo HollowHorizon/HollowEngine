@@ -27,15 +27,6 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
     private var currentIndex = 0
     val isEnded get() = currentIndex >= nodes.size
 
-    init {
-        val npc by NPCEntity.creating(NPCSettings(), SpawnLocation(pos = pos(-226, 64, -292)))
-        +SimpleNode {
-            npc().getCapability(CapabilityStorage.getCapability(AnimatedEntityCapability::class.java)).ifPresent {
-                it.customAnimations[AnimationType.FALL] = ""
-            }
-        }
-    }
-
     fun tick(event: ServerTickEvent) {
         if (event.phase != TickEvent.Phase.END) return
 

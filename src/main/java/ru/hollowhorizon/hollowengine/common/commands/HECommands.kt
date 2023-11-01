@@ -54,7 +54,7 @@ object HECommands {
                     arg("players", EntityArgument.players()),
                     arg("script", StringArgumentType.greedyString(), getAllStoryEvents().map { it.toReadablePath() })
                 ) {
-                    val players = EntityArgument.getPlayers(this, "player")
+                    val players = EntityArgument.getPlayers(this, "players")
                     val raw = StringArgumentType.getString(this, "script")
                     val script = raw.fromReadablePath()
                     players.forEach { player ->
@@ -68,7 +68,9 @@ object HECommands {
                     val player = source.playerOrException
                     val storyTeam = FTBTeamsAPI.getPlayerTeam(player)
                     player.sendSystemMessage(Component.translatable("hollowengine.commands.actiove_events"))
-                    getActiveEvents(storyTeam).forEach(
+                    getActiveEvents(storyTeam)
+                        .ifEmpty{ mutableListOf("No active events") }
+                        .forEach(
                         Consumer { name: String ->
                             player.sendSystemMessage(
                                 Component.literal(
