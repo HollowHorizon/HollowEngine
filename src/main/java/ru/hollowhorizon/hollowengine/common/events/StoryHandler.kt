@@ -1,20 +1,15 @@
 package ru.hollowhorizon.hollowengine.common.events
 
-import dev.ftb.mods.ftbteams.data.Team
-import dev.ftb.mods.ftbteams.event.TeamEvent
+import dev.ftb.mods.ftbteams.api.Team
+import dev.ftb.mods.ftbteams.api.event.TeamEvent
 import net.minecraft.nbt.CompoundTag
 import net.minecraftforge.event.TickEvent.ServerTickEvent
-import net.minecraft.world.entity.player.Player
-import net.minecraftforge.event.TickEvent
-import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.event.entity.player.PlayerEvent
-
-import net.minecraftforge.event.level.LevelEvent
 import net.minecraftforge.event.server.ServerStoppingEvent
+import net.minecraftforge.event.world.WorldEvent
 import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.api.utils.HollowConfig
 import ru.hollowhorizon.hc.client.utils.isLogicalClient
-
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
@@ -51,12 +46,12 @@ object StoryHandler {
                 }
             }
             team.extraData.put("hollowengine_stories", storiesNBT)
-            team.save()
+            team.markDirty()
         }
     }
 
     @JvmStatic
-    fun onWorldSave(event: LevelEvent.Save) {
+    fun onWorldSave(event: WorldEvent.Save) {
         events.forEach { (team, stories) ->
             val storiesNBT = CompoundTag().apply {
                 stories.forEach { (path, story) ->
@@ -65,7 +60,7 @@ object StoryHandler {
 
             }
             team.extraData.put("hollowengine_stories", storiesNBT)
-            team.save()
+            team.markDirty()
         }
     }
 
@@ -86,19 +81,6 @@ object StoryHandler {
         }
         event.deserialize(storiesNBT.getCompound(eventPath))
         stories[eventPath] = event
-    }
-
-    fun onTeamLoaded(event: TeamEvent) {
-        val extras = event.team.extraData
-        if (!extras.contains("hollowengine_stories") || isLogicalClient) return
-
-        val stories = extras.getCompound("hollowengine_stories")
-
-        stories.allKeys.forEach { story ->
-            val file = story.fromReadablePath()
-
-            runScript(ServerLifecycleHooks.getCurrentServer(), event.team, file).start()
-        }
     }
 
     fun onTeamLoaded(event: TeamEvent) {

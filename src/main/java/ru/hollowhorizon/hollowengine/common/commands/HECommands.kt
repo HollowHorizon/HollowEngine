@@ -2,12 +2,13 @@ package ru.hollowhorizon.hollowengine.common.commands
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.arguments.StringArgumentType
-import dev.ftb.mods.ftbteams.FTBTeamsAPI
+import dev.ftb.mods.ftbteams.api.FTBTeamsAPI
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.arguments.EntityArgument
-import net.minecraft.network.chat.Component
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.client.utils.mcText
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.register
 import ru.hollowhorizon.hc.common.network.send
@@ -17,6 +18,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getAllStoryEv
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.network.CopyTextPacket
 import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
+import ru.hollowhorizon.hollowengine.common.sendMessage
 import thedarkcolour.kotlinforforge.forge.vectorutil.component1
 import thedarkcolour.kotlinforforge.forge.vectorutil.component2
 import thedarkcolour.kotlinforforge.forge.vectorutil.component3
@@ -58,7 +60,7 @@ object HECommands {
                     val raw = StringArgumentType.getString(this, "script")
                     val script = raw.fromReadablePath()
                     players.forEach { player ->
-                        val storyTeam = FTBTeamsAPI.getPlayerTeam(player)
+                        val storyTeam = FTBTeamsAPI.api().manager.getTeamForPlayer(player).orElseThrow()
                         runScript(player.server, storyTeam, script)
                     }
                     HollowCore.LOGGER.info("Started script $script")
@@ -66,19 +68,15 @@ object HECommands {
 
                 "active-events" {
                     val player = source.playerOrException
-                    val storyTeam = FTBTeamsAPI.getPlayerTeam(player)
-                    player.sendSystemMessage(Component.translatable("hollowengine.commands.actiove_events"))
+                    val storyTeam = FTBTeamsAPI.api().manager.getTeamForPlayer(player).orElseThrow()
+                    player.sendMessage("hollowengine.commands.actiove_events".mcTranslate)
                     getActiveEvents(storyTeam)
-                        .ifEmpty{ mutableListOf("No active events") }
+                        .ifEmpty { mutableListOf("No active events") }
                         .forEach(
-                        Consumer { name: String ->
-                            player.sendSystemMessage(
-                                Component.literal(
-                                    "§6 - §7$name"
-                                )
-                            )
-                        }
-                    )
+                            Consumer { name: String ->
+                                player.sendMessage("§6 - §7$name".mcText)
+                            }
+                        )
                 }
             }
         }

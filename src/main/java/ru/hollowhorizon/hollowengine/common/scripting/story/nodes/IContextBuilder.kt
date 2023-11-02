@@ -1,7 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
-import dev.ftb.mods.ftbteams.data.Team
+import dev.ftb.mods.ftbteams.api.Team
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TextComponent
 import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.entity.Entity
@@ -19,6 +20,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.CombinedN
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.NodeContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
+import ru.hollowhorizon.hollowengine.common.sendMessage
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
@@ -70,11 +72,11 @@ interface IContextBuilder {
 
     infix fun NPCProperty.say(text: Component) = +SimpleNode {
         val component =
-            Component.literal("§6[§7" + this@say().characterName + "§6]§7 ").append(text)
-        stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
+            TextComponent("§6[§7" + this@say().characterName + "§6]§7 ").append(text)
+        stateMachine.team.onlineMembers.forEach { it.sendMessage(component) }
     }
 
-    infix fun NPCProperty.say(text: String) = say(Component.literal(text))
+    infix fun NPCProperty.say(text: String) = say(TextComponent(text))
 
     fun NPCProperty.despawn(text: String) = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
 
@@ -90,7 +92,7 @@ interface IContextBuilder {
         this@equip().setItemSlot(slot, item)
     }
 
-    fun async(vararg tasks: NodeContextBuilder.() -> Unit) = +CombinedNode(
+    fun async(vararg tasks: IContextBuilder.() -> Unit) = +CombinedNode(
         tasks.flatMap { NodeContextBuilder(this.stateMachine).apply(it).tasks }
     )
 
@@ -102,8 +104,7 @@ interface IContextBuilder {
                     SoundSource.MASTER,
                     it.position(),
                     1.0f,
-                    1.0f,
-                    it.random.nextLong()
+                    1.0f
                 )
             )
         }
