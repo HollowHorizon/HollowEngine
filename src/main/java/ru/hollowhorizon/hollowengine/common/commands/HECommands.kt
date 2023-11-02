@@ -9,6 +9,8 @@ import net.minecraft.network.chat.TextComponent
 import net.minecraft.network.chat.TranslatableComponent
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.client.utils.mcText
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.register
 import ru.hollowhorizon.hc.common.network.send
@@ -18,6 +20,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getAllStoryEv
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.network.CopyTextPacket
 import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
+import ru.hollowhorizon.hollowengine.common.sendMessage
 import thedarkcolour.kotlinforforge.forge.vectorutil.component1
 import thedarkcolour.kotlinforforge.forge.vectorutil.component2
 import thedarkcolour.kotlinforforge.forge.vectorutil.component3
@@ -61,8 +64,8 @@ object HECommands {
                     val raw = StringArgumentType.getString(this, "script")
                     val script = raw.fromReadablePath()
                     players.forEach { player ->
-                        val storyTeam = FTBTeamsAPI.api().manager.getTeamForPlayer(player)
-                        runScript(player.server, storyTeam.get(), script, true)
+                        val storyTeam = FTBTeamsAPI.api().manager.getTeamForPlayer(player).orElseThrow()
+                        runScript(player.server, storyTeam, script, true)
                     }
                     HollowCore.LOGGER.info("Started script $script")
                 }

@@ -12,10 +12,10 @@ import ru.hollowhorizon.hc.common.scripting.errors
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.story.coroutines.ScriptContext
+import ru.hollowhorizon.hollowengine.common.sendMessage
 import java.io.File
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.constructorArgs
-import kotlin.script.experimental.api.valueOrNull
 import kotlin.script.experimental.api.valueOrThrow
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
@@ -60,4 +60,3 @@ fun runScript(server: MinecraftServer, team: Team, file: File, isCommand: Boolea
             HollowCore.LOGGER.error("(HollowEngine) Error while executing event \"${file.toReadablePath()}\"", e)
         }
     }
-

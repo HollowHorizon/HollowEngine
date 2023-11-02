@@ -6,6 +6,7 @@ import net.minecraft.core.BlockPos
 import net.minecraft.core.Registry
 import net.minecraft.nbt.StringTag
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TextComponent
 import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
 import net.minecraft.network.protocol.game.ClientboundStopSoundPacket
 import net.minecraft.resources.ResourceKey
