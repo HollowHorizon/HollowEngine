@@ -109,7 +109,7 @@ interface IContextBuilder {
         val entity = this@dropItem()
         val p = entity.position()
         val entityStack = ItemEntity(entity.level, p.x, p.y + entity.eyeHeight, p.z, stack)
-        entityStack.setDeltaMovement(entity.lookAngle.x / 3, entity.lookAngle.y / 3, entity.lookAngle.z / 3)
+        entityStack.setDeltaMovement(entity.lookAngle.x, entity.lookAngle.y, entity.lookAngle.z)
         entity.level.addFreshEntity(entityStack)
     }
 
