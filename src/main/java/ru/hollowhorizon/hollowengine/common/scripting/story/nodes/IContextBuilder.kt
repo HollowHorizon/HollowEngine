@@ -78,7 +78,7 @@ interface IContextBuilder {
 
     fun NPCProperty.despawn(text: String) = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
 
-    fun NPCProperty.dropItem(stack: ItemStack) = +SimpleNode {
+    infix fun NPCProperty.dropItem(stack: ItemStack) = +SimpleNode {
         val entity = this@dropItem()
         val p = entity.position()
         val entityStack = ItemEntity(entity.level, p.x, p.y + entity.eyeHeight, p.z, stack)
