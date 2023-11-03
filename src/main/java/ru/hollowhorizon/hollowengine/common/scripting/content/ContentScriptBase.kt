@@ -27,8 +27,9 @@ open class ContentScriptBase(
         RecipeHelper.currentScript = this
     }
 
-    fun ItemStack.tooltip(text: String) {
+    fun ItemStack.tooltip(text: String): ItemStack {
         if (isPhysicalClient) ClientEvents.addTooltip(this.item, text.mcTranslate)
+        return this
     }
 
     fun removeById(location: String) {
