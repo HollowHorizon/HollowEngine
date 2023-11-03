@@ -12,7 +12,7 @@ import ru.hollowhorizon.hc.client.utils.drawScaled
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hollowengine.HollowEngine
 
-class ProgressManagerScreen() : HollowScreen("Progress Manager".toSTC()) {
+class ProgressManagerScreen : HollowScreen("Progress Manager".toSTC()) {
     override fun init() {
         super.init()
 

@@ -12,7 +12,7 @@ import java.util.function.Consumer;
 
 public class HollowTextFieldWidget extends EditBox {
     private final ResourceLocation texture;
-    private String oldSuggestion = "";
+    private final String oldSuggestion = "";
 
     public HollowTextFieldWidget(Font fr, int x, int y, int w, int h, Component text, ResourceLocation texture, Consumer<String> consumer) {
         this(fr, x, y, w, h, text, texture);

@@ -43,7 +43,7 @@ open class DialogueScriptBaseV2(val manager: IDialogueExecutor) {
         scene.actions += PlaySoundAction(sound)
     }
 
-    fun ru.hollowhorizon.hollowengine.common.scripting.dialogues.HDCharacter.say(text: String, time: Float) {
+    fun HDCharacter.say(text: String, time: Float) {
         scene.actions += UpdateTextAction(this.characterName, text)
 
         if (scene.autoSwitch) {

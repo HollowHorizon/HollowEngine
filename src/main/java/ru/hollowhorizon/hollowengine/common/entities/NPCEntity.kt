@@ -46,7 +46,5 @@ class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
         return true
     }
 
-    companion object {
-
-    }
+    companion object
 }

@@ -23,7 +23,7 @@ class TextBox(
                     text
                 )
             }
-        val y = y + height / 2 - font.lineHeight / 2;
+        val y = y + height / 2 - font.lineHeight / 2
 
         stack.pushPose()
         stack.translate(0.0, 0.0, 100.0)

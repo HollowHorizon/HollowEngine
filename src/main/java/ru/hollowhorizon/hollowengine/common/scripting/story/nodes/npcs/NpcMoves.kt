@@ -11,7 +11,7 @@ class NpcMoveToBlockNode(npcConsumer: NPCProperty, var pos: Vec3) : Node() {
     override fun tick(): Boolean {
         val navigator = npc.navigation
 
-        navigator.moveTo(pos.x, pos.y, pos.z, 1.0);
+        navigator.moveTo(pos.x, pos.y, pos.z, 1.0)
 
         return !(navigator.path != null && navigator.isDone && npc.isOnGround)
     }
@@ -32,7 +32,7 @@ class NpcMoveToEntityNode(npcConsumer: NPCProperty, var target: () -> Entity) : 
     override fun tick(): Boolean {
         val navigator = npc.navigation
 
-        navigator.moveTo(target(), 1.0);
+        navigator.moveTo(target(), 1.0)
 
         return !(navigator.path != null && navigator.isDone && npc.isOnGround)
     }

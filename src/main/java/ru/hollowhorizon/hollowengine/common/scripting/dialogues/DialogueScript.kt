@@ -14,9 +14,7 @@ import kotlin.script.experimental.api.defaultImports
     compilationConfiguration = HollowDialogueConfiguration::class
 )
 abstract class DialogueScript(player: Player) :
-    DialogueScriptBaseV2(ServerDialogueExecutor(player)) {
-
-}
+    DialogueScriptBaseV2(ServerDialogueExecutor(player))
 
 class HollowDialogueConfiguration : AbstractHollowScriptConfiguration({
     defaultImports("ru.hollowhorizon.hollowengine.dialogues.*")
