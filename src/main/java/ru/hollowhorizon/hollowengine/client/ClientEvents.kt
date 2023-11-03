@@ -3,10 +3,13 @@ package ru.hollowhorizon.hollowengine.client
 import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
+import net.minecraft.network.chat.Component
+import net.minecraft.world.item.Item
 import net.minecraftforge.client.event.InputEvent
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent
 import net.minecraftforge.client.event.RenderGuiOverlayEvent
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay
+import net.minecraftforge.event.entity.player.ItemTooltipEvent
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -21,9 +24,12 @@ object ClientEvents {
     const val HS_CATEGORY = "key.categories.mod.hollowengine"
     val OPEN_EVENT_LIST = KeyMapping(keyBindName("event_list"), GLFW.GLFW_KEY_GRAVE_ACCENT, HS_CATEGORY)
     val canceledButtons = hashSetOf<MouseButton>()
+    private val tooltips = HashMap<Item, MutableList<Component>>()
 
-    private fun keyBindName(name: String): String {
-        return java.lang.String.format("key.%s.%s", HollowEngine.MODID, name)
+    private fun keyBindName(name: String) = "key.${HollowEngine.MODID}.$name"
+
+    fun addTooltip(item: Item, tooltip: Component) {
+        tooltips.computeIfAbsent(item) { ArrayList() }.add(tooltip)
     }
 
     @JvmStatic
@@ -31,7 +37,7 @@ object ClientEvents {
         val gui = Minecraft.getInstance().gui
 
         val window = event.window
-        if(event.overlay == VanillaGuiOverlay.HOTBAR.type()) {
+        if (event.overlay == VanillaGuiOverlay.HOTBAR.type()) {
             MouseDriver.draw(
                 gui,
                 event.poseStack,
@@ -44,8 +50,15 @@ object ClientEvents {
     }
 
     @JvmStatic
+    fun onTooltipRender(event: ItemTooltipEvent) {
+        val item = event.itemStack.item
+
+        if (item in tooltips) event.toolTip.addAll(tooltips[item] ?: emptyList())
+    }
+
+    @JvmStatic
     fun onClicked(event: InputEvent.MouseButton.Pre) {
-        if(event.action != 1) return
+        if (event.action != 1) return
 
         val button = MouseButton.from(event.button)
         if (canceledButtons.isNotEmpty()) MouseClickedPacket().send(Container(button))

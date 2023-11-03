@@ -10,8 +10,12 @@ import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
+import net.minecraftforge.network.PacketDistributor
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayType
 import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.common.network.packets.StartAnimationContainer
+import ru.hollowhorizon.hc.common.network.packets.StartOnceAnimationPacket
+import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
@@ -25,7 +29,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
-    operator fun Node.unaryPlus()
+    operator fun <T : Node> T.unaryPlus(): T
 
     fun NPCEntity.Companion.creating(settings: NPCSettings, location: SpawnLocation): NpcDelegate {
         return NpcDelegate(settings, location).apply { manager = stateMachine }
@@ -68,6 +72,22 @@ interface IContextBuilder {
 
     infix fun NPCProperty.play(animation: String) = +SimpleNode {
         this@play().play(animation)
+    }
+
+    infix fun NPCProperty.playOnce(animation: String) = +SimpleNode {
+        val npc = this@playOnce()
+        StartOnceAnimationPacket().send(
+            StartAnimationContainer(npc.id, animation, 10.0f, 1.0f),
+            PacketDistributor.TRACKING_ENTITY.with(this@playOnce)
+        )
+    }
+
+    fun NPCProperty.playOnce(animation: String, priority: Float = 10f, speed: Float = 1.0f) = +SimpleNode {
+        val npc = this@playOnce()
+        StartOnceAnimationPacket().send(
+            StartAnimationContainer(npc.id, animation, priority, speed),
+            PacketDistributor.TRACKING_ENTITY.with(this@playOnce)
+        )
     }
 
     infix fun NPCProperty.stop(animation: String) = +SimpleNode {

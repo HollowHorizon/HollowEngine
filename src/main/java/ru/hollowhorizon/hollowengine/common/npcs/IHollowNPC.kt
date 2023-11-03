@@ -22,12 +22,6 @@ interface IHollowNPC : ICharacter {
         ))
     }
 
-    infix fun playOnce(animation: String) {
-        npcEntity[AnimatedEntityCapability::class].layers.add(AnimationLayer(
-            animation, 1.0f, PlayType.ONCE, 1.0f, 0
-        ))
-    }
-
     fun setTransform(transform: Transform) {
         npcEntity.getCapability(CapabilityStorage.getCapability(AnimatedEntityCapability::class.java))
             .orElseThrow { IllegalStateException("AnimatedEntityCapability not found!") }

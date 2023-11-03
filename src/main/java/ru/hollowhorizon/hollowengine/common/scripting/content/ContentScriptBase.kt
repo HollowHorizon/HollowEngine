@@ -2,20 +2,20 @@ package ru.hollowhorizon.hollowengine.common.scripting.content
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.TagParser
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.tags.TagKey
-import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.crafting.Recipe
 import net.minecraft.world.item.crafting.RecipeManager
 import net.minecraft.world.item.crafting.RecipeType
 import net.minecraftforge.common.crafting.conditions.ICondition
-import net.minecraftforge.registries.ForgeRegistries
+import ru.hollowhorizon.hc.client.utils.isPhysicalClient
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hollowengine.client.ClientEvents
+import ru.hollowhorizon.hollowengine.common.recipes.CraftingTable
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeHelper
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
+import ru.hollowhorizon.hollowengine.common.scripting.item
 
 open class ContentScriptBase(
     val recipes: MutableMap<RecipeType<*>, MutableMap<ResourceLocation, Recipe<*>>>,
@@ -24,6 +24,25 @@ open class ContentScriptBase(
 
     init {
         RecipeHelper.currentScript = this
+
+        CraftingTable.shaped(item("minecraft:apple")) {
+            grid(
+                "oxo",
+                "xox",
+                "oxo"
+            )
+
+            where {
+                'x' - item("minecraft:stick")
+                'o' - item("minecraft:dirt")
+            }
+        }
+
+        item("minecraft:apple").tooltip("Это яблоко, оно вкусное.")
+    }
+
+    fun ItemStack.tooltip(text: String) {
+        if (isPhysicalClient) ClientEvents.addTooltip(this.item, text.mcTranslate)
     }
 
     fun removeById(location: String) {

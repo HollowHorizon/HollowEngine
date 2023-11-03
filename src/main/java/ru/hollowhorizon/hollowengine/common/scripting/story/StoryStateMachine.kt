@@ -49,12 +49,12 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
         }
     }
 
-    override operator fun Node.unaryPlus() {
+    override val stateMachine = this
+    override fun <T : Node> T.unaryPlus(): T {
         this.manager = this@StoryStateMachine
         nodes.add(this)
+        return this
     }
-
-    override val stateMachine = this
 }
 
 

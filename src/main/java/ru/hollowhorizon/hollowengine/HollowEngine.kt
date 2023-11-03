@@ -59,6 +59,7 @@ class HollowEngine {
             forgeBus.addListener(ClientEvents::renderOverlay)
             forgeBus.addListener(ClientEvents::onKeyPressed)
             forgeBus.addListener(ClientEvents::onClicked)
+            forgeBus.addListener(ClientEvents::onTooltipRender)
             MOD_BUS.addListener(::clientInit)
         }
 
