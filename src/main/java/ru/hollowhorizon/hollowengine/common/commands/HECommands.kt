@@ -38,7 +38,9 @@ object HECommands {
                         nbt == null && count > 1 -> "item($location, $count)"
                         nbt == null && count == 1 -> "item($location)"
                         else -> {
-                            "item($location, $count, \"${nbt.toString().replace("\"".toRegex(), "\\\"")}\")"
+                            "item($location, $count, \"${nbt.toString()
+                                .replace("\"", "\\\"")
+                            }\")"
                         }
                     }
                     CopyTextPacket().send(itemCommand, player)
@@ -59,7 +61,7 @@ object HECommands {
                     val script = raw.fromReadablePath()
                     players.forEach { player ->
                         val storyTeam = FTBTeamsAPI.getPlayerTeam(player)
-                        runScript(player.server, storyTeam, script)
+                        runScript(player.server, storyTeam, script, true)
                     }
                     HollowCore.LOGGER.info("Started script $script")
                 }

@@ -16,9 +16,9 @@ import kotlin.script.experimental.api.valueOrThrow
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
 
-fun runScript(server: MinecraftServer, team: Team, file: File) = ScriptContext.scope.async(ScriptContext.scriptContext) {
+fun runScript(server: MinecraftServer, team: Team, file: File, isCommand: Boolean) = ScriptContext.scope.async(ScriptContext.scriptContext) {
     try {
-        val shouldRecompile = ScriptingCompiler.shouldRecompile(file)
+        val shouldRecompile = ScriptingCompiler.shouldRecompile(file) || isCommand
         val story = ScriptingCompiler.compileFile<StoryScript>(file)
 
         val res = story.execute {
