@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs
 
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.resources.ResourceLocation
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.get
@@ -22,6 +23,10 @@ class NpcDelegate(
     var settings: NPCSettings,
     var location: SpawnLocation
 ) : Node(), ReadOnlyProperty<Any?, NPCProperty> {
+    init {
+        assert(ResourceLocation.isValidResourceLocation(settings.model)) { "Invalid model path: ${settings.model}" }
+    }
+
     val npc: NPCEntity by lazy {
         val dimension = manager.server.levelKeys().find { it.location() == location.world.rl }
             ?: throw IllegalStateException("Dimension ${location.world} not found. Or not loaded!")
@@ -38,7 +43,7 @@ class NpcDelegate(
             level.addFreshEntity(this)
         }
 
-        if(!isNpcSpawned) {
+        if (!isNpcSpawned) {
             entity.getCapability(CapabilityStorage.getCapability(AnimatedEntityCapability::class.java)).ifPresent {
                 it.model = settings.model
             }

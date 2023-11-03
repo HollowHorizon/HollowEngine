@@ -12,6 +12,9 @@ import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayType
 import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
+import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueScriptBaseV2
 import ru.hollowhorizon.hollowengine.common.scripting.dialogues.executors.ServerDialogueExecutor
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
@@ -23,6 +26,10 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
     operator fun Node.unaryPlus()
+
+    fun NPCEntity.Companion.creating(settings: NPCSettings, location: SpawnLocation): NpcDelegate {
+        return NpcDelegate(settings, location).apply { manager = stateMachine }
+    }
 
     infix fun NPCProperty.moveTo(pos: Vec3) = +NpcMoveToBlockNode(this, pos)
     infix fun NPCProperty.moveTo(target: () -> Entity) = +NpcMoveToEntityNode(this, target)
@@ -76,7 +83,7 @@ interface IContextBuilder {
 
     infix fun NPCProperty.say(text: String) = say(Component.literal(text))
 
-    fun NPCProperty.despawn(text: String) = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
+    fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
 
     infix fun NPCProperty.dropItem(stack: ItemStack) = +SimpleNode {
         val entity = this@dropItem()
@@ -139,4 +146,12 @@ interface IContextBuilder {
             it.teleportTo(it.getLevel(), pos.x, pos.y, pos.z, it.yHeadRot, it.xRot)
         }
     }
+
+    fun pos(x: Double, y: Double, z: Double) = Vec3(x, y, z)
+    fun pos(x: Int, y: Int, z: Int) = Vec3(x.toDouble() + 0.5, y.toDouble(), z.toDouble() + 0.5)
+    fun vec(x: Int, y: Int) = Vec2(x.toFloat(), y.toFloat())
+    fun vec(x: Float, y: Float) = Vec2(x, y)
+    val Int.sec get() = this * 20
+    val Int.min get() = this * 1200
+    val Int.hours get() = this * 72000
 }

@@ -55,18 +55,6 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
     }
 
     override val stateMachine = this
-
-    fun NPCEntity.Companion.creating(settings: NPCSettings, location: SpawnLocation): NpcDelegate {
-        return NpcDelegate(settings, location).apply { manager = this@StoryStateMachine }
-    }
-
-    fun pos(x: Double, y: Double, z: Double) = Vec3(x, y, z)
-    fun pos(x: Int, y: Int, z: Int) = Vec3(x.toDouble() + 0.5, y.toDouble(), z.toDouble() + 0.5)
-    fun vec(x: Int, y: Int) = Vec2(x.toFloat(), y.toFloat())
-    fun vec(x: Float, y: Float) = Vec2(x, y)
-    val Int.sec get() = this * 20
-    val Int.min get() = this * 1200
-    val Int.hours get() = this * 72000
 }
 
 
