@@ -14,11 +14,13 @@ import net.minecraftforge.event.AddPackFindersEvent
 import net.minecraftforge.event.AddReloadListenerEvent
 import net.minecraftforge.event.RegisterCommandsEvent
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent
+import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.common.Mod
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent
 import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent
 import net.minecraftforge.fml.loading.FMLEnvironment
+import net.minecraftforge.fml.loading.moddiscovery.ModInfo
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.api.registy.HollowMod
 import ru.hollowhorizon.hc.client.render.entity.GLTFEntityRenderer

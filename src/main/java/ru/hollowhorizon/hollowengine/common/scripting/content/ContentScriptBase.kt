@@ -21,24 +21,10 @@ open class ContentScriptBase(
     val recipes: MutableMap<RecipeType<*>, MutableMap<ResourceLocation, Recipe<*>>>,
     val byName: MutableMap<ResourceLocation, Recipe<*>>
 ) {
+    val mods = Mods
 
     init {
         RecipeHelper.currentScript = this
-
-        CraftingTable.shaped(item("minecraft:apple")) {
-            grid(
-                "oxo",
-                "xox",
-                "oxo"
-            )
-
-            where {
-                'x' - item("minecraft:stick")
-                'o' - item("minecraft:dirt")
-            }
-        }
-
-        item("minecraft:apple").tooltip("Это яблоко, оно вкусное.")
     }
 
     fun ItemStack.tooltip(text: String) {
@@ -83,5 +69,11 @@ open class ContentScriptBase(
     fun addRecipe(recipe: Recipe<*>) {
         recipes.computeIfAbsent(recipe.type) { hashMapOf() }[recipe.id] = recipe
         byName[recipe.id] = recipe
+    }
+}
+
+object Mods {
+    operator fun set(modid: String, name: String) {
+        if(isPhysicalClient) ClientEvents.setModName(modid, name)
     }
 }

@@ -10,6 +10,8 @@ import net.minecraftforge.client.event.RegisterKeyMappingsEvent
 import net.minecraftforge.client.event.RenderGuiOverlayEvent
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay
 import net.minecraftforge.event.entity.player.ItemTooltipEvent
+import net.minecraftforge.fml.ModList
+import net.minecraftforge.fml.loading.moddiscovery.ModInfo
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -24,12 +26,40 @@ object ClientEvents {
     const val HS_CATEGORY = "key.categories.mod.hollowengine"
     val OPEN_EVENT_LIST = KeyMapping(keyBindName("event_list"), GLFW.GLFW_KEY_GRAVE_ACCENT, HS_CATEGORY)
     val canceledButtons = hashSetOf<MouseButton>()
-    private val tooltips = HashMap<Item, MutableList<Component>>()
+    private val customTooltips = HashMap<Item, MutableList<Component>>()
+    private val customModNames = HashMap<String, String>()
 
     private fun keyBindName(name: String) = "key.${HollowEngine.MODID}.$name"
 
     fun addTooltip(item: Item, tooltip: Component) {
-        tooltips.computeIfAbsent(item) { ArrayList() }.add(tooltip)
+        customTooltips.computeIfAbsent(item) { ArrayList() }.add(tooltip)
+    }
+
+    fun setModName(modid: String, new: String) {
+        val optionalMod = ModList.get().getModContainerById(modid)
+
+        if(!optionalMod.isPresent) return
+
+        val mod = optionalMod.get().modInfo
+
+        customModNames[modid] = mod.displayName
+
+        val displayNameSetter = ModInfo::class.java.getDeclaredField("displayName")
+
+        displayNameSetter.isAccessible = true
+        displayNameSetter.set(mod, new)
+    }
+
+    fun resetClientScripting() {
+        customTooltips.clear()
+        customModNames.forEach { (modid, original) ->
+            val mod = ModList.get().getModContainerById(modid).get().modInfo
+
+            val displayNameSetter = ModInfo::class.java.getDeclaredField("displayName")
+
+            displayNameSetter.isAccessible = true
+            displayNameSetter.set(mod, original)
+        }
     }
 
     @JvmStatic
@@ -53,7 +83,7 @@ object ClientEvents {
     fun onTooltipRender(event: ItemTooltipEvent) {
         val item = event.itemStack.item
 
-        if (item in tooltips) event.toolTip.addAll(tooltips[item] ?: emptyList())
+        if (item in customTooltips) event.toolTip.addAll(customTooltips[item] ?: emptyList())
     }
 
     @JvmStatic
