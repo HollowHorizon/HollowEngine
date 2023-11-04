@@ -6,6 +6,7 @@ import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.PathfinderMob
 import net.minecraft.world.entity.ai.goal.FloatGoal
+import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
@@ -29,8 +30,9 @@ class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
     }
 
     override fun registerGoals() {
-
+        //targetSelector
         goalSelector.addGoal(0, FloatGoal(this)) //Если NPC решит утонить будет не кайф...
+        goalSelector.addGoal(1, MeleeAttackGoal(this, 1.0, false))
     }
 
     override fun isInvulnerable() = true

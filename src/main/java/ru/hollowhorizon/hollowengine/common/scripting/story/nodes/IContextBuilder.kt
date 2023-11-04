@@ -6,6 +6,7 @@ import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EquipmentSlot
+import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec2
@@ -60,6 +61,14 @@ interface IContextBuilder {
         target.onlineMembers.minByOrNull { it.distanceToSqr(this()) }
     })
 
+
+    infix fun NPCProperty.setTarget(value: (() -> LivingEntity?)?) = +SimpleNode {
+        this@setTarget().target = value?.invoke()
+    }
+
+    infix fun NPCProperty.setTarget(value: Team) = setTarget {
+        stateMachine.team.onlineMembers.minByOrNull { it.distanceToSqr(this()) }
+    }
 
     fun NPCProperty.play(
         animation: String,
