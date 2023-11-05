@@ -61,28 +61,3 @@ fun IContextBuilder.If(condition: () -> Boolean, ifTasks: NodeContextBuilder.() 
 fun IContextBuilder.If(condition: () -> Boolean, ifTasks: NodeContextBuilder.() -> Unit) = +ConditionNode(condition, NodeContextBuilder(this.stateMachine).apply(ifTasks).tasks, ArrayList())
 
 infix fun ConditionNode.Else(tasks: NodeContextBuilder.() -> Unit) = setElseTasks(NodeContextBuilder(manager).apply(tasks).tasks)
-
-fun StoryStateMachine.main2() {
-    val npc by NPCEntity.creating(NPCSettings(), SpawnLocation(pos=pos(1, 2, 3)))
-    var condition by saveable { true }
-
-    If(condition) {
-        condition = { false }
-        async(
-            {
-                While(!condition) {
-                    npc moveTo pos(1, 2, 3)
-
-                    npc moveTo pos(3, 2, 1)
-                }
-            },
-            {
-                While(!condition) {
-                    npc lookAt team
-                }
-            }
-        )
-    } Else {
-        // do something
-    }
-}

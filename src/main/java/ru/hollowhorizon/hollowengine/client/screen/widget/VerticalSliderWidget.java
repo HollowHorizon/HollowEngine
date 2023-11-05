@@ -39,7 +39,7 @@ public class VerticalSliderWidget extends AbstractWidget {
 
         fill(stack, x, y, x + width, y + height, 0x66FFFFFF);
 
-        ScissorUtil.start(
+        ScissorUtil.INSTANCE.push(
                 x + BORDER_WIDTH,
                 y + BORDER_WIDTH,
                 width - BORDER_WIDTH * 2,
@@ -47,7 +47,7 @@ public class VerticalSliderWidget extends AbstractWidget {
 
         fill(stack, x, y, x + width, y + height, 0x33FFFFFF);
 
-        ScissorUtil.stop();
+        ScissorUtil.INSTANCE.pop();
     }
 
     public float getScroll() {

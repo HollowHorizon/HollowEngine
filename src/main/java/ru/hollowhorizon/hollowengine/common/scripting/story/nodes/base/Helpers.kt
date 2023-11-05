@@ -21,7 +21,7 @@ fun CompoundTag.deserializeNodes(name: String, nodes: Collection<Node>) {
     }
 }
 
-class NodeContextBuilder(override val stateMachine: StoryStateMachine) : IContextBuilder {
+open class NodeContextBuilder(override val stateMachine: StoryStateMachine) : IContextBuilder {
     val tasks = ArrayList<Node>()
 
     override operator fun <T: Node> T.unaryPlus(): T {

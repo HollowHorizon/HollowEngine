@@ -20,8 +20,6 @@ import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
-import ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueScriptBaseV2
-import ru.hollowhorizon.hollowengine.common.scripting.dialogues.executors.ServerDialogueExecutor
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.CombinedNode
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.NodeContextBuilder
@@ -112,6 +110,12 @@ interface IContextBuilder {
 
     infix fun NPCProperty.say(text: String) = say(Component.literal(text))
 
+    fun Team.println(text: Component) = +SimpleNode {
+        stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text) }
+    }
+
+    fun println(text: String) = println(Component.literal(text))
+
     fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
 
     infix fun NPCProperty.dropItem(stack: ItemStack) = +SimpleNode {
@@ -142,18 +146,6 @@ interface IContextBuilder {
                     it.random.nextLong()
                 )
             )
-        }
-    }
-
-    fun openDialogue(script: DialogueScriptBaseV2.() -> Unit) = +SimpleNode {
-        stateMachine.team.onlineMembers.forEach { player ->
-            Thread {
-                val executor = ServerDialogueExecutor(player)
-
-                script(DialogueScriptBaseV2(executor))
-
-                executor.stop()
-            }.start()
         }
     }
 

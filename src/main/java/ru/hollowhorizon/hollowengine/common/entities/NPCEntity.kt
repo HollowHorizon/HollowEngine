@@ -30,7 +30,6 @@ class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
     }
 
     override fun registerGoals() {
-        //targetSelector
         goalSelector.addGoal(0, FloatGoal(this)) //Если NPC решит утонить будет не кайф...
         goalSelector.addGoal(1, MeleeAttackGoal(this, 1.0, false))
     }

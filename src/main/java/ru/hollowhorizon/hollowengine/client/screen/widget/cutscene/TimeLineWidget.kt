@@ -17,10 +17,10 @@ class TimeLineWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x, 
 
         if (isHovered && isLeftKeyDown || cursorX == -1) cursorX = mouseX - x
 
-        ScissorUtil.start(x, y, width, height)
+        ScissorUtil.push(x, y, width, height)
         textureManager.bindForSetup("hollowengine:textures/gui/cutscenes/cursor.png".rl)
         blit(stack, x + cursorX - height / 4, y, 0f, 0f, height / 2, height, height / 2, height)
-        ScissorUtil.stop()
+        ScissorUtil.pop()
     }
 
     fun getCursorProgress(): Float {

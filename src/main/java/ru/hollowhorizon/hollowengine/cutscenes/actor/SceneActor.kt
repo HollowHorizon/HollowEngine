@@ -5,7 +5,6 @@ import kotlinx.serialization.Transient
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.level.Level
-import ru.hollowhorizon.hollowengine.common.scripting.dialogues.generateEntityNBT
 import ru.hollowhorizon.hollowengine.cutscenes.actor.animation.ActorAnimation
 
 @Serializable
@@ -28,9 +27,7 @@ class SceneActor(val entity: String) {
     fun init(level: Level) {
         this.level = level
 
-        actorEntity = EntityType.loadEntityRecursive(
-            generateEntityNBT(entity), level
-        ) { it }
+        //actorEntity = EntityType.loadEntityRecursive(generateEntityNBT(entity), level) { it }
     }
 
     fun update(index: Int) {

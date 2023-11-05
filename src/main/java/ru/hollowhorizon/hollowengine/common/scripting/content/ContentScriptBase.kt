@@ -21,7 +21,7 @@ open class ContentScriptBase(
     val recipes: MutableMap<RecipeType<*>, MutableMap<ResourceLocation, Recipe<*>>>,
     val byName: MutableMap<ResourceLocation, Recipe<*>>
 ) {
-    val mods = Mods
+    val mods by lazy { Mods }
 
     init {
         RecipeHelper.currentScript = this

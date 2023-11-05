@@ -37,12 +37,12 @@ class FadeInLabelWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(
 
     override fun renderButton(stack: PoseStack, mouseX: Int, mouseY: Int, ticks: Float) {
         super.renderButton(stack, mouseX, mouseY, ticks)
-        ScissorUtil.start(x, y, animator!!.value, height)
+        ScissorUtil.push(x, y, animator!!.value, height)
         stack.pushPose()
         stack.translate(0.0, 0.0, 500.0)
         font.drawShadow(stack, text, x.toFloat(), y + height / 2f - font.lineHeight / 2f, 0xFFFFFF)
         stack.popPose()
-        ScissorUtil.stop()
+        ScissorUtil.pop()
     }
 
     override fun tick() {

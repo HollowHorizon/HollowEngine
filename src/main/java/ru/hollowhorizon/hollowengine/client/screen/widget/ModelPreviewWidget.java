@@ -279,7 +279,7 @@ public class ModelPreviewWidget extends HollowWidget {
         final var window = MC.getWindow();
         final double guiScale = window.getGuiScale();
         fill(stack, x, y, x + width, y + height, 0x66FFFFFF);
-        ScissorUtil.start(
+        ScissorUtil.INSTANCE.push(
                 x + BORDER_WIDTH,
                 y + BORDER_WIDTH,
                 width - BORDER_WIDTH * 2,
@@ -398,7 +398,7 @@ public class ModelPreviewWidget extends HollowWidget {
 
         buffers.endBatch();
         GL11.glPopMatrix();
-        ScissorUtil.stop();
+        ScissorUtil.INSTANCE.pop();
 
         stack.pushPose();
         stack.translate(0, 0, 1000);

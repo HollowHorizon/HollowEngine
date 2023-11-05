@@ -74,7 +74,7 @@ public class ListWidget extends AbstractWidget {
     public void renderButton(PoseStack stack, int p_230431_2_, int p_230431_3_, float p_230431_4_) {
         fill(stack, x, y, x + width, y + height, 0x66FFFFFF);
 
-        ScissorUtil.start(
+        ScissorUtil.INSTANCE.push(
                 x + BORDER_WIDTH,
                 y + BORDER_WIDTH,
                 width - BORDER_WIDTH * 2,
@@ -85,7 +85,7 @@ public class ListWidget extends AbstractWidget {
             widget.render(stack, p_230431_2_, p_230431_3_, p_230431_4_);
         }
 
-        ScissorUtil.stop();
+        ScissorUtil.INSTANCE.pop();
 
         this.slider.render(stack, p_230431_2_, p_230431_3_, p_230431_4_);
     }
