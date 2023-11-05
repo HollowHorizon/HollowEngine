@@ -4,6 +4,7 @@ import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
 import net.minecraft.sounds.SoundSource
+import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
@@ -66,6 +67,14 @@ interface IContextBuilder {
 
     infix fun NPCProperty.setTarget(value: Team) = setTarget {
         stateMachine.team.onlineMembers.minByOrNull { it.distanceToSqr(this()) }
+    }
+
+    infix fun NPCProperty.giveLeftHand(item: ItemStack?) = +SimpleNode {
+        this@giveLeftHand().setItemInHand(InteractionHand.OFF_HAND, item ?: ItemStack.EMPTY)
+    }
+
+    infix fun NPCProperty.giveRightHand(item: ItemStack?) = +SimpleNode {
+        this@giveRightHand().setItemInHand(InteractionHand.MAIN_HAND, item ?: ItemStack.EMPTY)
     }
 
     fun NPCProperty.play(
