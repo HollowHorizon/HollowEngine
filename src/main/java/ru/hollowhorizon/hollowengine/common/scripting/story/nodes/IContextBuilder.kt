@@ -18,6 +18,8 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationContainer
 import ru.hollowhorizon.hc.common.network.packets.StartOnceAnimationPacket
 import ru.hollowhorizon.hc.common.network.send
+import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenContainer
+import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenPacket
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
@@ -137,6 +139,14 @@ interface IContextBuilder {
 
     fun NPCProperty.equip(slot: EquipmentSlot, item: ItemStack) = +SimpleNode {
         this@equip().setItemSlot(slot, item)
+    }
+
+    fun fadeIn(text: String, subTitle: String, time: Int) = +SimpleNode {
+        OverlayScreenPacket().send(OverlayScreenContainer(true, text, subTitle, time), *stateMachine.team.onlineMembers.toTypedArray())
+    }
+
+    fun fadeOut(text: String, subTitle: String, time: Int) = +SimpleNode {
+        OverlayScreenPacket().send(OverlayScreenContainer(false, text, subTitle, time), *stateMachine.team.onlineMembers.toTypedArray())
     }
 
     fun async(vararg tasks: NodeContextBuilder.() -> Unit) = +CombinedNode(
