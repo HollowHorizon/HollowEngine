@@ -21,7 +21,7 @@ class DialogueTextBox(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x,
     var complete: Boolean
         get() = currentLine >= linesCount
         set(v) {
-            if (v) currentLine = linesCount
+            if (v) currentLine = 99
             else {
                 currentLine = 0
                 animator?.reset()
@@ -29,7 +29,7 @@ class DialogueTextBox(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x,
         }
 
     override fun init() {
-        animator = GuiAnimator.Single(0, width, 1f) { f -> f }
+        animator = GuiAnimator.Single(0, width, 2f) { f -> f }
     }
 
     override fun renderButton(stack: PoseStack, mouseX: Int, mouseY: Int, ticks: Float) {
@@ -43,11 +43,11 @@ class DialogueTextBox(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x,
         stack.pushPose()
         stack.translate(0.0, 0.0, 500.0)
         lines.forEachIndexed { i, line ->
-            val lineWidth = if (i < currentLine) 0
+            val lineWidth = if (i < currentLine) width
             else if (i == currentLine) animator?.value ?: 0
-            else width
+            else 0
 
-            ScissorUtil.push(this.x, this.y + i * font.lineHeight, width - lineWidth, font.lineHeight)
+            ScissorUtil.push(this.x, this.y + i * font.lineHeight, lineWidth, font.lineHeight)
             font.drawShadow(stack, line, this.x.toFloat(), (this.y + i * font.lineHeight).toFloat(), 0xFFFFFF)
             ScissorUtil.pop()
         }

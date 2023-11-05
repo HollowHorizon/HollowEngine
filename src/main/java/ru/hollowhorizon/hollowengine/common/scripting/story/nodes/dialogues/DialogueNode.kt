@@ -14,10 +14,7 @@ import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.Packet
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.screen.DialogueScreen
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
-import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
-import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
@@ -121,7 +118,7 @@ class ChoicesNode(choiceContext: DialogueChoiceContext) : Node() {
     var performedChoice: List<Node>? = null
     var performedChoiceIndex = 0
     var isStarted = false
-    val isEnded get() = index >= (performedChoice?.size ?: -1)
+    val isEnded get() = performedChoice != null && index >= (performedChoice?.size ?: 0)
 
     override fun tick(): Boolean {
         if (!isStarted) {
@@ -192,16 +189,16 @@ class DialogueChoiceContext(val stateMachine: StoryStateMachine) {
         choices.values.firstOrNull()
     }
 
-    fun onTimeout(action: IContextBuilder.() -> Unit) {
-        onTimeout = { NodeContextBuilder(stateMachine).apply(action).tasks }
+    fun onTimeout(action: DialogueContext.() -> Unit) {
+        onTimeout = { DialogueContext(stateMachine).apply(action).tasks }
     }
 
-    fun addChoice(text: Component, tasks: IContextBuilder.() -> Unit) {
-        choices[text] = NodeContextBuilder(stateMachine).apply(tasks).tasks
+    fun addChoice(text: Component, tasks: DialogueContext.() -> Unit) {
+        choices[text] = DialogueContext(stateMachine).apply(tasks).tasks
     }
 
-    operator fun String.invoke(tasks: IContextBuilder.() -> Unit) {
-        choices[this.mcText] = NodeContextBuilder(stateMachine).apply(tasks).tasks
+    operator fun String.invoke(tasks: DialogueContext.() -> Unit) {
+        choices[this.mcText] = DialogueContext(stateMachine).apply(tasks).tasks
     }
 }
 
