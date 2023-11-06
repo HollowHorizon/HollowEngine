@@ -204,7 +204,3 @@ class DialogueChoiceContext(val stateMachine: StoryStateMachine) {
 
 fun IContextBuilder.dialogue(nodes: DialogueContext.() -> Unit) =
     +DialogueNode(DialogueContext(this.stateMachine).apply(nodes).tasks)
-
-fun StoryStateMachine.main() {
-
-}

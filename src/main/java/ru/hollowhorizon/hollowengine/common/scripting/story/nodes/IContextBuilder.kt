@@ -142,26 +142,32 @@ interface IContextBuilder {
     }
 
     fun fadeIn(text: String, subTitle: String, time: Int) = +SimpleNode {
-        OverlayScreenPacket().send(OverlayScreenContainer(true, text, subTitle, time), *stateMachine.team.onlineMembers.toTypedArray())
+        OverlayScreenPacket().send(
+            OverlayScreenContainer(true, text, subTitle, time),
+            *stateMachine.team.onlineMembers.toTypedArray()
+        )
     }
 
     fun fadeOut(text: String, subTitle: String, time: Int) = +SimpleNode {
-        OverlayScreenPacket().send(OverlayScreenContainer(false, text, subTitle, time), *stateMachine.team.onlineMembers.toTypedArray())
+        OverlayScreenPacket().send(
+            OverlayScreenContainer(false, text, subTitle, time),
+            *stateMachine.team.onlineMembers.toTypedArray()
+        )
     }
 
     fun async(vararg tasks: NodeContextBuilder.() -> Unit) = +CombinedNode(
         tasks.flatMap { NodeContextBuilder(this.stateMachine).apply(it).tasks }
     )
 
-    infix fun playSound(sound: String) = +SimpleNode {
+    fun playSound(sound: String, volume: Float = 1.0f, pitch: Float = 1.0f) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach {
             it.connection.send(
                 ClientboundCustomSoundPacket(
                     sound.rl,
                     SoundSource.MASTER,
                     it.position(),
-                    1.0f,
-                    1.0f,
+                    volume,
+                    pitch,
                     it.random.nextLong()
                 )
             )
