@@ -18,8 +18,13 @@ class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.events.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.*",
         "ru.hollowhorizon.hollowengine.common.npcs.*",
         "ru.hollowhorizon.hollowengine.common.entities.NPCEntity",
+        "ru.hollowhorizon.hc.client.models.gltf.animations.PlayType",
         "net.minecraftforge.event.*",
         "net.minecraft.util.math.BlockPos",
         "ru.hollowhorizon.hc.client.utils.*"

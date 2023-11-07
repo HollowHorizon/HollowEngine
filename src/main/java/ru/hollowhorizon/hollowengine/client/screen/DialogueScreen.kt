@@ -5,74 +5,77 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Vector3f
 import net.minecraft.client.Minecraft
+import net.minecraft.network.chat.Component
 import net.minecraft.world.entity.LivingEntity
+import net.minecraftforge.api.distmarker.Dist
+import net.minecraftforge.api.distmarker.OnlyIn
+import net.minecraftforge.common.MinecraftForge
+import net.minecraftforge.network.NetworkDirection
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.util.Alignment
 import ru.hollowhorizon.hc.client.screens.util.WidgetPlacement
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.utils.*
+import ru.hollowhorizon.hc.common.network.HollowPacketV2
+import ru.hollowhorizon.hc.common.network.Packet
+import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.screen.widget.dialogue.DialogueTextBox
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
-import ru.hollowhorizon.hollowengine.common.scripting.dialogues.DialogueScene
+import ru.hollowhorizon.hollowengine.client.utils.getValue
+import ru.hollowhorizon.hollowengine.common.network.Container
+import ru.hollowhorizon.hollowengine.common.network.MouseButton
+import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
+import ru.hollowhorizon.hollowengine.common.scripting.item
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues.ApplyChoiceEvent
 import kotlin.math.atan
 import kotlin.math.pow
 
-class DialogueScreen : HollowScreen("".mcText) {
-    var background: String? = null
-    private val clickWaiter = Object()
-    var textBox: DialogueTextBox? = null
+@HollowPacketV2(NetworkDirection.PLAY_TO_SERVER)
+class OnChoicePerform : Packet<Int>({ player, i ->
+    MinecraftForge.EVENT_BUS.post(ApplyChoiceEvent(player, i))
+})
 
+@OnlyIn(Dist.CLIENT)
+object DialogueScreen : HollowScreen("".mcText) {
+    var background: String? = null
+    var textBox: DialogueTextBox? = null
     var currentName = "".mcText
-    var crystalAnimator = GuiAnimator.Reversed(0, 20, 1.5F) { x ->
+    val crystalAnimator by GuiAnimator.Reversed(0, 20, 1.5F) { x ->
         if (x < 0.5F) 4F * x * x * x
         else 1F - (-2 * x + 2.0).pow(3.0).toFloat() / 2F
     }
-    val exampleEntity = NPCEntity(mc.level!!)
-    private var hasChoice = false
-    private var hasChoiceTicker = 0
-    private var lastCount = 0
-    private var delayTicks = -1
-    companion object {
-        @JvmField var shouldClose = false
-        @JvmField var color: Int = 0xFFFFFFFF.toInt()
-        @JvmField var STATUS_ICON = "hollowengine:gui/dialogues/status.png"
-        @JvmField var OVERLAY = "hollowengine:gui/dialogues/overlay.png"
-        @JvmField var NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
-        @JvmField var CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/choice_button.png"
-        @JvmField val characters = ArrayList<LivingEntity>()
-        @JvmField var currentChoice = 0
-    }
-    private val choiceWaiter = Object()
-    @JvmField
-    val choices = ArrayList<String>()
+    var color: Int = 0xFFFFFFFF.toInt()
+    var STATUS_ICON = "hollowengine:gui/dialogues/status.png"
+    var OVERLAY = "hollowengine:gui/dialogues/overlay.png"
+    var NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
+    var CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/choice_button.png"
+    val characters = ArrayList<LivingEntity>()
+    val choices = ArrayList<Component>()
+
 
     override fun init() {
+        val text = textBox?.text
         this.children().clear()
         this.renderables.clear()
 
-        this.textBox = this.addRenderableWidget(
+        this.textBox = addRenderableWidget(
             WidgetPlacement.configureWidget(
                 ::DialogueTextBox, Alignment.BOTTOM_CENTER, 0, 0, this.width, this.height, 300, 50
             )
         )
+        text?.let {
+            textBox?.text = it
+            textBox?.complete = true
+        }
 
-        for ((i, choice) in choices.withIndex()) {
-
-            this.addRenderableWidget(
+        choices.forEachIndexed { i, choice ->
+            addRenderableWidget(
                 WidgetPlacement.configureWidget(
                     { x, y, w, h ->
-                        BaseButton(x, y, w, h, choice.mcText, {
+                        BaseButton(x, y, w, h, choice, {
                             this@DialogueScreen.init()
-
-                            currentChoice = i
-
-                            synchronized(this@DialogueScreen.choiceWaiter) {
-                                this@DialogueScreen.choiceWaiter.notifyAll()
-                            }
-
-                        }, CHOICE_BUTTON.toRL(), textColor = 0xFFFFFF, textColorHovered = 0xEDC213).apply {
-
-                        }
+                            OnChoicePerform().send(i)
+                        }, CHOICE_BUTTON.rl, textColor = 0xFFFFFF, textColorHovered = 0xEDC213)
                     }, Alignment.CENTER, 0, this.height / 3 - 25 * i, this.width, this.height, 320, 20
                 )
             )
@@ -80,20 +83,7 @@ class DialogueScreen : HollowScreen("".mcText) {
         choices.clear()
     }
 
-    @Suppress("DEPRECATION")
     override fun render(stack: PoseStack, mouseX: Int, mouseY: Int, partialTick: Float) {
-
-        //Я не знаю почему при выборе варианта ответа скипается одно сообщение, но если в этот момент запустить ожидание клика, а после кликнуть, то все работает как надо
-        //Очень странный костыль... Когда-нибудь я разберусь?
-        if (hasChoice) {
-            if (hasChoiceTicker > 10) {
-                notifyClick()
-                hasChoiceTicker = 0
-            } else {
-                hasChoiceTicker++
-            }
-        }
-
         val col = color.toRGBA()
 
         renderBackground(stack)
@@ -103,11 +93,7 @@ class DialogueScreen : HollowScreen("".mcText) {
             blit(stack, 0, 0, 0F, 0F, this.width, this.height, this.width, this.height)
         }
         drawCharacters(mouseX, mouseY)
-        //drawImages(stack)
-
-        RenderSystem.setShaderColor(col.r, col.g, col.b, col.a)
-        drawStatus(stack, partialTick)
-        RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
+        drawStatus(stack, col)
 
         RenderSystem.enableBlend()
         RenderSystem.defaultBlendFunc()
@@ -119,15 +105,6 @@ class DialogueScreen : HollowScreen("".mcText) {
         super.render(stack, mouseX, mouseY, partialTick)
 
         if (this.currentName.string.isNotEmpty()) drawNameBox(stack, col)
-
-        if (shouldClose) onClose()
-
-        if (delayTicks > 0) delayTicks--
-        else if (delayTicks == 0) {
-            delayTicks = -1
-        }
-
-        //drawEntity(100f, 100f, 70f, 100f - mouseX, 100f - this.height * 0.35f - mouseY, exampleEntity, 1.0F)
     }
 
     private fun drawNameBox(stack: PoseStack, col: RGBA) {
@@ -137,82 +114,54 @@ class DialogueScreen : HollowScreen("".mcText) {
         stack.pushPose()
         stack.translate(0.0, 0.0, 700.0)
         bind(NAME_OVERLAY.rl.namespace, NAME_OVERLAY.rl.path)
-        blit(
-            stack,
-            5,
-            this.height - 73,
-            0F,
-            0F,
-            this.font.width(this.currentName) + 10,
-            15,
-            this.font.width(this.currentName) + 10,
-            15
-        )
+        val size = this.font.width(this.currentName) + 10
+        blit(stack, 5, this.height - 73, 0F, 0F, size, 15, size, 15)
         RenderSystem.setShaderColor(1F, 1F, 1F, 1F)
 
-        this.font.drawShadow(
-            stack, this.currentName, 10F, this.height - 60F - font.lineHeight, 0xFFFFFF
-        )
+        this.font.drawShadow(stack, this.currentName, 10F, this.height - 60F - font.lineHeight, 0xFFFFFF)
         stack.popPose()
     }
 
-    private fun drawStatus(stack: PoseStack, partialTick: Float) {
+    private fun drawStatus(stack: PoseStack, col: RGBA) {
         if (this.textBox?.complete == true) {
+            RenderSystem.setShaderColor(col.r, col.g, col.b, col.a)
             bind(STATUS_ICON.rl.namespace, STATUS_ICON.rl.path)
-            blit(stack, this.width - 60 + crystalAnimator.value, this.height - 47, 0F, 0F, 40, 40, 40, 40)
-            crystalAnimator.update(partialTick)
+            blit(stack, this.width - 60 + crystalAnimator, this.height - 47, 0F, 0F, 40, 40, 40, 40)
+            RenderSystem.setShaderColor(1F, 1F, 1F, 1F)
         }
     }
 
 
     private fun drawCharacters(mouseX: Int, mouseY: Int) {
-        val count = characters.size
-        val w = this.width / (count + 1)
+        val w = this.width / (characters.size + 1).toFloat()
+        characters.forEachIndexed { i, entity ->
+            val x = (i + 1) * w
+            val y = this.height * 0.85F
 
-        for (i in 0 until count) {
-            val character = characters[i]
-
-            var x = (i + 1F) * w
-            var y = this.height * 0.85F
-
-            //var scale = if (scene.currentCharacter == character) 72F else 70F
-            //scale *= character.scale
-            //x += character.translate.x
-            //y += character.translate.y
-            //val brightness = if (scene.currentCharacter == character) 1F else 0.5F
-            //character.type.customName = character.mcName
-            drawEntity(
-                x,
-                y,
-                70f,
+            drawEntity(x, y, 70f,
                 x - mouseX,
                 y - this.height * 0.35f - mouseY,
-                character,
-                1.0F
+                entity, 1.0F
             )
         }
-
-        lastCount = count
     }
 
-    override fun mouseClicked(p_231044_1_: Double, p_231044_3_: Double, p_231044_5_: Int): Boolean {
-        if (this.textBox?.complete == true) notifyClick()
-        else this.textBox?.complete = true
-        return super.mouseClicked(p_231044_1_, p_231044_3_, p_231044_5_)
+    override fun mouseClicked(mouseX: Double, mouseY: Double, mouseCode: Int): Boolean {
+        notifyClick()
+        return super.mouseClicked(mouseX, mouseY, mouseCode)
+    }
+
+    override fun keyPressed(pKeyCode: Int, pScanCode: Int, pModifiers: Int): Boolean {
+        when(pKeyCode) {
+            GLFW.GLFW_KEY_ESCAPE -> onClose()
+            GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_ENTER -> notifyClick()
+        }
+        return super.keyPressed(pKeyCode, pScanCode, pModifiers)
     }
 
     fun notifyClick() {
-        //mc.soundManager.play(SimpleSoundInstance.forUI(HSSounds.SLIDER_BUTTON, 1F, 1F))
-
-        synchronized(this.clickWaiter) {
-            this.clickWaiter.notifyAll()
-        }
-    }
-
-    fun waitClick() {
-        synchronized(this.clickWaiter) {
-            this.clickWaiter.wait()
-        }
+        if (this.textBox?.complete == true) MouseClickedPacket().send(Container(MouseButton.LEFT))
+        else this.textBox?.complete = true
     }
 
     @Suppress("DEPRECATION")
@@ -285,25 +234,26 @@ class DialogueScreen : HollowScreen("".mcText) {
         Lighting.setupFor3DItems()
     }
 
-    fun update(scene: DialogueScene) {
-        background = scene.background
-        characters.clear()
-        characters.addAll(scene.characters.map {
-            return@map it.entityType
-        })
-        scene.actions.removeIf {
-            it.call(this)
-            true
-        }
-    }
-
-    fun applyChoices(choices: Collection<String>): Int {
+    fun updateChoices(choices: Collection<Component>) {
         this.choices.addAll(choices)
         init()
-        synchronized(this.choiceWaiter) {
-            this.choiceWaiter.wait()
-        }
-        return currentChoice
+    }
+
+    fun updateText(text: String) {
+        this.textBox?.text = text
+    }
+
+    fun updateName(name: Component) {
+        this.currentName = name
+    }
+
+    fun addEntity(entity: Int) {
+        if(characters.any { it.id == entity }) return
+        Minecraft.getInstance().level?.getEntity(entity)?.let { characters.add(it as LivingEntity) }
+    }
+
+    fun removeEntity(entity: Int) {
+        characters.removeIf { it.id == entity }
     }
 
     override fun isPauseScreen(): Boolean {

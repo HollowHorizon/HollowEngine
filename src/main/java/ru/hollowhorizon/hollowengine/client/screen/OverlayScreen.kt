@@ -1,71 +1,77 @@
 package ru.hollowhorizon.hollowengine.client.screen
 
 import com.mojang.blaze3d.vertex.PoseStack
+import kotlinx.serialization.Serializable
+import net.minecraft.client.Minecraft
+import net.minecraftforge.network.NetworkDirection
+import ru.hollowhorizon.hc.client.handlers.ClientTickHandler
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hc.client.utils.drawCentredScaled
+import ru.hollowhorizon.hc.client.screens.util.Anchor
+import ru.hollowhorizon.hc.client.utils.drawScaled
 import ru.hollowhorizon.hc.client.utils.toSTC
+import ru.hollowhorizon.hc.common.network.HollowPacketV2
+import ru.hollowhorizon.hc.common.network.Packet
 
-class OverlayScreen(val text: String? = null) : HollowScreen("".toSTC()) {
-    private var alpha = 0xFF
+object OverlayScreen : HollowScreen("".toSTC()) {
+    private var text: String = ""
+    var subtitle: String = ""
     private var ticks = 0
     private var maxTicks = 0
     private var fadeType = FadeType.FADE_IN
-    var subTitle: String? = null
 
     override fun render(stack: PoseStack, mouseX: Int, mouseY: Int, particalTick: Float) {
+        var alpha = ((ClientTickHandler.ticks - ticks + particalTick) / maxTicks.toFloat() * 0xFF)
+            .coerceAtMost(255F).toInt()
+
+        if (fadeType == FadeType.FADE_OUT) {
+            alpha = 255 - alpha
+            if (alpha == 0) Minecraft.getInstance().setScreen(null)
+        }
 
         fill(stack, 0, 0, this.width, this.height, ARGB(alpha, 0, 0, 0).toInt())
 
-        if (text != null) font.drawCentredScaled(stack, text.toSTC(), this.width / 2, this.height / 3, 0xFFFFFF, 3.0F)
-        if (subTitle != null) font.drawCentredScaled(
+        if (text.isNotEmpty()) font.drawScaled(
             stack,
-            subTitle!!.toSTC(),
+            Anchor.CENTER,
+            text.toSTC(),
+            this.width / 2,
+            this.height / 3,
+            0xFFFFFF,
+            3.0F
+        )
+        if (subtitle.isNotEmpty()) font.drawScaled(
+            stack, Anchor.CENTER,
+            subtitle.toSTC(),
             this.width / 2,
             this.height / 3 + font.lineHeight * 3,
             0xFFFFFF,
             1.5F
         )
 
-        if (ticks > 0) {
-            when (fadeType) {
-                FadeType.FADE_IN -> {
-                    alpha -= ((maxTicks - ticks) / maxTicks.toFloat() * 0xFF).toInt()
-                    if (alpha <= 0) {
-                        alpha = 0
-                    }
-                    ticks--
-                }
-
-                FadeType.FADE_OUT -> {
-                    alpha += ((maxTicks - ticks) / maxTicks.toFloat() * 0xFF).toInt()
-                    if (alpha >= 0xFF) {
-                        alpha = 0xFF
-                    }
-                    ticks--
-                }
-            }
-        }
-
         super.render(stack, mouseX, mouseY, particalTick)
     }
 
-    fun makeBlack(time: Float) {
-        ticks = (time * 60).toInt()
-        maxTicks = ticks
+    fun makeBlack(text: String, subtitle: String, time: Int) {
+        Minecraft.getInstance().setScreen(this)
 
-        alpha = 0x0
-
-        fadeType = FadeType.FADE_OUT
-    }
-
-    fun makeTransparent(time: Float) {
-        ticks = (time * 60).toInt()
-        maxTicks = ticks
-
-        alpha = 0xFF
-
+        ticks = ClientTickHandler.ticks
+        maxTicks = time
         fadeType = FadeType.FADE_IN
+        this.text = text
+        this.subtitle = subtitle
     }
+
+    fun makeTransparent(text: String, subtitle: String, time: Int) {
+        Minecraft.getInstance().setScreen(this)
+
+        ticks = ClientTickHandler.ticks
+        maxTicks = time
+        fadeType = FadeType.FADE_OUT
+        this.text = text
+        this.subtitle = subtitle
+    }
+
+    override fun shouldCloseOnEsc() = false
 
     override fun isPauseScreen() = false
 
@@ -73,6 +79,20 @@ class OverlayScreen(val text: String? = null) : HollowScreen("".toSTC()) {
         FADE_IN, FADE_OUT
     }
 }
+
+@Serializable
+class OverlayScreenContainer(
+    val fadeIn: Boolean,
+    val text: String,
+    val subtitle: String,
+    val time: Int
+)
+
+@HollowPacketV2(NetworkDirection.PLAY_TO_CLIENT)
+class OverlayScreenPacket : Packet<OverlayScreenContainer>({ player, value ->
+    if (value.fadeIn) OverlayScreen.makeBlack(value.text, value.subtitle, value.time)
+    else OverlayScreen.makeTransparent(value.text, value.subtitle, value.time)
+})
 
 data class ARGB(val a: Int, val r: Int, val g: Int, val b: Int) {
     fun toInt() = (a shl 24) or (r shl 16) or (g shl 8) or b

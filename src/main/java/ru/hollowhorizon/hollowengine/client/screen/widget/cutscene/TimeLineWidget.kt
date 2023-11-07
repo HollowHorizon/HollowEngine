@@ -4,7 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.utils.ScissorUtil
-import ru.hollowhorizon.hc.client.utils.toRL
+import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toSTC
 
 class TimeLineWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x, y, width, height, "".toSTC()) {
@@ -17,10 +17,10 @@ class TimeLineWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x, 
 
         if (isHovered && isLeftKeyDown || cursorX == -1) cursorX = mouseX - x
 
-        ScissorUtil.start(x, y, width, height)
-        textureManager.bindForSetup("hollowengine:textures/gui/cutscenes/cursor.png".toRL())
+        ScissorUtil.push(x, y, width, height)
+        textureManager.bindForSetup("hollowengine:textures/gui/cutscenes/cursor.png".rl)
         blit(stack, x + cursorX - height / 4, y, 0f, 0f, height / 2, height, height / 2, height)
-        ScissorUtil.stop()
+        ScissorUtil.pop()
     }
 
     fun getCursorProgress(): Float {

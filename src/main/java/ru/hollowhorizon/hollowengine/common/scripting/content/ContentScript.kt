@@ -60,6 +60,7 @@ fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
 class ContentScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.recipes.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.*",
         "ru.hollowhorizon.hc.client.utils.*"
     )
 

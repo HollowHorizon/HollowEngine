@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base
 
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 
 class WaitNode(private var time: Int) : Node() {

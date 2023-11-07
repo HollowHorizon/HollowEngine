@@ -2,28 +2,34 @@ package ru.hollowhorizon.hollowengine.common.scripting.content
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.TagParser
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.tags.TagKey
-import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.crafting.Recipe
 import net.minecraft.world.item.crafting.RecipeManager
 import net.minecraft.world.item.crafting.RecipeType
 import net.minecraftforge.common.crafting.conditions.ICondition
-import net.minecraftforge.registries.ForgeRegistries
+import ru.hollowhorizon.hc.client.utils.isPhysicalClient
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hollowengine.client.ClientEvents
+import ru.hollowhorizon.hollowengine.common.recipes.CraftingTable
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeHelper
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
+import ru.hollowhorizon.hollowengine.common.scripting.item
 
 open class ContentScriptBase(
     val recipes: MutableMap<RecipeType<*>, MutableMap<ResourceLocation, Recipe<*>>>,
     val byName: MutableMap<ResourceLocation, Recipe<*>>
 ) {
+    val mods by lazy { Mods }
 
     init {
         RecipeHelper.currentScript = this
+    }
+
+    fun ItemStack.tooltip(text: String): ItemStack {
+        if (isPhysicalClient) ClientEvents.addTooltip(this.item, text.mcTranslate)
+        return this
     }
 
     fun removeById(location: String) {
@@ -65,19 +71,10 @@ open class ContentScriptBase(
         recipes.computeIfAbsent(recipe.type) { hashMapOf() }[recipe.id] = recipe
         byName[recipe.id] = recipe
     }
+}
 
-    fun item(item: String, count: Int = 1, nbt: CompoundTag? = null) = ItemStack(
-        ForgeRegistries.ITEMS.getValue(item.rl) ?: throw IllegalStateException("Item $item not found!"),
-        count,
-        nbt
-    )
-
-    fun item(item: String, count: Int = 1, nbt: String): ItemStack {
-        return item(item, count, TagParser.parseTag(nbt))
-    }
-
-    fun tag(tag: String): TagKey<Item> {
-        val manager = ForgeRegistries.ITEMS.tags() ?: throw IllegalStateException("Tag $tag not found!")
-        return manager.createTagKey(tag.rl)
+object Mods {
+    operator fun set(modid: String, name: String) {
+        if(isPhysicalClient) ClientEvents.setModName(modid, name)
     }
 }

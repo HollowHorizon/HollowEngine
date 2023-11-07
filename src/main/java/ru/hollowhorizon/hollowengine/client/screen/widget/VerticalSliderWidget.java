@@ -4,13 +4,13 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.util.Mth;
 import ru.hollowhorizon.hc.client.utils.ScissorUtil;
 
 import java.util.function.Consumer;
 
 import static ru.hollowhorizon.hollowengine.client.screen.widget.ModelPreviewWidget.BORDER_WIDTH;
-import static ru.hollowhorizon.hollowengine.common.TextHelperKt.literal;
 
 public class VerticalSliderWidget extends AbstractWidget {
     private final int maxHeight;
@@ -19,7 +19,7 @@ public class VerticalSliderWidget extends AbstractWidget {
     private Consumer<Float> consumer;
 
     public VerticalSliderWidget(int x, int y, int w, int h) {
-        super(x, y, w, h, literal(""));
+        super(x, y, w, h, new TextComponent(""));
 
         this.maxHeight = this.height - 30;
         yHeight = this.y + 30;
@@ -40,7 +40,7 @@ public class VerticalSliderWidget extends AbstractWidget {
 
         fill(stack, x, y, x + width, y + height, 0x66FFFFFF);
 
-        ScissorUtil.start(
+        ScissorUtil.INSTANCE.push(
                 x + BORDER_WIDTH,
                 y + BORDER_WIDTH,
                 width - BORDER_WIDTH * 2,
@@ -48,7 +48,7 @@ public class VerticalSliderWidget extends AbstractWidget {
 
         fill(stack, x, y, x + width, y + height, 0x33FFFFFF);
 
-        ScissorUtil.stop();
+        ScissorUtil.INSTANCE.pop();
     }
 
     public float getScroll() {

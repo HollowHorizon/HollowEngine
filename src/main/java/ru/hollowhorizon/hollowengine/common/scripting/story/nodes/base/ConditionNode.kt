@@ -1,13 +1,18 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base
 
 import net.minecraft.nbt.CompoundTag
+import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
+import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
+import ru.hollowhorizon.hollowengine.common.scripting.story.saveable
 
 class ConditionNode(
     private var condition: () -> Boolean,
     private val ifTasks: List<Node>,
-    private val elseTasks: List<Node>
+    private val elseTasks: MutableList<Node>
 ) : Node() {
     var initialCondition: Boolean? = null
     var index = 0
@@ -15,6 +20,12 @@ class ConditionNode(
 
     init {
         ifTasks.forEach { it.parent = this }
+        elseTasks.forEach { it.parent = this }
+    }
+
+    fun setElseTasks(tasks: List<Node>) {
+        elseTasks.clear()
+        elseTasks.addAll(tasks)
         elseTasks.forEach { it.parent = this }
     }
 
@@ -46,3 +57,7 @@ class ConditionNode(
 }
 
 fun IContextBuilder.If(condition: () -> Boolean, ifTasks: NodeContextBuilder.() -> Unit, elseTasks: NodeContextBuilder.() -> Unit) = +ConditionNode(condition, NodeContextBuilder(this.stateMachine).apply(ifTasks).tasks, NodeContextBuilder(this.stateMachine).apply(elseTasks).tasks)
+
+fun IContextBuilder.If(condition: () -> Boolean, ifTasks: NodeContextBuilder.() -> Unit) = +ConditionNode(condition, NodeContextBuilder(this.stateMachine).apply(ifTasks).tasks, ArrayList())
+
+infix fun ConditionNode.Else(tasks: NodeContextBuilder.() -> Unit) = setElseTasks(NodeContextBuilder(manager).apply(tasks).tasks)

@@ -9,7 +9,6 @@ import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.story.coroutines.ScriptContext
-import ru.hollowhorizon.hollowengine.common.sendMessage
 import java.io.File
 import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.api.valueOrNull
@@ -17,8 +16,9 @@ import kotlin.script.experimental.api.valueOrThrow
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
 
-fun runScript(server: MinecraftServer, team: Team, file: File) = ScriptContext.scope.async(ScriptContext.scriptContext) {
+fun runScript(server: MinecraftServer, team: Team, file: File, isCommand: Boolean = false) = ScriptContext.scope.async(ScriptContext.scriptContext) {
     try {
+        val shouldRecompile = ScriptingCompiler.shouldRecompile(file) || isCommand
         val story = ScriptingCompiler.compileFile<StoryScript>(file)
 
         val res = story.execute {
@@ -28,19 +28,19 @@ fun runScript(server: MinecraftServer, team: Team, file: File) = ScriptContext.s
             }
         }
 
-        res.reports.forEach {
-            it.render().lines().forEach { line ->
-                team.onlineMembers.forEach { it.sendMessage("§c[ERROR]§r $line".mcText) }
+        res.reports.forEach { x ->
+            x.render().lines().forEach { line ->
+                team.onlineMembers.forEach { it.sendMessage("§c[ERROR]§r $line".mcText, it.uuid) }
             }
         }
 
         val resScript = res.valueOrThrow().returnValue.scriptInstance as StoryStateMachine
-        StoryHandler.addStoryEvent(file.toReadablePath(), resScript)
+        StoryHandler.addStoryEvent(file.toReadablePath(), resScript, shouldRecompile)
     } catch (e: Exception) {
         team.onlineMembers.forEach {
-            it.sendMessage("§cError while executing event \"${file.toReadablePath()}\".".mcText)
-            it.sendMessage("${e.message}".mcText)
-            it.sendMessage("§eCheck logs for more details.".mcText)
+            it.sendMessage("§cError while executing event \"${file.toReadablePath()}\".".mcText, it.uuid)
+            it.sendMessage("${e.message}".mcText, it.uuid)
+            it.sendMessage("§eCheck logs for more details.".mcText, it.uuid)
         }
         HollowCore.LOGGER.error("Error while executing event \"${file.toReadablePath()}\"", e)
     }

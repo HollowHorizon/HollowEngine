@@ -2,14 +2,20 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base
 
 import net.minecraft.nbt.CompoundTag
 import net.minecraftforge.common.MinecraftForge
+import net.minecraftforge.event.ServerChatEvent
 import net.minecraftforge.eventbus.api.Event
 import net.minecraftforge.eventbus.api.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.scripting.story.ForgeEvent
+import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
+import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
+import kotlin.properties.ReadWriteProperty
+import kotlin.reflect.KProperty
 
-class ForgeEventNode<T: Event>(private val type: Class<T>, val action: (T) -> Boolean): Node() {
-    var isStarted = false
-    var isEnded = false
+open class ForgeEventNode<T : Event>(private val type: Class<T>, open val action: (T) -> Boolean) : Node() {
+    private var isStarted = false
+    private var isEnded = false
 
     @SubscribeEvent
     fun onEvent(event: T) {
@@ -17,7 +23,7 @@ class ForgeEventNode<T: Event>(private val type: Class<T>, val action: (T) -> Bo
 
         if (!etype.isAssignableFrom(type)) return
 
-        if(action(event)) {
+        if (action(event)) {
             isEnded = true
             MinecraftForge.EVENT_BUS.unregister(this)
         }
@@ -28,11 +34,12 @@ class ForgeEventNode<T: Event>(private val type: Class<T>, val action: (T) -> Bo
             isStarted = true
             MinecraftForge.EVENT_BUS.register(this)
         }
-        return isEnded
+        return !isEnded
     }
 
     override fun serializeNBT() = CompoundTag()
     override fun deserializeNBT(nbt: CompoundTag) = Unit
 }
 
-inline fun <reified T : Event> IContextBuilder.waitForgeEvent(noinline function: (T) -> Boolean) = +ForgeEventNode(T::class.java, function)
+inline fun <reified T : Event> IContextBuilder.waitForgeEvent(noinline function: (T) -> Boolean) =
+    +ForgeEventNode(T::class.java, function)

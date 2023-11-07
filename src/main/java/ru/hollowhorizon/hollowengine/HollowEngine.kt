@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine
 
+import dev.ftb.mods.ftbteams.api.event.TeamEvent
+import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.repository.Pack
@@ -13,12 +15,13 @@ import net.minecraftforge.event.AddPackFindersEvent
 import net.minecraftforge.event.AddReloadListenerEvent
 import net.minecraftforge.event.RegisterCommandsEvent
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent
+import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.common.Mod
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent
 import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext
 import net.minecraftforge.fml.loading.FMLEnvironment
+import net.minecraftforge.fml.loading.moddiscovery.ModInfo
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.api.registy.HollowMod
 import ru.hollowhorizon.hc.client.render.entity.GLTFEntityRenderer
@@ -32,12 +35,11 @@ import ru.hollowhorizon.hollowengine.common.data.HollowStoryPack
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getModScripts
-import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
-import ru.hollowhorizon.hollowengine.common.npcs.NPCStorage
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
 import ru.hollowhorizon.hollowengine.common.registry.ModDimensions
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.scripting.mod.runModScript
+import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
 @HollowMod(HollowEngine.MODID)
 @Mod(HollowEngine.MODID)
@@ -46,28 +48,31 @@ class HollowEngine {
         HollowModProcessor.initMod()
         getModScripts().forEach(::runModScript)
         val forgeBus = MinecraftForge.EVENT_BUS
-        val modBus = FMLJavaModLoadingContext.get().modEventBus
         HollowCore.LOGGER.info("HollowEngine mod loading...")
-        forgeBus.addListener { event: RegisterCommandsEvent -> registerCommands(event) }
+        forgeBus.addListener(::registerCommands)
         forgeBus.addListener(this::addReloadListenerEvent)
         forgeBus.addListener(StoryHandler::onPlayerJoin)
-        forgeBus.addListener(StoryHandler::onPlayerTick)
-        forgeBus.addListener(StoryHandler::onPlayerClone)
-        modBus.addListener(this::setup)
-        modBus.addListener(this::onAttributeCreation)
-        modBus.addListener(this::onLoadingComplete)
+        forgeBus.addListener(StoryHandler::onServerTick)
+        forgeBus.addListener(StoryHandler::onServerShutdown)
+        forgeBus.addListener(StoryHandler::onWorldSave)
+        MOD_BUS.addListener(::setup)
+        MOD_BUS.addListener(::onAttributeCreation)
+        MOD_BUS.addListener(::onLoadingComplete)
         if (FMLEnvironment.dist.isClient) {
             forgeBus.addListener(ClientEvents::renderOverlay)
             forgeBus.addListener(ClientEvents::onKeyPressed)
             forgeBus.addListener(ClientEvents::onClicked)
-            modBus.addListener { event: FMLClientSetupEvent -> clientInit(event) }
+            forgeBus.addListener(ClientEvents::onTooltipRender)
+            MOD_BUS.addListener(::clientInit)
         }
 
-        modBus.addListener(this::entityRenderers)
-        modBus.addListener(this::registerPacks)
-        ModDimensions.CHUNK_GENERATORS.register(modBus)
-        ModDimensions.DIMENSIONS.register(modBus)
+        MOD_BUS.addListener(this::entityRenderers)
+        MOD_BUS.addListener(this::registerPacks)
+        ModDimensions.CHUNK_GENERATORS.register(MOD_BUS)
+        ModDimensions.DIMENSIONS.register(MOD_BUS)
         RegistryLoader.registerAll()
+        //ModDimensions
+        TeamEvent.LOADED.register(StoryHandler::onTeamLoaded)
     }
 
     fun registerPacks(event: AddPackFindersEvent) {
@@ -98,7 +103,6 @@ class HollowEngine {
 
     private fun setup(event: FMLCommonSetupEvent) {
         DirectoryManager.init()
-        NPCStorage.addNPC("Монстр", NPCSettings())
     }
 
     private fun onLoadingComplete(event: FMLLoadCompleteEvent) {}

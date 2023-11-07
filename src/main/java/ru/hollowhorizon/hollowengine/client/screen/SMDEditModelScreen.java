@@ -46,13 +46,13 @@ public class SMDEditModelScreen extends HollowScreen {
         if (fullscreenness < 1.0F) {
             final boolean shouldScissor = fullscreenness > 0.0F;
             if (shouldScissor) {
-                ScissorUtil.start(0, 0, width - preview.getWidth(), height);
+                ScissorUtil.INSTANCE.push(0, 0, width - preview.getWidth(), height);
             }
 
             super.render(stack, mouseX, mouseY, partialTicks);
 
             if (shouldScissor) {
-                ScissorUtil.stop();
+                ScissorUtil.INSTANCE.pop();
             }
         }
     }

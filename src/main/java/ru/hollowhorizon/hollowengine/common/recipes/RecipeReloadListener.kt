@@ -3,9 +3,12 @@ package ru.hollowhorizon.hollowengine.common.recipes
 import net.minecraft.server.ReloadableServerResources
 import net.minecraft.server.packs.resources.ResourceManager
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
+import ru.hollowhorizon.hc.client.utils.isPhysicalClient
+import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.content.runContentScript
 import ru.hollowhorizon.hollowengine.mixins.RecipeManagerAccessor
+
 
 object RecipeReloadListener : ResourceManagerReloadListener {
     var resources: ReloadableServerResources? = null
@@ -14,6 +17,8 @@ object RecipeReloadListener : ResourceManagerReloadListener {
         val recipeManager = resources?.recipeManager ?: return
 
         RecipeHelper.latestId = 0
+        if(isPhysicalClient) ClientEvents.resetClientScripting()
+
         DirectoryManager.getContentScripts().forEach {
             runContentScript(recipeManager as RecipeManagerAccessor, it)
         }
