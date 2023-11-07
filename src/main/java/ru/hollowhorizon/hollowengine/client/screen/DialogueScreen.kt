@@ -49,7 +49,7 @@ object DialogueScreen : HollowScreen("".mcText) {
     var OVERLAY = "hollowengine:gui/dialogues/overlay.png"
     var NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
     var CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/choice_button.png"
-    val characters = ArrayList<LivingEntity>()
+    val characters = LinkedHashSet<LivingEntity>()
     val choices = ArrayList<Component>()
 
 
@@ -249,7 +249,7 @@ object DialogueScreen : HollowScreen("".mcText) {
 
     fun addEntity(entity: Int) {
         if(characters.any { it.id == entity }) return
-        Minecraft.getInstance().level?.getEntity(entity)?.let { characters.add(it as LivingEntity) }
+        Minecraft.getInstance().level?.getEntity(entity)?.let { characters += it as LivingEntity }
     }
 
     fun removeEntity(entity: Int) {
