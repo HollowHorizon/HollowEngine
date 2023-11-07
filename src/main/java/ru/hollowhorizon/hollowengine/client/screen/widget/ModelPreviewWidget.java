@@ -7,15 +7,16 @@ import com.mojang.math.Vector3f;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
+import net.minecraftforge.client.model.data.EmptyModelData;
 import org.lwjgl.opengl.GL11;
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget;
 import ru.hollowhorizon.hc.client.utils.ScissorUtil;
@@ -25,7 +26,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
-import static ru.hollowhorizon.hollowengine.common.TextHelperKt.literal;
 
 public class ModelPreviewWidget extends HollowWidget {
     protected static final int BORDER_WIDTH = 2;
@@ -67,7 +67,7 @@ public class ModelPreviewWidget extends HollowWidget {
             int height,
             int pwidth,
             int pheight) {
-        super(x, y, width, height, literal("Model Preview"));
+        super(x, y, width, height, new TextComponent("Model Preview"));
         this.originalX = x;
         this.originalY = y;
         this.originalWidth = width;
@@ -89,7 +89,7 @@ public class ModelPreviewWidget extends HollowWidget {
                         BUTTON_SIZE,
                         b -> this.resetPreview(),
                         tooltip,
-                        literal("Сбросить предпросмотр")
+                        new TextComponent("Сбросить предпросмотр")
                 );
         this.buttons.add(resetButton);
         fullscreenButton =
@@ -100,19 +100,19 @@ public class ModelPreviewWidget extends HollowWidget {
                             fullscreen = !fullscreen;
                         },
                         tooltip,
-                        literal("Полноэкранный Режим"));
+                        new TextComponent("Полноэкранный Режим"));
         bottomButtons =
                 new IconButton[]{
                         this.makeButton(
                                 4,
                                 b -> doTurntable = !doTurntable,
                                 tooltip,
-                                literal("Поворачивать Модель")),
+                                new TextComponent("Поворачивать Модель")),
                         this.makeButton(
                                 3,
                                 b -> renderFloor = !renderFloor,
                                 tooltip,
-                                literal("Отображать Землю")),
+                                new TextComponent("Отображать Землю")),
                         this.addButton(
                                 new PlayerIconButton(
                                         0,
@@ -120,12 +120,12 @@ public class ModelPreviewWidget extends HollowWidget {
                                         MC.getUser().getGameProfile(),
                                         b -> showPlayer = !showPlayer,
                                         tooltip,
-                                        literal("Отображать Игрока"))),
+                                        new TextComponent("Отображать Игрока"))),
                         this.makeButton(
                                 2,
                                 b -> renderBoundingBoxes = !renderBoundingBoxes,
                                 tooltip,
-                                literal("Отображать Хитбоксы"))
+                                new TextComponent("Отображать Хитбоксы"))
                 };
         title =
                 new LabelWidget(
@@ -333,7 +333,8 @@ public class ModelPreviewWidget extends HollowWidget {
                             entityPS,
                             buffers,
                             0xF000F0,
-                            OverlayTexture.NO_OVERLAY);
+                            OverlayTexture.NO_OVERLAY,
+                            EmptyModelData.INSTANCE);
             entityPS.popPose();
         }
         // Render the preview puppet
@@ -368,7 +369,8 @@ public class ModelPreviewWidget extends HollowWidget {
                                 entityPS,
                                 buffers,
                                 0xF000F0,
-                                OverlayTexture.NO_OVERLAY);
+                                OverlayTexture.NO_OVERLAY,
+                                EmptyModelData.INSTANCE);
                 entityPS.popPose();
             }
             dispatcher.setRenderHitBoxes(false);

@@ -7,14 +7,13 @@ import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextComponent;
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static ru.hollowhorizon.hollowengine.common.TextHelperKt.empty;
 
 public class LabelWidget extends HollowWidget {
     public final Font font;
@@ -42,7 +41,7 @@ public class LabelWidget extends HollowWidget {
             AnchorX anchorX,
             AnchorY anchorY,
             List<? extends FormattedText> texts) {
-        super(x, y, 0, 0, empty());
+        super(x, y, 0, 0, new TextComponent(""));
         this.font = font;
         this.anchorX = anchorX;
         this.anchorY = anchorY;

@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting
 
-import dev.ftb.mods.ftbteams.data.Team
+import dev.ftb.mods.ftbteams.api.Team
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.TagParser
 import net.minecraft.tags.TagKey

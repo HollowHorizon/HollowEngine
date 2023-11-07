@@ -58,11 +58,12 @@ fun IContextBuilder.send(text: Component) = +SimpleNode {
 fun IContextBuilder.startScript(text: String) = +SimpleNode {
     val file = text.fromReadablePath()
     if (!file.exists()) manager.team.onlineMembers.forEach {
-        it.sendSystemMessage(
-            Component.translatable(
+        it.sendMessage(
+            TranslatableComponent(
                 "hollowengine.scripting.story.script_not_found",
                 file.absolutePath
-            )
+            ),
+            it.uuid
         )
     }
 

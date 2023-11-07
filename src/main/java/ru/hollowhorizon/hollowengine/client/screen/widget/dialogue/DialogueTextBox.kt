@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget.dialogue
 
+import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.utils.GuiAnimator

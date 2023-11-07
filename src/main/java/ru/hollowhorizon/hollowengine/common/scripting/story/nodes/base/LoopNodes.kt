@@ -16,11 +16,12 @@ open class WhileNode(protected val condition: () -> Boolean, val tasks: List<Nod
 
     override fun tick(): Boolean {
         if (!tasks[index].tick()) index++
+
         if (index >= tasks.size) {
             index = 0
             initialData.deserializeNodes("nodes", tasks)
         }
-
+        
         return condition()
     }
 

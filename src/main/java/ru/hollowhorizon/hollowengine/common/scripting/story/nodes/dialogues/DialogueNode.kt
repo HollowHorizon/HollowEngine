@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues
 
-import dev.ftb.mods.ftbteams.data.Team
+import dev.ftb.mods.ftbteams.api.Team
 import kotlinx.serialization.Serializable
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
@@ -167,7 +167,7 @@ class ChoicesNode(choiceContext: DialogueChoiceContext) : Node() {
 
     @SubscribeEvent
     fun onChoice(event: ApplyChoiceEvent) {
-        if (manager.team.isMember(event.player.uuid)) {
+        if (manager.team.members.contains(event.player.uuid)) {
             performedChoice = choices.values.filterIndexed { index, _ -> index == event.choice }.firstOrNull()
             performedChoiceIndex = event.choice
             MinecraftForge.EVENT_BUS.unregister(this)

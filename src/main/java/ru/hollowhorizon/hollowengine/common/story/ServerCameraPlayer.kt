@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.common.story
 
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
-import net.minecraftforge.client.event.EntityViewRenderEvent .CameraSetup
+import net.minecraftforge.client.event.EntityViewRenderEvent.CameraSetup
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import ru.hollowhorizon.hc.HollowCore

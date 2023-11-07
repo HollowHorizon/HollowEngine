@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
-import dev.ftb.mods.ftbteams.data.Team
+import dev.ftb.mods.ftbteams.api.Team
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Registry
 import net.minecraft.nbt.StringTag

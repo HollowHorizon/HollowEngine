@@ -14,6 +14,7 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeHelper
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
+import ru.hollowhorizon.hollowengine.common.scripting.item
 
 open class ContentScriptBase(
     val recipes: MutableMap<RecipeType<*>, MutableMap<ResourceLocation, Recipe<*>>>,

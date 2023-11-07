@@ -3,10 +3,15 @@ package ru.hollowhorizon.hollowengine.client
 import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
+import net.minecraft.network.chat.Component
+import net.minecraft.world.item.Item
 import net.minecraftforge.client.ClientRegistry
 import net.minecraftforge.client.event.InputEvent
 import net.minecraftforge.client.event.RenderGameOverlayEvent
 import net.minecraftforge.client.gui.ForgeIngameGui
+import net.minecraftforge.event.entity.player.ItemTooltipEvent
+import net.minecraftforge.fml.ModList
+import net.minecraftforge.fml.loading.moddiscovery.ModInfo
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -61,7 +66,7 @@ object ClientEvents {
         val gui = Minecraft.getInstance().gui
 
         val window = event.window
-        if(event.type == ForgeIngameGui.HOTBAR_ELEMENT) {
+        if (event.type == ForgeIngameGui.HOTBAR_ELEMENT) {
             MouseDriver.draw(
                 gui,
                 event.matrixStack,
