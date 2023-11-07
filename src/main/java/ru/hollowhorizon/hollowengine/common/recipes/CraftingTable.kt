@@ -15,13 +15,13 @@ class CraftingTable(val isShapeless: Boolean = false) {
 
     companion object {
         fun shaped(item: ItemStack, group: String = "", craft: CraftingTable.() -> Unit) {
-            val craft = CraftingTable().apply(craft)
-            val grid = craft.grid.grid
+            val appliedCraft = CraftingTable().apply(craft)
+            val grid = appliedCraft.grid.grid
             val width = grid.maxBy { it.length }.length
             val height = grid.size
 
             val recipe =
-                ShapedRecipe(RecipeHelper.createRecipeId(), group, width, height, craft.context.assembly(), item)
+                ShapedRecipe(RecipeHelper.createRecipeId(), group, width, height, appliedCraft.context.assembly(), item)
             RecipeHelper.currentScript?.addRecipe(recipe)
         }
 

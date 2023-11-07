@@ -115,4 +115,4 @@ run/
 
 # Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
 !gradle-wrapper.jar
-!hc/hc-1.1.0.jar
+!hc/**
