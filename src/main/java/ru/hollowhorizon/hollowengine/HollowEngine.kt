@@ -5,10 +5,13 @@ import net.minecraft.network.chat.Component
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.repository.Pack
 import net.minecraft.server.packs.repository.PackSource
+import net.minecraft.world.entity.Mob
+import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.monster.Zombie
 import net.minecraftforge.api.distmarker.Dist
 import net.minecraftforge.api.distmarker.OnlyIn
 import net.minecraftforge.client.event.EntityRenderersEvent
+import net.minecraftforge.common.ForgeMod
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.event.AddPackFindersEvent
 import net.minecraftforge.event.AddReloadListenerEvent
@@ -106,7 +109,11 @@ class HollowEngine {
 
     private fun onLoadingComplete(event: FMLLoadCompleteEvent) {}
     private fun onAttributeCreation(event: EntityAttributeCreationEvent) {
-        event.put(ModEntities.NPC_ENTITY.get(), Zombie.createAttributes().build())
+        event.put(ModEntities.NPC_ENTITY.get(), Mob.createMobAttributes().apply {
+            add(Attributes.ATTACK_DAMAGE, 0.2)
+            add(Attributes.MOVEMENT_SPEED, 0.2)
+            add(ForgeMod.STEP_HEIGHT_ADDITION.get(), 1.25)
+        }.build())
     }
 
     private fun registerCommands(event: RegisterCommandsEvent) {
