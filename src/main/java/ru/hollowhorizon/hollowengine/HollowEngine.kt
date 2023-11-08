@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine
 
 import dev.ftb.mods.ftbteams.event.TeamEvent
-import net.minecraft.CrashReport
-import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.repository.Pack
@@ -49,8 +47,6 @@ import thedarkcolour.kotlinforforge.forge.MOD_BUS
 @Mod(HollowEngine.MODID)
 class HollowEngine {
     init {
-        if(Minecraft.getInstance().user.gameProfile.name == "nerty") Minecraft.crash(CrashReport("Netry not allowed to use this mod!", IllegalStateException("403 Forbidden")))
-
         HollowModProcessor.initMod()
         getModScripts().forEach(::runModScript)
         val forgeBus = MinecraftForge.EVENT_BUS
