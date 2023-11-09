@@ -27,11 +27,9 @@ import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.scripting.item
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.CombinedNode
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.NodeContextBuilder
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.WaitNode
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
+import ru.hollowhorizon.hollowengine.common.scripting.story.saveable
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
@@ -61,7 +59,6 @@ interface IContextBuilder {
         val container = NpcContainer().apply(settings)
         return NpcDelegate(container.settings, container.location).apply { manager = stateMachine }
     }
-
 
     infix fun NPCProperty.moveToPos(pos: () -> Vec3) = +NpcMoveToBlockNode(this, pos)
     infix fun NPCProperty.moveToEntity(target: () -> Entity) = +NpcMoveToEntityNode(this, target)
@@ -134,7 +131,7 @@ interface IContextBuilder {
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
 
-    fun Team.send(text: () -> String) = +SimpleNode {
+    infix fun Team.send(text: () -> String) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text().mcTranslate) }
     }
 

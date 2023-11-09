@@ -16,11 +16,12 @@ abstract class StoryScript(server: MinecraftServer, team: Team) : StoryStateMach
 
 class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
-        "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.events.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.camera.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues.*",
-        "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.*",
         "ru.hollowhorizon.hollowengine.common.scripting.*",
         "ru.hollowhorizon.hollowengine.common.npcs.*",
