@@ -58,6 +58,13 @@ interface IContextBuilder {
         return NpcDelegate(container.settings, container.location).apply { manager = stateMachine }
     }
 
+    // Не думаю, что всем нужно, чтобы НПС отображался с ником над головой
+    fun NPCEntity.Companion.createNoDisplay(settings: NPCSettings, location: SpawnLocation): NpcDelegate {
+        val delegate = this.creating(settings, location)
+        delegate.npc.isCustomNameVisible = false
+        return delegate
+    }
+
     infix fun NPCProperty.moveToPos(pos: () -> Vec3) = +NpcMoveToBlockNode(this, pos)
     infix fun NPCProperty.moveToEntity(target: () -> Entity) = +NpcMoveToEntityNode(this, target)
     infix fun NPCProperty.moveToTeam(target: () -> Team) = +NpcMoveToTeamNode(this, target)
