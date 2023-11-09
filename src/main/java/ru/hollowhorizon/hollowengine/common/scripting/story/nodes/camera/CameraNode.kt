@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.camera
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hc.common.network.send
+import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenPacket
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.WaitNode
 import ru.hollowhorizon.hollowengine.common.story.*
@@ -26,6 +27,7 @@ fun IContextBuilder.createCameraPath(body: CameraPath.() -> Unit) {
         val path = CameraPath().apply(body)
         stateMachine.team.onlineMembers.forEach {
             StartCameraPlayerPacket().send(Container(CameraPlayer(*path.cameraNodes.toTypedArray()).serializeNBT()), it)
+            OverlayScreenPacket().send(true, it)
         }
         path.time
     }
@@ -33,6 +35,11 @@ fun IContextBuilder.createCameraPath(body: CameraPath.() -> Unit) {
         val path = CameraPath().apply(body)
         val node = path.cameraNodes.last().second
         node.lastPos.toVec3()
+    }
+    +ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode {
+        stateMachine.team.onlineMembers.forEach {
+            OverlayScreenPacket().send(false, it)
+        }
     }
 }
 

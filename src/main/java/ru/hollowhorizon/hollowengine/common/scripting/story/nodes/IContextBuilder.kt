@@ -7,7 +7,6 @@ import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.Entity
-import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
@@ -21,7 +20,7 @@ import ru.hollowhorizon.hc.common.network.packets.StartAnimationContainer
 import ru.hollowhorizon.hc.common.network.packets.StartOnceAnimationPacket
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenContainer
-import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenPacket
+import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
@@ -29,7 +28,6 @@ import ru.hollowhorizon.hollowengine.common.scripting.item
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
-import ru.hollowhorizon.hollowengine.common.scripting.story.saveable
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
@@ -153,7 +151,7 @@ interface IContextBuilder {
 
     fun fadeIn(block: FadeContainer.() -> Unit) = +WaitNode {
         val container = FadeContainer().apply(block)
-        OverlayScreenPacket().send(
+        FadeOverlayScreenPacket().send(
             OverlayScreenContainer(true, container.text, container.subtitle, container.time),
             *stateMachine.team.onlineMembers.toTypedArray()
         )
@@ -162,7 +160,7 @@ interface IContextBuilder {
 
     fun fadeOut(block: FadeContainer.() -> Unit) = +WaitNode {
         val container = FadeContainer().apply(block)
-        OverlayScreenPacket().send(
+        FadeOverlayScreenPacket().send(
             OverlayScreenContainer(false, container.text, container.subtitle, container.time),
             *stateMachine.team.onlineMembers.toTypedArray()
         )
