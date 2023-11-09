@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues
 
+import dev.ftb.mods.ftbteams.data.Team
 import kotlinx.serialization.Serializable
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
@@ -102,6 +103,25 @@ class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stat
         +ClickNode(MouseButton.LEFT)
 
         return result
+    }
+
+    override fun Team.send(text: () -> String): SimpleNode {
+        val result = +SimpleNode {
+            DialogueSayPacket().send(
+                SayContainer(text(), this@send.name.string, -1),
+                *manager.team.onlineMembers.toTypedArray()
+            )
+        }
+        +ClickNode(MouseButton.LEFT)
+
+        return result
+    }
+
+    fun send(body: SayContainer.() -> Unit) {
+        +SimpleNode {
+            val container = SayContainer("Тут должен быть текст, но его не написали в скрипте...", "", 0).apply(body)
+            DialogueSayPacket().send(container, *manager.team.onlineMembers.toTypedArray())
+        }
     }
 
     fun choice(context: DialogueChoiceContext.() -> Unit) =
