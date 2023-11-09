@@ -21,7 +21,7 @@ class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.events.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.*",
-        "ru.hollowhorizon.hollowengine.common.scripting.story.*"
+        "ru.hollowhorizon.hollowengine.common.scripting.story.*",
         "ru.hollowhorizon.hollowengine.common.scripting.*",
         "ru.hollowhorizon.hollowengine.common.npcs.*",
         "ru.hollowhorizon.hollowengine.common.entities.NPCEntity",
