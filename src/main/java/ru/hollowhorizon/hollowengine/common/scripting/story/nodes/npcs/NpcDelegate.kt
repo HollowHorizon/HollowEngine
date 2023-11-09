@@ -60,7 +60,7 @@ class NpcDelegate(
                     value.toDouble()
             }
 
-            entity.isCustomNameVisible = true
+            entity.isCustomNameVisible = this.settings.displayNameInWorld
             entity.customName = settings.name.mcText
         }
 
