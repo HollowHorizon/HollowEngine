@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.camera
 
+import com.mojang.math.Vector3d
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hc.common.network.send
@@ -7,18 +8,31 @@ import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenPacket
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.WaitNode
 import ru.hollowhorizon.hollowengine.common.story.*
-import thedarkcolour.kotlinforforge.forge.vectorutil.toVec3
-import thedarkcolour.kotlinforforge.forge.vectorutil.toVector3d
 
 class CameraPath {
     val cameraNodes = ArrayList<Pair<Int, CameraNode>>()
     val time get() = cameraNodes.sumOf { it.first }
     fun spline(time: Int, startRot: Vec2, endRot: Vec2, vararg points: Vec3) {
-        cameraNodes.add(Pair(time, SplineNode(startRot, endRot, *points.map { it.toVector3d() }.toTypedArray())))
+        cameraNodes.add(
+            Pair(
+                time,
+                SplineNode(startRot, endRot, *points.map { Vector3d(it.x(), it.y(), it.z()) }.toTypedArray())
+            )
+        )
     }
 
     fun point(time: Int, startRot: Vec2, endRot: Vec2, point1: Vec3, point2: Vec3) {
-        cameraNodes.add(Pair(time, SimpleNode(point1.toVector3d(), point2.toVector3d(), startRot, endRot)))
+        cameraNodes.add(
+            Pair(
+                time,
+                SimpleNode(
+                    Vector3d(point1.x(), point1.y(), point1.z()),
+                    Vector3d(point2.x(), point2.y(), point2.z()),
+                    startRot,
+                    endRot
+                )
+            )
+        )
     }
 }
 
@@ -34,7 +48,7 @@ fun IContextBuilder.createCameraPath(body: CameraPath.() -> Unit) {
     stateMachine.team tp {
         val path = CameraPath().apply(body)
         val node = path.cameraNodes.last().second
-        node.lastPos.toVec3()
+        Vec3(node.lastPos.x, node.lastPos.y, node.lastPos.z)
     }
     +ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode {
         stateMachine.team.onlineMembers.forEach {
