@@ -9,6 +9,7 @@ import net.minecraft.world.phys.Vec2
 import net.minecraftforge.common.util.INBTSerializable
 import ru.hollowhorizon.hc.client.handlers.ClientTickHandler
 import ru.hollowhorizon.hc.client.math.Spline3D
+import ru.hollowhorizon.hc.client.utils.math.Interpolation
 import thedarkcolour.kotlinforforge.forge.vectorutil.minus
 import thedarkcolour.kotlinforforge.forge.vectorutil.plus
 import kotlin.math.acos
@@ -86,13 +87,13 @@ class SplineNode(
     private var beginRot: Vec2 = Vec2.ZERO,
     private var endRot: Vec2 = Vec2.ZERO,
     private vararg val points: Vector3d = arrayOf(Vector3d(1.0, 2.0, 3.0), Vector3d(1.0, 2.0, 3.0), Vector3d(1.0, 2.0, 3.0)),
-    val interpolation: (Float) -> Float = { progress -> progress }
+    var interpolation: Interpolation = Interpolation.LINEAR
 ) : CameraNode {
     private var spline3D = Spline3D(points.toList())
     override val lastPos: Vector3d get() = spline3D.getPoint(1.0)
 
-    override fun updateRotation(progress: Float) = beginRot.lerp(endRot, interpolation(progress))
-    override fun updatePosition(progress: Float) = spline3D.getPoint(interpolation(progress).toDouble())
+    override fun updateRotation(progress: Float) = beginRot.lerp(endRot, interpolation.function(progress))
+    override fun updatePosition(progress: Float) = spline3D.getPoint(interpolation.function(progress).toDouble())
 
     override fun serializeNBT() = CompoundTag().apply {
         put("points", ListTag().apply {
@@ -108,6 +109,7 @@ class SplineNode(
         putFloat("beginRotY", beginRot.y)
         putFloat("endRotX", endRot.x)
         putFloat("endRotY", endRot.y)
+        putInt("interpolation", interpolation.ordinal)
     }
 
     override fun deserializeNBT(nbt: CompoundTag) {
@@ -117,6 +119,7 @@ class SplineNode(
         spline3D = Spline3D(points)
         beginRot = Vec2(nbt.getFloat("beginRotX"), nbt.getFloat("beginRotY"))
         endRot = Vec2(nbt.getFloat("endRotX"), nbt.getFloat("endRotY"))
+        interpolation = Interpolation.entries[nbt.getInt("interpolation")]
     }
 }
 

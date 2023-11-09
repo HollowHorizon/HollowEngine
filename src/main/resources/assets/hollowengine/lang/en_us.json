@@ -1,5 +1,5 @@
 {
-  "entity.hollowstory.npc_entity": "Не читай это",
+  "entity.hollowstory.npc_entity": "Персонаж",
   "gui.hollowstory.progress_manager.new_task": "§7Получено новое задание \"%s\": %s",
   "gui.hollowstory.progress_manager.update_task": "§7Задание \"%s\" обновлено: %s",
   "gui.hollowstory.progress_manager.success_task": "§7Задание \"%s\" выполнено!",

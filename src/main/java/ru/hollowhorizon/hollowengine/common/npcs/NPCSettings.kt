@@ -25,7 +25,7 @@ data class NPCSettings(
     var name: String = "NPC",
     var model: String = "hollowengine:models/entity/player_model.gltf",
     var data: Attributes = Attributes(),
-    var displayNameInWorld: Boolean = true,
+    var showName: Boolean = true,
 )
 
 data class SpawnLocation(val world: String = "minecraft:overworld", val pos: BlockPos, val rotation: Vec2 = Vec2.ZERO) {

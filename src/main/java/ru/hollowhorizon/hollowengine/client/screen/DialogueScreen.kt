@@ -21,11 +21,9 @@ import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.Packet
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.screen.widget.dialogue.DialogueTextBox
-import ru.hollowhorizon.hollowengine.client.utils.getValue
 import ru.hollowhorizon.hollowengine.common.network.Container
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
-import ru.hollowhorizon.hollowengine.common.scripting.item
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues.ApplyChoiceEvent
 import kotlin.math.atan
 import kotlin.math.pow
@@ -138,7 +136,8 @@ object DialogueScreen : HollowScreen("".mcText) {
             val x = (i + 1) * w
             val y = this.height * 0.85F
 
-            drawEntity(x, y, 70f,
+            drawEntity(
+                x, y, 70f,
                 x - mouseX,
                 y - this.height * 0.35f - mouseY,
                 entity, 1.0F
@@ -152,7 +151,7 @@ object DialogueScreen : HollowScreen("".mcText) {
     }
 
     override fun keyPressed(pKeyCode: Int, pScanCode: Int, pModifiers: Int): Boolean {
-        when(pKeyCode) {
+        when (pKeyCode) {
             GLFW.GLFW_KEY_ESCAPE -> onClose()
             GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_ENTER -> notifyClick()
         }
@@ -248,7 +247,7 @@ object DialogueScreen : HollowScreen("".mcText) {
     }
 
     fun addEntity(entity: Int) {
-        if(characters.any { it.id == entity }) return
+        if (characters.any { it.id == entity }) return
         Minecraft.getInstance().level?.getEntity(entity)?.let { characters += it as LivingEntity }
     }
 

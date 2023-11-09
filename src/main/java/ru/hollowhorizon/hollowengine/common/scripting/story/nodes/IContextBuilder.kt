@@ -14,6 +14,8 @@ import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import net.minecraftforge.network.PacketDistributor
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayType
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationContainer
@@ -28,6 +30,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.item
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
+import java.io.File
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
@@ -127,6 +130,10 @@ interface IContextBuilder {
         val component =
             Component.literal("§6[§7" + this@say().characterName + "§6]§7 ").append(text().mcTranslate)
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
+    }
+
+    infix fun NPCProperty.configure(body: AnimatedEntityCapability.() -> Unit) = +SimpleNode {
+        this@configure()[AnimatedEntityCapability::class].apply(body)
     }
 
     infix fun Team.send(text: () -> String) = +SimpleNode {

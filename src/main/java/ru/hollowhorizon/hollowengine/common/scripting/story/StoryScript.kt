@@ -27,6 +27,7 @@ class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
         "ru.hollowhorizon.hollowengine.common.npcs.*",
         "ru.hollowhorizon.hollowengine.common.entities.NPCEntity",
         "ru.hollowhorizon.hc.client.models.gltf.animations.PlayType",
+        "ru.hollowhorizon.hc.client.utils.math.Interpolation",
         "net.minecraftforge.event.*",
         "net.minecraft.util.math.BlockPos",
         "ru.hollowhorizon.hc.client.utils.*"
