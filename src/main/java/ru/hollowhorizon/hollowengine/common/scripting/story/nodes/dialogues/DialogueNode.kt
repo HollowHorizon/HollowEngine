@@ -91,11 +91,11 @@ class DialogueNode(val nodes: List<Node>) : Node() {
 
 class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stateMachine) {
 
-    override fun NPCProperty.say(text: Component): SimpleNode {
+    override fun NPCProperty.say(text: () -> String): SimpleNode {
         val result = +SimpleNode {
             val npc = this@say()
             DialogueSayPacket().send(
-                SayContainer(text.string, npc.displayName.string, npc.id),
+                SayContainer(text(), npc.displayName.string, npc.id),
                 *manager.team.onlineMembers.toTypedArray()
             )
         }

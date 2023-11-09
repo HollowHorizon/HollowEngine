@@ -68,12 +68,9 @@ fun IContextBuilder.startScript(text: String) = +SimpleNode {
     runScript(manager.server, manager.team, file)
 }
 
-fun IContextBuilder.execute(command: String) = +SimpleNode {
+fun IContextBuilder.execute(command: () -> String) = +SimpleNode {
     val server = this@execute.stateMachine.server
     val src = server.createCommandSourceStack()
 
-    server.commands.performPrefixedCommand(src.withPermission(4), command)
+    server.commands.performPrefixedCommand(src.withPermission(4), command())
 }
-
-fun IContextBuilder.send(text: String) = send(Component.literal(text))
-fun IContextBuilder.sendTranslated(text: String, vararg args: Any) = send(Component.translatable(text, args))
