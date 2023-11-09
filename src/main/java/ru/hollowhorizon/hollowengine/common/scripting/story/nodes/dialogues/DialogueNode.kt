@@ -108,7 +108,7 @@ class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stat
     override fun Team.send(text: () -> String): SimpleNode {
         val result = +SimpleNode {
             DialogueSayPacket().send(
-                SayContainer(text(), this@send.name.string, -1),
+                SayContainer(text(), this@send.name.string, this@send.onlineMembers.find { it.uuid == this@send.owner }?.id ?: -1),
                 *manager.team.onlineMembers.toTypedArray()
             )
         }
