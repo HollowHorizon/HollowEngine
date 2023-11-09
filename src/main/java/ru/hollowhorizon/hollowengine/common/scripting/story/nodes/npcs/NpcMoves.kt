@@ -27,19 +27,21 @@ class NpcMoveToBlockNode(npcConsumer: NPCProperty, var pos: Vec3) : Node() {
     }
 }
 
-class NpcMoveToEntityNode(npcConsumer: NPCProperty, var target: () -> Entity) : Node() {
+class NpcMoveToEntityNode(npcConsumer: NPCProperty, var target: () -> Entity?) : Node() {
     val npc by lazy { npcConsumer() }
+
     override fun tick(): Boolean {
         val navigator = npc.navigation
 
-        navigator.moveTo(target(), 1.0)
+        navigator.moveTo(target() ?: return true, 1.0)
 
         return !(navigator.path != null && navigator.isDone && npc.isOnGround)
     }
 
     override fun serializeNBT() = CompoundTag().apply {
-        putString("level", target().level.dimension().location().toString())
-        putUUID("target", target().uuid)
+        val entity = target() ?: return@apply
+        putString("level", entity.level.dimension().location().toString())
+        putUUID("target", entity.uuid)
     }
 
     override fun deserializeNBT(nbt: CompoundTag) {

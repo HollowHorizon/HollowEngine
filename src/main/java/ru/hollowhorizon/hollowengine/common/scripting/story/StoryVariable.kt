@@ -9,7 +9,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilde
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
-class StoryVariable<T : Any>(var value: () -> T, val clazz: Class<T>) : INBTSerializable<CompoundTag>, ReadWriteProperty<Any?, () -> T> {
+class StoryVariable<T : Any>(var value: () -> T, val clazz: Class<T>, val manager: StoryStateMachine) :
+    INBTSerializable<CompoundTag>, ReadWriteProperty<Any?, T> {
 
     override fun serializeNBT() = CompoundTag().apply {
         put("value", NBTFormat.serializeNoInline(value(), clazz))
@@ -20,17 +21,19 @@ class StoryVariable<T : Any>(var value: () -> T, val clazz: Class<T>) : INBTSeri
         value = { NBTFormat.deserializeNoInline(res, clazz) }
     }
 
-    override fun getValue(thisRef: Any?, property: KProperty<*>): () -> T {
-        return value
+    override fun getValue(thisRef: Any?, property: KProperty<*>): T {
+        assert(!manager.isStarted) { "Variable $property is used before starting the story!" }
+        return value()
     }
 
-    override fun setValue(thisRef: Any?, property: KProperty<*>, value: () -> T) {
-        this.value = value
+    override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
+        assert(!manager.isStarted) { "Variable $property is used before starting the story!" }
+        this.value = { value }
     }
 }
 
 inline fun <reified T : Any> IContextBuilder.saveable(noinline any: () -> T): StoryVariable<T> {
-    return StoryVariable(any, T::class.java).apply {
+    return StoryVariable(any, T::class.java, stateMachine).apply {
         this@saveable.stateMachine.variables += this
     }
 }

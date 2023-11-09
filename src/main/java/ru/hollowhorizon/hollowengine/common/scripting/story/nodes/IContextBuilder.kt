@@ -33,6 +33,8 @@ interface IContextBuilder {
     val stateMachine: StoryStateMachine
     operator fun <T : Node> T.unaryPlus(): T
 
+    fun next(block: SimpleNode.() -> Unit) = +SimpleNode(block)
+
     fun NPCEntity.Companion.creating(settings: NPCSettings, location: SpawnLocation): NpcDelegate {
         return NpcDelegate(settings, location).apply { manager = stateMachine }
     }
@@ -41,7 +43,7 @@ interface IContextBuilder {
     infix fun NPCProperty.moveTo(target: () -> Entity) = +NpcMoveToEntityNode(this, target)
     infix fun NPCProperty.moveTo(target: Entity) = +NpcMoveToEntityNode(this) { target }
     infix fun NPCProperty.moveTo(target: Team) = +NpcMoveToEntityNode(this) {
-        target.onlineMembers.minBy { it.distanceToSqr(this()) }
+        target.onlineMembers.minByOrNull { it.distanceToSqr(this()) }
     }
 
     fun NPCProperty.moveTo(x: Int, y: Int, z: Int) = +NpcMoveToBlockNode(this, stateMachine.pos(x, y, z))
