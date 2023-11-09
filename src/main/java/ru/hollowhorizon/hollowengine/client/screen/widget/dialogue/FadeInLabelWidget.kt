@@ -16,7 +16,7 @@ class FadeInLabelWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(
     private var isUpdated = false
     override fun init() {
         super.init()
-        animator = GuiAnimator.Single(0, width, 1f, Interpolation::easeOutSine)
+        animator = GuiAnimator.Single(0, width, 1f, Interpolation.EXPO_OUT.function)
     }
 
     fun setText(text: Component) {
