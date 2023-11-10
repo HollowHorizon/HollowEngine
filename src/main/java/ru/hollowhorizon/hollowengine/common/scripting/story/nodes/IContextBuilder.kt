@@ -216,7 +216,7 @@ interface IContextBuilder {
         }
     }
 
-    infix fun Team.fpSend(text: () -> String) = +SimpleNode {
+    infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach {
             val componente = TextComponent("§6[§7${it.displayName.string}§7]§7").append(text().mcTranslate)
             it.sendMessage(componente, it.uuid)
