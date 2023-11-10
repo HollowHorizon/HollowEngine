@@ -1,8 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.api.Team
+import net.minecraft.ChatFormatting
 import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.TextComponent
+import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.InteractionHand
@@ -125,22 +127,34 @@ interface IContextBuilder {
         this@stop().stop(animation())
     }
 
+    class TextContainer {
+        var text = ""
+        var styles = arrayOf<ChatFormatting>()
+    }
 
-    infix fun NPCProperty.say(text: () -> String) = +SimpleNode {
+    infix fun NPCProperty.say(text: TextContainer.() -> Unit) = +SimpleNode {
+        val container = TextContainer().apply(text)
+
         val component =
-            TextComponent("§6[§7" + this@say().characterName + "§6]§7 ").append(text().mcTranslate)
+            TextComponent("§6[§7" + this@say().characterName + "§6]§7 ").append(container.text.mcTranslate)
+                .withStyle(*container.styles)
         stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
     }
 
-    infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
+    infix fun Team.sendAsPlayer(text: TextContainer.() -> Unit) = +SimpleNode {
+        val container = TextContainer().apply(text)
+
         stateMachine.team.onlineMembers.forEach {
-            val componente = TextComponent("§6[§7${it.displayName.string}§7]§7").append(text().mcTranslate)
+            val componente = TextComponent("§6[§7${it.displayName.string}§7]§7")
+                .append(container.text.mcTranslate).withStyle(*container.styles)
             it.sendMessage(componente, it.uuid)
         }
     }
 
-    infix fun Team.send(text: () -> String) = +SimpleNode {
-        stateMachine.team.onlineMembers.forEach { it.sendMessage(text().mcTranslate, it.uuid) }
+    infix fun Team.send(text: TextContainer.() -> Unit) = +SimpleNode {
+        val container = TextContainer().apply(text)
+        val component = TranslatableComponent(container.text).withStyle(*container.styles)
+        stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
     }
 
     fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
