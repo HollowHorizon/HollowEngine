@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.common.chat
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import net.minecraft.client.GuiMessage
 import net.minecraft.network.chat.Style
 import net.minecraft.util.FormattedCharSequence
 import org.jetbrains.kotlin.daemon.common.trimQuotes

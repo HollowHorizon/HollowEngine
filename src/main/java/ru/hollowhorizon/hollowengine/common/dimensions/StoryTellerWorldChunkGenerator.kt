@@ -23,16 +23,14 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
-class StoryTellerWorldChunkGenerator(
-    structures: Registry<StructureSet>,
-    biomeSource: BiomeSource,
-) : ChunkGenerator(structures, Optional.empty(), biomeSource) {
 
-    override fun codec() = CODEC
+class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSource: BiomeSource) :
+    ChunkGenerator(structures, Optional.empty(), biomeSource) {
     override fun withSeed(pSeed: Long): ChunkGenerator = this
 
     override fun climateSampler(): Climate.Sampler = Climate.empty()
 
+    override fun codec() = CODEC
     override fun applyCarvers(
         pLevel: WorldGenRegion,
         pSeed: Long,

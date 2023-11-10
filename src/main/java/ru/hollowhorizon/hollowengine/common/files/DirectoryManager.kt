@@ -11,7 +11,9 @@ object DirectoryManager {
     }
 
     @JvmStatic
-    fun init() {}
+    fun init() {
+
+    }
 
     private fun getScripts() =
         SCRIPTS_DIR.walk().filter { it.path.endsWith(".kts") }.toList()

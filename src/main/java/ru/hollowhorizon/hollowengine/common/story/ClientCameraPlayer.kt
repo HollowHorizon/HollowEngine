@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.common.story
 import kotlinx.serialization.Serializable
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.phys.Vec3
-import net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles
+import net.minecraftforge.client.event.EntityViewRenderEvent
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraftforge.network.NetworkDirection
@@ -29,7 +29,7 @@ object ClientCameraPlayer : CameraPlayer() {
     }
 
     @SubscribeEvent
-    fun updateMovement(event: ComputeCameraAngles) {
+    fun updateMovement(event: EntityViewRenderEvent.CameraSetup) {
         val (point, rotation) = update()
         (event.camera as CameraInvoker).invokeSetPosition(Vec3(point.x, point.y, point.z))
         event.yaw = rotation.x
