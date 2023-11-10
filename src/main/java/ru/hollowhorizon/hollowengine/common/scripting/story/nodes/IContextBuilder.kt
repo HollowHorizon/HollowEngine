@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.data.Team
+import net.minecraft.ChatFormatting
 import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
@@ -136,17 +137,35 @@ interface IContextBuilder {
         this@configure()[AnimatedEntityCapability::class].apply(body)
     }
 
-    infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
+    class TextContainer {
+        var text = ""
+        var styles = arrayOf<ChatFormatting>()
+    }
+
+    infix fun NPCProperty.say(text: TextContainer.() -> Unit) = +SimpleNode {
+        val container = TextContainer().apply(text)
+
+        val component =
+            Component.literal("§6[§7" + this@say().characterName + "§6]§7 ").append(container.text.mcTranslate)
+                .withStyle(*container.styles)
+        stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
+    }
+
+    infix fun Team.sendAsPlayer(text: TextContainer.() -> Unit) = +SimpleNode {
+        val container = TextContainer().apply(text)
+
         stateMachine.team.onlineMembers.forEach {
-            val componente = Component.literal("§6[§7${it.displayName.string}§7]§7").append(text().mcTranslate)
-            it.sendSystemMessage(componente)
+            val componente = Component.literal("§6[§7${it.displayName.string}§7]§7")
+                .append(container.text.mcTranslate).withStyle(*container.styles)
+            it.sendMessage(componente, it.uuid)
         }
     }
 
-    infix fun Team.send(text: () -> String) = +SimpleNode {
-        stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text().mcTranslate) }
+    infix fun Team.send(text: TextContainer.() -> Unit) = +SimpleNode {
+        val container = TextContainer().apply(text)
+        val component = Component.translatable(container.text).withStyle(*container.styles)
+        stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
     }
-
     fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
 
     infix fun NPCProperty.dropItem(stack: () -> ItemStack) = +SimpleNode {
