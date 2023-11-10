@@ -222,9 +222,9 @@ interface IContextBuilder {
         }
     }
 
-    infix fun Team.tp(pos: SimpleTeleport.() -> Unit) = +SimpleNode {
+    infix fun Team.sTp(pos: SimpleTeleport.() -> Unit) = +SimpleNode {
         val p = SimpleTeleport().apply(pos)
-        this@tp.onlineMembers.forEach {
+        this@sTp.onlineMembers.forEach {
             it.teleportTo(it.getLevel(), p.x, p.y, p.z, p.cameraY, p.cameraX)
         }
     }
