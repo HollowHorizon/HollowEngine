@@ -28,6 +28,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NPCProper
 
 @HollowPacketV2(NetworkDirection.PLAY_TO_CLIENT)
 class DialogueScreenPacket : Packet<Boolean>({ player, value ->
+    DialogueScreen.cleanup()
     if (value) DialogueScreen.open()
     else DialogueScreen.onClose()
 })

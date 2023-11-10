@@ -78,6 +78,7 @@ open class CameraPlayer(
 
 interface CameraNode : INBTSerializable<CompoundTag> {
     val lastPos: Vector3d
+
     fun updateRotation(progress: Float): Vec2
     fun updatePosition(progress: Float): Vector3d
 }

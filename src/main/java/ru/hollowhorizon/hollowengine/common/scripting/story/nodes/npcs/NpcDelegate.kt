@@ -40,6 +40,11 @@ class NpcDelegate(
         var isNpcSpawned = true
         val entity = entities.firstOrNull() ?: NPCEntity(level).apply {
             isNpcSpawned = false
+            setPos(
+                location.pos.x.toDouble() + 0.5,
+                location.pos.y.toDouble(),
+                location.pos.z.toDouble() + 0.5
+            )
             level.addFreshEntity(this)
         }
 
@@ -72,8 +77,7 @@ class NpcDelegate(
     }
 
     override fun tick(): Boolean {
-        npc //заспавнить нпс, если этого не было сделано. По сути это вызов инициализотора
-        return false
+        return npc.tickCount < 10
     }
 
     override fun serializeNBT() = CompoundTag().apply {

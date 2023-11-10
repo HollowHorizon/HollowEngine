@@ -158,6 +158,19 @@ object DialogueScreen : HollowScreen("".mcText) {
         return super.keyPressed(pKeyCode, pScanCode, pModifiers)
     }
 
+    fun cleanup() {
+        background = null
+        textBox = null
+        currentName = "".mcText
+        color = 0xFFFFFFFF.toInt()
+        STATUS_ICON = "hollowengine:gui/dialogues/status.png"
+        OVERLAY = "hollowengine:gui/dialogues/overlay.png"
+        NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
+        CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/choice_button.png"
+        characters.clear()
+        choices.clear()
+    }
+
     fun notifyClick() {
         if (this.textBox?.complete == true) MouseClickedPacket().send(Container(MouseButton.LEFT))
         else this.textBox?.complete = true

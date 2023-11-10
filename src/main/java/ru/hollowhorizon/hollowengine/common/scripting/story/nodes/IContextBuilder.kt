@@ -160,13 +160,15 @@ interface IContextBuilder {
     class FadeContainer {
         var text = ""
         var subtitle = ""
+        var texture = ""
+        var color = 0xFFFFFF
         var time = 0
     }
 
     fun fadeIn(block: FadeContainer.() -> Unit) = +WaitNode {
         val container = FadeContainer().apply(block)
         FadeOverlayScreenPacket().send(
-            OverlayScreenContainer(true, container.text, container.subtitle, container.time),
+            OverlayScreenContainer(true, container.text, container.subtitle, container.color, container.texture, container.time),
             *stateMachine.team.onlineMembers.toTypedArray()
         )
         container.time
@@ -175,7 +177,7 @@ interface IContextBuilder {
     fun fadeOut(block: FadeContainer.() -> Unit) = +WaitNode {
         val container = FadeContainer().apply(block)
         FadeOverlayScreenPacket().send(
-            OverlayScreenContainer(false, container.text, container.subtitle, container.time),
+            OverlayScreenContainer(false, container.text, container.subtitle, container.color, container.texture, container.time),
             *stateMachine.team.onlineMembers.toTypedArray()
         )
         container.time

@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.screen
 
+import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
@@ -8,6 +9,8 @@ import ru.hollowhorizon.hc.client.handlers.ClientTickHandler
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.util.Anchor
 import ru.hollowhorizon.hc.client.utils.drawScaled
+import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.client.utils.toRGBA
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.Packet
@@ -15,24 +18,30 @@ import ru.hollowhorizon.hc.common.network.Packet
 object OverlayScreen : HollowScreen("".toSTC()) {
     private var text: String = ""
     var subtitle: String = ""
+    var color = 0xFFFFFF
+    var texture = "hollowengine:textures/gui/white.png"
     private var ticks = 0
     private var maxTicks = 0
     private var fadeType = FadeType.FADE_IN
     var isOverlayMode = false
 
     override fun render(stack: PoseStack, mouseX: Int, mouseY: Int, particalTick: Float) {
-        var alpha = ((ClientTickHandler.ticks - ticks + particalTick) / maxTicks.toFloat() * 0xFF)
-            .coerceAtMost(255F).toInt()
+        val rgba = color.toRGBA()
+        var alpha = ((ClientTickHandler.ticks - ticks + particalTick) / maxTicks.toFloat()).coerceAtMost(1.0f)
 
         if (fadeType == FadeType.FADE_OUT) {
-            alpha = 255 - alpha
-            hideGui(false)
-            if (alpha == 0) Minecraft.getInstance().setScreen(null)
+            alpha = 1f - alpha
+            if (alpha == 0f) Minecraft.getInstance().setScreen(null)
         }
 
-        if(isOverlayMode) alpha = 0
+        if (isOverlayMode) alpha = 0f
 
-        fill(stack, 0, 0, this.width, this.height, ARGB(alpha, 0, 0, 0).toInt())
+        RenderSystem.enableBlend()
+        RenderSystem.defaultBlendFunc()
+        RenderSystem.setShaderColor(rgba.r, rgba.g, rgba.b, alpha)
+        RenderSystem.setShaderTexture(0, texture.rl)
+        blit(stack, 0, 0, 0f, 0f, width, height, width, height)
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
 
         if (text.isNotEmpty()) font.drawScaled(
             stack,
@@ -57,7 +66,7 @@ object OverlayScreen : HollowScreen("".toSTC()) {
 
     fun showOverlay(show: Boolean) {
         hideGui(show)
-        if(show) Minecraft.getInstance().setScreen(this)
+        if (show) Minecraft.getInstance().setScreen(this)
         else Minecraft.getInstance().setScreen(null)
         isOverlayMode = true
         text = ""
@@ -68,24 +77,26 @@ object OverlayScreen : HollowScreen("".toSTC()) {
         Minecraft.getInstance().options.hideGui = bool
     }
 
-    fun makeBlack(text: String, subtitle: String, time: Int) {
+    fun makeBlack(text: String, subtitle: String, color: Int, texture: String, time: Int) {
         Minecraft.getInstance().setScreen(this)
-        hideGui(true)
         isOverlayMode = false
         ticks = ClientTickHandler.ticks
         maxTicks = time
         fadeType = FadeType.FADE_IN
+        this.color = color
+        if(texture.isNotEmpty()) this.texture = texture
         this.text = text
         this.subtitle = subtitle
     }
 
-    fun makeTransparent(text: String, subtitle: String, time: Int) {
+    fun makeTransparent(text: String, subtitle: String, color: Int, texture: String, time: Int) {
         Minecraft.getInstance().setScreen(this)
-        hideGui(true)
         isOverlayMode = false
         ticks = ClientTickHandler.ticks
         maxTicks = time
         fadeType = FadeType.FADE_OUT
+        this.color = color
+        if(texture.isNotEmpty()) this.texture = texture
         this.text = text
         this.subtitle = subtitle
     }
@@ -104,13 +115,15 @@ class OverlayScreenContainer(
     val fadeIn: Boolean,
     val text: String,
     val subtitle: String,
+    val color: Int,
+    val texture: String,
     val time: Int
 )
 
 @HollowPacketV2(NetworkDirection.PLAY_TO_CLIENT)
 class FadeOverlayScreenPacket : Packet<OverlayScreenContainer>({ player, value ->
-    if (value.fadeIn) OverlayScreen.makeBlack(value.text, value.subtitle, value.time)
-    else OverlayScreen.makeTransparent(value.text, value.subtitle, value.time)
+    if (value.fadeIn) OverlayScreen.makeBlack(value.text, value.subtitle, value.color, value.texture, value.time)
+    else OverlayScreen.makeTransparent(value.text, value.subtitle, value.color, value.texture, value.time)
 })
 
 @HollowPacketV2(NetworkDirection.PLAY_TO_CLIENT)
