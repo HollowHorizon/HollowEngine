@@ -207,6 +207,14 @@ interface IContextBuilder {
         }
     }
 
+    class SimpleTeleport {
+        var x = 0.0
+        var y = 0.0
+        var z = 0.0
+        var cameraY = 0F
+        var cameraX = 0F
+    }
+    
     infix fun Team.tp(pos: () -> Vec3) = +SimpleNode {
         val p = pos()
         this@tp.onlineMembers.forEach {
@@ -214,6 +222,12 @@ interface IContextBuilder {
         }
     }
 
+    infix fun Team.tp(pos: SimpleTeleport.() -> Unit) = +SimpleNode {
+        val p = SimpleTeleport().apply(pos)
+        this@tp.onlineMembers.forEach {
+            it.teleportTo(it.getLevel(), p.x, p.y, p.z, p.cameraY, p.cameraX)
+        }
+    }
     fun pos(x: Double, y: Double, z: Double) = Vec3(x, y, z)
     fun pos(x: Int, y: Int, z: Int) = Vec3(x.toDouble() + 0.5, y.toDouble(), z.toDouble() + 0.5)
     fun vec(x: Int, y: Int) = Vec2(x.toFloat(), y.toFloat())
