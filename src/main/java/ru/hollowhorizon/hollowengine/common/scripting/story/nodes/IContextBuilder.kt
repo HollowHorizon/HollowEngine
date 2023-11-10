@@ -136,6 +136,13 @@ interface IContextBuilder {
         this@configure()[AnimatedEntityCapability::class].apply(body)
     }
 
+    infix fun Team.fpSend(text: () -> String) = +SimpleNode {
+        stateMachine.team.onlineMembers.forEach {
+            val componente = Component.literal("§6[§7${it.displayName.string}§7]§7").append(text().mcTranslate)
+            it.sendMessage(componente, it.uuid)
+        }
+    }
+
     infix fun Team.send(text: () -> String) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text().mcTranslate) }
     }
