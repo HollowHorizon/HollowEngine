@@ -15,6 +15,7 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
     val variables = ArrayList<StoryVariable<*>>()
     private val nodes = ArrayList<Node>()
     private var currentIndex = 0
+    var isStarted = false
     val isEnded get() = currentIndex >= nodes.size
 
     fun tick(event: ServerTickEvent) {

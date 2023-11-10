@@ -4,17 +4,22 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.crafting.Recipe
 import net.minecraft.world.item.crafting.RecipeType
+import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
+import ru.hollowhorizon.hc.common.scripting.errors
 import ru.hollowhorizon.hc.common.scripting.kotlin.AbstractHollowScriptConfiguration
 import ru.hollowhorizon.hollowengine.mixins.RecipeManagerAccessor
 import java.io.File
 import kotlin.script.experimental.annotations.KotlinScript
+import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.baseClass
 import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.api.defaultImports
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
+import kotlin.script.experimental.jvm.util.isError
 
 @KotlinScript(
     displayName = "Content Script",
@@ -27,9 +32,21 @@ abstract class ContentScript(
 ) : ContentScriptBase(recipes, byName)
 
 fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
-    HollowCore.LOGGER.info("[RecipeScriptCompiler]: loading script \"${script.name}\"")
+    HollowCore.LOGGER.info("[ContentScriptCompiler]: loading script \"${script.name}\"")
 
     val result = ScriptingCompiler.compileFile<ContentScript>(script)
+
+    val creativePlayers = ServerLifecycleHooks.getCurrentServer()?.playerList?.players?.filter { it.abilities.instabuild }
+
+    result.errors?.let { errors ->
+        errors.forEach { error ->
+            creativePlayers?.forEach {
+                it.sendMessage("§c[ERROR]§r $error".mcText, it.uuid)
+            } ?: HollowCore.LOGGER.info("[ContentScriptCompiler]: $error")
+        }
+        return
+    }
+
 
     HollowCore.LOGGER.info("[RecipeScriptCompiler]: Script compiled: \"${result}\"")
 
@@ -47,14 +64,21 @@ fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
         }
     }
 
+    if(res.isError()) {
+        (res as ResultWithDiagnostics.Failure).errors().let { errors ->
+            errors.forEach { error ->
+                creativePlayers?.forEach {
+                    it.sendMessage("§c[ERROR]§r $error".mcText, it.uuid)
+                } ?: HollowCore.LOGGER.info("[ModScriptCompiler]: $error")
+            }
+            return
+        }
+    }
+
     recipeManager.`hollowcore$setRecipes`(recipes)
     recipeManager.`hollowcore$setByName`(byName)
 
     HollowCore.LOGGER.info("[RecipeScriptCompiler]: Script evaluated: \"${res}\"")
-
-    res.reports.forEach {
-        HollowCore.LOGGER.error("[ModScriptCompiler]: ${it.render(withStackTrace = true)}")
-    }
 }
 
 class ContentScriptConfiguration : AbstractHollowScriptConfiguration({

@@ -67,6 +67,8 @@ object StoryHandler {
 
         val extras = event.team.extraData
 
+        event.isStarted = true
+
         if (!extras.contains("hollowengine_stories") || beingRecompiled) {
             stories[eventPath] = event
             return

@@ -6,9 +6,6 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.ForgeEven
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
-fun input(vararg values: String, onlyHostMode: Boolean = false): InputNode {
-    return InputNode(*values, onlyHostMode = onlyHostMode)
-}
 
 class InputNode(vararg val values: String, val onlyHostMode: Boolean = false) :
     ForgeEventNode<ServerChatEvent>(ServerChatEvent::class.java, { true }), ReadWriteProperty<Any?, () -> String> {

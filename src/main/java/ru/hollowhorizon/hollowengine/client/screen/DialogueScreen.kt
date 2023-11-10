@@ -21,11 +21,9 @@ import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.Packet
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.screen.widget.dialogue.DialogueTextBox
-import ru.hollowhorizon.hollowengine.client.utils.getValue
 import ru.hollowhorizon.hollowengine.common.network.Container
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
-import ru.hollowhorizon.hollowengine.common.scripting.item
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues.ApplyChoiceEvent
 import kotlin.math.atan
 import kotlin.math.pow
@@ -49,7 +47,7 @@ object DialogueScreen : HollowScreen("".mcText) {
     var OVERLAY = "hollowengine:gui/dialogues/overlay.png"
     var NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
     var CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/choice_button.png"
-    val characters = ArrayList<LivingEntity>()
+    val characters = LinkedHashSet<LivingEntity>()
     val choices = ArrayList<Component>()
 
 
@@ -249,7 +247,7 @@ object DialogueScreen : HollowScreen("".mcText) {
 
     fun addEntity(entity: Int) {
         if(characters.any { it.id == entity }) return
-        Minecraft.getInstance().level?.getEntity(entity)?.let { characters.add(it as LivingEntity) }
+        Minecraft.getInstance().level?.getEntity(entity)?.let { characters += it as LivingEntity }
     }
 
     fun removeEntity(entity: Int) {

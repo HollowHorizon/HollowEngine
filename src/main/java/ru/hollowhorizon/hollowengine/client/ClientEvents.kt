@@ -20,7 +20,6 @@ import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
 import ru.hollowhorizon.hollowengine.common.network.Container
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
-import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
 object ClientEvents {
     const val HS_CATEGORY = "key.categories.mod.hollowengine"

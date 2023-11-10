@@ -1,27 +1,26 @@
 package ru.hollowhorizon.hollowengine
 
 import dev.ftb.mods.ftbteams.api.event.TeamEvent
-import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.repository.Pack
 import net.minecraft.server.packs.repository.PackSource
-import net.minecraft.world.entity.monster.Zombie
+import net.minecraft.world.entity.Mob
+import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraftforge.api.distmarker.Dist
 import net.minecraftforge.api.distmarker.OnlyIn
 import net.minecraftforge.client.event.EntityRenderersEvent
+import net.minecraftforge.common.ForgeMod
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.event.AddPackFindersEvent
 import net.minecraftforge.event.AddReloadListenerEvent
 import net.minecraftforge.event.RegisterCommandsEvent
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent
-import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.common.Mod
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent
 import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent
 import net.minecraftforge.fml.loading.FMLEnvironment
-import net.minecraftforge.fml.loading.moddiscovery.ModInfo
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.api.registy.HollowMod
 import ru.hollowhorizon.hc.client.render.entity.GLTFEntityRenderer
@@ -107,7 +106,11 @@ class HollowEngine {
 
     private fun onLoadingComplete(event: FMLLoadCompleteEvent) {}
     private fun onAttributeCreation(event: EntityAttributeCreationEvent) {
-        event.put(ModEntities.NPC_ENTITY.get(), Zombie.createAttributes().build())
+        event.put(ModEntities.NPC_ENTITY.get(), Mob.createMobAttributes().apply {
+            add(Attributes.ATTACK_DAMAGE, 0.2)
+            add(Attributes.MOVEMENT_SPEED, 0.2)
+            add(ForgeMod.STEP_HEIGHT_ADDITION.get(), 1.25)
+        }.build())
     }
 
     private fun registerCommands(event: RegisterCommandsEvent) {

@@ -1,12 +1,10 @@
-import com.github.jengelman.gradle.plugins.shadow.relocation.SimpleRelocator
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+import net.minecraftforge.gradle.userdev.DependencyManagementExtension
 import net.minecraftforge.gradle.userdev.UserDevExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.spongepowered.asm.gradle.plugins.MixinExtension
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import net.minecraftforge.gradle.userdev.DependencyManagementExtension
-import org.jetbrains.kotlin.gradle.utils.extendsFrom
-import org.spongepowered.asm.gradle.plugins.MixinExtension
 
 buildscript {
     repositories {
@@ -106,7 +104,7 @@ dependencies {
     annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
 
     implementation("thedarkcolour:kotlinforforge:3.12.0")
-    implementation(fg.deobf("ru.hollowhorizon:hc:1.2.0"))
+    implementation(fg.deobf("ru.hollowhorizon:hc:1.18.2_1.2.1"))
     implementation(fg.deobf("curse.maven:ftb-teams-forge-404468:4623116"))
     implementation(fg.deobf("curse.maven:ftb-library-forge-404465:4396792"))
     implementation(fg.deobf("curse.maven:architectury-api-419699:4521465"))

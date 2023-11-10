@@ -1,14 +1,19 @@
 package ru.hollowhorizon.hollowengine.common.scripting.mod
 
+import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
+import ru.hollowhorizon.hc.common.scripting.errors
 import ru.hollowhorizon.hc.common.scripting.kotlin.AbstractHollowScriptConfiguration
 import java.io.File
 import kotlin.script.experimental.annotations.KotlinScript
+import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.baseClass
 import kotlin.script.experimental.api.defaultImports
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
+import kotlin.script.experimental.jvm.util.isError
 
 
 @KotlinScript(
@@ -23,6 +28,13 @@ fun runModScript(script: File) {
 
     val result = ScriptingCompiler.compileFile<ModScript>(script)
 
+    result.errors?.let { errors ->
+        errors.forEach { error ->
+            HollowCore.LOGGER.info("[ModScriptCompiler]: $error")
+        }
+        return
+    }
+
     HollowCore.LOGGER.info("[ModScriptCompiler]: Script compiled: \"${result}\"")
 
     val res = result.execute {
@@ -33,8 +45,13 @@ fun runModScript(script: File) {
 
     HollowCore.LOGGER.info("[ModScriptCompiler]: Script evaluated: \"${res}\"")
 
-    res.reports.forEach {
-        HollowCore.LOGGER.info("[ModScriptCompiler]: ${it.render(withStackTrace = true)}")
+    if(res.isError()) {
+        (res as ResultWithDiagnostics.Failure).errors().let { errors ->
+            errors.forEach { error ->
+                HollowCore.LOGGER.info("[ModScriptCompiler]: $error")
+            }
+            return
+        }
     }
 }
 

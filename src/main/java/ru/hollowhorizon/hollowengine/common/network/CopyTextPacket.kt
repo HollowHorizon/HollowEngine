@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.network
 
-import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.TranslatableComponent
 import net.minecraftforge.network.NetworkDirection
 import ru.hollowhorizon.hc.client.utils.mc

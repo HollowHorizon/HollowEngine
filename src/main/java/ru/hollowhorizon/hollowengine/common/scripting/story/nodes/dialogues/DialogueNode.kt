@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues
 
+import dev.ftb.mods.ftbteams.api.Team
 import kotlinx.serialization.Serializable
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
@@ -91,17 +92,36 @@ class DialogueNode(val nodes: List<Node>) : Node() {
 
 class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stateMachine) {
 
-    override fun NPCProperty.say(text: Component): SimpleNode {
+    override fun NPCProperty.say(text: () -> String): SimpleNode {
         val result = +SimpleNode {
             val npc = this@say()
             DialogueSayPacket().send(
-                SayContainer(text.string, npc.displayName.string, npc.id),
+                SayContainer(text(), npc.displayName.string, npc.id),
                 *manager.team.onlineMembers.toTypedArray()
             )
         }
         +ClickNode(MouseButton.LEFT)
 
         return result
+    }
+
+    override fun Team.send(text: () -> String): SimpleNode {
+        val result = +SimpleNode {
+            DialogueSayPacket().send(
+                SayContainer(text(), this@send.name.string, this@send.onlineMembers.find { it.uuid == this@send.owner }?.id ?: -1),
+                *manager.team.onlineMembers.toTypedArray()
+            )
+        }
+        +ClickNode(MouseButton.LEFT)
+
+        return result
+    }
+
+    fun send(body: SayContainer.() -> Unit) {
+        +SimpleNode {
+            val container = SayContainer("Тут должен быть текст, но его не написали в скрипте...", "", 0).apply(body)
+            DialogueSayPacket().send(container, *manager.team.onlineMembers.toTypedArray())
+        }
     }
 
     fun choice(context: DialogueChoiceContext.() -> Unit) =

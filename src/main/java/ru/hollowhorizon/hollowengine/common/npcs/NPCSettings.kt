@@ -4,7 +4,9 @@ import kotlinx.serialization.Serializable
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hc.client.utils.nbt.*
+import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
+import ru.hollowhorizon.hc.client.utils.nbt.save
+import ru.hollowhorizon.hc.client.utils.nbt.serialize
 import java.io.File
 
 fun main() {
@@ -25,6 +27,7 @@ data class NPCSettings(
     var name: String = "NPC",
     var model: String = "hollowengine:models/entity/player_model.gltf",
     var data: Attributes = Attributes(),
+    var displayNameInWorld: Boolean = true,
 )
 
 data class SpawnLocation(val world: String = "minecraft:overworld", val pos: BlockPos, val rotation: Vec2 = Vec2.ZERO) {

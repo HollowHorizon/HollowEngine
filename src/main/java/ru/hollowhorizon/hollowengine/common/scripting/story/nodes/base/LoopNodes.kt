@@ -6,6 +6,9 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 
 open class WhileNode(protected val condition: () -> Boolean, val tasks: List<Node>) : Node() {
     protected var index = 0
+    val initialData = CompoundTag().apply {
+        serializeNodes("nodes", tasks)
+    }
 
     init {
         tasks.forEach { it.parent = this }
@@ -13,7 +16,10 @@ open class WhileNode(protected val condition: () -> Boolean, val tasks: List<Nod
 
     override fun tick(): Boolean {
         if (!tasks[index].tick()) index++
-        if (index >= tasks.size) index = 0
+        if (index >= tasks.size) {
+            index = 0
+            initialData.deserializeNodes("nodes", tasks)
+        }
 
         return condition()
     }
