@@ -2,11 +2,13 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import dev.ftb.mods.ftbteams.api.Team
+import net.minecraft.ChatFormatting
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Registry
 import net.minecraft.nbt.StringTag
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.TextComponent
+import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
 import net.minecraft.network.protocol.game.ClientboundStopSoundPacket
 import net.minecraft.resources.ResourceKey
@@ -176,6 +178,13 @@ interface IContextBuilder {
         this@stop()[AnimatedEntityCapability::class].layers.removeIf { it.animation == anim }
     }
 
+    class TextContainer {
+        var text = ""
+        var styles = arrayOf<ChatFormatting>()
+    }
+
+    infix fun NPCProperty.say(text: TextContainer.() -> Unit) = +SimpleNode {
+        val container = TextContainer().apply(text)
 
     infix fun NPCProperty.say(text: () -> String) = +SimpleNode {
         val component = Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
@@ -216,9 +225,12 @@ interface IContextBuilder {
         }
     }
 
-    infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
+    infix fun Team.sendAsPlayer(text: TextContainer.() -> Unit) = +SimpleNode {
+        val container = TextContainer().apply(text)
+
         stateMachine.team.onlineMembers.forEach {
-            val componente = TextComponent("§6[§7${it.displayName.string}§7]§7").append(text().mcTranslate)
+            val componente = TextComponent("§6[§7${it.displayName.string}§7]§7")
+                .append(container.text.mcTranslate).withStyle(*container.styles)
             it.sendMessage(componente, it.uuid)
         }
     }
