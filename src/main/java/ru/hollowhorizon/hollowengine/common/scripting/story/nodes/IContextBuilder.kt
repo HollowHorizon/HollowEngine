@@ -148,7 +148,7 @@ interface IContextBuilder {
         val component =
             Component.literal("§6[§7" + this@say().characterName + "§6]§7 ").append(container.text.mcTranslate)
                 .withStyle(*container.styles)
-        stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
+        stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
 
     infix fun Team.sendAsPlayer(text: TextContainer.() -> Unit) = +SimpleNode {
@@ -157,14 +157,14 @@ interface IContextBuilder {
         stateMachine.team.onlineMembers.forEach {
             val componente = Component.literal("§6[§7${it.displayName.string}§7]§7")
                 .append(container.text.mcTranslate).withStyle(*container.styles)
-            it.sendMessage(componente, it.uuid)
+            it.sendSystemMessage(componente)
         }
     }
 
     infix fun Team.send(text: TextContainer.() -> Unit) = +SimpleNode {
         val container = TextContainer().apply(text)
         val component = Component.translatable(container.text).withStyle(*container.styles)
-        stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
+        stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
     fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
 
