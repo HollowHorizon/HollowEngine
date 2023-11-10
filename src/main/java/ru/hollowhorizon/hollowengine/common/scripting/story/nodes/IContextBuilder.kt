@@ -26,7 +26,10 @@ import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.scripting.item
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.CombinedNode
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.NodeContextBuilder
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.WaitNode
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
 
 interface IContextBuilder {
@@ -127,6 +130,13 @@ interface IContextBuilder {
         val component =
             TextComponent("§6[§7" + this@say().characterName + "§6]§7 ").append(text().mcTranslate)
         stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
+    }
+
+    infix fun Team.fpSend(text: () -> String) = +SimpleNode {
+        stateMachine.team.onlineMembers.forEach {
+            val componente = TextComponent("§6[§7${it.displayName.string}§7]§7").append(text().mcTranslate)
+            it.sendMessage(componente, it.uuid)
+        }
     }
 
     infix fun Team.send(text: () -> String) = +SimpleNode {
