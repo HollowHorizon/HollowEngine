@@ -8,7 +8,6 @@ import net.minecraft.core.Registry
 import net.minecraft.nbt.StringTag
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.TextComponent
-import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
 import net.minecraft.network.protocol.game.ClientboundStopSoundPacket
 import net.minecraft.resources.ResourceKey
@@ -181,10 +180,12 @@ interface IContextBuilder {
     class TextContainer {
         var text = ""
         var styles = arrayOf<ChatFormatting>()
+        var nameColors: Pair<String, String> = "6" to "7"
     }
 
     infix fun NPCProperty.say(text: TextContainer.() -> Unit) = +SimpleNode {
         val container = TextContainer().apply(text)
+        val nameColor = container.nameColors
 
     infix fun NPCProperty.say(text: () -> String) = +SimpleNode {
         val component = Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
@@ -220,23 +221,28 @@ interface IContextBuilder {
 
     infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach {
-            val componente = Component.literal("§6[§7${it.displayName.string}§6]§7 ").append(text().mcTranslate)
-            it.sendSystemMessage(componente)
+            val componente = TextComponent("§6[§7${it.displayName.string}§6]§7 ").append(text().mcTranslate)
+            it.sendMessage(componente)
         }
     }
 
     infix fun Team.sendAsPlayer(text: TextContainer.() -> Unit) = +SimpleNode {
         val container = TextContainer().apply(text)
+        val nameColor = container.nameColors
 
         stateMachine.team.onlineMembers.forEach {
-            val componente = TextComponent("§6[§7${it.displayName.string}§7]§7")
+            val componente = TextComponent("§${nameColor.first}[§${nameColor.second}${it.displayName.string}§${nameColor.first}]§${nameColor.second} ")
                 .append(container.text.mcTranslate).withStyle(*container.styles)
             it.sendMessage(componente, it.uuid)
         }
     }
 
     infix fun Team.send(text: () -> String) = +SimpleNode {
-        stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text().mcTranslate) }
+        stateMachine.team.onlineMembers.forEach { it.sendMessage(text().mcTranslate) }
+    }
+
+    infix fun NPCProperty.configure(body: AnimatedEntityCapability.() -> Unit) = +SimpleNode {
+        this@configure()[AnimatedEntityCapability::class].apply(body)
     }
 
     fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }

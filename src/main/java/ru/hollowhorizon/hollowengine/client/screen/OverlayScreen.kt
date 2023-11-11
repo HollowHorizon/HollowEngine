@@ -136,11 +136,6 @@ class OverlayScreenPacket : Packet<Boolean>({ player, value ->
     OverlayScreen.showOverlay(value)
 })
 
-@HollowPacketV2(NetworkDirection.PLAY_TO_CLIENT)
-class OverlayScreenPacket : Packet<Boolean>({ player, value ->
-    OverlayScreen.showOverlay(value)
-})
-
 data class ARGB(val a: Int, val r: Int, val g: Int, val b: Int) {
     constructor(alpha: Float, r: Float, g: Float, b: Float) : this(
         (alpha * 255).toInt(),

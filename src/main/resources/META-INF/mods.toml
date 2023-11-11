@@ -14,12 +14,14 @@ mandatory = true #mandatory
 versionRange = "[36,)" #mandatory
 ordering = "NONE"
 side = "BOTH"
+
 [[dependencies.hollowengine]]
 modId = "minecraft"
 mandatory = true
 versionRange = "[1.18,1.19)"
 ordering = "NONE"
 side = "BOTH"
+
 [[dependencies.hollowengine]]
 modId = "hc"
 mandatory = true
@@ -27,3 +29,16 @@ versionRange = "[1.1.0,2.0)"
 ordering = "AFTER"
 side = "BOTH"
 
+[[dependencies.hollowengine]]
+modId = "kotlinforforge"
+mandatory = true
+versionRange = "[3.10.0,4.0.0)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.hollowengine]]
+modId = "ftbteams"
+mandatory = true
+versionRange = "[1802.2.11,)"
+ordering = "AFTER"
+side = "BOTH"
