@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
 import net.minecraft.sounds.SoundSource
+import net.minecraft.util.Mth
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
@@ -21,8 +22,8 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationContainer
 import ru.hollowhorizon.hc.common.network.packets.StartOnceAnimationPacket
 import ru.hollowhorizon.hc.common.network.send
-import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenContainer
 import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
+import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenContainer
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
@@ -30,7 +31,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.item
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
-import java.io.File
+import kotlin.math.cos
+import kotlin.math.sin
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
@@ -153,7 +155,15 @@ interface IContextBuilder {
         val entity = this@dropItem()
         val p = entity.position()
         val entityStack = ItemEntity(entity.level, p.x, p.y + entity.eyeHeight, p.z, stack())
-        entityStack.setDeltaMovement(entity.lookAngle.x, entity.lookAngle.y, entity.lookAngle.z)
+        entityStack.setDefaultPickUpDelay()
+        val f8 = Mth.sin(entity.xRot * Mth.PI / 180f)
+        val f3 = Mth.sin(entity.yHeadRot * Mth.PI / 180f)
+        val f4 = Mth.cos(entity.yHeadRot * Mth.PI / 180f)
+        entityStack.setDeltaMovement(
+            -f3 * 0.3,
+            -f8 * 0.3 + 0.1,
+            f4 * 0.3
+        )
         entity.level.addFreshEntity(entityStack)
     }
 

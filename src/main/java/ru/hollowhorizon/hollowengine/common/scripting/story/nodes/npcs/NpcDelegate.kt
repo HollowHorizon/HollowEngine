@@ -77,6 +77,7 @@ class NpcDelegate(
     }
 
     override fun tick(): Boolean {
+        npc.navigation.moveTo(location.pos.x + 0.5, location.pos.y.toDouble(), location.pos.z + 0.5, 1.0)
         return npc.tickCount < 10
     }
 
