@@ -127,9 +127,13 @@ interface IContextBuilder {
     }
 
 
-    infix fun NPCProperty.say(text: () -> String) = +SimpleNode {
+    infix fun NPCProperty.say(text: TextContainer.() -> Unit) = +SimpleNode {
+        val container = TextContainer().apply(text)
+        val nameColor = container.nameColors
+
         val component =
-            Component.literal("§6[§7" + this@say().characterName + "§6]§7 ").append(text().mcTranslate)
+            Component.literal("§${nameColor.first}[§${nameColor.second}${this@say().characterName}§${nameColor.first}]§${nameColor.second} ").append(container.text.mcTranslate)
+                .withStyle(*container.styles)
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
 
@@ -140,22 +144,15 @@ interface IContextBuilder {
     class TextContainer {
         var text = ""
         var styles = arrayOf<ChatFormatting>()
-    }
-
-    infix fun NPCProperty.say(text: TextContainer.() -> Unit) = +SimpleNode {
-        val container = TextContainer().apply(text)
-
-        val component =
-            Component.literal("§6[§7" + this@say().characterName + "§6]§7 ").append(container.text.mcTranslate)
-                .withStyle(*container.styles)
-        stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
+        var nameColors: Pair<String, String> = "6" to "7"
     }
 
     infix fun Team.sendAsPlayer(text: TextContainer.() -> Unit) = +SimpleNode {
         val container = TextContainer().apply(text)
+        val nameColor = container.nameColors
 
         stateMachine.team.onlineMembers.forEach {
-            val componente = Component.literal("§6[§7${it.displayName.string}§7]§7")
+            val componente = Component.literal("§${nameColor.first}[§${nameColor.second}${it.displayName.string}§${nameColor.first}]§${nameColor.second} ")
                 .append(container.text.mcTranslate).withStyle(*container.styles)
             it.sendSystemMessage(componente)
         }
@@ -166,6 +163,7 @@ interface IContextBuilder {
         val component = Component.translatable(container.text).withStyle(*container.styles)
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
+    
     fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
 
     infix fun NPCProperty.dropItem(stack: () -> ItemStack) = +SimpleNode {
