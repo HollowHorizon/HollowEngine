@@ -17,9 +17,6 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getAllStoryEv
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.network.CopyTextPacket
 import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
-import thedarkcolour.kotlinforforge.forge.vectorutil.component1
-import thedarkcolour.kotlinforforge.forge.vectorutil.component2
-import thedarkcolour.kotlinforforge.forge.vectorutil.component3
 import java.util.function.Consumer
 
 object HECommands {
@@ -48,8 +45,8 @@ object HECommands {
 
                 "pos" {
                     val player = source.playerOrException
-                    val (x, y, z) = player.pick(100.0, 0.0f, true).location
-                    CopyTextPacket().send("pos($x, $y, $z)", player)
+                    val loc = player.pick(100.0, 0.0f, true).location
+                    CopyTextPacket().send("pos(${loc.x}, ${loc.y}, ${loc.z})", player)
                 }
 
                 "start-script"(
