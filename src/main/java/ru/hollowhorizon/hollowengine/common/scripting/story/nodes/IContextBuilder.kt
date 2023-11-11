@@ -4,9 +4,9 @@ import dev.ftb.mods.ftbteams.api.Team
 import net.minecraft.ChatFormatting
 import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.TextComponent
-import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
 import net.minecraft.sounds.SoundSource
+import net.minecraft.util.Mth
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
@@ -16,6 +16,8 @@ import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import net.minecraftforge.network.PacketDistributor
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayType
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationContainer
@@ -130,22 +132,25 @@ interface IContextBuilder {
     class TextContainer {
         var text = ""
         var styles = arrayOf<ChatFormatting>()
+        var nameColors: Pair<String, String> = "6" to "7"
     }
 
     infix fun NPCProperty.say(text: TextContainer.() -> Unit) = +SimpleNode {
         val container = TextContainer().apply(text)
+        val nameColor = container.nameColors
 
         val component =
-            TextComponent("§6[§7" + this@say().characterName + "§6]§7 ").append(container.text.mcTranslate)
+            TextComponent("§${nameColor.first}[§${nameColor.second}${this@say().characterName}§${nameColor.first}]§${nameColor.second} ").append(container.text.mcTranslate)
                 .withStyle(*container.styles)
         stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
     }
 
     infix fun Team.sendAsPlayer(text: TextContainer.() -> Unit) = +SimpleNode {
         val container = TextContainer().apply(text)
+        val nameColor = container.nameColors
 
         stateMachine.team.onlineMembers.forEach {
-            val componente = TextComponent("§6[§7${it.displayName.string}§7]§7")
+            val componente = TextComponent("§${nameColor.first}[§${nameColor.second}${it.displayName.string}§${nameColor.first}]§${nameColor.second} ")
                 .append(container.text.mcTranslate).withStyle(*container.styles)
             it.sendMessage(componente, it.uuid)
         }
@@ -153,8 +158,12 @@ interface IContextBuilder {
 
     infix fun Team.send(text: TextContainer.() -> Unit) = +SimpleNode {
         val container = TextContainer().apply(text)
-        val component = TranslatableComponent(container.text).withStyle(*container.styles)
+        val component = TextComponent(container.text).withStyle(*container.styles)
         stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
+    }
+
+    infix fun NPCProperty.configure(body: AnimatedEntityCapability.() -> Unit) = +SimpleNode {
+        this@configure()[AnimatedEntityCapability::class].apply(body)
     }
 
     fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
@@ -163,20 +172,30 @@ interface IContextBuilder {
         val entity = this@dropItem()
         val p = entity.position()
         val entityStack = ItemEntity(entity.level, p.x, p.y + entity.eyeHeight, p.z, stack())
-        entityStack.setDeltaMovement(entity.lookAngle.x, entity.lookAngle.y, entity.lookAngle.z)
+        entityStack.setDefaultPickUpDelay()
+        val f8 = Mth.sin(entity.xRot * Mth.PI / 180f)
+        val f3 = Mth.sin(entity.yHeadRot * Mth.PI / 180f)
+        val f4 = Mth.cos(entity.yHeadRot * Mth.PI / 180f)
+        entityStack.setDeltaMovement(
+            -f3 * 0.3,
+            -f8 * 0.3 + 0.1,
+            f4 * 0.3
+        )
         entity.level.addFreshEntity(entityStack)
     }
 
     class FadeContainer {
         var text = ""
         var subtitle = ""
+        var texture = ""
+        var color = 0xFFFFFF
         var time = 0
     }
 
     fun fadeIn(block: FadeContainer.() -> Unit) = +WaitNode {
         val container = FadeContainer().apply(block)
         FadeOverlayScreenPacket().send(
-            OverlayScreenContainer(true, container.text, container.subtitle, container.time),
+            OverlayScreenContainer(true, container.text, container.subtitle, container.color, container.texture, container.time),
             *stateMachine.team.onlineMembers.toTypedArray()
         )
         container.time
@@ -185,7 +204,7 @@ interface IContextBuilder {
     fun fadeOut(block: FadeContainer.() -> Unit) = +WaitNode {
         val container = FadeContainer().apply(block)
         FadeOverlayScreenPacket().send(
-            OverlayScreenContainer(false, container.text, container.subtitle, container.time),
+            OverlayScreenContainer(false, container.text, container.subtitle, container.color, container.texture, container.time),
             *stateMachine.team.onlineMembers.toTypedArray()
         )
         container.time
@@ -216,25 +235,10 @@ interface IContextBuilder {
         }
     }
 
-    class SimpleTeleport {
-        var x = 0.0
-        var y = 0.0
-        var z = 0.0
-        var cameraY = 0F
-        var cameraX = 0F
-    }
-
     infix fun Team.tp(pos: () -> Vec3) = +SimpleNode {
         val p = pos()
         this@tp.onlineMembers.forEach {
             it.teleportTo(it.getLevel(), p.x, p.y, p.z, it.yHeadRot, it.xRot)
-        }
-    }
-
-    infix fun Team.sTp(pos: SimpleTeleport.() -> Unit) = +SimpleNode {
-        val p = SimpleTeleport().apply(pos)
-        this@sTp.onlineMembers.forEach {
-            it.teleportTo(it.getLevel(), p.x, p.y, p.z, p.cameraY, p.cameraX)
         }
     }
 

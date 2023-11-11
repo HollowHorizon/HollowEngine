@@ -136,7 +136,8 @@ object DialogueScreen : HollowScreen("".mcText) {
             val x = (i + 1) * w
             val y = this.height * 0.85F
 
-            drawEntity(x, y, 70f,
+            drawEntity(
+                x, y, 70f,
                 x - mouseX,
                 y - this.height * 0.35f - mouseY,
                 entity, 1.0F
@@ -150,11 +151,28 @@ object DialogueScreen : HollowScreen("".mcText) {
     }
 
     override fun keyPressed(pKeyCode: Int, pScanCode: Int, pModifiers: Int): Boolean {
-        when(pKeyCode) {
+        when (pKeyCode) {
             GLFW.GLFW_KEY_ESCAPE -> onClose()
             GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_ENTER -> notifyClick()
         }
         return super.keyPressed(pKeyCode, pScanCode, pModifiers)
+    }
+
+    fun cleanup() {
+        STATUS_ICON = "hollowengine:gui/dialogues/status.png"
+        OVERLAY = "hollowengine:gui/dialogues/overlay.png"
+        NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
+        CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/choice_button.png"
+        cleanupWithoutTextures()
+    }
+
+    fun cleanupWithoutTextures() {
+        background = null
+        textBox = null
+        currentName = "".mcText
+        color = 0xFFFFFFFF.toInt()
+        characters.clear()
+        choices.clear()
     }
 
     fun notifyClick() {
@@ -246,7 +264,7 @@ object DialogueScreen : HollowScreen("".mcText) {
     }
 
     fun addEntity(entity: Int) {
-        if(characters.any { it.id == entity }) return
+        if (characters.any { it.id == entity }) return
         Minecraft.getInstance().level?.getEntity(entity)?.let { characters += it as LivingEntity }
     }
 
