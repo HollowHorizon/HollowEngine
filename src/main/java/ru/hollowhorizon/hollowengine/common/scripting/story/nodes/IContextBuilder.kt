@@ -4,12 +4,14 @@ import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
+import net.minecraft.network.protocol.game.ClientboundStopSoundPacket
 import net.minecraft.sounds.SoundSource
 import net.minecraft.util.Mth
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.item.ItemEntity
+import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
@@ -27,31 +29,18 @@ import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenContainer
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
-import ru.hollowhorizon.hollowengine.common.scripting.item
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.CombinedNode
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.NodeContextBuilder
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.WaitNode
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
-import kotlin.math.cos
-import kotlin.math.sin
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
     operator fun <T : Node> T.unaryPlus(): T
 
     fun next(block: SimpleNode.() -> Unit) = +SimpleNode(block)
-
-    fun StoryStateMachine.init() {
-        val npc1 by NPCEntity.creating {
-            settings = NPCSettings()
-            location = SpawnLocation(pos = pos(1, 2, 3))
-        }
-
-        val npc2 by NPCEntity.creating {
-            settings = NPCSettings()
-            location = SpawnLocation(pos = pos(1, 2, 3))
-        }
-        npc1 dropItem { item("minecraft:apple") }
-    }
 
     class NpcContainer {
         var settings = NPCSettings()
@@ -129,8 +118,7 @@ interface IContextBuilder {
 
 
     infix fun NPCProperty.say(text: () -> String) = +SimpleNode {
-        val component =
-            Component.literal("§6[§7" + this@say().characterName + "§6]§7 ").append(text().mcTranslate)
+        val component = Component.literal("§6[§7" + this@say().characterName + "§6]§7 ").append(text().mcTranslate)
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
 
@@ -160,9 +148,7 @@ interface IContextBuilder {
         val f3 = Mth.sin(entity.yHeadRot * Mth.PI / 180f)
         val f4 = Mth.cos(entity.yHeadRot * Mth.PI / 180f)
         entityStack.setDeltaMovement(
-            -f3 * 0.3,
-            -f8 * 0.3 + 0.1,
-            f4 * 0.3
+            -f3 * 0.3, -f8 * 0.3 + 0.1, f4 * 0.3
         )
         entity.level.addFreshEntity(entityStack)
     }
@@ -178,8 +164,14 @@ interface IContextBuilder {
     fun fadeIn(block: FadeContainer.() -> Unit) = +WaitNode {
         val container = FadeContainer().apply(block)
         FadeOverlayScreenPacket().send(
-            OverlayScreenContainer(true, container.text, container.subtitle, container.color, container.texture, container.time),
-            *stateMachine.team.onlineMembers.toTypedArray()
+            OverlayScreenContainer(
+                true,
+                container.text,
+                container.subtitle,
+                container.color,
+                container.texture,
+                container.time
+            ), *stateMachine.team.onlineMembers.toTypedArray()
         )
         container.time
     }
@@ -187,15 +179,20 @@ interface IContextBuilder {
     fun fadeOut(block: FadeContainer.() -> Unit) = +WaitNode {
         val container = FadeContainer().apply(block)
         FadeOverlayScreenPacket().send(
-            OverlayScreenContainer(false, container.text, container.subtitle, container.color, container.texture, container.time),
-            *stateMachine.team.onlineMembers.toTypedArray()
+            OverlayScreenContainer(
+                false,
+                container.text,
+                container.subtitle,
+                container.color,
+                container.texture,
+                container.time
+            ), *stateMachine.team.onlineMembers.toTypedArray()
         )
         container.time
     }
 
-    fun async(vararg tasks: NodeContextBuilder.() -> Unit) = +CombinedNode(
-        tasks.flatMap { NodeContextBuilder(this.stateMachine).apply(it).tasks }
-    )
+    fun async(vararg tasks: NodeContextBuilder.() -> Unit) =
+        +CombinedNode(tasks.flatMap { NodeContextBuilder(this.stateMachine).apply(it).tasks })
 
     class SoundContainer {
         var sound = ""
@@ -219,17 +216,31 @@ interface IContextBuilder {
         }
     }
 
+    fun stopSound(sound: () -> String) = +SimpleNode {
+        stateMachine.team.onlineMembers.forEach {
+            it.connection.send(
+                ClientboundStopSoundPacket(
+                    sound().rl,
+                    SoundSource.MASTER
+                )
+            )
+        }
+    }
+
     infix fun Team.tp(pos: () -> Vec3) = +SimpleNode {
         val p = pos()
         this@tp.onlineMembers.forEach {
             it.teleportTo(it.getLevel(), p.x, p.y, p.z, it.yHeadRot, it.xRot)
         }
     }
-    
+
     fun pos(x: Double, y: Double, z: Double) = Vec3(x, y, z)
     fun pos(x: Int, y: Int, z: Int) = Vec3(x.toDouble() + 0.5, y.toDouble(), z.toDouble() + 0.5)
     fun vec(x: Int, y: Int) = Vec2(x.toFloat(), y.toFloat())
     fun vec(x: Float, y: Float) = Vec2(x, y)
+
+    operator fun Team.get(name: String): Player? = this.onlineMembers.find { it.gameProfile.name == name }
+
     val Int.sec get() = this * 20
     val Int.min get() = this * 1200
     val Int.hours get() = this * 72000
