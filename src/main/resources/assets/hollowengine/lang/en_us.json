@@ -1,17 +1,14 @@
 {
-  "entity.hollowengine.npc_entity": "Персонаж",
-  "gui.hollowstory.progress_manager.new_task": "§7Получено новое задание \"%s\": %s",
-  "gui.hollowstory.progress_manager.update_task": "§7Задание \"%s\" обновлено: %s",
-  "gui.hollowstory.progress_manager.success_task": "§7Задание \"%s\" выполнено!",
-  "gui.hollowstory.progress_manager.fail_task": "§7Задание \"%s\" провалено!",
-  "gui.hollowstory.progress_manager.success_fail_task": "§7Задание \"%s\" успешно провалено :D",
+  "itemGroup.hollowengine": "HollowEngine",
+  "entity.hollowengine.npc_entity": "Character",
 
-  "item.hollowengine.storyteller_dim_teleporter": "Телепорт: Измерение Рассказчика",
-  "key.categories.mod.hollowengine": "HollowStory: Клавиши",
-  "key.hollowengine.event_list": "Список Событий",
+  "item.hollowengine.storyteller_dim_teleporter": "Teleport: Storyteller Dimension",
+  "key.categories.mod.hollowengine": "HollowEngine: Buttons",
+  "key.hollowengine.event_list": "Event List",
 
-  "hollowengine.scripting.story.script_not_found": "Скрипт \"%s\" не найден!",
+  "hollowengine.scripting.story.script_not_found": "Script \"%s\" not found!",
   "hollowengine.commands.pos.error": "§6[§bHollow Engine§6] §7Could not get position!",
   "hollowengine.commands.copy": "§6[§bHollow Engine§6] §7Value: %s",
-  "hollowengine.commands.actiove_events": "§6[§bHollow Engine§6] §7Active events:"
+  "hollowengine.commands.actiove_events": "§6[§bHollow Engine§6] §7Active events:",
+  "hollowengine.tooltips.copy": "Click to copy!"
 }

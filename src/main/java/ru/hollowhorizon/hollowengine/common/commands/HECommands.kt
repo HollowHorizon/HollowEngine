@@ -11,6 +11,7 @@ import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.register
 import ru.hollowhorizon.hc.common.network.send
+import ru.hollowhorizon.hollowengine.client.utils.roundTo
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler.getActiveEvents
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getAllStoryEvents
@@ -46,7 +47,7 @@ object HECommands {
                 "pos" {
                     val player = source.playerOrException
                     val loc = player.pick(100.0, 0.0f, true).location
-                    CopyTextPacket().send("pos(${loc.x}, ${loc.y}, ${loc.z})", player)
+                    CopyTextPacket().send("pos(${loc.x.roundTo(2)}, ${loc.y.roundTo(2)}, ${loc.z.roundTo(2)})", player)
                 }
 
                 "start-script"(

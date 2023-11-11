@@ -8,6 +8,8 @@ import net.minecraft.server.packs.repository.PackSource
 import net.minecraft.world.entity.Mob
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.monster.Zombie
+import net.minecraft.world.item.CreativeModeTab
+import net.minecraft.world.item.Item
 import net.minecraftforge.api.distmarker.Dist
 import net.minecraftforge.api.distmarker.OnlyIn
 import net.minecraftforge.client.event.EntityRenderersEvent
@@ -47,6 +49,7 @@ import thedarkcolour.kotlinforforge.forge.MOD_BUS
 @Mod(HollowEngine.MODID)
 class HollowEngine {
     init {
+        
         HollowModProcessor.initMod()
         getModScripts().forEach(::runModScript)
         val forgeBus = MinecraftForge.EVENT_BUS
