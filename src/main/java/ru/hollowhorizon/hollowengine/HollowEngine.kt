@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine
 
-import dev.ftb.mods.ftbteams.api.event.TeamEvent
+import dev.ftb.mods.ftbteams.event.TeamEvent
 import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.repository.Pack
