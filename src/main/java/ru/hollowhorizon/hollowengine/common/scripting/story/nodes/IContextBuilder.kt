@@ -51,7 +51,7 @@ interface IContextBuilder {
 
     fun NPCEntity.Companion.creating(settings: NpcContainer.() -> Unit): NpcDelegate {
         val container = NpcContainer().apply(settings)
-        return NpcDelegate(container.settings, container.location).apply { manager = stateMachine }
+        return +NpcDelegate(container.settings, container.location).apply { manager = stateMachine }
     }
 
     infix fun NPCProperty.moveToPos(pos: () -> Vec3) = +NpcMoveToBlockNode(this, pos)
