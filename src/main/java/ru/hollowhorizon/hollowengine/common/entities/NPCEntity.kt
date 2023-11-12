@@ -2,31 +2,27 @@ package ru.hollowhorizon.hollowengine.common.entities
 
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
-import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.PathfinderMob
 import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
+import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
-import ru.hollowhorizon.hollowengine.common.npcs.IHollowNPC
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
-class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
-    val interactionWaiter = Object()
-
+class NPCEntity : PathfinderMob, IAnimated {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
-
     constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
 
-    override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
-        synchronized(interactionWaiter) { interactionWaiter.notifyAll() }
-        return super.mobInteract(pPlayer, pHand)
-    }
+    var onInteract: (Player) -> Unit = {}
+    var shouldGetItem: (ItemStack) -> Boolean = { false }
 
-    override fun die(source: DamageSource) {
-        super.die(source)
+    override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
+        onInteract(pPlayer)
+        return super.mobInteract(pPlayer, pHand)
     }
 
     override fun registerGoals() {
@@ -40,11 +36,21 @@ class NPCEntity : PathfinderMob, IHollowNPC, IAnimated {
 
     //не думаю, что NPC можно деспавниться...
     override fun checkDespawn() {}
-    override val npcEntity = this
 
 
     override fun canPickUpLoot(): Boolean {
         return true
+    }
+
+    override fun wantsToPickUp(pStack: ItemStack): Boolean {
+        return shouldGetItem(pStack)
+    }
+
+    override fun pickUpItem(pItemEntity: ItemEntity) {
+        val item = pItemEntity.item
+        onItemPickup(pItemEntity)
+        this.take(pItemEntity, item.count)
+        pItemEntity.discard()
     }
 
     companion object

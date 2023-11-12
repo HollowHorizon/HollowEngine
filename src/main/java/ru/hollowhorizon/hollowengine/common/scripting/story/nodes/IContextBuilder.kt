@@ -18,6 +18,7 @@ import net.minecraft.world.phys.Vec3
 import net.minecraftforge.network.PacketDistributor
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayType
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
@@ -29,6 +30,7 @@ import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenContainer
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
+import ru.hollowhorizon.hollowengine.common.scripting.item
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.CombinedNode
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.NodeContextBuilder
@@ -87,7 +89,11 @@ interface IContextBuilder {
 
     fun NPCProperty.play(block: AnimationContainer.() -> Unit) = +SimpleNode {
         val container = AnimationContainer().apply(block)
-        this@play().play(container.animation, container.priority, container.playType, container.speed)
+        this@play()[AnimatedEntityCapability::class].layers.add(
+            AnimationLayer(
+                container.animation, container.priority, container.playType, container.speed, 0
+            )
+        )
     }
 
     infix fun NPCProperty.playLooped(animation: () -> String) = play {
@@ -98,7 +104,7 @@ interface IContextBuilder {
     infix fun NPCProperty.playOnce(animation: () -> String) = +SimpleNode {
         val npc = this@playOnce()
         StartOnceAnimationPacket().send(
-            StartAnimationContainer(npc.id, animation(), 10.0f, 1.0f),
+            StartAnimationContainer(npc.id, animation(), 100.0f, 1.0f),
             PacketDistributor.TRACKING_ENTITY.with(this@playOnce)
         )
     }
@@ -113,12 +119,13 @@ interface IContextBuilder {
     }
 
     infix fun NPCProperty.stop(animation: () -> String) = +SimpleNode {
-        this@stop().stop(animation())
+        val anim = animation()
+        this@stop()[AnimatedEntityCapability::class].layers.removeIf { it.animation == anim }
     }
 
 
     infix fun NPCProperty.say(text: () -> String) = +SimpleNode {
-        val component = Component.literal("§6[§7" + this@say().characterName + "§6]§7 ").append(text().mcTranslate)
+        val component = Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
 
@@ -152,6 +159,16 @@ interface IContextBuilder {
         )
         entity.level.addFreshEntity(entityStack)
     }
+
+    class GiveItemList {
+        val items = mutableListOf<ItemStack>()
+
+        operator fun ItemStack.unaryPlus() {
+            items.add(this)
+        }
+    }
+
+    infix fun NPCProperty.requestItems(block: GiveItemList.() -> Unit) = +NpcItemListNode(GiveItemList().apply(block).items, this@requestItems)
 
     class FadeContainer {
         var text = ""

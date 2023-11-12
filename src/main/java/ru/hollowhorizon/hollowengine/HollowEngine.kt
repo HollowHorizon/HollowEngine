@@ -49,7 +49,6 @@ import thedarkcolour.kotlinforforge.forge.MOD_BUS
 @Mod(HollowEngine.MODID)
 class HollowEngine {
     init {
-        
         HollowModProcessor.initMod()
         getModScripts().forEach(::runModScript)
         val forgeBus = MinecraftForge.EVENT_BUS

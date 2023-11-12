@@ -86,6 +86,7 @@ repositories {
     maven { url = uri("https://jitpack.io") }
     maven { url = uri("https://thedarkcolour.github.io/KotlinForForge/") }
     maven { url = uri("https://cursemaven.com") }
+    maven { url = uri("https://maven.firstdarkdev.xyz/snapshots") }
     flatDir {
         dir("hc")
         dir("libs")
@@ -104,6 +105,8 @@ dependencies {
 
     implementation("thedarkcolour:kotlinforforge:3.12.0")
     implementation(fg.deobf("ru.hollowhorizon:hc:1.2.0"))
+    implementation(fg.deobf("curse.maven:ldlib-626676:4839867"))
+    implementation(fg.deobf("curse.maven:photon-871522:4744871"))
     implementation(fg.deobf("curse.maven:ftb-teams-forge-404468:4611938"))
     implementation(fg.deobf("curse.maven:ftb-library-forge-404465:4661834"))
     implementation(fg.deobf("curse.maven:architectury-api-419699:4555749"))

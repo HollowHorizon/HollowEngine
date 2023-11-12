@@ -34,7 +34,7 @@ class NpcDelegate(
             ?: throw IllegalStateException("Dimension ${location.world} not found. Or not loaded")
 
         val entities = level.getEntities(ModEntities.NPC_ENTITY.get()) { entity ->
-            return@getEntities entity[AnimatedEntityCapability::class].model.rl == settings.model.rl && entity.characterName == settings.name && entity.isAlive
+            return@getEntities entity[AnimatedEntityCapability::class].model.rl == settings.model.rl && entity.displayName.string == settings.name && entity.isAlive
         }
 
         var isNpcSpawned = true
