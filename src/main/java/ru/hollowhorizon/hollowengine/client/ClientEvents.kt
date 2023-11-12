@@ -90,6 +90,7 @@ object ClientEvents {
     fun onClicked(event: InputEvent.MouseButton.Pre) {
         if (event.action != 1) return
 
+        if(event.button > 2) return
         val button = MouseButton.from(event.button)
         if (canceledButtons.isNotEmpty()) MouseClickedPacket().send(Container(button))
         if (canceledButtons.removeIf { it.ordinal == button.ordinal }) event.isCanceled = true
