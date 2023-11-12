@@ -21,7 +21,7 @@ class NPCEntity : PathfinderMob, IAnimated {
     var shouldGetItem: (ItemStack) -> Boolean = { false }
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
-        onInteract(pPlayer)
+        if(pHand == InteractionHand.MAIN_HAND) onInteract(pPlayer)
         return super.mobInteract(pPlayer, pHand)
     }
 

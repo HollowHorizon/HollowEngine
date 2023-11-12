@@ -170,6 +170,8 @@ interface IContextBuilder {
 
     infix fun NPCProperty.requestItems(block: GiveItemList.() -> Unit) = +NpcItemListNode(GiveItemList().apply(block).items, this@requestItems)
 
+    fun NPCProperty.waitInteract() = +NpcInteractNode(this@waitInteract)
+
     class FadeContainer {
         var text = ""
         var subtitle = ""
