@@ -254,12 +254,12 @@ interface IContextBuilder {
         var inverse = false
     }
 
-    infix fun IContextBuilder.waitPos(context: PosWaiter.() -> Unit) {
+    infix fun Team.waitPos(context: PosWaiter.() -> Unit) {
         waitForgeEvent<ServerTickEvent> {
             var result = false
             val waiter = PosWaiter().apply(context)
 
-            this.stateMachine.team.onlineMembers.forEach {
+            this.onlineMembers.forEach {
                 val distance = it.distanceToSqr(waiter.vec)
                 if (!waiter.inverse)
                     if (distance <= waiter.radius * waiter.radius) result = true
