@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hc.client.utils.nbt.*
+import ru.hollowhorizon.hollowengine.client.utils.ForVec2
 import java.io.File
 
 fun main() {
@@ -28,7 +29,8 @@ data class NPCSettings(
     var showName: Boolean = true,
 )
 
-data class SpawnLocation(val world: String = "minecraft:overworld", val pos: BlockPos, val rotation: Vec2 = Vec2.ZERO) {
+@Serializable
+data class SpawnLocation(val world: String = "minecraft:overworld", @Serializable(ForBlockPos::class) val pos: BlockPos, @Serializable(ForVec2::class) val rotation: Vec2 = Vec2.ZERO) {
     constructor(world: String = "minecraft:overworld", pos: Vec3, rotation: Vec2 = Vec2.ZERO): this(world, BlockPos(pos), rotation)
 }
 
