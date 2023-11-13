@@ -60,10 +60,10 @@ interface IContextBuilder {
     infix fun NPCProperty.moveToTeam(target: () -> Team) = +NpcMoveToTeamNode(this, target)
     infix fun NPCProperty.moveToBiome(biomeName: () -> String) = +NpcMoveToBlockNode(this) {
         val npc = this@moveToBiome()
-        val biome = ForgeRegistries.BIOMES.getValue(biomeName().rl) ?: return@NpcMoveToBlockNode npc.position()
+        val biome = biomeName().rl
 
         val pos = (npc.level as ServerLevel).findClosestBiome3d(
-            { it.get() == biome },
+            { it.`is`(biome) },
             npc.blockPosition(),
             6400,
             32,
