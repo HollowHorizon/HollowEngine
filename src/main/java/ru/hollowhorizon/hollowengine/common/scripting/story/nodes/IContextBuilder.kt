@@ -16,6 +16,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
+import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.network.PacketDistributor
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayType
