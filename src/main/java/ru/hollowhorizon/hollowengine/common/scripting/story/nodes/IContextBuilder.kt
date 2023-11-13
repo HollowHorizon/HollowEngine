@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
 import net.minecraft.network.protocol.game.ClientboundStopSoundPacket
+import net.minecraft.server.level.ServerLevel
 import net.minecraft.sounds.SoundSource
 import net.minecraft.util.Mth
 import net.minecraft.world.InteractionHand
@@ -16,6 +17,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import net.minecraftforge.network.PacketDistributor
+import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayType
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
@@ -30,7 +32,6 @@ import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenContainer
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
-import ru.hollowhorizon.hollowengine.common.scripting.item
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.CombinedNode
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.NodeContextBuilder
@@ -57,6 +58,19 @@ interface IContextBuilder {
     infix fun NPCProperty.moveToPos(pos: () -> Vec3) = +NpcMoveToBlockNode(this, pos)
     infix fun NPCProperty.moveToEntity(target: () -> Entity) = +NpcMoveToEntityNode(this, target)
     infix fun NPCProperty.moveToTeam(target: () -> Team) = +NpcMoveToTeamNode(this, target)
+    infix fun NPCProperty.moveToBiome(biomeName: () -> String) = +NpcMoveToBlockNode(this) {
+        val npc = this@moveToBiome()
+        val biome = ForgeRegistries.BIOMES.getValue(biomeName().rl) ?: return@NpcMoveToBlockNode npc.position()
+
+        val pos = (npc.level as ServerLevel).findClosestBiome3d(
+            { it.get() == biome },
+            npc.blockPosition(),
+            6400,
+            32,
+            64
+        )?.first ?: npc.blockPosition()
+        Vec3(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
+    }
 
     infix fun NPCProperty.lookAtPos(target: () -> Vec3) = +NpcLookToBlockNode(this, target)
     infix fun NPCProperty.lookAtEntity(target: () -> Entity) = +NpcLookToEntityNode(this, target)
@@ -168,7 +182,8 @@ interface IContextBuilder {
         }
     }
 
-    infix fun NPCProperty.requestItems(block: GiveItemList.() -> Unit) = +NpcItemListNode(GiveItemList().apply(block).items, this@requestItems)
+    infix fun NPCProperty.requestItems(block: GiveItemList.() -> Unit) =
+        +NpcItemListNode(GiveItemList().apply(block).items, this@requestItems)
 
     fun NPCProperty.waitInteract() = +NpcInteractNode(this@waitInteract)
 
