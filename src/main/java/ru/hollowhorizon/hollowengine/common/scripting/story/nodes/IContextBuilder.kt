@@ -16,6 +16,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
+import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.network.PacketDistributor
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayType
@@ -33,10 +34,7 @@ import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.CombinedNode
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.NodeContextBuilder
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.WaitNode
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
 
 interface IContextBuilder {
@@ -248,6 +246,27 @@ interface IContextBuilder {
                 )
             )
         }
+    }
+
+    class PosWaiter {
+        var vec = Vec3(0.0, 0.0, 0.0)
+        var radius = 0.0
+        var inverse = false
+    }
+
+    infix fun Team.waitPos(context: PosWaiter.() -> Unit) = waitForgeEvent<ServerTickEvent> {
+        var result = false
+        val waiter = PosWaiter().apply(context)
+
+        this@waitPos.onlineMembers.forEach {
+            val distance = it.distanceToSqr(waiter.vec)
+                if (!waiter.inverse)
+                    if (distance <= waiter.radius * waiter.radius) result = true
+                else
+                    if (distance >= waiter.radius * waiter.radius) result = true
+        }
+
+        result
     }
 
     fun stopSound(sound: () -> String) = +SimpleNode {
