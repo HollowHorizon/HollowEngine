@@ -92,13 +92,13 @@ class DialogueNode(val nodes: List<Node>) : Node() {
 
 class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stateMachine) {
 
-    override fun NPCProperty.say(text: IContextBuilder.TextContainer.() -> Unit): SimpleNode {
-        val container = IContextBuilder.TextContainer().apply(text)
+    override fun NPCProperty.say(text: () -> String): SimpleNode {
+        val container = text()
 
         val result = +SimpleNode {
             val npc = this@say()
             DialogueSayPacket().send(
-                SayContainer(container.text, npc.displayName.string, npc.id),
+                SayContainer(container, npc.displayName.string, npc.id),
                 *manager.team.onlineMembers.toTypedArray()
             )
         }
@@ -107,12 +107,12 @@ class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stat
         return result
     }
 
-    override fun Team.send(text: IContextBuilder.TextContainer.() -> Unit): SimpleNode {
-        val container = IContextBuilder.TextContainer().apply(text)
+    override fun Team.send(text: () -> String): SimpleNode {
+        val container = text()
 
         val result = +SimpleNode {
             DialogueSayPacket().send(
-                SayContainer(container.text, this@send.name.string, this@send.onlineMembers.find { it.uuid == this@send.owner }?.id ?: -1),
+                SayContainer(container, this@send.name.string, this@send.onlineMembers.find { it.uuid == this@send.owner }?.id ?: -1),
                 *manager.team.onlineMembers.toTypedArray()
             )
         }
@@ -121,9 +121,9 @@ class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stat
         return result
     }
 
-    fun send(body: SayContainer.() -> Unit) {
+    fun send(body: () -> SayContainer) {
         +SimpleNode {
-            val container = SayContainer("Тут должен быть текст, но его не написали в скрипте...", "", 0).apply(body)
+            val container = body()
             DialogueSayPacket().send(container, *manager.team.onlineMembers.toTypedArray())
         }
     }

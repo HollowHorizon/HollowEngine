@@ -12,6 +12,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 
 class NpcLookToBlockNode(npcConsumer: NPCProperty, var pos: () -> Vec3, var speed: Vec2 = Vec2(10f, 30f)) : Node() {
     val npc by lazy { npcConsumer() }
+    private var ticks = 30
+
     override fun tick(): Boolean {
         val look = npc.lookControl
 
@@ -19,7 +21,7 @@ class NpcLookToBlockNode(npcConsumer: NPCProperty, var pos: () -> Vec3, var spee
 
         look.setLookAt(newPos.x, newPos.y, newPos.z, speed.x, speed.y)
 
-        return look.isLookingAtTarget
+        return ticks-- > 0
     }
 
     override fun serializeNBT() = CompoundTag().apply {

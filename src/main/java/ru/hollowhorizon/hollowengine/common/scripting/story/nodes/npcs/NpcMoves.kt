@@ -11,21 +11,20 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 
 class NpcMoveToBlockNode(npcConsumer: NPCProperty, var pos: () -> Vec3) : Node() {
     val npc by lazy { npcConsumer() }
+    val block by lazy { pos() }
+
     override fun tick(): Boolean {
         val navigator = npc.navigation
 
-        val nextPos = pos()
-
-        navigator.moveTo(nextPos.x, nextPos.y, nextPos.z, 1.0)
+        navigator.moveTo(block.x, block.y, block.z, 1.0)
 
         return !(navigator.path != null && navigator.isDone && npc.isOnGround)
     }
 
     override fun serializeNBT() = CompoundTag().apply {
-        val nextPos = pos()
-        putDouble("pos_x", nextPos.x)
-        putDouble("pos_y", nextPos.y)
-        putDouble("pos_z", nextPos.z)
+        putDouble("pos_x", block.x)
+        putDouble("pos_y", block.y)
+        putDouble("pos_z", block.z)
     }
 
     override fun deserializeNBT(nbt: CompoundTag) {

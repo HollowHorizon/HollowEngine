@@ -34,12 +34,17 @@ class NpcDelegate(
             ?: throw IllegalStateException("Dimension ${location.world} not found. Or not loaded")
 
         val entities = level.getEntities(ModEntities.NPC_ENTITY.get()) { entity ->
-            return@getEntities entity[AnimatedEntityCapability::class].model.rl == settings.model.rl && entity.characterName == settings.name && entity.isAlive
+            return@getEntities entity[AnimatedEntityCapability::class].model.rl == settings.model.rl && entity.displayName.string == settings.name && entity.isAlive
         }
 
         var isNpcSpawned = true
         val entity = entities.firstOrNull() ?: NPCEntity(level).apply {
             isNpcSpawned = false
+            setPos(
+                location.pos.x.toDouble() + 0.5,
+                location.pos.y.toDouble(),
+                location.pos.z.toDouble() + 0.5
+            )
             level.addFreshEntity(this)
         }
 
@@ -60,7 +65,7 @@ class NpcDelegate(
                     value.toDouble()
             }
 
-            entity.isCustomNameVisible = this.settings.displayNameInWorld
+            entity.isCustomNameVisible = this.settings.showName && settings.name.isNotEmpty()
             entity.customName = settings.name.mcText
         }
 
@@ -72,8 +77,8 @@ class NpcDelegate(
     }
 
     override fun tick(): Boolean {
-        npc //заспавнить нпс, если этого не было сделано. По сути это вызов инициализотора
-        return false
+        npc.navigation.moveTo(location.pos.x + 0.5, location.pos.y.toDouble(), location.pos.z + 0.5, 1.0)
+        return npc.tickCount < 10
     }
 
     override fun serializeNBT() = CompoundTag().apply {

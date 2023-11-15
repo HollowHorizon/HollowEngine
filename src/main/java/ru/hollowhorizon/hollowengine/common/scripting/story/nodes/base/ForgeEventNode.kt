@@ -7,7 +7,6 @@ import net.minecraftforge.eventbus.api.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 
-
 open class ForgeEventNode<T : Event>(private val type: Class<T>, open val action: (T) -> Boolean) : Node() {
     private var isStarted = false
     private var isEnded = false
