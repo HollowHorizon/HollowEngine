@@ -75,7 +75,8 @@ interface IContextBuilder {
 
     infix fun NPCProperty.lookAtTeam(target: () -> Team) = +NpcLookToTeamNode(this, target)
 
-
+    infix fun NPCProperty.lookAtNPC(target: () -> NPCProperty) = +NpcLookToEntityNode(this, target.invoke())
+    
     infix fun NPCProperty.setTarget(value: (() -> LivingEntity?)?) = +SimpleNode {
         this@setTarget().target = value?.invoke()
     }
