@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import dev.ftb.mods.ftbteams.api.Team
-import net.minecraft.ChatFormatting
+import kotlinx.serialization.Serializable
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Registry
 import net.minecraft.nbt.StringTag
@@ -46,10 +46,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.CombinedNode
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.NodeContextBuilder
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.WaitNode
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
 import java.util.function.Function
 import kotlin.math.roundToInt
@@ -177,11 +174,6 @@ interface IContextBuilder {
         this@stop()[AnimatedEntityCapability::class].layers.removeIf { it.animation == anim }
     }
 
-    class TextContainer {
-        var text = ""
-        var styles = arrayOf<ChatFormatting>()
-        var nameColors: Pair<String, String> = "6" to "7"
-    }
 
     infix fun NPCProperty.say(text: TextContainer.() -> Unit) = +SimpleNode {
         val container = TextContainer().apply(text)
@@ -243,6 +235,17 @@ interface IContextBuilder {
 
     infix fun NPCProperty.configure(body: AnimatedEntityCapability.() -> Unit) = +SimpleNode {
         this@configure()[AnimatedEntityCapability::class].apply(body)
+    }
+
+    infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
+        stateMachine.team.onlineMembers.forEach {
+            val componente = TextComponent("§6[§7${it.displayName.string}§7]§7").append(text().mcTranslate)
+            it.sendMessage(componente, it.uuid)
+        }
+    }
+
+    infix fun Team.send(text: () -> String) = +SimpleNode {
+        stateMachine.team.onlineMembers.forEach { it.sendMessage(text().mcTranslate, it.uuid) }
     }
 
     fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
@@ -373,9 +376,6 @@ interface IContextBuilder {
             )
         }
     }
-
-//    @Serializable Крч, сам сделаешь. Просил сам сделать класс xD
-//    data class Point(val x: Double, val y: Double, val z: Double, val xRot: Double, val yRot: Double, val zRot: Double = 0.0)
 
     class SimpleTeleport {
         var pos: Vec3 = Vec3(0.0, 0.0, 0.0)
