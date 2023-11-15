@@ -260,10 +260,11 @@ interface IContextBuilder {
 
         this@waitPos.onlineMembers.forEach {
             val distance = it.distanceToSqr(waiter.vec)
-                if (!waiter.inverse)
-                    if (distance <= waiter.radius * waiter.radius) result = true
-                else
-                    if (distance >= waiter.radius * waiter.radius) result = true
+            if (!waiter.inverse) {
+                if (distance <= waiter.radius * waiter.radius) result = true
+            } else {
+                if (distance >= waiter.radius * waiter.radius) result = true
+            }
         }
 
         result
