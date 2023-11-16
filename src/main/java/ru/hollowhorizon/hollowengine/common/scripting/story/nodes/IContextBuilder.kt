@@ -75,6 +75,11 @@ interface IContextBuilder {
 
     infix fun NPCProperty.lookAtTeam(target: () -> Team) = +NpcLookToTeamNode(this, target)
 
+    infix fun NPCProperty.tp(target: SimpleTeleport.() -> Unit) = +SimpleNode {
+        val teleport = SimpleTeleport().apply(target)
+        this@tp.invoke().teleportTo(teleport.x, teleport.y, teleport.z)
+    }
+
     infix fun NPCProperty.setTarget(value: (() -> LivingEntity?)?) = +SimpleNode {
         this@setTarget().target = value?.invoke()
     }
