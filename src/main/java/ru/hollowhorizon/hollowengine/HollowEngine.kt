@@ -25,6 +25,7 @@ import ru.hollowhorizon.hc.common.registry.HollowModProcessor
 import ru.hollowhorizon.hc.common.registry.RegistryLoader
 import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.client.ClientEvents.initKeys
+import ru.hollowhorizon.hollowengine.client.render.entity.NPCRenderer
 import ru.hollowhorizon.hollowengine.common.commands.HECommands
 import ru.hollowhorizon.hollowengine.common.commands.HEStoryCommands
 import ru.hollowhorizon.hollowengine.common.data.HollowStoryPack
