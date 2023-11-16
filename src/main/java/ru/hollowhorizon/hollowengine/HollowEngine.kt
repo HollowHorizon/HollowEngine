@@ -24,12 +24,12 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext
 import net.minecraftforge.fml.loading.FMLEnvironment
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.api.registy.HollowMod
-import ru.hollowhorizon.hc.client.render.entity.GLTFEntityRenderer
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.registry.HollowModProcessor
 import ru.hollowhorizon.hc.common.registry.RegistryLoader
 import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.client.ClientEvents.initKeys
+import ru.hollowhorizon.hollowengine.client.render.entity.NPCRenderer
 import ru.hollowhorizon.hollowengine.common.commands.HECommands
 import ru.hollowhorizon.hollowengine.common.data.HollowStoryPack
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
@@ -92,7 +92,7 @@ class HollowEngine {
     }
 
     fun entityRenderers(event: EntityRenderersEvent.RegisterRenderers) {
-        event.registerEntityRenderer(ModEntities.NPC_ENTITY.get(), ::GLTFEntityRenderer)
+        event.registerEntityRenderer(ModEntities.NPC_ENTITY.get(), ::NPCRenderer)
     }
 
     @OnlyIn(Dist.CLIENT)
