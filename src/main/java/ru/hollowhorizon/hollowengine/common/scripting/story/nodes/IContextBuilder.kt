@@ -28,6 +28,7 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationContainer
 import ru.hollowhorizon.hc.common.network.packets.StartOnceAnimationPacket
 import ru.hollowhorizon.hc.common.network.send
+import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
 import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenContainer
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
@@ -157,6 +158,10 @@ interface IContextBuilder {
     }
 
     fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
+
+    infix fun NPCProperty.addEffect(effect: ParticleEffect.() -> Unit) = +SimpleNode {
+        this@addEffect().addEffect(ParticleEffect("".rl, "").apply(effect))
+    }
 
     infix fun NPCProperty.dropItem(stack: () -> ItemStack) = +SimpleNode {
         val entity = this@dropItem()

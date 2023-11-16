@@ -11,6 +11,9 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
+import ru.hollowhorizon.hc.client.utils.get
+import ru.hollowhorizon.hollowengine.client.render.effects.EffectsCapability
+import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
 class NPCEntity : PathfinderMob, IAnimated {
@@ -21,13 +24,17 @@ class NPCEntity : PathfinderMob, IAnimated {
     var shouldGetItem: (ItemStack) -> Boolean = { false }
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
-        if(pHand == InteractionHand.MAIN_HAND) onInteract(pPlayer)
+        if (pHand == InteractionHand.MAIN_HAND) onInteract(pPlayer)
         return super.mobInteract(pPlayer, pHand)
     }
 
     override fun registerGoals() {
         goalSelector.addGoal(0, FloatGoal(this)) //Если NPC решит утонить будет не кайф...
         goalSelector.addGoal(1, MeleeAttackGoal(this, 1.0, false))
+    }
+
+    fun addEffect(effect: ParticleEffect) {
+        this[EffectsCapability::class].effects.add(effect)
     }
 
     override fun isInvulnerable() = true
@@ -55,3 +62,5 @@ class NPCEntity : PathfinderMob, IAnimated {
 
     companion object
 }
+
+

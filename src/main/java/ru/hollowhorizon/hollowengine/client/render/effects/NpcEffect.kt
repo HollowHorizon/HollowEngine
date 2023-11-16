@@ -4,13 +4,12 @@ import com.lowdragmc.lowdraglib.utils.Vector3
 import com.lowdragmc.photon.client.emitter.IParticleEmitter
 import com.lowdragmc.photon.client.fx.FXEffect
 import com.lowdragmc.photon.client.fx.FXHelper
-import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Vector4f
+import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hc.client.models.gltf.GltfTree
 
-class NpcEffect(location: ResourceLocation, val node: String) : FXEffect(
+class NpcEffect(val location: ResourceLocation, val node: String) : FXEffect(
     FXHelper.getFX(location),
     Minecraft.getInstance().level
 ) {
