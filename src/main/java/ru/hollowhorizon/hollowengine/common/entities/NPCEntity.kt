@@ -62,5 +62,3 @@ class NPCEntity : PathfinderMob, IAnimated {
 
     companion object
 }
-
-

@@ -146,6 +146,8 @@ interface IContextBuilder {
         this@configure()[AnimatedEntityCapability::class].apply(body)
     }
 
+    fun AnimatedEntityCapability.skin(name: String) = "skins/$name"
+
     infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach {
             val componente = Component.literal("§6[§7${it.displayName.string}§7]§7").append(text().mcTranslate)

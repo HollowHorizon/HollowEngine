@@ -104,15 +104,15 @@ dependencies {
     annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
 
     implementation("thedarkcolour:kotlinforforge:3.12.0")
-    implementation(fg.deobf("ru.hollowhorizon:hc:1.2.0"))
-    implementation(fg.deobf("curse.maven:ldlib-626676:4839867"))
-    implementation(fg.deobf("curse.maven:photon-871522:4744871"))
+    implementation(fg.deobf("ru.hollowhorizon:hc:1.19.2_1.2.0"))
     implementation(fg.deobf("curse.maven:ftb-teams-forge-404468:4611938"))
     implementation(fg.deobf("curse.maven:ftb-library-forge-404465:4661834"))
     implementation(fg.deobf("curse.maven:architectury-api-419699:4555749"))
     implementation(fg.deobf("curse.maven:jei-238222:4712866"))
     implementation(fg.deobf("curse.maven:wthit-forge-455982:4819215"))
     implementation(fg.deobf("curse.maven:badpackets-615134:4784364"))
+    implementation(fg.deobf("curse.maven:ldlib-626676:4839867"))
+    implementation(fg.deobf("curse.maven:photon-871522:4744871"))
 
     implementation(kotlin("script-runtime"))
     implementation(kotlin("scripting-jvm-host"))
