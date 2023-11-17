@@ -89,10 +89,10 @@ configure<UserDevExtension> {
 
 repositories {
     mavenCentral()
-    maven { url = uri("https://jitpack.io") }
-    maven { url = uri("https://thedarkcolour.github.io/KotlinForForge/") }
-    maven { url = uri("https://cursemaven.com") }
-    maven { url = uri("https://maven.firstdarkdev.xyz/snapshots") }
+    maven("https://jitpack.io")
+    maven("https://thedarkcolour.github.io/KotlinForForge/")
+    maven("https://cursemaven.com")
+    maven("https://maven.saps.dev/releases")
     flatDir {
         dir("hc")
         dir("libs")
@@ -109,15 +109,11 @@ dependencies {
 
     implementation("thedarkcolour:kotlinforforge:$kffVersion")
     implementation(fg.deobf("ru.hollowhorizon:hc:${mcVersion}-${hcVersion}"))
-    implementation(fg.deobf("curse.maven:ftb-teams-forge-404468:4611938"))
-    implementation(fg.deobf("curse.maven:ftb-library-forge-404465:4661834"))
-    implementation(fg.deobf("curse.maven:architectury-api-419699:4555749"))
-    implementation(fg.deobf("curse.maven:jei-238222:4712866"))
-    implementation(fg.deobf("curse.maven:wthit-forge-455982:4819215"))
-    implementation(fg.deobf("curse.maven:badpackets-615134:4784364"))
-    implementation(fg.deobf("curse.maven:ldlib-626676:4839867"))
-    implementation(fg.deobf("curse.maven:photon-871522:4744871"))
-
+    implementation(fg.deobf("curse.maven:ftb-teams-forge-404468:4579981"))
+    implementation(fg.deobf("curse.maven:ftb-library-forge-404465:4396792"))
+    implementation(fg.deobf("curse.maven:architectury-api-419699:4521465"))
+    implementation(fg.deobf("curse.maven:jei-238222:4593548"))
+    
     implementation(kotlin("script-runtime"))
     implementation(kotlin("scripting-jvm-host"))
     implementation(kotlin("scripting-jvm"))

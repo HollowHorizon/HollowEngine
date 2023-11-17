@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues
 
-import dev.ftb.mods.ftbteams.api.Team
+import dev.ftb.mods.ftbteams.data.Team
 import kotlinx.serialization.Serializable
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component

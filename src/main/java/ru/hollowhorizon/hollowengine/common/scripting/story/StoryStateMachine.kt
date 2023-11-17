@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
-import dev.ftb.mods.ftbteams.api.Team
+import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.server.MinecraftServer

@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs
 
-
 import dev.ftb.mods.ftbteams.api.FTBTeamsAPI
 import dev.ftb.mods.ftbteams.api.Team
 import net.minecraft.nbt.CompoundTag
@@ -87,8 +86,8 @@ class NpcLookToTeamNode(npcConsumer: NPCProperty, var target: () -> Team?, var s
     }
 
     override fun deserializeNBT(nbt: CompoundTag) {
-        val team = FTBTeamsAPI.api().manager.getTeamByID(nbt.getUUID("team"))
+        val team = FTBTeamsAPI.getManager().getTeamByID(nbt.getUUID("team"))
         if (team == null) HollowCore.LOGGER.warn("Team ${nbt.getUUID("team")} not found!")
-        target = { team.get() }
+        target = { team }
     }
 }

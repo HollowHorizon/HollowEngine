@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.common.commands
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.arguments.StringArgumentType
-import dev.ftb.mods.ftbteams.api.FTBTeamsAPI
+import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.network.chat.TextComponent
@@ -69,9 +69,9 @@ object HECommands {
 
                 "active-events" {
                     val player = source.playerOrException
-                    val storyTeam = FTBTeamsAPI.api().manager.getTeamForPlayer(player)
+                    val storyTeam = FTBTeamsAPI.getPlayerTeam(player)
                     player.sendMessage(TranslatableComponent("hollowengine.commands.actiove_events"), player.uuid)
-                    getActiveEvents(storyTeam.get())
+                    getActiveEvents(storyTeam)
                         .ifEmpty{ mutableListOf("No active events") }
                         .forEach(
                             Consumer { name: String ->

@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs
 
-import dev.ftb.mods.ftbteams.api.FTBTeamsAPI
-import dev.ftb.mods.ftbteams.api.Team
+import dev.ftb.mods.ftbteams.FTBTeamsAPI
+import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec3
