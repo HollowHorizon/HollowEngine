@@ -12,7 +12,6 @@ import java.io.File
 fun main() {
     val settings = NPCSettings().apply {
         name = "Виталик"
-
     }
 
     val nbt = NBTFormat.serialize(settings)

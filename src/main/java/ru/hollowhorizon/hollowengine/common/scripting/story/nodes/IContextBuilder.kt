@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
-import dev.ftb.mods.ftbteams.api.Team
+import dev.ftb.mods.ftbteams.data.Team
 import kotlinx.serialization.Serializable
 import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.TextComponent

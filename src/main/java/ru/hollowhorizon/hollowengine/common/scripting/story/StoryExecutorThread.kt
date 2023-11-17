@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
-import dev.ftb.mods.ftbteams.api.Team
+import dev.ftb.mods.ftbteams.data.Team
 import kotlinx.coroutines.async
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hc.HollowCore

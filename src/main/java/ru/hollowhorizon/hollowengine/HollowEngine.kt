@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine
 
-import dev.ftb.mods.ftbteams.api.event.TeamEvent
+import dev.ftb.mods.ftbteams.event.TeamEvent
 import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.repository.Pack
@@ -11,7 +11,6 @@ import net.minecraftforge.api.distmarker.Dist
 import net.minecraftforge.api.distmarker.OnlyIn
 import net.minecraftforge.client.event.EntityRenderersEvent
 import net.minecraftforge.common.ForgeMod
-import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.event.AddPackFindersEvent
 import net.minecraftforge.event.AddReloadListenerEvent
 import net.minecraftforge.event.RegisterCommandsEvent
@@ -20,7 +19,6 @@ import net.minecraftforge.fml.common.Mod
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent
 import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext
 import net.minecraftforge.fml.loading.FMLEnvironment
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.api.registy.HollowMod
@@ -39,6 +37,8 @@ import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
 import ru.hollowhorizon.hollowengine.common.registry.ModDimensions
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.scripting.mod.runModScript
+import thedarkcolour.kotlinforforge.forge.FORGE_BUS
+import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
 @HollowMod(HollowEngine.MODID)
 @Mod(HollowEngine.MODID)
@@ -46,7 +46,7 @@ class HollowEngine {
     init {
         HollowModProcessor.initMod()
         getModScripts().forEach(::runModScript)
-        val forgeBus = MinecraftForge.EVENT_BUS
+        val forgeBus = FORGE_BUS
         HollowCore.LOGGER.info("HollowEngine mod loading...")
         forgeBus.addListener(::registerCommands)
         forgeBus.addListener(this::addReloadListenerEvent)
@@ -70,7 +70,6 @@ class HollowEngine {
         ModDimensions.CHUNK_GENERATORS.register(MOD_BUS)
         ModDimensions.DIMENSIONS.register(MOD_BUS)
         RegistryLoader.registerAll()
-        //ModDimensions
         TeamEvent.LOADED.register(StoryHandler::onTeamLoaded)
     }
 
@@ -119,6 +118,5 @@ class HollowEngine {
 
     companion object {
         const val MODID = "hollowengine"
-        val MOD_BUS = FMLJavaModLoadingContext.get().modEventBus
     }
 }

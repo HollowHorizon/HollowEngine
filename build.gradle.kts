@@ -1,5 +1,4 @@
 
-import net.minecraftforge.gradle.userdev.DependencyManagementExtension
 import net.minecraftforge.gradle.userdev.UserDevExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.spongepowered.asm.gradle.plugins.MixinExtension
@@ -84,9 +83,10 @@ configure<UserDevExtension> {
 
 repositories {
     mavenCentral()
-    maven { url = uri("https://jitpack.io") }
-    maven { url = uri("https://thedarkcolour.github.io/KotlinForForge/") }
-    maven { url = uri("https://cursemaven.com") }
+    maven("https://jitpack.io")
+    maven("https://thedarkcolour.github.io/KotlinForForge/")
+    maven("https://cursemaven.com")
+    maven("https://maven.saps.dev/releases")
     flatDir {
         dir("hc")
         dir("libs")
@@ -98,14 +98,12 @@ configure<MixinExtension> {
 }
 
 dependencies {
-    val minecraft = configurations["minecraft"]
-    val fg = project.extensions.findByType(DependencyManagementExtension::class.java)!!
     minecraft("net.minecraftforge:forge:1.18.2-40.2.10")
     annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
 
     implementation("thedarkcolour:kotlinforforge:3.12.0")
     implementation(fg.deobf("ru.hollowhorizon:hc:1.18.2_1.2.1"))
-    implementation(fg.deobf("curse.maven:ftb-teams-forge-404468:4623116"))
+    implementation(fg.deobf("curse.maven:ftb-teams-forge-404468:4579981"))
     implementation(fg.deobf("curse.maven:ftb-library-forge-404465:4396792"))
     implementation(fg.deobf("curse.maven:architectury-api-419699:4521465"))
     implementation(fg.deobf("curse.maven:jei-238222:4593548"))

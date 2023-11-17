@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.events
 
-import dev.ftb.mods.ftbteams.api.Team
-import dev.ftb.mods.ftbteams.api.event.TeamEvent
+import dev.ftb.mods.ftbteams.data.Team
+import dev.ftb.mods.ftbteams.event.TeamEvent
 import net.minecraft.nbt.CompoundTag
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.event.entity.player.PlayerEvent
@@ -45,7 +45,7 @@ object StoryHandler {
                 }
             }
             team.extraData.put("hollowengine_stories", storiesNBT)
-            team.markDirty()
+            team.save()
         }
     }
 
@@ -58,7 +58,7 @@ object StoryHandler {
                 }
             }
             team.extraData.put("hollowengine_stories", storiesNBT)
-            team.markDirty()
+            team.save()
         }
     }
 
