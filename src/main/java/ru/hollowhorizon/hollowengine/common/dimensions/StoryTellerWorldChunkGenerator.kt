@@ -23,7 +23,6 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
-
 class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSource: BiomeSource) :
     ChunkGenerator(structures, Optional.empty(), biomeSource) {
     override fun codec() = CODEC

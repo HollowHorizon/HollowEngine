@@ -30,21 +30,7 @@ side = "BOTH"
 #FTBLibraries
 [[dependencies.hollowengine]]
 modId = "ftbteams"
-mandatory = true
+mandatory = false
 versionRange = "[1902.2.14,)"
-ordering = "AFTER"
-side = "BOTH"
-
-[[dependencies.hollowengine]]
-modId = "architectury"
-mandatory = true
-versionRange = "[6.5.85,)"
-ordering = "AFTER"
-side = "BOTH"
-
-[[dependencies.hollowengine]]
-modId = "ftblibrary"
-mandatory = true
-versionRange = "[1902.4.1,)"
 ordering = "AFTER"
 side = "BOTH"
