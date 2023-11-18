@@ -4,21 +4,22 @@ import kotlinx.serialization.Serializable
 import net.minecraft.core.BlockPos
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hc.client.utils.nbt.*
+import ru.hollowhorizon.hc.client.utils.nbt.ForBlockPos
+import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
+import ru.hollowhorizon.hc.client.utils.nbt.save
+import ru.hollowhorizon.hc.client.utils.nbt.serialize
 import ru.hollowhorizon.hollowengine.client.utils.ForVec2
 import java.io.File
 
 fun main() {
     val settings = NPCSettings().apply {
         name = "Виталик"
-
     }
 
     val nbt = NBTFormat.serialize(settings)
     val file = File("npc.nbt")
 
     nbt.save(file.outputStream())
-
 }
 
 @Serializable

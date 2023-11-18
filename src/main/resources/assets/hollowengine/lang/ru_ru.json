@@ -9,6 +9,46 @@
   "hollowengine.scripting.story.script_not_found": "Скрипт \"%s\" не найден!",
   "hollowengine.commands.pos.error": "§6[§bHollow Engine§6] §7Не удаётся найти указанный блок!",
   "hollowengine.commands.copy": "§6[§bHollow Engine§6] §7Значение: %s скопировано.",
-  "hollowengine.commands.actiove_events": "§6[§bHollow Engine§6] §7Активные события:",
-  "hollowengine.tooltips.copy": "Click to copy!"
+  "hollowengine.commands.active_events": "§6[§bHollow Engine§6] §7Активные события:",
+
+  "hollowengine.tooltips.copy": "Нажми, чтобы скопировать!",
+
+  "hollowengine.executing_error": "§cОшибка, при выполнения события %s.",
+  "hollowengine.check_logs": "§eСмотрите логи, чтобы увидеть подробную информацию.",
+
+  "hollowengine.npc_need": "Тебе осталось принести: ",
+
+  "hollowengine.no_text_dialogue": "Тут должен быть текст, но его не написали в скрипте... There should be text here, but it wasn't written in the script...",
+
+  "hollowengine.input_model_path": "Введите путь к модели:",
+  "hollowengine.model_example": "модель (modid:path_to_file)",
+
+  "hollowengine.model_edit.creating": "Создание модели NPC",
+  "hollowengine.model_edit.text": "текст",
+  "hollowengine.model_edit.save": "Сохранить",
+  "hollowengine.model_edit.cancel": "Отменить",
+
+  "hollowengine.model_preview": "Предпросмотр модели",
+  "hollowengine.model_preview.reset": "Сбросить предпросмотр",
+  "hollowengine.model_preview.full_screen": "Полноэкранный режим",
+  "hollowengine.model_preview.rotate_model": "Повернуть модель",
+  "hollowengine.model_preview.display.plant": "Отображать землю",
+  "hollowengine.model_preview.display.player": "Отображать игрока",
+  "hollowengine.model_preview.display.hitboxes": "Отображать хитбоксы",
+
+  "hollowengine.npc_creation": "Создание NPC",
+  "hollowengine.npc_creation.public": "Публичный",
+  "hollowengine.npc_creation.private": "Персональный",
+  "hollowengine.npc_creation.companion": "Компаньон",
+  "hollowengine.npc_creation.undead": "Сделать ли NPC бессмертным?",
+  "hollowengine.npc_creation.despawn": "Исчезнет ли NPC при мирной сложности?",
+  "hollowengine.npc_creation.choice_type": "Выберите тип NPC",
+  "hollowengine.npc_creation.model": "Модель NPC",
+
+  "hollowengine.npc_choicer.hollowcore": "Добавляет модели со скелетными анимациями. Поддерживаемые форматы:",
+  "hollowengine.npc_choicer.timecore": "Добавляет модели из BlockBench, в том числе и анимированные. Поддерживаемые форматы:",
+  "hollowengine.npc_choicer.vanilla": "Добавляет модели, которые уже есть у других мобов в игре, пока только ванильных.",
+
+  "hollowengine.progress_manager.event_list": "Список событий",
+  "hollowengine.progress_manager.no_tasks": "Заданий пока нет, возможно они появятся позже!"
 }

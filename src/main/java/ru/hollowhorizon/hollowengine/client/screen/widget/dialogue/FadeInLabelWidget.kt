@@ -8,7 +8,6 @@ import ru.hollowhorizon.hc.client.utils.ScissorUtil
 import ru.hollowhorizon.hc.client.utils.math.Interpolation
 import ru.hollowhorizon.hc.client.utils.mcText
 
-
 class FadeInLabelWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x, y, width, height, "".mcText) {
     private var text = "".mcText
     private var onFadeInComplete: Runnable? = null

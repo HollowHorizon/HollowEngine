@@ -9,6 +9,7 @@ import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.screens.widget.layout.PlacementType
 import ru.hollowhorizon.hc.client.screens.widget.layout.box
 import ru.hollowhorizon.hc.client.utils.drawScaled
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hollowengine.HollowEngine
 
@@ -29,7 +30,7 @@ class ProgressManagerScreen : HollowScreen("Progress Manager".toSTC()) {
 
                         font.drawScaled(
                             stack, Anchor.CENTER,
-                            "Список Событий".toSTC(),
+                            "hollowengine.progress_manager.event_list".mcTranslate,
                             x + w / 2,
                             y + h / 2 + 1,
                             0xFFFFFF,
@@ -47,7 +48,7 @@ class ProgressManagerScreen : HollowScreen("Progress Manager".toSTC()) {
                     renderer = { stack, x, y, w, h ->
                         font.drawScaled(
                             stack, Anchor.CENTER,
-                            "Заданий пока нету, возможно они появятся позже!".toSTC(),
+                            "hollowengine.progress_manager.no_tasks".mcTranslate,
                             x + w / 2,
                             y + h / 2,
                             0xFFFFFF,

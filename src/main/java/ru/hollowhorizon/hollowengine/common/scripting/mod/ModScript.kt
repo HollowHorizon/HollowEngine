@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.mod
 
-import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.HollowCore
-import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
 import ru.hollowhorizon.hc.common.scripting.errors
 import ru.hollowhorizon.hc.common.scripting.kotlin.AbstractHollowScriptConfiguration
@@ -14,7 +12,6 @@ import kotlin.script.experimental.api.defaultImports
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
 import kotlin.script.experimental.jvm.util.isError
-
 
 @KotlinScript(
     displayName = "Mod Script",

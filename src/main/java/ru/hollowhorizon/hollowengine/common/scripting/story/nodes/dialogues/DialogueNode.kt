@@ -120,7 +120,7 @@ class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stat
 
     fun send(body: SayContainer.() -> Unit) {
         +SimpleNode {
-            val container = SayContainer("Тут должен быть текст, но его не написали в скрипте...", "", 0).apply(body)
+            val container = SayContainer("hollowengine.no_text_dialogue", "", 0).apply(body)
             DialogueSayPacket().send(container, *manager.team.onlineMembers.toTypedArray())
         }
     }

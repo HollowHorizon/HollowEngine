@@ -10,9 +10,7 @@ object DirectoryManager {
     }
 
     @JvmStatic
-    fun init() {
-
-    }
+    fun init() {}
 
     private fun getScripts() =
         SCRIPTS_DIR.walk().filter { it.path.endsWith(".kts") }.toList()
@@ -22,8 +20,8 @@ object DirectoryManager {
     fun getAllStoryEvents() = getScripts().filter { it.path.endsWith(".se.kts") }
 
     fun getModScripts() = getScripts().filter { it.path.endsWith(".mod.kts") }
-    fun getContentScripts() = getScripts().filter { it.path.endsWith(".content.kts") }
 
+    fun getContentScripts() = getScripts().filter { it.path.endsWith(".content.kts") }
 
     @JvmStatic
     fun File.toReadablePath(): String {

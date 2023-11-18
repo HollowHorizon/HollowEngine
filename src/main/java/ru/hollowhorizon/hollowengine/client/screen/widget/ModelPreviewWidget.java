@@ -67,7 +67,7 @@ public class ModelPreviewWidget extends HollowWidget {
             int height,
             int pwidth,
             int pheight) {
-        super(x, y, width, height, Component.literal("Model Preview"));
+        super(x, y, width, height, Component.translatable("hollowengine.model_preview"));
         this.originalX = x;
         this.originalY = y;
         this.originalWidth = width;
@@ -89,7 +89,7 @@ public class ModelPreviewWidget extends HollowWidget {
                         BUTTON_SIZE,
                         b -> this.resetPreview(),
                         tooltip,
-                        Component.literal("Сбросить предпросмотр")
+                        Component.translatable("hollowengine.model_preview.reset")
                 );
         this.buttons.add(resetButton);
         fullscreenButton =
@@ -100,19 +100,19 @@ public class ModelPreviewWidget extends HollowWidget {
                             fullscreen = !fullscreen;
                         },
                         tooltip,
-                        Component.literal("Полноэкранный Режим"));
+                        Component.translatable("hollowengine.model_preview.full_screen"));
         bottomButtons =
                 new IconButton[]{
                         this.makeButton(
                                 4,
                                 b -> doTurntable = !doTurntable,
                                 tooltip,
-                                Component.literal("Поворачивать Модель")),
+                                Component.translatable("hollowengine.model_preview.rotate_model")),
                         this.makeButton(
                                 3,
                                 b -> renderFloor = !renderFloor,
                                 tooltip,
-                                Component.literal("Отображать Землю")),
+                                Component.translatable("hollowengine.model_preview.display.plant")),
                         this.addButton(
                                 new PlayerIconButton(
                                         0,
@@ -120,12 +120,12 @@ public class ModelPreviewWidget extends HollowWidget {
                                         MC.getUser().getGameProfile(),
                                         b -> showPlayer = !showPlayer,
                                         tooltip,
-                                        Component.literal("Отображать Игрока"))),
+                                        Component.translatable("hollowengine.model_preview.display.player"))),
                         this.makeButton(
                                 2,
                                 b -> renderBoundingBoxes = !renderBoundingBoxes,
                                 tooltip,
-                                Component.literal("Отображать Хитбоксы"))
+                                Component.translatable("hollowengine.model_preview.display.hitboxes"))
                 };
         title =
                 new LabelWidget(
@@ -205,8 +205,7 @@ public class ModelPreviewWidget extends HollowWidget {
     }
 
     @Override
-    public void playDownSound(SoundManager p_230988_1_) {
-    }
+    public void playDownSound(SoundManager p_230988_1_) {}
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {

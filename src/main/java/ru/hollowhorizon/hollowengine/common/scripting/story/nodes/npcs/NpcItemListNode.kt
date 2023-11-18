@@ -4,8 +4,7 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
-import org.jetbrains.kotlin.utils.addToStdlib.ifFalse
-import ru.hollowhorizon.hc.client.utils.mcText
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 
 class NpcItemListNode(val items: MutableList<ItemStack>, npcConsumer: NPCProperty) : Node() {
@@ -29,7 +28,7 @@ class NpcItemListNode(val items: MutableList<ItemStack>, npcConsumer: NPCPropert
                 items.any { entityItem.item == it.item }
             }
             npc.onInteract = { player ->
-                player.sendSystemMessage("Тебе осталось принести: ".mcText)
+                player.sendSystemMessage("hollowengine.npc_need".mcTranslate)
                 items.forEach {
                     player.sendSystemMessage(Component.literal("- ").append(it.displayName).append(" x${it.count}"))
                 }

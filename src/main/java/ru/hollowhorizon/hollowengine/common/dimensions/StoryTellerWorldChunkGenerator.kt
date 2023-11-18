@@ -34,20 +34,16 @@ class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSo
         pStructureManager: StructureManager,
         pChunk: ChunkAccess,
         pStep: GenerationStep.Carving
-    ) {
-
-    }
+    ) {}
 
     override fun buildSurface(
         pLevel: WorldGenRegion,
         pStructureManager: StructureManager,
         pRandom: RandomState,
         pChunk: ChunkAccess
-    ) {
-    }
+    ) {}
 
-    override fun spawnOriginalMobs(pLevel: WorldGenRegion) {
-    }
+    override fun spawnOriginalMobs(pLevel: WorldGenRegion) {}
 
     override fun getGenDepth(): Int = 384
 
@@ -87,9 +83,7 @@ class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSo
         return NoiseColumn(0, arrayOf())
     }
 
-    override fun addDebugScreenInfo(pInfo: MutableList<String>, pRandom: RandomState, pPos: BlockPos) {
-
-    }
+    override fun addDebugScreenInfo(pInfo: MutableList<String>, pRandom: RandomState, pPos: BlockPos) {}
 
     companion object {
         val CODEC: Codec<StoryTellerWorldChunkGenerator> =

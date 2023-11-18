@@ -44,7 +44,6 @@ class NPCEntity : PathfinderMob, IAnimated {
     //не думаю, что NPC можно деспавниться...
     override fun checkDespawn() {}
 
-
     override fun canPickUpLoot(): Boolean {
         return true
     }
