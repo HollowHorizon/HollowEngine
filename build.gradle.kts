@@ -1,4 +1,4 @@
-import net.minecraftforge.gradle.userdev.DependencyManagementExtension
+
 import net.minecraftforge.gradle.userdev.UserDevExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.spongepowered.asm.gradle.plugins.MixinExtension
@@ -35,8 +35,15 @@ apply {
     plugin("com.github.johnrengelman.shadow")
 }
 
+val mcVersion: String by project
+val modVersion: String by project
+val mappingsVersion: String by project
+val hcVersion: String by project
+val forgeVersion: String by project
+val kffVersion: String by project
+
 group = "ru.hollowhorizon"
-version = "1.1.0"
+version = "${mcVersion}_$modVersion"
 project.setProperty("archivesBaseName", "hollowengine")
 
 java {
@@ -53,7 +60,7 @@ tasks.withType<JavaCompile> {
 }
 
 configure<UserDevExtension> {
-    mappings("parchment", "2022.11.27-1.19.2")
+    mappings("parchment", "${mappingsVersion}-$mcVersion")
 
     accessTransformer("src/main/resources/META-INF/accesstransformer.cfg")
 
@@ -98,13 +105,11 @@ configure<MixinExtension> {
 }
 
 dependencies {
-    val minecraft = configurations["minecraft"]
-    val fg = project.extensions.findByType(DependencyManagementExtension::class.java)!!
-    minecraft("net.minecraftforge:forge:1.19.2-43.2.21")
+    minecraft("net.minecraftforge:forge:${mcVersion}-${forgeVersion}")
     annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
 
-    implementation("thedarkcolour:kotlinforforge:3.12.0")
-    implementation(fg.deobf("ru.hollowhorizon:hc:1.19.2_1.2.0"))
+    implementation("thedarkcolour:kotlinforforge:$kffVersion")
+    implementation(fg.deobf("ru.hollowhorizon:hc:${mcVersion}_${hcVersion}"))
     implementation(fg.deobf("curse.maven:ftb-teams-forge-404468:4611938"))
     implementation(fg.deobf("curse.maven:ftb-library-forge-404465:4661834"))
     implementation(fg.deobf("curse.maven:architectury-api-419699:4555749"))

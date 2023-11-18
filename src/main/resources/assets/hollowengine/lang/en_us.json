@@ -9,6 +9,46 @@
   "hollowengine.scripting.story.script_not_found": "Script \"%s\" not found!",
   "hollowengine.commands.pos.error": "§6[§bHollow Engine§6] §7Could not get position!",
   "hollowengine.commands.copy": "§6[§bHollow Engine§6] §7Value: %s",
-  "hollowengine.commands.actiove_events": "§6[§bHollow Engine§6] §7Active events:",
-  "hollowengine.tooltips.copy": "Click to copy!"
+  "hollowengine.commands.active_events": "§6[§bHollow Engine§6] §7Active events:",
+
+  "hollowengine.tooltips.copy": "Click to copy!",
+
+  "hollowengine.executing_error": "§cError while executing event %s.",
+  "hollowengine.check_logs": "§eCheck logs for more details.",
+
+  "hollowengine.npc_need": "All you have to do is bring in: ",
+
+  "hollowengine.no_text_dialogue": "There should be text here, but it wasn't written in the script...",
+
+  "hollowengine.input_model_path": "Enter model path:",
+  "hollowengine.model_example": "model (modid:path_to_file)",
+
+  "hollowengine.model_edit.creating": "Creating NPCs model",
+  "hollowengine.model_edit.text": "text",
+  "hollowengine.model_edit.save": "Save",
+  "hollowengine.model_edit.cancel": "Cancel",
+
+  "hollowengine.model_preview": "Model Preview",
+  "hollowengine.model_preview.reset": "Reset Preview",
+  "hollowengine.model_preview.full_screen": "Full Screen Mode",
+  "hollowengine.model_preview.rotate_model": "Rotate Model",
+  "hollowengine.model_preview.display.plant": "Display Dirt",
+  "hollowengine.model_preview.display.player": "Display Player",
+  "hollowengine.model_preview.display.hitboxes": "Display HitBoxes",
+
+  "hollowengine.npc_creation": "NPC Creation",
+  "hollowengine.npc_creation.public": "Public",
+  "hollowengine.npc_creation.private": "Private",
+  "hollowengine.npc_creation.companion": "Companion",
+  "hollowengine.npc_creation.undead": "Make NPC undead?",
+  "hollowengine.npc_creation.despawn": "Can despawn NPC on peaceful mode?",
+  "hollowengine.npc_creation.choice_type": "Choice NPC type",
+  "hollowengine.npc_creation.model": "NPC Model",
+
+  "hollowengine.npc_choicer.hollowcore": "Adds models with skeleton animations. Supported formats:",
+  "hollowengine.npc_choicer.timecore": "Adds models from BlockBench, including animated. Supported formats:",
+  "hollowengine.npc_choicer.vanilla": "Adds models that other mobs in the game already have, so far only vanilla ones.",
+
+  "hollowengine.progress_manager.event_list": "Event List",
+  "hollowengine.progress_manager.no_tasks": "No tasks yet, maybe they will appear later!"
 }

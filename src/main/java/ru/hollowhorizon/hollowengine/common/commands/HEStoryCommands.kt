@@ -47,7 +47,7 @@ object HEStoryCommands {
                 "active-events" {
                     val player = source.playerOrException
                     val storyTeam = FTBTeamsAPI.getPlayerTeam(player)
-                    player.sendSystemMessage(Component.translatable("hollowengine.commands.actiove_events"))
+                    player.sendSystemMessage(Component.translatable("hollowengine.commands.active_events"))
                     StoryHandler.getActiveEvents(storyTeam)
                         .ifEmpty{ mutableListOf("No active events") }
                         .forEach(

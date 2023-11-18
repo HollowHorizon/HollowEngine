@@ -2,10 +2,13 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.core.BlockPos
+import net.minecraft.core.Registry
 import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
 import net.minecraft.network.protocol.game.ClientboundStopSoundPacket
+import net.minecraft.resources.ResourceKey
 import net.minecraft.server.level.ServerLevel
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.sounds.SoundSource
 import net.minecraft.util.Mth
 import net.minecraft.world.InteractionHand
@@ -14,11 +17,12 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
+import net.minecraftforge.common.util.ITeleporter
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.network.PacketDistributor
-import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayType
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
@@ -37,6 +41,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
+import java.util.function.Function
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
@@ -76,6 +81,11 @@ interface IContextBuilder {
 
     infix fun NPCProperty.lookAtTeam(target: () -> Team) = +NpcLookToTeamNode(this, target)
 
+    infix fun NPCProperty.tp(target: SimpleTeleport.() -> Unit) = +SimpleNode {
+        val tp = SimpleTeleport().apply(target)
+        val teleport = tp.pos
+        this@tp.invoke().teleportTo(teleport.x, teleport.y, teleport.z)
+    }
 
     infix fun NPCProperty.setTarget(value: (() -> LivingEntity?)?) = +SimpleNode {
         this@setTarget().target = value?.invoke()
@@ -288,12 +298,48 @@ interface IContextBuilder {
         }
     }
 
+//    @Serializable Крч, сам сделаешь. Просил сам сделать класс xD
+//    data class Point(val x: Double, val y: Double, val z: Double, val xRot: Double, val yRot: Double, val zRot: Double = 0.0)
+
+    class SimpleTeleport {
+        var pos: Vec3 = Vec3(0.0, 0.0, 0.0)
+        var vec: Vec2 = Vec2(0F, 0F)
+        var dim: ResourceKey<Level> = Level.OVERWORLD
+    }
+
     infix fun Team.tp(pos: () -> Vec3) = +SimpleNode {
         val p = pos()
         this@tp.onlineMembers.forEach {
             it.teleportTo(it.getLevel(), p.x, p.y, p.z, it.yHeadRot, it.xRot)
         }
     }
+
+    infix fun Team.tpTo(teleport: SimpleTeleport.() -> Unit) = +SimpleNode {
+        val pos = SimpleTeleport().apply(teleport)
+        val position = pos.pos
+        val camera = pos.vec
+        val dimension = pos.dim
+
+        this@tpTo.onlineMembers.forEach {
+            it.changeDimension(it.server.getLevel(dimension)!!, object : ITeleporter {
+                override fun placeEntity(
+                    entity: Entity,
+                    currentWorld: ServerLevel,
+                    destWorld: ServerLevel,
+                    yaw: Float,
+                    repositionEntity: Function<Boolean, Entity>
+                ): Entity {
+                    val teleportedEntity = repositionEntity.apply(false) as ServerPlayer
+
+                    teleportedEntity.teleportTo(destWorld, position.x, position.y, position.z, camera.x, camera.y)
+
+                    return teleportedEntity
+                }
+            })
+        }
+    }
+
+    fun dim(dimension: String): ResourceKey<Level> = ResourceKey.create(Registry.DIMENSION_REGISTRY, dimension.rl)
 
     fun pos(x: Double, y: Double, z: Double) = Vec3(x, y, z)
     fun pos(x: Int, y: Int, z: Int) = Vec3(x.toDouble() + 0.5, y.toDouble(), z.toDouble() + 0.5)

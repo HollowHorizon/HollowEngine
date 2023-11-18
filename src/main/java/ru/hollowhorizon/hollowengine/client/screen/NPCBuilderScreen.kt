@@ -39,8 +39,8 @@ class NPCBuilderScreen : HollowScreen("".toSTC()) {
                     elements {
                         +TypeBox(
                             0, 0, 100.pc.w().value, 100.pc.h().value,
-                            "Введите путь к модели:",
-                            "модель (modid:path/to/model.gltf)"
+                            "hollowengine.input_model_path",
+                            "hollowengine.model_example"
                         )
                     }
                 }

@@ -20,6 +20,7 @@ class ServerMouseClickedEvent(player: Player, val button: MouseButton) : PlayerE
 class MouseButtonWaitPacket : Packet<Container>({ player, value ->
     ClientEvents.canceledButtons.add(value.data)
 })
+
 @HollowPacketV2(toTarget = NetworkDirection.PLAY_TO_CLIENT)
 class MouseButtonWaitResetPacket : Packet<String>({ player, value ->
     ClientEvents.canceledButtons.clear()

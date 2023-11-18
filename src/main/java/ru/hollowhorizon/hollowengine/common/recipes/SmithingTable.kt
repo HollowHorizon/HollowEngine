@@ -7,7 +7,6 @@ import net.minecraft.world.item.crafting.Ingredient
 import net.minecraft.world.item.crafting.RecipeType
 import net.minecraft.world.item.crafting.UpgradeRecipe
 
-
 object SmithingTable {
     fun addRecipe(result: ItemStack, input: Ingredient, addition: Ingredient) {
         RecipeHelper.currentScript?.addRecipe(

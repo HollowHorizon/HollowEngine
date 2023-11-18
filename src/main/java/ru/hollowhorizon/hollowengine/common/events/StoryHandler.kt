@@ -22,9 +22,7 @@ object StoryHandler {
     fun getActiveEvents(team: Team) = events.computeIfAbsent(team) { HashMap() }.keys
 
     @JvmStatic
-    fun onPlayerJoin(event: PlayerEvent.PlayerLoggedInEvent) {
-
-    }
+    fun onPlayerJoin(event: PlayerEvent.PlayerLoggedInEvent) {}
 
     @JvmStatic
     fun onServerTick(event: ServerTickEvent) {

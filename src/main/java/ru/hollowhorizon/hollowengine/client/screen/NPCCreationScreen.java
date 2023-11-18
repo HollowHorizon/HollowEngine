@@ -30,24 +30,22 @@ public class NPCCreationScreen extends HollowScreen {
     private boolean shouldDespawn;
     private Boolean isUndead;
 
-    protected NPCCreationScreen() {
-    }
-
+    protected NPCCreationScreen() {}
 
     @Override
     protected void init() {
         int halfWidth = this.width / 2;
 
         ArrayList<ListElement> elements = new ArrayList<>();
-        elements.add(new ListElement(new ResourceLocation(MODID, "public"), Component.literal("Публичный"), new ResourceLocation(MODID, "textures/gui/planet.png")));
-        elements.add(new ListElement(new ResourceLocation(MODID, "private"), Component.literal("Персональный"), new ResourceLocation(MODID, "textures/gui/private.png")));
-        elements.add(new ListElement(new ResourceLocation(MODID, "companion"), Component.literal("Компаньон"), new ResourceLocation(MODID, "textures/gui/heart.png")));
+        elements.add(new ListElement(new ResourceLocation(MODID, "public"), Component.translatable("hollowengine.npc_creation.public"), new ResourceLocation(MODID, "textures/gui/planet.png")));
+        elements.add(new ListElement(new ResourceLocation(MODID, "private"), Component.translatable("hollowengine.npc_creation.private"), new ResourceLocation(MODID, "textures/gui/private.png")));
+        elements.add(new ListElement(new ResourceLocation(MODID, "companion"), Component.translatable("hollowengine.npc_creation.companion"), new ResourceLocation(MODID, "textures/gui/heart.png")));
 
         this.addRenderableWidget(new SliderWidget(halfWidth + 100, startY + 60, 50, 20, this::setShouldDespawn));
         this.addRenderableWidget(new SliderWidget(halfWidth + 100, startY + 80, 50, 20, this::setUndead));
-        this.addRenderableWidget(new SizedButton(halfWidth - 150, startY + 40, 300, 20, Component.literal("Модель NPC"), button -> Minecraft.getInstance().setScreen(new NPCModelChoicerScreen(this)), GUIHelper.TEXT_FIELD, GUIHelper.TEXT_FIELD_LIGHT));
+        this.addRenderableWidget(new SizedButton(halfWidth - 150, startY + 40, 300, 20, Component.translatable("hollowengine.npc_creation.model"), button -> Minecraft.getInstance().setScreen(new NPCModelChoicerScreen(this)), GUIHelper.TEXT_FIELD, GUIHelper.TEXT_FIELD_LIGHT));
 
-        this.list = new DropListWidget(Component.literal("Выберите тип NPC"), elements, (element -> System.out.println(element.getTextComponent().getString())), halfWidth - 150, startY + 20, 300, 20);
+        this.list = new DropListWidget(Component.translatable("hollowengine.npc_creation.choice_type"), elements, (element -> System.out.println(element.getTextComponent().getString())), halfWidth - 150, startY + 20, 300, 20);
     }
 
     @Override
@@ -55,9 +53,9 @@ public class NPCCreationScreen extends HollowScreen {
         this.renderBackground(stack);
         int halfWidth = this.width / 2;
 
-        GUIHelper.drawTextInBox(stack, Component.literal("Создание NPC"), halfWidth - 150, startY, 300);
-        GUIHelper.drawTextInBox(stack, Component.literal("Сделать ли NPC бессмертным?"), halfWidth - 150, startY + 60, 250);
-        GUIHelper.drawTextInBox(stack, Component.literal("Исчезнет ли NPC при мирной сложности?"), halfWidth - 150, startY + 80, 250);
+        GUIHelper.drawTextInBox(stack, Component.translatable("hollowengine.npc_creation"), halfWidth - 150, startY, 300);
+        GUIHelper.drawTextInBox(stack, Component.translatable("hollowengine.npc_creation.undead"), halfWidth - 150, startY + 60, 250);
+        GUIHelper.drawTextInBox(stack, Component.translatable("hollowengine.npc_creation.despawn"), halfWidth - 150, startY + 80, 250);
 
         super.render(stack, p_230430_2_, p_230430_3_, p_230430_4_);
 

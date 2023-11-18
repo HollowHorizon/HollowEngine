@@ -24,7 +24,7 @@ public class ModelEditWidget extends HollowWidget {
     private ResourceLocation textureLocation;
 
     public ModelEditWidget(int x, int y, int w, int h, NPCModelChoicerScreen screen, NPCCreationScreen npcScreen) {
-        super(x, y, w, h, Component.literal("Создание Модели NPC"));
+        super(x, y, w, h, Component.translatable("hollowengine.model_edit.creating"));
 
         this.npcScreen = npcScreen;
 
@@ -38,17 +38,17 @@ public class ModelEditWidget extends HollowWidget {
                 () -> new SMDAnimationWidget(0, 0, (int) (this.width / 1.1F), 20, animations::put, (animName, animPath) -> {
                     this.npcScreen.updateAnimation(animName, animPath);
                     this.npcScreen.setCurrentAnimation(animName);
-                }), Component.literal("text"));
+                }), Component.translatable("hollowengine.model_edit.text"));
         this.addButton(list);
 
         this.addButton(new SizedButton(this.x + this.width / 2 - this.width / 3, this.y + this.height - 30, this.width / 3, 20,
-                Component.literal("Сохранить"), button -> {
+                Component.translatable("hollowengine.model_edit.save"), button -> {
             this.animations.clear();
             list.saveValues();
             this.save();
         }, GUIHelper.TEXT_FIELD, GUIHelper.TEXT_FIELD_LIGHT));
         this.addButton(new SizedButton(this.x + this.width / 2, this.y + this.height - 30, this.width / 3, 20,
-                Component.literal("Отмена"), button -> Minecraft.getInstance().setScreen(screen), GUIHelper.TEXT_FIELD, GUIHelper.TEXT_FIELD_LIGHT));
+                Component.translatable("hollowengine.model_edit.cancel"), button -> Minecraft.getInstance().setScreen(screen), GUIHelper.TEXT_FIELD, GUIHelper.TEXT_FIELD_LIGHT));
     }
 
     private void save() {
