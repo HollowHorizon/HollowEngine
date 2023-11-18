@@ -18,7 +18,7 @@
 
   "hollowengine.npc_need": "All you have to do is bring in: ",
 
-  "hollowengine.no_text_dialogue": "Тут должен быть текст, но его не написали в скрипте... There should be text here, but it wasn't written in the script...",
+  "hollowengine.no_text_dialogue": "There should be text here, but it wasn't written in the script...",
 
   "hollowengine.input_model_path": "Enter model path:",
   "hollowengine.model_example": "model (modid:path_to_file)",
