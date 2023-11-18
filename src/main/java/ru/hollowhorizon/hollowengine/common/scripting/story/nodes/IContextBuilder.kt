@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.core.BlockPos
+import net.minecraft.core.Registry
 import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
 import net.minecraft.network.protocol.game.ClientboundStopSoundPacket
@@ -337,6 +338,8 @@ interface IContextBuilder {
             })
         }
     }
+
+    fun dim(dimension: String): ResourceKey<Level> = ResourceKey.create(Registry.DIMENSION_REGISTRY, dimension.rl)
 
     fun pos(x: Double, y: Double, z: Double) = Vec3(x, y, z)
     fun pos(x: Int, y: Int, z: Int) = Vec3(x.toDouble() + 0.5, y.toDouble(), z.toDouble() + 0.5)
