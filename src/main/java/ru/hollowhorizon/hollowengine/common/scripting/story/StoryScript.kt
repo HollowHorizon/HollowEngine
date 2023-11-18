@@ -31,7 +31,8 @@ class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
         "ru.hollowhorizon.hc.client.utils.math.Interpolation",
         "net.minecraftforge.event.*",
         "net.minecraft.core.BlockPos",
-        "ru.hollowhorizon.hc.client.utils.*"
+        "ru.hollowhorizon.hc.client.utils.*",
+        "net.minecraft.world.level.Level"
     )
 
     baseClass(StoryStateMachine::class)
