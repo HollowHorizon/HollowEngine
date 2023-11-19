@@ -1,8 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
+import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Registry
+import net.minecraft.nbt.StringTag
 import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
 import net.minecraft.network.protocol.game.ClientboundStopSoundPacket
@@ -40,6 +42,7 @@ import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenContainer
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
+import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
@@ -77,6 +80,26 @@ interface IContextBuilder {
             64
         )?.first ?: npc.blockPosition()
         Vec3(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
+    }
+
+    fun ProgressManager.addMessage(message: () -> String) = +SimpleNode {
+        val list = this.manager.team.extraData.getList("hollowengine_progress_tasks", 8)
+        list += StringTag.valueOf(message())
+        this.manager.team.extraData.put("hollowengine_progress_tasks", list)
+        this.manager.team.save()
+        this.manager.team.onlineMembers.forEach {
+            FTBTeamsAPI.getManager().syncAllToPlayer(it, this.manager.team)
+        }
+    }
+
+    fun ProgressManager.removeMessage(message: () -> String) = +SimpleNode {
+        val list = this.manager.team.extraData.getList("hollowengine_progress_tasks", 8)
+        list -= StringTag.valueOf(message())
+        this.manager.team.extraData.put("hollowengine_progress_tasks", list)
+        this.manager.team.save()
+        this.manager.team.onlineMembers.forEach {
+            FTBTeamsAPI.getManager().syncAllToPlayer(it, this.manager.team)
+        }
     }
 
     infix fun NPCProperty.lookAtPos(target: () -> Vec3) = +NpcLookToBlockNode(this, target)
