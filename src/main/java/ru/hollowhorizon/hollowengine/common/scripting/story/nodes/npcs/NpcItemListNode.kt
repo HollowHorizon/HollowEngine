@@ -5,36 +5,39 @@ import net.minecraft.nbt.ListTag
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hc.client.utils.mcTranslate
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder.GiveItemList
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 
-class NpcItemListNode(val items: MutableList<ItemStack>, npcConsumer: NPCProperty) : Node() {
+class NpcItemListNode(itemList: GiveItemList.() -> Unit, npcConsumer: NPCProperty) : Node() {
     val npc by lazy { npcConsumer() }
+    val itemList by lazy { GiveItemList().apply(itemList) }
     var isStarted = false
 
     override fun tick(): Boolean {
         if(!isStarted) {
             isStarted = true
             npc.shouldGetItem = { entityItem ->
-                val item = items.find { it.item == entityItem.item }
+                val item = itemList.items.find { it.item == entityItem.item }
 
                 if(item != null) {
                     val remaining = item.count
                     item.shrink(entityItem.count)
                     if(item.isEmpty) {
-                        items.remove(item)
+                        itemList.items.remove(item)
                         entityItem.shrink(remaining)
                     }
                 }
-                items.any { entityItem.item == it.item }
+                itemList.items.any { entityItem.item == it.item }
             }
             npc.onInteract = { player ->
-                player.sendSystemMessage("hollowengine.npc_need".mcTranslate)
-                items.forEach {
+                player.sendSystemMessage(itemList.text.mcTranslate)
+                itemList.items.forEach {
                     player.sendSystemMessage(Component.literal("- ").append(it.displayName).append(" x${it.count}"))
                 }
             }
         }
-        val hasItems = items.isNotEmpty()
+        val hasItems = itemList.items.isNotEmpty()
         if(!hasItems) {
             npc.shouldGetItem = {false}
             npc.onInteract = {}
@@ -44,14 +47,14 @@ class NpcItemListNode(val items: MutableList<ItemStack>, npcConsumer: NPCPropert
 
     override fun serializeNBT() = CompoundTag().apply {
         put("items", ListTag().apply {
-            addAll(items.map { it.save(CompoundTag()) })
+            addAll(itemList.items.map { it.save(CompoundTag()) })
         })
     }
 
     override fun deserializeNBT(nbt: CompoundTag) {
-        items.clear()
+        itemList.items.clear()
         nbt.getList("items", 10).forEach {
-            items.add(ItemStack.of(it as CompoundTag))
+            itemList.items.add(ItemStack.of(it as CompoundTag))
         }
     }
 }

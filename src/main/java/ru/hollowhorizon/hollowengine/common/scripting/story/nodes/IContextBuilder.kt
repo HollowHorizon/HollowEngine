@@ -214,14 +214,14 @@ interface IContextBuilder {
 
     class GiveItemList {
         val items = mutableListOf<ItemStack>()
+        var text = "hollowengine.npc_need"
 
         operator fun ItemStack.unaryPlus() {
             items.add(this)
         }
     }
 
-    infix fun NPCProperty.requestItems(block: GiveItemList.() -> Unit) =
-        +NpcItemListNode(GiveItemList().apply(block).items, this@requestItems)
+    infix fun NPCProperty.requestItems(block: GiveItemList.() -> Unit) = +NpcItemListNode(block, this@requestItems)
 
     fun NPCProperty.waitInteract() = +NpcInteractNode(this@waitInteract)
 
