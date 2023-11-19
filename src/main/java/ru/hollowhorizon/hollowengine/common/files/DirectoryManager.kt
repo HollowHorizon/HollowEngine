@@ -25,7 +25,13 @@ object DirectoryManager {
 
     @JvmStatic
     fun File.toReadablePath(): String {
-        return this.path.substringAfter(FMLPaths.GAMEDIR.get().resolve("hollowengine").toFile().path + "\\")
+        return this.path.substringAfter(FMLPaths.GAMEDIR.get().resolve("hollowengine").toFile().path + File.pathSeparator)
+            .replace("\\", "/").replace(".jar", "")
+    }
+
+    @JvmStatic
+    fun File.substringAfterHE(data: String): String {
+        return this.path.substringAfter(FMLPaths.GAMEDIR.get().resolve("hollowengine").toFile().path + File.pathSeparator + data + File.pathSeparator)
             .replace("\\", "/").replace(".jar", "")
     }
 

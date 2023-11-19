@@ -9,6 +9,8 @@
   "hollowengine.scripting.story.script_not_found": "Script \"%s\" not found!",
   "hollowengine.commands.pos.error": "§6[§bHollow Engine§6] §7Could not get position!",
   "hollowengine.commands.copy": "§6[§bHollow Engine§6] §7Value: %s",
+  "hollowengine.commands.model_animations": "§6[§bHollow Engine§6] Animations of model %s:",
+  "hollowengine.commands.model_textures": "§6[§bHollow Engine§6] Textures of model %s:",
   "hollowengine.commands.active_events": "§6[§bHollow Engine§6] §7Active events:",
 
   "hollowengine.tooltips.copy": "Click to copy!",

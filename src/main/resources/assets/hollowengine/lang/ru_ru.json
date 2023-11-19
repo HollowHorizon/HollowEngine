@@ -9,6 +9,8 @@
   "hollowengine.scripting.story.script_not_found": "Скрипт \"%s\" не найден!",
   "hollowengine.commands.pos.error": "§6[§bHollow Engine§6] §7Не удаётся найти указанный блок!",
   "hollowengine.commands.copy": "§6[§bHollow Engine§6] §7Значение: %s скопировано.",
+  "hollowengine.commands.model_animations": "§6[§bHollow Engine§6] Анимации модели %s:",
+  "hollowengine.commands.model_textures": "§6[§bHollow Engine§6] Текстуры модели %s:",
   "hollowengine.commands.active_events": "§6[§bHollow Engine§6] §7Активные события:",
 
   "hollowengine.tooltips.copy": "Нажми, чтобы скопировать!",
