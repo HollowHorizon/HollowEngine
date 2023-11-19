@@ -4,11 +4,12 @@ import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.arguments.StringArgumentType
 import net.minecraft.commands.CommandSourceStack
 import net.minecraftforge.registries.ForgeRegistries
+import org.jetbrains.kotlin.konan.file.File
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.register
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.substringAfterHE
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.network.CopyTextPacket
 import ru.hollowhorizon.hollowengine.common.network.ShowModelInfoPacket
 
@@ -54,12 +55,16 @@ private fun listModels(): Collection<String> {
     val list = mutableListOf<String>()
     list += "hollowengine:models/entity/player_model.gltf"
 
-    DirectoryManager.HOLLOW_ENGINE.resolve("assets/").walkTopDown().mapNotNull {
-        val path = it.substringAfterHE("assets").replaceFirst("/", ":")
-
-        if (path.endsWith(".gltf")) path
-        else null
-    }
+    list += DirectoryManager.HOLLOW_ENGINE.resolve("assets").walk()
+        .filter { it.path.endsWith(".gltf") || it.path.endsWith(".glb") }
+        .toList()
+        .map {
+            it.toReadablePath().substring(7).replace(File.separator, "/").replaceFirst("/", ":")
+        }
 
     return list
+}
+
+fun main() {
+    println(listModels())
 }

@@ -52,10 +52,6 @@ fun runScript(server: MinecraftServer, team: Team, file: File, isCommand: Boolea
             }
         } catch (e: Exception) {
             team.onlineMembers.forEach {
-//                it.sendSystemMessage("§cError while executing event \"${file.toReadablePath()}\".".mcText)
-//                it.sendSystemMessage("${e.message}".mcText)
-//                it.sendSystemMessage("§eCheck logs for more details.".mcText)
-
                 it.sendSystemMessage(Component.translatable("hollowengine.executing_error", file.toReadablePath()), true)
                 it.sendSystemMessage("${e.message}".mcText, true)
                 it.sendSystemMessage("hollowengine.check_logs".mcTranslate)

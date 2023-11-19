@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.files
 
 import net.minecraftforge.fml.loading.FMLPaths
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import java.io.File
 
 object DirectoryManager {
@@ -25,18 +26,19 @@ object DirectoryManager {
 
     @JvmStatic
     fun File.toReadablePath(): String {
-        return this.path.substringAfter(FMLPaths.GAMEDIR.get().resolve("hollowengine").toFile().path + File.pathSeparator)
-            .replace("\\", "/").replace(".jar", "")
-    }
+        val folder = HOLLOW_ENGINE.toPath()
+        val path = this.toPath()
 
-    @JvmStatic
-    fun File.substringAfterHE(data: String): String {
-        return this.path.substringAfter(FMLPaths.GAMEDIR.get().resolve("hollowengine").toFile().path + File.pathSeparator + data + File.pathSeparator)
-            .replace("\\", "/").replace(".jar", "")
+        return folder.relativize(path).toString()
     }
 
     @JvmStatic
     fun String.fromReadablePath(): File {
         return FMLPaths.GAMEDIR.get().resolve("hollowengine").resolve(this).toFile()
     }
+}
+
+fun main() {
+    val script = File("C:\\Users\\user\\Desktop\\papka_with_papkami\\MyJavaProjects\\HollowEngine\\run\\hollowengine\\scripts\\npc_example.se.kts")
+    println(script.toReadablePath())
 }
