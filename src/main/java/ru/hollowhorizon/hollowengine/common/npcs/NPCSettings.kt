@@ -27,6 +27,7 @@ data class NPCSettings(
     var name: String = "NPC",
     var model: String = "hollowengine:models/entity/player_model.gltf",
     var data: Attributes = Attributes(),
+    var size: Pair<Float, Float> = Pair(0.6f, 1.8f),
     var showName: Boolean = true,
 )
 

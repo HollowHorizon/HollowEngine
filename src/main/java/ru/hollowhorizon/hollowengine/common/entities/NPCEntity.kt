@@ -7,6 +7,7 @@ import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.PathfinderMob
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation
+import net.minecraft.world.entity.ai.navigation.PathNavigation
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
@@ -34,12 +35,15 @@ class NPCEntity : PathfinderMob, IAnimated {
     var shouldGetItem: (ItemStack) -> Boolean = { false }
 
     init {
-        (navigation as? GroundPathNavigation)?.let {
-            it.setCanOpenDoors(true)
-            it.setCanPassDoors(true)
-        }
-        navigation.setCanFloat(true)
         setCanPickUpLoot(true)
+    }
+
+    override fun createNavigation(pLevel: Level): PathNavigation {
+        val navigation = GroundPathNavigation(this, pLevel)
+        navigation.setCanOpenDoors(true)
+        navigation.setCanPassDoors(true)
+        navigation.setCanFloat(true)
+        return navigation
     }
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
@@ -61,9 +65,6 @@ class NPCEntity : PathfinderMob, IAnimated {
 
     override fun shouldDespawnInPeaceful() = false
 
-    //не думаю, что NPC можно деспавниться...
-    override fun checkDespawn() {}
-
     override fun canPickUpLoot(): Boolean {
         return true
     }
@@ -78,6 +79,17 @@ class NPCEntity : PathfinderMob, IAnimated {
         this.take(pItemEntity, item.count)
         pItemEntity.discard()
     }
+
+    override fun tickDeath() {
+        ++deathTime
+        if (deathTime == 50 && !level.isClientSide()) {
+            level.broadcastEntityEvent(this, 60.toByte())
+            this.remove(RemovalReason.KILLED)
+        }
+    }
+
+    override fun removeWhenFarAway(dist: Double) = false
+    override fun isPersistenceRequired() = true
 
     companion object
 }

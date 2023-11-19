@@ -6,6 +6,7 @@
   "refmap": "hollowengine.refmap.json",
   "mixins": [
     "ChunkLoaderMixin",
+    "EntityAccessor",
     "LookControlInvoker",
     "RecipeManagerAccessor"
   ],

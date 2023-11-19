@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs
 
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.entity.EntityDimensions
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.get
@@ -16,6 +17,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
+import ru.hollowhorizon.hollowengine.mixins.EntityAccessor
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
@@ -64,6 +66,9 @@ class NpcDelegate(
                 entity.getAttribute(ForgeRegistries.ATTRIBUTES.getValue(name.rl) ?: return@forEach)?.baseValue =
                     value.toDouble()
             }
+
+            (entity as EntityAccessor).setDimensions(EntityDimensions.scalable(settings.size.first, settings.size.second))
+            entity.refreshDimensions()
 
             entity.isCustomNameVisible = this.settings.showName && settings.name.isNotEmpty()
             entity.customName = settings.name.mcText
