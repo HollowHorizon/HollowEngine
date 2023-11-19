@@ -108,7 +108,7 @@ object ClientEvents {
             return
         }
 
-        KeybindPacket().send(Keybind.fromCode(event.key))
+        if(event.action == 0) KeybindPacket().send(Keybind.fromCode(event.key))
     }
 
     fun initKeys() {
