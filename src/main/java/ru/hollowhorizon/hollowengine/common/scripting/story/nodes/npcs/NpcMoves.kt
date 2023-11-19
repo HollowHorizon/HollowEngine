@@ -8,6 +8,7 @@ import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
+import kotlin.math.abs
 
 class NpcMoveToBlockNode(npcConsumer: NPCProperty, var pos: () -> Vec3) : Node() {
     val npc by lazy { npcConsumer() }
@@ -18,7 +19,7 @@ class NpcMoveToBlockNode(npcConsumer: NPCProperty, var pos: () -> Vec3) : Node()
 
         navigator.moveTo(block.x, block.y, block.z, 1.0)
 
-        return !(navigator.path != null && navigator.isDone && npc.isOnGround)
+        return npc.distanceToXZ(block) > 1 && abs(npc.y - block.y) > 3
     }
 
     override fun serializeNBT() = CompoundTag().apply {
@@ -37,10 +38,10 @@ class NpcMoveToEntityNode(npcConsumer: NPCProperty, var target: () -> Entity?) :
 
     override fun tick(): Boolean {
         val navigator = npc.navigation
+        val entity = target()
+        navigator.moveTo(entity ?: return true, 1.0)
 
-        navigator.moveTo(target() ?: return true, 1.0)
-
-        return !(navigator.path != null && navigator.isDone && npc.isOnGround)
+        return npc.distanceToXZ(entity) > 1.5 && abs(npc.y - entity.y) > 3
     }
 
     override fun serializeNBT() = CompoundTag().apply {
@@ -64,11 +65,11 @@ class NpcMoveToTeamNode(npcConsumer: NPCProperty, var target: () -> Team?) : Nod
     override fun tick(): Boolean {
         val navigator = npc.navigation
 
-        val npc = target()?.onlineMembers?.minByOrNull { it.distanceToSqr(npc) } ?: return true
+        val entity = target()?.onlineMembers?.minByOrNull { it.distanceToSqr(npc) } ?: return true
 
-        navigator.moveTo(npc, 1.0)
+        navigator.moveTo(entity, 1.0)
 
-        return !(navigator.path != null && navigator.isDone && npc.isOnGround)
+        return npc.distanceToXZ(entity) > 1.5 && abs(npc.y - entity.y) > 3
     }
 
     override fun serializeNBT() = CompoundTag().apply {
@@ -82,3 +83,6 @@ class NpcMoveToTeamNode(npcConsumer: NPCProperty, var target: () -> Team?) : Nod
         target = { team }
     }
 }
+
+fun Entity.distanceToXZ(pos: Vec3) = (x - pos.x) * (x - pos.x) + (z - pos.z) * (z - pos.z)
+fun Entity.distanceToXZ(npc: Entity) = distanceToXZ(npc.position())

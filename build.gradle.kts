@@ -43,7 +43,7 @@ val forgeVersion: String by project
 val kffVersion: String by project
 
 group = "ru.hollowhorizon"
-version = "${mcVersion}_$modVersion"
+version = "${mcVersion}-$modVersion"
 project.setProperty("archivesBaseName", "hollowengine")
 
 java {

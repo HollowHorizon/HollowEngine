@@ -1,15 +1,18 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
+import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.PathfinderMob
-import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
+import net.minecraft.world.entity.ai.navigation.GroundPathNavigation
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
+import net.minecraftforge.common.util.FakePlayerFactory
 import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hollowengine.client.render.effects.EffectsCapability
@@ -20,8 +23,22 @@ class NPCEntity : PathfinderMob, IAnimated {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
     constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
 
+    val fakePlayer by lazy {
+        FakePlayerFactory.getMinecraft(level as ServerLevel).apply {
+            setGameMode(GameType.CREATIVE)
+        }
+    }
     var onInteract: (Player) -> Unit = {}
     var shouldGetItem: (ItemStack) -> Boolean = { false }
+
+    init {
+        (navigation as? GroundPathNavigation)?.let {
+            it.setCanOpenDoors(true)
+            it.setCanPassDoors(true)
+        }
+        navigation.setCanFloat(true)
+        setCanPickUpLoot(true)
+    }
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         if (pHand == InteractionHand.MAIN_HAND) onInteract(pPlayer)
@@ -29,7 +46,6 @@ class NPCEntity : PathfinderMob, IAnimated {
     }
 
     override fun registerGoals() {
-        goalSelector.addGoal(0, FloatGoal(this)) //Если NPC решит утонить будет не кайф...
         goalSelector.addGoal(1, MeleeAttackGoal(this, 1.0, false))
     }
 

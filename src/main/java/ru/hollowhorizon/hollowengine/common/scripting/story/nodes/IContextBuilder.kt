@@ -17,6 +17,7 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.ClipContext
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
@@ -42,6 +43,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
 import java.util.function.Function
+import kotlin.math.roundToInt
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
@@ -156,11 +158,31 @@ interface IContextBuilder {
         this@configure()[AnimatedEntityCapability::class].apply(body)
     }
 
+    infix fun NPCProperty.useBlock(target: () -> Vec3) {
+        this.moveToPos(target)
+        this.lookAtPos(target)
+        +SimpleNode {
+            val entity = this@useBlock()
+            val pos = target()
+            val hit = entity.level.clip(
+                ClipContext(
+                    pos,
+                    pos,
+                    ClipContext.Block.OUTLINE,
+                    ClipContext.Fluid.NONE,
+                    entity
+                )
+            )
+            val state = entity.level.getBlockState(hit.blockPos)
+            state.use(entity.level, entity.fakePlayer, InteractionHand.MAIN_HAND, hit)
+        }
+    }
+
     fun AnimatedEntityCapability.skin(name: String) = "skins/$name"
 
     infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach {
-            val componente = Component.literal("§6[§7${it.displayName.string}§7]§7").append(text().mcTranslate)
+            val componente = Component.literal("§6[§7${it.displayName.string}§6]§7 ").append(text().mcTranslate)
             it.sendSystemMessage(componente)
         }
     }
