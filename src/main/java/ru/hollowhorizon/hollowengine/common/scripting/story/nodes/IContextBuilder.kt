@@ -173,6 +173,7 @@ interface IContextBuilder {
                     entity
                 )
             )
+            entity.swing(InteractionHand.MAIN_HAND)
             val state = entity.level.getBlockState(hit.blockPos)
             state.use(entity.level, entity.fakePlayer, InteractionHand.MAIN_HAND, hit)
         }

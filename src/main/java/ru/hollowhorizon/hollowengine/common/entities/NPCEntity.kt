@@ -17,6 +17,8 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hollowengine.client.render.effects.EffectsCapability
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
+import ru.hollowhorizon.hollowengine.common.npcs.goals.BlockBreakGoal
+import ru.hollowhorizon.hollowengine.common.npcs.goals.LadderClimbGoal
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
 class NPCEntity : PathfinderMob, IAnimated {
@@ -47,6 +49,8 @@ class NPCEntity : PathfinderMob, IAnimated {
 
     override fun registerGoals() {
         goalSelector.addGoal(1, MeleeAttackGoal(this, 1.0, false))
+        goalSelector.addGoal(1, LadderClimbGoal(this))
+        goalSelector.addGoal(1, BlockBreakGoal(this))
     }
 
     fun addEffect(effect: ParticleEffect) {
