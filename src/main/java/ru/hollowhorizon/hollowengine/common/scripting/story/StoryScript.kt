@@ -26,6 +26,8 @@ class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
         "ru.hollowhorizon.hollowengine.common.scripting.*",
         "ru.hollowhorizon.hollowengine.common.npcs.*",
         "ru.hollowhorizon.hollowengine.common.entities.NPCEntity",
+        "ru.hollowhorizon.hollowengine.common.util.Keybind",
+        "ru.hollowhorizon.hollowengine.common.util.KeyAction",
         "ru.hollowhorizon.hc.client.models.gltf.animations.AnimationType",
         "ru.hollowhorizon.hc.client.models.gltf.animations.PlayType",
         "ru.hollowhorizon.hc.client.utils.math.Interpolation",

@@ -1,13 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.network
 
-import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.HoverEvent
 import net.minecraft.network.chat.Style
-import net.minecraft.server.level.ServerPlayer
-import net.minecraft.stats.Stats
-import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent
+import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.network.NetworkDirection
 import ru.hollowhorizon.hc.client.models.gltf.manager.GltfManager
 import ru.hollowhorizon.hc.client.utils.mc
@@ -15,10 +12,8 @@ import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.Packet
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.scripting.mod.ModScript
-import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
-import thedarkcolour.kotlinforforge.forge.MOD_BUS
+import ru.hollowhorizon.hollowengine.common.events.ServerKeyPressedEvent
+import ru.hollowhorizon.hollowengine.common.util.Keybind
 
 @HollowPacketV2(toTarget = NetworkDirection.PLAY_TO_CLIENT)
 class CopyTextPacket : Packet<String>({ player, value ->
@@ -67,13 +62,7 @@ class ShowModelInfoPacket : Packet<String>({ player, value ->
     }
 })
 
-fun ModScript.script() {
-    fun onPlayerJoin(event: PlayerLoggedInEvent) {
-        val player = event.entity as ServerPlayer
-        if (player.stats.getValue(Stats.CUSTOM.get(Stats.PLAY_TIME)) == 0) {
-            runScript(player.server, FTBTeamsAPI.getPlayerTeam(player), "scripts/npc_example.se.kts".fromReadablePath())
-        }
-    }
-
-    FORGE_BUS.register(::onPlayerJoin)
-}
+@HollowPacketV2(NetworkDirection.PLAY_TO_SERVER)
+class KeybindPacket : Packet<Keybind>({ player, value ->
+    MinecraftForge.EVENT_BUS.post(ServerKeyPressedEvent(player, value))
+})
