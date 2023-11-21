@@ -10,7 +10,7 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 import kotlin.math.abs
 
-class NpcMoveToBlockNode(npcConsumer: NPCProperty, var pos: () -> Vec3) : Node() {
+open class NpcMoveToBlockNode(npcConsumer: NPCProperty, var pos: () -> Vec3) : Node() {
     val npc by lazy { npcConsumer() }
     val block by lazy { pos() }
 

@@ -34,7 +34,7 @@ class DialogueScreenPacket : Packet<Boolean>({ player, value ->
 })
 
 @Serializable
-class SayContainer(val text: String, val name: String, val entity: Int)
+class SayContainer(var text: String = "", var name: String = "", val entity: Int)
 
 @HollowPacketV2(NetworkDirection.PLAY_TO_CLIENT)
 class DialogueSayPacket : Packet<SayContainer>({ player, value ->
