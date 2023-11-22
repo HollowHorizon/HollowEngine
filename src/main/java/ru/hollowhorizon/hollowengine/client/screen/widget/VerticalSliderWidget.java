@@ -4,13 +4,13 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.util.Mth;
 import ru.hollowhorizon.hc.client.utils.ScissorUtil;
 
 import java.util.function.Consumer;
 
 import static ru.hollowhorizon.hollowengine.client.screen.widget.ModelPreviewWidget.BORDER_WIDTH;
-import static ru.hollowhorizon.hollowengine.common.TextHelperKt.literal;
 
 public class VerticalSliderWidget extends AbstractWidget {
     private final int maxHeight;
@@ -19,7 +19,7 @@ public class VerticalSliderWidget extends AbstractWidget {
     private Consumer<Float> consumer;
 
     public VerticalSliderWidget(int x, int y, int w, int h) {
-        super(x, y, w, h, literal(""));
+        super(x, y, w, h, TextComponent.EMPTY);
 
         this.maxHeight = this.height - 30;
         yHeight = this.y + 30;

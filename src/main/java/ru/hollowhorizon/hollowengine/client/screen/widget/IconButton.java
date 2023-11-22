@@ -6,11 +6,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 
 import static net.minecraft.client.gui.components.Button.NO_TOOLTIP;
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
-import static ru.hollowhorizon.hollowengine.common.TextHelperKt.empty;
 
 public class IconButton extends HollowButton {
     public static final ResourceLocation BLANK_BUTTON_TEXTURE =
@@ -48,7 +48,7 @@ public class IconButton extends HollowButton {
                 yDiffText,
                 press,
                 NO_TOOLTIP,
-                new TextComponent(""));
+                TextComponent.EMPTY);
     }
 
     public IconButton(

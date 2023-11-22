@@ -86,7 +86,7 @@ object ClientEvents {
     }
 
     @JvmStatic
-    fun onClicked(event: InputEvent.MouseButton.Pre) {
+    fun onClicked(event: InputEvent.MouseInputEvent) {
         if (event.action != 1) return
 
         if(event.button > 2) return

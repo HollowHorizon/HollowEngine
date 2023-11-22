@@ -122,7 +122,7 @@ class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stat
         return result
     }
 
-    fun send(body: () -> SayContainer) {
+    fun send(body: SayContainer.() -> Unit) {
         +SimpleNode {
             val container = SayContainer("hollowengine.no_text_dialogue", "", 0).apply(body)
             DialogueSayPacket().send(container, *manager.team.onlineMembers.toTypedArray())

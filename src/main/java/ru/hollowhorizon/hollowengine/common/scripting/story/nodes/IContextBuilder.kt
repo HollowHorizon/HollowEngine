@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
-import dev.ftb.mods.ftbteams.api.Team
+import dev.ftb.mods.ftbteams.data.Team
 import kotlinx.serialization.Serializable
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Registry
@@ -38,7 +38,6 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationContainer
 import ru.hollowhorizon.hc.common.network.packets.StartOnceAnimationPacket
 import ru.hollowhorizon.hc.common.network.send
-import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
 import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenContainer
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
@@ -74,12 +73,11 @@ interface IContextBuilder {
         val npc = this@moveToBiome()
         val biome = biomeName().rl
 
-        val pos = (npc.level as ServerLevel).findClosestBiome3d(
+        val pos = (npc.level as ServerLevel).findNearestBiome(
             { it.`is`(biome) },
             npc.blockPosition(),
             6400,
-            32,
-            64
+            32
         )?.first ?: npc.blockPosition()
         Vec3(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
     }
@@ -108,6 +106,12 @@ interface IContextBuilder {
     infix fun NPCProperty.lookAtEntity(target: () -> Entity) = +NpcLookToEntityNode(this, target)
 
     infix fun NPCProperty.lookAtTeam(target: () -> Team) = +NpcLookToTeamNode(this, target)
+
+    class SimpleTeleport {
+        var pos: Vec3 = Vec3(0.0, 0.0, 0.0)
+        var vec: Vec2 = Vec2(0F, 0F)
+        var dim: ResourceKey<Level> = Level.OVERWORLD
+    }
 
     infix fun NPCProperty.tp(target: SimpleTeleport.() -> Unit) = +SimpleNode {
         val tp = SimpleTeleport().apply(target)
@@ -174,14 +178,9 @@ interface IContextBuilder {
         this@stop()[AnimatedEntityCapability::class].layers.removeIf { it.animation == anim }
     }
 
-
-    infix fun NPCProperty.say(text: TextContainer.() -> Unit) = +SimpleNode {
-        val container = TextContainer().apply(text)
-        val nameColor = container.nameColors
-
     infix fun NPCProperty.say(text: () -> String) = +SimpleNode {
-        val component = Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
-        stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
+        val component = TextComponent("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
+        stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
     }
     
     infix fun NPCProperty.configure(body: AnimatedEntityCapability.() -> Unit) = +SimpleNode {
@@ -213,32 +212,6 @@ interface IContextBuilder {
 
     infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach {
-            val componente = TextComponent("§6[§7${it.displayName.string}§6]§7 ").append(text().mcTranslate)
-            it.sendMessage(componente)
-        }
-    }
-
-    infix fun Team.sendAsPlayer(text: TextContainer.() -> Unit) = +SimpleNode {
-        val container = TextContainer().apply(text)
-        val nameColor = container.nameColors
-
-        stateMachine.team.onlineMembers.forEach {
-            val componente = TextComponent("§${nameColor.first}[§${nameColor.second}${it.displayName.string}§${nameColor.first}]§${nameColor.second} ")
-                .append(container.text.mcTranslate).withStyle(*container.styles)
-            it.sendMessage(componente, it.uuid)
-        }
-    }
-
-    infix fun Team.send(text: () -> String) = +SimpleNode {
-        stateMachine.team.onlineMembers.forEach { it.sendMessage(text().mcTranslate) }
-    }
-
-    infix fun NPCProperty.configure(body: AnimatedEntityCapability.() -> Unit) = +SimpleNode {
-        this@configure()[AnimatedEntityCapability::class].apply(body)
-    }
-
-    infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
-        stateMachine.team.onlineMembers.forEach {
             val componente = TextComponent("§6[§7${it.displayName.string}§7]§7").append(text().mcTranslate)
             it.sendMessage(componente, it.uuid)
         }
@@ -249,10 +222,6 @@ interface IContextBuilder {
     }
 
     fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
-
-    infix fun NPCProperty.addEffect(effect: ParticleEffect.() -> Unit) = +SimpleNode {
-        this@addEffect().addEffect(ParticleEffect("".rl, "").apply(effect))
-    }
 
     infix fun NPCProperty.dropItem(stack: () -> ItemStack) = +SimpleNode {
         val entity = this@dropItem()
@@ -337,8 +306,7 @@ interface IContextBuilder {
                     SoundSource.MASTER,
                     it.position(),
                     container.volume,
-                    container.pitch,
-                    it.random.nextLong()
+                    container.pitch
                 )
             )
         }
@@ -375,12 +343,6 @@ interface IContextBuilder {
                 )
             )
         }
-    }
-
-    class SimpleTeleport {
-        var pos: Vec3 = Vec3(0.0, 0.0, 0.0)
-        var vec: Vec2 = Vec2(0F, 0F)
-        var dim: ResourceKey<Level> = Level.OVERWORLD
     }
 
     infix fun Team.tp(pos: () -> Vec3) = +SimpleNode {

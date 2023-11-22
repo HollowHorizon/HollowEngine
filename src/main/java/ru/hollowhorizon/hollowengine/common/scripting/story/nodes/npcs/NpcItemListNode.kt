@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TextComponent
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
@@ -31,9 +32,9 @@ class NpcItemListNode(itemList: GiveItemList.() -> Unit, npcConsumer: NPCPropert
                 itemList.items.any { entityItem.item == it.item }
             }
             npc.onInteract = { player ->
-                player.sendSystemMessage(itemList.text.mcTranslate)
+                player.sendMessage(itemList.text.mcTranslate, player.uuid)
                 itemList.items.forEach {
-                    player.sendSystemMessage(Component.literal("- ").append(it.displayName).append(" x${it.count}"))
+                    player.sendMessage(TextComponent("- ").append(it.displayName).append(" x${it.count}"), player.uuid)
                 }
             }
         }

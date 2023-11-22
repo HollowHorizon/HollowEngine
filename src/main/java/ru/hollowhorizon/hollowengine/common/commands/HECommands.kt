@@ -20,7 +20,6 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getAllStoryEv
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.network.CopyTextPacket
 import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
-import ru.hollowhorizon.hollowengine.common.sendMessage
 import java.util.function.Consumer
 
 object HECommands {
@@ -61,7 +60,7 @@ object HECommands {
                     val raw = StringArgumentType.getString(this, "script")
                     val script = raw.fromReadablePath()
                     players.forEach { player ->
-                        val storyTeam = FTBTeamsAPI.api().manager.getTeamForPlayer(player).orElseThrow()
+                        val storyTeam = FTBTeamsAPI.getPlayerTeam(player)!!
                         runScript(player.server, storyTeam, script, true)
                     }
                     HollowCore.LOGGER.info("Started script $script")

@@ -7,8 +7,6 @@ import ru.hollowhorizon.hc.client.models.gltf.GltfTree
 import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
 import ru.hollowhorizon.hc.client.render.entity.GLTFEntityRenderer
 import ru.hollowhorizon.hc.client.utils.get
-import ru.hollowhorizon.hollowengine.client.render.effects.EffectsCapability
-import ru.hollowhorizon.hollowengine.client.render.effects.NpcEffect
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 
 class NPCRenderer<T>(context: EntityRendererProvider.Context) :
@@ -18,16 +16,5 @@ class NPCRenderer<T>(context: EntityRendererProvider.Context) :
 
         val npc = entity as? NPCEntity ?: return
 
-        val capability = npc[EffectsCapability::class]
-
-        if (capability.effects.isNotEmpty()) {
-            capability.effects.filter { it.node == node.name }.forEach { effect ->
-                NpcEffect(effect.location, effect.node).apply {
-                    this.pos.transform(node.transformationMatrix)
-                    this.pos.set(entity.x.toFloat(), entity.y.toFloat(), entity.z.toFloat(), 1.0f)
-                }.start()
-            }
-            capability.effects.removeIf { it.node == node.name }
-        }
     }
 }

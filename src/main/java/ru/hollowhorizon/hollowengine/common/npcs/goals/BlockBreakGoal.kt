@@ -116,7 +116,7 @@ class BlockBreakGoal(val living: Mob) : Goal() {
             digTimer++
             if (digTimer % 5 == 0) {
                 val sound: SoundType = state.getSoundType(living.level, markedLoc!!, living)
-                living.level.playSeededSound(
+                living.level.playSound(
                     null,
                     markedLoc!!.x + 0.5,
                     markedLoc!!.y + 0.5,
@@ -124,8 +124,7 @@ class BlockBreakGoal(val living: Mob) : Goal() {
                     sound.breakSound,
                     SoundSource.BLOCKS,
                     2f,
-                    0.5f,
-                    living.level.getRandom().nextLong()
+                    0.5f
                 )
                 living.swing(InteractionHand.MAIN_HAND)
                 living.lookControl.setLookAt(
@@ -248,7 +247,6 @@ fun getBreakSpeed(entity: Mob, stack: ItemStack, state: BlockState): Float {
             else -> 8.1E-4f
         }
     }
-    if (entity.isEyeInFluidType(ForgeMod.WATER_TYPE.get()) && !EnchantmentHelper.hasAquaAffinity(entity)) f /= 5.0f
     if (!entity.isOnGround) f /= 5.0f
     return f
 }

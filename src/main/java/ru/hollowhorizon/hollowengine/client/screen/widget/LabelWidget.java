@@ -15,8 +15,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static ru.hollowhorizon.hollowengine.common.TextHelperKt.empty;
-
 public class LabelWidget extends HollowWidget {
     public final Font font;
     private final AnchorX anchorX;

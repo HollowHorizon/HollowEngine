@@ -4,13 +4,12 @@ import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TranslatableComponent
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.literal
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
-import ru.hollowhorizon.hollowengine.common.sendTranslate
 
 open class SimpleNode(val task: SimpleNode.() -> Unit) : Node() {
     override fun tick(): Boolean {
@@ -75,9 +74,9 @@ fun IContextBuilder.execute(command: () -> String) = +SimpleNode {
     val server = this@execute.stateMachine.server
     val src = server.createCommandSourceStack()
 
-    if(server.commands.performPrefixedCommand(src.withPermission(4).withSuppressedOutput(), command()) == 0) {
+    if(server.commands.performCommand(src.withPermission(4).withSuppressedOutput(), command()) == 0) {
         manager.team.onlineMembers.filter { it.abilities.instabuild }.forEach {
-            it.sendSystemMessage("Command \"${command()}\" execution failed!".mcText)
+            it.sendMessage("Command \"${command()}\" execution failed!".mcText, it.uuid)
         }
     }
 }

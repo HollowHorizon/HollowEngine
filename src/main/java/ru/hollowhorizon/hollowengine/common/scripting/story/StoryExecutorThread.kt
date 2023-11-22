@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story
 import dev.ftb.mods.ftbteams.data.Team
 import kotlinx.coroutines.async
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.mcText
@@ -12,7 +13,6 @@ import ru.hollowhorizon.hc.common.scripting.errors
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.story.coroutines.ScriptContext
-import ru.hollowhorizon.hollowengine.common.sendMessage
 import java.io.File
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.constructorArgs
@@ -53,9 +53,9 @@ fun runScript(server: MinecraftServer, team: Team, file: File, isCommand: Boolea
             }
         } catch (e: Exception) {
             team.onlineMembers.forEach {
-                it.sendMessage(Component.translatable("hollowengine.executing_error", file.toReadablePath()), true)
-                it.sendMessage("${e.message}".mcText, true)
-                it.sendMessage("hollowengine.check_logs".mcTranslate)
+                it.sendMessage(TranslatableComponent("hollowengine.executing_error", file.toReadablePath()), it.uuid)
+                it.sendMessage("${e.message}".mcText, it.uuid)
+                it.sendMessage("hollowengine.check_logs".mcTranslate, it.uuid)
             }
             HollowCore.LOGGER.error("(HollowEngine) Error while executing event \"${file.toReadablePath()}\"", e)
         }

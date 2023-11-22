@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs
 
-import dev.ftb.mods.ftbteams.api.FTBTeamsAPI
-import dev.ftb.mods.ftbteams.api.Team
+import dev.ftb.mods.ftbteams.FTBTeamsAPI
+import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec2
@@ -39,7 +39,8 @@ class NpcLookToBlockNode(npcConsumer: NPCProperty, var pos: () -> Vec3, var spee
     }
 }
 
-class NpcLookToEntityNode(npcConsumer: NPCProperty, var target: () -> Entity?, var speed: Vec2 = Vec2(10f, 30f)) : Node() {
+class NpcLookToEntityNode(npcConsumer: NPCProperty, var target: () -> Entity?, var speed: Vec2 = Vec2(10f, 30f)) :
+    Node() {
     val npc by lazy { npcConsumer() }
     private var ticks = 30
 
@@ -59,7 +60,9 @@ class NpcLookToEntityNode(npcConsumer: NPCProperty, var target: () -> Entity?, v
     }
 
     override fun deserializeNBT(nbt: CompoundTag) {
-        val level = manager.server.getLevel(manager.server.levelKeys().find { it.location() == nbt.getString("level").rl } ?: return) ?: return
+        val level =
+            manager.server.getLevel(manager.server.levelKeys().find { it.location() == nbt.getString("level").rl }
+                ?: return) ?: return
         val entity = level.getEntity(nbt.getUUID("target")) ?: return
         target = { entity }
     }

@@ -5,8 +5,9 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.arguments.EntityArgument
-import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.client.utils.mcText
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.register
 import ru.hollowhorizon.hc.common.network.send
@@ -32,7 +33,10 @@ object HEStoryCommands {
 
                 "start-script"(
                     arg("players", EntityArgument.players()),
-                    arg("script", StringArgumentType.greedyString(), DirectoryManager.getAllStoryEvents().map { it.toReadablePath() })
+                    arg(
+                        "script",
+                        StringArgumentType.greedyString(),
+                        DirectoryManager.getAllStoryEvents().map { it.toReadablePath() })
                 ) {
                     val players = EntityArgument.getPlayers(this, "players")
                     val raw = StringArgumentType.getString(this, "script")
@@ -47,16 +51,12 @@ object HEStoryCommands {
                 "active-events" {
                     val player = source.playerOrException
                     val storyTeam = FTBTeamsAPI.getPlayerTeam(player)
-                    player.sendSystemMessage(Component.translatable("hollowengine.commands.active_events"))
+                    player.sendMessage("hollowengine.commands.active_events".mcTranslate, player.uuid)
                     StoryHandler.getActiveEvents(storyTeam)
-                        .ifEmpty{ mutableListOf("No active events") }
+                        .ifEmpty { mutableListOf("No active events") }
                         .forEach(
                             Consumer { name: String ->
-                                player.sendSystemMessage(
-                                    Component.literal(
-                                        "§6 - §7$name"
-                                    )
-                                )
+                                player.sendMessage("§6 - §7$name".mcText, player.uuid)
                             }
                         )
                 }

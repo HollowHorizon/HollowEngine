@@ -45,5 +45,3 @@ class Button(val text: String, val texture: String) {
 
 fun FormattedCharSequence.asString() =
     StringBuilder().apply { accept { _, _, char -> appendCodePoint(char); true } }.toString()
-
-val GuiMessage.Line.isCustom get() = content.asString().matches(Regex("\\$\\{.*}"))

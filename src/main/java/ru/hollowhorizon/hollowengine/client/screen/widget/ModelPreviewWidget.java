@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
-import static ru.hollowhorizon.hollowengine.common.TextHelperKt.literal;
 
 public class ModelPreviewWidget extends HollowWidget {
     protected static final int BORDER_WIDTH = 2;
