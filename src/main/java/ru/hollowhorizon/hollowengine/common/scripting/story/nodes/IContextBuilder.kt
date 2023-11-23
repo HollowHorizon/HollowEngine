@@ -197,9 +197,22 @@ interface IContextBuilder {
         )
     }
 
-    infix fun NPCProperty.stop(animation: () -> String) = +SimpleNode {
-        val anim = animation()
-        this@stop()[AnimatedEntityCapability::class].layers.removeIf { it.animation == anim }
+    infix fun NPCProperty.stop(animation: () -> String) {
+        +SimpleNode {
+            val anim = animation()
+            this@stop()[AnimatedEntityCapability::class].apply {
+                layers.filter { it.animation == anim }.forEach { it.markToRemove = true }
+                sync()
+            }
+        }
+        +WaitNode {
+            val anim = animation()
+            return@WaitNode this@stop()[AnimatedEntityCapability::class].layers.firstOrNull { it.animation == anim }?.fadeOut ?: 10
+        }
+        +SimpleNode {
+            val anim = animation()
+            this@stop()[AnimatedEntityCapability::class].layers.removeIf { it.animation == anim }
+        }
     }
 
 
