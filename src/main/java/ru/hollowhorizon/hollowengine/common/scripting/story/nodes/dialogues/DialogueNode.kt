@@ -17,6 +17,7 @@ import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.screen.DialogueScreen
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.HasInnerNodes
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.NodeContextBuilder
@@ -51,10 +52,11 @@ class DialogueChoicePacket : Packet<ChoicesContainer>({ player, value ->
     DialogueScreen.updateChoices(value.choices.map { it.mcText })
 })
 
-class DialogueNode(val nodes: List<Node>) : Node() {
+class DialogueNode(val nodes: List<Node>) : Node(), HasInnerNodes {
     private var index = 0
     val isEnded get() = index >= nodes.size
     var isStarted = false
+    override val currentNode = nodes[index]
 
     override fun tick(): Boolean {
         if (!isStarted) {
@@ -62,7 +64,7 @@ class DialogueNode(val nodes: List<Node>) : Node() {
             onStart()
         }
 
-        if (!nodes[index].tick()) index++
+        if (!currentNode.tick()) index++
 
         if (isEnded) {
             onEnd()
@@ -109,7 +111,11 @@ class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stat
     override fun Team.send(text: () -> String): SimpleNode {
         val result = +SimpleNode {
             DialogueSayPacket().send(
-                SayContainer(text(), this@send.name.string, this@send.onlineMembers.find { it.uuid == this@send.owner }?.id ?: -1),
+                SayContainer(
+                    text(),
+                    this@send.name.string,
+                    this@send.onlineMembers.find { it.uuid == this@send.owner }?.id ?: -1
+                ),
                 *manager.team.onlineMembers.toTypedArray()
             )
         }
@@ -131,7 +137,7 @@ class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stat
 
 class ApplyChoiceEvent(val player: Player, val choice: Int) : Event()
 
-class ChoicesNode(choiceContext: DialogueChoiceContext) : Node() {
+class ChoicesNode(choiceContext: DialogueChoiceContext) : Node(), HasInnerNodes {
     val choices = choiceContext.choices
     var timeout = choiceContext.timeout
     var onTimeout = choiceContext.onTimeout
@@ -140,6 +146,7 @@ class ChoicesNode(choiceContext: DialogueChoiceContext) : Node() {
     var performedChoiceIndex = 0
     var isStarted = false
     val isEnded get() = performedChoice != null && index >= (performedChoice?.size ?: 0)
+    override val currentNode = performedChoice?.get(index) ?: SimpleNode {}
 
     override fun tick(): Boolean {
         if (!isStarted) {

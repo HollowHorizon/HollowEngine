@@ -13,8 +13,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.serialize
 
 open class StoryStateMachine(val server: MinecraftServer, val team: Team) : IContextBuilder {
     val variables = ArrayList<StoryVariable<*>>()
-    private val nodes = ArrayList<Node>()
-    private var currentIndex = 0
+    internal val nodes = ArrayList<Node>()
+    internal var currentIndex = 0
     var isStarted = false
     val isEnded get() = currentIndex >= nodes.size
 

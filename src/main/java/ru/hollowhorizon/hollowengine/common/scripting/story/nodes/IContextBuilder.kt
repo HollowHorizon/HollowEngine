@@ -26,7 +26,6 @@ import net.minecraft.world.phys.Vec3
 import net.minecraftforge.common.util.ITeleporter
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.network.PacketDistributor
-import ru.hollowhorizon.hc.client.models.gltf.Transform
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayType
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
@@ -46,14 +45,45 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
+import java.util.Stack
 import java.util.function.Function
-import kotlin.math.roundToInt
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
     operator fun <T : Node> T.unaryPlus(): T
 
     fun next(block: SimpleNode.() -> Unit) = +SimpleNode(block)
+
+    private fun innerBreak(tag: String = "", node: Node = stateMachine.nodes[stateMachine.currentIndex], stack: Stack<WhileNode> = Stack()) {
+        if(node is WhileNode) stack.push(node)
+        if(node is HasInnerNodes) {
+            if(node.currentNode is HasInnerNodes) innerBreak(tag, node.currentNode)
+            else while(!stack.empty()) {
+                val whileNode = stack.pop()
+                if(whileNode.tag == tag) {
+                    whileNode.shouldBreak = true
+                    break
+                }
+            }
+        } else throw IllegalArgumentException("${node.javaClass} is not a HasInnerNodes. May be you called Break() not in loop?")
+    }
+
+    private fun innerContinue(tag: String = "", node: Node = stateMachine.nodes[stateMachine.currentIndex], stack: Stack<WhileNode> = Stack()) {
+        if(node is WhileNode) stack.push(node)
+        if(node is HasInnerNodes) {
+            if(node.currentNode is HasInnerNodes) innerBreak(tag, node.currentNode)
+            else while(!stack.empty()) {
+                val whileNode = stack.pop()
+                if(whileNode.tag == tag) {
+                    whileNode.shouldContinue = true
+                    break
+                }
+            }
+        } else throw IllegalArgumentException("${node.javaClass} is not a HasInnerNodes. May be you called Continue() not in loop?")
+    }
+
+    fun Break(tag: () -> String) = SimpleNode { innerBreak(tag()) }
+    fun Continue(tag: () -> String) = SimpleNode { innerContinue(tag()) }
 
     class NpcContainer {
         var settings = NPCSettings()
@@ -286,9 +316,6 @@ interface IContextBuilder {
         )
         container.time
     }
-
-    fun async(vararg tasks: NodeContextBuilder.() -> Unit) =
-        +CombinedNode(tasks.flatMap { NodeContextBuilder(this.stateMachine).apply(it).tasks })
 
     class SoundContainer {
         var sound = ""

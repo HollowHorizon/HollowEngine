@@ -23,34 +23,6 @@ open class SimpleNode(val task: SimpleNode.() -> Unit) : Node() {
 
 class BooleanValue(var data: Boolean)
 
-class CombinedNode(nodes: List<Node>) : Node() {
-    val nodes = nodes.associateWith { BooleanValue(false) }
-
-    init {
-        nodes.forEach { it.parent = this }
-    }
-
-    override fun tick(): Boolean {
-        for ((node, state) in nodes) {
-            if (!state.data && !node.tick()) state.data = true
-        }
-        return nodes.values.any { !it.data }
-    }
-
-    override fun serializeNBT() = CompoundTag().apply {
-        serializeNodes("nodes", nodes.keys)
-        put("completed", ListTag().apply { addAll(nodes.values.map { ByteTag.valueOf(it.data) }) })
-    }
-
-    override fun deserializeNBT(nbt: CompoundTag) {
-        nbt.deserializeNodes("nodes", nodes.keys)
-        val completed = nbt.getList("completed", 1)
-        nodes.values.forEachIndexed { i, it ->
-            it.data = (completed[i] as ByteTag) == ByteTag.ONE
-        }
-    }
-}
-
 fun IContextBuilder.send(text: Component) = +SimpleNode {
     manager.team.onlineMembers.forEach { it.sendSystemMessage(text) }
 }
