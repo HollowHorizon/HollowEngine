@@ -393,6 +393,14 @@ interface IContextBuilder {
     fun vec(x: Int, y: Int) = Vec2(x.toFloat(), y.toFloat())
     fun vec(x: Float, y: Float) = Vec2(x, y)
 
+    fun Player.isTeamMember(): Boolean {
+        var value = false
+        stateMachine.team.onlineMembers.forEach {
+            value = it.uuid == this.uuid
+        }
+        return value
+    }
+
     operator fun Team.get(name: String): Player? = this.onlineMembers.find { it.gameProfile.name == name }
 
     val Int.sec get() = this * 20
