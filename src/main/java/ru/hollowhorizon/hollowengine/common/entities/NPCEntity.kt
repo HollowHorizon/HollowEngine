@@ -81,11 +81,7 @@ class NPCEntity : PathfinderMob, IAnimated {
     }
 
     override fun tickDeath() {
-        ++deathTime
-        if (deathTime == 50 && !level.isClientSide()) {
-            level.broadcastEntityEvent(this, 60.toByte())
-            this.remove(RemovalReason.KILLED)
-        }
+        ++deathTime //Нпс не умирают сами по себе... Это может поломать скрипт, если вам надо - удалите его вручную
     }
 
     override fun removeWhenFarAway(dist: Double) = false
