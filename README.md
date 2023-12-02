@@ -1,5 +1,5 @@
 # HollowEngine
-
+[![wakatime](https://wakatime.com/badge/user/71f1f015-c9fc-4816-91f6-84fa366b3bb6/project/bc456f54-edf3-43f6-82b7-78ca2705b8a3.svg)](https://wakatime.com/badge/user/71f1f015-c9fc-4816-91f6-84fa366b3bb6/project/bc456f54-edf3-43f6-82b7-78ca2705b8a3)
 ---
 Powerful Engine for creating Minecraft content.
 Now it provides a simple and easy way to create Scripts for Dialogues, NPCs, Game Management and recipes.
