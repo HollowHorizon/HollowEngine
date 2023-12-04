@@ -12,7 +12,7 @@ open class WhileNode(protected val condition: () -> Boolean, val tasks: List<Nod
     }
     internal var shouldContinue = false
     internal var shouldBreak = false
-    override val currentNode = tasks[index]
+    override val currentNode get() = tasks[index]
 
     override fun tick(): Boolean {
         if(shouldBreak) return false

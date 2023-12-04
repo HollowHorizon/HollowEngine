@@ -56,7 +56,7 @@ class DialogueNode(val nodes: List<Node>) : Node(), HasInnerNodes {
     private var index = 0
     val isEnded get() = index >= nodes.size
     var isStarted = false
-    override val currentNode = nodes[index]
+    override val currentNode get() = nodes[index]
 
     override fun tick(): Boolean {
         if (!isStarted) {
@@ -146,7 +146,7 @@ class ChoicesNode(choiceContext: DialogueChoiceContext) : Node(), HasInnerNodes 
     var performedChoiceIndex = 0
     var isStarted = false
     val isEnded get() = performedChoice != null && index >= (performedChoice?.size ?: 0)
-    override val currentNode = performedChoice?.get(index) ?: SimpleNode {}
+    override val currentNode get() = performedChoice?.get(index) ?: SimpleNode {}
 
     override fun tick(): Boolean {
         if (!isStarted) {

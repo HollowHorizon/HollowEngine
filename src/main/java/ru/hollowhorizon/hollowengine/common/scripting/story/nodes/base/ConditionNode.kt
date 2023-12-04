@@ -18,7 +18,7 @@ class ConditionNode(
     val initialCondition by lazy { condition() }
     var index = 0
     private val isEnd get() = index >= if (initialCondition) ifTasks.size else elseTasks.size
-    override var currentNode = if (initialCondition) ifTasks[index] else elseTasks[index]
+    override val currentNode get() = if (initialCondition) ifTasks[index] else elseTasks[index]
 
     fun setElseTasks(tasks: List<Node>) {
         elseTasks.clear()
