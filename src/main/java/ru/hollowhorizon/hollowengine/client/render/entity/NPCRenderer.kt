@@ -23,7 +23,7 @@ class NPCRenderer<T>(context: EntityRendererProvider.Context) :
         if (capability.effects.isNotEmpty()) {
             capability.effects.filter { it.node == node.name }.forEach { effect ->
                 NpcEffect(effect.location, effect.node).apply {
-                    this.pos.transform(node.transformationMatrix)
+                    this.pos.transform(node.globalMatrix)
                     this.pos.set(entity.x.toFloat(), entity.y.toFloat(), entity.z.toFloat(), 1.0f)
                 }.start()
             }
