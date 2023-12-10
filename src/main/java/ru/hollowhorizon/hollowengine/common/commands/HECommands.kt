@@ -18,6 +18,10 @@ object HECommands {
     fun register(dispatcher: CommandDispatcher<CommandSourceStack>) {
         dispatcher.register {
             "hollowengine" {
+                "compile-all" {
+                    DirectoryManager.compileAll()
+                }
+
                 "hand" {
 
                     val player = source.playerOrException
