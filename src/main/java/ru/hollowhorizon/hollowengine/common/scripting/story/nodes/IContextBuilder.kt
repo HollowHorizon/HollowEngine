@@ -26,14 +26,17 @@ import net.minecraft.world.phys.Vec3
 import net.minecraftforge.common.util.ITeleporter
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.network.PacketDistributor
-import ru.hollowhorizon.hc.client.models.gltf.animations.PlayType
+import ru.hollowhorizon.hc.client.models.gltf.animations.PlayMode
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
+import ru.hollowhorizon.hc.client.models.gltf.manager.LayerMode
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationContainer
-import ru.hollowhorizon.hc.common.network.packets.StartOnceAnimationPacket
+import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
+import ru.hollowhorizon.hc.common.network.packets.StopAnimationContainer
+import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
@@ -161,45 +164,36 @@ interface IContextBuilder {
 
     class AnimationContainer {
         var animation = ""
-        var priority = 1.0f
-        var playType = PlayType.LOOPED
+        var layerMode = LayerMode.ADD
+        var playType = PlayMode.LOOPED
         var speed = 1.0f
     }
 
     fun NPCProperty.play(block: AnimationContainer.() -> Unit) = +SimpleNode {
         val container = AnimationContainer().apply(block)
-        this@play()[AnimatedEntityCapability::class].layers.add(
-            AnimationLayer(
-                container.animation, container.priority, container.playType, container.speed, 0
-            )
+        StartAnimationPacket().send(
+            StartAnimationContainer(this@play().id, container.animation, container.layerMode, container.playType, container.speed),
+            PacketDistributor.TRACKING_ENTITY.with(this@play)
         )
     }
 
     infix fun NPCProperty.playLooped(animation: () -> String) = play {
-        this.playType = PlayType.LOOPED
+        this.playType = PlayMode.LOOPED
         this.animation = animation()
     }
 
     infix fun NPCProperty.playOnce(animation: () -> String) = +SimpleNode {
-        val npc = this@playOnce()
-        StartOnceAnimationPacket().send(
-            StartAnimationContainer(npc.id, animation(), 100.0f, 1.0f),
-            PacketDistributor.TRACKING_ENTITY.with(this@playOnce)
-        )
-    }
-
-    fun NPCProperty.playOnce(block: AnimationContainer.() -> Unit) = +SimpleNode {
-        val container = AnimationContainer().apply(block)
-        val npc = this@playOnce()
-        StartOnceAnimationPacket().send(
-            StartAnimationContainer(npc.id, container.animation, container.priority, container.speed),
+        StartAnimationPacket().send(
+            StartAnimationContainer(this@playOnce().id, animation(), LayerMode.ADD, PlayMode.ONCE, 1.0f),
             PacketDistributor.TRACKING_ENTITY.with(this@playOnce)
         )
     }
 
     infix fun NPCProperty.stop(animation: () -> String) = +SimpleNode {
-        val anim = animation()
-        this@stop()[AnimatedEntityCapability::class].layers.removeIf { it.animation == anim }
+        StopAnimationPacket().send(
+            StopAnimationContainer(this@stop().id, animation()),
+            PacketDistributor.TRACKING_ENTITY.with(this@stop)
+        )
     }
 
 
