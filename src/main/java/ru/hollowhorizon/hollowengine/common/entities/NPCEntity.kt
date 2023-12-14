@@ -6,8 +6,6 @@ import net.minecraft.world.InteractionResult
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.PathfinderMob
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
-import net.minecraft.world.entity.ai.navigation.GroundPathNavigation
-import net.minecraft.world.entity.ai.navigation.PathNavigation
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
@@ -18,8 +16,8 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hollowengine.client.render.effects.EffectsCapability
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
-import ru.hollowhorizon.hollowengine.common.npcs.goals.BlockBreakGoal
-import ru.hollowhorizon.hollowengine.common.npcs.goals.LadderClimbGoal
+import ru.hollowhorizon.hollowengine.common.npcs.goals.*
+import ru.hollowhorizon.hollowengine.common.npcs.pathing.NPCPathNavigator
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
 class NPCEntity : PathfinderMob, IAnimated {
@@ -38,13 +36,7 @@ class NPCEntity : PathfinderMob, IAnimated {
         setCanPickUpLoot(true)
     }
 
-    override fun createNavigation(pLevel: Level): PathNavigation {
-        val navigation = GroundPathNavigation(this, pLevel)
-        navigation.setCanOpenDoors(true)
-        navigation.setCanPassDoors(true)
-        navigation.setCanFloat(true)
-        return navigation
-    }
+    override fun createNavigation(pLevel: Level) = NPCPathNavigator(this, pLevel)
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         if (pHand == InteractionHand.MAIN_HAND) onInteract(pPlayer)
@@ -55,6 +47,7 @@ class NPCEntity : PathfinderMob, IAnimated {
         goalSelector.addGoal(1, MeleeAttackGoal(this, 1.0, false))
         goalSelector.addGoal(1, LadderClimbGoal(this))
         goalSelector.addGoal(1, BlockBreakGoal(this))
+        goalSelector.addGoal(1, OpenDoorGoal(this))
     }
 
     fun addEffect(effect: ParticleEffect) {
