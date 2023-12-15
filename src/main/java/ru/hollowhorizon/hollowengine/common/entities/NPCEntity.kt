@@ -6,6 +6,7 @@ import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.PathfinderMob
+import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
@@ -59,6 +60,7 @@ class NPCEntity : PathfinderMob, IAnimated {
     }
 
     override fun registerGoals() {
+        goalSelector.addGoal(1, FloatGoal(this))
         goalSelector.addGoal(1, MeleeAttackGoal(this, 1.0, false))
         goalSelector.addGoal(1, LadderClimbGoal(this))
         goalSelector.addGoal(1, BlockBreakGoal(this))
