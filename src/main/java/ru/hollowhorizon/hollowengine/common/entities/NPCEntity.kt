@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
@@ -16,6 +17,7 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hollowengine.client.render.effects.EffectsCapability
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
+import ru.hollowhorizon.hollowengine.common.npcs.NpcTarget
 import ru.hollowhorizon.hollowengine.common.npcs.goals.BlockBreakGoal
 import ru.hollowhorizon.hollowengine.common.npcs.goals.LadderClimbGoal
 import ru.hollowhorizon.hollowengine.common.npcs.goals.OpenDoorGoal
@@ -33,9 +35,20 @@ class NPCEntity : PathfinderMob, IAnimated {
     }
     var onInteract: (Player) -> Unit = {}
     var shouldGetItem: (ItemStack) -> Boolean = { false }
+    val npcTarget = NpcTarget(level)
 
     init {
         setCanPickUpLoot(true)
+    }
+
+    override fun addAdditionalSaveData(pCompound: CompoundTag) {
+        super.addAdditionalSaveData(pCompound)
+        pCompound.put("npc_target", npcTarget.serializeNBT())
+    }
+
+    override fun readAdditionalSaveData(pCompound: CompoundTag) {
+        super.readAdditionalSaveData(pCompound)
+        npcTarget.deserializeNBT(pCompound.get("npc_target") as? CompoundTag ?: return)
     }
 
     override fun createNavigation(pLevel: Level) = NPCPathNavigator(this, pLevel)
@@ -73,6 +86,11 @@ class NPCEntity : PathfinderMob, IAnimated {
         onItemPickup(pItemEntity)
         this.take(pItemEntity, item.count)
         pItemEntity.discard()
+    }
+
+    override fun tick() {
+        super.tick()
+        npcTarget.tick(this)
     }
 
     override fun aiStep() {

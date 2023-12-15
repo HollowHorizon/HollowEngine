@@ -2,26 +2,18 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs
 
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityDimensions
-import net.minecraft.world.level.entity.EntityTypeTest
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcText
-import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
-import ru.hollowhorizon.hc.client.utils.nbt.deserialize
-import ru.hollowhorizon.hc.client.utils.nbt.serialize
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
-import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
-import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 import ru.hollowhorizon.hollowengine.mixins.EntityAccessor
-import java.util.function.Predicate
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
@@ -46,9 +38,7 @@ class NpcDelegate(
         val entity = entities.firstOrNull() ?: NPCEntity(level).apply {
             isNpcSpawned = false
             setPos(
-                settings.pos.x + 0.5,
-                settings.pos.y,
-                settings.pos.z + 0.5
+                settings.pos.x + 0.5, settings.pos.y, settings.pos.z + 0.5
             )
             level.addFreshEntity(this)
         }
@@ -63,11 +53,7 @@ class NpcDelegate(
                 it.transform = settings.transform
             }
             entity.moveTo(
-                settings.pos.x + 0.5,
-                settings.pos.y,
-                settings.pos.z + 0.5,
-                settings.rotation.x,
-                settings.rotation.y
+                settings.pos.x + 0.5, settings.pos.y, settings.pos.z + 0.5, settings.rotation.x, settings.rotation.y
             )
 
             settings.data.attributes.forEach { (name, value) ->
@@ -75,7 +61,11 @@ class NpcDelegate(
                     value.toDouble()
             }
 
-            (entity as EntityAccessor).setDimensions(EntityDimensions.scalable(settings.size.first, settings.size.second))
+            (entity as EntityAccessor).setDimensions(
+                EntityDimensions.scalable(
+                    settings.size.first, settings.size.second
+                )
+            )
             entity.refreshDimensions()
 
             entity.isCustomNameVisible = this.settings.showName && settings.name.isNotEmpty()

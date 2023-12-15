@@ -2,8 +2,6 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import dev.ftb.mods.ftbteams.data.Team
-import kotlinx.serialization.Serializable
-import net.minecraft.core.BlockPos
 import net.minecraft.core.Registry
 import net.minecraft.nbt.StringTag
 import net.minecraft.network.chat.Component
@@ -34,7 +32,6 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.*
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationContainer
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
 import ru.hollowhorizon.hc.common.network.packets.StopAnimationContainer
@@ -45,8 +42,6 @@ import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
 import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenContainer
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.Attributes
-import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
-import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
@@ -108,6 +103,32 @@ interface IContextBuilder {
     fun NPCEntity.Companion.creating(settings: NpcContainer.() -> Unit): NpcDelegate {
         val container = NpcContainer().apply(settings)
         return +NpcDelegate(container).apply { manager = stateMachine }
+    }
+
+    infix fun NPCProperty.setMovingPos(pos: () -> Vec3?) = +SimpleNode {
+        val position = pos()
+        this@setMovingPos().npcTarget.movingPos = position
+    }
+    infix fun NPCProperty.setMovingEntity(entity: () -> Entity?) = +SimpleNode {
+        val target = entity()
+        this@setMovingEntity().npcTarget.movingEntity = target
+    }
+    infix fun NPCProperty.setMovingTeam(team: () -> Team?) = +SimpleNode {
+        val target = team()
+        this@setMovingTeam().npcTarget.movingTeam = target
+    }
+
+    infix fun NPCProperty.setLookingPos(pos: () -> Vec3?) = +SimpleNode {
+        val position = pos()
+        this@setLookingPos().npcTarget.lookingPos = position
+    }
+    infix fun NPCProperty.setLookingEntity(entity: () -> Entity?) = +SimpleNode {
+        val target = entity()
+        this@setLookingEntity().npcTarget.lookingEntity = target
+    }
+    infix fun NPCProperty.setLookingTeam(team: () -> Team?) = +SimpleNode {
+        val target = team()
+        this@setLookingTeam().npcTarget.lookingTeam = target
     }
 
     infix fun NPCProperty.moveToPos(pos: () -> Vec3) = +NpcMoveToBlockNode(this, pos)
