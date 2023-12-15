@@ -30,3 +30,24 @@ open class NodeContextBuilder(override val stateMachine: StoryStateMachine) : IC
         return this
     }
 }
+
+class ChainNode(val nodes: ArrayList<Node>): Node() {
+    var index = 0
+    val isEnded get() = index >= nodes.size
+
+    override fun tick(): Boolean {
+        if(!nodes[index].tick()) index++
+        return !isEnded
+    }
+
+    override fun serializeNBT() = CompoundTag().apply {
+        putInt("index", index)
+        serializeNodes("nodes", nodes)
+    }
+
+    override fun deserializeNBT(nbt: CompoundTag) {
+        index = nbt.getInt("index")
+        nbt.deserializeNodes("nodes", nodes)
+    }
+
+}

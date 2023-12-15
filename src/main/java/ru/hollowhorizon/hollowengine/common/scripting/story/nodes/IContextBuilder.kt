@@ -46,22 +46,27 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
-import java.util.Stack
+import java.util.*
 import java.util.function.Function
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
+
     operator fun <T : Node> T.unaryPlus(): T
 
     fun next(block: SimpleNode.() -> Unit) = +SimpleNode(block)
 
-    private fun innerBreak(tag: String = "", node: Node = stateMachine.nodes[stateMachine.currentIndex], stack: Stack<WhileNode> = Stack()) {
-        if(node is WhileNode) stack.push(node)
-        if(node is HasInnerNodes) {
-            if(node.currentNode is HasInnerNodes) innerBreak(tag, node.currentNode)
-            else while(!stack.empty()) {
+    private fun innerBreak(
+        tag: String = "",
+        node: Node = stateMachine.nodes[stateMachine.currentIndex],
+        stack: Stack<WhileNode> = Stack()
+    ) {
+        if (node is WhileNode) stack.push(node)
+        if (node is HasInnerNodes) {
+            if (node.currentNode is HasInnerNodes) innerBreak(tag, node.currentNode)
+            else while (!stack.empty()) {
                 val whileNode = stack.pop()
-                if(whileNode.tag == tag) {
+                if (whileNode.tag == tag) {
                     whileNode.shouldBreak = true
                     break
                 }
@@ -69,13 +74,17 @@ interface IContextBuilder {
         } else throw IllegalArgumentException("${node.javaClass} is not a HasInnerNodes. May be you called Break() not in loop?")
     }
 
-    private fun innerContinue(tag: String = "", node: Node = stateMachine.nodes[stateMachine.currentIndex], stack: Stack<WhileNode> = Stack()) {
-        if(node is WhileNode) stack.push(node)
-        if(node is HasInnerNodes) {
-            if(node.currentNode is HasInnerNodes) innerBreak(tag, node.currentNode)
-            else while(!stack.empty()) {
+    private fun innerContinue(
+        tag: String = "",
+        node: Node = stateMachine.nodes[stateMachine.currentIndex],
+        stack: Stack<WhileNode> = Stack()
+    ) {
+        if (node is WhileNode) stack.push(node)
+        if (node is HasInnerNodes) {
+            if (node.currentNode is HasInnerNodes) innerBreak(tag, node.currentNode)
+            else while (!stack.empty()) {
                 val whileNode = stack.pop()
-                if(whileNode.tag == tag) {
+                if (whileNode.tag == tag) {
                     whileNode.shouldContinue = true
                     break
                 }
@@ -109,10 +118,12 @@ interface IContextBuilder {
         val position = pos()
         this@setMovingPos().npcTarget.movingPos = position
     }
+
     infix fun NPCProperty.setMovingEntity(entity: () -> Entity?) = +SimpleNode {
         val target = entity()
         this@setMovingEntity().npcTarget.movingEntity = target
     }
+
     infix fun NPCProperty.setMovingTeam(team: () -> Team?) = +SimpleNode {
         val target = team()
         this@setMovingTeam().npcTarget.movingTeam = target
@@ -122,10 +133,12 @@ interface IContextBuilder {
         val position = pos()
         this@setLookingPos().npcTarget.lookingPos = position
     }
+
     infix fun NPCProperty.setLookingEntity(entity: () -> Entity?) = +SimpleNode {
         val target = entity()
         this@setLookingEntity().npcTarget.lookingEntity = target
     }
+
     infix fun NPCProperty.setLookingTeam(team: () -> Team?) = +SimpleNode {
         val target = team()
         this@setLookingTeam().npcTarget.lookingTeam = target
@@ -205,7 +218,13 @@ interface IContextBuilder {
     fun NPCProperty.play(block: AnimationContainer.() -> Unit) = +SimpleNode {
         val container = AnimationContainer().apply(block)
         StartAnimationPacket().send(
-            StartAnimationContainer(this@play().id, container.animation, container.layerMode, container.playType, container.speed),
+            StartAnimationContainer(
+                this@play().id,
+                container.animation,
+                container.layerMode,
+                container.playType,
+                container.speed
+            ),
             PacketDistributor.TRACKING_ENTITY.with(this@play)
         )
     }
@@ -234,7 +253,7 @@ interface IContextBuilder {
         val component = Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
-    
+
     infix fun NPCProperty.configure(body: AnimatedEntityCapability.() -> Unit) = +SimpleNode {
         this@configure()[AnimatedEntityCapability::class].apply(body)
     }
@@ -397,6 +416,13 @@ interface IContextBuilder {
                 )
             )
         }
+    }
+
+    fun async(body: NodeContextBuilder.() -> Unit) {
+        val chainNode = ChainNode(NodeContextBuilder(stateMachine).apply(body).tasks)
+        val index = stateMachine.asyncNodes.size
+        stateMachine.asyncNodes.add(chainNode)
+        +SimpleNode { stateMachine.asyncNodeIds.add(index) }
     }
 
 //    @Serializable Крч, сам сделаешь. Просил сам сделать класс xD

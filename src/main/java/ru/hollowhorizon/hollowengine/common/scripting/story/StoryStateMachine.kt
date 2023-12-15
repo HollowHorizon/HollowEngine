@@ -14,14 +14,18 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.serialize
 open class StoryStateMachine(val server: MinecraftServer, val team: Team) : IContextBuilder {
     val variables = ArrayList<StoryVariable<*>>()
     internal val nodes = ArrayList<Node>()
+    internal val asyncNodes = ArrayList<Node>()
     internal var currentIndex = 0
+    val asyncNodeIds = ArrayList<Int>()
     var isStarted = false
-    val isEnded get() = currentIndex >= nodes.size
+    val isEnded get() = currentIndex >= nodes.size && asyncNodeIds.isEmpty()
 
     fun tick(event: ServerTickEvent) {
         if (event.phase != TickEvent.Phase.END) return
 
         if (!isEnded && !nodes[currentIndex].tick()) currentIndex++
+
+        asyncNodeIds.removeIf { !asyncNodes[it].tick() }
     }
 
     fun serialize() = CompoundTag().apply {
