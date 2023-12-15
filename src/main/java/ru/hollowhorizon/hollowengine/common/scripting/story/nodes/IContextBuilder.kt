@@ -93,7 +93,7 @@ interface IContextBuilder {
 
     class NpcContainer {
         var name = "Неизвестный"
-        var model = "%NO_MODEL%"
+        var model = "hollowengine:models/entity/player_model.gltf"
         val animations = HashMap<AnimationType, String>()
         val textures = HashMap<String, String>()
         var transform = Transform()
