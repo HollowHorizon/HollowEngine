@@ -16,7 +16,9 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hollowengine.client.render.effects.EffectsCapability
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
-import ru.hollowhorizon.hollowengine.common.npcs.goals.*
+import ru.hollowhorizon.hollowengine.common.npcs.goals.BlockBreakGoal
+import ru.hollowhorizon.hollowengine.common.npcs.goals.LadderClimbGoal
+import ru.hollowhorizon.hollowengine.common.npcs.goals.OpenDoorGoal
 import ru.hollowhorizon.hollowengine.common.npcs.pathing.NPCPathNavigator
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
@@ -73,12 +75,9 @@ class NPCEntity : PathfinderMob, IAnimated {
         pItemEntity.discard()
     }
 
-    override fun tickDeath() {
-        ++deathTime
-        if (deathTime == 50 && !level.isClientSide()) {
-            level.broadcastEntityEvent(this, 60.toByte())
-            this.remove(RemovalReason.KILLED)
-        }
+    override fun aiStep() {
+        updateSwingTime()
+        super.aiStep()
     }
 
     override fun removeWhenFarAway(dist: Double) = false
