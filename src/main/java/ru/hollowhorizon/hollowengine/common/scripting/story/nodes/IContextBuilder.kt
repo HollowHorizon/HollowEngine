@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import dev.ftb.mods.ftbteams.data.Team
+import kotlinx.serialization.Serializable
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Registry
 import net.minecraft.nbt.StringTag
@@ -26,13 +27,14 @@ import net.minecraft.world.phys.Vec3
 import net.minecraftforge.common.util.ITeleporter
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.network.PacketDistributor
+import ru.hollowhorizon.hc.client.models.gltf.Transform
+import ru.hollowhorizon.hc.client.models.gltf.animations.AnimationType
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayMode
-import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
-import ru.hollowhorizon.hc.client.models.gltf.manager.LayerMode
+import ru.hollowhorizon.hc.client.models.gltf.manager.*
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationContainer
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
 import ru.hollowhorizon.hc.common.network.packets.StopAnimationContainer
@@ -42,6 +44,7 @@ import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
 import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenContainer
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.npcs.Attributes
 import ru.hollowhorizon.hollowengine.common.npcs.NPCSettings
 import ru.hollowhorizon.hollowengine.common.npcs.SpawnLocation
 import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
@@ -89,13 +92,22 @@ interface IContextBuilder {
     fun Continue(tag: () -> String) = SimpleNode { innerContinue(tag()) }
 
     class NpcContainer {
-        var settings = NPCSettings()
-        var location = SpawnLocation(pos = BlockPos(0, 0, 0))
+        var name = "Неизвестный"
+        var model = "%NO_MODEL%"
+        val animations = HashMap<AnimationType, String>()
+        val textures = HashMap<String, String>()
+        var transform = Transform()
+        var world = "minecraft:overworld"
+        var pos = Vec3(0.0, 0.0, 0.0)
+        var rotation = Vec2.ZERO
+        var data = Attributes()
+        var size = Pair(0.6f, 1.8f)
+        var showName = true
     }
 
     fun NPCEntity.Companion.creating(settings: NpcContainer.() -> Unit): NpcDelegate {
         val container = NpcContainer().apply(settings)
-        return +NpcDelegate(container.settings, container.location).apply { manager = stateMachine }
+        return +NpcDelegate(container).apply { manager = stateMachine }
     }
 
     infix fun NPCProperty.moveToPos(pos: () -> Vec3) = +NpcMoveToBlockNode(this, pos)
