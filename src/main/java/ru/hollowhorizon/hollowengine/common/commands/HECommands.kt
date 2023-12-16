@@ -3,8 +3,13 @@ package ru.hollowhorizon.hollowengine.common.commands
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.arguments.StringArgumentType
 import net.minecraft.commands.CommandSourceStack
+import net.minecraft.network.chat.ClickEvent
+import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.HoverEvent
+import net.minecraft.network.chat.Style
 import net.minecraftforge.registries.ForgeRegistries
 import org.jetbrains.kotlin.konan.file.File
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.register
 import ru.hollowhorizon.hc.common.network.send
@@ -40,6 +45,16 @@ object HECommands {
                         }
                     }
                     CopyTextPacket().send(itemCommand, player)
+
+                    player.sendSystemMessage("hollowengine.commands.tags".mcTranslate)
+
+                    item.tags.forEach { tag ->
+                        player.sendSystemMessage(Component.translatable("hollowengine.commands.copy", Component.literal("tag(\"${tag.location}\")").apply {
+                            style = Style.EMPTY
+                                .withHoverEvent(HoverEvent(HoverEvent.Action.SHOW_TEXT, "hollowengine.tooltips.copy".mcTranslate))
+                                .withClickEvent(ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, "tag(\"${tag.location}\")"))
+                        }))
+                    }
                 }
 
                 "model"(
