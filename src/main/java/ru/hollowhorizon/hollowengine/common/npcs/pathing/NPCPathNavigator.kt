@@ -55,7 +55,7 @@ class NPCPathNavigator(entity: Mob, world: Level) : GroundPathNavigation(entity,
         val max = base.add(mob.bbWidth.toDouble(), mob.bbHeight.toDouble(), mob.bbWidth.toDouble())
         if (tryShortcut(path, Vec3(mob.x, mob.y, mob.z), pathLength, base, max)) {
             if (isAt(path, 0.5f) || atElevationChange(path) && isAt(path, mob.bbWidth * 0.5f)) {
-                mob.lookControl.setLookAt(path.getNextEntityPos(mob))
+                //mob.lookControl.setLookAt(path.getNextEntityPos(mob))
                 path.nextNodeIndex++
             }
         }
@@ -103,7 +103,7 @@ class NPCPathNavigator(entity: Mob, world: Level) : GroundPathNavigation(entity,
         }
         val pos = targetPos ?: return
 
-        mob.lookControl.setLookAt(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
+        //mob.lookControl.setLookAt(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
     }
 
     private fun isAt(path: Path, threshold: Float): Boolean {
