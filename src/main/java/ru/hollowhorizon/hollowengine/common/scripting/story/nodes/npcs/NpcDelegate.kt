@@ -80,8 +80,8 @@ class NpcDelegate(
     }
 
     override fun tick(): Boolean {
-        npc.navigation.moveTo(settings.pos.x + 0.5, settings.pos.y, settings.pos.z + 0.5, 1.0)
-        return npc.tickCount < 10
+        npc
+        return false
     }
 
     override fun serializeNBT() = CompoundTag()
