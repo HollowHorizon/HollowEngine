@@ -24,9 +24,11 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
     fun tick(event: ServerTickEvent) {
         if (event.phase != TickEvent.Phase.END) return
 
-        if (!isEnded && !nodes[currentIndex].tick() && currentIndex < nodes.size - 1) currentIndex++
-
         asyncNodeIds.removeIf { !asyncNodes[it].tick() }
+
+        if(currentIndex >= nodes.size) return
+
+        if (!isEnded && !nodes[currentIndex].tick()) currentIndex++
     }
 
     fun serialize() = CompoundTag().apply {
