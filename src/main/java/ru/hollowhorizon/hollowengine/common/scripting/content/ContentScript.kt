@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.content
 
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.crafting.Recipe
 import net.minecraft.world.item.crafting.RecipeType
 import net.minecraftforge.server.ServerLifecycleHooks
@@ -47,7 +46,6 @@ fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
         return
     }
 
-
     HollowCore.LOGGER.info("[RecipeScriptCompiler]: Script compiled: \"${result}\"")
 
     val recipes = recipeManager.`hollowcore$getRecipes`().toMutableMap()
@@ -90,38 +88,3 @@ class ContentScriptConfiguration : AbstractHollowScriptConfiguration({
 
     baseClass(ContentScriptBase::class)
 })
-
-object Верстак {
-    fun форменыйРецепт(item: ItemStack, act: () -> Unit) {
-
-    }
-}
-
-fun вещь(name: String): ItemStack {
-    TODO()
-}
-
-fun сетка(vararg names: String) {}
-
-fun где(data: () -> Unit) {
-
-}
-
-private operator fun Char.minus(вещь: ItemStack) {
-
-}
-
-fun main() {
-    Верстак.форменыйРецепт(вещь("minecraft:iron_pickaxe")) {
-        сетка(
-            "xxx",
-            " y ",
-            " y "
-        )
-
-        где {
-            'x' - вещь("custom_items:iron_plate")
-            'y' - вещь("custom_items:iron_stick")
-        }
-    }
-}

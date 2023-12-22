@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 
-class NpcInteractNode(npcConsumer: NPCProperty): Node() {
+class NpcInteractNode(npcConsumer: NPCProperty) : Node() {
     val npc by lazy { npcConsumer() }
     var hasInteracted = false
     var isStarted = false

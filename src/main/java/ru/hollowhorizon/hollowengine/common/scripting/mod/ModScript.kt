@@ -13,7 +13,6 @@ import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
 import kotlin.script.experimental.jvm.util.isError
 
-
 @KotlinScript(
     displayName = "Mod Script",
     fileExtension = "mod.kts",

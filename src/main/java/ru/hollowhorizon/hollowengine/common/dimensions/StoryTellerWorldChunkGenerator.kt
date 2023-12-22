@@ -23,7 +23,6 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
-
 class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSource: BiomeSource) :
     ChunkGenerator(structures, Optional.empty(), biomeSource) {
     override fun withSeed(pSeed: Long): ChunkGenerator = this
@@ -38,19 +37,15 @@ class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSo
         pStructureManager: StructureFeatureManager,
         pChunk: ChunkAccess,
         pStep: GenerationStep.Carving
-    ) {
-
-    }
+    ) {}
 
     override fun buildSurface(
         pLevel: WorldGenRegion,
         pStructureManager: StructureFeatureManager,
         pChunk: ChunkAccess
-    ) {
-    }
+    ) {}
 
-    override fun spawnOriginalMobs(pLevel: WorldGenRegion) {
-    }
+    override fun spawnOriginalMobs(pLevel: WorldGenRegion) {}
 
     override fun getGenDepth(): Int = 384
 
@@ -88,9 +83,7 @@ class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSo
         return NoiseColumn(0, arrayOf())
     }
 
-    override fun addDebugScreenInfo(pInfo: MutableList<String>, pPos: BlockPos) {
-
-    }
+    override fun addDebugScreenInfo(pInfo: MutableList<String>, pPos: BlockPos) {}
 
     companion object {
         val CODEC: Codec<StoryTellerWorldChunkGenerator> =

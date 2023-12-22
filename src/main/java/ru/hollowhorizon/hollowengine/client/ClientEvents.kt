@@ -18,8 +18,10 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.screen.MouseDriver
 import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
 import ru.hollowhorizon.hollowengine.common.network.Container
+import ru.hollowhorizon.hollowengine.common.network.KeybindPacket
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
+import ru.hollowhorizon.hollowengine.common.util.Keybind
 
 object ClientEvents {
     const val HS_CATEGORY = "key.categories.mod.hollowengine"
@@ -89,6 +91,7 @@ object ClientEvents {
     fun onClicked(event: InputEvent.MouseInputEvent) {
         if (event.action != 1) return
 
+        if(event.button > 2) return
         val button = MouseButton.from(event.button)
         if (canceledButtons.isNotEmpty()) MouseClickedPacket().send(Container(button))
         if (canceledButtons.removeIf { it.ordinal == button.ordinal }) event.isCanceled = true
@@ -104,7 +107,10 @@ object ClientEvents {
             ) && Minecraft.getInstance().screen == null
         ) {
             Minecraft.getInstance().setScreen(ProgressManagerScreen())
+            return
         }
+
+        if(event.action == 0) KeybindPacket().send(Keybind.fromCode(event.key))
     }
 
     fun initKeys() {

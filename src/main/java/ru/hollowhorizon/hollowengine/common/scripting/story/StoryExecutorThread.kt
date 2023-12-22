@@ -2,9 +2,11 @@ package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import dev.ftb.mods.ftbteams.data.Team
 import kotlinx.coroutines.async
+import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.mcText
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
 import ru.hollowhorizon.hc.common.scripting.errors
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
@@ -50,10 +52,10 @@ fun runScript(server: MinecraftServer, team: Team, file: File, isCommand: Boolea
             }
         } catch (e: Exception) {
             team.onlineMembers.forEach {
-                it.sendMessage("§cError while executing event \"${file.toReadablePath()}\".".mcText, it.uuid)
+                it.sendMessage(TranslatableComponent("hollowengine.executing_error", file.toReadablePath()), it.uuid)
                 it.sendMessage("${e.message}".mcText, it.uuid)
-                it.sendMessage("§eCheck logs for more details.".mcText, it.uuid)
+                it.sendMessage("hollowengine.check_logs".mcTranslate, it.uuid)
             }
-            HollowCore.LOGGER.error("Error while executing event \"${file.toReadablePath()}\"", e)
+            HollowCore.LOGGER.error("(HollowEngine) Error while executing event \"${file.toReadablePath()}\"", e)
         }
     }

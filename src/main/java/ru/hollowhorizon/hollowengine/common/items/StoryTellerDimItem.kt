@@ -9,9 +9,9 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.context.UseOnContext
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.common.registry.ModDimensions
+import ru.hollowhorizon.hollowengine.common.tabs.HOLLOWENGINE_TAB
 
-
-class StoryTellerDimItem : Item(Properties().stacksTo(1)) {
+class StoryTellerDimItem : Item(Properties().stacksTo(1).tab(HOLLOWENGINE_TAB)) {
     override fun onItemUseFirst(stack: ItemStack, context: UseOnContext): InteractionResult {
         if (!context.level.isClientSide && context.hand == InteractionHand.MAIN_HAND) {
             val player = context.player as? ServerPlayer ?: return InteractionResult.PASS

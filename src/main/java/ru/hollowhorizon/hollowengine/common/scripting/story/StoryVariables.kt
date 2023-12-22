@@ -9,7 +9,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilde
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
-class StoryVariable<T : Any>(var value: () -> T, val clazz: Class<T>, val manager: StoryStateMachine) :
+open class StoryVariable<T : Any>(var value: () -> T, val clazz: Class<T>, val manager: StoryStateMachine) :
     INBTSerializable<CompoundTag>, ReadWriteProperty<Any?, T> {
 
     override fun serializeNBT() = CompoundTag().apply {
@@ -31,6 +31,31 @@ class StoryVariable<T : Any>(var value: () -> T, val clazz: Class<T>, val manage
         this.value = { value }
     }
 }
+
+class GlobalProperty<T : Any>(val value: () -> T, val clazz: Class<T>, val manager: StoryStateMachine) :
+    ReadWriteProperty<Any?, T> {
+    override fun getValue(thisRef: Any?, property: KProperty<*>): T {
+        val extra = manager.team.extraData["hollowengine_global_properties"] as? CompoundTag
+        val variable = extra?.get(property.name)
+        return if (variable != null) {
+            NBTFormat.deserializeNoInline(variable, clazz)
+        } else {
+            value()
+        }
+    }
+
+    override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
+        val extra = (manager.team.extraData["hollowengine_global_properties"] as? CompoundTag) ?: CompoundTag().apply {
+            manager.team.extraData.put("hollowengine_global_properties", this)
+        }
+        extra.put(property.name, NBTFormat.serializeNoInline(value, clazz))
+        manager.team.save()
+    }
+
+}
+
+inline fun <reified T : Any> IContextBuilder.global(noinline any: () -> T) =
+    GlobalProperty<T>(any, T::class.java, stateMachine)
 
 inline fun <reified T : Any> IContextBuilder.saveable(noinline any: () -> T): StoryVariable<T> {
     return StoryVariable(any, T::class.java, stateMachine).apply {

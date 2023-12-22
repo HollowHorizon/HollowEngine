@@ -2,29 +2,28 @@ package ru.hollowhorizon.hollowengine.common.commands
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.arguments.StringArgumentType
-import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import net.minecraft.commands.CommandSourceStack
-import net.minecraft.commands.arguments.EntityArgument
-import net.minecraft.network.chat.TextComponent
-import net.minecraft.network.chat.TranslatableComponent
+import net.minecraft.network.chat.*
 import net.minecraftforge.registries.ForgeRegistries
-import ru.hollowhorizon.hc.HollowCore
+import org.jetbrains.kotlin.konan.file.File
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.register
 import ru.hollowhorizon.hc.common.network.send
-import ru.hollowhorizon.hollowengine.common.events.StoryHandler.getActiveEvents
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getAllStoryEvents
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.network.CopyTextPacket
-import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
-import java.util.function.Consumer
+import ru.hollowhorizon.hollowengine.common.network.ShowModelInfoPacket
 
 object HECommands {
     @JvmStatic
     fun register(dispatcher: CommandDispatcher<CommandSourceStack>) {
         dispatcher.register {
             "hollowengine" {
+                "compile-all" {
+                    DirectoryManager.compileAll()
+                }
+
                 "hand" {
 
                     val player = source.playerOrException
@@ -36,52 +35,52 @@ object HECommands {
                         nbt == null && count > 1 -> "item($location, $count)"
                         nbt == null && count == 1 -> "item($location)"
                         else -> {
-                            "item($location, $count, \"${nbt.toString()
-                                .replace("\"", "\\\"")
+                            "item($location, $count, \"${
+                                nbt.toString()
+                                    .replace("\"", "\\\"")
                             }\")"
                         }
                     }
                     CopyTextPacket().send(itemCommand, player)
-                }
 
-                "pos" {
-                    val player = source.playerOrException
-                    val loc = player.pick(100.0, 0.0f, true).location
-                    CopyTextPacket().send("pos(${loc.x}, ${loc.y}, ${loc.z})", player)
-                }
+                    player.sendMessage("hollowengine.commands.tags".mcTranslate, player.uuid)
 
-                "start-script"(
-                    arg("players", EntityArgument.players()),
-                    arg("script", StringArgumentType.greedyString(), getAllStoryEvents().map { it.toReadablePath() })
-                ) {
-                    val players = EntityArgument.getPlayers(this, "players")
-                    val raw = StringArgumentType.getString(this, "script")
-                    val script = raw.fromReadablePath()
-                    players.forEach { player ->
-                        val storyTeam = FTBTeamsAPI.getPlayerTeam(player)
-                        runScript(player.server, storyTeam, script, true)
+                    item.tags.forEach { tag ->
+                        player.sendMessage(TranslatableComponent("hollowengine.commands.copy", TextComponent("tag(\"${tag.location}\")").apply {
+                            style = Style.EMPTY
+                                .withHoverEvent(HoverEvent(HoverEvent.Action.SHOW_TEXT, "hollowengine.tooltips.copy".mcTranslate))
+                                .withClickEvent(ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, "tag(\"${tag.location}\")"))
+                        }), player.uuid)
                     }
-                    HollowCore.LOGGER.info("Started script $script")
                 }
 
-                "active-events" {
+                "model"(
+                    arg("model", StringArgumentType.greedyString(), listModels()),
+                ) {
                     val player = source.playerOrException
-                    val storyTeam = FTBTeamsAPI.getPlayerTeam(player)
-                    player.sendMessage(TranslatableComponent("hollowengine.commands.actiove_events"), player.uuid)
-                    getActiveEvents(storyTeam)
-                        .ifEmpty{ mutableListOf("No active events") }
-                        .forEach(
-                            Consumer { name: String ->
-                                player.sendMessage(
-                                    TextComponent(
-                                        "§6 - §7$name"
-                                    ),
-                                    player.uuid
-                                )
-                            }
-                        )
+                    val model = StringArgumentType.getString(this, "model")
+
+                    ShowModelInfoPacket().send(model, player)
                 }
             }
         }
     }
+}
+
+private fun listModels(): Collection<String> {
+    val list = mutableListOf<String>()
+    list += "hollowengine:models/entity/player_model.gltf"
+
+    list += DirectoryManager.HOLLOW_ENGINE.resolve("assets").walk()
+        .filter { it.path.endsWith(".gltf") || it.path.endsWith(".glb") }
+        .toList()
+        .map {
+            it.toReadablePath().substring(7).replace(File.separator, "/").replaceFirst("/", ":")
+        }
+
+    return list
+}
+
+fun main() {
+    println(listModels())
 }

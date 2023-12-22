@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.IntTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.server.MinecraftServer
 import net.minecraftforge.event.TickEvent
@@ -13,13 +14,19 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.serialize
 
 open class StoryStateMachine(val server: MinecraftServer, val team: Team) : IContextBuilder {
     val variables = ArrayList<StoryVariable<*>>()
-    private val nodes = ArrayList<Node>()
-    private var currentIndex = 0
+    internal val nodes = ArrayList<Node>()
+    internal val asyncNodes = ArrayList<Node>()
+    internal var currentIndex = 0
+    val asyncNodeIds = ArrayList<Int>()
     var isStarted = false
-    val isEnded get() = currentIndex >= nodes.size
+    val isEnded get() = currentIndex >= nodes.size && asyncNodeIds.isEmpty()
 
     fun tick(event: ServerTickEvent) {
         if (event.phase != TickEvent.Phase.END) return
+
+        asyncNodeIds.removeIf { !asyncNodes[it].tick() }
+
+        if(currentIndex >= nodes.size) return
 
         if (!isEnded && !nodes[currentIndex].tick()) currentIndex++
     }
@@ -30,6 +37,11 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
         put("\$variables", ListTag().apply {
             addAll(variables.map { it.serializeNBT() })
         })
+
+        serializeNodes("\$async_nodes", asyncNodes)
+        put(
+            "\$async_ids",
+            ListTag().apply { asyncNodeIds.forEachIndexed { index, i -> add(index, IntTag.valueOf(i)) } })
     }
 
     fun deserialize(nbt: CompoundTag) {
@@ -37,6 +49,14 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
         currentIndex = nbt.getInt("\$current")
         variables.forEachIndexed { index, storyVariable ->
             storyVariable.deserializeNBT(nbt.getList("\$variables", 10).getCompound(index))
+        }
+
+        nbt.deserializeNodes("\$async_nodes", asyncNodes)
+        asyncNodeIds.clear()
+        val list = nbt.getList("\$async_ids", 3)
+
+        for (i in 0 until list.size) {
+            asyncNodeIds.add(list.getInt(i))
         }
     }
 

@@ -1,21 +1,27 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base
 
 import net.minecraft.nbt.CompoundTag
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.HasInnerNodes
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 
-open class WhileNode(protected val condition: () -> Boolean, val tasks: List<Node>) : Node() {
+open class WhileNode(protected val condition: () -> Boolean, val tasks: List<Node>, val tag: String = "") : Node(), HasInnerNodes {
     protected var index = 0
-    val initialData = CompoundTag().apply {
+    private val initialData = CompoundTag().apply {
         serializeNodes("nodes", tasks)
     }
-
-    init {
-        tasks.forEach { it.parent = this }
-    }
+    internal var shouldContinue = false
+    internal var shouldBreak = false
+    override val currentNode get() = tasks[index]
 
     override fun tick(): Boolean {
-        if (!tasks[index].tick()) index++
+        if(shouldBreak) return false
+        if (shouldContinue) {
+            index = 0
+            shouldContinue = false
+        }
+
+        if (!currentNode.tick()) index++
         if (index >= tasks.size) {
             index = 0
             initialData.deserializeNodes("nodes", tasks)
@@ -35,7 +41,7 @@ open class WhileNode(protected val condition: () -> Boolean, val tasks: List<Nod
     }
 }
 
-class DoWhileNode(condition: () -> Boolean, tasks: List<Node>) : WhileNode(condition, tasks) {
+class DoWhileNode(condition: () -> Boolean, tasks: List<Node>, tag: String = "") : WhileNode(condition, tasks, tag) {
 
     override fun tick(): Boolean {
         if (!condition()) index++
@@ -54,3 +60,9 @@ fun IContextBuilder.While(condition: () -> Boolean, tasks: NodeContextBuilder.()
 
 fun IContextBuilder.DoWhile(condition: () -> Boolean, tasks: NodeContextBuilder.() -> Unit) =
     +DoWhileNode(condition, NodeContextBuilder(this.stateMachine).apply(tasks).tasks)
+
+fun IContextBuilder.While(condition: () -> Boolean, tag: () -> String, tasks: NodeContextBuilder.() -> Unit) =
+    +WhileNode(condition, NodeContextBuilder(this.stateMachine).apply(tasks).tasks, tag())
+
+fun IContextBuilder.DoWhile(condition: () -> Boolean, tag: () -> String, tasks: NodeContextBuilder.() -> Unit) =
+    +DoWhileNode(condition, NodeContextBuilder(this.stateMachine).apply(tasks).tasks, tag())

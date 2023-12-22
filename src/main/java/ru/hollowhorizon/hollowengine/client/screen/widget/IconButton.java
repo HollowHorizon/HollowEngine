@@ -12,7 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 import static net.minecraft.client.gui.components.Button.NO_TOOLTIP;
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
 
-public class IconButton extends HollowButton{
+public class IconButton extends HollowButton {
     public static final ResourceLocation BLANK_BUTTON_TEXTURE =
             new ResourceLocation(MODID, "textures/gui/blank_button.png");
     protected static final TextureManager TEXTURE_MANAGER = Minecraft.getInstance().getTextureManager();
@@ -74,7 +74,6 @@ public class IconButton extends HollowButton{
         this.resourceLocation = resourceLocation;
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public void renderButton(PoseStack poseStack, int mouseX, int mouseY, float partialTicks) {
         TEXTURE_MANAGER.bindForSetup(resourceLocation);

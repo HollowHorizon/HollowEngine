@@ -15,7 +15,6 @@ object HollowStoryPack : FolderPackResources(DirectoryManager.HOLLOW_ENGINE) {
         })
     }.toString()
 
-
     override fun getResource(pResourcePath: String): InputStream {
         return when (pResourcePath) {
             PACK_META -> PACK_META_BYTES.byteInputStream()

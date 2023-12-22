@@ -19,7 +19,7 @@ object OverlayScreen : HollowScreen("".toSTC()) {
     private var text: String = ""
     var subtitle: String = ""
     var color = 0xFFFFFF
-    var texture = "hollowengine:textures/gui/white.png"
+    var texture = ""
     private var ticks = 0
     private var maxTicks = 0
     private var fadeType = FadeType.FADE_IN
@@ -36,12 +36,16 @@ object OverlayScreen : HollowScreen("".toSTC()) {
 
         if (isOverlayMode) alpha = 0f
 
-        RenderSystem.enableBlend()
-        RenderSystem.defaultBlendFunc()
-        RenderSystem.setShaderColor(rgba.r, rgba.g, rgba.b, alpha)
-        RenderSystem.setShaderTexture(0, texture.rl)
-        blit(stack, 0, 0, 0f, 0f, width, height, width, height)
-        RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
+        if(texture.isNotEmpty()) {
+            RenderSystem.enableBlend()
+            RenderSystem.defaultBlendFunc()
+            RenderSystem.setShaderColor(rgba.r, rgba.g, rgba.b, alpha)
+            RenderSystem.setShaderTexture(0, texture.rl)
+            blit(stack, 0, 0, 0f, 0f, width, height, width, height)
+            RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
+        } else {
+            fill(stack, 0, 0, width, height, ARGB(alpha, rgba.r, rgba.g, rgba.b).toInt())
+        }
 
         if (text.isNotEmpty()) font.drawScaled(
             stack,
@@ -84,7 +88,7 @@ object OverlayScreen : HollowScreen("".toSTC()) {
         maxTicks = time
         fadeType = FadeType.FADE_IN
         this.color = color
-        if(texture.isNotEmpty()) this.texture = texture
+        this.texture = texture
         this.text = text
         this.subtitle = subtitle
     }
@@ -96,7 +100,7 @@ object OverlayScreen : HollowScreen("".toSTC()) {
         maxTicks = time
         fadeType = FadeType.FADE_OUT
         this.color = color
-        if(texture.isNotEmpty()) this.texture = texture
+        this.texture = texture
         this.text = text
         this.subtitle = subtitle
     }
@@ -122,6 +126,7 @@ class OverlayScreenContainer(
 
 @HollowPacketV2(NetworkDirection.PLAY_TO_CLIENT)
 class FadeOverlayScreenPacket : Packet<OverlayScreenContainer>({ player, value ->
+    OverlayScreen.texture = ""
     if (value.fadeIn) OverlayScreen.makeBlack(value.text, value.subtitle, value.color, value.texture, value.time)
     else OverlayScreen.makeTransparent(value.text, value.subtitle, value.color, value.texture, value.time)
 })
@@ -132,5 +137,11 @@ class OverlayScreenPacket : Packet<Boolean>({ player, value ->
 })
 
 data class ARGB(val a: Int, val r: Int, val g: Int, val b: Int) {
+    constructor(alpha: Float, r: Float, g: Float, b: Float) : this(
+        (alpha * 255).toInt(),
+        (r * 255).toInt(),
+        (g * 255).toInt(),
+        (b * 255).toInt()
+    )
     fun toInt() = (a shl 24) or (r shl 16) or (g shl 8) or b
 }

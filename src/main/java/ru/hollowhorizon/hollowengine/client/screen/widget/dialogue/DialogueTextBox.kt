@@ -1,12 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget.dialogue
 
-import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.utils.GuiAnimator
 import ru.hollowhorizon.hc.client.utils.ScissorUtil
 import ru.hollowhorizon.hc.client.utils.mcText
-
 
 class DialogueTextBox(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x, y, width, height, "".mcText) {
     var animator: GuiAnimator? = null

@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.screen
 
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
+import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.util.Alignment
 import ru.hollowhorizon.hc.client.screens.util.Anchor
@@ -9,12 +10,17 @@ import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.screens.widget.layout.PlacementType
 import ru.hollowhorizon.hc.client.screens.widget.layout.box
 import ru.hollowhorizon.hc.client.utils.drawScaled
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hollowengine.HollowEngine
 
 class ProgressManagerScreen : HollowScreen("Progress Manager".toSTC()) {
+
     override fun init() {
         super.init()
+
+        val messages = FTBTeamsAPI.getClientManager().selfTeam.extraData.getList("hollowengine_progress_tasks", 8)
+            .map { it.asString }
 
         box {
             size = 100.pc x 100.pc
@@ -29,7 +35,7 @@ class ProgressManagerScreen : HollowScreen("Progress Manager".toSTC()) {
 
                         font.drawScaled(
                             stack, Anchor.CENTER,
-                            "Список Событий".toSTC(),
+                            "hollowengine.progress_manager.event_list".mcTranslate,
                             x + w / 2,
                             y + h / 2 + 1,
                             0xFFFFFF,
@@ -45,9 +51,9 @@ class ProgressManagerScreen : HollowScreen("Progress Manager".toSTC()) {
                     placementType = PlacementType.VERTICAL
 
                     renderer = { stack, x, y, w, h ->
-                        font.drawScaled(
+                        if (messages.isEmpty()) font.drawScaled(
                             stack, Anchor.CENTER,
-                            "Заданий пока нету, возможно они появятся позже!".toSTC(),
+                            "hollowengine.progress_manager.no_tasks".mcTranslate,
                             x + w / 2,
                             y + h / 2,
                             0xFFFFFF,
@@ -57,9 +63,9 @@ class ProgressManagerScreen : HollowScreen("Progress Manager".toSTC()) {
 
                     elements {
 
-//                        manager.tasks().forEach { task ->
-//                            +TaskWidget(task, 100.pc.w().value, 15.pc.h().value)
-//                        }
+                        messages.forEach { task ->
+                            +TaskWidget(task, 100.pc.w().value, 15.pc.h().value)
+                        }
 
                     }
                 }

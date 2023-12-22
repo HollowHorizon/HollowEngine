@@ -159,18 +159,14 @@ object DialogueScreen : HollowScreen("".mcText) {
     }
 
     fun cleanup() {
-        STATUS_ICON = "hollowengine:gui/dialogues/status.png"
-        OVERLAY = "hollowengine:gui/dialogues/overlay.png"
-        NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
-        CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/choice_button.png"
-        cleanupWithoutTextures()
-    }
-
-    fun cleanupWithoutTextures() {
         background = null
         textBox = null
         currentName = "".mcText
         color = 0xFFFFFFFF.toInt()
+        STATUS_ICON = "hollowengine:gui/dialogues/status.png"
+        OVERLAY = "hollowengine:gui/dialogues/overlay.png"
+        NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
+        CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/choice_button.png"
         characters.clear()
         choices.clear()
     }

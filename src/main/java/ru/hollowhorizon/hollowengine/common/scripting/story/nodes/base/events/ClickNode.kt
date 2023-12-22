@@ -8,7 +8,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.ForgeEven
 class ClickNode(var clickType: MouseButton) :
     ForgeEventNode<ServerMouseClickedEvent>(ServerMouseClickedEvent::class.java, { true }) {
     override val action = { event: ServerMouseClickedEvent ->
-        manager.team.members.contains(event.entity.uuid) && clickType == event.button
+        manager.team.isMember(event.entity.uuid) && clickType == event.button
     }
 
     override fun serializeNBT(): CompoundTag {

@@ -160,9 +160,7 @@ public class LabelWidget extends HollowWidget {
     }
 
     @Override
-    public void playDownSound(SoundManager p_230988_1_) {
-
-    }
+    public void playDownSound(SoundManager p_230988_1_) {}
 
     @Override
     protected boolean clicked(double mouseX, double mouseY) {

@@ -12,16 +12,14 @@ import ru.hollowhorizon.hc.client.utils.isPhysicalClient
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.client.ClientEvents
-import ru.hollowhorizon.hollowengine.common.recipes.CraftingTable
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeHelper
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
-import ru.hollowhorizon.hollowengine.common.scripting.item
 
 open class ContentScriptBase(
     val recipes: MutableMap<RecipeType<*>, MutableMap<ResourceLocation, Recipe<*>>>,
     val byName: MutableMap<ResourceLocation, Recipe<*>>
 ) {
-    val mods by lazy { Mods }
+    val mods = Mods
 
     init {
         RecipeHelper.currentScript = this

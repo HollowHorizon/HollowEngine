@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.registry
 
 import net.minecraft.world.item.Item
-import ru.hollowhorizon.hc.api.registy.HollowRegister
 import ru.hollowhorizon.hc.common.registry.HollowRegistry
 import ru.hollowhorizon.hollowengine.common.items.StoryTellerDimItem
 
