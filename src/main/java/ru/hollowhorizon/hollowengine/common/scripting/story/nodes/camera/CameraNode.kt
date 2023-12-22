@@ -1,84 +1,30 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.camera
 
-import com.mojang.math.Vector3d
-import net.minecraft.world.phys.Vec2
-import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hc.client.utils.math.Interpolation
+import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
+import ru.hollowhorizon.hc.client.utils.nbt.deserialize
+import ru.hollowhorizon.hc.client.utils.nbt.loadAsNBT
 import ru.hollowhorizon.hc.common.network.send
+import ru.hollowhorizon.hollowengine.client.camera.CameraPath
 import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenPacket
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.WaitNode
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.wait
 import ru.hollowhorizon.hollowengine.common.story.*
 
-class CameraPath {
-    val cameraNodes = ArrayList<Pair<Int, CameraNode>>()
-    val time get() = cameraNodes.sumOf { it.first }
-    fun spline(time: Int, startRot: Vec2, endRot: Vec2, vararg points: Vec3, interpolation: Interpolation = Interpolation.LINEAR) {
-        cameraNodes.add(
-            Pair(
-                time,
-                SplineNode(startRot, endRot, *points.map { Vector3d(it.x(), it.y(), it.z()) }.toTypedArray(), interpolation=interpolation)
-            )
-        )
-    }
 
-    fun point(time: Int, startRot: Vec2, endRot: Vec2, point1: Vec3, point2: Vec3) {
-        cameraNodes.add(
-            Pair(
-                time,
-                SimpleNode(
-                    Vector3d(point1.x(), point1.y(), point1.z()),
-                    Vector3d(point2.x(), point2.y(), point2.z()),
-                    startRot,
-                    endRot
-                )
-            )
-        )
-    }
-}
-
-fun IContextBuilder.createCameraPath(body: CameraPath.() -> Unit) {
-    fadeIn {
-        time = 1.sec
-    }
+fun IContextBuilder.camera(time: () -> Int, path: () -> String) {
     +ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode {
-        val path = CameraPath().apply(body)
+        val nbt = DirectoryManager.HOLLOW_ENGINE.resolve("camera/${path()}").inputStream().loadAsNBT()
+
+        val cameraPath = NBTFormat.deserialize<CameraPath>(nbt)
+        cameraPath.time = time()
         stateMachine.team.onlineMembers.forEach {
-            StartCameraPlayerPacket().send(Container(CameraPlayer(*path.cameraNodes.toTypedArray()).serializeNBT()), it)
+            StartCameraPlayerPacket().send(cameraPath, it)
             OverlayScreenPacket().send(true, it)
         }
     }
-    fadeOut {
-        time = 1.sec
-    }
-    +WaitNode {
-        val path = CameraPath().apply(body)
-        (path.time - 2.sec).coerceAtLeast(0)
-    }
-    fadeIn {
-        time = 1.sec
-    }
+    wait(time)
     +ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode {
         OverlayScreenPacket().send(false, *stateMachine.team.onlineMembers.toTypedArray())
-    }
-    fadeOut {
-        time = 1.sec
-    }
-}
-
-fun IContextBuilder.main() {
-    createCameraPath {
-        spline(
-            10,
-            vec(1, 2), vec(3, 4),
-            pos(1, 2, 3),
-            pos(4, 5, 6),
-            pos(7, 8, 9),
-        )
-        point(
-            10, vec(1, 2), vec(3, 4),
-            pos(4, 5, 6),
-            pos(7, 8, 9)
-        )
     }
 }
