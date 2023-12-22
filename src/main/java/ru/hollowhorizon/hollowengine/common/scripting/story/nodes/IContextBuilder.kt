@@ -418,11 +418,20 @@ interface IContextBuilder {
         }
     }
 
-    fun async(body: NodeContextBuilder.() -> Unit) {
+    fun async(body: NodeContextBuilder.() -> Unit): AsyncProperty {
         val chainNode = ChainNode(NodeContextBuilder(stateMachine).apply(body).tasks)
         val index = stateMachine.asyncNodes.size
         stateMachine.asyncNodes.add(chainNode)
         +SimpleNode { stateMachine.asyncNodeIds.add(index) }
+        return AsyncProperty(index)
+    }
+
+    fun AsyncProperty.stop() = +SimpleNode {
+        stateMachine.asyncNodeIds.remove(this@stop.index)
+    }
+
+    fun AsyncProperty.resume() = +SimpleNode {
+        stateMachine.asyncNodeIds.add(this@resume.index)
     }
 
 //    @Serializable Крч, сам сделаешь. Просил сам сделать класс xD
