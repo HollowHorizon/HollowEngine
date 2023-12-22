@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.story
 
 import com.mojang.math.Vector3d
+import com.mojang.math.Vector3f
 import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
@@ -10,37 +11,28 @@ import net.minecraftforge.common.util.INBTSerializable
 import ru.hollowhorizon.hc.client.handlers.ClientTickHandler
 import ru.hollowhorizon.hc.client.math.Spline3D
 import ru.hollowhorizon.hc.client.utils.math.Interpolation
+import ru.hollowhorizon.hollowengine.client.camera.CameraPath
 import thedarkcolour.kotlinforforge.forge.vectorutil.minus
 import thedarkcolour.kotlinforforge.forge.vectorutil.plus
 import kotlin.math.acos
 
-open class CameraPlayer(
-    vararg var pairs: Pair<Int, CameraNode>,
-): INBTSerializable<CompoundTag> {
+open class CameraPlayer {
+    var maxTime: Int = 0
+    var path: CameraNode = SimpleNode()
     private var progress = 0f
     private var startTime = 0
-    private var nodeIndex = 0
 
     fun update(): Container {
-        val (maxTime, node) = pairs[nodeIndex]
         progress = ClientTickHandler.ticks - startTime + Minecraft.getInstance().partialTick
-        if (progress >= maxTime) {
-            startTime = ClientTickHandler.ticks
-            nodeIndex++
-        }
-        if (nodeIndex >= pairs.size) {
-            nodeIndex = 0
-            onEnd()
-        }
+        if (progress >= maxTime) onEnd()
         return Container(
-            node.updatePosition(progress / maxTime),
-            node.updateRotation(progress / maxTime)
+            path.updatePosition(progress / maxTime),
+            path.updateRotation(progress / maxTime)
         )
     }
 
     fun reset() {
         progress = 0f
-        nodeIndex = 0
         startTime = ClientTickHandler.ticks
     }
 
@@ -48,80 +40,26 @@ open class CameraPlayer(
 
     }
 
-    data class Container(val point: Vector3d, val rotation: Vec2)
-
-    override fun serializeNBT() = CompoundTag().apply {
-        put("pairs", ListTag().apply {
-            addAll(pairs.map { p ->
-                CompoundTag().apply {
-                    putInt("time", p.first)
-                    put("node", p.second.serializeNBT())
-                    putBoolean("isSpline", p.second is SplineNode)
-                }
-            })
-        })
-        putFloat("progress", progress)
-        putInt("nodeIndex", nodeIndex)
-    }
-
-    override fun deserializeNBT(nbt: CompoundTag) {
-        val pairs = nbt.getList("pairs", 10).map { it as CompoundTag }.map { p ->
-            val isSpline = p.getBoolean("isSpline")
-            val node = if (isSpline) SplineNode() else SimpleNode()
-            Pair(p.getInt("time"), node.apply { deserializeNBT(p.getCompound("node")) })
-        }
-        this.pairs = pairs.toTypedArray()
-        progress = nbt.getFloat("progress")
-        nodeIndex = nbt.getInt("nodeIndex")
-    }
+    data class Container(val point: Vector3d, val rotation: Vector3f)
 }
 
-interface CameraNode : INBTSerializable<CompoundTag> {
+interface CameraNode {
     val lastPos: Vector3d
 
-    fun updateRotation(progress: Float): Vec2
+    fun updateRotation(progress: Float): Vector3f
     fun updatePosition(progress: Float): Vector3d
 }
 
 
 class SplineNode(
-    private var beginRot: Vec2 = Vec2.ZERO,
-    private var endRot: Vec2 = Vec2.ZERO,
-    private vararg val points: Vector3d = arrayOf(Vector3d(1.0, 2.0, 3.0), Vector3d(1.0, 2.0, 3.0), Vector3d(1.0, 2.0, 3.0)),
+    var cameraPath: CameraPath,
     var interpolation: Interpolation = Interpolation.LINEAR
 ) : CameraNode {
-    private var spline3D = Spline3D(points.toList(), ArrayList())
+    private var spline3D = Spline3D(cameraPath.positions, cameraPath.rotations)
     override val lastPos: Vector3d get() = spline3D.getPoint(1.0)
 
-    override fun updateRotation(progress: Float) = beginRot.lerp(endRot, interpolation.function(progress))
+    override fun updateRotation(progress: Float) = spline3D.getRotation(interpolation.function(progress).toDouble())
     override fun updatePosition(progress: Float) = spline3D.getPoint(interpolation.function(progress).toDouble())
-
-    override fun serializeNBT() = CompoundTag().apply {
-        put("points", ListTag().apply {
-            addAll(points.map { p ->
-                CompoundTag().apply {
-                    putDouble("x", p.x)
-                    putDouble("y", p.y)
-                    putDouble("z", p.z)
-                }
-            })
-        })
-        putFloat("beginRotX", beginRot.x)
-        putFloat("beginRotY", beginRot.y)
-        putFloat("endRotX", endRot.x)
-        putFloat("endRotY", endRot.y)
-        putInt("interpolation", interpolation.ordinal)
-    }
-
-    override fun deserializeNBT(nbt: CompoundTag) {
-        val points = nbt.getList("points", 10).map { it as CompoundTag }.map { p ->
-            Vector3d(p.getDouble("x"), p.getDouble("y"), p.getDouble("z"))
-        }
-        spline3D = Spline3D(points, ArrayList())
-        beginRot = Vec2(nbt.getFloat("beginRotX"), nbt.getFloat("beginRotY"))
-        endRot = Vec2(nbt.getFloat("endRotX"), nbt.getFloat("endRotY"))
-        interpolation = Interpolation.entries[nbt.getInt("interpolation")]
-    }
 }
 
 class SimpleNode(
@@ -133,28 +71,16 @@ class SimpleNode(
 ) : CameraNode {
     override val lastPos: Vector3d get() = end
 
-    override fun updateRotation(progress: Float) = beginRot.lerp(endRot, interpolation(progress))
+    override fun updateRotation(progress: Float) = Vector3f().apply {
+        val r = beginRot.lerp(endRot, interpolation(progress))
+        set(
+            r.x,
+            r.y,
+            0f
+        )
+    }
 
     override fun updatePosition(progress: Float) = interpolation(progress) * (end - begin) + begin
-    override fun serializeNBT() = CompoundTag().apply {
-        putDouble("bx", begin.x)
-        putDouble("by", begin.y)
-        putDouble("bz", begin.z)
-        putDouble("ex", begin.x)
-        putDouble("ey", begin.y)
-        putDouble("ez", begin.z)
-        putFloat("beginRotX", beginRot.x)
-        putFloat("beginRotY", beginRot.y)
-        putFloat("endRotX", endRot.x)
-        putFloat("endRotY", endRot.y)
-    }
-
-    override fun deserializeNBT(nbt: CompoundTag) {
-        begin = Vector3d(nbt.getDouble("bx"), nbt.getDouble("by"), nbt.getDouble("bz"))
-        end = Vector3d(nbt.getDouble("ex"), nbt.getDouble("ey"), nbt.getDouble("ez"))
-        beginRot = Vec2(nbt.getFloat("beginRotX"), nbt.getFloat("beginRotY"))
-        endRot = Vec2(nbt.getFloat("endRotX"), nbt.getFloat("endRotY"))
-    }
 }
 
 private operator fun Float.times(vector3d: Vector3d): Vector3d {

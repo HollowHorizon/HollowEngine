@@ -23,6 +23,7 @@ import ru.hollowhorizon.hc.common.registry.HollowModProcessor
 import ru.hollowhorizon.hc.common.registry.RegistryLoader
 import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.client.ClientEvents.initKeys
+import ru.hollowhorizon.hollowengine.client.camera.CameraHandler
 import ru.hollowhorizon.hollowengine.common.commands.HECommands
 import ru.hollowhorizon.hollowengine.common.commands.HEStoryCommands
 import ru.hollowhorizon.hollowengine.common.data.HollowStoryPack
@@ -50,6 +51,7 @@ class HollowEngine {
             forgeBus.addListener(ClientEvents::onKeyPressed)
             forgeBus.addListener(ClientEvents::onClicked)
             forgeBus.addListener(ClientEvents::onTooltipRender)
+            forgeBus.register(CameraHandler)
             MOD_BUS.addListener(::clientInit)
         }
 
