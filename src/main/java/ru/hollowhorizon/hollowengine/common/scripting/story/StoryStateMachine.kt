@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.IntTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.server.MinecraftServer
 import net.minecraftforge.event.TickEvent
@@ -23,7 +24,7 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
     fun tick(event: ServerTickEvent) {
         if (event.phase != TickEvent.Phase.END) return
 
-        if (!isEnded && !nodes[currentIndex].tick()) currentIndex++
+        if (!isEnded && !nodes[currentIndex].tick() && currentIndex < nodes.size - 1) currentIndex++
 
         asyncNodeIds.removeIf { !asyncNodes[it].tick() }
     }
@@ -34,6 +35,11 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
         put("\$variables", ListTag().apply {
             addAll(variables.map { it.serializeNBT() })
         })
+
+        serializeNodes("\$async_nodes", asyncNodes)
+        put(
+            "\$async_ids",
+            ListTag().apply { asyncNodeIds.forEachIndexed { index, i -> add(index, IntTag.valueOf(i)) } })
     }
 
     fun deserialize(nbt: CompoundTag) {
@@ -41,6 +47,14 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
         currentIndex = nbt.getInt("\$current")
         variables.forEachIndexed { index, storyVariable ->
             storyVariable.deserializeNBT(nbt.getList("\$variables", 10).getCompound(index))
+        }
+
+        nbt.deserializeNodes("\$async_nodes", asyncNodes)
+        asyncNodeIds.clear()
+        val list = nbt.getList("\$async_ids", 3)
+
+        for (i in 0 until list.size) {
+            asyncNodeIds.add(list.getInt(i))
         }
     }
 

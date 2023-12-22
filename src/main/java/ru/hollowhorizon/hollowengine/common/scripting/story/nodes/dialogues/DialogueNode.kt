@@ -211,7 +211,7 @@ class ChoicesNode(choiceContext: DialogueChoiceContext) : Node(), HasInnerNodes 
 }
 
 class DialogueChoiceContext(val stateMachine: StoryStateMachine) {
-    val choices = HashMap<Component, List<Node>>()
+    val choices = LinkedHashMap<Component, List<Node>>()
     var timeout = 0
     var onTimeout = {
         choices.values.firstOrNull()
