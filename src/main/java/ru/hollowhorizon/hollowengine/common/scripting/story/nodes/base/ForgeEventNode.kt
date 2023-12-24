@@ -15,7 +15,7 @@ open class ForgeEventNode<T : Event>(private val type: Class<T>, open val action
     fun onEvent(event: T) {
         val etype = event::class.java
 
-        if (!etype.isAssignableFrom(type)) return
+        if (!type.isAssignableFrom(etype)) return
 
         if (action(event)) {
             isEnded = true
