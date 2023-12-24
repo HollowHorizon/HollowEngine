@@ -14,6 +14,7 @@ import net.minecraft.sounds.SoundSource
 import net.minecraft.util.Mth
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
@@ -292,6 +293,8 @@ interface IContextBuilder {
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text().mcTranslate) }
     }
 
+
+
     fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
 
     infix fun NPCProperty.addEffect(effect: ParticleEffect.() -> Unit) = +SimpleNode {
@@ -310,6 +313,58 @@ interface IContextBuilder {
             -f3 * 0.3, -f8 * 0.3 + 0.1, f4 * 0.3
         )
         entity.level.addFreshEntity(entityStack)
+    }
+
+    class TeamHelper(val team: Team) {
+        operator fun ItemStack.unaryPlus() {
+            team.onlineMembers.forEach {
+                it.inventory.add(this)
+                it.inventory.setChanged()
+            }
+        }
+
+        fun setHealth(value: Float) {
+            team.onlineMembers.forEach {
+                it.health = value
+            }
+        }
+
+        fun setMaxHealth(value: Float) {
+            team.onlineMembers.forEach {
+                it.attributes.getInstance(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH)?.baseValue = value.toDouble()
+            }
+            setHealth(value)
+        }
+
+        fun addHealth(value: Float) {
+            team.onlineMembers.forEach {
+                it.health += value
+            }
+        }
+
+        fun equipHelmet(item: ItemStack) = team.onlineMembers.forEach {
+            it.drop(it.getItemBySlot(EquipmentSlot.HEAD), false)
+            it.setItemSlot(EquipmentSlot.HEAD, item)
+        }
+
+        fun equipChestplate(item: ItemStack) = team.onlineMembers.forEach {
+            it.drop(it.getItemBySlot(EquipmentSlot.CHEST), false)
+            it.setItemSlot(EquipmentSlot.CHEST, item)
+        }
+
+        fun equipLeggings(item: ItemStack) = team.onlineMembers.forEach {
+            it.drop(it.getItemBySlot(EquipmentSlot.LEGS), false)
+            it.setItemSlot(EquipmentSlot.LEGS, item)
+        }
+
+        fun equipBoots(item: ItemStack) = team.onlineMembers.forEach {
+            it.drop(it.getItemBySlot(EquipmentSlot.FEET), false)
+            it.setItemSlot(EquipmentSlot.FEET, item)
+        }
+    }
+
+    infix fun Team.modify(inv: TeamHelper.() -> Unit) = +SimpleNode {
+        TeamHelper(this@modify).apply(inv)
     }
 
     class GiveItemList {
