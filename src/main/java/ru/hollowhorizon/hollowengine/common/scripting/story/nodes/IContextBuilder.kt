@@ -216,7 +216,7 @@ interface IContextBuilder {
         var speed = 1.0f
     }
 
-    fun NPCProperty.play(block: AnimationContainer.() -> Unit) = +SimpleNode {
+    infix fun NPCProperty.play(block: AnimationContainer.() -> Unit) = +SimpleNode {
         val container = AnimationContainer().apply(block)
         StartAnimationPacket().send(
             StartAnimationContainer(
