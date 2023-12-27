@@ -161,7 +161,7 @@ class ChoicesNode(choiceContext: DialogueChoiceContext) : Node(), HasInnerNodes 
             }
         }
 
-        if (performedChoice != null) {
+        if ((performedChoice?.size ?: 0) > 0) {
             if (!performedChoice!![index].tick()) index++
         }
 

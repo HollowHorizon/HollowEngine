@@ -90,7 +90,7 @@ class SplineNode(
     private vararg val points: Vector3d = arrayOf(Vector3d(1.0, 2.0, 3.0), Vector3d(1.0, 2.0, 3.0), Vector3d(1.0, 2.0, 3.0)),
     var interpolation: Interpolation = Interpolation.LINEAR
 ) : CameraNode {
-    private var spline3D = Spline3D(points.toList())
+    private var spline3D = Spline3D(points.toList(), ArrayList())
     override val lastPos: Vector3d get() = spline3D.getPoint(1.0)
 
     override fun updateRotation(progress: Float) = beginRot.lerp(endRot, interpolation.function(progress))
@@ -117,7 +117,7 @@ class SplineNode(
         val points = nbt.getList("points", 10).map { it as CompoundTag }.map { p ->
             Vector3d(p.getDouble("x"), p.getDouble("y"), p.getDouble("z"))
         }
-        spline3D = Spline3D(points)
+        spline3D = Spline3D(points, ArrayList())
         beginRot = Vec2(nbt.getFloat("beginRotX"), nbt.getFloat("beginRotY"))
         endRot = Vec2(nbt.getFloat("endRotX"), nbt.getFloat("endRotY"))
         interpolation = Interpolation.entries[nbt.getInt("interpolation")]
