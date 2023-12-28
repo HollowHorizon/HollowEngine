@@ -17,7 +17,7 @@ class InputNode(vararg val values: String, val onlyHostMode: Boolean = false) :
         val isFromTeam =
             event.player in manager.team.onlineMembers || (onlyHostMode && event.player.uuid == manager.team.owner)
         if (isFromTeam) message = event.message.string
-        isFromTeam && (event.message.string in values || values.isEmpty())
+        isFromTeam && (values.any { it.equals(event.message.string, ignoreCase = true) } || values.isEmpty())
     }
 
     override fun serializeNBT(): CompoundTag {
