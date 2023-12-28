@@ -105,7 +105,7 @@ interface IContextBuilder {
         var world = "minecraft:overworld"
         var pos = Vec3(0.0, 0.0, 0.0)
         var rotation = Vec2.ZERO
-        var data = Attributes()
+        var attributes = Attributes()
         var size = Pair(0.6f, 1.8f)
         var showName = true
     }
