@@ -81,9 +81,9 @@ object CameraHandler {
     }
 
     @SubscribeEvent
-    fun onClicked(event: InputEvent.MouseButton.Pre) {
+    fun onClicked(event: InputEvent.MouseButton.Post) {
         val player = mc.player ?: return
-        if (player.mainHandItem.item != ModItems.CAMERA.get()) return
+        if (player.mainHandItem.item != ModItems.CAMERA.get() || event.action != 0) return
 
         when (event.button) {
             0 -> removePoint()
@@ -112,8 +112,8 @@ object CameraHandler {
 
         val key = Keybind.fromCode(event.key)
         when (key) {
-            Keybind.KP_SUBTRACT -> zRot--
-            Keybind.KP_ADD -> zRot++
+            Keybind.MINUS -> zRot--
+            Keybind.EQUAL -> zRot++
             Keybind.C -> zRot = 0f
             else -> {}
         }

@@ -7,6 +7,7 @@ import net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraftforge.network.NetworkDirection
+import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.Packet
