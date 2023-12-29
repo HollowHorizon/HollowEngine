@@ -59,7 +59,6 @@ fun main() {
 class ModScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.scripting.story.waitForgeEvent",
-        "ru.hollowhorizon.hollowengine.common.scripting.story.onForgeEvent",
         "thedarkcolour.kotlinforforge.forge.MOD_BUS",
         "ru.hollowhorizon.hc.client.utils.*"
     )
