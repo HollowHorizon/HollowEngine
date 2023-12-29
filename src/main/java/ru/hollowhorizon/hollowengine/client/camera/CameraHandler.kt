@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.mojang.blaze3d.vertex.Tesselator
 import com.mojang.blaze3d.vertex.VertexFormat
 import com.mojang.math.Vector3d
+import com.mojang.math.Vector3f
 import kotlinx.serialization.Serializable
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.LightTexture

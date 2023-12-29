@@ -34,8 +34,8 @@ object ClientCameraPlayer : CameraPlayer() {
     fun updateMovement(event: ComputeCameraAngles) {
         val (point, rotation) = update()
         (event.camera as CameraInvoker).invokeSetPosition(Vec3(point.x, point.y, point.z))
-        event.yaw = rotation.x()
-        event.pitch = rotation.y()
+        event.pitch = rotation.x()
+        event.yaw = rotation.y()
         event.roll = rotation.z()
     }
 
