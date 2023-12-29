@@ -275,7 +275,6 @@ object DialogueScreen : HollowScreen("".mcText) {
         characters.removeIf { it.id == entity }
     }
 
-    override fun isPauseScreen(): Boolean {
-        return false
-    }
+    override fun shouldCloseOnEsc() = false
+    override fun isPauseScreen() = false
 }
