@@ -3,6 +3,7 @@
   "entity.hollowengine.npc_entity": "Character",
 
   "item.hollowengine.storyteller_dim_teleporter": "Teleport: Storyteller Dimension",
+  "item.hollowengine.camera": "Camera",
   "key.categories.mod.hollowengine": "HollowEngine: Buttons",
   "key.hollowengine.event_list": "Event List",
 

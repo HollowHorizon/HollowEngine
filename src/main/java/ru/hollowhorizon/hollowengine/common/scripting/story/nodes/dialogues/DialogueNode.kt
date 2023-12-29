@@ -8,14 +8,14 @@ import net.minecraft.world.entity.player.Player
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.eventbus.api.Event
 import net.minecraftforge.eventbus.api.SubscribeEvent
-import net.minecraftforge.network.NetworkDirection
+import net.minecraftforge.network.PacketDistributor
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
-import ru.hollowhorizon.hc.common.network.Packet
-import ru.hollowhorizon.hc.common.network.send
+import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.client.screen.DialogueScreen
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
+import ru.hollowhorizon.hollowengine.common.scripting.ownerPlayer
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.HasInnerNodes
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
@@ -27,30 +27,38 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.events.Cl
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.serializeNodes
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NPCProperty
 
-@HollowPacketV2(NetworkDirection.PLAY_TO_CLIENT)
-class DialogueScreenPacket : Packet<Boolean>({ player, value ->
-    DialogueScreen.cleanup()
-    if (value) DialogueScreen.open()
-    else DialogueScreen.onClose()
-})
-
+@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
-class SayContainer(var text: String = "", var name: String = "", val entity: Int)
+class DialogueScreenPacket(private val enable: Boolean) : HollowPacketV3<DialogueScreenPacket> {
+    override fun handle(player: Player, data: DialogueScreenPacket) {
+        DialogueScreen.cleanup()
+        if (data.enable) DialogueScreen.open()
+        else DialogueScreen.onClose()
+    }
 
-@HollowPacketV2(NetworkDirection.PLAY_TO_CLIENT)
-class DialogueSayPacket : Packet<SayContainer>({ player, value ->
-    DialogueScreen.updateText(value.text)
-    DialogueScreen.updateName(value.name.mcText)
-    DialogueScreen.addEntity(value.entity)
-})
+}
 
+@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
-class ChoicesContainer(val choices: List<String>)
+class DialogueSayPacket(
+    var text: String = "", var name: String = "", val entity: Int
+) : HollowPacketV3<DialogueSayPacket> {
+    override fun handle(player: Player, data: DialogueSayPacket) {
+        DialogueScreen.updateText(data.text)
+        DialogueScreen.updateName(data.name.mcText)
+        DialogueScreen.addEntity(data.entity)
+    }
 
-@HollowPacketV2(NetworkDirection.PLAY_TO_CLIENT)
-class DialogueChoicePacket : Packet<ChoicesContainer>({ player, value ->
-    DialogueScreen.updateChoices(value.choices.map { it.mcText })
-})
+}
+
+@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
+@Serializable
+class DialogueChoicePacket(val choices: List<String>) : HollowPacketV3<DialogueChoicePacket> {
+    override fun handle(player: Player, data: DialogueChoicePacket) {
+        DialogueScreen.updateChoices(data.choices.map { it.mcText })
+    }
+
+}
 
 class DialogueNode(val nodes: List<Node>) : Node(), HasInnerNodes {
     private var index = 0
@@ -75,11 +83,15 @@ class DialogueNode(val nodes: List<Node>) : Node(), HasInnerNodes {
     }
 
     private fun onStart() {
-        DialogueScreenPacket().send(true, *manager.team.onlineMembers.toTypedArray())
+        manager.team.onlineMembers.forEach {
+            DialogueScreenPacket(true).send(PacketDistributor.PLAYER.with { it })
+        }
     }
 
     private fun onEnd() {
-        DialogueScreenPacket().send(false, *manager.team.onlineMembers.toTypedArray())
+        manager.team.onlineMembers.forEach {
+            DialogueScreenPacket(false).send(PacketDistributor.PLAYER.with { it })
+        }
     }
 
     override fun serializeNBT() = CompoundTag().apply {
@@ -98,10 +110,10 @@ class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stat
     override fun NPCProperty.say(text: () -> String): SimpleNode {
         val result = +SimpleNode {
             val npc = this@say()
-            DialogueSayPacket().send(
-                SayContainer(text(), npc.displayName.string, npc.id),
-                *manager.team.onlineMembers.toTypedArray()
-            )
+            manager.team.onlineMembers.forEach {
+                DialogueSayPacket(text(), npc.displayName.string, npc.id)
+                    .send(PacketDistributor.PLAYER.with { it })
+            }
         }
         +ClickNode(MouseButton.LEFT)
 
@@ -110,24 +122,22 @@ class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stat
 
     override fun Team.send(text: () -> String): SimpleNode {
         val result = +SimpleNode {
-            DialogueSayPacket().send(
-                SayContainer(
-                    text(),
-                    this@send.name.string,
-                    this@send.onlineMembers.find { it.uuid == this@send.owner }?.id ?: -1
-                ),
-                *manager.team.onlineMembers.toTypedArray()
-            )
+            manager.team.onlineMembers.forEach {
+                DialogueSayPacket(text(), this@send.name.string, this@send.ownerPlayer?.id ?: -1)
+                    .send(PacketDistributor.PLAYER.with { it })
+            }
         }
         +ClickNode(MouseButton.LEFT)
 
         return result
     }
 
-    fun send(body: SayContainer.() -> Unit) {
+    fun send(body: DialogueSayPacket.() -> Unit) {
         +SimpleNode {
-            val container = SayContainer("hollowengine.no_text_dialogue", "", 0).apply(body)
-            DialogueSayPacket().send(container, *manager.team.onlineMembers.toTypedArray())
+            manager.team.onlineMembers.forEach {
+                DialogueSayPacket("hollowengine.no_text_dialogue", "", -1).apply(body)
+                    .send(PacketDistributor.PLAYER.with { it })
+            }
         }
     }
 
@@ -183,10 +193,10 @@ class ChoicesNode(choiceContext: DialogueChoiceContext) : Node(), HasInnerNodes 
     }
 
     private fun performChoice() {
-        DialogueChoicePacket().send(
-            ChoicesContainer(choices.keys.map { it.string }),
-            *manager.team.onlineMembers.toTypedArray()
-        )
+        manager.team.onlineMembers.forEach {
+            DialogueChoicePacket(choices.keys.map { it.string })
+                .send(PacketDistributor.PLAYER.with { it })
+        }
     }
 
     override fun serializeNBT() = CompoundTag().apply {

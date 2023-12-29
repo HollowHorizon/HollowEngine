@@ -6,6 +6,7 @@ import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.network.chat.Component
+import net.minecraftforge.network.PacketDistributor
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.register
@@ -27,7 +28,7 @@ object HEStoryCommands {
                 "pos" {
                     val player = source.playerOrException
                     val loc = player.pick(100.0, 0.0f, true).location
-                    CopyTextPacket().send("pos(${loc.x.roundTo(2)}, ${loc.y.roundTo(2)}, ${loc.z.roundTo(2)})", player)
+                    CopyTextPacket("pos(${loc.x.roundTo(2)}, ${loc.y.roundTo(2)}, ${loc.z.roundTo(2)})").send(PacketDistributor.PLAYER.with {player})
                 }
 
                 "start-script"(

@@ -7,6 +7,7 @@ import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.HoverEvent
 import net.minecraft.network.chat.Style
+import net.minecraftforge.network.PacketDistributor
 import net.minecraftforge.registries.ForgeRegistries
 import org.jetbrains.kotlin.konan.file.File
 import ru.hollowhorizon.hc.client.utils.mcTranslate
@@ -44,7 +45,7 @@ object HECommands {
                             }\")"
                         }
                     }
-                    CopyTextPacket().send(itemCommand, player)
+                    CopyTextPacket(itemCommand).send(PacketDistributor.PLAYER.with {player})
 
                     player.sendSystemMessage("hollowengine.commands.tags".mcTranslate)
 
@@ -63,7 +64,7 @@ object HECommands {
                     val player = source.playerOrException
                     val model = StringArgumentType.getString(this, "model")
 
-                    ShowModelInfoPacket().send(model, player)
+                    ShowModelInfoPacket(model).send(PacketDistributor.PLAYER.with {player})
                 }
             }
         }

@@ -4,9 +4,11 @@ import com.mojang.blaze3d.platform.Lighting
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Vector3f
+import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
 import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.player.Player
 import net.minecraftforge.api.distmarker.Dist
 import net.minecraftforge.api.distmarker.OnlyIn
 import net.minecraftforge.common.MinecraftForge
@@ -18,6 +20,7 @@ import ru.hollowhorizon.hc.client.screens.util.WidgetPlacement
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
+import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hc.common.network.Packet
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.screen.widget.dialogue.DialogueTextBox
@@ -28,10 +31,14 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues.Appl
 import kotlin.math.atan
 import kotlin.math.pow
 
-@HollowPacketV2(NetworkDirection.PLAY_TO_SERVER)
-class OnChoicePerform : Packet<Int>({ player, i ->
-    MinecraftForge.EVENT_BUS.post(ApplyChoiceEvent(player, i))
-})
+@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@Serializable
+class OnChoicePerform(private val choice: Int) : HollowPacketV3<OnChoicePerform> {
+    override fun handle(player: Player, data: OnChoicePerform) {
+        MinecraftForge.EVENT_BUS.post(ApplyChoiceEvent(player, data.choice))
+    }
+
+}
 
 @OnlyIn(Dist.CLIENT)
 object DialogueScreen : HollowScreen("".mcText) {
@@ -72,7 +79,7 @@ object DialogueScreen : HollowScreen("".mcText) {
                     { x, y, w, h ->
                         BaseButton(x, y, w, h, choice, {
                             this@DialogueScreen.init()
-                            OnChoicePerform().send(i)
+                            OnChoicePerform(i).send()
                         }, CHOICE_BUTTON.rl, textColor = 0xFFFFFF, textColorHovered = 0xEDC213)
                     }, Alignment.CENTER, 0, this.height / 3 - 25 * i, this.width, this.height, 320, 20
                 )
@@ -172,7 +179,7 @@ object DialogueScreen : HollowScreen("".mcText) {
     }
 
     fun notifyClick() {
-        if (this.textBox?.complete == true) MouseClickedPacket().send(Container(MouseButton.LEFT))
+        if (this.textBox?.complete == true) MouseClickedPacket(MouseButton.LEFT).send()
         else this.textBox?.complete = true
     }
 

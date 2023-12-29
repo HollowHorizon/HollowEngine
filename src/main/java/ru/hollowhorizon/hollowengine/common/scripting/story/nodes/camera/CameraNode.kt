@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.camera
 
+import net.minecraftforge.network.PacketDistributor
+import ru.hollowhorizon.hc.client.utils.math.Interpolation
 import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
 import ru.hollowhorizon.hc.client.utils.nbt.deserialize
 import ru.hollowhorizon.hc.client.utils.nbt.loadAsNBT
@@ -12,19 +14,33 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.wait
 import ru.hollowhorizon.hollowengine.common.story.*
 
 
-fun IContextBuilder.camera(time: () -> Int, path: () -> String) {
+class CameraContainer {
+    var time = 200
+    var interpolation = Interpolation.LINEAR
+    var path = ""
+}
+
+fun IContextBuilder.camera(body: CameraContainer.() -> Unit) {
     +ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode {
-        val nbt = DirectoryManager.HOLLOW_ENGINE.resolve("camera/${path()}").inputStream().loadAsNBT()
+        val container = CameraContainer().apply(body)
+        if(container.path.isEmpty()) return@SimpleNode
+        val nbt = DirectoryManager.HOLLOW_ENGINE.resolve("camera/${container.path}").inputStream().loadAsNBT()
 
         val cameraPath = NBTFormat.deserialize<CameraPath>(nbt)
-        cameraPath.time = time()
+        cameraPath.time = container.time
+        cameraPath.interpolation = container.interpolation
         stateMachine.team.onlineMembers.forEach {
-            StartCameraPlayerPacket().send(cameraPath, it)
-            OverlayScreenPacket().send(true, it)
+            StartCameraPlayerPacket(cameraPath).send(PacketDistributor.PLAYER.with {it})
+            OverlayScreenPacket(true).send(PacketDistributor.PLAYER.with {it})
         }
     }
-    wait(time)
+    wait {
+        val container = CameraContainer().apply(body)
+        container.time
+    }
     +ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode {
-        OverlayScreenPacket().send(false, *stateMachine.team.onlineMembers.toTypedArray())
+        stateMachine.team.onlineMembers.forEach {
+            OverlayScreenPacket(false).send(PacketDistributor.PLAYER.with {it})
+        }
     }
 }

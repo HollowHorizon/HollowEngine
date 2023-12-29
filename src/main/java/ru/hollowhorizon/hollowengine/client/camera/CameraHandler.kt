@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.RenderType
 import net.minecraft.client.renderer.texture.OverlayTexture
+import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.block.Blocks
 import net.minecraftforge.client.event.InputEvent
 import net.minecraftforge.client.event.RenderLevelStageEvent
@@ -19,6 +20,7 @@ import net.minecraftforge.client.model.data.ModelData
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraftforge.network.NetworkDirection
 import ru.hollowhorizon.hc.client.math.Spline3D
+import ru.hollowhorizon.hc.client.utils.math.Interpolation
 import ru.hollowhorizon.hc.client.utils.mc
 import ru.hollowhorizon.hc.client.utils.nbt.ForVector3d
 import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
@@ -26,6 +28,7 @@ import ru.hollowhorizon.hc.client.utils.nbt.save
 import ru.hollowhorizon.hc.client.utils.nbt.serialize
 import ru.hollowhorizon.hc.client.utils.use
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
+import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hc.common.network.Packet
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -101,7 +104,7 @@ object CameraHandler {
 
         val path = CameraPath(startPoint, points.map { it.toLocal(startPoint) })
 
-        SaveOnServerPacket().send(path)
+        SaveOnServerPacket(path).send()
 
         points.clear()
     }
@@ -164,16 +167,21 @@ class CameraPath(
     val points: List<Point>,
     var time: Int = 0
 ) {
+    var interpolation = Interpolation.LINEAR
     val positions get() = points.map { Vector3d(startPos.x + it.x, startPos.y + it.y, startPos.z + it.z) }
     val rotations get() = points.map { it.rot }
 }
 
-@HollowPacketV2(NetworkDirection.PLAY_TO_SERVER)
-class SaveOnServerPacket : Packet<CameraPath>({ player, cameraPath ->
-    if (player.mainHandItem.item == ModItems.CAMERA.get()) {
-        val file = DirectoryManager.HOLLOW_ENGINE.resolve("camera/${Integer.toHexString(cameraPath.hashCode())}.nbt")
-        file.parentFile.mkdirs()
+@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@Serializable
+class SaveOnServerPacket(private val path: CameraPath) : HollowPacketV3<SaveOnServerPacket> {
+    override fun handle(player: Player, data: SaveOnServerPacket) {
+        if (player.mainHandItem.item == ModItems.CAMERA.get()) {
+            val file = DirectoryManager.HOLLOW_ENGINE.resolve("camera/${Integer.toHexString(data.path.hashCode())}.nbt")
+            file.parentFile.mkdirs()
 
-        NBTFormat.serialize(cameraPath).save(file.outputStream())
+            NBTFormat.serialize(data.path).save(file.outputStream())
+        }
     }
-})
+
+}

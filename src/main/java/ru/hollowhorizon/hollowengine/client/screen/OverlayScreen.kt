@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
+import net.minecraft.world.entity.player.Player
 import net.minecraftforge.network.NetworkDirection
 import ru.hollowhorizon.hc.client.handlers.ClientTickHandler
 import ru.hollowhorizon.hc.client.screens.HollowScreen
@@ -13,6 +14,7 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toRGBA
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
+import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hc.common.network.Packet
 
 object OverlayScreen : HollowScreen("".toSTC()) {
@@ -114,27 +116,32 @@ object OverlayScreen : HollowScreen("".toSTC()) {
     }
 }
 
+@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
-class OverlayScreenContainer(
-    val fadeIn: Boolean,
-    val text: String,
-    val subtitle: String,
-    val color: Int,
-    val texture: String,
-    val time: Int
-)
+class FadeOverlayScreenPacket(
+    private val fadeIn: Boolean,
+    private val text: String,
+    private val subtitle: String,
+    private val color: Int,
+    private val texture: String,
+    private val time: Int
+) : HollowPacketV3<FadeOverlayScreenPacket> {
+    override fun handle(player: Player, data: FadeOverlayScreenPacket) {
+        OverlayScreen.texture = ""
+        if (data.fadeIn) OverlayScreen.makeBlack(data.text, data.subtitle, data.color, data.texture, data.time)
+        else OverlayScreen.makeTransparent(data.text, data.subtitle, data.color, data.texture, data.time)
+    }
 
-@HollowPacketV2(NetworkDirection.PLAY_TO_CLIENT)
-class FadeOverlayScreenPacket : Packet<OverlayScreenContainer>({ player, value ->
-    OverlayScreen.texture = ""
-    if (value.fadeIn) OverlayScreen.makeBlack(value.text, value.subtitle, value.color, value.texture, value.time)
-    else OverlayScreen.makeTransparent(value.text, value.subtitle, value.color, value.texture, value.time)
-})
+}
 
-@HollowPacketV2(NetworkDirection.PLAY_TO_CLIENT)
-class OverlayScreenPacket : Packet<Boolean>({ player, value ->
-    OverlayScreen.showOverlay(value)
-})
+@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
+@Serializable
+class OverlayScreenPacket(private val enable: Boolean) : HollowPacketV3<OverlayScreenPacket> {
+    override fun handle(player: Player, data: OverlayScreenPacket) {
+        OverlayScreen.showOverlay(data.enable)
+    }
+
+}
 
 data class ARGB(val a: Int, val r: Int, val g: Int, val b: Int) {
     constructor(alpha: Float, r: Float, g: Float, b: Float) : this(

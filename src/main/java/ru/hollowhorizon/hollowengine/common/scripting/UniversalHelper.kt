@@ -38,6 +38,7 @@ fun tag(tag: String): TagKey<Item> {
 }
 
 fun <T> runtime(default: () -> T) = RuntimeVariable(default)
+fun <T> runtime() = RuntimeVariable { throw IllegalStateException("Default value not found, runtime property does not exists") }
 
 val RUNTIME_PROPERTIES = mutableMapOf<String, Any?>()
 

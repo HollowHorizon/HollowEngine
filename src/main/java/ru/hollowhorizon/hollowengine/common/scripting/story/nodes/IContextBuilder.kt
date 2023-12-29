@@ -33,14 +33,10 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.*
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.common.network.packets.StartAnimationContainer
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
-import ru.hollowhorizon.hc.common.network.packets.StopAnimationContainer
 import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
-import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
-import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenContainer
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.Attributes
 import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
@@ -108,6 +104,8 @@ interface IContextBuilder {
         var attributes = Attributes()
         var size = Pair(0.6f, 1.8f)
         var showName = true
+
+        fun skin(name: String) = "skins/$name"
     }
 
     fun NPCEntity.Companion.creating(settings: NpcContainer.() -> Unit): NpcDelegate {
@@ -218,16 +216,13 @@ interface IContextBuilder {
 
     infix fun NPCProperty.play(block: AnimationContainer.() -> Unit) = +SimpleNode {
         val container = AnimationContainer().apply(block)
-        StartAnimationPacket().send(
-            StartAnimationContainer(
-                this@play().id,
-                container.animation,
-                container.layerMode,
-                container.playType,
-                container.speed
-            ),
-            PacketDistributor.TRACKING_ENTITY.with(this@play)
-        )
+        StartAnimationPacket(
+            this@play().id,
+            container.animation,
+            container.layerMode,
+            container.playType,
+            container.speed
+        ).send(PacketDistributor.TRACKING_ENTITY.with(this@play))
     }
 
     infix fun NPCProperty.playLooped(animation: () -> String) = play {
@@ -236,17 +231,13 @@ interface IContextBuilder {
     }
 
     infix fun NPCProperty.playOnce(animation: () -> String) = +SimpleNode {
-        StartAnimationPacket().send(
-            StartAnimationContainer(this@playOnce().id, animation(), LayerMode.ADD, PlayMode.ONCE, 1.0f),
-            PacketDistributor.TRACKING_ENTITY.with(this@playOnce)
-        )
+        StartAnimationPacket(this@playOnce().id, animation(), LayerMode.ADD, PlayMode.ONCE, 1.0f)
+            .send(PacketDistributor.TRACKING_ENTITY.with(this@playOnce))
     }
 
     infix fun NPCProperty.stop(animation: () -> String) = +SimpleNode {
-        StopAnimationPacket().send(
-            StopAnimationContainer(this@stop().id, animation()),
-            PacketDistributor.TRACKING_ENTITY.with(this@stop)
-        )
+        StopAnimationPacket(this@stop().id, animation())
+            .send(PacketDistributor.TRACKING_ENTITY.with(this@stop))
     }
 
 
@@ -294,7 +285,6 @@ interface IContextBuilder {
     }
 
 
-
     fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
 
     infix fun NPCProperty.addEffect(effect: ParticleEffect.() -> Unit) = +SimpleNode {
@@ -331,7 +321,8 @@ interface IContextBuilder {
 
         fun setMaxHealth(value: Float) {
             team.onlineMembers.forEach {
-                it.attributes.getInstance(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH)?.baseValue = value.toDouble()
+                it.attributes.getInstance(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH)?.baseValue =
+                    value.toDouble()
             }
             setHealth(value)
         }
@@ -390,31 +381,31 @@ interface IContextBuilder {
 
     fun fadeIn(block: FadeContainer.() -> Unit) = +WaitNode {
         val container = FadeContainer().apply(block)
-        FadeOverlayScreenPacket().send(
-            OverlayScreenContainer(
+        stateMachine.team.onlineMembers.forEach {
+            FadeOverlayScreenPacket(
                 true,
                 container.text,
                 container.subtitle,
                 container.color,
                 container.texture,
                 container.time
-            ), *stateMachine.team.onlineMembers.toTypedArray()
-        )
+            ).send(PacketDistributor.PLAYER.with { it })
+        }
         container.time
     }
 
     fun fadeOut(block: FadeContainer.() -> Unit) = +WaitNode {
         val container = FadeContainer().apply(block)
-        FadeOverlayScreenPacket().send(
-            OverlayScreenContainer(
+        stateMachine.team.onlineMembers.forEach {
+            FadeOverlayScreenPacket(
                 false,
                 container.text,
                 container.subtitle,
                 container.color,
                 container.texture,
                 container.time
-            ), *stateMachine.team.onlineMembers.toTypedArray()
-        )
+            ).send(PacketDistributor.PLAYER.with { it })
+        }
         container.time
     }
 

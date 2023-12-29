@@ -91,7 +91,7 @@ object ClientEvents {
 
         if(event.button > 2) return
         val button = MouseButton.from(event.button)
-        if (canceledButtons.isNotEmpty()) MouseClickedPacket().send(Container(button))
+        if (canceledButtons.isNotEmpty()) MouseClickedPacket(button).send()
         if (canceledButtons.removeIf { it.ordinal == button.ordinal }) event.isCanceled = true
     }
 
@@ -108,7 +108,7 @@ object ClientEvents {
             return
         }
 
-        if(event.action == 0) KeybindPacket().send(Keybind.fromCode(event.key))
+        if(event.action == 0) KeybindPacket(Keybind.fromCode(event.key)).send()
     }
 
     fun initKeys() {
