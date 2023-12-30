@@ -2,16 +2,19 @@ package ru.hollowhorizon.hollowengine.client.screen
 
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.*
+import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Gui
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.util.Mth
+import net.minecraft.world.entity.player.Player
 import net.minecraftforge.network.NetworkDirection
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.use
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
+import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hc.common.network.Packet
 
 object MouseDriver {
@@ -56,7 +59,11 @@ object MouseDriver {
     }
 }
 
-@HollowPacketV2(toTarget = NetworkDirection.PLAY_TO_CLIENT)
-class DrawMousePacket: Packet<Boolean>({ player, value ->
-    MouseDriver.enable = value
-})
+@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
+@Serializable
+class DrawMousePacket(private val enable: Boolean): HollowPacketV3<DrawMousePacket> {
+    override fun handle(player: Player, data: DrawMousePacket) {
+        MouseDriver.enable = data.enable
+    }
+
+}

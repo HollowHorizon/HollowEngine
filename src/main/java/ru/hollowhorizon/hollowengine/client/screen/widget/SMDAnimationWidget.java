@@ -3,12 +3,12 @@ package ru.hollowhorizon.hollowengine.client.screen.widget;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget;
 import ru.hollowhorizon.hollowengine.client.render.GUIHelper;
 import ru.hollowhorizon.hollowengine.client.screen.widget.button.IconHollowButton;
 
+import static ru.hollowhorizon.hc.client.utils.ForgeKotlinKt.toSTC;
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
 
 public class SMDAnimationWidget extends HollowWidget implements ISaveable {
@@ -18,13 +18,13 @@ public class SMDAnimationWidget extends HollowWidget implements ISaveable {
     private final IAnimationValue animValue;
 
     public SMDAnimationWidget(int x, int y, int w, int h, IAnimationValue value, IAnimationValue onPlay) {
-        super(x, y, w, h, new TextComponent("smd_textfield"));
+        super(x, y, w, h, toSTC("smd_textfield"));
         int width = w - 20;
 
         this.animValue = value;
-        playButton = new IconHollowButton(x + w - 20, y, 20, 20, new TextComponent(""), () -> {
+        playButton = new IconHollowButton(x + w - 20, y, 20, 20, toSTC(""), () -> {
         }, new ResourceLocation(MODID, "textures/gui/text_field_mini.png"), new ResourceLocation(MODID, "textures/gui/play.png"));
-        animNameWidget = new HollowTextFieldWidget(Minecraft.getInstance().font, x, y, width / 3, h, new TextComponent(""), GUIHelper.TEXT_FIELD);
+        animNameWidget = new HollowTextFieldWidget(Minecraft.getInstance().font, x, y, width / 3, h, toSTC(""), GUIHelper.TEXT_FIELD);
         animWidget = new ResourceFieldWidget(Minecraft.getInstance().font, x + width / 3, y, (int) (0.667F * width), h, GUIHelper.TEXT_FIELD);
     }
 

@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.client.screen;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -17,6 +16,7 @@ import ru.hollowhorizon.hollowengine.client.screen.widget.button.SizedButton;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import static ru.hollowhorizon.hc.client.utils.ForgeKotlinKt.toTTC;
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
 
 @OnlyIn(Dist.CLIENT)
@@ -38,15 +38,15 @@ public class NPCCreationScreen extends HollowScreen {
         int halfWidth = this.width / 2;
 
         ArrayList<ListElement> elements = new ArrayList<>();
-        elements.add(new ListElement(new ResourceLocation(MODID, "public"), new TranslatableComponent("hollowengine.npc_creation.public"), new ResourceLocation(MODID, "textures/gui/planet.png")));
-        elements.add(new ListElement(new ResourceLocation(MODID, "private"), new TranslatableComponent("hollowengine.npc_creation.private"), new ResourceLocation(MODID, "textures/gui/private.png")));
-        elements.add(new ListElement(new ResourceLocation(MODID, "companion"), new TranslatableComponent("hollowengine.npc_creation.companion"), new ResourceLocation(MODID, "textures/gui/heart.png")));
+        elements.add(new ListElement(new ResourceLocation(MODID, "public"), toTTC("hollowengine.npc_creation.public"), new ResourceLocation(MODID, "textures/gui/planet.png")));
+        elements.add(new ListElement(new ResourceLocation(MODID, "private"), toTTC("hollowengine.npc_creation.private"), new ResourceLocation(MODID, "textures/gui/private.png")));
+        elements.add(new ListElement(new ResourceLocation(MODID, "companion"), toTTC("hollowengine.npc_creation.companion"), new ResourceLocation(MODID, "textures/gui/heart.png")));
 
         this.addRenderableWidget(new SliderWidget(halfWidth + 100, startY + 60, 50, 20, this::setShouldDespawn));
         this.addRenderableWidget(new SliderWidget(halfWidth + 100, startY + 80, 50, 20, this::setUndead));
-        this.addRenderableWidget(new SizedButton(halfWidth - 150, startY + 40, 300, 20, new TranslatableComponent("hollowengine.npc_creation.model"), button -> Minecraft.getInstance().setScreen(new NPCModelChoicerScreen(this)), GUIHelper.TEXT_FIELD, GUIHelper.TEXT_FIELD_LIGHT));
+        this.addRenderableWidget(new SizedButton(halfWidth - 150, startY + 40, 300, 20, toTTC("hollowengine.npc_creation.model"), button -> Minecraft.getInstance().setScreen(new NPCModelChoicerScreen(this)), GUIHelper.TEXT_FIELD, GUIHelper.TEXT_FIELD_LIGHT));
 
-        this.list = new DropListWidget(new TranslatableComponent("hollowengine.npc_creation.choice_type"), elements, (element -> System.out.println(element.getTextComponent().getString())), halfWidth - 150, startY + 20, 300, 20);
+        this.list = new DropListWidget(toTTC("hollowengine.npc_creation.choice_type"), elements, (element -> System.out.println(element.getTextComponent().getString())), halfWidth - 150, startY + 20, 300, 20);
     }
 
     @Override
@@ -54,9 +54,9 @@ public class NPCCreationScreen extends HollowScreen {
         this.renderBackground(stack);
         int halfWidth = this.width / 2;
 
-        GUIHelper.drawTextInBox(stack, new TranslatableComponent("hollowengine.npc_creation"), halfWidth - 150, startY, 300);
-        GUIHelper.drawTextInBox(stack, new TranslatableComponent("hollowengine.npc_creation.undead"), halfWidth - 150, startY + 60, 250);
-        GUIHelper.drawTextInBox(stack, new TranslatableComponent("hollowengine.npc_creation.despawn"), halfWidth - 150, startY + 80, 250);
+        GUIHelper.drawTextInBox(stack, toTTC("hollowengine.npc_creation"), halfWidth - 150, startY, 300);
+        GUIHelper.drawTextInBox(stack, toTTC("hollowengine.npc_creation.undead"), halfWidth - 150, startY + 60, 250);
+        GUIHelper.drawTextInBox(stack, toTTC("hollowengine.npc_creation.despawn"), halfWidth - 150, startY + 80, 250);
 
         super.render(stack, p_230430_2_, p_230430_3_, p_230430_4_);
 

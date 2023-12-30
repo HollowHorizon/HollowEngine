@@ -56,7 +56,7 @@ class NpcDelegate(
                 settings.pos.x + 0.5, settings.pos.y, settings.pos.z + 0.5, settings.rotation.x, settings.rotation.y
             )
 
-            settings.data.attributes.forEach { (name, value) ->
+            settings.attributes.attributes.forEach { (name, value) ->
                 entity.getAttribute(ForgeRegistries.ATTRIBUTES.getValue(name.rl) ?: return@forEach)?.baseValue =
                     value.toDouble()
             }

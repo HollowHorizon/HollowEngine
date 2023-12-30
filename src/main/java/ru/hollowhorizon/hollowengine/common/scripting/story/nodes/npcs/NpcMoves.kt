@@ -9,6 +9,7 @@ import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 import kotlin.math.abs
+import kotlin.math.sqrt
 
 open class NpcMoveToBlockNode(npcConsumer: NPCProperty, var pos: () -> Vec3) : Node() {
     val npc by lazy { npcConsumer() }
@@ -69,7 +70,11 @@ class NpcMoveToTeamNode(npcConsumer: NPCProperty, var target: () -> Team?) : Nod
 
         navigator.moveTo(entity, 1.0)
 
-        return npc.distanceToXZ(entity) > 1.5 || abs(npc.y - entity.y) > 3
+        val dist = npc.distanceToXZ(entity) > 1.5
+
+        if(!dist) navigator.stop()
+
+        return dist || abs(npc.y - entity.y) > 3
     }
 
     override fun serializeNBT() = CompoundTag().apply {
@@ -84,5 +89,5 @@ class NpcMoveToTeamNode(npcConsumer: NPCProperty, var target: () -> Team?) : Nod
     }
 }
 
-fun Entity.distanceToXZ(pos: Vec3) = (x - pos.x) * (x - pos.x) + (z - pos.z) * (z - pos.z)
+fun Entity.distanceToXZ(pos: Vec3) = sqrt((x - pos.x) * (x - pos.x) + (z - pos.z) * (z - pos.z))
 fun Entity.distanceToXZ(npc: Entity) = distanceToXZ(npc.position())

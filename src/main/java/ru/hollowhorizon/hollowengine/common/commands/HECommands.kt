@@ -4,12 +4,12 @@ import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.arguments.StringArgumentType
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.network.chat.*
+import net.minecraftforge.network.PacketDistributor
 import net.minecraftforge.registries.ForgeRegistries
 import org.jetbrains.kotlin.konan.file.File
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.register
-import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.network.CopyTextPacket
@@ -41,7 +41,7 @@ object HECommands {
                             }\")"
                         }
                     }
-                    CopyTextPacket().send(itemCommand, player)
+                    CopyTextPacket(itemCommand).send(PacketDistributor.PLAYER.with {player})
 
                     player.sendMessage("hollowengine.commands.tags".mcTranslate, player.uuid)
 
@@ -60,7 +60,7 @@ object HECommands {
                     val player = source.playerOrException
                     val model = StringArgumentType.getString(this, "model")
 
-                    ShowModelInfoPacket().send(model, player)
+                    ShowModelInfoPacket(model).send(PacketDistributor.PLAYER.with {player})
                 }
             }
         }

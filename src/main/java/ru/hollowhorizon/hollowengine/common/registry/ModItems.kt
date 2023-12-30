@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.common.registry
 
 import net.minecraft.world.item.Item
 import ru.hollowhorizon.hc.common.registry.HollowRegistry
-import ru.hollowhorizon.hollowengine.common.items.StoryTellerDimItem
+import ru.hollowhorizon.hollowengine.common.items.*
 
 object ModItems : HollowRegistry() {
     val DIALOGUE_ICON by register("dialogue_icon") { Item(Item.Properties().stacksTo(1)) }
@@ -12,4 +12,5 @@ object ModItems : HollowRegistry() {
     val WARN_ICON by register("warn_icon") { Item(Item.Properties().stacksTo(1)) }
 
     val STORYTELLER_DIM_TELEPORTER by register("storyteller_dim_teleporter", ::StoryTellerDimItem)
+    val CAMERA by register("camera", ::CameraItem)
 }

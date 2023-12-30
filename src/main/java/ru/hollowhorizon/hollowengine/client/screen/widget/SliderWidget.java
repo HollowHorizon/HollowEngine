@@ -6,12 +6,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget;
 
 import java.util.function.Consumer;
 
+import static ru.hollowhorizon.hc.client.utils.ForgeKotlinKt.toSTC;
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
 
 public class SliderWidget extends HollowWidget {
@@ -22,7 +22,7 @@ public class SliderWidget extends HollowWidget {
     private int processCounter;
 
     public SliderWidget(int x, int y, int w, int h, Consumer<Boolean> consumer) {
-        super(x, y, w, h, new TextComponent(""));
+        super(x, y, w, h, toSTC(""));
         this.consumer = consumer;
     }
 

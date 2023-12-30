@@ -3,12 +3,12 @@ package ru.hollowhorizon.hollowengine.client.screen.widget;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 import ru.hollowhorizon.hollowengine.client.screen.widget.button.IconHollowButton;
 
 import java.util.function.Consumer;
 
+import static ru.hollowhorizon.hc.client.utils.ForgeKotlinKt.toSTC;
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
 
 public class ResourceFieldWidget extends HollowTextFieldWidget {
@@ -21,8 +21,8 @@ public class ResourceFieldWidget extends HollowTextFieldWidget {
     }
 
     public ResourceFieldWidget(Font fr, int x, int y, int w, int h, ResourceLocation texture) {
-        super(fr, x, y, w, h, new TextComponent(""), texture);
-        this.button = new IconHollowButton(this.x + this.width - this.height, this.y, this.height, this.height, new TextComponent(""), () -> {
+        super(fr, x, y, w, h, toSTC(""), texture);
+        this.button = new IconHollowButton(this.x + this.width - this.height, this.y, this.height, this.height, toSTC(""), () -> {
 //            HollowJavaUtils.chooseFile(
 //                    fileChooser -> fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Model File", "*.smd")),
 //                    file -> {

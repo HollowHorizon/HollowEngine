@@ -12,7 +12,6 @@ import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.Blocks;
@@ -26,6 +25,7 @@ import ru.hollowhorizon.hollowengine.common.entities.NPCEntity;
 import java.util.ArrayList;
 import java.util.List;
 
+import static ru.hollowhorizon.hc.client.utils.ForgeKotlinKt.toTTC;
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
 
 public class ModelPreviewWidget extends HollowWidget {
@@ -68,7 +68,7 @@ public class ModelPreviewWidget extends HollowWidget {
             int height,
             int pwidth,
             int pheight) {
-        super(x, y, width, height, new TranslatableComponent("hollowengine.model_preview"));
+        super(x, y, width, height, toTTC("hollowengine.model_preview"));
         this.originalX = x;
         this.originalY = y;
         this.originalWidth = width;
@@ -90,7 +90,7 @@ public class ModelPreviewWidget extends HollowWidget {
                         BUTTON_SIZE,
                         b -> this.resetPreview(),
                         tooltip,
-                        new TranslatableComponent("hollowengine.model_preview.reset")
+                        toTTC("hollowengine.model_preview.reset")
                 );
         this.buttons.add(resetButton);
         fullscreenButton =
@@ -101,19 +101,19 @@ public class ModelPreviewWidget extends HollowWidget {
                             fullscreen = !fullscreen;
                         },
                         tooltip,
-                        new TranslatableComponent("hollowengine.model_preview.full_screen"));
+                        toTTC("hollowengine.model_preview.full_screen"));
         bottomButtons =
                 new IconButton[]{
                         this.makeButton(
                                 4,
                                 b -> doTurntable = !doTurntable,
                                 tooltip,
-                                new TranslatableComponent("hollowengine.model_preview.rotate_model")),
+                                toTTC("hollowengine.model_preview.rotate_model")),
                         this.makeButton(
                                 3,
                                 b -> renderFloor = !renderFloor,
                                 tooltip,
-                                new TranslatableComponent("hollowengine.model_preview.display.plant")),
+                                toTTC("hollowengine.model_preview.display.plant")),
                         this.addButton(
                                 new PlayerIconButton(
                                         0,
@@ -121,12 +121,12 @@ public class ModelPreviewWidget extends HollowWidget {
                                         MC.getUser().getGameProfile(),
                                         b -> showPlayer = !showPlayer,
                                         tooltip,
-                                        new TranslatableComponent("hollowengine.model_preview.display.player"))),
+                                        toTTC("hollowengine.model_preview.display.player"))),
                         this.makeButton(
                                 2,
                                 b -> renderBoundingBoxes = !renderBoundingBoxes,
                                 tooltip,
-                                new TranslatableComponent("hollowengine.model_preview.display.hitboxes"))
+                                toTTC("hollowengine.model_preview.display.hitboxes"))
                 };
         title =
                 new LabelWidget(
@@ -335,8 +335,7 @@ public class ModelPreviewWidget extends HollowWidget {
                             buffers,
                             0xF000F0,
                             OverlayTexture.NO_OVERLAY,
-                            EmptyModelData.INSTANCE
-                    );
+                            EmptyModelData.INSTANCE);
             entityPS.popPose();
         }
         // Render the preview puppet

@@ -4,11 +4,12 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
 import ru.hollowhorizon.hc.client.screens.HollowScreen;
 import ru.hollowhorizon.hc.client.utils.ScissorUtil;
 import ru.hollowhorizon.hollowengine.client.screen.widget.ModelEditWidget;
 import ru.hollowhorizon.hollowengine.client.screen.widget.ModelPreviewWidget;
+
+import static ru.hollowhorizon.hc.client.utils.ForgeKotlinKt.toSTC;
 
 public class SMDEditModelScreen extends HollowScreen {
     private final NPCModelChoicerScreen lastScreen;
@@ -16,7 +17,7 @@ public class SMDEditModelScreen extends HollowScreen {
     private ModelPreviewWidget preview;
 
     protected SMDEditModelScreen(NPCModelChoicerScreen lastScreen, NPCCreationScreen screen) {
-        super(new TextComponent("EDIT_MODEL_SCREEN"));
+        super(toSTC("EDIT_MODEL_SCREEN"));
         this.lastScreen = lastScreen;
         this.npcScreen = screen;
 

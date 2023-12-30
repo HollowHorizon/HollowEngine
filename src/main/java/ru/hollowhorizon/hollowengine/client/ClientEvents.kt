@@ -13,11 +13,9 @@ import net.minecraftforge.event.entity.player.ItemTooltipEvent
 import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.loading.moddiscovery.ModInfo
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.screen.MouseDriver
 import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
-import ru.hollowhorizon.hollowengine.common.network.Container
 import ru.hollowhorizon.hollowengine.common.network.KeybindPacket
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
@@ -93,7 +91,7 @@ object ClientEvents {
 
         if(event.button > 2) return
         val button = MouseButton.from(event.button)
-        if (canceledButtons.isNotEmpty()) MouseClickedPacket().send(Container(button))
+        if (canceledButtons.isNotEmpty()) MouseClickedPacket(button).send()
         if (canceledButtons.removeIf { it.ordinal == button.ordinal }) event.isCanceled = true
     }
 
@@ -110,7 +108,7 @@ object ClientEvents {
             return
         }
 
-        if(event.action == 0) KeybindPacket().send(Keybind.fromCode(event.key))
+        if(event.action == 0) KeybindPacket(Keybind.fromCode(event.key)).send()
     }
 
     fun initKeys() {

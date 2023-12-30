@@ -82,6 +82,11 @@ class NPCPathNavigator(entity: Mob, world: Level) : GroundPathNavigation(entity,
         return true
     }
 
+    override fun stop() {
+        super.stop()
+        pathToPosition = null
+    }
+
     override fun tick() {
         super.tick()
 

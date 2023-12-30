@@ -124,7 +124,7 @@ class BlockBreakGoal(val living: Mob) : Goal() {
                     sound.breakSound,
                     SoundSource.BLOCKS,
                     2f,
-                    0.5f
+                    0.5f,
                 )
                 living.swing(InteractionHand.MAIN_HAND)
                 living.lookControl.setLookAt(

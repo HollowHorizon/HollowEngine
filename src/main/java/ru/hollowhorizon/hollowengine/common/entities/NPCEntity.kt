@@ -13,9 +13,13 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
+import net.minecraftforge.common.capabilities.Capability
 import net.minecraftforge.common.util.FakePlayerFactory
+import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
 import ru.hollowhorizon.hc.client.utils.get
+import ru.hollowhorizon.hc.common.capabilities.ICapabilitySyncer
 import ru.hollowhorizon.hollowengine.client.render.effects.EffectsCapability
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
 import ru.hollowhorizon.hollowengine.common.npcs.NpcTarget
@@ -25,7 +29,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.goals.OpenDoorGoal
 import ru.hollowhorizon.hollowengine.common.npcs.pathing.NPCPathNavigator
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
-class NPCEntity : PathfinderMob, IAnimated {
+class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
     constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
 
@@ -102,6 +106,12 @@ class NPCEntity : PathfinderMob, IAnimated {
 
     override fun removeWhenFarAway(dist: Double) = false
     override fun isPersistenceRequired() = true
+
+    override fun onCapabilitySync(capability: Capability<*>) {
+        if (capability.name.contains("AnimatedEntityCapability")) {
+            HollowCore.LOGGER.info("Model: {}", this[AnimatedEntityCapability::class].model)
+        }
+    }
 
     companion object
 }

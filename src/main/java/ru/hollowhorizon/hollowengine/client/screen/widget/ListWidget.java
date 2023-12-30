@@ -6,7 +6,6 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.glfw.GLFW;
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton;
@@ -15,6 +14,7 @@ import ru.hollowhorizon.hc.client.utils.ScissorUtil;
 import java.util.List;
 import java.util.function.Supplier;
 
+import static ru.hollowhorizon.hc.client.utils.ForgeKotlinKt.toSTC;
 import static ru.hollowhorizon.hollowengine.HollowEngine.MODID;
 import static ru.hollowhorizon.hollowengine.client.screen.widget.ModelPreviewWidget.BORDER_WIDTH;
 
@@ -31,7 +31,7 @@ public class ListWidget extends AbstractWidget {
 
         if (widgetSupplier != null) {
 
-            BaseButton addButton = new BaseButton(-1, -1, 20, 20, new TextComponent("+"), (b) -> {
+            BaseButton addButton = new BaseButton(-1, -1, 20, 20, toSTC("+"), (b) -> {
                 var add_button = widgets.get(widgets.size() - 1);
                 widgets.remove(widgets.size() - 1);
                 widgets.add(widgetSupplier.get());

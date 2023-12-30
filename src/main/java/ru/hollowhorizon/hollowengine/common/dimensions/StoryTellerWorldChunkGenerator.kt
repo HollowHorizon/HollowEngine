@@ -30,6 +30,7 @@ class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSo
     override fun climateSampler(): Climate.Sampler = Climate.empty()
 
     override fun codec() = CODEC
+
     override fun applyCarvers(
         pLevel: WorldGenRegion,
         pSeed: Long,
@@ -74,12 +75,12 @@ class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSo
         pX: Int,
         pZ: Int,
         pType: Heightmap.Types,
-        pLevel: LevelHeightAccessor
+        pLevel: LevelHeightAccessor,
     ): Int {
         return pLevel.minBuildHeight
     }
 
-    override fun getBaseColumn(pX: Int, pZ: Int, pHeight: LevelHeightAccessor): NoiseColumn {
+    override fun getBaseColumn(pX: Int, pZ: Int, pHeight: LevelHeightAccessor,): NoiseColumn {
         return NoiseColumn(0, arrayOf())
     }
 

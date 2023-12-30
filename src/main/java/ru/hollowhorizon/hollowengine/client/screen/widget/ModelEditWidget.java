@@ -5,7 +5,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.resources.ResourceLocation;
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget;
 import ru.hollowhorizon.hollowengine.client.screen.NPCCreationScreen;
@@ -17,6 +16,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import static ru.hollowhorizon.hc.client.utils.ForgeKotlinKt.toTTC;
+
 public class ModelEditWidget extends HollowWidget {
     private final List<AbstractWidget> buttons = new ArrayList<>();
     private final NPCCreationScreen npcScreen;
@@ -25,7 +26,7 @@ public class ModelEditWidget extends HollowWidget {
     private ResourceLocation textureLocation;
 
     public ModelEditWidget(int x, int y, int w, int h, NPCModelChoicerScreen screen, NPCCreationScreen npcScreen) {
-        super(x, y, w, h, new TranslatableComponent("hollowengine.model_edit.creating"));
+        super(x, y, w, h, toTTC("hollowengine.model_edit.creating"));
 
         this.npcScreen = npcScreen;
 
@@ -39,17 +40,17 @@ public class ModelEditWidget extends HollowWidget {
                 () -> new SMDAnimationWidget(0, 0, (int) (this.width / 1.1F), 20, animations::put, (animName, animPath) -> {
                     this.npcScreen.updateAnimation(animName, animPath);
                     this.npcScreen.setCurrentAnimation(animName);
-                }), new TranslatableComponent("hollowengine.model_edit.text"));
+                }), toTTC("hollowengine.model_edit.text"));
         this.addButton(list);
 
         this.addButton(new SizedButton(this.x + this.width / 2 - this.width / 3, this.y + this.height - 30, this.width / 3, 20,
-                new TranslatableComponent("hollowengine.model_edit.save"), button -> {
+                toTTC("hollowengine.model_edit.save"), button -> {
             this.animations.clear();
             list.saveValues();
             this.save();
         }, GUIHelper.TEXT_FIELD, GUIHelper.TEXT_FIELD_LIGHT));
         this.addButton(new SizedButton(this.x + this.width / 2, this.y + this.height - 30, this.width / 3, 20,
-                new TranslatableComponent("hollowengine.model_edit.cancel"), button -> Minecraft.getInstance().setScreen(screen), GUIHelper.TEXT_FIELD, GUIHelper.TEXT_FIELD_LIGHT));
+                toTTC("hollowengine.model_edit.cancel"), button -> Minecraft.getInstance().setScreen(screen), GUIHelper.TEXT_FIELD, GUIHelper.TEXT_FIELD_LIGHT));
     }
 
     private void save() {

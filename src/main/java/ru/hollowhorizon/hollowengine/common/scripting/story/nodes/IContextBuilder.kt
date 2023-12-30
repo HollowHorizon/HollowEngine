@@ -14,6 +14,7 @@ import net.minecraft.sounds.SoundSource
 import net.minecraft.util.Mth
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
@@ -32,14 +33,10 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.*
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.common.network.packets.StartAnimationContainer
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
-import ru.hollowhorizon.hc.common.network.packets.StopAnimationContainer
 import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
-import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
-import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenContainer
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.Attributes
 import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
@@ -104,9 +101,11 @@ interface IContextBuilder {
         var world = "minecraft:overworld"
         var pos = Vec3(0.0, 0.0, 0.0)
         var rotation = Vec2.ZERO
-        var data = Attributes()
+        var attributes = Attributes()
         var size = Pair(0.6f, 1.8f)
         var showName = true
+
+        fun skin(name: String) = "skins/$name"
     }
 
     fun NPCEntity.Companion.creating(settings: NpcContainer.() -> Unit): NpcDelegate {
@@ -214,18 +213,15 @@ interface IContextBuilder {
         var speed = 1.0f
     }
 
-    fun NPCProperty.play(block: AnimationContainer.() -> Unit) = +SimpleNode {
+    infix fun NPCProperty.play(block: AnimationContainer.() -> Unit) = +SimpleNode {
         val container = AnimationContainer().apply(block)
-        StartAnimationPacket().send(
-            StartAnimationContainer(
-                this@play().id,
-                container.animation,
-                container.layerMode,
-                container.playType,
-                container.speed
-            ),
-            PacketDistributor.TRACKING_ENTITY.with(this@play)
-        )
+        StartAnimationPacket(
+            this@play().id,
+            container.animation,
+            container.layerMode,
+            container.playType,
+            container.speed
+        ).send(PacketDistributor.TRACKING_ENTITY.with(this@play))
     }
 
     infix fun NPCProperty.playLooped(animation: () -> String) = play {
@@ -234,17 +230,13 @@ interface IContextBuilder {
     }
 
     infix fun NPCProperty.playOnce(animation: () -> String) = +SimpleNode {
-        StartAnimationPacket().send(
-            StartAnimationContainer(this@playOnce().id, animation(), LayerMode.ADD, PlayMode.ONCE, 1.0f),
-            PacketDistributor.TRACKING_ENTITY.with(this@playOnce)
-        )
+        StartAnimationPacket(this@playOnce().id, animation(), LayerMode.ADD, PlayMode.ONCE, 1.0f)
+            .send(PacketDistributor.TRACKING_ENTITY.with(this@playOnce))
     }
 
     infix fun NPCProperty.stop(animation: () -> String) = +SimpleNode {
-        StopAnimationPacket().send(
-            StopAnimationContainer(this@stop().id, animation()),
-            PacketDistributor.TRACKING_ENTITY.with(this@stop)
-        )
+        StopAnimationPacket(this@stop().id, animation())
+            .send(PacketDistributor.TRACKING_ENTITY.with(this@stop))
     }
 
 
@@ -291,6 +283,7 @@ interface IContextBuilder {
         stateMachine.team.onlineMembers.forEach { it.sendMessage(text().mcTranslate, it.uuid) }
     }
 
+
     fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
 
     infix fun NPCProperty.addEffect(effect: ParticleEffect.() -> Unit) = +SimpleNode {
@@ -309,6 +302,59 @@ interface IContextBuilder {
             -f3 * 0.3, -f8 * 0.3 + 0.1, f4 * 0.3
         )
         entity.level.addFreshEntity(entityStack)
+    }
+
+    class TeamHelper(val team: Team) {
+        operator fun ItemStack.unaryPlus() {
+            team.onlineMembers.forEach {
+                it.inventory.add(this)
+                it.inventory.setChanged()
+            }
+        }
+
+        fun setHealth(value: Float) {
+            team.onlineMembers.forEach {
+                it.health = value
+            }
+        }
+
+        fun setMaxHealth(value: Float) {
+            team.onlineMembers.forEach {
+                it.attributes.getInstance(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH)?.baseValue =
+                    value.toDouble()
+            }
+            setHealth(value)
+        }
+
+        fun addHealth(value: Float) {
+            team.onlineMembers.forEach {
+                it.health += value
+            }
+        }
+
+        fun equipHelmet(item: ItemStack) = team.onlineMembers.forEach {
+            it.drop(it.getItemBySlot(EquipmentSlot.HEAD), false)
+            it.setItemSlot(EquipmentSlot.HEAD, item)
+        }
+
+        fun equipChestplate(item: ItemStack) = team.onlineMembers.forEach {
+            it.drop(it.getItemBySlot(EquipmentSlot.CHEST), false)
+            it.setItemSlot(EquipmentSlot.CHEST, item)
+        }
+
+        fun equipLeggings(item: ItemStack) = team.onlineMembers.forEach {
+            it.drop(it.getItemBySlot(EquipmentSlot.LEGS), false)
+            it.setItemSlot(EquipmentSlot.LEGS, item)
+        }
+
+        fun equipBoots(item: ItemStack) = team.onlineMembers.forEach {
+            it.drop(it.getItemBySlot(EquipmentSlot.FEET), false)
+            it.setItemSlot(EquipmentSlot.FEET, item)
+        }
+    }
+
+    infix fun Team.modify(inv: TeamHelper.() -> Unit) = +SimpleNode {
+        TeamHelper(this@modify).apply(inv)
     }
 
     class GiveItemList {
@@ -334,31 +380,31 @@ interface IContextBuilder {
 
     fun fadeIn(block: FadeContainer.() -> Unit) = +WaitNode {
         val container = FadeContainer().apply(block)
-        FadeOverlayScreenPacket().send(
-            OverlayScreenContainer(
+        stateMachine.team.onlineMembers.forEach {
+            FadeOverlayScreenPacket(
                 true,
                 container.text,
                 container.subtitle,
                 container.color,
                 container.texture,
                 container.time
-            ), *stateMachine.team.onlineMembers.toTypedArray()
-        )
+            ).send(PacketDistributor.PLAYER.with { it })
+        }
         container.time
     }
 
     fun fadeOut(block: FadeContainer.() -> Unit) = +WaitNode {
         val container = FadeContainer().apply(block)
-        FadeOverlayScreenPacket().send(
-            OverlayScreenContainer(
+        stateMachine.team.onlineMembers.forEach {
+            FadeOverlayScreenPacket(
                 false,
                 container.text,
                 container.subtitle,
                 container.color,
                 container.texture,
                 container.time
-            ), *stateMachine.team.onlineMembers.toTypedArray()
-        )
+            ).send(PacketDistributor.PLAYER.with { it })
+        }
         container.time
     }
 
