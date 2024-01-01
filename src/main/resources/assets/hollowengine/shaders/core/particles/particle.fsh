@@ -27,5 +27,6 @@ vec4 applyFog(vec4 initialColor, float fogStart, float fogEnd, vec4 fogColor, fl
 
 void main() {
     vec4 color = transformColor(texture(Sampler0, texCoord0), LumiTransparency);
+    if(color.a < 0.05) discard;
     fragColor = applyFog(color, FogStart, FogEnd, FogColor, vertexDistance);
 }
