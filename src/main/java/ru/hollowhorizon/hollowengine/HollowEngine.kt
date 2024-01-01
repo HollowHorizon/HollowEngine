@@ -24,13 +24,16 @@ import ru.hollowhorizon.hc.common.registry.RegistryLoader
 import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.client.ClientEvents.initKeys
 import ru.hollowhorizon.hollowengine.client.camera.CameraHandler
+import ru.hollowhorizon.hollowengine.client.shaders.ModShaders
 import ru.hollowhorizon.hollowengine.common.commands.HECommands
 import ru.hollowhorizon.hollowengine.common.commands.HEStoryCommands
 import ru.hollowhorizon.hollowengine.common.data.HollowStoryPack
 import ru.hollowhorizon.hollowengine.common.events.StoryEngineSetup
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getModScripts
+import ru.hollowhorizon.hollowengine.common.network.NetworkHandler
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
+import ru.hollowhorizon.hollowengine.common.registry.ModParticles
 import ru.hollowhorizon.hollowengine.common.scripting.mod.runModScript
 import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
@@ -46,6 +49,7 @@ class HollowEngine {
         forgeBus.addListener(this::addReloadListenerEvent)
         MOD_BUS.addListener(::setup)
         MOD_BUS.addListener(::onLoadingComplete)
+        MOD_BUS.addListener(ModParticles::onRegisterParticles)
         if (FMLEnvironment.dist.isClient) {
             forgeBus.addListener(ClientEvents::renderOverlay)
             forgeBus.addListener(ClientEvents::onKeyPressed)
@@ -53,6 +57,7 @@ class HollowEngine {
             forgeBus.addListener(ClientEvents::onTooltipRender)
             forgeBus.register(CameraHandler)
             MOD_BUS.addListener(::clientInit)
+            MOD_BUS.register(ModShaders)
         }
 
         if (FTB_INSTALLED) {
@@ -90,6 +95,7 @@ class HollowEngine {
 
     private fun setup(event: FMLCommonSetupEvent) {
         DirectoryManager.init()
+        NetworkHandler.register()
     }
 
     private fun onLoadingComplete(event: FMLLoadCompleteEvent) {}

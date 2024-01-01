@@ -116,8 +116,6 @@ dependencies {
     implementation(fg.deobf("curse.maven:jei-238222:4712866"))
     implementation(fg.deobf("curse.maven:wthit-forge-455982:4819215"))
     implementation(fg.deobf("curse.maven:badpackets-615134:4784364"))
-    implementation(fg.deobf("curse.maven:ldlib-626676:4839867"))
-    implementation(fg.deobf("curse.maven:photon-871522:4744871"))
 
     implementation(kotlin("script-runtime"))
     implementation(kotlin("scripting-jvm-host"))
