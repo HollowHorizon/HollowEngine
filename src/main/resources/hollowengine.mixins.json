@@ -10,7 +10,8 @@
     "RecipeManagerAccessor"
   ],
   "client": [
-    "CameraInvoker"
+    "CameraInvoker",
+    "EntityAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
