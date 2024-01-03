@@ -111,19 +111,16 @@ dependencies {
 
 fun Jar.createManifest() = manifest {
     attributes(
-        mapOf(
-            "Automatic-Module-Name" to "hollowengine",
-            "Specification-Title" to "HollowEngine",
-            "Specification-Vendor" to "HollowHorizon",
-            "Specification-Version" to "1", // We are version 1 of ourselves
-            "Implementation-Title" to project.name,
-            "Implementation-Version" to version,
-            "Implementation-Vendor" to "HollowHorizon",
-            "Implementation-Timestamp" to ZonedDateTime.now()
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssZ")),
-            "MixinConfigs" to "hollowengine.mixins.json"
-        ),
-        "hollowhorizon/hollowengine/"
+        "Automatic-Module-Name" to "hollowengine",
+        "Specification-Title" to "HollowEngine",
+        "Specification-Vendor" to "HollowHorizon",
+        "Specification-Version" to "1", // We are version 1 of ourselves
+        "Implementation-Title" to project.name,
+        "Implementation-Version" to version,
+        "Implementation-Vendor" to "HollowHorizon",
+        "Implementation-Timestamp" to ZonedDateTime.now()
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssZ")),
+        "MixinConfigs" to "hollowengine.mixins.json"
     )
 }
 
