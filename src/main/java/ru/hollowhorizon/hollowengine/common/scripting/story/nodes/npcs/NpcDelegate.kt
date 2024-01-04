@@ -37,9 +37,7 @@ class NpcDelegate(
         var isNpcSpawned = true
         val entity = entities.firstOrNull() ?: NPCEntity(level).apply {
             isNpcSpawned = false
-            setPos(
-                settings.pos.x + 0.5, settings.pos.y, settings.pos.z + 0.5
-            )
+            setPos(settings.pos.x, settings.pos.y, settings.pos.z)
             level.addFreshEntity(this)
         }
 
