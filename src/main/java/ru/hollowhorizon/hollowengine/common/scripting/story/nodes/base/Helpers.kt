@@ -36,6 +36,7 @@ class ChainNode(val nodes: ArrayList<Node>): Node() {
     val isEnded get() = index >= nodes.size
 
     override fun tick(): Boolean {
+        if(index >= nodes.size) return false
         if(!nodes[index].tick()) index++
         return !isEnded
     }
