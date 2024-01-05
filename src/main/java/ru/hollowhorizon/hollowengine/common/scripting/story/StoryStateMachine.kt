@@ -24,7 +24,10 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
     fun tick(event: ServerTickEvent) {
         if (event.phase != TickEvent.Phase.END) return
 
-        asyncNodeIds.removeIf { !asyncNodes[it].tick() }
+        asyncNodeIds.removeIf {
+            if(it < asyncNodes.size) !asyncNodes[it].tick()
+            else true
+        }
 
         if(currentIndex >= nodes.size) return
 
