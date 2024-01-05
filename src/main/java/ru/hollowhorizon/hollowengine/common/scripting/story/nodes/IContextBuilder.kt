@@ -29,12 +29,13 @@ import net.minecraftforge.network.PacketDistributor
 import ru.hollowhorizon.hc.client.models.gltf.Transform
 import ru.hollowhorizon.hc.client.models.gltf.animations.AnimationType
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayMode
-import ru.hollowhorizon.hc.client.models.gltf.manager.*
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
+import ru.hollowhorizon.hc.client.models.gltf.manager.LayerMode
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
-import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
@@ -217,13 +218,23 @@ interface IContextBuilder {
 
     infix fun NPCProperty.play(block: AnimationContainer.() -> Unit) = +SimpleNode {
         val container = AnimationContainer().apply(block)
-        StartAnimationPacket(
-            this@play().id,
-            container.animation,
-            container.layerMode,
-            container.playType,
-            container.speed
-        ).send(PacketDistributor.TRACKING_ENTITY.with(this@play))
+        if (container.playType == PlayMode.ONCE) {
+            StartAnimationPacket(
+                this@play().id,
+                container.animation,
+                container.layerMode,
+                container.playType,
+                container.speed
+            ).send(PacketDistributor.TRACKING_ENTITY.with(this@play))
+        } else {
+            if (this@play()[AnimatedEntityCapability::class].layers.any { it.animation == container.animation }) return@SimpleNode
+            this@play()[AnimatedEntityCapability::class].layers += AnimationLayer(
+                container.animation,
+                container.layerMode,
+                container.playType,
+                container.speed
+            )
+        }
     }
 
     infix fun NPCProperty.playLooped(animation: () -> String) = play {
@@ -237,8 +248,8 @@ interface IContextBuilder {
     }
 
     infix fun NPCProperty.stop(animation: () -> String) = +SimpleNode {
-        StopAnimationPacket(this@stop().id, animation())
-            .send(PacketDistributor.TRACKING_ENTITY.with(this@stop))
+        val anim = animation()
+        this@stop()[AnimatedEntityCapability::class].layers.removeIf { it.animation == anim }
     }
 
 
