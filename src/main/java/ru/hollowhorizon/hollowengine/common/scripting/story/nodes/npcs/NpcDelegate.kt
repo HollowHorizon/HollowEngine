@@ -49,6 +49,7 @@ class NpcDelegate(
                 it.textures.clear()
                 it.textures.putAll(settings.textures)
                 it.transform = settings.transform
+                it.switchHeadRot = settings.switchHeadRot
             }
             entity.moveTo(
                 settings.pos.x + 0.5, settings.pos.y, settings.pos.z + 0.5, settings.rotation.x, settings.rotation.y

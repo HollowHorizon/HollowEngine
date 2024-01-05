@@ -104,6 +104,7 @@ interface IContextBuilder {
         var attributes = Attributes()
         var size = Pair(0.6f, 1.8f)
         var showName = true
+        var switchHeadRot = false
 
         fun skin(name: String) = "skins/$name"
     }
