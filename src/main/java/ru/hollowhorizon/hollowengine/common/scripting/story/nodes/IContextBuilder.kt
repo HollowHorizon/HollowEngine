@@ -241,7 +241,7 @@ interface IContextBuilder {
 
 
     infix fun NPCProperty.say(text: () -> String) = +SimpleNode {
-        val component = TextComponent("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
+        val component = TextComponent("§7[§6" + this@say().displayName.string + "§7]§6 ").append(text().mcTranslate)
         stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
     }
 
@@ -274,7 +274,7 @@ interface IContextBuilder {
 
     infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach {
-            val componente = TextComponent("§6[§7${it.displayName.string}§6]§7 ").append(text().mcTranslate)
+            val componente = TextComponent("§7[§6${it.displayName.string}§7]§6 ").append(text().mcTranslate)
             it.sendMessage(componente, it.uuid)
         }
     }
