@@ -49,7 +49,7 @@ object DialogueScreen : HollowScreen("".mcText) {
         if (x < 0.5F) 4F * x * x * x
         else 1F - (-2 * x + 2.0).pow(3.0).toFloat() / 2F
     }
-    var color: Int = 0xFFFFFFFF.toInt()
+    var color: Int = 805000
     var STATUS_ICON = "hollowengine:gui/dialogues/status.png"
     var OVERLAY = "hollowengine:gui/dialogues/overlay.png"
     var NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
