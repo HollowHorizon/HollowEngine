@@ -20,7 +20,11 @@ open class NpcMoveToBlockNode(npcConsumer: NPCProperty, var pos: () -> Vec3) : N
 
         navigator.moveTo(block.x, block.y, block.z, 1.0)
 
-        return npc.distanceToXZ(block) > 1 || abs(npc.y - block.y) > 3
+        val dist = npc.distanceToXZ(block) > 1.5
+
+        if(!dist) navigator.stop()
+
+        return dist || abs(npc.y - block.y) > 3
     }
 
     override fun serializeNBT() = CompoundTag().apply {
@@ -42,7 +46,11 @@ class NpcMoveToEntityNode(npcConsumer: NPCProperty, var target: () -> Entity?) :
         val entity = target()
         navigator.moveTo(entity ?: return true, 1.0)
 
-        return npc.distanceToXZ(entity) > 1.5 || abs(npc.y - entity.y) > 3
+        val dist = npc.distanceToXZ(entity) > 1.5
+
+        if(!dist) navigator.stop()
+
+        return dist || abs(npc.y - entity.y) > 3
     }
 
     override fun serializeNBT() = CompoundTag().apply {
