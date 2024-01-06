@@ -76,13 +76,13 @@ object StoryHandler {
 
             if (!extras.contains("hollowengine_stories") || beingRecompiled) {
                 stories[eventPath] = event
-                return
+                return@Runnable
             }
             val storiesNBT = extras.getCompound("hollowengine_stories")
 
             if (!storiesNBT.contains(eventPath)) {
                 stories[eventPath] = event
-                return
+                return@Runnable
             }
             event.deserialize(storiesNBT.getCompound(eventPath))
             stories[eventPath] = event
