@@ -19,6 +19,8 @@ object StoryHandler {
     @HollowConfig("mmo_mode", description = "In mmo mode all players will be have own team")
     var MMO_MODE = false
     private val events = HashMap<Team, HashMap<String, StoryStateMachine>>()
+    private var isStoryPlaying = false
+    private val afterTickTasks = ArrayList<Runnable>()
     fun getActiveEvents(team: Team) = events.computeIfAbsent(team) { HashMap() }.keys
 
     @JvmStatic
@@ -26,12 +28,16 @@ object StoryHandler {
 
     @JvmStatic
     fun onServerTick(event: ServerTickEvent) {
+        isStoryPlaying = true
         events.values.forEach { stories ->
             stories
                 .filter { it.value.tick(event); it.value.isEnded }
                 .map { it.key }
                 .forEach(stories::remove)
         }
+        isStoryPlaying = false
+        afterTickTasks.forEach { it.run() }
+        afterTickTasks.clear()
     }
 
     @JvmStatic
@@ -61,24 +67,28 @@ object StoryHandler {
     }
 
     fun addStoryEvent(eventPath: String, event: StoryStateMachine, beingRecompiled: Boolean = false) {
-        val stories = events.computeIfAbsent(event.team) { HashMap() }
+        val command = Runnable {
+            val stories = events.computeIfAbsent(event.team) { HashMap() }
 
-        val extras = event.team.extraData
+            val extras = event.team.extraData
 
-        event.isStarted = true
+            event.isStarted = true
 
-        if (!extras.contains("hollowengine_stories") || beingRecompiled) {
+            if (!extras.contains("hollowengine_stories") || beingRecompiled) {
+                stories[eventPath] = event
+                return
+            }
+            val storiesNBT = extras.getCompound("hollowengine_stories")
+
+            if (!storiesNBT.contains(eventPath)) {
+                stories[eventPath] = event
+                return
+            }
+            event.deserialize(storiesNBT.getCompound(eventPath))
             stories[eventPath] = event
-            return
         }
-        val storiesNBT = extras.getCompound("hollowengine_stories")
-
-        if (!storiesNBT.contains(eventPath)) {
-            stories[eventPath] = event
-            return
-        }
-        event.deserialize(storiesNBT.getCompound(eventPath))
-        stories[eventPath] = event
+        if(isStoryPlaying) afterTickTasks.add(command)
+        else command.run()
     }
 
     fun onTeamLoaded(event: TeamEvent) {
