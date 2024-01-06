@@ -33,7 +33,6 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getModScripts
 import ru.hollowhorizon.hollowengine.common.network.NetworkHandler
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
-import ru.hollowhorizon.hollowengine.common.registry.ModParticles
 import ru.hollowhorizon.hollowengine.common.scripting.mod.runModScript
 import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
@@ -49,7 +48,6 @@ class HollowEngine {
         forgeBus.addListener(this::addReloadListenerEvent)
         MOD_BUS.addListener(::setup)
         MOD_BUS.addListener(::onLoadingComplete)
-        MOD_BUS.addListener(ModParticles::onRegisterParticles)
         if (FMLEnvironment.dist.isClient) {
             forgeBus.addListener(ClientEvents::renderOverlay)
             forgeBus.addListener(ClientEvents::onKeyPressed)
