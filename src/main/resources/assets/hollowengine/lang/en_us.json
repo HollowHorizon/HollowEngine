@@ -1,23 +1,58 @@
 {
-  "entity.hollowstory.npc_entity": "Не читай это",
-  "gui.hollowstory.progress_manager.new_task": "§7Получено новое задание \"%s\": %s",
-  "gui.hollowstory.progress_manager.update_task": "§7Задание \"%s\" обновлено: %s",
-  "gui.hollowstory.progress_manager.success_task": "§7Задание \"%s\" выполнено!",
-  "gui.hollowstory.progress_manager.fail_task": "§7Задание \"%s\" провалено!",
-  "gui.hollowstory.progress_manager.success_fail_task": "§7Задание \"%s\" успешно провалено :D",
+  "itemGroup.hollowengine": "HollowEngine",
+  "entity.hollowengine.npc_entity": "Character",
 
-  "item.hollowengine.storyteller_dim_teleporter": "Телепорт: Измерение Рассказчика",
-  "key.categories.mod.hollowengine": "HollowStory: Клавиши",
-  "key.hollowengine.event_list": "Список Событий",
+  "item.hollowengine.storyteller_dim_teleporter": "Teleport: Storyteller Dimension",
+  "item.hollowengine.camera": "Camera",
+  "key.categories.mod.hollowengine": "HollowEngine: Buttons",
+  "key.hollowengine.event_list": "Event List",
 
-  "core.hollowengine.replay.founded": "Replays are found: %s",
-  "core.hollowengine.replay.recording": "Stopped recording, total frames: %s",
-  "core.hollowengine.replay.recording.stop": "§6[§bHollow Engine§6] §bForcedly stopped event §b'§6%s§b'.",
-  "core.hollowengine.replay.recording.stop.failed.1": "§6[§bHollow Engine§6] §bFailed to stop event §b'§6%s§b'.",
-  "core.hollowengine.replay.recording.stop.failed.2": "§6[§bHollow Engine§6] §bSee logs for more info.",
-  "core.hollowengine.replay.recording.no_active": "No active recordings is found!",
+  "hollowengine.scripting.story.script_not_found": "Script \"%s\" not found!",
+  "hollowengine.commands.pos.error": "§6[§bHollow Engine§6] §7Could not get position!",
+  "hollowengine.commands.copy": "§6[§bHollow Engine§6] §7Value: %s",
+  "hollowengine.commands.tags": "§6[§bHollow Engine§6] §7Tags of item: ",
+  "hollowengine.commands.model_animations": "§6[§bHollow Engine§6] Animations of model %s:",
+  "hollowengine.commands.model_textures": "§6[§bHollow Engine§6] Textures of model %s:",
+  "hollowengine.commands.active_events": "§6[§bHollow Engine§6] §7Active events:",
 
-  "core.hollowengine.event": "§6[§bActive Events§6]",
+  "hollowengine.tooltips.copy": "Click to copy!",
 
-  "core.hollowengine.indev": "This feature is under development! Expect it to be implemented in future versions!"
+  "hollowengine.executing_error": "§cError while executing event %s.",
+  "hollowengine.check_logs": "§eCheck logs for more details.",
+
+  "hollowengine.npc_need": "All you have to do is bring in: ",
+
+  "hollowengine.no_text_dialogue": "There should be text here, but it wasn't written in the script...",
+
+  "hollowengine.input_model_path": "Enter model path:",
+  "hollowengine.model_example": "model (modid:path_to_file)",
+
+  "hollowengine.model_edit.creating": "Creating NPCs model",
+  "hollowengine.model_edit.text": "text",
+  "hollowengine.model_edit.save": "Save",
+  "hollowengine.model_edit.cancel": "Cancel",
+
+  "hollowengine.model_preview": "Model Preview",
+  "hollowengine.model_preview.reset": "Reset Preview",
+  "hollowengine.model_preview.full_screen": "Full Screen Mode",
+  "hollowengine.model_preview.rotate_model": "Rotate Model",
+  "hollowengine.model_preview.display.plant": "Display Dirt",
+  "hollowengine.model_preview.display.player": "Display Player",
+  "hollowengine.model_preview.display.hitboxes": "Display HitBoxes",
+
+  "hollowengine.npc_creation": "NPC Creation",
+  "hollowengine.npc_creation.public": "Public",
+  "hollowengine.npc_creation.private": "Private",
+  "hollowengine.npc_creation.companion": "Companion",
+  "hollowengine.npc_creation.undead": "Make NPC undead?",
+  "hollowengine.npc_creation.despawn": "Can despawn NPC on peaceful mode?",
+  "hollowengine.npc_creation.choice_type": "Choice NPC type",
+  "hollowengine.npc_creation.model": "NPC Model",
+
+  "hollowengine.npc_choicer.hollowcore": "Adds models with skeleton animations. Supported formats:",
+  "hollowengine.npc_choicer.timecore": "Adds models from BlockBench, including animated. Supported formats:",
+  "hollowengine.npc_choicer.vanilla": "Adds models that other mobs in the game already have, so far only vanilla ones.",
+
+  "hollowengine.progress_manager.event_list": "Event List",
+  "hollowengine.progress_manager.no_tasks": "No tasks yet, maybe they will appear later!"
 }
