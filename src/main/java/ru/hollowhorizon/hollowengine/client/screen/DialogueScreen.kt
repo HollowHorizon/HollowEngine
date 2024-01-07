@@ -49,7 +49,7 @@ object DialogueScreen : HollowScreen("".mcText) {
         if (x < 0.5F) 4F * x * x * x
         else 1F - (-2 * x + 2.0).pow(3.0).toFloat() / 2F
     }
-    var color: Int = 805000
+    var color: Int = 0xFFFFFF
     var STATUS_ICON = "hollowengine:gui/dialogues/status.png"
     var OVERLAY = "hollowengine:gui/dialogues/overlay.png"
     var NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
@@ -80,7 +80,7 @@ object DialogueScreen : HollowScreen("".mcText) {
                         BaseButton(x, y, w, h, choice, {
                             this@DialogueScreen.init()
                             OnChoicePerform(i).send()
-                        }, CHOICE_BUTTON.rl, textColor = 0xFFFFFF, textColorHovered = 0xEDC213)
+                        }, CHOICE_BUTTON.rl, textColor = 0xFFFFFF, textColorHovered = 805000)
                     }, Alignment.CENTER, 0, this.height / 3 - 25 * i, this.width, this.height, 320, 20
                 )
             )
