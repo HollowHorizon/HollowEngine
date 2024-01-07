@@ -14,6 +14,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.serialize
 
 open class StoryStateMachine(val server: MinecraftServer, val team: Team) : IContextBuilder {
     val variables = ArrayList<StoryVariable<*>>()
+    val startTasks = ArrayList<() -> Unit>()
+    var extra = CompoundTag()
     internal val nodes = ArrayList<Node>()
     internal val asyncNodes = ArrayList<Node>()
     internal var currentIndex = 0
@@ -37,6 +39,7 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
         put("\$variables", ListTag().apply {
             addAll(variables.map { it.serializeNBT() })
         })
+        put("\$extra", extra)
 
         serializeNodes("\$async_nodes", asyncNodes)
         put(
@@ -50,6 +53,7 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
         variables.forEachIndexed { index, storyVariable ->
             storyVariable.deserializeNBT(nbt.getList("\$variables", 10).getCompound(index))
         }
+        extra = nbt.getCompound("\$extra")
 
         nbt.deserializeNodes("\$async_nodes", asyncNodes)
         asyncNodeIds.clear()

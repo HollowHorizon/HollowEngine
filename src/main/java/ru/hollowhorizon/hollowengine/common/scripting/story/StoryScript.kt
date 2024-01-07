@@ -22,6 +22,7 @@ class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.camera.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.particles.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.world.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.*",
         "ru.hollowhorizon.hollowengine.common.scripting.*",
