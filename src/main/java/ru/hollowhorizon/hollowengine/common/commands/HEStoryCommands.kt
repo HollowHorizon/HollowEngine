@@ -45,6 +45,18 @@ object HEStoryCommands {
                     HollowCore.LOGGER.info("Started script $script")
                 }
 
+                "stop-script"(
+                    arg("players", EntityArgument.players()),
+                    arg("script", StringArgumentType.greedyString(), DirectoryManager.getAllStoryEvents().map { it.toReadablePath() })
+                ) {
+                    val players = EntityArgument.getPlayers(this, "players")
+                    val eventPath = StringArgumentType.getString(this, "script")
+                    players.forEach {
+                        val storyTeam = FTBTeamsAPI.getPlayerTeam(it)
+                        StoryHandler.stopEvent(storyTeam, eventPath)
+                    }
+                }
+
                 "active-events" {
                     val player = source.playerOrException
                     val storyTeam = FTBTeamsAPI.getPlayerTeam(player)
