@@ -23,6 +23,10 @@ object StoryHandler {
     private val afterTickTasks = ArrayList<Runnable>()
     fun getActiveEvents(team: Team) = events.computeIfAbsent(team) { HashMap() }.keys
 
+    fun stopEvent(team: Team, eventPath: String) {
+        events[team]?.remove(eventPath)
+    }
+
     @JvmStatic
     fun onPlayerJoin(event: PlayerEvent.PlayerLoggedInEvent) {}
 
