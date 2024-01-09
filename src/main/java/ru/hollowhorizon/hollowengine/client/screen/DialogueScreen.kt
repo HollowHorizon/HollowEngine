@@ -81,7 +81,7 @@ object DialogueScreen : HollowScreen("".mcText) {
                             this@DialogueScreen.init()
                             OnChoicePerform(i).send()
                         }, CHOICE_BUTTON.rl, textColor = 0xFFFFFF, textColorHovered = 8409088)
-                    }, Alignment.CENTER, 0, this.height / 3 - 25 * i, this.width, this.height, 320, 34
+                    }, Alignment.CENTER, 0, this.height / 3 - 25 * i, 320, 34, 320, 34
                 )
             )
         }
@@ -120,7 +120,7 @@ object DialogueScreen : HollowScreen("".mcText) {
         stack.translate(0.0, 0.0, 700.0)
         bind(NAME_OVERLAY.rl.namespace, NAME_OVERLAY.rl.path)
         val size = this.font.width(this.currentName) + 10
-        blit(stack, 5, this.height - 73, 0F, 0F, size, 15, size, 38)
+        blit(stack, 5, this.height - 73, 0F, 0F, size, 15, 109, 38)
         RenderSystem.setShaderColor(1F, 1F, 1F, 1F)
 
         this.font.drawShadow(stack, this.currentName, 10F, this.height - 60F - font.lineHeight, 0xFFFFFF)
