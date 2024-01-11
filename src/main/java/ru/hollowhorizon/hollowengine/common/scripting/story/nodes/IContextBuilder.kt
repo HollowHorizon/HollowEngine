@@ -36,6 +36,7 @@ import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
+import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
@@ -218,22 +219,25 @@ interface IContextBuilder {
 
     infix fun NPCProperty.play(block: AnimationContainer.() -> Unit) = +SimpleNode {
         val container = AnimationContainer().apply(block)
-        if (container.playType == PlayMode.ONCE) {
-            StartAnimationPacket(
-                this@play().id,
+
+        val serverLayers = this@play()[AnimatedEntityCapability::class].layers
+
+        StartAnimationPacket(
+            this@play().id,
+            container.animation,
+            container.layerMode,
+            container.playType,
+            container.speed
+        ).send(PacketDistributor.TRACKING_ENTITY.with(this@play))
+
+        if (container.playType != PlayMode.ONCE) {
+            //Нужно на случай если клиентская сущность выйдет из зоны прогрузки (удалится)
+            serverLayers.addNoUpdate(AnimationLayer(
                 container.animation,
                 container.layerMode,
                 container.playType,
                 container.speed
-            ).send(PacketDistributor.TRACKING_ENTITY.with(this@play))
-        } else {
-            if (this@play()[AnimatedEntityCapability::class].layers.any { it.animation == container.animation }) return@SimpleNode
-            this@play()[AnimatedEntityCapability::class].layers += AnimationLayer(
-                container.animation,
-                container.layerMode,
-                container.playType,
-                container.speed
-            )
+            ))
         }
     }
 
@@ -242,14 +246,20 @@ interface IContextBuilder {
         this.animation = animation()
     }
 
-    infix fun NPCProperty.playOnce(animation: () -> String) = +SimpleNode {
-        StartAnimationPacket(this@playOnce().id, animation(), LayerMode.ADD, PlayMode.ONCE, 1.0f)
-            .send(PacketDistributor.TRACKING_ENTITY.with(this@playOnce))
+    infix fun NPCProperty.playOnce(animation: () -> String) = play {
+        this.playType = PlayMode.ONCE
+        this.animation = animation()
+    }
+
+    infix fun NPCProperty.playFreeze(animation: () -> String) = play {
+        this.playType = PlayMode.LAST_FRAME
+        this.animation = animation()
     }
 
     infix fun NPCProperty.stop(animation: () -> String) = +SimpleNode {
         val anim = animation()
-        this@stop()[AnimatedEntityCapability::class].layers.removeIf { it.animation == anim }
+        this@stop()[AnimatedEntityCapability::class].layers.removeIfNoUpdate { it.animation == anim }
+        StopAnimationPacket(this@stop().id, anim)
     }
 
 
