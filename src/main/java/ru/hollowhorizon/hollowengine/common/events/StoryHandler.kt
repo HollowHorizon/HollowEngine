@@ -11,6 +11,8 @@ import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.api.utils.HollowConfig
 import ru.hollowhorizon.hc.client.utils.isLogicalClient
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
+import ru.hollowhorizon.hollowengine.common.scripting.StoryLogger
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
 
@@ -33,10 +35,11 @@ object StoryHandler {
     @JvmStatic
     fun onServerTick(event: ServerTickEvent) {
         isStoryPlaying = true
-        events.values.forEach { stories ->
+        events.forEach { (team, stories) ->
             stories
                 .filter { it.value.tick(event); it.value.isEnded }
                 .map { it.key }
+                .onEach { StoryLogger.LOGGER.info("Finished event \"{}\", for team \"{}\".", it, team) }
                 .forEach(stories::remove)
         }
         isStoryPlaying = false

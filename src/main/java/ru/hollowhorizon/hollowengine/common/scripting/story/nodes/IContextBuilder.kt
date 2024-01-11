@@ -612,10 +612,8 @@ interface IContextBuilder {
 
     fun dim(dimension: String): ResourceKey<Level> = ResourceKey.create(Registry.DIMENSION_REGISTRY, dimension.rl)
 
-    fun pos(x: Double, y: Double, z: Double) = Vec3(x, y, z)
-    fun pos(x: Int, y: Int, z: Int) = Vec3(x.toDouble() + 0.5, y.toDouble(), z.toDouble() + 0.5)
-    fun vec(x: Int, y: Int) = Vec2(x.toFloat(), y.toFloat())
-    fun vec(x: Float, y: Float) = Vec2(x, y)
+    fun pos(x: Number, y: Number, z: Number) = Vec3(x.toDouble(), y.toDouble(), z.toDouble())
+    fun vec(x: Number, y: Number) = Vec2(x.toFloat(), y.toFloat())
 
     val Int.sec get() = this * 20
     val Int.min get() = this * 1200

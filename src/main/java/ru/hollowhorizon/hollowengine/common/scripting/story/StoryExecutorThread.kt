@@ -11,6 +11,7 @@ import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
 import ru.hollowhorizon.hc.common.scripting.errors
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
+import ru.hollowhorizon.hollowengine.common.scripting.StoryLogger
 import ru.hollowhorizon.hollowengine.common.scripting.story.coroutines.ScriptContext
 import java.io.File
 import kotlin.script.experimental.api.ResultWithDiagnostics
@@ -23,12 +24,14 @@ import kotlin.script.experimental.jvm.util.isError
 fun runScript(server: MinecraftServer, team: Team, file: File, isCommand: Boolean = false) =
     ScriptContext.scope.async(ScriptContext.scriptContext) {
         try {
+            StoryLogger.LOGGER.info("Starting event \"{}\", for team \"{}\".", file.toReadablePath(), team.name.string)
             val shouldRecompile = ScriptingCompiler.shouldRecompile(file) || isCommand
             val story = ScriptingCompiler.compileFile<StoryScript>(file)
 
             story.errors?.let { errors ->
                 errors.forEach { error ->
                     team.onlineMembers.forEach {
+                        StoryLogger.LOGGER.error(error.replace("\\r\\n", "\n"))
                         it.sendSystemMessage("§c[ERROR]§r $error".mcText)
                     }
                 }
