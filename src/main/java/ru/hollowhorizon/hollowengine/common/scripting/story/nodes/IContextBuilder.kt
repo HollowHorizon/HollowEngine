@@ -222,6 +222,8 @@ interface IContextBuilder {
 
         val serverLayers = this@play()[AnimatedEntityCapability::class].layers
 
+        if(serverLayers.any { it.animation == container.animation }) return@SimpleNode
+
         StartAnimationPacket(
             this@play().id,
             container.animation,
@@ -259,7 +261,7 @@ interface IContextBuilder {
     infix fun NPCProperty.stop(animation: () -> String) = +SimpleNode {
         val anim = animation()
         this@stop()[AnimatedEntityCapability::class].layers.removeIfNoUpdate { it.animation == anim }
-        StopAnimationPacket(this@stop().id, anim)
+        StopAnimationPacket(this@stop().id, anim).send(PacketDistributor.TRACKING_ENTITY.with(this@stop))
     }
 
 
