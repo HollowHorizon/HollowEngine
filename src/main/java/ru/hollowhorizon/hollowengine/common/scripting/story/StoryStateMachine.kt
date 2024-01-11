@@ -23,6 +23,7 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
     var isStarted = false
     val isEnded get() = currentIndex >= nodes.size && asyncNodeIds.isEmpty()
 
+
     fun tick(event: ServerTickEvent) {
         if (event.phase != TickEvent.Phase.END) return
 

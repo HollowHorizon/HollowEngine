@@ -19,6 +19,7 @@ import net.minecraftforge.fml.loading.FMLEnvironment
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.api.registy.HollowMod
 import ru.hollowhorizon.hc.client.utils.mcText
+import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.registry.HollowModProcessor
 import ru.hollowhorizon.hc.common.registry.RegistryLoader
 import ru.hollowhorizon.hollowengine.client.ClientEvents
@@ -54,6 +55,7 @@ class HollowEngine {
             forgeBus.addListener(ClientEvents::onClicked)
             forgeBus.addListener(ClientEvents::onTooltipRender)
             forgeBus.register(CameraHandler)
+            forgeBus.addListener(ClientEvents::renderPlayer)
             MOD_BUS.addListener(::clientInit)
             MOD_BUS.register(ModShaders)
         }
@@ -63,6 +65,7 @@ class HollowEngine {
         }
 
         MOD_BUS.addListener(this::registerPacks)
+
 
         RegistryLoader.registerAll()
         //ModDimensions

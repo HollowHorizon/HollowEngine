@@ -8,13 +8,14 @@ import net.minecraft.world.item.Item
 import net.minecraftforge.client.event.InputEvent
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent
 import net.minecraftforge.client.event.RenderGuiOverlayEvent
+import net.minecraftforge.client.event.RenderPlayerEvent
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay
 import net.minecraftforge.event.entity.player.ItemTooltipEvent
 import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.loading.moddiscovery.ModInfo
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.client.render.PlayerRenderer
 import ru.hollowhorizon.hollowengine.client.screen.MouseDriver
 import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
 import ru.hollowhorizon.hollowengine.common.network.*
@@ -109,6 +110,11 @@ object ClientEvents {
         }
 
         if(event.action == 0) KeybindPacket(Keybind.fromCode(event.key)).send()
+    }
+
+    @JvmStatic
+    fun renderPlayer(event: RenderPlayerEvent.Pre) {
+        PlayerRenderer.render(event)
     }
 
     fun initKeys() {

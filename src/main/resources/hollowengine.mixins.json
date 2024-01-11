@@ -8,6 +8,7 @@
     "ChunkLoaderMixin",
     "EntityAccessor",
     "LookControlInvoker",
+    "PlayerMixin",
     "RecipeManagerAccessor"
   ],
   "client": [

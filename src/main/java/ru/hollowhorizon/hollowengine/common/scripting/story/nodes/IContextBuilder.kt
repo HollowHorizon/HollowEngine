@@ -1,3 +1,4 @@
+@file:Suppress("INAPPLICABLE_JVM_NAME")
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
@@ -45,6 +46,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.PlayerProperty
 import java.util.*
 import java.util.function.Function
 
@@ -243,7 +245,40 @@ interface IContextBuilder {
         }
     }
 
+    @JvmName("playerPlay")
+    infix fun PlayerProperty.play(block: AnimationContainer.() -> Unit) = +SimpleNode {
+        val container = AnimationContainer().apply(block)
+
+        val serverLayers = this@play()[AnimatedEntityCapability::class].layers
+
+        if(serverLayers.any { it.animation == container.animation }) return@SimpleNode
+
+        StartAnimationPacket(
+            this@play().id,
+            container.animation,
+            container.layerMode,
+            container.playType,
+            container.speed
+        ).send(PacketDistributor.TRACKING_ENTITY.with(this@play))
+
+        if (container.playType != PlayMode.ONCE) {
+            //Нужно на случай если клиентская сущность выйдет из зоны прогрузки (удалится)
+            serverLayers.addNoUpdate(AnimationLayer(
+                container.animation,
+                container.layerMode,
+                container.playType,
+                container.speed
+            ))
+        }
+    }
+
     infix fun NPCProperty.playLooped(animation: () -> String) = play {
+        this.playType = PlayMode.LOOPED
+        this.animation = animation()
+    }
+
+    @JvmName("playerPlayLooped")
+    infix fun PlayerProperty.playLooped(animation: () -> String) = play {
         this.playType = PlayMode.LOOPED
         this.animation = animation()
     }
@@ -253,12 +288,31 @@ interface IContextBuilder {
         this.animation = animation()
     }
 
+    @JvmName("playerPlayOnce")
+    infix fun PlayerProperty.playOnce(animation: () -> String) = play {
+        this.playType = PlayMode.ONCE
+        this.animation = animation()
+    }
+
     infix fun NPCProperty.playFreeze(animation: () -> String) = play {
         this.playType = PlayMode.LAST_FRAME
         this.animation = animation()
     }
 
+    @JvmName("playerPlayFreeze")
+    infix fun PlayerProperty.playFreeze(animation: () -> String) = play {
+        this.playType = PlayMode.LAST_FRAME
+        this.animation = animation()
+    }
+
     infix fun NPCProperty.stop(animation: () -> String) = +SimpleNode {
+        val anim = animation()
+        this@stop()[AnimatedEntityCapability::class].layers.removeIfNoUpdate { it.animation == anim }
+        StopAnimationPacket(this@stop().id, anim).send(PacketDistributor.TRACKING_ENTITY.with(this@stop))
+    }
+
+    @JvmName("playerStop")
+    infix fun PlayerProperty.stop(animation: () -> String) = +SimpleNode {
         val anim = animation()
         this@stop()[AnimatedEntityCapability::class].layers.removeIfNoUpdate { it.animation == anim }
         StopAnimationPacket(this@stop().id, anim).send(PacketDistributor.TRACKING_ENTITY.with(this@stop))
@@ -270,7 +324,18 @@ interface IContextBuilder {
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
 
+    @JvmName("playerSay")
+    infix fun PlayerProperty.say(text: () -> String) = +SimpleNode {
+        val component = Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
+        stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
+    }
+
     infix fun NPCProperty.configure(body: AnimatedEntityCapability.() -> Unit) = +SimpleNode {
+        this@configure()[AnimatedEntityCapability::class].apply(body)
+    }
+
+    @JvmName("playerConfigure")
+    infix fun PlayerProperty.configure(body: AnimatedEntityCapability.() -> Unit) = +SimpleNode {
         this@configure()[AnimatedEntityCapability::class].apply(body)
     }
 
@@ -551,8 +616,6 @@ interface IContextBuilder {
     fun pos(x: Int, y: Int, z: Int) = Vec3(x.toDouble() + 0.5, y.toDouble(), z.toDouble() + 0.5)
     fun vec(x: Int, y: Int) = Vec2(x.toFloat(), y.toFloat())
     fun vec(x: Float, y: Float) = Vec2(x, y)
-
-    operator fun Team.get(name: String): Player? = this.onlineMembers.find { it.gameProfile.name == name }
 
     val Int.sec get() = this * 20
     val Int.min get() = this * 1200
