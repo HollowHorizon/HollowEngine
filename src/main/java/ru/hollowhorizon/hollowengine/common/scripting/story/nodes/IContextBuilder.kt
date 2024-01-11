@@ -259,7 +259,7 @@ interface IContextBuilder {
             container.layerMode,
             container.playType,
             container.speed
-        ).send(PacketDistributor.TRACKING_ENTITY.with(this@play))
+        ).send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(this@play))
 
         if (container.playType != PlayMode.ONCE) {
             //Нужно на случай если клиентская сущность выйдет из зоны прогрузки (удалится)
@@ -315,7 +315,7 @@ interface IContextBuilder {
     infix fun PlayerProperty.stop(animation: () -> String) = +SimpleNode {
         val anim = animation()
         this@stop()[AnimatedEntityCapability::class].layers.removeIfNoUpdate { it.animation == anim }
-        StopAnimationPacket(this@stop().id, anim).send(PacketDistributor.TRACKING_ENTITY.with(this@stop))
+        StopAnimationPacket(this@stop().id, anim).send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(this@stop))
     }
 
 
