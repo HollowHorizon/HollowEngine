@@ -11,6 +11,7 @@ import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.client.screen.ChoiceScreen
+import ru.hollowhorizon.hollowengine.common.scripting.ownerPlayer
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.HasInnerNodes
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
@@ -98,6 +99,19 @@ class ChoiceScreenNode(val choiceContext: ChoiceContext) : Node(), HasInnerNodes
 
     @SubscribeEvent
     fun onChoice(event: ApplyChoiceEvent) {
+        val owner = manager.team.ownerPlayer
+
+        if(owner != null) {
+            performedChoice = choices.values.filterIndexed { index, _ -> index == event.choice }.firstOrNull()
+            performedChoiceIndex = event.choice
+            MinecraftForge.EVENT_BUS.unregister(this)
+            index = 0
+            manager.team.onlineMembers.forEach {
+                ChoiceScreenPacket(open = false).send(PacketDistributor.PLAYER.with { it })
+            }
+            return
+        }
+
         if (manager.team.isMember(event.player.uuid)) {
             performedChoice = choices.values.filterIndexed { index, _ -> index == event.choice }.firstOrNull()
             performedChoiceIndex = event.choice

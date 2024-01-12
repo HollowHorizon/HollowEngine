@@ -64,7 +64,7 @@ object HECommands {
                     val player = source.playerOrException
                     val model = StringArgumentType.getString(this, "model")
 
-                    ShowModelInfoPacket(model).send(PacketDistributor.PLAYER.with {player})
+                    ShowModelInfoPacket(model).send(PacketDistributor.PLAYER.with { player })
                 }
             }
         }
