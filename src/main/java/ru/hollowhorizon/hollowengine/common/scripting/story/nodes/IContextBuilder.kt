@@ -515,6 +515,8 @@ interface IContextBuilder {
 
                     return teleportedEntity
                 }
+
+                override fun playTeleportSound(player: ServerPlayer, sourceWorld: ServerLevel, destWorld: ServerLevel) = false
             })
         }
     }
