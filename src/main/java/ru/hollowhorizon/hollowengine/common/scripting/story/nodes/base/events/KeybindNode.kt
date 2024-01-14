@@ -24,9 +24,3 @@ class KeybindNode(var keybind: () -> Keybind) : ForgeEventNode<ServerKeyPressedE
 }
 
 infix fun IContextBuilder.keybind(keybind: () -> Keybind) = +KeybindNode(keybind)
-
-fun StoryStateMachine.script() {
-    wait { 5.sec }
-
-    keybind { Keybind.K }
-}

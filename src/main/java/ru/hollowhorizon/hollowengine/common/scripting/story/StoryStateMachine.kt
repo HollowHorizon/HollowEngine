@@ -1,10 +1,15 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import dev.ftb.mods.ftbteams.data.Team
+import net.minecraft.client.renderer.item.ItemProperties
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.IntTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.server.MinecraftServer
+import net.minecraft.world.item.BlockItem
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.material.Material
 import net.minecraftforge.event.TickEvent
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
@@ -67,10 +72,9 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
 
     override val stateMachine = this
     override fun <T : Node> T.unaryPlus(): T {
+        if(isStarted) throw IllegalStateException("It is not possible to add a ${this.javaClass.simpleName} action after running the script! You may have forgotten to write `IContextBuilder.` before the name of your function?")
         this.manager = this@StoryStateMachine
         nodes.add(this)
         return this
     }
 }
-
-

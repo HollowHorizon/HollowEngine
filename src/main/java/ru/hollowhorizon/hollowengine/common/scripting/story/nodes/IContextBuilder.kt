@@ -1,4 +1,5 @@
 @file:Suppress("INAPPLICABLE_JVM_NAME")
+
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
@@ -42,6 +43,8 @@ import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.Attributes
+import ru.hollowhorizon.hollowengine.common.scripting.ownerPlayer
+import ru.hollowhorizon.hollowengine.common.scripting.randomPlayer
 import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
@@ -224,7 +227,7 @@ interface IContextBuilder {
 
         val serverLayers = this@play()[AnimatedEntityCapability::class].layers
 
-        if(serverLayers.any { it.animation == container.animation }) return@SimpleNode
+        if (serverLayers.any { it.animation == container.animation }) return@SimpleNode
 
         StartAnimationPacket(
             this@play().id,
@@ -236,12 +239,14 @@ interface IContextBuilder {
 
         if (container.playType != PlayMode.ONCE) {
             //Нужно на случай если клиентская сущность выйдет из зоны прогрузки (удалится)
-            serverLayers.addNoUpdate(AnimationLayer(
-                container.animation,
-                container.layerMode,
-                container.playType,
-                container.speed
-            ))
+            serverLayers.addNoUpdate(
+                AnimationLayer(
+                    container.animation,
+                    container.layerMode,
+                    container.playType,
+                    container.speed
+                )
+            )
         }
     }
 
@@ -251,7 +256,7 @@ interface IContextBuilder {
 
         val serverLayers = this@play()[AnimatedEntityCapability::class].layers
 
-        if(serverLayers.any { it.animation == container.animation }) return@SimpleNode
+        if (serverLayers.any { it.animation == container.animation }) return@SimpleNode
 
         StartAnimationPacket(
             this@play().id,
@@ -263,12 +268,14 @@ interface IContextBuilder {
 
         if (container.playType != PlayMode.ONCE) {
             //Нужно на случай если клиентская сущность выйдет из зоны прогрузки (удалится)
-            serverLayers.addNoUpdate(AnimationLayer(
-                container.animation,
-                container.layerMode,
-                container.playType,
-                container.speed
-            ))
+            serverLayers.addNoUpdate(
+                AnimationLayer(
+                    container.animation,
+                    container.layerMode,
+                    container.playType,
+                    container.speed
+                )
+            )
         }
     }
 
@@ -606,6 +613,9 @@ interface IContextBuilder {
 
                     return teleportedEntity
                 }
+
+                override fun playTeleportSound(player: ServerPlayer, sourceWorld: ServerLevel, destWorld: ServerLevel) =
+                    false
             })
         }
     }

@@ -10,7 +10,6 @@ import net.minecraftforge.network.PacketDistributor
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.register
-import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.utils.roundTo
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -18,6 +17,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadableP
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.network.CopyTextPacket
 import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
+import ru.hollowhorizon.hollowengine.common.structures.ScriptedStructure
 import java.util.function.Consumer
 
 object HEStoryCommands {
@@ -33,7 +33,7 @@ object HEStoryCommands {
 
                 "start-script"(
                     arg("players", EntityArgument.players()),
-                    arg("script", StringArgumentType.greedyString(), DirectoryManager.getAllStoryEvents().map { it.toReadablePath() })
+                    arg("script", StringArgumentType.greedyString(), DirectoryManager.getStoryEvents().map { it.toReadablePath() })
                 ) {
                     val players = EntityArgument.getPlayers(this, "players")
                     val raw = StringArgumentType.getString(this, "script")
@@ -47,7 +47,7 @@ object HEStoryCommands {
 
                 "stop-script"(
                     arg("players", EntityArgument.players()),
-                    arg("script", StringArgumentType.greedyString(), DirectoryManager.getAllStoryEvents().map { it.toReadablePath() })
+                    arg("script", StringArgumentType.greedyString(), DirectoryManager.getStoryEvents().map { it.toReadablePath() })
                 ) {
                     val players = EntityArgument.getPlayers(this, "players")
                     val eventPath = StringArgumentType.getString(this, "script")

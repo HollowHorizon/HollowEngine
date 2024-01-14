@@ -1,8 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.events
 
+import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import dev.ftb.mods.ftbteams.data.Team
 import dev.ftb.mods.ftbteams.event.TeamEvent
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.stats.Stats
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.event.entity.player.PlayerEvent
 import net.minecraftforge.event.level.LevelEvent
@@ -10,6 +13,7 @@ import net.minecraftforge.event.server.ServerStoppingEvent
 import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.api.utils.HollowConfig
 import ru.hollowhorizon.hc.client.utils.isLogicalClient
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.StoryLogger
@@ -30,7 +34,14 @@ object StoryHandler {
     }
 
     @JvmStatic
-    fun onPlayerJoin(event: PlayerEvent.PlayerLoggedInEvent) {}
+    fun onPlayerJoin(event: PlayerEvent.PlayerLoggedInEvent) {
+        val player = event.entity as ServerPlayer
+
+        if(player.stats.getValue(Stats.CUSTOM.get(Stats.PLAY_TIME)) == 0) {
+            val team = FTBTeamsAPI.getPlayerTeam(player)
+            DirectoryManager.firstJoinEvents().forEach { runScript(player.server, team, it) }
+        }
+    }
 
     @JvmStatic
     fun onServerTick(event: ServerTickEvent) {

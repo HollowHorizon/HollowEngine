@@ -22,7 +22,9 @@ object DirectoryManager {
 
     fun getAllDialogues() = getScripts().filter { it.path.endsWith(".hsd.kts") }
 
-    fun getAllStoryEvents() = getScripts().filter { it.path.endsWith(".se.kts") }
+    fun getStoryEvents() = getScripts().filter { it.path.endsWith(".se.kts") }
+
+    fun firstJoinEvents() = getStoryEvents().filter { it.readLines().any { it.startsWith("@file:EntryPoint") } }
 
     fun getModScripts() = getScripts().filter { it.path.endsWith(".mod.kts") }
 
@@ -32,7 +34,7 @@ object DirectoryManager {
         getModScripts().parallelStream().forEach {
             ScriptingCompiler.compileFile<ModScript>(it)
         }
-        getAllStoryEvents().parallelStream().forEach {
+        getStoryEvents().parallelStream().forEach {
             ScriptingCompiler.compileFile<StoryScript>(it)
         }
         getContentScripts().parallelStream().forEach {
