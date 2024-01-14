@@ -18,6 +18,7 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.render.PlayerRenderer
 import ru.hollowhorizon.hollowengine.client.screen.MouseDriver
 import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
+import ru.hollowhorizon.hollowengine.client.video.VideoScreen
 import ru.hollowhorizon.hollowengine.common.network.*
 import ru.hollowhorizon.hollowengine.common.util.Keybind
 import thedarkcolour.kotlinforforge.forge.MOD_BUS
@@ -108,6 +109,8 @@ object ClientEvents {
             Minecraft.getInstance().setScreen(ProgressManagerScreen())
             return
         }
+
+        if(Keybind.fromCode(event.key) == Keybind.I) Minecraft.getInstance().setScreen(VideoScreen())
 
         if(event.action == 0) KeybindPacket(Keybind.fromCode(event.key)).send()
     }

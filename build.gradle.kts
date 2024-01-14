@@ -116,8 +116,9 @@ dependencies {
     implementation(fg.deobf("curse.maven:jei-238222:4712866"))
     implementation(fg.deobf("curse.maven:wthit-forge-455982:4819215"))
     implementation(fg.deobf("curse.maven:badpackets-615134:4784364"))
-    implementation(fg.deobf("curse.maven:embeddium-908741:4984830"))
-    implementation(fg.deobf("curse.maven:oculus-581495:4763262"))
+    compileOnly(fg.deobf("curse.maven:embeddium-908741:4984830"))
+    compileOnly(fg.deobf("curse.maven:oculus-581495:4763262"))
+    implementation("org.jcodec:jcodec:0.2.5")
 
     implementation(kotlin("script-runtime"))
     implementation(kotlin("scripting-jvm-host"))
