@@ -1,3 +1,5 @@
+@file:Suppress("INAPPLICABLE_JVM_NAME")
+
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues
 
 import dev.ftb.mods.ftbteams.data.Team
@@ -26,6 +28,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.deseriali
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.events.ClickNode
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.serializeNodes
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NPCProperty
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.PlayerProperty
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
@@ -108,6 +111,20 @@ class DialogueNode(val nodes: List<Node>) : Node(), HasInnerNodes {
 class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stateMachine) {
 
     override fun NPCProperty.say(text: () -> String): SimpleNode {
+        val result = +SimpleNode {
+            val npc = this@say()
+            manager.team.onlineMembers.forEach {
+                DialogueSayPacket(text(), npc.displayName.string, npc.id)
+                    .send(PacketDistributor.PLAYER.with { it })
+            }
+        }
+        +ClickNode(MouseButton.LEFT)
+
+        return result
+    }
+
+    @JvmName("playerSay")
+    override fun PlayerProperty.say(text: () -> String): SimpleNode {
         val result = +SimpleNode {
             val npc = this@say()
             manager.team.onlineMembers.forEach {
