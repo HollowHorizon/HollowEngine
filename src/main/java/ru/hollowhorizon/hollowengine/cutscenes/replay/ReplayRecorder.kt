@@ -8,6 +8,7 @@ import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.event.entity.player.PlayerInteractEvent
 import net.minecraftforge.event.level.BlockEvent
 import net.minecraftforge.eventbus.api.SubscribeEvent
+import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.utils.nbt.save
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
@@ -59,20 +60,21 @@ class ReplayRecorder(val player: Player) {
     @SubscribeEvent
     fun onBlockPlaced(event: BlockEvent.BreakEvent) {
         if (isRecording) {
-            //brokenBlocks.add(ReplayBlock(event.pos, event.state.block.registryName!!.toString()))
+            brokenBlocks.add(ReplayBlock(event.pos, ForgeRegistries.BLOCKS.getKey(event.state.block)?.toString() ?: "minecraft:dirt"))
         }
     }
 
     @SubscribeEvent
     fun onBlockBroken(event: BlockEvent.EntityPlaceEvent) {
         if (isRecording) {
-            //placedBlocks.add(ReplayBlock(event.pos, event.state.block.registryName!!.toString()))
+            placedBlocks.add(ReplayBlock(event.pos, ForgeRegistries.BLOCKS.getKey(event.state.block)?.toString() ?: "minecraft:dirt"))
         }
     }
 
+    @SubscribeEvent
     fun onBlockUse(event: PlayerInteractEvent.RightClickBlock) {
         if (isRecording) {
-            //usedBlocks.add(ReplayBlock(event.pos, event.itemStack.item.registryName!!.toString()))
+            usedBlocks.add(ReplayBlock(event.pos, ForgeRegistries.ITEMS.getKey(event.itemStack.item)?.toString() ?: "minecraft:stick"))
         }
     }
 
