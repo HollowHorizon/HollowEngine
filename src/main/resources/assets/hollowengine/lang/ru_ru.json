@@ -22,15 +22,15 @@
   "hollowengine.check_logs": "§eСмотрите логи, чтобы увидеть подробную информацию.",
 
   "hollowengine.npc_need": "Тебе осталось принести: ",
-
-  "hollowengine.no_text_dialogue": "Тут должен быть текст, но его не написали в скрипте...",
   "hollowengine.no_permissions": "У вас недостаточно прав для этого действия!",
+  "hollowengine.enter_replay": "Введите имя реплея:",
+  "hollowengine.enter_camera_path": "Введите имя файла:",
+  "hollowengine.no_text_dialogue": "Тут должен быть текст, но его не написали в скрипте...",
 
   "hollowengine.input_model_path": "Введите путь к модели:",
   "hollowengine.model_example": "модель (modid:path_to_file)",
 
   "hollowengine.model_edit.creating": "Создание модели NPC",
-  "hollowengine.model_edit.text": "текст",
   "hollowengine.save": "Сохранить",
   "hollowengine.start": "Начать",
   "hollowengine.cancel": "Отмена",
@@ -57,5 +57,6 @@
   "hollowengine.npc_choicer.vanilla": "Добавляет модели, которые уже есть у других мобов в игре, пока только ванильных.",
 
   "hollowengine.progress_manager.event_list": "Список событий",
-  "hollowengine.progress_manager.no_tasks": "Заданий пока нет, возможно они появятся позже!"
+  "hollowengine.progress_manager.no_tasks": "Заданий пока нет, возможно они появятся позже!",
+  "hollowengine.model_edit.text": "текст"
 }

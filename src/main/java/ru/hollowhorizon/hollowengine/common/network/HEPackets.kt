@@ -61,7 +61,7 @@ class ShowModelInfoPacket(val model: String) : HollowPacketV3<ShowModelInfoPacke
                 )
             )
 
-            model.modelTree.textures.map { it.path.removeSuffix(".png") }.forEach { anim ->
+            model.modelTree.materials.map { it.texture.path.removeSuffix(".png") }.forEach { anim ->
                 player.sendSystemMessage(Component.literal("- ").append(Component.literal(anim).apply {
                     style = Style.EMPTY
                         .withHoverEvent(HoverEvent(HoverEvent.Action.SHOW_TEXT, "hollowengine.tooltips.copy".mcTranslate))

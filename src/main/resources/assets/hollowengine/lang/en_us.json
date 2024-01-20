@@ -23,7 +23,8 @@
 
   "hollowengine.npc_need": "All you have to do is bring in: ",
   "hollowengine.no_permissions": "You don't have enough permissions for this action!",
-
+  "hollowengine.enter_replay": "Enter recording name:",
+  "hollowengine.enter_camera_path": "Enter file name:",
   "hollowengine.no_text_dialogue": "There should be text here, but it wasn't written in the script...",
 
   "hollowengine.input_model_path": "Enter model path:",

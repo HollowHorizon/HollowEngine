@@ -12,7 +12,6 @@ import java.util.function.Consumer;
 
 public class HollowTextFieldWidget extends EditBox {
     private final ResourceLocation texture;
-    private final String oldSuggestion = "";
 
     public HollowTextFieldWidget(Font fr, int x, int y, int w, int h, Component text, ResourceLocation texture, Consumer<String> consumer) {
         this(fr, x, y, w, h, text, texture);
@@ -20,8 +19,8 @@ public class HollowTextFieldWidget extends EditBox {
     }
 
     public HollowTextFieldWidget(Font fr, int x, int y, int w, int h, Component text, ResourceLocation texture) {
-        super(fr, x, y, w, h, text);
-        //this.setSuggestion(text.getString());
+        super(fr, x, y, w - 10, h, text);
+        setMaxLength(128);
         this.texture = texture;
         setBordered(false);
     }
@@ -33,13 +32,9 @@ public class HollowTextFieldWidget extends EditBox {
         stack.pushPose();
 
         RenderSystem.setShaderTexture(0, texture);
-        blit(stack, x, y, 0, this.isHoveredOrFocused() ? this.height : 0, this.width, this.height, this.width, this.height * 2);
-
-        stack.translate(this.width / 60F, this.height / 2F - 4, 0F);
+        blit(stack, x - 5, y - this.height / 2 + 4, 0, this.isHoveredOrFocused() ? this.height : 0, this.width + 10, this.height, this.width + 10, this.height * 2);
 
         super.render(stack, p_230430_2_, p_230430_3_, p_230430_4_);
-
-        stack.popPose();
     }
 
     @Override

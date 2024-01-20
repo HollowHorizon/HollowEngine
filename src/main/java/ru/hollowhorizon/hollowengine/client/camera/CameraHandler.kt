@@ -1,24 +1,16 @@
 package ru.hollowhorizon.hollowengine.client.camera
 
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.vertex.DefaultVertexFormat
-import com.mojang.blaze3d.vertex.Tesselator
-import com.mojang.blaze3d.vertex.VertexFormat
 import com.mojang.math.Vector3d
-import com.mojang.math.Vector3f
 import kotlinx.serialization.Serializable
+import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.GameRenderer
-import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.RenderType
-import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.world.entity.player.Player
-import net.minecraft.world.level.block.Blocks
 import net.minecraftforge.client.event.InputEvent
 import net.minecraftforge.client.event.RenderLevelStageEvent
 import net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles
-import net.minecraftforge.client.model.data.ModelData
 import net.minecraftforge.eventbus.api.SubscribeEvent
-import net.minecraftforge.network.NetworkDirection
 import ru.hollowhorizon.hc.client.math.Spline3D
 import ru.hollowhorizon.hc.client.utils.math.Interpolation
 import ru.hollowhorizon.hc.client.utils.mc
@@ -26,11 +18,9 @@ import ru.hollowhorizon.hc.client.utils.nbt.ForVector3d
 import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
 import ru.hollowhorizon.hc.client.utils.nbt.save
 import ru.hollowhorizon.hc.client.utils.nbt.serialize
-import ru.hollowhorizon.hc.client.utils.use
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
-import ru.hollowhorizon.hc.common.network.Packet
-import ru.hollowhorizon.hc.common.network.send
+import ru.hollowhorizon.hollowengine.client.screen.SaveCameraPathScreen
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
 import ru.hollowhorizon.hollowengine.common.util.Keybind
@@ -104,9 +94,9 @@ object CameraHandler {
 
         val path = CameraPath(startPoint, points.map { it.toLocal(startPoint) })
 
-        SaveOnServerPacket(path).send()
-
         points.clear()
+
+        Minecraft.getInstance().setScreen(SaveCameraPathScreen(path))
     }
 
     @SubscribeEvent
@@ -174,10 +164,10 @@ class CameraPath(
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
 @Serializable
-class SaveOnServerPacket(private val path: CameraPath) : HollowPacketV3<SaveOnServerPacket> {
+class SaveOnServerPacket(private val path: CameraPath, private val fileName: String) : HollowPacketV3<SaveOnServerPacket> {
     override fun handle(player: Player, data: SaveOnServerPacket) {
         if (player.mainHandItem.item == ModItems.CAMERA.get()) {
-            val file = DirectoryManager.HOLLOW_ENGINE.resolve("camera/${Integer.toHexString(data.path.hashCode())}.nbt")
+            val file = DirectoryManager.HOLLOW_ENGINE.resolve("camera/$fileName.nbt")
             file.parentFile.mkdirs()
 
             NBTFormat.serialize(data.path).save(file.outputStream())

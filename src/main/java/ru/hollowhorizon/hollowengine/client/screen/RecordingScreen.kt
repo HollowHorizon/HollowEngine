@@ -27,29 +27,34 @@ class RecordingScreen : HollowScreen() {
         box {
             size = 90.pc x 90.pc
             renderer = { stack, x, y, w, h ->
-                fill(stack, x, y, x + w, y + h, 0x4400173D)
-                font.drawScaled(stack, Anchor.CENTER, "Enter recording name:".mcText, x + w / 2, y + 15, 0xFFFFFF, 1.5f)
+                fill(stack, x, y, x + w, y + h, 0x8800173D.toInt())
+                fill(stack, x, y, x + w, y + 2, 0xFF07BBDB.toInt())
+                fill(stack, x, y + h - 2, x + w, y + h, 0xFF07BBDB.toInt())
+                fill(stack, x, y, x + 2, y + h, 0xFF07BBDB.toInt())
+                fill(stack, x + w - 2, y, x + w, y + h, 0xFF07BBDB.toInt())
+
+                font.drawScaled(stack, Anchor.CENTER, "hollowengine.enter_replay".mcTranslate, x + w / 2, y + 15, 0xFFFFFF, 1.5f)
             }
 
             elements {
                 align = Alignment.CENTER
-
+                spacing = 4.pc x 2.pc
                 placementType = PlacementType.GRID
 
                 val field = +HollowTextFieldWidget(
-                    font, 0, 0, 300, 20,
+                    font, 0, 0, 90.pc.w().value, 20,
                     "".mcText,
                     "hollowengine:textures/gui/text_field.png".rl
                 )
                 +BaseButton(
-                    0, 0, 100, 20,
-                    "hollowengine.save".mcTranslate,
+                    0, 0, 43.pc.w().value, 20,
+                    "hollowengine.start".mcTranslate,
                     { RecordingPacket(field.value).send(); RecordingDriver.enable = true; onClose() },
                     "hollowengine:textures/gui/long_button.png".rl
                 )
                 +BaseButton(
-                    0, 0, 100, 20,
-                    "hollowengine.start".mcTranslate,
+                    0, 0, 43.pc.w().value, 20,
+                    "hollowengine.cancel".mcTranslate,
                     { onClose() },
                     "hollowengine:textures/gui/long_button.png".rl
                 )
