@@ -1,11 +1,16 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.network.syncher.EntityDataAccessor
+import net.minecraft.network.syncher.EntityDataSerializers
+import net.minecraft.network.syncher.SynchedEntityData
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
+import net.minecraft.world.entity.EntityDimensions
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.PathfinderMob
+import net.minecraft.world.entity.Pose
 import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
 import net.minecraft.world.entity.item.ItemEntity
@@ -28,6 +33,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.goals.LadderClimbGoal
 import ru.hollowhorizon.hollowengine.common.npcs.goals.OpenDoorGoal
 import ru.hollowhorizon.hollowengine.common.npcs.pathing.NPCPathNavigator
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
+import ru.hollowhorizon.hollowengine.mixins.EntityAccessor
 
 class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
@@ -44,6 +50,12 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
 
     init {
         setCanPickUpLoot(true)
+    }
+
+    override fun defineSynchedData() {
+        super.defineSynchedData()
+        entityData.define(sizeX, 0.6f)
+        entityData.define(sizeY, 1.8f)
     }
 
     override fun addAdditionalSaveData(pCompound: CompoundTag) {
@@ -113,5 +125,48 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
         }
     }
 
-    companion object
+    override fun onSyncedDataUpdated(pKey: EntityDataAccessor<*>) {
+        super.onSyncedDataUpdated(pKey)
+        if(pKey == sizeX || pKey == sizeY) refreshDimensions()
+    }
+
+    override fun getDimensions(pPose: Pose): EntityDimensions {
+        return EntityDimensions.fixed(entityData.get(sizeX), entityData.get(sizeY))
+    }
+
+    fun setDimensions(xy: Pair<Float, Float>) {
+        entityData.apply {
+            set(sizeX, xy.first)
+            set(sizeY, xy.second)
+        }
+    }
+
+    override fun save(pCompound: CompoundTag): Boolean {
+        super.save(pCompound)
+        pCompound.putFloat("sizeX", entityData[sizeX])
+        pCompound.putFloat("sizeY", entityData[sizeY])
+        return true
+    }
+
+    override fun load(pCompound: CompoundTag) {
+        super.load(pCompound)
+
+        entityData[sizeX] = pCompound.getFloat("sizeX")
+        entityData[sizeY] = pCompound.getFloat("sizeY")
+    }
+
+    override fun refreshDimensions() {
+        //(this@NPCEntity as EntityAccessor).dimensions = getDimensions(Pose.STANDING)
+        super.refreshDimensions()
+    }
+
+    companion object {
+        @JvmField
+        val sizeX: EntityDataAccessor<Float> =
+            SynchedEntityData.defineId(NPCEntity::class.java, EntityDataSerializers.FLOAT)
+
+        @JvmField
+        val sizeY: EntityDataAccessor<Float> =
+            SynchedEntityData.defineId(NPCEntity::class.java, EntityDataSerializers.FLOAT)
+    }
 }

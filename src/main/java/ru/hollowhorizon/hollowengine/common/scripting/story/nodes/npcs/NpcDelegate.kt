@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs
 
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.world.entity.EntityDimensions
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.get
@@ -13,7 +12,6 @@ import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
-import ru.hollowhorizon.hollowengine.mixins.EntityAccessor
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
@@ -60,11 +58,7 @@ class NpcDelegate(
                     value.toDouble()
             }
 
-            (entity as EntityAccessor).setDimensions(
-                EntityDimensions.scalable(
-                    settings.size.first, settings.size.second
-                )
-            )
+            entity.setDimensions(settings.size)
             entity.refreshDimensions()
 
             entity.isCustomNameVisible = this.settings.showName && settings.name.isNotEmpty()
