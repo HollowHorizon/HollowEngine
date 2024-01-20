@@ -3,25 +3,30 @@ package ru.hollowhorizon.hollowengine.client.video
 import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.platform.TextureUtil
 import net.minecraft.client.renderer.texture.DynamicTexture
-import net.minecraft.resources.ResourceLocation
 import net.minecraftforge.fml.loading.FMLPaths
+import net.sourceforge.jaad.spi.javasound.AACAudioFileReader
 import org.jcodec.api.FrameGrab
-import org.jcodec.common.io.IOUtils
-import org.jcodec.common.io.NIOUtils
+import org.jcodec.common.io.ByteBufferSeekableByteChannel
 import org.jcodec.common.model.ColorSpace
 import org.jcodec.common.model.Picture
 import org.jcodec.scale.ColorUtil
 import org.jcodec.scale.RgbToBgr
 import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.client.utils.stream
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
-import java.io.File
+import java.io.ByteArrayInputStream
 import java.io.InputStream
+import java.net.URL
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.nio.file.StandardCopyOption
-import java.util.concurrent.Executors
+import javax.sound.sampled.AudioInputStream
+import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.Clip
 import kotlin.math.min
 
@@ -54,26 +59,41 @@ class VideoFrameTexture(image: NativeImage) : DynamicTexture(image) {
     }
 }
 
+enum class VideoSource(val function: (String) -> InputStream) {
+    FILE({ file -> DirectoryManager.HOLLOW_ENGINE.resolve("videos/$file").inputStream() }),
+    RESOURCE({ location -> location.rl.stream }),
+    URL({ link ->
+        val connection = URL(link).openConnection()
+        connection.setRequestProperty(
+            "User-Agent",
+            "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.4; en-US; rv:1.9.2.2) Gecko/20100316 Firefox/3.6.2"
+        )
+        connection.getInputStream()
+    })
+}
+
 class Video(
-    private val url: String, val resourceLocation: ResourceLocation, texture: VideoFrameTexture,
-    var framesPerSecond: Double, muted: Boolean
+    private val resourceType: VideoSource,
+    private val resource: String,
+    texture: VideoFrameTexture,
+    private var framesPerSecond: Double,
+    muted: Boolean
 ) {
     private var paused = false
-    private var hasAudioLoaded = false
     var isRepeat: Boolean = false
-
     var isMuted: Boolean = muted
 
     private val texture: VideoFrameTexture = texture
 
     private var frameGrabber: FrameGrab? = null
     private var prevFrameGrabber: FrameGrab? = null
-    private var mp4FileOnDisk: File? = null
     private var startTime: Long = -1
     var lastFrame: Int = -1
         private set
     private var pausedAudioTime: Long = 0
-    private var audioClip: Clip? = null
+    lateinit var audioClip: Clip
+    var isEnd = false
+        private set
 
     init {
         setupFrameGrabber()
@@ -99,11 +119,13 @@ class Video(
                     texture.setPixelsFromBufferedImage(bufferedImage)
                 } else if (isRepeat) {
                     frameGrabber!!.seekToFramePrecise(0)
-                    if (audioClip != null && !this.isMuted) {
-                        audioClip!!.loop(-1)
-                        audioClip!!.framePosition = 0
+                    if (!this.isMuted) {
+                        audioClip.loop(-1)
+                        audioClip.framePosition = 0
                     }
                     startTime = System.currentTimeMillis()
+                } else {
+                    isEnd = true
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -118,65 +140,34 @@ class Video(
     }
 
     private fun setupFrameGrabber() {
-        if(frameGrabber != null) return
+        if (frameGrabber != null) return
         try {
-            val `in`: InputStream = File(url).inputStream() //URL(url).openStream()
-            val path: Path = Paths.get(videoCacheFolder.toString(), resourceLocation.path+".mp4")
-//            path.toFile().parentFile.mkdirs()
-//            path.toFile().createNewFile()
-//            Files.copy(`in`, path, StandardCopyOption.REPLACE_EXISTING)
-//            `in`.close()
-            mp4FileOnDisk = path.toFile()
-            frameGrabber = FrameGrab.createFrameGrab(NIOUtils.readableChannel(mp4FileOnDisk))
-            HollowCore.LOGGER.info("loaded mp4 video from $url")
-            if (!this.isMuted) {
-                setupAudio(mp4FileOnDisk, 0)
-            }
+            val bytes = resourceType.function(resource).readAllBytes()
+            val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+            frameGrabber = FrameGrab.createFrameGrab(ByteBufferSeekableByteChannel.readFromByteBuffer(buffer))
+            if (!this.isMuted) setupAudio(ByteArrayInputStream(bytes), 0)
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    private fun setupAudio(mp4File: File?, time: Long) {
-//        val aacAudioFileReader: AACAudioFileReader = AACAudioFileReader()
-//        try {
-//            val audioInputStream: AudioInputStream = aacAudioFileReader.getAudioInputStream(mp4File)
-//            audioClip = AudioSystem.getClip()
-//
-//            audioClip.open(audioInputStream)
-//
-//            audioClip.setMicrosecondPosition(time)
-//            audioClip.start()
-//            if (!hasAudioLoaded) {
-//                LOGGER.info("loaded mp4 audio from $url")
-//            }
-//            hasAudioLoaded = true
-//        } catch (e: Exception) {
-//            e.printStackTrace()
-//        }
-    }
+    private fun setupAudio(mp4File: InputStream, time: Long) {
+        val aacAudioFileReader = AACAudioFileReader()
+        try {
+            val audioInputStream: AudioInputStream = aacAudioFileReader.getAudioInputStream(mp4File)
+            audioClip = AudioSystem.getClip()
 
-    fun isPaused(): Boolean {
-        return paused
-    }
+            audioClip.open(audioInputStream)
 
-    fun setPaused(paused: Boolean) {
-        this.paused = paused
-        if (audioClip != null && hasAudioLoaded) {
-            if (paused || this.isMuted) {
-                if (audioClip!!.isOpen) {
-                    audioClip!!.close()
-                }
-            } else {
-                if (!audioClip!!.isOpen) {
-                    setupAudio(mp4FileOnDisk, pausedAudioTime)
-                }
-            }
+            audioClip.microsecondPosition = time
+            audioClip.start()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
-    fun getMp4FileOnDisk(): File? {
-        return mp4FileOnDisk
+    fun stop() {
+        audioClip.stop()
     }
 
     companion object {

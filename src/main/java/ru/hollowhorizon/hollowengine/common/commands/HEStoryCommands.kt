@@ -17,7 +17,6 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadableP
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.network.CopyTextPacket
 import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
-import ru.hollowhorizon.hollowengine.common.structures.ScriptedStructure
 import java.util.function.Consumer
 
 object HEStoryCommands {

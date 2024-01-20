@@ -104,6 +104,11 @@ configure<MixinExtension> {
     add(sourceSets.main.get(), "hollowengine.refmap.json")
 }
 
+val shade by configurations.creating
+configurations {
+    implementation.get().extendsFrom(shade)
+}
+
 dependencies {
     minecraft("net.minecraftforge:forge:${mcVersion}-${forgeVersion}")
     annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
@@ -118,7 +123,8 @@ dependencies {
     implementation(fg.deobf("curse.maven:badpackets-615134:4784364"))
     compileOnly(fg.deobf("curse.maven:embeddium-908741:4984830"))
     compileOnly(fg.deobf("curse.maven:oculus-581495:4763262"))
-    implementation("org.jcodec:jcodec:0.2.5")
+    shade("org.jcodec:jcodec:0.2.5")
+    minecraftLibrary("net.sourceforge:jaad:0.8.8")
 
     implementation(kotlin("script-runtime"))
     implementation(kotlin("scripting-jvm-host"))

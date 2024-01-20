@@ -110,8 +110,6 @@ object ClientEvents {
             return
         }
 
-        if(Keybind.fromCode(event.key) == Keybind.I) Minecraft.getInstance().setScreen(VideoScreen())
-
         if(event.action == 0) KeybindPacket(Keybind.fromCode(event.key)).send()
     }
 

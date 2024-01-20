@@ -28,6 +28,7 @@ import net.minecraft.world.phys.Vec3
 import net.minecraftforge.common.util.ITeleporter
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.network.PacketDistributor
+import net.minecraftforge.network.PacketDistributor.PacketTarget
 import ru.hollowhorizon.hc.client.models.gltf.Transform
 import ru.hollowhorizon.hc.client.models.gltf.animations.AnimationType
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayMode
@@ -41,6 +42,7 @@ import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
 import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
+import ru.hollowhorizon.hollowengine.client.video.PlayVideoPacket
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.Attributes
 import ru.hollowhorizon.hollowengine.common.scripting.ownerPlayer
@@ -378,6 +380,13 @@ interface IContextBuilder {
 
     infix fun Team.send(text: () -> String) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text().mcTranslate) }
+    }
+
+    infix fun Team.playVideo(video: PlayVideoPacket.() -> Unit) = +SimpleNode {
+        val packet = PlayVideoPacket().apply(video)
+        this@playVideo.onlineMembers.forEach {
+            packet.send(PacketDistributor.PLAYER.with { it })
+        }
     }
 
 
