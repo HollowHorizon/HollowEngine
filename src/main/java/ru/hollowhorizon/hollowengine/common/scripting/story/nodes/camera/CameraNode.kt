@@ -7,9 +7,11 @@ import ru.hollowhorizon.hc.client.utils.nbt.deserialize
 import ru.hollowhorizon.hc.client.utils.nbt.loadAsNBT
 import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.camera.CameraPath
+import ru.hollowhorizon.hollowengine.client.camera.ScreenShakePacket
 import ru.hollowhorizon.hollowengine.client.screen.OverlayScreenPacket
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.wait
 import ru.hollowhorizon.hollowengine.common.story.*
 
@@ -21,7 +23,7 @@ class CameraContainer {
 }
 
 fun IContextBuilder.camera(body: CameraContainer.() -> Unit) {
-    +ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode {
+    +SimpleNode {
         val container = CameraContainer().apply(body)
         if(container.path.isEmpty()) return@SimpleNode
         val nbt = DirectoryManager.HOLLOW_ENGINE.resolve("camera/${container.path}").inputStream().loadAsNBT()
@@ -38,9 +40,17 @@ fun IContextBuilder.camera(body: CameraContainer.() -> Unit) {
         val container = CameraContainer().apply(body)
         container.time
     }
-    +ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode {
+    +SimpleNode {
         stateMachine.team.onlineMembers.forEach {
             OverlayScreenPacket(false).send(PacketDistributor.PLAYER.with {it})
         }
+    }
+}
+
+fun IContextBuilder.shake(config: ScreenShakePacket.() -> Unit) = +SimpleNode {
+    val packet = ScreenShakePacket().apply(config)
+
+    stateMachine.team.onlineMembers.forEach {
+        packet.send(PacketDistributor.PLAYER.with {it})
     }
 }

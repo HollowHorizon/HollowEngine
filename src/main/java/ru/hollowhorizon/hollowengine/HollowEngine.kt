@@ -25,6 +25,7 @@ import ru.hollowhorizon.hc.common.registry.RegistryLoader
 import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.client.ClientEvents.initKeys
 import ru.hollowhorizon.hollowengine.client.camera.CameraHandler
+import ru.hollowhorizon.hollowengine.client.camera.ScreenShakeHandler
 import ru.hollowhorizon.hollowengine.client.shaders.ModShaders
 import ru.hollowhorizon.hollowengine.common.commands.HECommands
 import ru.hollowhorizon.hollowengine.common.commands.HEStoryCommands
@@ -56,6 +57,7 @@ class HollowEngine {
             forgeBus.addListener(ClientEvents::onClicked)
             forgeBus.addListener(ClientEvents::onTooltipRender)
             forgeBus.register(CameraHandler)
+            forgeBus.register(ScreenShakeHandler)
             forgeBus.addListener(ClientEvents::renderPlayer)
             MOD_BUS.addListener(::clientInit)
             MOD_BUS.register(ModShaders)
