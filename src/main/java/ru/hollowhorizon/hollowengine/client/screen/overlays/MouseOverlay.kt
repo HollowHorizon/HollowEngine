@@ -1,23 +1,19 @@
-package ru.hollowhorizon.hollowengine.client.screen
+package ru.hollowhorizon.hollowengine.client.screen.overlays
 
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.*
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.Gui
 import net.minecraft.client.gui.screens.Screen
-import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.player.Player
-import net.minecraftforge.network.NetworkDirection
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.use
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
-import ru.hollowhorizon.hc.common.network.Packet
 
-object MouseDriver {
+object MouseOverlay {
     val texture = "hollowengine:textures/gui/icons/mouse.png".rl
     var enable = false
         set(value) {
@@ -28,12 +24,11 @@ object MouseDriver {
         get() = (Minecraft.getInstance().level?.gameTime ?: 0).toInt()
     private var startTime = 0
 
-    fun draw(gui: Gui, stack: PoseStack, x: Int, y: Int, partialTick: Float) {
+    fun draw(stack: PoseStack, x: Int, y: Int, partialTick: Float) {
         var progress = Mth.clamp((currentTime - startTime + partialTick) / 20f, 0f, 1f)
 
         if(!enable) progress = 1f - progress
         if(progress > 0f) {
-            if(progress != 1.0f) HollowCore.LOGGER.info(progress)
             RenderSystem.enableBlend()
             RenderSystem.defaultBlendFunc()
 
@@ -63,7 +58,7 @@ object MouseDriver {
 @Serializable
 class DrawMousePacket(private val enable: Boolean): HollowPacketV3<DrawMousePacket> {
     override fun handle(player: Player, data: DrawMousePacket) {
-        MouseDriver.enable = data.enable
+        MouseOverlay.enable = data.enable
     }
 
 }

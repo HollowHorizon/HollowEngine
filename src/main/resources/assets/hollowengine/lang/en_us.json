@@ -4,8 +4,9 @@
 
   "item.hollowengine.storyteller_dim_teleporter": "Teleport: Storyteller Dimension",
   "item.hollowengine.camera": "Camera",
-  "key.categories.mod.hollowengine": "HollowEngine: Buttons",
+  "key.categories.hollowengine.keys": "HollowEngine Keys",
   "key.hollowengine.event_list": "Event List",
+  "key.hollowengine.toggle_recording": "On/Off action recording",
 
   "hollowengine.scripting.story.script_not_found": "Script \"%s\" not found!",
   "hollowengine.commands.pos.error": "§6[§bHollow Engine§6] §7Could not get position!",
@@ -21,6 +22,7 @@
   "hollowengine.check_logs": "§eCheck logs for more details.",
 
   "hollowengine.npc_need": "All you have to do is bring in: ",
+  "hollowengine.no_permissions": "You don't have enough permissions for this action!",
 
   "hollowengine.no_text_dialogue": "There should be text here, but it wasn't written in the script...",
 
@@ -28,9 +30,9 @@
   "hollowengine.model_example": "model (modid:path_to_file)",
 
   "hollowengine.model_edit.creating": "Creating NPCs model",
-  "hollowengine.model_edit.text": "text",
-  "hollowengine.model_edit.save": "Save",
-  "hollowengine.model_edit.cancel": "Cancel",
+  "hollowengine.save": "Save",
+  "hollowengine.start": "Start",
+  "hollowengine.cancel": "Cancel",
 
   "hollowengine.model_preview": "Model Preview",
   "hollowengine.model_preview.reset": "Reset Preview",

@@ -1,15 +1,17 @@
 package ru.hollowhorizon.hollowengine.cutscenes.replay
 
+import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.event.TickEvent
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.event.entity.player.PlayerInteractEvent
 import net.minecraftforge.event.level.BlockEvent
-
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import ru.hollowhorizon.hc.client.utils.nbt.save
-import java.io.File
+import ru.hollowhorizon.hc.common.network.HollowPacketV2
+import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 
 class ReplayRecorder(val player: Player) {
     val replay = Replay()
@@ -31,9 +33,9 @@ class ReplayRecorder(val player: Player) {
         MinecraftForge.EVENT_BUS.unregister(this)
         val nbt = Replay.toNBT(replay)
 
-        val file = File("replays/$name.hc")
-        if(!file.exists()) {
-            if(!file.parentFile.exists()) file.parentFile.mkdirs()
+        val file = DirectoryManager.HOLLOW_ENGINE.resolve("replays/$name.nbt")
+        if (!file.exists()) {
+            if (!file.parentFile.exists()) file.parentFile.mkdirs()
             file.createNewFile()
         }
         val outStream = file.outputStream()
@@ -84,4 +86,18 @@ class ReplayRecorder(val player: Player) {
             return recorders[player]!!
         }
     }
+}
+
+@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@Serializable
+class RecordingPacket(private val fileName: String) : HollowPacketV3<RecordingPacket> {
+    override fun handle(player: Player, data: RecordingPacket) {
+        if (!player.hasPermissions(2)) return
+
+        val recorder = ReplayRecorder.getRecorder(player)
+
+        if (recorder.isRecording) recorder.stopRecording()
+        else recorder.startRecording(fileName)
+    }
+
 }

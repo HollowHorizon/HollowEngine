@@ -32,7 +32,7 @@ public class HollowTextFieldWidget extends EditBox {
         RenderSystem.defaultBlendFunc();
         stack.pushPose();
 
-        Minecraft.getInstance().textureManager.bindForSetup(texture);
+        RenderSystem.setShaderTexture(0, texture);
         blit(stack, x, y, 0, this.isHoveredOrFocused() ? this.height : 0, this.width, this.height, this.width, this.height * 2);
 
         stack.translate(this.width / 60F, this.height / 2F - 4, 0F);

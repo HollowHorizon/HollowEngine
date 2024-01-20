@@ -19,7 +19,6 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.item.ItemEntity
-import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ClipContext
 import net.minecraft.world.level.Level
@@ -42,14 +41,15 @@ import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.npcs.Attributes
-import ru.hollowhorizon.hollowengine.common.scripting.ownerPlayer
-import ru.hollowhorizon.hollowengine.common.scripting.randomPlayer
 import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.PlayerProperty
+import ru.hollowhorizon.hollowengine.cutscenes.replay.Replay
+import ru.hollowhorizon.hollowengine.cutscenes.replay.ReplayPlayer
 import java.util.*
 import java.util.function.Function
 
@@ -119,6 +119,14 @@ interface IContextBuilder {
     fun NPCEntity.Companion.creating(settings: NpcContainer.() -> Unit): NpcDelegate {
         val container = NpcContainer().apply(settings)
         return +NpcDelegate(container).apply { manager = stateMachine }
+    }
+
+    infix fun NPCProperty.replay(file: () -> String) = +SimpleNode {
+        val replay = Replay.fromFile(DirectoryManager.HOLLOW_ENGINE.resolve("replays").resolve(file()))
+        val player = ReplayPlayer(this@replay())
+        player.saveEntity = true
+        player.isLooped = false
+        player.play(this@replay().level, replay)
     }
 
     infix fun NPCProperty.setMovingPos(pos: () -> Vec3?) = +SimpleNode {

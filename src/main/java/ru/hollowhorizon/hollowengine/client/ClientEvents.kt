@@ -14,17 +14,24 @@ import net.minecraftforge.event.entity.player.ItemTooltipEvent
 import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.loading.moddiscovery.ModInfo
 import org.lwjgl.glfw.GLFW
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.render.PlayerRenderer
-import ru.hollowhorizon.hollowengine.client.screen.MouseDriver
 import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
-import ru.hollowhorizon.hollowengine.common.network.*
+import ru.hollowhorizon.hollowengine.client.screen.RecordingScreen
+import ru.hollowhorizon.hollowengine.client.screen.overlays.MouseOverlay
+import ru.hollowhorizon.hollowengine.client.screen.overlays.RecordingDriver
+import ru.hollowhorizon.hollowengine.common.network.KeybindPacket
+import ru.hollowhorizon.hollowengine.common.network.MouseButton
+import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
 import ru.hollowhorizon.hollowengine.common.util.Keybind
+import ru.hollowhorizon.hollowengine.cutscenes.replay.RecordingPacket
 import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
 object ClientEvents {
-    const val HS_CATEGORY = "key.categories.mod.hollowengine"
-    val OPEN_EVENT_LIST = KeyMapping(keyBindName("event_list"), GLFW.GLFW_KEY_GRAVE_ACCENT, HS_CATEGORY)
+    const val HE_CATEGORY = "key.categories.hollowengine.keys"
+    val OPEN_EVENT_LIST = KeyMapping(keyBindName("event_list"), GLFW.GLFW_KEY_GRAVE_ACCENT, HE_CATEGORY)
+    val TOGGLE_RECORDING = KeyMapping(keyBindName("toggle_recording"), GLFW.GLFW_KEY_B, HE_CATEGORY)
     val canceledButtons = hashSetOf<MouseButton>()
     private val customTooltips = HashMap<Item, MutableList<Component>>()
     private val customModNames = HashMap<String, String>()
@@ -38,7 +45,7 @@ object ClientEvents {
     fun setModName(modid: String, new: String) {
         val optionalMod = ModList.get().getModContainerById(modid)
 
-        if(!optionalMod.isPresent) return
+        if (!optionalMod.isPresent) return
 
         val mod = optionalMod.get().modInfo
 
@@ -64,19 +71,13 @@ object ClientEvents {
 
     @JvmStatic
     fun renderOverlay(event: RenderGuiOverlayEvent.Post) {
-        val gui = Minecraft.getInstance().gui
+        if (event.overlay != VanillaGuiOverlay.HOTBAR.type()) return
 
         val window = event.window
-        if (event.overlay == VanillaGuiOverlay.HOTBAR.type()) {
-            MouseDriver.draw(
-                gui,
-                event.poseStack,
-                window.guiScaledWidth / 2,
-                window.guiScaledHeight / 2 + 16,
-                event.partialTick
-            )
-        }
-
+        val width = window.guiScaledWidth
+        val height = window.guiScaledHeight
+        MouseOverlay.draw(event.poseStack, width / 2, height / 2 + 16, event.partialTick)
+        RecordingDriver.draw(event.poseStack, 10, 10, event.partialTick)
     }
 
     @JvmStatic
@@ -90,7 +91,7 @@ object ClientEvents {
     fun onClicked(event: InputEvent.MouseButton.Pre) {
         if (event.action != 1) return
 
-        if(event.button > 2) return
+        if (event.button > 2) return
         val button = MouseButton.from(event.button)
         if (canceledButtons.isNotEmpty()) MouseClickedPacket(button).send()
         if (canceledButtons.removeIf { it.ordinal == button.ordinal }) event.isCanceled = true
@@ -98,18 +99,30 @@ object ClientEvents {
 
     @JvmStatic
     fun onKeyPressed(event: InputEvent.Key) {
-        if (OPEN_EVENT_LIST.isActiveAndMatches(
-                InputConstants.getKey(
-                    event.key,
-                    event.scanCode
-                )
-            ) && Minecraft.getInstance().screen == null
-        ) {
+        val key = InputConstants.getKey(
+            event.key,
+            event.scanCode
+        )
+        if(Minecraft.getInstance().screen != null) return
+
+        if (OPEN_EVENT_LIST.isActiveAndMatches(key)) {
             Minecraft.getInstance().setScreen(ProgressManagerScreen())
-            return
         }
 
-        if(event.action == 0) KeybindPacket(Keybind.fromCode(event.key)).send()
+
+        if (TOGGLE_RECORDING.isActiveAndMatches(key) && event.action == 0) {
+            val player = Minecraft.getInstance().player ?: return
+            if(!player.hasPermissions(2)) player.sendSystemMessage("hollowengine.no_permissions".mcTranslate)
+            else {
+                if(RecordingDriver.enable) {
+                    RecordingDriver.enable = false
+                    RecordingPacket("unnamed").send()
+                }
+                else Minecraft.getInstance().setScreen(RecordingScreen())
+            }
+        }
+
+        if (event.action == 0) KeybindPacket(Keybind.fromCode(event.key)).send()
     }
 
     @JvmStatic
@@ -120,6 +133,7 @@ object ClientEvents {
     fun initKeys() {
         MOD_BUS.addListener { event: RegisterKeyMappingsEvent ->
             event.register(OPEN_EVENT_LIST)
+            event.register(TOGGLE_RECORDING)
         }
     }
 }

@@ -50,6 +50,7 @@ class HollowEngine {
         MOD_BUS.addListener(::setup)
         MOD_BUS.addListener(::onLoadingComplete)
         if (FMLEnvironment.dist.isClient) {
+            initKeys()
             forgeBus.addListener(ClientEvents::renderOverlay)
             forgeBus.addListener(ClientEvents::onKeyPressed)
             forgeBus.addListener(ClientEvents::onClicked)
@@ -91,7 +92,7 @@ class HollowEngine {
 
     @OnlyIn(Dist.CLIENT)
     private fun clientInit(event: FMLClientSetupEvent) {
-        initKeys()
+
     }
 
     private fun setup(event: FMLCommonSetupEvent) {

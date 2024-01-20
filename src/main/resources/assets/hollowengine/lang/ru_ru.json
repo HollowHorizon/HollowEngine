@@ -4,12 +4,14 @@
 
   "item.hollowengine.storyteller_dim_teleporter": "Телепорт: Измерение Рассказчика",
   "item.hollowengine.camera": "Камера",
-  "key.categories.mod.hollowengine": "HollowEngine: Клавиши",
+  "key.categories.hollowengine.keys": "HollowEngine: Клавиши",
   "key.hollowengine.event_list": "Список Событий",
+  "key.hollowengine.toggle_recording": "Вкл./Выкл. Запись действий",
 
   "hollowengine.scripting.story.script_not_found": "Скрипт \"%s\" не найден!",
   "hollowengine.commands.pos.error": "§6[§bHollow Engine§6] §7Не удаётся найти указанный блок!",
   "hollowengine.commands.copy": "§6[§bHollow Engine§6] §7Значение: %s скопировано.",
+  "hollowengine.commands.tags": "§6[§bHollow Engine§6] §7Теги предмета: ",
   "hollowengine.commands.model_animations": "§6[§bHollow Engine§6] Анимации модели %s:",
   "hollowengine.commands.model_textures": "§6[§bHollow Engine§6] Текстуры модели %s:",
   "hollowengine.commands.active_events": "§6[§bHollow Engine§6] §7Активные события:",
@@ -21,15 +23,17 @@
 
   "hollowengine.npc_need": "Тебе осталось принести: ",
 
-  "hollowengine.no_text_dialogue": "Тут должен быть текст, но его не написали в скрипте... There should be text here, but it wasn't written in the script...",
+  "hollowengine.no_text_dialogue": "Тут должен быть текст, но его не написали в скрипте...",
+  "hollowengine.no_permissions": "У вас недостаточно прав для этого действия!",
 
   "hollowengine.input_model_path": "Введите путь к модели:",
   "hollowengine.model_example": "модель (modid:path_to_file)",
 
   "hollowengine.model_edit.creating": "Создание модели NPC",
   "hollowengine.model_edit.text": "текст",
-  "hollowengine.model_edit.save": "Сохранить",
-  "hollowengine.model_edit.cancel": "Отменить",
+  "hollowengine.save": "Сохранить",
+  "hollowengine.start": "Начать",
+  "hollowengine.cancel": "Отмена",
 
   "hollowengine.model_preview": "Предпросмотр модели",
   "hollowengine.model_preview.reset": "Сбросить предпросмотр",
