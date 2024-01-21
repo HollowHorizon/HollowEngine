@@ -31,7 +31,7 @@ import thedarkcolour.kotlinforforge.forge.MOD_BUS
 object ClientEvents {
     const val HE_CATEGORY = "key.categories.hollowengine.keys"
     val OPEN_EVENT_LIST = KeyMapping(keyBindName("event_list"), GLFW.GLFW_KEY_GRAVE_ACCENT, HE_CATEGORY)
-    val TOGGLE_RECORDING = KeyMapping(keyBindName("toggle_recording"), GLFW.GLFW_KEY_B, HE_CATEGORY)
+    val TOGGLE_RECORDING = KeyMapping(keyBindName("toggle_recording"), GLFW.GLFW_KEY_V, HE_CATEGORY)
     val canceledButtons = hashSetOf<MouseButton>()
     private val customTooltips = HashMap<Item, MutableList<Component>>()
     private val customModNames = HashMap<String, String>()
