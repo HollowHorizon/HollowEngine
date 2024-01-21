@@ -15,7 +15,7 @@ private val Player.scriptName: String?
     get() = if (this.persistentData.contains("hs_name")) this.persistentData.getString("hs_name") else null
 
 fun Team.randomPos(radius: Float = 10f): Vec3 {
-    val player = onlineMembers.random()
+    val player = if(onlineMembers.isNotEmpty()) onlineMembers.random() else return Vec3(0.0, 0.0, 0.0)
     val pos = player.position()
     val randomAngle = Math.toRadians(Math.random() * 360.0).toFloat()
 

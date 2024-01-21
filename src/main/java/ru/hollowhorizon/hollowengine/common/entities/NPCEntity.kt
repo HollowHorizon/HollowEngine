@@ -33,6 +33,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.goals.LadderClimbGoal
 import ru.hollowhorizon.hollowengine.common.npcs.goals.OpenDoorGoal
 import ru.hollowhorizon.hollowengine.common.npcs.pathing.NPCPathNavigator
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.mixins.EntityAccessor
 
 class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
@@ -153,11 +154,6 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
 
         entityData[sizeX] = pCompound.getFloat("sizeX")
         entityData[sizeY] = pCompound.getFloat("sizeY")
-    }
-
-    override fun refreshDimensions() {
-        //(this@NPCEntity as EntityAccessor).dimensions = getDimensions(Pose.STANDING)
-        super.refreshDimensions()
     }
 
     companion object {

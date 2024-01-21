@@ -33,6 +33,7 @@ import ru.hollowhorizon.hc.client.models.gltf.animations.PlayMode
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
 import ru.hollowhorizon.hc.client.models.gltf.manager.LayerMode
+import ru.hollowhorizon.hc.client.models.gltf.manager.SubModel
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
@@ -48,10 +49,12 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.PlayerProperty
+import ru.hollowhorizon.hollowengine.common.scripting.story.randomPos
 import ru.hollowhorizon.hollowengine.cutscenes.replay.Replay
 import ru.hollowhorizon.hollowengine.cutscenes.replay.ReplayPlayer
 import java.util.*
 import java.util.function.Function
+import kotlin.collections.HashMap
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
@@ -99,12 +102,13 @@ interface IContextBuilder {
     fun Break(tag: () -> String) = SimpleNode { innerBreak(tag()) }
     fun Continue(tag: () -> String) = SimpleNode { innerContinue(tag()) }
 
-    class NpcContainer {
+    class NpcContainer() {
         var name = "Неизвестный"
         var model = "hollowengine:models/entity/player_model.gltf"
         val animations = HashMap<AnimationType, String>()
         val textures = HashMap<String, String>()
         var transform = Transform()
+        val subModels = HashMap<String, SubModel>()
         var world = "minecraft:overworld"
         var pos = Vec3(0.0, 0.0, 0.0)
         var rotation = Vec2.ZERO
@@ -117,8 +121,19 @@ interface IContextBuilder {
     }
 
     fun NPCEntity.Companion.creating(settings: NpcContainer.() -> Unit): NpcDelegate {
-        val container = NpcContainer().apply(settings)
-        return +NpcDelegate(container).apply { manager = stateMachine }
+        return +NpcDelegate { NpcContainer().apply(settings) }.apply { manager = stateMachine }
+    }
+
+    fun NPCEntity.Companion.fromSubModel(subModel: NpcContainer.() -> SubModel): NpcDelegate {
+        return +NpcDelegate {
+            NpcContainer().apply {
+                val settings = subModel()
+                model = settings.model
+                textures.putAll(settings.textures)
+                transform = settings.transform
+                subModels.putAll(settings.subModels)
+            }
+        }.apply { manager = stateMachine }
     }
 
     infix fun NPCProperty.replay(file: () -> String) = +SimpleNode {

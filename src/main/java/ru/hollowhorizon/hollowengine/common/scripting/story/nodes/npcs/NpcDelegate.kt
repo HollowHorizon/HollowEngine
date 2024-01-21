@@ -16,13 +16,13 @@ import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
 class NpcDelegate(
-    val settings: IContextBuilder.NpcContainer,
+    val settings: () -> IContextBuilder.NpcContainer,
 ) : Node(), ReadOnlyProperty<Any?, NPCProperty> {
-    init {
-        assert(ResourceLocation.isValidResourceLocation(settings.model)) { "Invalid model path: ${settings.model}" }
-    }
 
     val npc: NPCEntity by lazy {
+        val settings = settings()
+        assert(ResourceLocation.isValidResourceLocation(settings.model)) { "Invalid model path: ${settings.model}" }
+
         val dimension = manager.server.levelKeys().find { it.location() == settings.world.rl }
             ?: throw IllegalStateException("Dimension ${settings.world} not found. Or not loaded!")
         val level = manager.server.getLevel(dimension)
@@ -61,7 +61,7 @@ class NpcDelegate(
             entity.setDimensions(settings.size)
             entity.refreshDimensions()
 
-            entity.isCustomNameVisible = this.settings.showName && settings.name.isNotEmpty()
+            entity.isCustomNameVisible = settings.showName && settings.name.isNotEmpty()
             entity.customName = settings.name.mcText
         }
 
