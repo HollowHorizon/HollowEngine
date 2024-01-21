@@ -10,7 +10,7 @@ import ru.hollowhorizon.hc.client.utils.rl
 @Serializable
 class ReplayItem(private val item: String, private val count: Int, private val nbt: @Serializable(ForCompoundNBT::class) CompoundTag?) {
     constructor(itemStack: ItemStack) : this(
-        "",
+        ForgeRegistries.ITEMS.getKey(itemStack.item)?.toString() ?: "",
         itemStack.count,
         itemStack.tag
     )

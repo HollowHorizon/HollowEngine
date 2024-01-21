@@ -27,6 +27,7 @@ data class ReplayFrame(
     // Utils
     val isSneaking: Boolean,
     val isSprinting: Boolean,
+    val isSwinging: Boolean,
     val pose: Pose,
 
     //World & Inventory
@@ -45,6 +46,7 @@ data class ReplayFrame(
         entity.isShiftKeyDown = isSneaking
         entity.isSprinting = isSprinting
         entity.pose = pose
+        entity.swinging = isSwinging
 
         armorAndWeapon.forEach {
             entity.setItemSlot(it.key, it.value.toStack())
@@ -70,6 +72,7 @@ data class ReplayFrame(
                 entity.deltaMovement.z,
                 entity.isShiftKeyDown,
                 entity.isSprinting,
+                entity.swinging,
                 entity.pose,
 
                 recorder.brokenBlocks.toHashSet(),

@@ -77,6 +77,7 @@ fun Replay.offset(startPosition: Vector3d): Replay {
 
                 it.isSneaking,
                 it.isSprinting,
+                it.isSwinging,
                 it.pose,
 
                 it.brokenBlocks,
