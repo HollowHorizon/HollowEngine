@@ -8,6 +8,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraftforge.client.event.RenderHandEvent
 import net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles
 import net.minecraftforge.eventbus.api.SubscribeEvent
+import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.handlers.ClientTickHandler
 import ru.hollowhorizon.hc.client.utils.math.Interpolation
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
@@ -29,14 +30,16 @@ object ScreenShakeHandler {
         if (!enabled) return
         val random = Minecraft.getInstance().player?.random ?: return
 
-        val percent = (ClientTickHandler.ticksNotPaused - startTime + event.partialTick.toFloat()) / config.duration
+        val percent = ((ClientTickHandler.ticksNotPaused - startTime + event.partialTick.toFloat()) / config.duration)
+            .coerceAtLeast(0f)
+            .coerceAtMost(1f)
 
-        if (percent > 1f) {
+        if (percent >= 1f) {
             enabled = false
             return
         }
 
-        val intensity = config.updateIntensity(percent)
+        val intensity = config.updateIntensity(percent).coerceAtLeast(0f)
 
         if (config.targets.contains(ShakeTarget.ROT)) {
             event.yaw += random.offset(intensity)
@@ -62,8 +65,8 @@ object ScreenShakeHandler {
         if (!enabled) return
         val random = Minecraft.getInstance().player?.random ?: return
 
-        val percent = (ClientTickHandler.ticksNotPaused - startTime + event.partialTick) / config.duration
-        val intensity = config.updateIntensity(percent)
+        val percent = ((ClientTickHandler.ticksNotPaused - startTime + event.partialTick) / config.duration)
+        val intensity = config.updateIntensity(percent).coerceAtLeast(0f)
 
         if (config.targets.contains(ShakeTarget.HAND)) {
             event.poseStack.translate(
