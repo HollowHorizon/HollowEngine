@@ -110,11 +110,14 @@ object PlayerRenderer {
         updateAnimations(entity, capability, manager)
     }
 
-    private fun updateAnimations(entity: Player, capability: AnimatedEntityCapability, manager: GLTFAnimationPlayer) {
+    private fun updateAnimations(entity: LivingEntity, capability: AnimatedEntityCapability, manager: GLTFAnimationPlayer) {
         when {
             entity.hurtTime > 0 -> {
                 val name = manager.typeToAnimationMap[AnimationType.HURT]?.name ?: return
-                if (capability.layers.any { it.animation == name }) return
+                if (capability.layers.any { it.animation == name }) {
+                    capability.layers.filter { it.animation == name }.forEach { it.time = 0 }
+                    return
+                }
 
                 capability.layers += AnimationLayer(
                     name,
@@ -126,7 +129,10 @@ object PlayerRenderer {
 
             entity.swinging -> {
                 val name = manager.typeToAnimationMap[AnimationType.SWING]?.name ?: return
-                if (capability.layers.any { it.animation == name }) return
+                if (capability.layers.any { it.animation == name }) {
+                    capability.layers.filter { it.animation == name }.forEach { it.time = 0 }
+                    return
+                }
 
                 capability.layers += AnimationLayer(
                     name,
@@ -143,7 +149,7 @@ object PlayerRenderer {
                 capability.layers += AnimationLayer(
                     name,
                     LayerMode.ADD,
-                    PlayMode.ONCE,
+                    PlayMode.LAST_FRAME,
                     1.0f, fadeIn = 5
                 )
             }
@@ -153,11 +159,11 @@ object PlayerRenderer {
             entity.isSleeping -> AnimationType.SLEEP
             entity.vehicle != null -> AnimationType.SIT
             entity.fallFlyingTicks > 4 -> AnimationType.FALL
-            entity.animationSpeed > 0.01 -> {
+            entity.animationSpeed > 0.1 -> {
                 when {
                     entity.isVisuallySwimming -> AnimationType.SWIM
                     entity.isShiftKeyDown -> AnimationType.WALK_SNEAKED
-                    entity.animationSpeed > 1.5f -> AnimationType.RUN
+                    entity.animationSpeed > 0.95f -> AnimationType.RUN
                     else -> AnimationType.WALK
                 }
             }
