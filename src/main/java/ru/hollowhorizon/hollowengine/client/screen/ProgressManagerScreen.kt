@@ -39,7 +39,7 @@ class ProgressManagerScreen : HollowScreen("Progress Manager".toSTC()) {
                             x + w / 2,
                             y + h / 2 + 1,
                             0xFFFFFF,
-                            2.5f
+                            2f
                         )
                     }
                 }

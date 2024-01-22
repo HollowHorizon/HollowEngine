@@ -5,6 +5,13 @@ import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.Pose
 import net.minecraftforge.common.util.FakePlayer
+import net.minecraftforge.network.PacketDistributor
+import ru.hollowhorizon.hc.client.models.gltf.animations.PlayMode
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
+import ru.hollowhorizon.hc.client.utils.get
+import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
+import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
 import java.util.*
 
 @Serializable
@@ -30,6 +37,9 @@ data class ReplayFrame(
     val isSwinging: Boolean,
     val pose: Pose,
 
+    //animations
+    val anim: RecordingContainer? = null,
+
     //World & Inventory
     val brokenBlocks: HashSet<ReplayBlock> = HashSet(),
     val placedBlocks: HashSet<ReplayBlock> = HashSet(),
@@ -52,6 +62,43 @@ data class ReplayFrame(
             entity.setItemSlot(it.key, it.value.toStack())
         }
 
+        anim?.let { anim ->
+            var name = anim.animation
+
+            val serverLayers = entity[AnimatedEntityCapability::class].layers
+
+            if(name.startsWith("%STOP%")) {
+                name = name.substring(6)
+
+                serverLayers.removeIfNoUpdate { it.animation == name }
+                StopAnimationPacket(entity.id, name).send(PacketDistributor.TRACKING_ENTITY.with { entity })
+
+                return@let
+            }
+
+            if (serverLayers.any { it.animation == name }) return@let
+
+            StartAnimationPacket(
+                entity.id,
+                anim.animation,
+                anim.layerMode,
+                anim.playMode,
+                anim.speed
+            ).send(PacketDistributor.TRACKING_ENTITY.with { entity })
+
+            if (anim.playMode != PlayMode.ONCE) {
+                //Нужно на случай если клиентская сущность выйдет из зоны прогрузки (удалится)
+                serverLayers.addNoUpdate(
+                    AnimationLayer(
+                        anim.animation,
+                        anim.layerMode,
+                        anim.playMode,
+                        anim.speed
+                    )
+                )
+            }
+        }
+
         val level = entity.level
         brokenBlocks.forEach { it.destroy(fakePlayer) }
         placedBlocks.forEach { it.place(level, entity, fakePlayer) }
@@ -59,7 +106,9 @@ data class ReplayFrame(
     }
 
     companion object {
-        fun loadFromPlayer(recorder: ReplayRecorder, entity: LivingEntity): ReplayFrame {
+        fun loadFromPlayer(
+            recorder: ReplayRecorder, entity: LivingEntity, animationFrame: RecordingContainer?
+        ): ReplayFrame {
             return ReplayFrame(
                 entity.x,
                 entity.y,
@@ -74,6 +123,7 @@ data class ReplayFrame(
                 entity.isSprinting,
                 entity.swinging,
                 entity.pose,
+                animationFrame,
 
                 recorder.brokenBlocks.toHashSet(),
                 recorder.placedBlocks.toHashSet(),

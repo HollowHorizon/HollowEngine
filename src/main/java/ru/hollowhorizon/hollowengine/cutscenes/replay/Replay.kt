@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 import net.minecraft.nbt.Tag
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
 import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
 import ru.hollowhorizon.hc.client.utils.nbt.deserialize
 import ru.hollowhorizon.hc.client.utils.nbt.loadAsNBT
@@ -20,8 +21,8 @@ class Replay {
         points.add(point)
     }
 
-    fun addPointFromPlayer(recorder: ReplayRecorder, player: Player) {
-        points.add(ReplayFrame.loadFromPlayer(recorder, player))
+    fun addPointFromPlayer(recorder: ReplayRecorder, player: Player, animationFrame: RecordingContainer?) {
+        points.add(ReplayFrame.loadFromPlayer(recorder, player, animationFrame))
     }
 
     fun clear() {
@@ -79,6 +80,8 @@ fun Replay.offset(startPosition: Vector3d): Replay {
                 it.isSprinting,
                 it.isSwinging,
                 it.pose,
+
+                it.anim,
 
                 it.brokenBlocks,
                 it.placedBlocks,

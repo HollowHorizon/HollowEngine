@@ -23,15 +23,20 @@
 
   "hollowengine.npc_need": "All you have to do is bring in: ",
   "hollowengine.no_permissions": "You don't have enough permissions for this action!",
+  "hollowengine.enter_model_path": "Enter model path for recording:",
   "hollowengine.enter_replay": "Enter recording name:",
   "hollowengine.enter_camera_path": "Enter file name:",
   "hollowengine.no_text_dialogue": "There should be text here, but it wasn't written in the script...",
+  "hollowengine.recoring_tooltip": "Recording | %1$sh %2$sm %3$ss",
 
-  "hollowengine.input_model_path": "Enter model path:",
   "hollowengine.model_example": "model (modid:path_to_file)",
 
   "hollowengine.model_edit.creating": "Creating NPCs model",
+  "hollowengine.choose_animation": "Choose animation from list:",
+  "hollowengine.play_animation": "Play animation",
+  "hollowengine.stop_animation": "Stop animation",
   "hollowengine.save": "Save",
+  "hollowengine.pause": "Pause",
   "hollowengine.start": "Start",
   "hollowengine.cancel": "Cancel",
 

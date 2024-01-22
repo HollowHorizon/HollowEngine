@@ -9,6 +9,10 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent
 import net.minecraftforge.event.level.BlockEvent
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraftforge.registries.ForgeRegistries
+import ru.hollowhorizon.hc.client.models.gltf.animations.AnimationState
+import ru.hollowhorizon.hc.client.models.gltf.animations.PlayMode
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
+import ru.hollowhorizon.hc.client.models.gltf.manager.LayerMode
 import ru.hollowhorizon.hc.client.utils.nbt.save
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
@@ -17,6 +21,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 class ReplayRecorder(val player: Player) {
     val replay = Replay()
     var isRecording = false
+    var animationFrame: RecordingContainer? = null
     val brokenBlocks: ArrayList<ReplayBlock> = ArrayList()
     val placedBlocks: ArrayList<ReplayBlock> = ArrayList()
     val usedBlocks: ArrayList<ReplayBlock> = ArrayList()
@@ -44,7 +49,8 @@ class ReplayRecorder(val player: Player) {
     }
 
     fun recordTick() {
-        replay.addPointFromPlayer(this, player)
+        replay.addPointFromPlayer(this, player, animationFrame)
+        animationFrame = null
         brokenBlocks.clear()
         placedBlocks.clear()
         usedBlocks.clear()
@@ -92,14 +98,34 @@ class ReplayRecorder(val player: Player) {
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
 @Serializable
-class RecordingPacket(private val fileName: String) : HollowPacketV3<RecordingPacket> {
-    override fun handle(player: Player, data: RecordingPacket) {
+class ToggleRecordingPacket(private val fileName: String) : HollowPacketV3<ToggleRecordingPacket> {
+    override fun handle(player: Player, data: ToggleRecordingPacket) {
         if (!player.hasPermissions(2)) return
 
         val recorder = ReplayRecorder.getRecorder(player)
 
-        if (recorder.isRecording) recorder.stopRecording()
+        if (fileName == "") recorder.stopRecording()
         else recorder.startRecording(fileName)
     }
 
+}
+
+@Serializable
+data class RecordingContainer(
+    val animation: String,
+    val layerMode: LayerMode,
+    val playMode: PlayMode,
+    val speed: Float
+)
+
+@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@Serializable
+class PauseRecordingPacket(private val resume: Boolean, val animation: RecordingContainer?) : HollowPacketV3<PauseRecordingPacket> {
+    override fun handle(player: Player, data: PauseRecordingPacket) {
+        if (!player.hasPermissions(2)) return
+
+        val recorder = ReplayRecorder.getRecorder(player)
+        recorder.isRecording = resume
+        recorder.animationFrame = animation
+    }
 }

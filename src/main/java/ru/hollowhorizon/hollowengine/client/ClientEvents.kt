@@ -14,18 +14,23 @@ import net.minecraftforge.event.entity.player.ItemTooltipEvent
 import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.loading.moddiscovery.ModInfo
 import org.lwjgl.glfw.GLFW
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
+import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.render.PlayerRenderer
 import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
-import ru.hollowhorizon.hollowengine.client.screen.RecordingScreen
+import ru.hollowhorizon.hollowengine.client.screen.recording.StartRecordingScreen
 import ru.hollowhorizon.hollowengine.client.screen.overlays.MouseOverlay
 import ru.hollowhorizon.hollowengine.client.screen.overlays.RecordingDriver
+import ru.hollowhorizon.hollowengine.client.screen.recording.ModifyRecordingScreen
 import ru.hollowhorizon.hollowengine.common.network.KeybindPacket
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
 import ru.hollowhorizon.hollowengine.common.util.Keybind
-import ru.hollowhorizon.hollowengine.cutscenes.replay.RecordingPacket
+import ru.hollowhorizon.hollowengine.cutscenes.replay.PauseRecordingPacket
+import ru.hollowhorizon.hollowengine.cutscenes.replay.ToggleRecordingPacket
 import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
 object ClientEvents {
@@ -114,11 +119,12 @@ object ClientEvents {
             val player = Minecraft.getInstance().player ?: return
             if(!player.hasPermissions(2)) player.sendSystemMessage("hollowengine.no_permissions".mcTranslate)
             else {
-                if(RecordingDriver.enable) {
+                if(RecordingDriver.enable || player[AnimatedEntityCapability::class].model != "%NO_MODEL%") {
                     RecordingDriver.enable = false
-                    RecordingPacket("unnamed").send()
+                    PauseRecordingPacket(false, null).send()
+                    ModifyRecordingScreen().open()
                 }
-                else Minecraft.getInstance().setScreen(RecordingScreen())
+                else Minecraft.getInstance().setScreen(StartRecordingScreen())
             }
         }
 

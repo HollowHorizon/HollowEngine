@@ -13,9 +13,7 @@ import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.client.camera.CameraPath
 import ru.hollowhorizon.hollowengine.client.camera.SaveOnServerPacket
-import ru.hollowhorizon.hollowengine.client.screen.overlays.RecordingDriver
 import ru.hollowhorizon.hollowengine.client.screen.widget.HollowTextFieldWidget
-import ru.hollowhorizon.hollowengine.cutscenes.replay.RecordingPacket
 
 class SaveCameraPathScreen(val path: CameraPath) : HollowScreen() {
 
