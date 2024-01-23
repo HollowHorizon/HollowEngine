@@ -4,6 +4,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import dev.ftb.mods.ftbteams.data.Team
+import net.minecraft.core.BlockPos
 import net.minecraft.core.Registry
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.StringTag
@@ -409,6 +410,18 @@ interface IContextBuilder {
             entity.swing(InteractionHand.MAIN_HAND)
             val state = entity.level.getBlockState(hit.blockPos)
             state.use(entity.level, entity.fakePlayer, InteractionHand.MAIN_HAND, hit)
+        }
+    }
+
+    infix fun NPCProperty.destroyBlock(target: () -> Vec3) {
+        this.moveToPos(target)
+        this.lookAtPos(target)
+        +SimpleNode {
+            val entity = this@destroyBlock()
+            val manager = entity.fakePlayer.gameMode
+
+            manager.destroyBlock(BlockPos(target()))
+            entity.swing(InteractionHand.MAIN_HAND)
         }
     }
 
