@@ -40,6 +40,7 @@ class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
         "ru.hollowhorizon.hc.client.utils.math.Interpolation",
         "net.minecraftforge.event.*",
         "net.minecraft.core.BlockPos",
+        "net.minecraft.world.item.trading.MerchantOffer",
         "ru.hollowhorizon.hc.client.utils.*",
         "net.minecraft.world.level.Level"
     )

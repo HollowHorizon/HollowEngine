@@ -16,6 +16,7 @@ import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.trading.MerchantOffers
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
 import net.minecraftforge.common.capabilities.Capability
@@ -27,6 +28,7 @@ import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.common.capabilities.ICapabilitySyncer
 import ru.hollowhorizon.hollowengine.client.render.effects.EffectsCapability
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
+import ru.hollowhorizon.hollowengine.common.npcs.MerchantNpc
 import ru.hollowhorizon.hollowengine.common.npcs.NpcTarget
 import ru.hollowhorizon.hollowengine.common.npcs.goals.BlockBreakGoal
 import ru.hollowhorizon.hollowengine.common.npcs.goals.LadderClimbGoal
@@ -48,6 +50,7 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
     var onInteract: (Player) -> Unit = {}
     var shouldGetItem: (ItemStack) -> Boolean = { false }
     val npcTarget = NpcTarget(level)
+    val npcTrader = MerchantNpc()
 
     init {
         setCanPickUpLoot(true)
@@ -62,17 +65,27 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
     override fun addAdditionalSaveData(pCompound: CompoundTag) {
         super.addAdditionalSaveData(pCompound)
         pCompound.put("npc_target", npcTarget.serializeNBT())
+        pCompound.put("npc_trades", npcTrader.npcOffers.createTag())
     }
 
     override fun readAdditionalSaveData(pCompound: CompoundTag) {
         super.readAdditionalSaveData(pCompound)
         npcTarget.deserializeNBT(pCompound.get("npc_target") as? CompoundTag ?: return)
+        npcTrader.npcOffers = MerchantOffers(pCompound.getCompound("npc_trades"))
     }
 
     override fun createNavigation(pLevel: Level) = NPCPathNavigator(this, pLevel)
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
-        if (pHand == InteractionHand.MAIN_HAND) onInteract(pPlayer)
+        if (pHand == InteractionHand.MAIN_HAND) {
+            if(npcTrader.npcOffers.size > 0 && !pPlayer.level.isClientSide) {
+                npcTrader.tradingPlayer = pPlayer
+                npcTrader.openTradingScreen(pPlayer, name, 1)
+            }
+
+            onInteract(pPlayer)
+        }
+
         return super.mobInteract(pPlayer, pHand)
     }
 

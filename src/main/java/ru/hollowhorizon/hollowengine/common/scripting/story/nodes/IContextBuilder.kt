@@ -21,6 +21,7 @@ import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.trading.MerchantOffer
 import net.minecraft.world.level.ClipContext
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec2
@@ -367,6 +368,18 @@ interface IContextBuilder {
     infix fun PlayerProperty.say(text: () -> String) = +SimpleNode {
         val component = Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
+    }
+
+    infix fun NPCProperty.addTrade(offer: () -> MerchantOffer) = +SimpleNode {
+        this@addTrade().npcTrader.npcOffers.add(offer())
+    }
+
+    fun NPCProperty.clearTrades() = +SimpleNode {
+        this@clearTrades().npcTrader.npcOffers.clear()
+    }
+
+    fun NPCProperty.clearTradeUses() = +SimpleNode {
+        this@clearTradeUses().npcTrader.npcOffers.forEach { it.resetUses() }
     }
 
     infix fun NPCProperty.configure(body: AnimatedEntityCapability.() -> Unit) = +SimpleNode {
