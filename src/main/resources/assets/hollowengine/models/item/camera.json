@@ -2,7 +2,7 @@
 	"credit": "Author by _BENDY659_ | RU",
 	"texture_size": [128, 128],
 	"textures": {
-		"0": "hollowengine:item/camera"
+		"0": "hollowengine:items/camera"
 	},
 	"elements": [
 		{
