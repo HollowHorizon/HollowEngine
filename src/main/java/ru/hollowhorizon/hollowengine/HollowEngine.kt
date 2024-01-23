@@ -42,7 +42,6 @@ import thedarkcolour.kotlinforforge.forge.MOD_BUS
 @Mod(HollowEngine.MODID)
 class HollowEngine {
     init {
-        HollowModProcessor.initMod()
         getModScripts().forEach(::runModScript)
         val forgeBus = MinecraftForge.EVENT_BUS
         HollowCore.LOGGER.info("HollowEngine mod loading...")
@@ -68,11 +67,6 @@ class HollowEngine {
         }
 
         MOD_BUS.addListener(this::registerPacks)
-
-
-        RegistryLoader.registerAll()
-        //ModDimensions
-
     }
 
     fun registerPacks(event: AddPackFindersEvent) {
