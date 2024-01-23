@@ -24,7 +24,8 @@ object RecordingDriver {
     var enable = false
         set(value) {
             field = value
-            pausedTime += ClientTickHandler.ticks - startTime
+            if(!value) pausedTime += ClientTickHandler.ticks - startTime
+            else startTime = ClientTickHandler.ticks
         }
 
     fun draw(stack: PoseStack, x: Int, y: Int, partialTick: Float) {
