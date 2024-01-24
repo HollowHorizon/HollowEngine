@@ -41,6 +41,7 @@ val mappingsVersion: String by project
 val hcVersion: String by project
 val forgeVersion: String by project
 val kffVersion: String by project
+val ksffVersion: String by project
 
 group = "ru.hollowhorizon"
 version = "${mcVersion}-$modVersion"
@@ -109,6 +110,7 @@ dependencies {
     annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
 
     implementation("thedarkcolour:kotlinforforge:$kffVersion")
+    implementation(fg.deobf("ru.hollowhorizon:kotlinscript:${mcVersion}-${ksffVersion}"))
     implementation(fg.deobf("ru.hollowhorizon:hc:${mcVersion}-${hcVersion}"))
     implementation(fg.deobf("curse.maven:ftb-teams-forge-404468:4611938"))
     implementation(fg.deobf("curse.maven:ftb-library-forge-404465:4661834"))
@@ -116,8 +118,9 @@ dependencies {
     implementation(fg.deobf("curse.maven:jei-238222:4712866"))
     implementation(fg.deobf("curse.maven:wthit-forge-455982:4819215"))
     implementation(fg.deobf("curse.maven:badpackets-615134:4784364"))
-    compileOnly(fg.deobf("curse.maven:embeddium-908741:4984830"))
-    compileOnly(fg.deobf("curse.maven:oculus-581495:4763262"))
+    implementation(fg.deobf("curse.maven:embeddium-908741:4984830"))
+    implementation(fg.deobf("curse.maven:oculus-581495:4763262"))
+    implementation(fg.deobf("curse.maven:spark-361579:4505309"))
 
     implementation(kotlin("script-runtime"))
     implementation(kotlin("scripting-jvm-host"))

@@ -3,9 +3,9 @@ package ru.hollowhorizon.hollowengine.client.render
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Vector3f
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.RenderType
 import net.minecraft.client.renderer.block.model.ItemTransforms
 import net.minecraft.client.renderer.texture.OverlayTexture
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.Mth
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.LivingEntity
@@ -23,6 +23,7 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.GltfManager
 import ru.hollowhorizon.hc.client.models.gltf.manager.LayerMode
 import ru.hollowhorizon.hc.client.utils.SkinDownloader
 import ru.hollowhorizon.hc.client.utils.get
+import ru.hollowhorizon.hc.client.utils.memoize
 import ru.hollowhorizon.hc.client.utils.rl
 
 object PlayerRenderer {
@@ -52,14 +53,14 @@ object PlayerRenderer {
         model.render(
             stack,
             ModelData(event.entity.offhandItem, event.entity.mainHandItem, null, event.entity),
-            { texture ->
+            { texture: ResourceLocation ->
                 val result = capability.textures[texture.path]?.let {
                     if (it.startsWith("skins/")) SkinDownloader.downloadSkin(it.substring(6))
                     else it.rl
                 } ?: texture
 
-                RenderType.entityTranslucent(result)
-            },
+                Minecraft.getInstance().textureManager.getTexture(result).id
+            }.memoize(),
             event.packedLight,
             OverlayTexture.pack(0, if (event.entity.hurtTime > 0 || !event.entity.isAlive) 3 else 10)
         )
@@ -110,7 +111,11 @@ object PlayerRenderer {
         updateAnimations(entity, capability, manager)
     }
 
-    private fun updateAnimations(entity: LivingEntity, capability: AnimatedEntityCapability, manager: GLTFAnimationPlayer) {
+    private fun updateAnimations(
+        entity: LivingEntity,
+        capability: AnimatedEntityCapability,
+        manager: GLTFAnimationPlayer
+    ) {
         when {
             entity.hurtTime > 0 -> {
                 val name = manager.typeToAnimationMap[AnimationType.HURT]?.name ?: return

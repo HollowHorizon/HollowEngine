@@ -7,8 +7,8 @@ import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.mcTranslate
-import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
-import ru.hollowhorizon.hc.common.scripting.errors
+import ru.hollowhorizon.kotlinscript.common.scripting.ScriptingCompiler
+import ru.hollowhorizon.kotlinscript.common.scripting.errors
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.StoryLogger
