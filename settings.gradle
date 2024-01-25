@@ -11,3 +11,6 @@ plugins {
 }
 
 rootProject.name = 'HollowEngine'
+
+include(":HollowCore")
+project(":HollowCore").projectDir = file("../HollowCore")

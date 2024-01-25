@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.render
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Vector3f
 import net.minecraft.client.Minecraft
+import net.minecraft.client.renderer.RenderType
 import net.minecraft.client.renderer.block.model.ItemTransforms
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.resources.ResourceLocation
@@ -59,8 +60,8 @@ object PlayerRenderer {
                     else it.rl
                 } ?: texture
 
-                Minecraft.getInstance().textureManager.getTexture(result).id
-            }.memoize(),
+                RenderType.entityTranslucent(result)
+            },
             event.packedLight,
             OverlayTexture.pack(0, if (event.entity.hurtTime > 0 || !event.entity.isAlive) 3 else 10)
         )

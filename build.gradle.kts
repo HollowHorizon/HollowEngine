@@ -16,7 +16,6 @@ buildscript {
         classpath("org.parchmentmc:librarian:1.+")
         classpath("org.spongepowered:mixingradle:0.7.38")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0")
-        classpath("com.github.johnrengelman:shadow:8+")
     }
 }
 
@@ -32,7 +31,6 @@ apply {
     plugin("net.minecraftforge.gradle")
     plugin("org.spongepowered.mixin")
     plugin("org.parchmentmc.librarian.forgegradle")
-    plugin("com.github.johnrengelman.shadow")
 }
 
 val mcVersion: String by project
