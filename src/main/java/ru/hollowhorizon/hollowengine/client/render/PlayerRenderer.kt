@@ -60,8 +60,8 @@ object PlayerRenderer {
                     else it.rl
                 } ?: texture
 
-                RenderType.entityTranslucent(result)
-            },
+                Minecraft.getInstance().textureManager.getTexture(result).id
+            }.memoize(),
             event.packedLight,
             OverlayTexture.pack(0, if (event.entity.hurtTime > 0 || !event.entity.isAlive) 3 else 10)
         )
@@ -109,61 +109,67 @@ object PlayerRenderer {
     ) {
         stack.mulPoseMatrix(capability.transform.matrix)
         stack.mulPose(Vector3f.YP.rotationDegrees(180f))
-        updateAnimations(entity, capability, manager)
+        updateAnimations(stack, entity, capability, manager)
     }
 
     private fun updateAnimations(
+        stack: PoseStack,
         entity: LivingEntity,
         capability: AnimatedEntityCapability,
         manager: GLTFAnimationPlayer
     ) {
-        when {
-            entity.hurtTime > 0 -> {
-                val name = manager.typeToAnimationMap[AnimationType.HURT]?.name ?: return
-                if (capability.layers.any { it.animation == name }) {
-                    capability.layers.filter { it.animation == name }.forEach { it.time = 0 }
-                    return
+        let {
+            when {
+                entity.hurtTime > 0 -> {
+                    val name = manager.typeToAnimationMap[AnimationType.HURT]?.name ?: return@let
+                    if (capability.layers.any { it.animation == name }) {
+                        capability.layers.filter { it.animation == name }.forEach { it.time = 0 }
+                        return@let
+                    }
+
+                    capability.layers += AnimationLayer(
+                        name,
+                        LayerMode.ADD,
+                        PlayMode.ONCE,
+                        1.0f, fadeIn = 5
+                    )
                 }
 
-                capability.layers += AnimationLayer(
-                    name,
-                    LayerMode.ADD,
-                    PlayMode.ONCE,
-                    1.0f, fadeIn = 5
-                )
-            }
+                entity.swinging -> {
+                    val name = manager.typeToAnimationMap[AnimationType.SWING]?.name ?: return@let
+                    if (capability.layers.any { it.animation == name }) {
+                        capability.layers.filter { it.animation == name }.forEach { it.time = 0 }
+                        return@let
+                    }
 
-            entity.swinging -> {
-                val name = manager.typeToAnimationMap[AnimationType.SWING]?.name ?: return
-                if (capability.layers.any { it.animation == name }) {
-                    capability.layers.filter { it.animation == name }.forEach { it.time = 0 }
-                    return
+                    capability.layers += AnimationLayer(
+                        name,
+                        LayerMode.ADD,
+                        PlayMode.ONCE,
+                        1.0f, fadeIn = 5
+                    )
                 }
 
-                capability.layers += AnimationLayer(
-                    name,
-                    LayerMode.ADD,
-                    PlayMode.ONCE,
-                    1.0f, fadeIn = 5
-                )
-            }
+                !entity.isAlive -> {
+                    val name = manager.typeToAnimationMap[AnimationType.DEATH]?.name ?: return@let
+                    if (capability.layers.any { it.animation == name }) return@let
 
-            !entity.isAlive -> {
-                val name = manager.typeToAnimationMap[AnimationType.DEATH]?.name ?: return
-                if (capability.layers.any { it.animation == name }) return
-
-                capability.layers += AnimationLayer(
-                    name,
-                    LayerMode.ADD,
-                    PlayMode.LAST_FRAME,
-                    1.0f, fadeIn = 5
-                )
+                    capability.layers += AnimationLayer(
+                        name,
+                        LayerMode.ADD,
+                        PlayMode.LAST_FRAME,
+                        1.0f, fadeIn = 5
+                    )
+                }
             }
         }
         manager.currentLoopAnimation = when {
             entity is FlyingAnimal && entity.isFlying -> AnimationType.FLY
             entity.isSleeping -> AnimationType.SLEEP
-            entity.vehicle != null -> AnimationType.SIT
+            entity.vehicle != null -> {
+                stack.translate(0.0, 0.4, 0.0)
+                AnimationType.SIT
+            }
             entity.fallFlyingTicks > 4 -> AnimationType.FALL
             entity.animationSpeed > 0.1 -> {
                 when {
