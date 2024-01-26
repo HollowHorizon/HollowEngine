@@ -52,7 +52,7 @@ class NpcDelegate(
                 it.subModels.putAll(settings.subModels)
             }
             entity.moveTo(
-                settings.pos.x + 0.5, settings.pos.y, settings.pos.z + 0.5, settings.rotation.x, settings.rotation.y
+                settings.pos.x, settings.pos.y, settings.pos.z, settings.rotation.x, settings.rotation.y
             )
 
             settings.attributes.attributes.forEach { (name, value) ->
