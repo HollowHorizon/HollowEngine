@@ -74,6 +74,8 @@ object HECommands {
 private fun listModels(): Collection<String> {
     val list = mutableListOf<String>()
     list += "hollowengine:models/entity/player_model.gltf"
+    list += "hollowengine:models/entity/player_model_slim.gltf"
+    list += "hc:models/entity/hilda_regular.glb"
 
     list += DirectoryManager.HOLLOW_ENGINE.resolve("assets").walk()
         .filter { it.path.endsWith(".gltf") || it.path.endsWith(".glb") }
