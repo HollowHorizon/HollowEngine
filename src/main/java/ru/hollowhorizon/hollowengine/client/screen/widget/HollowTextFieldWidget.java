@@ -7,6 +7,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Consumer;
 
@@ -21,6 +22,7 @@ public class HollowTextFieldWidget extends EditBox {
     public HollowTextFieldWidget(Font fr, int x, int y, int w, int h, Component text, ResourceLocation texture) {
         super(fr, x, y, w - 10, h, text);
         setMaxLength(128);
+        setValue(text.getString());
         this.texture = texture;
         setBordered(false);
     }
@@ -42,4 +44,8 @@ public class HollowTextFieldWidget extends EditBox {
         return super.keyPressed(p_231046_1_, p_231046_2_, p_231046_3_);
     }
 
+    @Override
+    public int getWidth() {
+        return super.getWidth() + 10;
+    }
 }

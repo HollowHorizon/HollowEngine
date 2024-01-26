@@ -25,6 +25,7 @@ public class PlayerIconButton extends IconButton {
             skinLocation = skinManager.registerTexture(map.get(MinecraftProfileTexture.Type.SKIN), MinecraftProfileTexture.Type.SKIN);
         } else {
             skinLocation = AbstractClientPlayer.getSkinLocation(profile.getName());
+            AbstractClientPlayer.registerSkinTexture(skinLocation, profile.getName());
         }
     }
 
@@ -37,13 +38,13 @@ public class PlayerIconButton extends IconButton {
     @SuppressWarnings("deprecation")
     @Override
     public void renderButton(PoseStack poseStack, int mouseX, int mouseY, float partialTicks) {
-        TEXTURE_MANAGER.bindForSetup(resourceLocation);
+        RenderSystem.setShaderTexture(0, resourceLocation);
         final int yTex = yTexStart + (yDiffText * this.getYImage(this.isHoveredOrFocused()));
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, alpha);
         RenderSystem.enableDepthTest();
         RenderSystem.enableBlend();
         blit(poseStack, x, y, xTexStart, yTex, width, height, textureWidth, textureHeight);
-        TEXTURE_MANAGER.bindForSetup(skinLocation);
+        RenderSystem.setShaderTexture(0, skinLocation);
         RenderSystem.setShaderColor(0.3F, 0.3F, 0.3F, alpha);
         blitFace(poseStack, x + 4, y + 4, 13);
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, alpha);

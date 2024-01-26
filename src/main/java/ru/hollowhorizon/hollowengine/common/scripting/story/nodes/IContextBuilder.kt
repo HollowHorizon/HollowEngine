@@ -33,12 +33,10 @@ import net.minecraftforge.network.PacketDistributor
 import ru.hollowhorizon.hc.client.models.gltf.Transform
 import ru.hollowhorizon.hc.client.models.gltf.animations.AnimationType
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayMode
-import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
-import ru.hollowhorizon.hc.client.models.gltf.manager.LayerMode
-import ru.hollowhorizon.hc.client.models.gltf.manager.SubModel
+import ru.hollowhorizon.hc.client.models.gltf.manager.*
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
+import ru.hollowhorizon.hc.client.utils.nbt.loadAsNBT
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
 import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
@@ -52,12 +50,10 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.PlayerProperty
-import ru.hollowhorizon.hollowengine.common.scripting.story.randomPos
 import ru.hollowhorizon.hollowengine.cutscenes.replay.Replay
 import ru.hollowhorizon.hollowengine.cutscenes.replay.ReplayPlayer
 import java.util.*
 import java.util.function.Function
-import kotlin.collections.HashMap
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
@@ -145,6 +141,18 @@ interface IContextBuilder {
         player.saveEntity = true
         player.isLooped = false
         player.play(this@replay().level, replay)
+    }
+
+    infix fun NPCProperty.setPose(fileC: () -> String?) = +SimpleNode {
+        val file = fileC()
+        if (file == null) {
+            this@setPose()[AnimatedEntityCapability::class].pose = RawPose()
+            return@SimpleNode
+        }
+        val replay = RawPose.fromNBT(
+            DirectoryManager.HOLLOW_ENGINE.resolve("npcs/poses/").resolve(file).inputStream().loadAsNBT()
+        )
+        this@setPose()[AnimatedEntityCapability::class].pose = replay
     }
 
     infix fun NPCProperty.setMovingPos(pos: () -> Vec3?) = +SimpleNode {

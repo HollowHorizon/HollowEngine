@@ -88,9 +88,6 @@ class ModifyRecordingScreen : HollowScreen() {
                     0, 0, 29.pc.w().value, 20,
                     "hollowengine.pause".mcTranslate,
                     {
-                        RecordingDriver.enable = isPausePressed
-                        PauseRecordingPacket(isPausePressed, null).send()
-                        isPausePressed = !isPausePressed
                         onClose()
                     },
                     "hollowengine:textures/gui/long_button.png".rl
@@ -105,5 +102,3 @@ class ModifyRecordingScreen : HollowScreen() {
         }
     }
 }
-
-var isPausePressed = false

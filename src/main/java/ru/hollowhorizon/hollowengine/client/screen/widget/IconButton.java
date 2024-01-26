@@ -75,7 +75,7 @@ public class IconButton extends HollowButton {
 
     @Override
     public void renderButton(PoseStack poseStack, int mouseX, int mouseY, float partialTicks) {
-        TEXTURE_MANAGER.bindForSetup(resourceLocation);
+        RenderSystem.setShaderTexture(0, resourceLocation);
         final int yTex = yTexStart + (yDiffText * this.getYImage(this.isHoveredOrFocused()));
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, alpha);
         RenderSystem.enableDepthTest();

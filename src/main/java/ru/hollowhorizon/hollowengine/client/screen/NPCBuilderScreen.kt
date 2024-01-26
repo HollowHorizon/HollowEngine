@@ -24,7 +24,7 @@ class NPCBuilderScreen : HollowScreen("".toSTC()) {
                 size = 50.pc x 100.pc
 
                 elements {
-                    +ModelPreviewWidget(0, 0, 100.pc.w().value, 100.pc.h().value, this@NPCBuilderScreen.width, this@NPCBuilderScreen.height)
+                    +ModelPreviewWidget(npc,0, 0, 100.pc.w().value, 100.pc.h().value, this@NPCBuilderScreen.width, this@NPCBuilderScreen.height)
                 }
             }
 

@@ -13,4 +13,5 @@ object ModItems : HollowRegistry() {
 
     val STORYTELLER_DIM_TELEPORTER by register("storyteller_dim_teleporter", ::StoryTellerDimItem)
     val CAMERA by register("camera", ::CameraItem)
+    val NPC_TOOL by register("npc_tool", ::NpcTool)
 }
