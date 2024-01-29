@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.screen.widget
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
+import net.minecraft.client.gui.screens.Screen
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hc.client.screens.util.Anchor
 import ru.hollowhorizon.hc.client.utils.drawScaled
@@ -36,11 +37,18 @@ class FloatTextField(float: Float, width: Int, height: Int, texture: ResourceLoc
     }
 
     override fun mouseClicked(mouseX: Double, mouseY: Double, pButton: Int): Boolean {
+        val keyModifier = when {
+            Screen.hasShiftDown() && Screen.hasControlDown() -> 0.01f
+            Screen.hasShiftDown() -> 0.1f
+            Screen.hasControlDown() -> 5f
+            else -> 1f
+        }
+
         if (mouseX in x - 5.0..x.toDouble() && mouseY in y.toDouble()..y + height.toDouble()) {
-            float -= modifier
+            float -= modifier * keyModifier
         }
         if (mouseX in x.toDouble() + getWidth() - 10..x.toDouble() + getWidth() - 5 && mouseY in y.toDouble()..y + height.toDouble()) {
-            float += modifier
+            float += modifier * keyModifier
         }
         return super.mouseClicked(mouseX, mouseY, pButton)
     }
