@@ -27,6 +27,15 @@ class ModelEditScreen(val npc: NPCEntity) : HollowScreen() {
     val capability = npc[AnimatedEntityCapability::class]
     val model = GltfManager.getOrCreate(capability.model.rl)
     var pose = capability.rawPose
+    var xPos: FloatTextField? = null
+    var yPos: FloatTextField? = null
+    var zPos: FloatTextField? = null
+    var xRot: FloatTextField? = null
+    var yRot: FloatTextField? = null
+    var zRot: FloatTextField? = null
+    var xScale: FloatTextField? = null
+    var yScale: FloatTextField? = null
+    var zScale: FloatTextField? = null
 
     init {
         Minecraft.getInstance().keyboardHandler.setSendRepeatsToGui(true)
@@ -58,6 +67,18 @@ class ModelEditScreen(val npc: NPCEntity) : HollowScreen() {
                                 lastHovered?.isHovered = false
                                 node.isHovered = true
                                 lastHovered = node
+
+                                xPos?.float = 0f
+                                yPos?.float = 0f
+                                zPos?.float = 0f
+
+                                xRot?.float = 0f
+                                yRot?.float = 0f
+                                zPos?.float = 0f
+
+                                xScale?.float = 1f
+                                yScale?.float = 1f
+                                zScale?.float = 1f
                             },
                             "hollowengine:textures/gui/long_button.png".rl
                         )
@@ -74,7 +95,7 @@ class ModelEditScreen(val npc: NPCEntity) : HollowScreen() {
 
             elements {
                 val pos = +LabelWidget("Pos".mcText, color = 0xFFFFFF, hoveredColor = 0xFFFFFF)
-                +FloatTextField(
+                xPos = +FloatTextField(
                     0f, 25.pc.w().value, 20, "hollowengine:textures/gui/text_field.png".rl
                 ) { float ->
                     lastHovered?.let {
@@ -85,7 +106,7 @@ class ModelEditScreen(val npc: NPCEntity) : HollowScreen() {
                 }.apply {
                     modifier = 0.1f
                 }
-                +FloatTextField(
+                yPos = +FloatTextField(
                     0f, 25.pc.w().value, 20, "hollowengine:textures/gui/text_field.png".rl
                 ) { float ->
                     lastHovered?.let {
@@ -96,7 +117,7 @@ class ModelEditScreen(val npc: NPCEntity) : HollowScreen() {
                 }.apply {
                     modifier = 0.1f
                 }
-                +FloatTextField(
+                zPos = +FloatTextField(
                     0f, 25.pc.w().value, 20, "hollowengine:textures/gui/text_field.png".rl
                 ) { float ->
                     lastHovered?.let {
@@ -109,10 +130,8 @@ class ModelEditScreen(val npc: NPCEntity) : HollowScreen() {
                 }
                 lineBreak()
 
-                val xRot: FloatTextField?
-                var yRot: FloatTextField? = null
-                var zRot: FloatTextField? = null
                 val rot = +LabelWidget("Rot".mcText, color = 0xFFFFFF, hoveredColor = 0xFFFFF5)
+
                 xRot = +FloatTextField(0f, 25.pc.w().value, 20, "hollowengine:textures/gui/text_field.png".rl) {
                     val x = it
                     val y = yRot!!.float
@@ -124,7 +143,7 @@ class ModelEditScreen(val npc: NPCEntity) : HollowScreen() {
                     }
                 }
                 yRot = +FloatTextField(0f, 25.pc.w().value, 20, "hollowengine:textures/gui/text_field.png".rl) {
-                    val x = xRot.float
+                    val x = xRot!!.float
                     val y = it
                     val z = zRot!!.float
                     lastHovered?.let {
@@ -134,8 +153,8 @@ class ModelEditScreen(val npc: NPCEntity) : HollowScreen() {
                     }
                 }
                 zRot = +FloatTextField(0f, 25.pc.w().value, 20, "hollowengine:textures/gui/text_field.png".rl) {
-                    val x = xRot.float
-                    val y = yRot.float
+                    val x = xRot!!.float
+                    val y = yRot!!.float
                     val z = it
                     lastHovered?.let {
                         pose!!.map.computeIfAbsent(it) { Transformation() }.apply {
@@ -149,7 +168,7 @@ class ModelEditScreen(val npc: NPCEntity) : HollowScreen() {
                 rot.width = scale.width
                 pos.width = scale.width
 
-                +FloatTextField(
+                xScale = +FloatTextField(
                     1f, 25.pc.w().value, 20, "hollowengine:textures/gui/text_field.png".rl
                 ) { float ->
                     lastHovered?.let {
@@ -160,7 +179,7 @@ class ModelEditScreen(val npc: NPCEntity) : HollowScreen() {
                 }.apply {
                     modifier = 0.1f
                 }
-                +FloatTextField(
+                yScale = +FloatTextField(
                     1f, 25.pc.w().value, 20, "hollowengine:textures/gui/text_field.png".rl
                 ) { float ->
                     lastHovered?.let {
@@ -171,7 +190,7 @@ class ModelEditScreen(val npc: NPCEntity) : HollowScreen() {
                 }.apply {
                     modifier = 0.1f
                 }
-                +FloatTextField(
+                zScale = +FloatTextField(
                     1f, 25.pc.w().value, 20, "hollowengine:textures/gui/text_field.png".rl
                 ) { float ->
                     lastHovered?.let {
@@ -190,6 +209,7 @@ class ModelEditScreen(val npc: NPCEntity) : HollowScreen() {
                     {
                         lastHovered?.isHovered = false
                         SavePoseScreen(RawPose(pose!!.map.map { it.key.index to it.value }.toMap())).open()
+                        capability.rawPose = null
                     },
                     "hollowengine:textures/gui/long_button.png".rl
                 )
@@ -212,6 +232,7 @@ class ModelEditScreen(val npc: NPCEntity) : HollowScreen() {
     override fun onClose() {
         super.onClose()
 
+        capability.rawPose = null
         Minecraft.getInstance().keyboardHandler.setSendRepeatsToGui(false)
         lastHovered?.isHovered = false
     }

@@ -98,8 +98,8 @@ interface IContextBuilder {
         } else throw IllegalArgumentException("${node.javaClass} is not a HasInnerNodes. May be you called Continue() not in loop?")
     }
 
-    fun Break(tag: () -> String) = SimpleNode { innerBreak(tag()) }
-    fun Continue(tag: () -> String) = SimpleNode { innerContinue(tag()) }
+    fun Break(tag: () -> String) = +SimpleNode { innerBreak(tag()) }
+    fun Continue(tag: () -> String) = +SimpleNode { innerContinue(tag()) }
 
     class NpcContainer() {
         var name = "Неизвестный"

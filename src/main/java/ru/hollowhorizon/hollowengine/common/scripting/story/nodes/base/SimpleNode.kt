@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base
 
-import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.ListTag
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -45,7 +43,7 @@ fun IContextBuilder.execute(command: () -> String) = +SimpleNode {
     val server = this@execute.stateMachine.server
     val src = server.createCommandSourceStack()
 
-    if(server.commands.performPrefixedCommand(src.withPermission(4).withSuppressedOutput(), command()) == 0) {
+    if (server.commands.performPrefixedCommand(src.withPermission(4).withSuppressedOutput(), command()) == 0) {
         manager.team.onlineMembers.filter { it.abilities.instabuild }.forEach {
             it.sendSystemMessage("Command \"${command()}\" execution failed!".mcText)
         }

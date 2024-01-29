@@ -21,9 +21,11 @@ class ConditionNode(
     }
 
     override fun tick(): Boolean {
+        if(isEnd) return false
+
         if (!currentNode.tick()) index++
 
-        return isEnd
+        return true
     }
 
     override fun serializeNBT() = CompoundTag().apply {
