@@ -516,6 +516,29 @@ interface IContextBuilder {
         }
     }
 
+    fun PlayerProperty.saveInventory() = next {
+        val player = this@saveInventory()
+
+        player.persistentData.put("he_inventory", ListTag().apply(player.inventory::save))
+    }
+
+    fun PlayerProperty.loadInventory() = next {
+        val player = this@loadInventory()
+
+        if(player.persistentData.contains("he_inventory")) {
+            player.inventory.load(player.persistentData.getList("he_inventory", 10))
+            player.inventory.setChanged()
+        }
+    }
+
+    fun PlayerProperty.clearInventory() = next {
+        val player = this@clearInventory()
+
+        player.inventory.clearContent()
+        player.inventory.setChanged()
+    }
+
+
     infix fun Team.modify(inv: TeamHelper.() -> Unit) = +SimpleNode {
         TeamHelper(this@modify).apply(inv)
     }
