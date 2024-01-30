@@ -101,7 +101,7 @@ interface IContextBuilder {
     fun Break(tag: () -> String) = +SimpleNode { innerBreak(tag()) }
     fun Continue(tag: () -> String) = +SimpleNode { innerContinue(tag()) }
 
-    class NpcContainer() {
+    class NpcContainer {
         var name = "Неизвестный"
         var model = "hollowengine:models/entity/player_model.gltf"
         val animations = HashMap<AnimationType, String>()
@@ -110,7 +110,7 @@ interface IContextBuilder {
         val subModels = HashMap<String, SubModel>()
         var world = "minecraft:overworld"
         var pos = Vec3(0.0, 0.0, 0.0)
-        var rotation = Vec2.ZERO
+        var rotation: Vec2 = Vec2.ZERO
         var attributes = Attributes()
         var size = Pair(0.6f, 1.8f)
         var showName = true
@@ -280,7 +280,7 @@ interface IContextBuilder {
         ).send(PacketDistributor.TRACKING_ENTITY.with(this@play))
 
         if (container.playType != PlayMode.ONCE) {
-            //Нужно на случай если клиентская сущность выйдет из зоны прогрузки (удалится)
+            //Нужно на случай если клиентская сущность выйдет из зоны видимости (удалится)
             serverLayers.addNoUpdate(
                 AnimationLayer(
                     container.animation,
@@ -309,7 +309,7 @@ interface IContextBuilder {
         ).send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(this@play))
 
         if (container.playType != PlayMode.ONCE) {
-            //Нужно на случай если клиентская сущность выйдет из зоны прогрузки (удалится)
+            //Нужно на случай если клиентская сущность выйдет из зоны видимости (удалится)
             serverLayers.addNoUpdate(
                 AnimationLayer(
                     container.animation,
@@ -437,8 +437,7 @@ interface IContextBuilder {
 
     infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach {
-            val componente = Component.literal("§6[§7${it.displayName.string}§6]§7 ").append(text().mcTranslate)
-            it.sendSystemMessage(componente)
+            it.sendSystemMessage(Component.literal("§6[§7${it.displayName.string}§6]§7 ").append(text().mcTranslate))
         }
     }
 
@@ -525,7 +524,7 @@ interface IContextBuilder {
     fun PlayerProperty.loadInventory() = next {
         val player = this@loadInventory()
 
-        if(player.persistentData.contains("he_inventory")) {
+        if (player.persistentData.contains("he_inventory")) {
             player.inventory.load(player.persistentData.getList("he_inventory", 10))
             player.inventory.setChanged()
         }
