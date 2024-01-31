@@ -12,7 +12,6 @@ import net.minecraft.world.entity.player.Player
 import net.minecraftforge.api.distmarker.Dist
 import net.minecraftforge.api.distmarker.OnlyIn
 import net.minecraftforge.common.MinecraftForge
-import net.minecraftforge.network.NetworkDirection
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.util.Alignment
@@ -21,12 +20,12 @@ import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
-import ru.hollowhorizon.hc.common.network.Packet
-import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.client.screen.widget.dialogue.DialogueTextBox
-import ru.hollowhorizon.hollowengine.common.network.Container
+import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
+import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
+import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues.ApplyChoiceEvent
 import kotlin.math.atan
 import kotlin.math.pow
@@ -42,6 +41,7 @@ class OnChoicePerform(private val choice: Int) : HollowPacketV3<OnChoicePerform>
 
 @OnlyIn(Dist.CLIENT)
 object DialogueScreen : HollowScreen("".mcText) {
+    var canClose: Boolean = false
     var background: String? = null
     var textBox: DialogueTextBox? = null
     var currentName = "".mcText
@@ -147,7 +147,7 @@ object DialogueScreen : HollowScreen("".mcText) {
                 x, y, 70f,
                 x - mouseX,
                 y - this.height * 0.35f - mouseY,
-                entity, 1.0F
+                entity
             )
         }
     }
@@ -159,7 +159,7 @@ object DialogueScreen : HollowScreen("".mcText) {
 
     override fun keyPressed(pKeyCode: Int, pScanCode: Int, pModifiers: Int): Boolean {
         when (pKeyCode) {
-            GLFW.GLFW_KEY_ESCAPE -> onClose()
+            GLFW.GLFW_KEY_ESCAPE -> if(shouldCloseOnEsc()) onClose()
             GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_ENTER -> notifyClick()
         }
         return super.keyPressed(pKeyCode, pScanCode, pModifiers)
@@ -185,7 +185,7 @@ object DialogueScreen : HollowScreen("".mcText) {
 
     @Suppress("DEPRECATION")
     private fun drawEntity(
-        x: Float, y: Float, scale: Float, xRot: Float, yRot: Float, entity: LivingEntity, brightness: Float = 1.0F,
+        x: Float, y: Float, scale: Float, xRot: Float, yRot: Float, entity: LivingEntity,
     ) {
         val f = atan(xRot / 40.0).toFloat()
         val f1 = atan(yRot / 40.0).toFloat()
@@ -203,6 +203,9 @@ object DialogueScreen : HollowScreen("".mcText) {
         val quaternion1 = Vector3f.XP.rotationDegrees(f1 * 20.0f)
         quaternion.mul(quaternion1)
         stack.mulPose(quaternion)
+        val isNpc = entity is NPCEntity
+        val oldIcon = if(isNpc) entity[NPCCapability::class].icon else NpcIcon.EMPTY
+        if(isNpc) entity[NPCCapability::class].icon = NpcIcon.EMPTY
         val f2: Float = entity.yBodyRot
         val f3: Float = entity.yRot
         val f4: Float = entity.xRot
@@ -247,6 +250,7 @@ object DialogueScreen : HollowScreen("".mcText) {
         entity.xRot = f4
         entity.yHeadRotO = f5
         entity.yHeadRot = f6
+        if(isNpc) entity[NPCCapability::class].icon = oldIcon
         modelView.popPose()
 
         RenderSystem.applyModelViewMatrix()
@@ -275,6 +279,6 @@ object DialogueScreen : HollowScreen("".mcText) {
         characters.removeIf { it.id == entity }
     }
 
-    override fun shouldCloseOnEsc() = false
+    override fun shouldCloseOnEsc() = canClose
     override fun isPauseScreen() = false
 }

@@ -6,17 +6,22 @@ import dev.ftb.mods.ftbteams.data.Team
 import kotlinx.serialization.Serializable
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.eventbus.api.Event
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraftforge.network.PacketDistributor
+import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.client.screen.DialogueScreen
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
+import ru.hollowhorizon.hollowengine.common.network.ServerMouseClickedEvent
+import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
+import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
 import ru.hollowhorizon.hollowengine.common.scripting.ownerPlayer
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.HasInnerNodes
@@ -32,9 +37,11 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.Player
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
-class DialogueScreenPacket(private val enable: Boolean) : HollowPacketV3<DialogueScreenPacket> {
+class DialogueScreenPacket(private val enable: Boolean, private val canClose: Boolean) :
+    HollowPacketV3<DialogueScreenPacket> {
     override fun handle(player: Player, data: DialogueScreenPacket) {
         DialogueScreen.cleanup()
+        DialogueScreen.canClose = data.canClose
         if (data.enable) DialogueScreen.open()
         else DialogueScreen.onClose()
     }
@@ -63,7 +70,7 @@ class DialogueChoicePacket(val choices: List<String>) : HollowPacketV3<DialogueC
 
 }
 
-class DialogueNode(val nodes: List<Node>) : Node(), HasInnerNodes {
+class DialogueNode(val nodes: List<Node>, val npc: NPCProperty? = null) : Node(), HasInnerNodes {
     private var index = 0
     val isEnded get() = index >= nodes.size
     var isStarted = false
@@ -86,14 +93,31 @@ class DialogueNode(val nodes: List<Node>) : Node(), HasInnerNodes {
     }
 
     private fun onStart() {
-        manager.team.onlineMembers.forEach {
-            DialogueScreenPacket(true).send(PacketDistributor.PLAYER.with { it })
+        npc?.let {
+            val entity = it()
+            entity[NPCCapability::class].icon = NpcIcon.DIALOGUE
+            entity.onInteract = {
+                if (it is ServerPlayer && it in manager.team.onlineMembers) {
+                    DialogueScreenPacket(true, canClose = true).send(PacketDistributor.PLAYER.with { it })
+                }
+                MinecraftForge.EVENT_BUS.post(ServerMouseClickedEvent(it, MouseButton.LEFT))
+            }
+        }
+        if (npc == null) {
+            manager.team.onlineMembers.forEach {
+                DialogueScreenPacket(true, canClose = false).send(PacketDistributor.PLAYER.with { it })
+            }
         }
     }
 
     private fun onEnd() {
         manager.team.onlineMembers.forEach {
-            DialogueScreenPacket(false).send(PacketDistributor.PLAYER.with { it })
+            DialogueScreenPacket(false, npc != null).send(PacketDistributor.PLAYER.with { it })
+        }
+        npc?.let {
+            val entity = it()
+            entity[NPCCapability::class].icon = NpcIcon.EMPTY
+            entity.onInteract = {}
         }
     }
 
@@ -109,6 +133,7 @@ class DialogueNode(val nodes: List<Node>) : Node(), HasInnerNodes {
 }
 
 class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stateMachine) {
+    var dialogueNpc: NPCProperty? = null
 
     override fun NPCProperty.say(text: () -> String): SimpleNode {
         val result = +SimpleNode {
@@ -188,9 +213,7 @@ class ChoicesNode(choiceContext: DialogueChoiceContext) : Node(), HasInnerNodes 
             }
         }
 
-        if ((performedChoice?.size ?: 0) > 0) {
-            if (!performedChoice!![index].tick()) index++
-        }
+        if ((performedChoice?.size ?: 0) > 0 && !performedChoice!![index].tick()) index++
 
         return !isEnded
     }
@@ -257,5 +280,7 @@ class DialogueChoiceContext(val stateMachine: StoryStateMachine) {
     }
 }
 
-fun IContextBuilder.dialogue(nodes: DialogueContext.() -> Unit) =
-    +DialogueNode(DialogueContext(this.stateMachine).apply(nodes).tasks)
+fun IContextBuilder.dialogue(nodes: DialogueContext.() -> Unit) {
+    val ctx = DialogueContext(this.stateMachine).apply(nodes)
+    +DialogueNode(ctx.tasks, ctx.dialogueNpc)
+}

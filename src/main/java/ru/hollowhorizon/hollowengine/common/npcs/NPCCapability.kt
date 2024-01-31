@@ -28,4 +28,13 @@ class NpcIcon private constructor(
         val QUESTION = NpcIcon(ResourceLocation("hollowengine:textures/gui/icons/question.png"))
         val WARN = NpcIcon(ResourceLocation("hollowengine:textures/gui/icons/warn.png"))
     }
+
+    override fun equals(other: Any?): Boolean {
+        if(other !is NpcIcon) return false
+        return this.image == other.image
+    }
+
+    override fun hashCode(): Int {
+        return image.hashCode()
+    }
 }
