@@ -9,6 +9,7 @@ import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.baseClass
 import kotlin.script.experimental.api.defaultImports
+import kotlin.script.experimental.api.valueOrThrow
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
 import kotlin.script.experimental.jvm.util.isError
@@ -49,6 +50,8 @@ fun runModScript(script: File) {
             }
             return
         }
+    } else {
+        (res.valueOrThrow().returnValue.scriptInstance as? ModScriptBase)?.init()
     }
 }
 

@@ -30,6 +30,8 @@ import ru.hollowhorizon.hc.client.utils.rl
 object PlayerRenderer {
 
     fun render(event: RenderPlayerEvent.Pre) {
+        if(!event.entity.isAlive) return
+
         val stack = event.poseStack
 
         val capability = event.entity[AnimatedEntityCapability::class]
