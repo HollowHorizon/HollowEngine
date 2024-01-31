@@ -45,6 +45,9 @@ import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.npcs.Attributes
+import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
+import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
+import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
 import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
@@ -154,6 +157,30 @@ interface IContextBuilder {
         )
         this@setPose()[AnimatedEntityCapability::class].pose = replay
     }
+
+    var NPCProperty.hitboxMode
+        get(): HitboxMode = this()[NPCCapability::class].hitboxMode
+        set(value) {
+            next {
+                this@hitboxMode()[NPCCapability::class].hitboxMode = value
+            }
+        }
+
+    var NPCProperty.icon
+        get(): NpcIcon = this()[NPCCapability::class].icon
+        set(value) {
+            next {
+                this@icon()[NPCCapability::class].icon = value
+            }
+        }
+
+    var NPCProperty.invulnerable
+        get() = this().isInvulnerable
+        set(value) {
+            next {
+                this@invulnerable().isInvulnerable = value
+            }
+        }
 
     infix fun NPCProperty.setMovingPos(pos: () -> Vec3?) = +SimpleNode {
         val position = pos()

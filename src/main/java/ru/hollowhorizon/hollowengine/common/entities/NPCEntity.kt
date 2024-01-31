@@ -7,10 +7,7 @@ import net.minecraft.network.syncher.SynchedEntityData
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
-import net.minecraft.world.entity.EntityDimensions
-import net.minecraft.world.entity.EntityType
-import net.minecraft.world.entity.PathfinderMob
-import net.minecraft.world.entity.Pose
+import net.minecraft.world.entity.*
 import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
 import net.minecraft.world.entity.item.ItemEntity
@@ -28,15 +25,15 @@ import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.common.capabilities.ICapabilitySyncer
 import ru.hollowhorizon.hollowengine.client.render.effects.EffectsCapability
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
+import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.MerchantNpc
+import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcTarget
 import ru.hollowhorizon.hollowengine.common.npcs.goals.BlockBreakGoal
 import ru.hollowhorizon.hollowengine.common.npcs.goals.LadderClimbGoal
 import ru.hollowhorizon.hollowengine.common.npcs.goals.OpenDoorGoal
 import ru.hollowhorizon.hollowengine.common.npcs.pathing.NPCPathNavigator
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
-import ru.hollowhorizon.hollowengine.mixins.EntityAccessor
 
 class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
@@ -70,7 +67,7 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
 
     override fun readAdditionalSaveData(pCompound: CompoundTag) {
         super.readAdditionalSaveData(pCompound)
-        npcTarget.deserializeNBT(pCompound.get("npc_target") as? CompoundTag ?: return)
+        npcTarget.deserializeNBT(pCompound["npc_target"] as? CompoundTag ?: return)
         npcTrader.npcOffers = MerchantOffers(pCompound.getCompound("npc_trades"))
     }
 
@@ -78,7 +75,7 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         if (pHand == InteractionHand.MAIN_HAND) {
-            if(npcTrader.npcOffers.size > 0 && !pPlayer.level.isClientSide) {
+            if (npcTrader.npcOffers.size > 0 && !pPlayer.level.isClientSide) {
                 npcTrader.tradingPlayer = pPlayer
                 npcTrader.openTradingScreen(pPlayer, name, 1)
             }
@@ -125,6 +122,18 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
         npcTarget.tick(this)
     }
 
+    override fun doPush(pEntity: Entity) {
+        if(this[NPCCapability::class].hitboxMode != HitboxMode.EMPTY) super.doPush(pEntity)
+    }
+
+    override fun isPushable(): Boolean {
+        return super.isPushable() && this[NPCCapability::class].hitboxMode == HitboxMode.PULLING
+    }
+
+    override fun canBeCollidedWith(): Boolean {
+        return this[NPCCapability::class].hitboxMode == HitboxMode.BLOCKING && this.isAlive
+    }
+
     override fun aiStep() {
         updateSwingTime()
         super.aiStep()
@@ -141,11 +150,11 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
 
     override fun onSyncedDataUpdated(pKey: EntityDataAccessor<*>) {
         super.onSyncedDataUpdated(pKey)
-        if(pKey == sizeX || pKey == sizeY) refreshDimensions()
+        if (pKey == sizeX || pKey == sizeY) refreshDimensions()
     }
 
     override fun getDimensions(pPose: Pose): EntityDimensions {
-        return EntityDimensions.fixed(entityData.get(sizeX), entityData.get(sizeY))
+        return EntityDimensions.fixed(entityData[sizeX], entityData[sizeY])
     }
 
     fun setDimensions(xy: Pair<Float, Float>) {
