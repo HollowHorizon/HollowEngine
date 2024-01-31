@@ -119,6 +119,7 @@ dependencies {
     implementation(fg.deobf("curse.maven:embeddium-908741:4984830"))
     implementation(fg.deobf("curse.maven:oculus-581495:4763262"))
     implementation(fg.deobf("curse.maven:spark-361579:4505309"))
+    implementation(fg.deobf("curse.maven:firstperson:2.3.2"))
 
     implementation(kotlin("script-runtime"))
     implementation(kotlin("scripting-jvm-host"))

@@ -23,7 +23,7 @@ side = "BOTH"
 [[dependencies.hollowengine]]
 modId = "hc"
 mandatory = true
-versionRange = "[1.4.0,2.0)"
+versionRange = "[1.4.1,2.0)"
 ordering = "AFTER"
 side = "BOTH"
 [[dependencies.hollowengine]]
