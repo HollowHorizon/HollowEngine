@@ -203,6 +203,7 @@ class PlayAnimationScreen(val play: Boolean) : HollowScreen() {
 
             box {
                 alignElements = Alignment.CENTER
+                spacing = 5.pc x 0.px
                 renderer = { stack, x, y, w, h ->
                     fill(stack, x, y, x + w, y + h, 0x8800173D.toInt())
                     fill(stack, x, y, x + w, y + 2, 0xFF07BBDB.toInt())
