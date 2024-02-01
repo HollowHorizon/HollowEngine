@@ -4,6 +4,7 @@ import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.kotlinscript.common.scripting.ScriptingCompiler
 import ru.hollowhorizon.kotlinscript.common.scripting.errors
 import ru.hollowhorizon.kotlinscript.common.scripting.kotlin.AbstractHollowScriptConfiguration
+import thedarkcolour.kotlinforforge.forge.FORGE_BUS
 import java.io.File
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.ResultWithDiagnostics
@@ -51,7 +52,9 @@ fun runModScript(script: File) {
             return
         }
     } else {
-        (res.valueOrThrow().returnValue.scriptInstance as? ModScriptBase)?.init()
+        val modScript = res.valueOrThrow().returnValue.scriptInstance as? ModScriptBase ?: return
+        modScript.init()
+        FORGE_BUS.register(modScript)
     }
 }
 
@@ -63,6 +66,7 @@ class ModScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.scripting.story.waitForgeEvent",
         "ru.hollowhorizon.hollowengine.common.scripting.story.onForgeEvent",
+        "net.minecraftforge.eventbus.api.SubscribeEvent",
         "ru.hollowhorizon.hc.client.utils.*"
     )
 
