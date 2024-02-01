@@ -74,6 +74,7 @@ object OverlayScreen : HollowScreen("".toSTC()) {
         hideGui(show)
         if (show) Minecraft.getInstance().setScreen(this)
         else Minecraft.getInstance().setScreen(null)
+        fadeType = FadeType.FADE_IN
         isOverlayMode = true
         text = ""
         subtitle = ""
