@@ -14,6 +14,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraftforge.network.PacketDistributor
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcText
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
@@ -70,6 +71,8 @@ class DialogueChoicePacket(val choices: List<String>) : HollowPacketV3<DialogueC
 
 }
 
+var FORCE_CLOSE = false
+
 class DialogueNode(val nodes: List<Node>, val npc: NPCProperty? = null) : Node(), HasInnerNodes {
     private var index = 0
     val isEnded get() = index >= nodes.size
@@ -87,6 +90,16 @@ class DialogueNode(val nodes: List<Node>, val npc: NPCProperty? = null) : Node()
         if (isEnded) {
             onEnd()
             return false
+        }
+
+        if(FORCE_CLOSE) {
+            FORCE_CLOSE = false
+
+            npc?.let {
+                val entity = it()
+                entity[NPCCapability::class].icon = NpcIcon.EMPTY
+                entity.onInteract = {}
+            }
         }
 
         return true
@@ -132,46 +145,68 @@ class DialogueNode(val nodes: List<Node>, val npc: NPCProperty? = null) : Node()
     }
 }
 
-class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stateMachine) {
+class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine) : NodeContextBuilder(stateMachine) {
     var dialogueNpc: NPCProperty? = null
 
     override fun NPCProperty.say(text: () -> String): SimpleNode {
-        val result = +SimpleNode {
-            val npc = this@say()
-            manager.team.onlineMembers.forEach {
-                DialogueSayPacket(text(), npc.displayName.string, npc.id)
-                    .send(PacketDistributor.PLAYER.with { it })
+        if (action == ChoiceAction.WORLD) {
+            return next {
+                val component =
+                    Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
+                stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
             }
-        }
-        +ClickNode(MouseButton.LEFT)
+        } else {
+            val result = +SimpleNode {
+                val npc = this@say()
+                manager.team.onlineMembers.forEach {
+                    DialogueSayPacket(text(), npc.displayName.string, npc.id)
+                        .send(PacketDistributor.PLAYER.with { it })
+                }
+            }
+            +ClickNode(MouseButton.LEFT)
 
-        return result
+            return result
+        }
     }
 
     @JvmName("playerSay")
     override fun PlayerProperty.say(text: () -> String): SimpleNode {
-        val result = +SimpleNode {
-            val npc = this@say()
-            manager.team.onlineMembers.forEach {
-                DialogueSayPacket(text(), npc.displayName.string, npc.id)
-                    .send(PacketDistributor.PLAYER.with { it })
+        if (action == ChoiceAction.WORLD) {
+            return next {
+                val component =
+                    Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
+                stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
             }
-        }
-        +ClickNode(MouseButton.LEFT)
+        } else {
+            val result = +SimpleNode {
+                val npc = this@say()
+                manager.team.onlineMembers.forEach {
+                    DialogueSayPacket(text(), npc.displayName.string, npc.id)
+                        .send(PacketDistributor.PLAYER.with { it })
+                }
+            }
+            +ClickNode(MouseButton.LEFT)
 
-        return result
+            return result
+        }
     }
 
     override fun Team.send(text: () -> String): SimpleNode {
-        val result = +SimpleNode {
-            manager.team.onlineMembers.forEach {
-                DialogueSayPacket(text(), this@send.name.string, this@send.ownerPlayer?.id ?: -1)
-                    .send(PacketDistributor.PLAYER.with { it })
+        if (action == ChoiceAction.WORLD) {
+            return next {
+                stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text().mcTranslate) }
             }
-        }
-        +ClickNode(MouseButton.LEFT)
+        } else {
+            val result = +SimpleNode {
+                manager.team.onlineMembers.forEach {
+                    DialogueSayPacket(text(), this@send.name.string, this@send.ownerPlayer?.id ?: -1)
+                        .send(PacketDistributor.PLAYER.with { it })
+                }
+            }
+            +ClickNode(MouseButton.LEFT)
 
-        return result
+            return result
+        }
     }
 
     fun send(body: DialogueSayPacket.() -> Unit) {
@@ -183,13 +218,18 @@ class DialogueContext(stateMachine: StoryStateMachine) : NodeContextBuilder(stat
         }
     }
 
-    fun choice(context: DialogueChoiceContext.() -> Unit) =
-        +ChoicesNode(DialogueChoiceContext(stateMachine).apply(context))
+    fun choice(action: ChoiceAction = ChoiceAction.SCREEN, context: DialogueChoiceContext.() -> Unit) =
+        +ChoicesNode(action, DialogueChoiceContext(action, stateMachine).apply(context))
+
+}
+
+enum class ChoiceAction {
+    SCREEN, WORLD
 }
 
 class ApplyChoiceEvent(val player: Player, val choice: Int) : Event()
 
-class ChoicesNode(choiceContext: DialogueChoiceContext) : Node(), HasInnerNodes {
+class ChoicesNode(val action: ChoiceAction, choiceContext: DialogueChoiceContext) : Node(), HasInnerNodes {
     val choices = choiceContext.choices
     var timeout = choiceContext.timeout
     var onTimeout = choiceContext.onTimeout
@@ -229,6 +269,13 @@ class ChoicesNode(choiceContext: DialogueChoiceContext) : Node(), HasInnerNodes 
             performedChoiceIndex = event.choice
             MinecraftForge.EVENT_BUS.unregister(this)
             index = 0
+
+            if(action == ChoiceAction.WORLD) {
+                manager.team.onlineMembers.forEach {
+                    DialogueScreenPacket(false, true).send(PacketDistributor.PLAYER.with { it })
+                }
+                FORCE_CLOSE = true
+            }
         }
     }
 
@@ -260,27 +307,27 @@ class ChoicesNode(choiceContext: DialogueChoiceContext) : Node(), HasInnerNodes 
 
 }
 
-class DialogueChoiceContext(val stateMachine: StoryStateMachine) {
+class DialogueChoiceContext(val action: ChoiceAction, val stateMachine: StoryStateMachine) {
     val choices = LinkedHashMap<Component, List<Node>>()
     var timeout = 0
     var onTimeout = {
         choices.values.firstOrNull()
     }
 
-    fun onTimeout(action: DialogueContext.() -> Unit) {
-        onTimeout = { DialogueContext(stateMachine).apply(action).tasks }
+    fun onTimeout(builder: DialogueContext.() -> Unit) {
+        onTimeout = { DialogueContext(action, stateMachine).apply(builder).tasks }
     }
 
-    fun addChoice(text: Component, tasks: DialogueContext.() -> Unit) {
-        choices[text] = DialogueContext(stateMachine).apply(tasks).tasks
+    fun addChoice(text: Component, builder: DialogueContext.() -> Unit) {
+        choices[text] = DialogueContext(action, stateMachine).apply(builder).tasks
     }
 
-    operator fun String.invoke(tasks: DialogueContext.() -> Unit) {
-        choices[this.mcText] = DialogueContext(stateMachine).apply(tasks).tasks
+    operator fun String.invoke(builder: DialogueContext.() -> Unit) {
+        choices[this.mcText] = DialogueContext(action, stateMachine).apply(builder).tasks
     }
 }
 
-fun IContextBuilder.dialogue(nodes: DialogueContext.() -> Unit) {
-    val ctx = DialogueContext(this.stateMachine).apply(nodes)
+fun IContextBuilder.dialogue(builder: DialogueContext.() -> Unit) {
+    val ctx = DialogueContext(ChoiceAction.SCREEN, this.stateMachine).apply(builder)
     +DialogueNode(ctx.tasks, ctx.dialogueNpc)
 }
