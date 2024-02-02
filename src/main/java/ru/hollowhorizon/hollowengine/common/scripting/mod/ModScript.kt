@@ -67,6 +67,8 @@ class ModScriptConfiguration : AbstractHollowScriptConfiguration({
         "ru.hollowhorizon.hollowengine.common.scripting.story.waitForgeEvent",
         "ru.hollowhorizon.hollowengine.common.scripting.story.onForgeEvent",
         "net.minecraftforge.eventbus.api.SubscribeEvent",
+        "ru.hollowhorizon.hollowengine.common.registry.ModStructures",
+        "thedarkcolour.kotlinforforge.forge.MOD_BUS",
         "ru.hollowhorizon.hc.client.utils.*"
     )
 

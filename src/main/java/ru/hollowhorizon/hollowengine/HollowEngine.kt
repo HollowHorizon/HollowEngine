@@ -35,7 +35,13 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getModScripts
 import ru.hollowhorizon.hollowengine.common.network.NetworkHandler
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
+import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModBiomeTags
+import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructurePieces
+import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructureSets
+import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructures
+import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructures.createSettings
 import ru.hollowhorizon.hollowengine.common.scripting.mod.runModScript
+import ru.hollowhorizon.hollowengine.common.structures.ScriptedStructure
 import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
 @HollowMod(HollowEngine.MODID)
@@ -67,6 +73,13 @@ class HollowEngine {
         }
 
         MOD_BUS.addListener(this::registerPacks)
+
+        ModStructures.STRUCTURES.register(MOD_BUS)
+        ModStructures.STRUCTURE_TYPES.register(MOD_BUS)
+        ModStructureSets.STRUCTURE_SETS.register(MOD_BUS)
+        ModStructurePieces.STRUCTURE_PIECES.register(MOD_BUS)
+        RegistryLoader.registerAll()
+        //ModDimensions
     }
 
     fun registerPacks(event: AddPackFindersEvent) {

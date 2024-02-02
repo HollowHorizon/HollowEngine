@@ -20,7 +20,7 @@ open class NpcMoveToBlockNode(npcConsumer: NPCProperty, var pos: () -> Vec3) : N
 
         navigator.moveTo(block.x, block.y, block.z, 1.0)
 
-        val dist = npc.distanceToXZ(block) > 1.5
+        val dist = npc.distanceToXZ(block) > 1
 
         if(!dist) navigator.stop()
 
