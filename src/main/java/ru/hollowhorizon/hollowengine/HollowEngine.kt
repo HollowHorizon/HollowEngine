@@ -80,10 +80,7 @@ class HollowEngine {
         //ModDimensions
 
         ModStructures.addStructure("rustic_temple") {
-            ScriptedStructure(
-                createSettings(ModBiomeTags.RUSTIC_TEMPLE),
-                "hollowengine:rustic_temple".rl
-            )
+            yOffset = 0
         }
     }
 

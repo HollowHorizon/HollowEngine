@@ -1,22 +1,33 @@
 package ru.hollowhorizon.hollowengine.common.structures
 
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.level.levelgen.Heightmap
 import net.minecraft.world.level.levelgen.structure.Structure
-import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.client.utils.rl
 import kotlin.random.Random
 
+val STRUCTURES = HashMap<ResourceLocation, StructureContainer>()
+
 class StructureContainer {
-    val settings = ArrayList<SpawnSettings>()
-    val type = StructureType.BASIC
-    val replacementType = ReplacementType.NOTHING
+    val settings: SpawnSettings = SpawnSettings { true }
+    var spawnMode = SpawnMode.SURFACE
+    var yOffset = 0
+    val minSizeY = 10
 }
 
-interface SpawnSettings {
+fun interface SpawnSettings {
     fun check(context: Structure.GenerationContext): Boolean
 }
 
-class StructureHeight(var height: Short, val lower: Boolean = true): SpawnSettings {
+fun SpawnSettings.and(other: SpawnSettings) = SpawnSettings {
+    this@and.check(it) && other.check(it)
+}
+
+fun SpawnSettings.or(other: SpawnSettings) = SpawnSettings {
+    this@or.check(it) || other.check(it)
+}
+
+class StructureHeight(var height: Short, val lower: Boolean = true) : SpawnSettings {
     override fun check(context: Structure.GenerationContext): Boolean {
         val chunkPos = context.chunkPos
 
@@ -34,21 +45,21 @@ class StructureHeight(var height: Short, val lower: Boolean = true): SpawnSettin
 
 }
 
-class StructureDimension(var dimension: String): SpawnSettings {
+class StructureDimension(var dimension: String) : SpawnSettings {
     override fun check(context: Structure.GenerationContext): Boolean {
         return false
     }
 
 }
 
-class StructureBiome(var biome: String): SpawnSettings {
+class StructureBiome(var biome: String) : SpawnSettings {
     override fun check(context: Structure.GenerationContext): Boolean {
         return context.biomeSource.possibleBiomes().any { it.`is`(biome.rl) }
     }
 
 }
 
-class SpawnChance(var chance: Float): SpawnSettings {
+class SpawnChance(var chance: Float) : SpawnSettings {
     override fun check(context: Structure.GenerationContext): Boolean {
         return Random.nextFloat() > 1f - chance
     }
@@ -58,12 +69,4 @@ class SpawnChance(var chance: Float): SpawnSettings {
 
 enum class SpawnMode {
     AIR, UNDERGROUND, SURFACE
-}
-
-enum class StructureType {
-    BASIC, PUZZLE, DECORATION
-}
-
-enum class ReplacementType {
-    AIR, NOTHING
 }

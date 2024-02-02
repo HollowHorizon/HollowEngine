@@ -11,10 +11,4 @@ import kotlin.random.Random
 object ModStructureSets {
     val STRUCTURE_SETS: DeferredRegister<StructureSet> =
         DeferredRegister.create(Registry.STRUCTURE_SET_REGISTRY, "hollowengine")
-    val SET: RegistryObject<StructureSet> = STRUCTURE_SETS.register("hollow_structures") {
-        StructureSet(
-            ModStructures.STRUCTURE.holder.get(),
-            RandomSpreadStructurePlacement(32, 8, RandomSpreadType.LINEAR, Random.nextInt(99999999))
-        )
-    }
 }

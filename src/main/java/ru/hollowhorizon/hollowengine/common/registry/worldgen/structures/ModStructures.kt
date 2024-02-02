@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.registry.worldgen.structures
 
-import com.google.common.base.Supplier
 import net.minecraft.core.Holder
-import net.minecraft.core.HolderSet
 import net.minecraft.core.Registry
 import net.minecraft.data.BuiltinRegistries
 import net.minecraft.tags.TagKey
@@ -15,10 +13,10 @@ import net.minecraft.world.level.levelgen.structure.TerrainAdjustment
 import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadStructurePlacement
 import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadType
 import net.minecraftforge.registries.DeferredRegister
-import net.minecraftforge.registries.ForgeRegistries
 import net.minecraftforge.registries.RegistryObject
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.common.structures.ScriptedStructure
+import ru.hollowhorizon.hollowengine.common.structures.StructureContainer
 import kotlin.random.Random
 
 
@@ -31,8 +29,14 @@ object ModStructures {
     val TYPE: RegistryObject<StructureType<*>> =
         STRUCTURE_TYPES.register("hollow_structure_type") { StructureType { ScriptedStructure.CODEC } }
 
-    fun <T : Structure> addStructure(location: String, value: Supplier<T>) =
-        STRUCTURES.register(location, value).apply {
+    fun addStructure(location: String, builder: StructureContainer.() -> Unit = {  }) =
+        STRUCTURES.register(location) {
+            ScriptedStructure(
+                createSettings(ModBiomeTags.HOLLOW_STRUCTURE),
+                "hollowengine:$location".rl
+            )
+        }.apply {
+            ru.hollowhorizon.hollowengine.common.structures.STRUCTURES["hollowengine:$location".rl] = StructureContainer().apply(builder)
             ModStructureSets.STRUCTURE_SETS.register(
                 location + "_set"
             ) {
@@ -45,16 +49,12 @@ object ModStructures {
 
 
     fun createSettings(location: TagKey<Biome>) = Structure.StructureSettings(
-            BuiltinRegistries.BIOME.getOrCreateTag(
-                location
-            ),
-            mapOf(),
-            GenerationStep.Decoration.SURFACE_STRUCTURES,
-            TerrainAdjustment.BEARD_THIN
-        )
-
-    val STRUCTURE: RegistryObject<Structure> = STRUCTURES.register("hollow_structure") {
-        ScriptedStructure(createSettings(ModBiomeTags.HOLLOW_STRUCTURE), "hollowengine:camp".rl)
-    }
+        BuiltinRegistries.BIOME.getOrCreateTag(
+            location
+        ),
+        mapOf(),
+        GenerationStep.Decoration.SURFACE_STRUCTURES,
+        TerrainAdjustment.BEARD_THIN
+    )
 
 }
