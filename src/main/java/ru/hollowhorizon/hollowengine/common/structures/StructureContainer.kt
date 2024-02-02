@@ -9,21 +9,21 @@ import kotlin.random.Random
 val STRUCTURES = HashMap<ResourceLocation, StructureContainer>()
 
 class StructureContainer {
-    val settings: SpawnSettings = SpawnSettings { true }
+    var settings: SpawnSettings = SpawnSettings { true }
     var spawnMode = SpawnMode.SURFACE
     var yOffset = 0
-    val minSizeY = 10
+    var minSizeY = 10
 }
 
 fun interface SpawnSettings {
     fun check(context: Structure.GenerationContext): Boolean
 }
 
-fun SpawnSettings.and(other: SpawnSettings) = SpawnSettings {
+infix fun SpawnSettings.and(other: SpawnSettings) = SpawnSettings {
     this@and.check(it) && other.check(it)
 }
 
-fun SpawnSettings.or(other: SpawnSettings) = SpawnSettings {
+infix fun SpawnSettings.or(other: SpawnSettings) = SpawnSettings {
     this@or.check(it) || other.check(it)
 }
 

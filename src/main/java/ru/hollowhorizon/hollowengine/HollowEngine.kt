@@ -19,8 +19,6 @@ import net.minecraftforge.fml.loading.FMLEnvironment
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.api.registy.HollowMod
 import ru.hollowhorizon.hc.client.utils.mcText
-import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.common.registry.HollowModProcessor
 import ru.hollowhorizon.hc.common.registry.RegistryLoader
 import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.client.ClientEvents.initKeys
@@ -35,13 +33,10 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getModScripts
 import ru.hollowhorizon.hollowengine.common.network.NetworkHandler
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
-import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModBiomeTags
 import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructurePieces
 import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructureSets
 import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructures
-import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructures.createSettings
 import ru.hollowhorizon.hollowengine.common.scripting.mod.runModScript
-import ru.hollowhorizon.hollowengine.common.structures.ScriptedStructure
 import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
 @HollowMod(HollowEngine.MODID)
