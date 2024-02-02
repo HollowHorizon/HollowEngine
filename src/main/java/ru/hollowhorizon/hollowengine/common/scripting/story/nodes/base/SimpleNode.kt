@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base
 
+import net.minecraft.commands.CommandSigningContext
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hc.client.utils.mcText
@@ -54,8 +55,10 @@ fun IContextBuilder.restartScript() = next {
 fun IContextBuilder.execute(command: () -> String) = +SimpleNode {
     val server = this@execute.stateMachine.server
     val src = server.createCommandSourceStack()
+        .withPermission(4)
+        .withSuppressedOutput()
 
-    if (server.commands.performPrefixedCommand(src.withPermission(4).withSuppressedOutput(), command()) == 0) {
+    if (server.commands.performPrefixedCommand(src, command()) == 0) {
         manager.team.onlineMembers.filter { it.abilities.instabuild }.forEach {
             it.sendSystemMessage("Command \"${command()}\" execution failed!".mcText)
         }

@@ -20,6 +20,7 @@ open class WhileNode(protected val condition: () -> Boolean, val tasks: List<Nod
             index = 0
             shouldContinue = false
         }
+        if(index >= tasks.size) return condition()
 
         if (!currentNode.tick()) index++
         if (index >= tasks.size) {
