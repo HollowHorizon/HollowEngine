@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base
 
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TranslatableComponent
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.StoryLogger
@@ -25,17 +26,17 @@ open class SimpleNode(val task: SimpleNode.() -> Unit) : Node() {
 fun IContextBuilder.next(block: SimpleNode.() -> Unit) = +SimpleNode(block)
 
 fun IContextBuilder.send(text: Component) = +SimpleNode {
-    manager.team.onlineMembers.forEach { it.sendSystemMessage(text) }
+    manager.team.onlineMembers.forEach { it.sendMessage(text, it.uuid) }
 }
 
 fun IContextBuilder.startScript(text: () -> String) = next {
     val file = text().fromReadablePath()
     if (!file.exists()) manager.team.onlineMembers.forEach {
-        it.sendSystemMessage(
-            Component.translatable(
+        it.sendMessage(
+            TranslatableComponent(
                 "hollowengine.scripting.story.script_not_found",
                 file.absolutePath
-            )
+            ), it.uuid
         )
     }
 
@@ -59,7 +60,7 @@ fun IContextBuilder.execute(command: () -> String) = +SimpleNode {
         .withPermission(4)
         .withSuppressedOutput()
 
-    if (server.commands.performPrefixedCommand(src, command()) == 0) {
+    if (server.commands.performCommand(src, command()) == 0) {
         StoryLogger.LOGGER.warn("Command \"${command()}\" execution failed!")
     }
 }

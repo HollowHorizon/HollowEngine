@@ -23,7 +23,7 @@ open class CameraPlayer {
     private var startTime = 0
 
     fun update(): Container {
-        progress = ClientTickHandler.ticks - startTime + Minecraft.getInstance().partialTick
+        progress = ClientTickHandler.ticks - startTime + Minecraft.getInstance().deltaFrameTime
         if (progress >= maxTime) onEnd()
         return Container(
             path.updatePosition(progress / maxTime),

@@ -165,12 +165,11 @@ interface IContextBuilder {
         val npc = this@moveToBiome()
         val biome = biomeName().rl
 
-        val pos = (npc.level as ServerLevel).findClosestBiome3d(
+        val pos = (npc.level as ServerLevel).findNearestBiome(
             { it.`is`(biome) },
             npc.blockPosition(),
             6400,
-            32,
-            64
+            32
         )?.first ?: npc.blockPosition()
         Vec3(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
     }
@@ -358,14 +357,14 @@ interface IContextBuilder {
 
 
     infix fun NPCProperty.say(text: () -> String) = +SimpleNode {
-        val component = Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
-        stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
+        val component = TextComponent("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
+        stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
     }
 
     @JvmName("playerSay")
     infix fun PlayerProperty.say(text: () -> String) = +SimpleNode {
-        val component = Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
-        stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
+        val component = TextComponent("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
+        stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
     }
 
     infix fun NPCProperty.configure(body: AnimatedEntityCapability.() -> Unit) = +SimpleNode {
@@ -427,12 +426,12 @@ interface IContextBuilder {
 
     infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach {
-            it.sendSystemMessage(Component.literal("§6[§7${it.displayName.string}§6]§7 ").append(text().mcTranslate))
+            it.sendMessage(TextComponent("§6[§7${it.displayName.string}§6]§7 ").append(text().mcTranslate), it.uuid)
         }
     }
 
     infix fun Team.send(text: () -> String) = +SimpleNode {
-        stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text().mcTranslate) }
+        stateMachine.team.onlineMembers.forEach { it.sendMessage(text().mcTranslate, it.uuid) }
     }
 
 

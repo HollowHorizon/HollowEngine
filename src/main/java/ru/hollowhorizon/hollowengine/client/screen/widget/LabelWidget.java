@@ -7,6 +7,7 @@ import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextComponent;
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget;
 
 import javax.annotation.Nullable;
@@ -40,7 +41,7 @@ public class LabelWidget extends HollowWidget {
             AnchorX anchorX,
             AnchorY anchorY,
             List<? extends FormattedText> texts) {
-        super(x, y, 0, 0, Component.literal(""));
+        super(x, y, 0, 0, new TextComponent(""));
         this.font = font;
         this.anchorX = anchorX;
         this.anchorY = anchorY;

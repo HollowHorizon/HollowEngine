@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
-import net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles
+import net.minecraftforge.client.event.EntityViewRenderEvent.CameraSetup
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import ru.hollowhorizon.hc.client.utils.nbt.ForCompoundNBT
@@ -35,7 +35,7 @@ object ClientCameraPlayer : CameraPlayer() {
     }
 
     @SubscribeEvent
-    fun updateMovement(event: ComputeCameraAngles) {
+    fun updateMovement(event: CameraSetup) {
         val (point, rotation) = update()
         (event.camera as CameraInvoker).invokeSetPosition(Vec3(point.x, point.y, point.z))
         event.pitch = rotation.x()

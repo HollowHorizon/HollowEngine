@@ -10,6 +10,7 @@ import net.minecraft.world.level.pathfinder.NodeEvaluator
 import net.minecraft.world.level.pathfinder.Path
 import net.minecraft.world.level.pathfinder.PathFinder
 import net.minecraft.world.phys.Vec3
+import kotlin.math.sqrt
 
 
 class NPCPathFinder(processor: NodeEvaluator, maxVisitedNodes: Int) : PathFinder(processor, maxVisitedNodes) {
@@ -19,10 +20,6 @@ class NPCPathFinder(processor: NodeEvaluator, maxVisitedNodes: Int) : PathFinder
     ): Path? {
         val path = super.findPath(regionIn, mob, targetPositions, maxRange, accuracy, searchDepthMultiplier)
         return if (path == null) null else PatchedPath(path)
-    }
-
-    override fun distance(first: Node, second: Node): Float {
-        return first.distanceToXZ(second)
     }
 
     internal class PatchedPath(original: Path) : Path(

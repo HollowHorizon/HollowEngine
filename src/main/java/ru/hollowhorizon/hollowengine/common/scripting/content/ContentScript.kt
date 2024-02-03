@@ -40,7 +40,7 @@ fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
     result.errors?.let { errors ->
         errors.forEach { error ->
             creativePlayers?.forEach {
-                it.sendSystemMessage("§c[ERROR]§r $error".mcText)
+                it.sendMessage("§c[ERROR]§r $error".mcText, it.uuid)
             } ?: HollowCore.LOGGER.info("[ContentScriptCompiler]: $error")
         }
         return
@@ -66,7 +66,7 @@ fun runContentScript(recipeManager: RecipeManagerAccessor, script: File) {
         (res as ResultWithDiagnostics.Failure).errors().let { errors ->
             errors.forEach { error ->
                 creativePlayers?.forEach {
-                    it.sendSystemMessage("§c[ERROR]§r $error".mcText)
+                    it.sendMessage("§c[ERROR]§r $error".mcText, it.uuid)
                 } ?: HollowCore.LOGGER.info("[ModScriptCompiler]: $error")
             }
             return

@@ -4,20 +4,15 @@ import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
-import net.minecraft.world.effect.MobEffectInstance
-import net.minecraft.world.effect.MobEffects
-import net.minecraft.world.food.FoodProperties
 import net.minecraft.world.item.Item
+import net.minecraftforge.client.ClientRegistry
 import net.minecraftforge.client.event.InputEvent
-import net.minecraftforge.client.event.RegisterKeyMappingsEvent
-import net.minecraftforge.client.event.RenderGuiOverlayEvent
+import net.minecraftforge.client.event.RenderGameOverlayEvent
 import net.minecraftforge.client.event.RenderPlayerEvent
-import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay
+import net.minecraftforge.client.gui.ForgeIngameGui
 import net.minecraftforge.event.entity.player.ItemTooltipEvent
 import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.loading.moddiscovery.ModInfo
-import net.minecraftforge.registries.DeferredRegister
-import net.minecraftforge.registries.ForgeRegistries
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.get
@@ -33,10 +28,8 @@ import ru.hollowhorizon.hollowengine.client.screen.recording.StartRecordingScree
 import ru.hollowhorizon.hollowengine.common.network.KeybindPacket
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
-import ru.hollowhorizon.hollowengine.common.tabs.HOLLOWENGINE_TAB
 import ru.hollowhorizon.hollowengine.common.util.Keybind
 import ru.hollowhorizon.hollowengine.cutscenes.replay.PauseRecordingPacket
-import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
 object ClientEvents {
     const val HE_CATEGORY = "key.categories.hollowengine.keys"
@@ -81,14 +74,14 @@ object ClientEvents {
     }
 
     @JvmStatic
-    fun renderOverlay(event: RenderGuiOverlayEvent.Post) {
-        if (event.overlay != VanillaGuiOverlay.HOTBAR.type()) return
+    fun renderOverlay(event: RenderGameOverlayEvent.Post) {
+        if (event.type != ForgeIngameGui.HOTBAR_ELEMENT) return
 
         val window = event.window
         val width = window.guiScaledWidth
         val height = window.guiScaledHeight
-        MouseOverlay.draw(event.poseStack, width / 2, height / 2 + 16, event.partialTick)
-        RecordingDriver.draw(event.poseStack, 10, 10, event.partialTick)
+        MouseOverlay.draw(event.matrixStack, width / 2, height / 2 + 16, event.partialTicks)
+        RecordingDriver.draw(event.matrixStack, 10, 10, event.partialTicks)
     }
 
     @JvmStatic
@@ -99,7 +92,7 @@ object ClientEvents {
     }
 
     @JvmStatic
-    fun onClicked(event: InputEvent.MouseButton.Pre) {
+    fun onClicked(event: InputEvent.MouseInputEvent) {
         if (event.action != 1) return
 
         if (event.button > 2) return
@@ -109,7 +102,7 @@ object ClientEvents {
     }
 
     @JvmStatic
-    fun onKeyPressed(event: InputEvent.Key) {
+    fun onKeyPressed(event: InputEvent.KeyInputEvent) {
         val key = InputConstants.getKey(
             event.key,
             event.scanCode
@@ -123,7 +116,7 @@ object ClientEvents {
 
         if (TOGGLE_RECORDING.isActiveAndMatches(key) && event.action == 0) {
             val player = Minecraft.getInstance().player ?: return
-            if (!player.hasPermissions(2)) player.sendSystemMessage("hollowengine.no_permissions".mcTranslate)
+            if (!player.hasPermissions(2)) player.sendMessage("hollowengine.no_permissions".mcTranslate, player.uuid)
             else {
                 if (RecordingDriver.enable || player[AnimatedEntityCapability::class].model != "%NO_MODEL%") {
                     RecordingDriver.enable = false
@@ -142,9 +135,7 @@ object ClientEvents {
     }
 
     fun initKeys() {
-        MOD_BUS.addListener { event: RegisterKeyMappingsEvent ->
-            event.register(OPEN_EVENT_LIST)
-            event.register(TOGGLE_RECORDING)
-        }
+        ClientRegistry.registerKeyBinding(OPEN_EVENT_LIST)
+        ClientRegistry.registerKeyBinding(TOGGLE_RECORDING)
     }
 }

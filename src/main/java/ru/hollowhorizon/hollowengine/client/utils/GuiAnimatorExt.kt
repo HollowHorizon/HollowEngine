@@ -5,6 +5,6 @@ import ru.hollowhorizon.hc.client.utils.GuiAnimator
 import kotlin.reflect.KProperty
 
 operator fun GuiAnimator.getValue(nothing: Any?, property: KProperty<*>): Int {
-    update(Minecraft.getInstance().partialTick)
+    update(Minecraft.getInstance().deltaFrameTime)
     return value
 }

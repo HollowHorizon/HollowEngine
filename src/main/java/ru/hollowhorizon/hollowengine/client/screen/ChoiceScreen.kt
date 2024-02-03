@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
+import net.minecraft.network.chat.TextComponent
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.util.Alignment
 import ru.hollowhorizon.hc.client.screens.util.WidgetPlacement
@@ -85,7 +86,7 @@ object ChoiceScreen : HollowScreen() {
             )
 
             font.drawShadow(
-                stack, Component.literal(text.string).apply {
+                stack, TextComponent(text.string).apply {
                     if (isHovered) style = Style.EMPTY.withUnderlined(true)
                 },
                 0f, 0f,

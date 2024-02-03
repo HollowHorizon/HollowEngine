@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.screen.scripting
 
-import net.minecraft.client.gui.components.MultiLineEditBox
+//import net.minecraft.client.gui.components.MultilineTextField
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.screens.widget.layout.PlacementType
@@ -9,7 +9,7 @@ import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
 
 class CodeEditorScreen : HollowScreen() {
-    private var editBox: MultiLineEditBox? = null
+    //private var editBox: MultilineTextField? = null
 
     override fun init() {
         super.init()
@@ -18,7 +18,7 @@ class CodeEditorScreen : HollowScreen() {
             placementType = PlacementType.GRID
 
             elements {
-                editBox = +HighlightEditBox(90.pc.w().value, 80.pc.h().value)
+               // editBox = +HighlightEditBox(90.pc.w().value, 80.pc.h().value)
 
                 +BaseButton(
                     0, 0, 43.pc.w().value, 20,
@@ -39,6 +39,6 @@ class CodeEditorScreen : HollowScreen() {
 
     override fun tick() {
         super.tick()
-        editBox?.tick()
+        //editBox?.tick()
     }
 }

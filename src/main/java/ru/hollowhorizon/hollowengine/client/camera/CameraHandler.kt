@@ -7,9 +7,9 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.RenderType
 import net.minecraft.world.entity.player.Player
+import net.minecraftforge.client.event.EntityViewRenderEvent.CameraSetup
 import net.minecraftforge.client.event.InputEvent
 import net.minecraftforge.client.event.RenderLevelStageEvent
-import net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import ru.hollowhorizon.hc.client.math.Spline3D
 import ru.hollowhorizon.hc.client.utils.math.Interpolation
@@ -74,7 +74,7 @@ object CameraHandler {
     }
 
     @SubscribeEvent
-    fun onClicked(event: InputEvent.MouseButton.Post) {
+    fun onClicked(event: InputEvent.MouseInputEvent) {
         val player = mc.player ?: return
         if (player.mainHandItem.item != ModItems.CAMERA.get() || event.action != 0) return
 
@@ -100,7 +100,7 @@ object CameraHandler {
     }
 
     @SubscribeEvent
-    fun onKeyPressed(event: InputEvent.Key) {
+    fun onKeyPressed(event: InputEvent.KeyInputEvent) {
         if (mc.player?.mainHandItem?.item != ModItems.CAMERA.get()) return
 
         val key = Keybind.fromCode(event.key)
@@ -113,7 +113,7 @@ object CameraHandler {
     }
 
     @SubscribeEvent
-    fun onComputeAngles(event: ComputeCameraAngles) {
+    fun onComputeAngles(event: CameraSetup) {
         if (mc.player?.mainHandItem?.item != ModItems.CAMERA.get()) return
         event.roll = zRot
     }
@@ -123,8 +123,8 @@ object CameraHandler {
         val x = player.x
         val y = player.y + player.eyeHeight
         val z = player.z
-        val xRot = player.getViewXRot(mc.partialTick)
-        val yRot = player.getViewYRot(mc.partialTick)
+        val xRot = player.getViewXRot(mc.deltaFrameTime)
+        val yRot = player.getViewYRot(mc.deltaFrameTime)
 
         points += Point(x, y, z, xRot, yRot, zRot)
 

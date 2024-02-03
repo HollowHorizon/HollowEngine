@@ -19,7 +19,7 @@ class SpawnParticlesPacket(
     val moveZ: Double
 ) {
     fun write(buf: FriendlyByteBuf) {
-        buf.writeRegistryId(ForgeRegistries.PARTICLE_TYPES, options.type)
+        buf.writeRegistryId(options.type)
         options.writeToNetwork(buf)
         buf.writeDouble(this.spawnX)
         buf.writeDouble(this.spawnY)
@@ -32,7 +32,7 @@ class SpawnParticlesPacket(
     companion object {
         @JvmStatic
         fun read(buf: FriendlyByteBuf): SpawnParticlesPacket {
-            val type = buf.readRegistryId<ParticleType<ParticleOptions>>()
+            val type = buf.readRegistryId<ParticleType<*>>() as ParticleType<ParticleOptions>
             return SpawnParticlesPacket(
                 type.deserializer.fromNetwork(type, buf),
                 buf.readDouble(), buf.readDouble(), buf.readDouble(),

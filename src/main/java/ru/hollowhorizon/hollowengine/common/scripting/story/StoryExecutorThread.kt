@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story
 import dev.ftb.mods.ftbteams.data.Team
 import kotlinx.coroutines.async
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.mcText
@@ -33,7 +34,7 @@ fun runScript(server: MinecraftServer, team: Team, file: File, isCommand: Boolea
             errors.forEach { error ->
                 team.onlineMembers.forEach {
                     StoryLogger.LOGGER.error(error.replace("\\r\\n", "\n"))
-                    it.sendSystemMessage("§c[ERROR]§r $error".mcText)
+                    it.sendMessage("§c[ERROR]§r $error".mcText, it.uuid)
                 }
             }
             return@async
@@ -51,7 +52,7 @@ fun runScript(server: MinecraftServer, team: Team, file: File, isCommand: Boolea
         when {
             res.isError() -> {
                 (res as ResultWithDiagnostics.Failure).errors().forEach { error ->
-                    team.onlineMembers.forEach { it.sendSystemMessage("§c[ERROR]§r $error".mcText) }
+                    team.onlineMembers.forEach { it.sendMessage("§c[ERROR]§r $error".mcText, it.uuid) }
                 }
             }
 

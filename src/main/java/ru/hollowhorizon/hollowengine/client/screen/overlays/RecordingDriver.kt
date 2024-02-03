@@ -7,6 +7,7 @@ import com.mojang.math.Vector3f
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hc.client.handlers.ClientTickHandler
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
@@ -42,7 +43,7 @@ object RecordingDriver {
         val hours = ((progress / 3600f) % 60f).toInt()
 
         Minecraft.getInstance().font.drawScaled(
-            stack, Anchor.START, Component.translatable("hollowengine.recoring_tooltip", hours, minutes, String.format("%.3f", seconds)), x + 20, y + 3, 0x0CA7f5, 1.2f
+            stack, Anchor.START, TranslatableComponent("hollowengine.recoring_tooltip", hours, minutes, String.format("%.3f", seconds)), x + 20, y + 3, 0x0CA7f5, 1.2f
         )
         //hollowengine:models/entity/player_model.gltf
         renderEntityInInventory(

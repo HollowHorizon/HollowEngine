@@ -11,13 +11,13 @@ fun IContextBuilder.input(vararg values: String, onlyHostMode: Boolean = false) 
     +InputNode(*values, onlyHostMode = onlyHostMode)
 
 class InputNode(vararg val values: String, val onlyHostMode: Boolean = false) :
-    ForgeEventNode<ServerChatEvent.Submitted>(ServerChatEvent.Submitted::class.java, { true }), ReadWriteProperty<Any?, String> {
+    ForgeEventNode<ServerChatEvent>(ServerChatEvent::class.java, { true }), ReadWriteProperty<Any?, String> {
     var message: String = "Nothing"
-    override val action = { event: ServerChatEvent.Submitted ->
+    override val action = { event: ServerChatEvent ->
         val isFromTeam =
             event.player in manager.team.onlineMembers || (onlyHostMode && event.player.uuid == manager.team.owner)
-        if (isFromTeam) message = event.message.string
-        isFromTeam && (values.any { it.equals(event.message.string, ignoreCase = true) } || values.isEmpty())
+        if (isFromTeam) message = event.message
+        isFromTeam && (values.any { it.equals(event.message, ignoreCase = true) } || values.isEmpty())
     }
 
     override fun serializeNBT(): CompoundTag {

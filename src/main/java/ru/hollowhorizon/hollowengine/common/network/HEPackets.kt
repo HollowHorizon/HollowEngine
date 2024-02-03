@@ -5,6 +5,8 @@ import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.HoverEvent
 import net.minecraft.network.chat.Style
+import net.minecraft.network.chat.TextComponent
+import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.world.entity.player.Player
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.network.NetworkDirection
@@ -22,11 +24,11 @@ import ru.hollowhorizon.hollowengine.common.util.Keybind
 @Serializable
 class CopyTextPacket(val text: String) : HollowPacketV3<CopyTextPacket> {
     override fun handle(player: Player, data: CopyTextPacket) {
-        player.sendSystemMessage(Component.translatable("hollowengine.commands.copy", Component.literal(data.text).apply {
+        player.sendMessage(TranslatableComponent("hollowengine.commands.copy", TextComponent(data.text).apply {
             style = Style.EMPTY
                 .withHoverEvent(HoverEvent(HoverEvent.Action.SHOW_TEXT, "hollowengine.tooltips.copy".mcTranslate))
                 .withClickEvent(ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, data.text))
-        }))
+        }), player.uuid)
         mc.keyboardHandler.clipboard = data.text
     }
 
@@ -39,34 +41,35 @@ class ShowModelInfoPacket(val model: String) : HollowPacketV3<ShowModelInfoPacke
         val location = data.model.rl
 
         GltfManager.getOrCreate(location).let { model ->
-            player.sendSystemMessage(
-                Component.translatable(
+            player.sendMessage(
+                TranslatableComponent(
                     "hollowengine.commands.model_animations",
                     data.model.substringAfterLast('/')
-                )
+                ),
+                player.uuid
             )
 
             model.animationPlayer.nameToAnimationMap.keys.forEach { anim ->
-                player.sendSystemMessage(Component.literal("- ").append(Component.literal(anim).apply {
+                player.sendMessage(TextComponent("- ").append(TextComponent(anim).apply {
                     style = Style.EMPTY
                         .withHoverEvent(HoverEvent(HoverEvent.Action.SHOW_TEXT, "hollowengine.tooltips.copy".mcTranslate))
                         .withClickEvent(ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, anim))
-                }))
+                }), player.uuid)
             }
 
-            player.sendSystemMessage(
-                Component.translatable(
+            player.sendMessage(
+                TranslatableComponent(
                     "hollowengine.commands.model_textures",
                     data.model.substringAfterLast('/')
-                )
+                ), player.uuid
             )
 
             model.modelTree.materials.map { it.texture.path.removeSuffix(".png") }.forEach { anim ->
-                player.sendSystemMessage(Component.literal("- ").append(Component.literal(anim).apply {
+                player.sendMessage(TextComponent("- ").append(TextComponent(anim).apply {
                     style = Style.EMPTY
                         .withHoverEvent(HoverEvent(HoverEvent.Action.SHOW_TEXT, "hollowengine.tooltips.copy".mcTranslate))
                         .withClickEvent(ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, anim))
-                }))
+                }), player.uuid)
             }
         }
     }

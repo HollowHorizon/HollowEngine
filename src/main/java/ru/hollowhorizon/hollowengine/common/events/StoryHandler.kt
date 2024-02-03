@@ -9,7 +9,7 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.stats.Stats
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.event.entity.player.PlayerEvent
-import net.minecraftforge.event.level.LevelEvent
+import net.minecraftforge.event.world.WorldEvent
 import net.minecraftforge.event.server.ServerStoppingEvent
 import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.api.utils.HollowConfig
@@ -98,7 +98,7 @@ object StoryHandler {
     }
 
     @JvmStatic
-    fun onWorldSave(event: LevelEvent.Save) {
+    fun onWorldSave(event: WorldEvent.Save) {
         events.forEach { (team, stories) ->
             val storiesNBT = CompoundTag().apply {
                 stories.forEach { (path, story) ->

@@ -8,6 +8,8 @@ import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.network.chat.Component
 import net.minecraftforge.network.PacketDistributor
 import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.client.utils.mcText
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.register
 import ru.hollowhorizon.hollowengine.client.utils.roundTo
@@ -59,16 +61,12 @@ object HEStoryCommands {
                 "active-events" {
                     val player = source.playerOrException
                     val storyTeam = FTBTeamsAPI.getPlayerTeam(player)
-                    player.sendSystemMessage(Component.translatable("hollowengine.commands.active_events"))
+                    player.sendMessage("hollowengine.commands.active_events".mcTranslate, player.uuid)
                     StoryHandler.getActiveEvents(storyTeam)
                         .ifEmpty{ mutableListOf("No active events") }
                         .forEach(
                             Consumer { name: String ->
-                                player.sendSystemMessage(
-                                    Component.literal(
-                                        "§6 - §7$name"
-                                    )
-                                )
+                                player.sendMessage("§6 - §7$name".mcText, player.uuid)
                             }
                         )
                 }

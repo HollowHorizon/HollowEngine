@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TextComponent
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import net.minecraftforge.common.MinecraftForge
@@ -152,8 +153,8 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
             wait { (text().length / 14 + 15).sec }
             return next {
                 val component =
-                    Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
-                stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
+                    TextComponent("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
+                stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
             }
         } else {
             val result = +SimpleNode {
@@ -175,8 +176,8 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
             wait { (text().length / 14 + 15).sec }
             return next {
                 val component =
-                    Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
-                stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
+                    TextComponent("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
+                stateMachine.team.onlineMembers.forEach { it.sendMessage(component, it.uuid) }
             }
         } else {
             val result = +SimpleNode {
@@ -196,7 +197,7 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
         if (action == ChoiceAction.WORLD) {
             wait { (text().length / 14 + 15).sec }
             return next {
-                stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text().mcTranslate) }
+                stateMachine.team.onlineMembers.forEach { it.sendMessage(text().mcTranslate, it.uuid) }
             }
         } else {
             val result = +SimpleNode {

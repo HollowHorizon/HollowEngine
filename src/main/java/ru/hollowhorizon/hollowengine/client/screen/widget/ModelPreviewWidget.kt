@@ -18,6 +18,7 @@ import net.minecraft.world.level.block.Blocks
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.utils.ScissorUtil.pop
 import ru.hollowhorizon.hc.client.utils.ScissorUtil.push
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import kotlin.math.max
@@ -37,7 +38,7 @@ class ModelPreviewWidget(
     originalY,
     originalWidth,
     originalHeight,
-    Component.translatable("hollowengine.model_preview")
+    "hollowengine.model_preview".mcTranslate
 ) {
     private val buttons: MutableList<IconButton> = ArrayList()
     private val resetButton: IconButton
@@ -67,7 +68,7 @@ class ModelPreviewWidget(
                 BUTTON_SIZE,
                 { this.resetPreview() },
                 tooltip,
-                Component.translatable("hollowengine.model_preview.reset")
+                "hollowengine.model_preview.reset".mcTranslate
             )
         buttons.add(resetButton)
         fullscreenButton =
@@ -78,7 +79,7 @@ class ModelPreviewWidget(
                     fullscreen = !fullscreen
                 },
                 tooltip,
-                Component.translatable("hollowengine.model_preview.full_screen")
+                "hollowengine.model_preview.full_screen".mcTranslate
             )
         bottomButtons =
             arrayOf(
@@ -86,13 +87,13 @@ class ModelPreviewWidget(
                     4,
                     { doTurntable = !doTurntable },
                     tooltip,
-                    Component.translatable("hollowengine.model_preview.rotate_model")
+                    "hollowengine.model_preview.rotate_model".mcTranslate
                 ),
                 this.makeButton(
                     3,
                     { renderFloor = !renderFloor },
                     tooltip,
-                    Component.translatable("hollowengine.model_preview.display.plant")
+                    "hollowengine.model_preview.display.plant".mcTranslate
                 ),
                 this.addButton(
                     PlayerIconButton(
@@ -101,14 +102,14 @@ class ModelPreviewWidget(
                         MC.user.gameProfile,
                         { showPlayer = !showPlayer },
                         tooltip,
-                        Component.translatable("hollowengine.model_preview.display.player")
+                        "hollowengine.model_preview.display.player".mcTranslate
                     )
                 ),
                 this.makeButton(
                     2,
                     { renderBoundingBoxes = !renderBoundingBoxes },
                     tooltip,
-                    Component.translatable("hollowengine.model_preview.display.hitboxes")
+                    "hollowengine.model_preview.display.hitboxes".mcTranslate
                 )
             )
         title =

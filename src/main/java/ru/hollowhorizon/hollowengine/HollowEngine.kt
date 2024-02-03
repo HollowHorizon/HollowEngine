@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine
 
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.repository.Pack
 import net.minecraft.server.packs.repository.PackSource
@@ -34,9 +35,6 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getModScripts
 import ru.hollowhorizon.hollowengine.common.network.NetworkHandler
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
-import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructurePieces
-import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructureSets
-import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructures
 import ru.hollowhorizon.hollowengine.common.scripting.mod.runModScript
 import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
@@ -73,10 +71,6 @@ class HollowEngine {
 
         MOD_BUS.addListener(this::registerPacks)
 
-        ModStructures.STRUCTURES.register(MOD_BUS)
-        ModStructures.STRUCTURE_TYPES.register(MOD_BUS)
-        ModStructureSets.STRUCTURE_SETS.register(MOD_BUS)
-        ModStructurePieces.STRUCTURE_PIECES.register(MOD_BUS)
         RegistryLoader.registerAll()
         //ModDimensions
     }
@@ -86,7 +80,7 @@ class HollowEngine {
             adder.accept(
                 creator.create(
                     HollowStoryPack.name, HollowStoryPack.name.mcText, true, { HollowStoryPack },
-                    PackMetadataSection(Component.translatable("fml.resources.modresources"), 9),
+                    PackMetadataSection(TranslatableComponent("fml.resources.modresources"), 9),
                     Pack.Position.TOP, PackSource.BUILT_IN, false
                 )
             )

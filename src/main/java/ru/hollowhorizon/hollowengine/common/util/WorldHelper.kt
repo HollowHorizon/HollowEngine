@@ -1,16 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.util
 
 import net.minecraft.core.BlockPos
-import net.minecraft.core.Registry
 import net.minecraft.server.level.ServerLevel
-import net.minecraft.tags.TagKey
 import net.minecraft.util.Mth
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.levelgen.structure.StructurePiece
-import ru.hollowhorizon.hc.client.utils.get
-import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hollowengine.common.capabilities.StructuresCapability
-import ru.hollowhorizon.hollowengine.common.structures.ScriptedStructure
 
 
 fun ServerLevel.getSafeSpawn(position: BlockPos): BlockPos {
@@ -171,21 +165,6 @@ fun ServerLevel.getSafeSpawn(position: BlockPos): BlockPos {
     return mutable
 }
 
-fun ServerLevel.getStructure(path: String, pos: BlockPos = BlockPos.ZERO): StructureWrapper {
-    val location = "hollowengine:$path"
-    val capability = this[StructuresCapability::class].structures
-    if (!capability.contains(location)) {
-        level.findNearestMapStructure(
-            TagKey.create(Registry.STRUCTURE_REGISTRY, location.rl),
-            pos, 100, false
-        )
-    }
-    val spos = capability["hollowengine:$path"] ?: throw IllegalStateException("Structure $path not found!")
-    val bpos = BlockPos(spos.x, spos.y, spos.z)
-    val structures = level.structureManager().getAllStructuresAt(bpos)
-    val structure = structures.mapNotNull { it.key as? ScriptedStructure }.first { it.location.path == path }
-    return StructureWrapper(this, bpos, level.structureManager().getStructureAt(bpos, structure).pieces.first())
-}
 
 class StructureWrapper(
     val level: ServerLevel,

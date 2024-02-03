@@ -43,19 +43,19 @@ object PlayerRenderer {
 
         stack.pushPose()
 
-        preRender(event.entity, capability, model.animationPlayer, stack)
+        preRender(event.player, capability, model.animationPlayer, stack)
 
-        val lerpBodyRot = Mth.rotLerp(event.partialTick, event.entity.yBodyRotO, event.entity.yBodyRot)
+        val lerpBodyRot = Mth.rotLerp(event.partialTick, event.player.yBodyRotO, event.player.yBodyRot)
         stack.mulPose(Vector3f.YP.rotationDegrees(-lerpBodyRot))
 
         model.visuals = ::drawVisuals
 
         model.update(capability, event.entity.tickCount, event.partialTick)
-        model.entityUpdate(event.entity, capability, event.partialTick)
+        model.entityUpdate(event.player, capability, event.partialTick)
 
         model.render(
             stack,
-            ModelData(event.entity.offhandItem, event.entity.mainHandItem, null, event.entity),
+            ModelData(event.player.offhandItem, event.player.mainHandItem, null, event.player),
             { texture: ResourceLocation ->
                 val result = capability.textures[texture.path]?.let {
                     if (it.startsWith("skins/")) SkinDownloader.downloadSkin(it.substring(6))
@@ -65,7 +65,7 @@ object PlayerRenderer {
                 Minecraft.getInstance().textureManager.getTexture(result).id
             }.memoize(),
             event.packedLight,
-            OverlayTexture.pack(0, if (event.entity.hurtTime > 0 || !event.entity.isAlive) 3 else 10)
+            OverlayTexture.pack(0, if (event.player.hurtTime > 0 || !event.player.isAlive) 3 else 10)
         )
         stack.popPose()
     }

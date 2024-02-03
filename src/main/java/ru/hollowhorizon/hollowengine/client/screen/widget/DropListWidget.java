@@ -3,8 +3,6 @@ package ru.hollowhorizon.hollowengine.client.screen.widget;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget;
@@ -28,7 +26,7 @@ public class DropListWidget extends HollowWidget {
     private int animCounter = 0;
 
     public DropListWidget(Component text, ArrayList<ListElement> elements, Consumer<ListElement> onClick, int x, int y, int w, int h) {
-        super(x, y, w, h, Component.empty());
+        super(x, y, w, h, text);
 
         this.elements = elements;
         this.onClick = onClick;

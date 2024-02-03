@@ -7,6 +7,8 @@ import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.HoverEvent
 import net.minecraft.network.chat.Style
+import net.minecraft.network.chat.TextComponent
+import net.minecraft.network.chat.TranslatableComponent
 import net.minecraftforge.network.PacketDistributor
 import net.minecraftforge.registries.ForgeRegistries
 import org.jetbrains.kotlin.konan.file.File
@@ -47,14 +49,14 @@ object HECommands {
                     }
                     CopyTextPacket(itemCommand).send(PacketDistributor.PLAYER.with {player})
 
-                    player.sendSystemMessage("hollowengine.commands.tags".mcTranslate)
+                    player.sendMessage("hollowengine.commands.tags".mcTranslate, player.uuid)
 
                     item.tags.forEach { tag ->
-                        player.sendSystemMessage(Component.translatable("hollowengine.commands.copy", Component.literal("tag(\"${tag.location}\")").apply {
+                        player.sendMessage(TranslatableComponent("hollowengine.commands.copy", TextComponent("tag(\"${tag.location}\")").apply {
                             style = Style.EMPTY
                                 .withHoverEvent(HoverEvent(HoverEvent.Action.SHOW_TEXT, "hollowengine.tooltips.copy".mcTranslate))
                                 .withClickEvent(ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, "tag(\"${tag.location}\")"))
-                        }))
+                        }), player.uuid)
                     }
                 }
 
