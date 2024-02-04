@@ -21,7 +21,7 @@ import java.util.Set;
 
 @Mixin(ChunkGenerator.class)
 public class ChunkGeneratorMixin {
-    @Shadow
+    @Shadow(aliases = "f_223022_")
     @Final
     private Map<Structure, List<StructurePlacement>> placementsForStructure;
 
