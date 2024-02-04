@@ -80,7 +80,7 @@ object DialogueScreen : HollowScreen("".mcText) {
                         BaseButton(x, y, w, h, choice, {
                             this@DialogueScreen.init()
                             OnChoicePerform(i).send()
-                        }, CHOICE_BUTTON.rl, textColor = 0xFFFFFF, textColorHovered = 0xEDC213)
+                        }, CHOICE_BUTTON.rl, textColor = 0xFFFFFF, textColorHovered = 8409088)
                     }, Alignment.CENTER, 0, this.height / 3 - 25 * i, this.width, this.height, 320, 20
                 )
             )
