@@ -684,11 +684,15 @@ interface IContextBuilder {
     }
 
     fun AsyncProperty.stop() = +SimpleNode {
-        stateMachine.asyncNodeIds.remove(this@stop.index)
+        stateMachine.onTickTasks += {
+            stateMachine.asyncNodeIds.remove(this@stop.index)
+        }
     }
 
     fun AsyncProperty.resume() = +SimpleNode {
-        stateMachine.asyncNodeIds.add(this@resume.index)
+        stateMachine.onTickTasks += {
+            stateMachine.asyncNodeIds.add(this@resume.index)
+        }
     }
 
 //    @Serializable Крч, сам сделаешь. Просил сам сделать класс xD

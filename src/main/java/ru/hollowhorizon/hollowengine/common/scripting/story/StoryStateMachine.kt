@@ -21,6 +21,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.serialize
 open class StoryStateMachine(val server: MinecraftServer, val team: Team) : IContextBuilder {
     val variables = ArrayList<StoryVariable<*>>()
     val startTasks = ArrayList<() -> Unit>()
+    val onTickTasks = ArrayList<() -> Unit>()
     var extra = CompoundTag()
     internal val nodes = ArrayList<Node>()
     internal val asyncNodes = ArrayList<Node>()
@@ -33,7 +34,12 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
     fun tick(event: ServerTickEvent) {
         if (event.phase != TickEvent.Phase.END) return
 
-        asyncNodeIds.removeIf { !asyncNodes[it].tick() }
+        onTickTasks.forEach { it() }
+        onTickTasks.clear()
+
+        val toRemove = asyncNodeIds.mapNotNull { if(!asyncNodes[it].tick()) it else null }
+
+        toRemove.forEach(asyncNodeIds::remove)
 
         if(currentIndex >= nodes.size) return
 
