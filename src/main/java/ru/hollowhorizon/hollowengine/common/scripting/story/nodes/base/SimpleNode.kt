@@ -1,9 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base
 
-import net.minecraft.commands.CommandSigningContext
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
-import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.StoryLogger
@@ -50,7 +48,7 @@ fun IContextBuilder.stopScript(file: () -> String) = next {
 
 fun IContextBuilder.restartScript() = next {
     val team = this@restartScript.stateMachine.team
-    StoryHandler.getEventByName(team, this@restartScript.stateMachine)?.let {
+    StoryHandler.getEventByScript(team, this@restartScript.stateMachine)?.let {
         StoryHandler.restartEvent(team, it)
     }
 }

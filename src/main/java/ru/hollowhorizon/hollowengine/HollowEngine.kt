@@ -27,6 +27,7 @@ import ru.hollowhorizon.hollowengine.client.camera.ScreenShakeHandler
 import ru.hollowhorizon.hollowengine.client.shaders.ModShaders
 import ru.hollowhorizon.hollowengine.common.commands.HECommands
 import ru.hollowhorizon.hollowengine.common.commands.HEStoryCommands
+import ru.hollowhorizon.hollowengine.common.compat.ftbquests.FTBQuestsSupport
 import ru.hollowhorizon.hollowengine.common.data.HollowStoryPack
 import ru.hollowhorizon.hollowengine.common.events.StoryEngineSetup
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -44,6 +45,9 @@ import thedarkcolour.kotlinforforge.forge.MOD_BUS
 class HollowEngine {
     init {
         getModScripts().forEach(::runModScript)
+
+        if(ModList.get().isLoaded("ftbquests")) FTBQuestsSupport
+
         val forgeBus = MinecraftForge.EVENT_BUS
         HollowCore.LOGGER.info("HollowEngine mod loading...")
         forgeBus.addListener(::registerCommands)

@@ -54,5 +54,7 @@
   "hollowengine.progress_manager.event_list": "Список событий",
   "hollowengine.progress_manager.no_tasks": "Заданий пока нет, возможно они появятся позже!",
   "hollowengine.input_model_path": "Введите путь к модели:",
-  "hollowengine.model_edit.text": "текст"
+  "hollowengine.model_edit.text": "текст",
+  "ftbquests.task.hollowengine.story_event": "Сюжетное событие",
+  "ftbquests.task.hollowengine.story_event.story_event": "Путь к файлу скрипта"
 }

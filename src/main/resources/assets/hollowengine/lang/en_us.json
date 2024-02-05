@@ -52,5 +52,7 @@
   "hollowengine.npc_choicer.timecore": "Adds models from BlockBench, including animated. Supported formats:",
   "hollowengine.npc_choicer.vanilla": "Adds models that other mobs in the game already have, so far only vanilla ones.",
   "hollowengine.progress_manager.event_list": "Event List",
-  "hollowengine.progress_manager.no_tasks": "No tasks yet, maybe they will appear later!"
+  "hollowengine.progress_manager.no_tasks": "No tasks yet, maybe they will appear later!",
+  "ftbquests.task.hollowengine.story_event": "Story Event",
+  "ftbquests.task.hollowengine.story_event.story_event": "Script file path"
 }

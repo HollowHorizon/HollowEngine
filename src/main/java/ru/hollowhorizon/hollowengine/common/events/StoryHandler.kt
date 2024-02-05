@@ -40,7 +40,9 @@ object StoryHandler {
         runScript(ServerLifecycleHooks.getCurrentServer(), team, eventPath.fromReadablePath())
     }
 
-    fun getEventByName(team: Team, name: StoryStateMachine) = events[team]?.entries?.find { it.value == name }?.key
+    fun getEventByScript(team: Team, name: StoryStateMachine) = events[team]?.entries?.find { it.value == name }?.key
+
+    fun getEventByName(team: Team, name: String) = events[team]?.get(name)
 
     @JvmStatic
     fun onPlayerJoin(event: PlayerEvent.PlayerLoggedInEvent) {
