@@ -47,7 +47,7 @@ object DirectoryManager {
         val folder = HOLLOW_ENGINE.toPath()
         val path = this.toPath()
 
-        return folder.relativize(path).toString()
+        return folder.relativize(path).toString().replace("\\", "/")
     }
 
     @JvmStatic
