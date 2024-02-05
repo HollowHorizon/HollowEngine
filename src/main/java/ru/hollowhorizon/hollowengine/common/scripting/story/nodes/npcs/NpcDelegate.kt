@@ -7,21 +7,22 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.common.capabilities.CapabilityStorage
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.NpcContainer
+import java.util.*
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
 class NpcDelegate(
-    val settings: () -> IContextBuilder.NpcContainer,
+    val settings: () -> NpcContainer,
 ) : Node(), ReadOnlyProperty<Any?, NPCProperty> {
 
     val npc: NPCEntity by lazy {
         val settings = settings()
-        assert(ResourceLocation.isValidResourceLocation(settings.model)) { "Invalid model path: ${settings.model}" }
+        check(ResourceLocation.isValidResourceLocation(settings.model)) { "Invalid model path: ${settings.model}" }
 
         val dimension = manager.server.levelKeys().find { it.location() == settings.world.rl }
             ?: throw IllegalStateException("Dimension ${settings.world} not found. Or not loaded!")
@@ -29,7 +30,10 @@ class NpcDelegate(
             ?: throw IllegalStateException("Dimension ${settings.world} not found. Or not loaded")
 
         val entities = level.getEntities(ModEntities.NPC_ENTITY.get()) { entity: NPCEntity ->
-            return@getEntities entity[AnimatedEntityCapability::class].model == settings.model && entity.displayName.string == settings.name && entity.isAlive
+            return@getEntities entity[AnimatedEntityCapability::class].model == settings.model &&
+                    entity.displayName.string == settings.name &&
+                    UUID.fromString(entity[NPCCapability::class].teamUUID) == manager.team.id &&
+                    entity.isAlive
         }
 
         var isNpcSpawned = true
@@ -40,17 +44,18 @@ class NpcDelegate(
         }
 
         if (!isNpcSpawned) {
-            entity.getCapability(CapabilityStorage.getCapability(AnimatedEntityCapability::class.java)).ifPresent {
-                it.model = settings.model
-                it.animations.clear()
-                it.animations.putAll(settings.animations)
-                it.textures.clear()
-                it.textures.putAll(settings.textures)
-                it.transform = settings.transform
-                it.switchHeadRot = settings.switchHeadRot
-                it.subModels.clear()
-                it.subModels.putAll(settings.subModels)
+            entity[AnimatedEntityCapability::class].apply {
+                model = settings.model
+                animations.clear()
+                animations.putAll(settings.animations)
+                textures.clear()
+                textures.putAll(settings.textures)
+                transform = settings.transform
+                switchHeadRot = settings.switchHeadRot
+                subModels.clear()
+                subModels.putAll(settings.subModels)
             }
+            entity[NPCCapability::class].teamUUID = manager.team.id.toString()
             entity.moveTo(
                 settings.pos.x, settings.pos.y, settings.pos.z, settings.rotation.x, settings.rotation.y
             )

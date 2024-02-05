@@ -5,9 +5,16 @@ import net.minecraft.nbt.ListTag
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hc.client.utils.mcTranslate
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder.GiveItemList
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
+
+class GiveItemList {
+    val items = mutableListOf<ItemStack>()
+    var text = "hollowengine.npc_need"
+
+    operator fun ItemStack.unaryPlus() {
+        items.add(this)
+    }
+}
 
 class NpcItemListNode(itemList: GiveItemList.() -> Unit, npcConsumer: NPCProperty) : Node() {
     val npc by lazy { npcConsumer() }
@@ -15,15 +22,15 @@ class NpcItemListNode(itemList: GiveItemList.() -> Unit, npcConsumer: NPCPropert
     var isStarted = false
 
     override fun tick(): Boolean {
-        if(!isStarted) {
+        if (!isStarted) {
             isStarted = true
             npc.shouldGetItem = { entityItem ->
                 val item = itemList.items.find { it.item == entityItem.item }
 
-                if(item != null) {
+                if (item != null) {
                     val remaining = item.count
                     item.shrink(entityItem.count)
-                    if(item.isEmpty) {
+                    if (item.isEmpty) {
                         itemList.items.remove(item)
                         entityItem.shrink(remaining)
                     }
@@ -38,8 +45,8 @@ class NpcItemListNode(itemList: GiveItemList.() -> Unit, npcConsumer: NPCPropert
             }
         }
         val hasItems = itemList.items.isNotEmpty()
-        if(!hasItems) {
-            npc.shouldGetItem = {false}
+        if (!hasItems) {
+            npc.shouldGetItem = { false }
             npc.onInteract = {}
         }
         return hasItems

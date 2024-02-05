@@ -4,6 +4,7 @@ import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import dev.ftb.mods.ftbteams.data.Team
 import dev.ftb.mods.ftbteams.event.TeamEvent
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.stats.Stats
 import net.minecraftforge.event.TickEvent.ServerTickEvent
@@ -13,6 +14,8 @@ import net.minecraftforge.event.server.ServerStoppingEvent
 import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.api.utils.HollowConfig
 import ru.hollowhorizon.hc.client.utils.isLogicalClient
+import ru.hollowhorizon.hc.client.utils.mcText
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.StoryLogger
@@ -54,7 +57,22 @@ object StoryHandler {
         isStoryPlaying = true
         events.forEach { (team, stories) ->
             stories
-                .filter { it.value.tick(event); it.value.isEnded }
+                .filter {
+                    try {
+                        it.value.tick(event)
+                        it.value.isEnded
+                    } catch (exception: Exception) {
+                        team.onlineMembers.forEach { player ->
+                            player.sendSystemMessage(Component.translatable("hollowengine.executing_error", it.key))
+                            player.sendSystemMessage("${exception.message}".mcText)
+                            player.sendSystemMessage("hollowengine.check_logs".mcTranslate)
+                        }
+
+                        StoryLogger.LOGGER.error("(HollowEngine) Error while executing event \"${it.key}\"", exception)
+
+                        return@filter true
+                    }
+                }
                 .map { it.key }
                 .onEach { StoryLogger.LOGGER.info("Finished event \"{}\", for team \"{}\".", it, team) }
                 .forEach(stories::remove)

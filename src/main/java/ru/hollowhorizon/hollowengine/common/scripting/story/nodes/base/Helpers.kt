@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraftforge.common.util.INBTSerializable
+import ru.hollowhorizon.hollowengine.common.scripting.StoryLogger
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
@@ -26,6 +27,10 @@ open class NodeContextBuilder(override val stateMachine: StoryStateMachine) : IC
 
     override operator fun <T: Node> T.unaryPlus(): T {
         this.manager = stateMachine
+        if(manager.isStarted) {
+            StoryLogger.LOGGER.fatal("It is not possible to add a ${this.javaClass.simpleName} action after running the script! You may have forgotten to write `IContextBuilder.` before the name of your function? Or you just add action in other action?!")
+            throw IllegalStateException("It is not possible to add a ${this.javaClass.simpleName} action after running the script! You may have forgotten to write `IContextBuilder.` before the name of your function? Or you just add action in other action?!")
+        }
         tasks.add(this)
         return this
     }

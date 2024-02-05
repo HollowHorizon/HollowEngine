@@ -1,9 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base
 
 import net.minecraft.nbt.CompoundTag
+import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.HasInnerNodes
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
+import java.util.*
 
 open class WhileNode(protected val condition: () -> Boolean, val tasks: List<Node>, val tag: String = "") : Node(), HasInnerNodes {
     protected var index = 0
@@ -67,3 +69,42 @@ fun IContextBuilder.While(condition: () -> Boolean, tag: () -> String, tasks: No
 
 fun IContextBuilder.DoWhile(condition: () -> Boolean, tag: () -> String, tasks: NodeContextBuilder.() -> Unit) =
     +DoWhileNode(condition, NodeContextBuilder(this.stateMachine).apply(tasks).tasks, tag())
+
+private fun StoryStateMachine.innerBreak(
+    tag: String = "",
+    node: Node = stateMachine.nodes[stateMachine.currentIndex],
+    stack: Stack<WhileNode> = Stack()
+) {
+    if (node is WhileNode) stack.push(node)
+    if (node is HasInnerNodes) {
+        if (node.currentNode is HasInnerNodes) innerBreak(tag, node.currentNode)
+        else while (!stack.empty()) {
+            val whileNode = stack.pop()
+            if (whileNode.tag == tag) {
+                whileNode.shouldBreak = true
+                break
+            }
+        }
+    } else throw IllegalArgumentException("${node.javaClass} is not a HasInnerNodes. May be you called Break() not in loop?")
+}
+
+private fun StoryStateMachine.innerContinue(
+    tag: String = "",
+    node: Node = stateMachine.nodes[stateMachine.currentIndex],
+    stack: Stack<WhileNode> = Stack()
+) {
+    if (node is WhileNode) stack.push(node)
+    if (node is HasInnerNodes) {
+        if (node.currentNode is HasInnerNodes) innerBreak(tag, node.currentNode)
+        else while (!stack.empty()) {
+            val whileNode = stack.pop()
+            if (whileNode.tag == tag) {
+                whileNode.shouldContinue = true
+                break
+            }
+        }
+    } else throw IllegalArgumentException("${node.javaClass} is not a HasInnerNodes. May be you called Continue() not in loop?")
+}
+
+fun IContextBuilder.Break(tag: () -> String) = next { manager.innerBreak(tag()) }
+fun IContextBuilder.Continue(tag: () -> String) = next { manager.innerContinue(tag()) }

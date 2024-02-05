@@ -14,6 +14,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 import ru.hollowhorizon.hollowengine.common.scripting.StoryLogger
 import ru.hollowhorizon.hollowengine.common.scripting.story.coroutines.ScriptContext
 import java.io.File
+import kotlin.script.experimental.api.ResultValue
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.api.valueOrThrow
@@ -23,42 +24,52 @@ import kotlin.script.experimental.jvm.util.isError
 
 fun runScript(server: MinecraftServer, team: Team, file: File, isCommand: Boolean = false) =
     ScriptContext.scope.async(ScriptContext.scriptContext) {
-        try {
-            StoryLogger.LOGGER.info("Starting event \"{}\", for team \"{}\".", file.toReadablePath(), team.name.string)
-            val shouldRecompile = ScriptingCompiler.shouldRecompile(file) || isCommand
-            val story = ScriptingCompiler.compileFile<StoryScript>(file)
 
-            story.errors?.let { errors ->
-                errors.forEach { error ->
-                    team.onlineMembers.forEach {
-                        StoryLogger.LOGGER.error(error.replace("\\r\\n", "\n"))
-                        it.sendSystemMessage("§c[ERROR]§r $error".mcText)
-                    }
-                }
-                return@async
-            }
+        StoryLogger.LOGGER.info("Starting event \"{}\", for team \"{}\".", file.toReadablePath(), team.name.string)
+        val shouldRecompile = ScriptingCompiler.shouldRecompile(file) || isCommand
+        val story = ScriptingCompiler.compileFile<StoryScript>(file)
 
-            val res = story.execute {
-                constructorArgs(server, team)
-                jvm {
-                    loadDependencies(false)
+        story.errors?.let { errors ->
+            errors.forEach { error ->
+                team.onlineMembers.forEach {
+                    StoryLogger.LOGGER.error(error.replace("\\r\\n", "\n"))
+                    it.sendSystemMessage("§c[ERROR]§r $error".mcText)
                 }
             }
+            return@async
+        }
 
-            if (res.isError()) {
+        val res = story.execute {
+            constructorArgs(server, team)
+            jvm {
+                loadDependencies(false)
+            }
+        }
+
+        val returnValue = res.valueOrThrow().returnValue
+
+        when {
+            res.isError() -> {
                 (res as ResultWithDiagnostics.Failure).errors().forEach { error ->
                     team.onlineMembers.forEach { it.sendSystemMessage("§c[ERROR]§r $error".mcText) }
                 }
-            } else {
+            }
+
+            returnValue is ResultValue.Error -> {
+                val error = returnValue.error
+                team.onlineMembers.forEach {
+                    it.sendSystemMessage(Component.translatable("hollowengine.executing_error", file.toReadablePath()))
+                    it.sendSystemMessage("${error.message}".mcText)
+                    it.sendSystemMessage("hollowengine.check_logs".mcTranslate)
+                }
+
+                StoryLogger.LOGGER.error("(HollowEngine) Error while executing event \"${file.toReadablePath()}\"", error)
+            }
+
+            else -> {
                 val resScript = res.valueOrThrow().returnValue.scriptInstance as StoryStateMachine
                 StoryHandler.addStoryEvent(file.toReadablePath(), resScript, shouldRecompile)
             }
-        } catch (e: Exception) {
-            team.onlineMembers.forEach {
-                it.sendSystemMessage(Component.translatable("hollowengine.executing_error", file.toReadablePath()))
-                it.sendSystemMessage("${e.message}".mcText)
-                it.sendSystemMessage("hollowengine.check_logs".mcTranslate)
-            }
-            HollowCore.LOGGER.error("(HollowEngine) Error while executing event \"${file.toReadablePath()}\"", e)
         }
+
     }

@@ -28,11 +28,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.HasInnerNodes
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.NodeContextBuilder
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.deserializeNodes
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.events.ClickNode
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.serializeNodes
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NPCProperty
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.PlayerProperty
 
@@ -92,7 +89,7 @@ class DialogueNode(val nodes: List<Node>, val npc: NPCProperty? = null) : Node()
             return false
         }
 
-        if(FORCE_CLOSE) {
+        if (FORCE_CLOSE) {
             FORCE_CLOSE = false
 
             npc?.let {
@@ -270,7 +267,7 @@ class ChoicesNode(val action: ChoiceAction, choiceContext: DialogueChoiceContext
             MinecraftForge.EVENT_BUS.unregister(this)
             index = 0
 
-            if(action == ChoiceAction.WORLD) {
+            if (action == ChoiceAction.WORLD) {
                 manager.team.onlineMembers.forEach {
                     DialogueScreenPacket(false, true).send(PacketDistributor.PLAYER.with { it })
                 }

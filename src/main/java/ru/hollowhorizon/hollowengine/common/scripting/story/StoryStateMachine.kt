@@ -28,7 +28,7 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
     internal var currentIndex = 0
     val asyncNodeIds = ArrayList<Int>()
     var isStarted = false
-    val isEnded get() = currentIndex >= nodes.size && asyncNodeIds.isEmpty()
+    val isEnded get() = currentIndex >= nodes.size && asyncNodeIds.isEmpty() && onTickTasks.isEmpty()
 
 
     fun tick(event: ServerTickEvent) {

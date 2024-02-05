@@ -5,35 +5,29 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.core.BlockPos
-import net.minecraft.core.Registry
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.StringTag
 import net.minecraft.network.chat.Component
-import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket
-import net.minecraft.network.protocol.game.ClientboundStopSoundPacket
-import net.minecraft.resources.ResourceKey
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
-import net.minecraft.sounds.SoundSource
 import net.minecraft.util.Mth
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.Entity
-import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.trading.MerchantOffer
 import net.minecraft.world.level.ClipContext
-import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import net.minecraftforge.common.util.ITeleporter
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.network.PacketDistributor
-import ru.hollowhorizon.hc.client.models.gltf.Transform
-import ru.hollowhorizon.hc.client.models.gltf.animations.AnimationType
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayMode
-import ru.hollowhorizon.hc.client.models.gltf.manager.*
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
+import ru.hollowhorizon.hc.client.models.gltf.manager.RawPose
+import ru.hollowhorizon.hc.client.models.gltf.manager.SubModel
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.nbt.loadAsNBT
@@ -41,10 +35,8 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
 import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
-import ru.hollowhorizon.hollowengine.client.screen.FadeOverlayScreenPacket
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
-import ru.hollowhorizon.hollowengine.common.npcs.Attributes
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
@@ -53,104 +45,56 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.PlayerProperty
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.AnimationContainer
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.NpcContainer
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.TeamHelper
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.TeleportContainer
+import ru.hollowhorizon.hollowengine.common.util.getStructure
 import ru.hollowhorizon.hollowengine.cutscenes.replay.Replay
 import ru.hollowhorizon.hollowengine.cutscenes.replay.ReplayPlayer
-import java.util.*
 import java.util.function.Function
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
 
+    /**
+     * Функция по добавлению новых задач (чтобы при добавлении задач в цикле они добавлялись именно в цикл, а не основную машину состояний)
+     */
     operator fun <T : Node> T.unaryPlus(): T
 
-    fun next(block: SimpleNode.() -> Unit) = +SimpleNode(block)
 
-    private fun innerBreak(
-        tag: String = "",
-        node: Node = stateMachine.nodes[stateMachine.currentIndex],
-        stack: Stack<WhileNode> = Stack()
-    ) {
-        if (node is WhileNode) stack.push(node)
-        if (node is HasInnerNodes) {
-            if (node.currentNode is HasInnerNodes) innerBreak(tag, node.currentNode)
-            else while (!stack.empty()) {
-                val whileNode = stack.pop()
-                if (whileNode.tag == tag) {
-                    whileNode.shouldBreak = true
-                    break
-                }
-            }
-        } else throw IllegalArgumentException("${node.javaClass} is not a HasInnerNodes. May be you called Break() not in loop?")
-    }
+    // ------------------------------------
+    //          Функции персонажей
+    // ------------------------------------
 
-    private fun innerContinue(
-        tag: String = "",
-        node: Node = stateMachine.nodes[stateMachine.currentIndex],
-        stack: Stack<WhileNode> = Stack()
-    ) {
-        if (node is WhileNode) stack.push(node)
-        if (node is HasInnerNodes) {
-            if (node.currentNode is HasInnerNodes) innerBreak(tag, node.currentNode)
-            else while (!stack.empty()) {
-                val whileNode = stack.pop()
-                if (whileNode.tag == tag) {
-                    whileNode.shouldContinue = true
-                    break
-                }
-            }
-        } else throw IllegalArgumentException("${node.javaClass} is not a HasInnerNodes. May be you called Continue() not in loop?")
-    }
+    fun NPCEntity.Companion.creating(settings: NpcContainer.() -> Unit) =
+        +NpcDelegate { NpcContainer().apply(settings) }.apply { manager = stateMachine }
 
-    fun Break(tag: () -> String) = +SimpleNode { innerBreak(tag()) }
-    fun Continue(tag: () -> String) = +SimpleNode { innerContinue(tag()) }
 
-    class NpcContainer {
-        var name = "Неизвестный"
-        var model = "hollowengine:models/entity/player_model.gltf"
-        val animations = HashMap<AnimationType, String>()
-        val textures = HashMap<String, String>()
-        var transform = Transform()
-        val subModels = HashMap<String, SubModel>()
-        var world = "minecraft:overworld"
-        var pos = Vec3(0.0, 0.0, 0.0)
-        var rotation: Vec2 = Vec2.ZERO
-        var attributes = Attributes()
-        var size = Pair(0.6f, 1.8f)
-        var showName = true
-        var switchHeadRot = false
+    fun NPCEntity.Companion.fromSubModel(subModel: NpcContainer.() -> SubModel) = +NpcDelegate {
+        NpcContainer().apply {
+            val settings = subModel()
+            model = settings.model
+            textures.putAll(settings.textures)
+            transform = settings.transform
+            subModels.putAll(settings.subModels)
+        }
+    }.apply { manager = stateMachine }
 
-        fun skin(name: String) = "skins/$name"
-    }
-
-    fun NPCEntity.Companion.creating(settings: NpcContainer.() -> Unit): NpcDelegate {
-        return +NpcDelegate { NpcContainer().apply(settings) }.apply { manager = stateMachine }
-    }
-
-    fun NPCEntity.Companion.fromSubModel(subModel: NpcContainer.() -> SubModel): NpcDelegate {
-        return +NpcDelegate {
-            NpcContainer().apply {
-                val settings = subModel()
-                model = settings.model
-                textures.putAll(settings.textures)
-                transform = settings.transform
-                subModels.putAll(settings.subModels)
-            }
-        }.apply { manager = stateMachine }
-    }
-
-    infix fun NPCProperty.replay(file: () -> String) = +SimpleNode {
+    infix fun NPCProperty.replay(file: () -> String) = next {
         val replay = Replay.fromFile(DirectoryManager.HOLLOW_ENGINE.resolve("replays").resolve(file()))
-        val player = ReplayPlayer(this@replay())
-        player.saveEntity = true
-        player.isLooped = false
-        player.play(this@replay().level, replay)
+        ReplayPlayer(this@replay()).apply {
+            saveEntity = true
+            isLooped = false
+            play(this@replay().level, replay)
+        }
     }
 
-    infix fun NPCProperty.setPose(fileC: () -> String?) = +SimpleNode {
-        val file = fileC()
+    infix fun NPCProperty.setPose(fileName: () -> String?) = next {
+        val file = fileName()
         if (file == null) {
             this@setPose()[AnimatedEntityCapability::class].pose = RawPose()
-            return@SimpleNode
+            return@next
         }
         val replay = RawPose.fromNBT(
             DirectoryManager.HOLLOW_ENGINE.resolve("npcs/poses/").resolve(file).inputStream().loadAsNBT()
@@ -229,6 +173,20 @@ interface IContextBuilder {
         Vec3(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
     }
 
+    fun NPCProperty.moveToStructure(structureName: () -> String, offset: () -> BlockPos = { BlockPos.ZERO }) =
+        +NpcMoveToBlockNode(this) {
+            val npc = this@moveToStructure()
+            val level = npc.level as ServerLevel
+            val structure = level.getStructure(structureName(), npc.blockPosition()).pos
+            val offsetPos = offset()
+
+            Vec3(
+                structure.x.toDouble() + offsetPos.x,
+                structure.y.toDouble() + offsetPos.y,
+                structure.z.toDouble() + offsetPos.z
+            )
+        }
+
     fun ProgressManager.addMessage(message: () -> String) = +SimpleNode {
         val list = this.manager.team.extraData.getList("hollowengine_progress_tasks", 8)
         list += StringTag.valueOf(message())
@@ -262,11 +220,6 @@ interface IContextBuilder {
 
     infix fun NPCProperty.lookAtTeam(target: () -> Team) = +NpcLookToTeamNode(this, target)
 
-    infix fun NPCProperty.tp(target: SimpleTeleport.() -> Unit) = +SimpleNode {
-        val tp = SimpleTeleport().apply(target)
-        val teleport = tp.pos
-        this@tp.invoke().teleportTo(teleport.x, teleport.y, teleport.z)
-    }
 
     infix fun NPCProperty.setTarget(value: (() -> LivingEntity?)?) = +SimpleNode {
         this@setTarget().target = value?.invoke()
@@ -282,13 +235,6 @@ interface IContextBuilder {
 
     infix fun NPCProperty.giveRightHand(item: () -> ItemStack?) = +SimpleNode {
         this@giveRightHand().setItemInHand(InteractionHand.MAIN_HAND, item() ?: ItemStack.EMPTY)
-    }
-
-    class AnimationContainer {
-        var animation = ""
-        var layerMode = LayerMode.ADD
-        var playType = PlayMode.LOOPED
-        var speed = 1.0f
     }
 
     infix fun NPCProperty.play(block: AnimationContainer.() -> Unit) = +SimpleNode {
@@ -406,18 +352,6 @@ interface IContextBuilder {
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
 
-    infix fun NPCProperty.addTrade(offer: () -> MerchantOffer) = +SimpleNode {
-        this@addTrade().npcTrader.npcOffers.add(offer())
-    }
-
-    fun NPCProperty.clearTrades() = +SimpleNode {
-        this@clearTrades().npcTrader.npcOffers.clear()
-    }
-
-    fun NPCProperty.clearTradeUses() = +SimpleNode {
-        this@clearTradeUses().npcTrader.npcOffers.forEach { it.resetUses() }
-    }
-
     infix fun NPCProperty.configure(body: AnimatedEntityCapability.() -> Unit) = +SimpleNode {
         this@configure()[AnimatedEntityCapability::class].apply(body)
     }
@@ -460,6 +394,19 @@ interface IContextBuilder {
         }
     }
 
+    infix fun NPCProperty.addTrade(offer: () -> MerchantOffer) = +SimpleNode {
+        this@addTrade().npcTrader.npcOffers.add(offer())
+    }
+
+    fun NPCProperty.clearTrades() = +SimpleNode {
+        this@clearTrades().npcTrader.npcOffers.clear()
+    }
+
+    fun NPCProperty.clearTradeUses() = +SimpleNode {
+        this@clearTradeUses().npcTrader.npcOffers.forEach { it.resetUses() }
+    }
+
+
     fun AnimatedEntityCapability.skin(name: String) = "skins/$name"
 
     infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
@@ -493,55 +440,6 @@ interface IContextBuilder {
         entity.level.addFreshEntity(entityStack)
     }
 
-    class TeamHelper(val team: Team) {
-        operator fun ItemStack.unaryPlus() {
-            team.onlineMembers.forEach {
-                it.inventory.add(this)
-                it.inventory.setChanged()
-            }
-        }
-
-        fun setHealth(value: Float) {
-            team.onlineMembers.forEach {
-                it.health = value
-            }
-        }
-
-        fun setMaxHealth(value: Float) {
-            team.onlineMembers.forEach {
-                it.attributes.getInstance(net.minecraft.world.entity.ai.attributes.Attributes.MAX_HEALTH)?.baseValue =
-                    value.toDouble()
-            }
-            setHealth(value)
-        }
-
-        fun addHealth(value: Float) {
-            team.onlineMembers.forEach {
-                it.health += value
-            }
-        }
-
-        fun equipHelmet(item: ItemStack) = team.onlineMembers.forEach {
-            it.drop(it.getItemBySlot(EquipmentSlot.HEAD), false)
-            it.setItemSlot(EquipmentSlot.HEAD, item)
-        }
-
-        fun equipChestplate(item: ItemStack) = team.onlineMembers.forEach {
-            it.drop(it.getItemBySlot(EquipmentSlot.CHEST), false)
-            it.setItemSlot(EquipmentSlot.CHEST, item)
-        }
-
-        fun equipLeggings(item: ItemStack) = team.onlineMembers.forEach {
-            it.drop(it.getItemBySlot(EquipmentSlot.LEGS), false)
-            it.setItemSlot(EquipmentSlot.LEGS, item)
-        }
-
-        fun equipBoots(item: ItemStack) = team.onlineMembers.forEach {
-            it.drop(it.getItemBySlot(EquipmentSlot.FEET), false)
-            it.setItemSlot(EquipmentSlot.FEET, item)
-        }
-    }
-
     fun PlayerProperty.saveInventory() = next {
         val player = this@saveInventory()
 
@@ -569,78 +467,9 @@ interface IContextBuilder {
         TeamHelper(this@modify).apply(inv)
     }
 
-    class GiveItemList {
-        val items = mutableListOf<ItemStack>()
-        var text = "hollowengine.npc_need"
-
-        operator fun ItemStack.unaryPlus() {
-            items.add(this)
-        }
-    }
-
     infix fun NPCProperty.requestItems(block: GiveItemList.() -> Unit) = +NpcItemListNode(block, this@requestItems)
 
     fun NPCProperty.waitInteract() = +NpcInteractNode(this@waitInteract)
-
-    class FadeContainer {
-        var text = ""
-        var subtitle = ""
-        var texture = ""
-        var color = 0xFFFFFF
-        var time = 0
-    }
-
-    fun fadeIn(block: FadeContainer.() -> Unit) = +WaitNode {
-        val container = FadeContainer().apply(block)
-        stateMachine.team.onlineMembers.forEach {
-            FadeOverlayScreenPacket(
-                true,
-                container.text,
-                container.subtitle,
-                container.color,
-                container.texture,
-                container.time
-            ).send(PacketDistributor.PLAYER.with { it })
-        }
-        container.time
-    }
-
-    fun fadeOut(block: FadeContainer.() -> Unit) = +WaitNode {
-        val container = FadeContainer().apply(block)
-        stateMachine.team.onlineMembers.forEach {
-            FadeOverlayScreenPacket(
-                false,
-                container.text,
-                container.subtitle,
-                container.color,
-                container.texture,
-                container.time
-            ).send(PacketDistributor.PLAYER.with { it })
-        }
-        container.time
-    }
-
-    class SoundContainer {
-        var sound = ""
-        var volume = 1.0f
-        var pitch = 1.0f
-    }
-
-    fun playSound(sound: SoundContainer.() -> Unit) = +SimpleNode {
-        val container = SoundContainer().apply(sound)
-        stateMachine.team.onlineMembers.forEach {
-            it.connection.send(
-                ClientboundCustomSoundPacket(
-                    container.sound.rl,
-                    SoundSource.MASTER,
-                    it.position(),
-                    container.volume,
-                    container.pitch,
-                    it.random.nextLong()
-                )
-            )
-        }
-    }
 
     class PosWaiter {
         var vec = Vec3(0.0, 0.0, 0.0)
@@ -664,22 +493,11 @@ interface IContextBuilder {
         result
     }
 
-    fun stopSound(sound: () -> String) = +SimpleNode {
-        stateMachine.team.onlineMembers.forEach {
-            it.connection.send(
-                ClientboundStopSoundPacket(
-                    sound().rl,
-                    SoundSource.MASTER
-                )
-            )
-        }
-    }
-
     fun async(body: NodeContextBuilder.() -> Unit): AsyncProperty {
         val chainNode = ChainNode(NodeContextBuilder(stateMachine).apply(body).tasks)
         val index = stateMachine.asyncNodes.size
         stateMachine.asyncNodes.add(chainNode)
-        +SimpleNode { stateMachine.asyncNodeIds.add(index) }
+        +SimpleNode { stateMachine.onTickTasks += { stateMachine.asyncNodeIds.add(index) } }
         return AsyncProperty(index)
     }
 
@@ -695,27 +513,26 @@ interface IContextBuilder {
         }
     }
 
-//    @Serializable Крч, сам сделаешь. Просил сам сделать класс xD
-//    data class Point(val x: Double, val y: Double, val z: Double, val xRot: Double, val yRot: Double, val zRot: Double = 0.0)
 
-    class SimpleTeleport {
-        var pos: Vec3 = Vec3(0.0, 0.0, 0.0)
-        var vec: Vec2 = Vec2(0F, 0F)
-        var dim: ResourceKey<Level> = Level.OVERWORLD
-    }
-
-    infix fun Team.tp(pos: () -> Vec3) = +SimpleNode {
+    infix fun Team.tpPos(pos: () -> Vec3) = +SimpleNode {
         val p = pos()
-        this@tp.onlineMembers.forEach {
+        this@tpPos.onlineMembers.forEach {
             it.teleportTo(it.getLevel(), p.x, p.y, p.z, it.yHeadRot, it.xRot)
         }
     }
 
-    infix fun Team.tpTo(teleport: SimpleTeleport.() -> Unit) = +SimpleNode {
-        val pos = SimpleTeleport().apply(teleport)
-        val position = pos.pos
-        val camera = pos.vec
-        val dimension = pos.dim
+    infix fun NPCProperty.tpTo(target: TeleportContainer.() -> Unit) = +SimpleNode {
+        val tp = TeleportContainer().apply(target)
+        val teleport = tp.pos
+        this@tpTo.invoke().teleportTo(teleport.x, teleport.y, teleport.z)
+    }
+
+    infix fun Team.tpTo(teleport: TeleportContainer.() -> Unit) = +SimpleNode {
+        val config = TeleportContainer().apply(teleport)
+        val position = config.pos
+        val camera = config.vec
+        val dimension = manager.server.levelKeys().find { it.location() == config.world.rl }
+            ?: throw IllegalStateException("Dimension ${config.world} not found!")
 
         this@tpTo.onlineMembers.forEach {
             it.changeDimension(it.server.getLevel(dimension)!!, object : ITeleporter {
@@ -738,8 +555,6 @@ interface IContextBuilder {
             })
         }
     }
-
-    fun dim(dimension: String): ResourceKey<Level> = ResourceKey.create(Registry.DIMENSION_REGISTRY, dimension.rl)
 
     fun pos(x: Number, y: Number, z: Number) = Vec3(x.toDouble(), y.toDouble(), z.toDouble())
     fun vec(x: Number, y: Number) = Vec2(x.toFloat(), y.toFloat())

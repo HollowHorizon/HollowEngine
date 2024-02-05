@@ -24,6 +24,8 @@ open class SimpleNode(val task: SimpleNode.() -> Unit) : Node() {
     }
 }
 
+fun IContextBuilder.next(block: SimpleNode.() -> Unit) = +SimpleNode(block)
+
 fun IContextBuilder.send(text: Component) = +SimpleNode {
     manager.team.onlineMembers.forEach { it.sendSystemMessage(text) }
 }
