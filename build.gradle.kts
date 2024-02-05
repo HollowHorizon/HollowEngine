@@ -121,6 +121,8 @@ dependencies {
     implementation(fg.deobf("curse.maven:spark-361579:4505309"))
     implementation(fg.deobf("curse.maven:firstperson:2.3.2"))
 
+    implementation(fg.deobf("curse.maven:masterful-machinery-423476:4826560"))
+
     implementation(kotlin("script-runtime"))
     implementation(kotlin("scripting-jvm-host"))
     implementation(kotlin("scripting-jvm"))
