@@ -31,13 +31,13 @@ object DirectoryManager {
     fun getContentScripts() = getScripts().filter { it.path.endsWith(".content.kts") }
 
     fun compileAll() {
-        getModScripts().parallelStream().forEach {
+        getModScripts().forEach {
             ScriptingCompiler.compileFile<ModScript>(it)
         }
-        getStoryEvents().parallelStream().forEach {
+        getStoryEvents().forEach {
             ScriptingCompiler.compileFile<StoryScript>(it)
         }
-        getContentScripts().parallelStream().forEach {
+        getContentScripts().forEach {
             ScriptingCompiler.compileFile<ContentScript>(it)
         }
     }

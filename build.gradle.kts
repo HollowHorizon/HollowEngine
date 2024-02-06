@@ -108,7 +108,7 @@ dependencies {
     annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
 
     implementation("thedarkcolour:kotlinforforge:$kffVersion")
-    implementation(fg.deobf("ru.hollowhorizon:kotlinscript:${mcVersion}-${ksffVersion}"))
+    implementation(fg.deobf("ru.hollowhorizon:kotlinscript:${ksffVersion}"))
     implementation(fg.deobf("ru.hollowhorizon:hc:${mcVersion}-${hcVersion}"))
     implementation(fg.deobf("curse.maven:ftb-teams-forge-404468:4611938"))
     implementation(fg.deobf("curse.maven:ftb-library-forge-404465:4661834"))
