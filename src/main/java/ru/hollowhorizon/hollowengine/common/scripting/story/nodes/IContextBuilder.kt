@@ -18,11 +18,13 @@ import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.trading.MerchantOffer
 import net.minecraft.world.level.ClipContext
+import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import net.minecraftforge.common.util.ITeleporter
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.network.PacketDistributor
+import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayMode
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
@@ -216,6 +218,20 @@ interface IContextBuilder {
     }
 
     infix fun NPCProperty.lookAtPos(target: () -> Vec3) = +NpcLookToBlockNode(this, target)
+
+    fun NPCProperty.lookAtEntityType(entity: () -> String) {
+        val entityType = ForgeRegistries.ENTITY_TYPES.getValue(entity().rl)!!
+
+        lookAtEntity {
+            val npc = this()
+            val level = npc.level
+
+            level.getEntitiesOfClass(LivingEntity::class.java, AABB.ofSize(npc.position(), 25.0, 25.0, 25.0)) {
+                it.type == entityType
+            }.minByOrNull { it.distanceTo(npc) } ?: npc
+        }
+    }
+
     infix fun NPCProperty.lookAtEntity(target: () -> Entity) = +NpcLookToEntityNode(this, target)
 
     infix fun NPCProperty.lookAtTeam(target: () -> Team) = +NpcLookToTeamNode(this, target)

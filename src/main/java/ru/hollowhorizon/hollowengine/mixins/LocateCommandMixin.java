@@ -25,17 +25,17 @@ import java.util.Optional;
 
 @Mixin(LocateCommand.class)
 public abstract class LocateCommandMixin {
-    @Shadow
+    @Shadow(aliases = "m_214474_")
     public static int showLocateResult(CommandSourceStack pSource, ResourceOrTagLocationArgument.Result<?> pResult, BlockPos pSourcePosition, Pair<BlockPos, ? extends Holder<?>> pResultWithPosition, String pTranslationKey, boolean pAbsoluteY) {
         return 0;
     }
 
-    @Shadow
+    @Shadow(aliases = "m_214483_")
     protected static Optional<? extends HolderSet.ListBacked<Structure>> getHolders(ResourceOrTagLocationArgument.Result<Structure> p_214484_, Registry<Structure> p_214485_) {
         return null;
     }
 
-    @Shadow
+    @Shadow(aliases = "f_214452_")
     @Final
     private static DynamicCommandExceptionType ERROR_STRUCTURE_INVALID;
 
