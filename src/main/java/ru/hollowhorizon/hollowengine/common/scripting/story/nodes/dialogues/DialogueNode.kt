@@ -149,6 +149,7 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
 
     override fun NPCProperty.say(text: () -> String): SimpleNode {
         if (action == ChoiceAction.WORLD) {
+            wait { (text().length / 14 + 15).sec }
             return next {
                 val component =
                     Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
@@ -171,6 +172,7 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
     @JvmName("playerSay")
     override fun PlayerProperty.say(text: () -> String): SimpleNode {
         if (action == ChoiceAction.WORLD) {
+            wait { (text().length / 14 + 15).sec }
             return next {
                 val component =
                     Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
@@ -192,6 +194,7 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
 
     override fun Team.send(text: () -> String): SimpleNode {
         if (action == ChoiceAction.WORLD) {
+            wait { (text().length / 14 + 15).sec }
             return next {
                 stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text().mcTranslate) }
             }
