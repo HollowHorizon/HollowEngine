@@ -59,9 +59,9 @@ fun runScript(server: MinecraftServer, team: Team, file: File, isCommand: Boolea
             returnValue is ResultValue.Error -> {
                 val error = returnValue.error
                 team.onlineMembers.forEach {
-                    it.sendSystemMessage(Component.translatable("hollowengine.executing_error", file.toReadablePath()))
-                    it.sendSystemMessage("${error.message}".mcText)
-                    it.sendSystemMessage("hollowengine.check_logs".mcTranslate)
+                    it.sendMessage(TranslatableComponent("hollowengine.executing_error", file.toReadablePath()), it.uuid)
+                    it.sendMessage("${error.message}".mcText, it.uuid)
+                    it.sendMessage("hollowengine.check_logs".mcTranslate, it.uuid)
                 }
 
                 StoryLogger.LOGGER.error("(HollowEngine) Error while executing event \"${file.toReadablePath()}\"", error)

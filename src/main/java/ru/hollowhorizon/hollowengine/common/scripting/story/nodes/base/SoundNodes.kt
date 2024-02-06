@@ -23,8 +23,7 @@ fun IContextBuilder.playSound(sound: SoundContainer.() -> Unit) = +SimpleNode {
                 SoundSource.MASTER,
                 container.pos ?: it.position(),
                 container.volume,
-                container.pitch,
-                it.random.nextLong()
+                container.pitch
             )
         )
     }

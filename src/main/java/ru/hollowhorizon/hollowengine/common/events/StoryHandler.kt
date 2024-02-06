@@ -5,6 +5,7 @@ import dev.ftb.mods.ftbteams.data.Team
 import dev.ftb.mods.ftbteams.event.TeamEvent
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TranslatableComponent
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.stats.Stats
 import net.minecraftforge.event.TickEvent.ServerTickEvent
@@ -65,9 +66,9 @@ object StoryHandler {
                         it.value.isEnded
                     } catch (exception: Exception) {
                         team.onlineMembers.forEach { player ->
-                            player.sendSystemMessage(Component.translatable("hollowengine.executing_error", it.key))
-                            player.sendSystemMessage("${exception.message}".mcText)
-                            player.sendSystemMessage("hollowengine.check_logs".mcTranslate)
+                            player.sendMessage(TranslatableComponent("hollowengine.executing_error", it.key), player.uuid)
+                            player.sendMessage("${exception.message}".mcText, player.uuid)
+                            player.sendMessage("hollowengine.check_logs".mcTranslate, player.uuid)
                         }
 
                         StoryLogger.LOGGER.error("(HollowEngine) Error while executing event \"${it.key}\"", exception)

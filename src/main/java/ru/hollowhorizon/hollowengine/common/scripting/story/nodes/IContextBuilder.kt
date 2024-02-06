@@ -7,7 +7,7 @@ import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.core.BlockPos
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.StringTag
-import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TextComponent
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.util.Mth
@@ -51,7 +51,6 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.Animation
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.NpcContainer
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.TeamHelper
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.TeleportContainer
-import ru.hollowhorizon.hollowengine.common.util.getStructure
 import ru.hollowhorizon.hollowengine.cutscenes.replay.Replay
 import ru.hollowhorizon.hollowengine.cutscenes.replay.ReplayPlayer
 import java.util.function.Function
@@ -174,20 +173,6 @@ interface IContextBuilder {
         Vec3(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
     }
 
-    fun NPCProperty.moveToStructure(structureName: () -> String, offset: () -> BlockPos = { BlockPos.ZERO }) =
-        +NpcMoveToBlockNode(this) {
-            val npc = this@moveToStructure()
-            val level = npc.level as ServerLevel
-            val structure = level.getStructure(structureName(), npc.blockPosition()).pos
-            val offsetPos = offset()
-
-            Vec3(
-                structure.x.toDouble() + offsetPos.x,
-                structure.y.toDouble() + offsetPos.y,
-                structure.z.toDouble() + offsetPos.z
-            )
-        }
-
     fun ProgressManager.addMessage(message: () -> String) = +SimpleNode {
         val list = this.manager.team.extraData.getList("hollowengine_progress_tasks", 8)
         list += StringTag.valueOf(message())
@@ -219,7 +204,7 @@ interface IContextBuilder {
     infix fun NPCProperty.lookAtPos(target: () -> Vec3) = +NpcLookToBlockNode(this, target)
 
     fun NPCProperty.lookAtEntityType(entity: () -> String) {
-        val entityType = ForgeRegistries.ENTITY_TYPES.getValue(entity().rl)!!
+        val entityType = ForgeRegistries.ENTITIES.getValue(entity().rl)!!
 
         lookAtEntity {
             val npc = this()
