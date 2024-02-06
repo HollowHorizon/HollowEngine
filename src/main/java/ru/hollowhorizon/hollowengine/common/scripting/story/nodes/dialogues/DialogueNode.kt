@@ -4,6 +4,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues
 
 import dev.ftb.mods.ftbteams.data.Team
 import kotlinx.serialization.Serializable
+import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerPlayer
@@ -63,6 +64,7 @@ class DialogueSayPacket(
 @Serializable
 class DialogueChoicePacket(val choices: List<String>) : HollowPacketV3<DialogueChoicePacket> {
     override fun handle(player: Player, data: DialogueChoicePacket) {
+        if(Minecraft.getInstance().screen !is DialogueScreen) DialogueScreen.open()
         DialogueScreen.updateChoices(data.choices.map { it.mcText })
     }
 
