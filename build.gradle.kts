@@ -101,6 +101,9 @@ repositories {
 
 configure<MixinExtension> {
     add(sourceSets.main.get(), "hollowengine.refmap.json")
+    config("hollowengine.mixins.json")
+
+    debug = true
 }
 
 dependencies {

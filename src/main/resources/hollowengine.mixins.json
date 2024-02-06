@@ -5,8 +5,10 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "hollowengine.refmap.json",
   "mixins": [
+    "ChunkGeneratorMixin",
     "ChunkLoaderMixin",
     "EntityAccessor",
+    "LocateCommandMixin",
     "LookControlInvoker",
     "RecipeManagerAccessor"
   ],

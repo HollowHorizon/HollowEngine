@@ -25,7 +25,7 @@ public class ChunkGeneratorMixin {
     @Final
     private Map<Structure, List<StructurePlacement>> placementsForStructure;
 
-    @Inject(method = "lambda$generatePositions$5", at = @At(value = "HEAD"))
+    @Inject(method = {"lambda$generatePositions$5", "m_223205_"}, at = @At(value = "HEAD"), remap = true)
     private void generatePositions(Set set, RandomState pRandom, Holder holder, CallbackInfo ci) {
         StructureSet structureset = (StructureSet) holder.value();
 
