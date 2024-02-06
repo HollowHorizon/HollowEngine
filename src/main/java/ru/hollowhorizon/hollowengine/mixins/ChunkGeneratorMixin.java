@@ -25,6 +25,7 @@ public class ChunkGeneratorMixin {
     @Final
     private Map<Structure, List<StructurePlacement>> placementsForStructure;
 
+    //Я не могу понять, почему в рефмапе не появляется этот метод, но по крайней мере обходной путь вроде работает
     @Inject(method = {"lambda$generatePositions$5", "m_223205_"}, at = @At(value = "HEAD"), remap = true)
     private void generatePositions(Set set, RandomState pRandom, Holder holder, CallbackInfo ci) {
         StructureSet structureset = (StructureSet) holder.value();
