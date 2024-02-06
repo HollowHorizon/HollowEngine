@@ -10,10 +10,9 @@ class ConditionNode(
     private val ifTasks: List<Node>,
     private val elseTasks: MutableList<Node>
 ) : Node(), HasInnerNodes {
-    val initialCondition by lazy { condition() }
     var index = 0
-    private val isEnd get() = index >= if (initialCondition) ifTasks.size else elseTasks.size
-    override val currentNode get() = if (initialCondition) ifTasks[index] else elseTasks[index]
+    private val isEnd get() = index >= if (condition()) ifTasks.size else elseTasks.size
+    override val currentNode get() = if (condition()) ifTasks[index] else elseTasks[index]
 
     fun setElseTasks(tasks: List<Node>) {
         elseTasks.clear()

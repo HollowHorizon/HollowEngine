@@ -51,17 +51,9 @@ class NpcLookToEntityNode(npcConsumer: NPCProperty, var target: () -> Entity?, v
         return ticks-- > 0
     }
 
-    override fun serializeNBT() = CompoundTag().apply {
-        val entity = target() ?: return@apply
-
-        putString("level", entity.level.dimension().location().toString())
-        putUUID("target", entity.uuid)
-    }
+    override fun serializeNBT() = CompoundTag()
 
     override fun deserializeNBT(nbt: CompoundTag) {
-        val level = manager.server.getLevel(manager.server.levelKeys().find { it.location() == nbt.getString("level").rl } ?: return) ?: return
-        val entity = level.getEntity(nbt.getUUID("target")) ?: return
-        target = { entity }
     }
 }
 
