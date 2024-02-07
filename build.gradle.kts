@@ -23,6 +23,7 @@ plugins {
     id("net.minecraftforge.gradle") version "[6.0,6.2)"
     id("org.jetbrains.kotlin.jvm").version("1.8.21")
     id("org.jetbrains.kotlin.plugin.serialization").version("1.8.21")
+    id("org.parchmentmc.librarian.forgegradle") version "1.+"
 }
 
 apply {

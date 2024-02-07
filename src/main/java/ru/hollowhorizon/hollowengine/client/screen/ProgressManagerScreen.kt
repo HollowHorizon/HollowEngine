@@ -89,13 +89,13 @@ class ProgressManagerScreen : HollowScreen("Progress Manager".toSTC()) {
                     blit(stack, x, y, 0f, 0f, w, h, w, h)
 
                     val lines = font.split(message, w)
-                    val center = (lines.size * font.lineHeight) / 2
+                    val textHeight = (lines.size * font.lineHeight) / 2
                     lines.forEachIndexed { index, text ->
                         font.drawShadow(
                             stack,
                             text,
                             x.toFloat() + 6.pc.w().value,
-                            (y + height / 2 - font.lineHeight / 2 - center * index + index * font.lineHeight).toFloat(),
+                            (y + height / 2 - textHeight + index * font.lineHeight).toFloat(),
                             0xFFFFFF
                         )
                     }
