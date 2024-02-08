@@ -9,15 +9,14 @@ import net.minecraft.network.chat.HoverEvent
 import net.minecraft.network.chat.Style
 import net.minecraftforge.network.PacketDistributor
 import net.minecraftforge.registries.ForgeRegistries
-import org.jetbrains.kotlin.konan.file.File
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.register
-import ru.hollowhorizon.hc.common.network.send
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.network.CopyTextPacket
 import ru.hollowhorizon.hollowengine.common.network.ShowModelInfoPacket
+import java.io.File
 
 object HECommands {
     @JvmStatic
@@ -45,16 +44,30 @@ object HECommands {
                             }\")"
                         }
                     }
-                    CopyTextPacket(itemCommand).send(PacketDistributor.PLAYER.with {player})
+                    CopyTextPacket(itemCommand).send(PacketDistributor.PLAYER.with { player })
 
                     player.sendSystemMessage("hollowengine.commands.tags".mcTranslate)
 
                     item.tags.forEach { tag ->
-                        player.sendSystemMessage(Component.translatable("hollowengine.commands.copy", Component.literal("tag(\"${tag.location}\")").apply {
-                            style = Style.EMPTY
-                                .withHoverEvent(HoverEvent(HoverEvent.Action.SHOW_TEXT, "hollowengine.tooltips.copy".mcTranslate))
-                                .withClickEvent(ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, "tag(\"${tag.location}\")"))
-                        }))
+                        player.sendSystemMessage(
+                            Component.translatable(
+                                "hollowengine.commands.copy",
+                                Component.literal("tag(\"${tag.location}\")").apply {
+                                    style = Style.EMPTY
+                                        .withHoverEvent(
+                                            HoverEvent(
+                                                HoverEvent.Action.SHOW_TEXT,
+                                                "hollowengine.tooltips.copy".mcTranslate
+                                            )
+                                        )
+                                        .withClickEvent(
+                                            ClickEvent(
+                                                ClickEvent.Action.COPY_TO_CLIPBOARD,
+                                                "tag(\"${tag.location}\")"
+                                            )
+                                        )
+                                })
+                        )
                     }
                 }
 
