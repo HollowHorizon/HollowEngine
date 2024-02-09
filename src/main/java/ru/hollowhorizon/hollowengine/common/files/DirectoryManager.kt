@@ -10,7 +10,7 @@ import java.io.File
 
 object DirectoryManager {
     val HOLLOW_ENGINE = FMLPaths.GAMEDIR.get().resolve("hollowengine").toFile()
-    private val SCRIPTS_DIR = HOLLOW_ENGINE.resolve("scripts").apply {
+    val SCRIPTS_DIR = HOLLOW_ENGINE.resolve("scripts").apply {
         if (!exists()) mkdirs()
     }
 

@@ -7,6 +7,7 @@ import ru.hollowhorizon.hc.client.utils.isPhysicalClient
 import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.content.runContentScript
+import ru.hollowhorizon.hollowengine.common.scripting.mod.runModScript
 import ru.hollowhorizon.hollowengine.mixins.RecipeManagerAccessor
 
 object RecipeReloadListener : ResourceManagerReloadListener {
@@ -21,5 +22,7 @@ object RecipeReloadListener : ResourceManagerReloadListener {
         DirectoryManager.getContentScripts().forEach {
             runContentScript(recipeManager as RecipeManagerAccessor, it)
         }
+
+        DirectoryManager.getModScripts().forEach(::runModScript)
     }
 }

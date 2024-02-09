@@ -10,6 +10,7 @@ import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.event.AddPackFindersEvent
 import net.minecraftforge.event.AddReloadListenerEvent
 import net.minecraftforge.event.RegisterCommandsEvent
+import net.minecraftforge.eventbus.api.IEventBus
 import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.common.Mod
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent
@@ -38,12 +39,12 @@ import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStru
 import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructureSets
 import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructures
 import ru.hollowhorizon.hollowengine.common.scripting.mod.runModScript
-import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
 @HollowMod(HollowEngine.MODID)
 @Mod(HollowEngine.MODID)
 class HollowEngine {
     init {
+        MOD_BUS = thedarkcolour.kotlinforforge.forge.MOD_BUS
         getModScripts().forEach(::runModScript)
 
         if(ModList.get().isLoaded("ftbquests")) FTBQuestsSupport
@@ -79,6 +80,8 @@ class HollowEngine {
         ModStructurePieces.STRUCTURE_PIECES.register(MOD_BUS)
         RegistryLoader.registerAll()
         //ModDimensions
+
+        isLoading = false
     }
 
     fun registerPacks(event: AddPackFindersEvent) {
@@ -119,6 +122,8 @@ class HollowEngine {
 
     companion object {
         const val MODID = "hollowengine"
+        lateinit var MOD_BUS: IEventBus
+        var isLoading = true
         val FTB_INSTALLED = ModList.get().isLoaded("ftbteams")
     }
 }

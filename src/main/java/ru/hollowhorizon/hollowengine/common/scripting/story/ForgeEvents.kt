@@ -19,9 +19,11 @@ inline fun <reified T : Event> IForgeEventScriptSupport.whenForgeEvent(noinline 
     MinecraftForge.EVENT_BUS.register(event)
     this.forgeEvents.add(event)
 }
+inline fun <reified T: Event> handler(noinline function: (T) -> Boolean) = ForgeEvent(T::class.java, function)
 
 class ForgeEvent<T : Event>(private val type: Class<T>, private val function: (T) -> Boolean) {
     private val waiter = Object()
+
 
     @SubscribeEvent
     fun onEvent(event: T) {
