@@ -30,6 +30,7 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
 import ru.hollowhorizon.hc.client.models.gltf.manager.RawPose
 import ru.hollowhorizon.hc.client.models.gltf.manager.SubModel
+import ru.hollowhorizon.hc.client.utils.capability
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.nbt.loadAsNBT
@@ -37,6 +38,8 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
 import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
+import ru.hollowhorizon.hollowengine.common.capabilities.AimMark
+import ru.hollowhorizon.hollowengine.common.capabilities.StoryTeamCapability
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
@@ -493,20 +496,37 @@ interface IContextBuilder {
         var inverse = false
     }
 
-    infix fun Team.waitPos(context: PosWaiter.() -> Unit) = waitForgeEvent<ServerTickEvent> {
-        var result = false
-        val waiter = PosWaiter().apply(context)
-
-        this@waitPos.onlineMembers.forEach {
-            val distance = it.distanceToSqr(waiter.vec)
-            if (!waiter.inverse) {
-                if (distance <= waiter.radius * waiter.radius) result = true
-            } else {
-                if (distance >= waiter.radius * waiter.radius) result = true
-            }
+    infix fun Team.waitPos(context: PosWaiter.() -> Unit) {
+        next {
+            val pos = PosWaiter().apply(
+                context
+            ).vec
+            this@waitPos.capability(StoryTeamCapability::class).aimMarks += AimMark(
+                pos.x,
+                pos.y,
+                pos.z,
+                NpcIcon.QUESTION.image
+            )
         }
+        waitForgeEvent<ServerTickEvent> {
+            var result = false
+            val waiter = PosWaiter().apply(context)
 
-        result
+            this@waitPos.onlineMembers.forEach {
+                val distance = it.distanceToSqr(waiter.vec)
+                if (!waiter.inverse) {
+                    if (distance <= waiter.radius * waiter.radius) result = true
+                } else {
+                    if (distance >= waiter.radius * waiter.radius) result = true
+                }
+            }
+
+            if (!result) {
+                this@waitPos.capability(StoryTeamCapability::class).aimMarks.removeIf { it.x == waiter.vec.x && it.y == waiter.vec.y && it.z == waiter.vec.z }
+            }
+
+            result
+        }
     }
 
     fun async(body: NodeContextBuilder.() -> Unit): AsyncProperty {
