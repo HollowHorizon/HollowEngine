@@ -102,8 +102,17 @@ inline infix fun <reified T> NPCProperty.lookAt(target: NpcTarget<T>) {
 }
 
 @Suppress("UNCHECKED_CAST")
-inline infix fun <reified T> NPCProperty.lookAlwaysAt(target: NpcTarget<T>) {
+inline infix fun <reified T> NPCProperty.lookAlwaysAt(target: NpcTarget<T>?) {
     builder.apply {
+        if(target == null) {
+            next {
+                this@lookAlwaysAt().npcTarget.lookingPos = null
+                this@lookAlwaysAt().npcTarget.lookingEntity = null
+                this@lookAlwaysAt().npcTarget.lookingTeam = null
+            }
+            return@apply
+        }
+
         val type = T::class.java
         when {
             Vec3::class.java.isAssignableFrom(type) -> next { this@lookAlwaysAt().npcTarget.lookingPos = target() as Vec3 }
@@ -114,11 +123,6 @@ inline infix fun <reified T> NPCProperty.lookAlwaysAt(target: NpcTarget<T>) {
     }
 }
 
-fun NPCProperty.stopLookAlways() = next {
-    this@stopLookAlways().npcTarget.lookingPos = null
-    this@stopLookAlways().npcTarget.lookingEntity = null
-    this@stopLookAlways().npcTarget.lookingTeam = null
-}
 
 fun NPCProperty.lookAtEntityType(entity: () -> String) {
     val entityType = ForgeRegistries.ENTITY_TYPES.getValue(entity().rl)!!

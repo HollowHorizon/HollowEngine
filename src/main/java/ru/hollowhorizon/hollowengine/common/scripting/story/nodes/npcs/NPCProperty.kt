@@ -15,7 +15,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.next
 
 class NPCProperty(val builder: IContextBuilder, val npc: () -> NPCEntity) : () -> NPCEntity by npc
 
-fun NPCProperty.next(action: SimpleNode.() -> Unit) = builder.apply { next(action) }
+infix fun NPCProperty.next(action: SimpleNode.() -> Unit) = builder.apply { next(action) }
 
 var NPCProperty.hitboxMode
     get(): HitboxMode = this()[NPCCapability::class].hitboxMode
