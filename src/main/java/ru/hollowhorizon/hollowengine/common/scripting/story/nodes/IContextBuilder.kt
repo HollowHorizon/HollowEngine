@@ -58,6 +58,7 @@ import ru.hollowhorizon.hollowengine.common.util.getStructure
 import ru.hollowhorizon.hollowengine.cutscenes.replay.Replay
 import ru.hollowhorizon.hollowengine.cutscenes.replay.ReplayPlayer
 import java.util.function.Function
+import kotlin.math.sqrt
 
 interface IContextBuilder {
     val stateMachine: StoryStateMachine
@@ -73,10 +74,10 @@ interface IContextBuilder {
     // ------------------------------------
 
     fun NPCEntity.Companion.creating(settings: NpcContainer.() -> Unit) =
-        +NpcDelegate { NpcContainer().apply(settings) }.apply { manager = stateMachine }
+        +NpcDelegate(this@IContextBuilder) { NpcContainer().apply(settings) }.apply { manager = stateMachine }
 
 
-    fun NPCEntity.Companion.fromSubModel(subModel: NpcContainer.() -> SubModel) = +NpcDelegate {
+    fun NPCEntity.Companion.fromSubModel(subModel: NpcContainer.() -> SubModel) = +NpcDelegate(this@IContextBuilder) {
         NpcContainer().apply {
             val settings = subModel()
             model = settings.model
@@ -86,112 +87,9 @@ interface IContextBuilder {
         }
     }.apply { manager = stateMachine }
 
-    infix fun NPCProperty.replay(file: () -> String) = next {
-        val replay = Replay.fromFile(DirectoryManager.HOLLOW_ENGINE.resolve("replays").resolve(file()))
-        ReplayPlayer(this@replay()).apply {
-            saveEntity = true
-            isLooped = false
-            play(this@replay().level, replay)
-        }
-    }
-
-    infix fun NPCProperty.setPose(fileName: () -> String?) = next {
-        val file = fileName()
-        if (file == null) {
-            this@setPose()[AnimatedEntityCapability::class].pose = RawPose()
-            return@next
-        }
-        val replay = RawPose.fromNBT(
-            DirectoryManager.HOLLOW_ENGINE.resolve("npcs/poses/").resolve(file).inputStream().loadAsNBT()
-        )
-        this@setPose()[AnimatedEntityCapability::class].pose = replay
-    }
-
-    var NPCProperty.hitboxMode
-        get(): HitboxMode = this()[NPCCapability::class].hitboxMode
-        set(value) {
-            next {
-                this@hitboxMode()[NPCCapability::class].hitboxMode = value
-            }
-        }
-
-    var NPCProperty.icon
-        get(): NpcIcon = this()[NPCCapability::class].icon
-        set(value) {
-            next {
-                this@icon()[NPCCapability::class].icon = value
-            }
-        }
-
-    var NPCProperty.invulnerable
-        get() = this().isInvulnerable
-        set(value) {
-            next {
-                this@invulnerable().isInvulnerable = value
-            }
-        }
-
-    infix fun NPCProperty.setMovingPos(pos: () -> Vec3?) = +SimpleNode {
-        val position = pos()
-        this@setMovingPos().npcTarget.movingPos = position
-    }
-
-    infix fun NPCProperty.setMovingEntity(entity: () -> Entity?) = +SimpleNode {
-        val target = entity()
-        this@setMovingEntity().npcTarget.movingEntity = target
-    }
-
-    infix fun NPCProperty.setMovingTeam(team: () -> Team?) = +SimpleNode {
-        val target = team()
-        this@setMovingTeam().npcTarget.movingTeam = target
-    }
-
-    infix fun NPCProperty.setLookingPos(pos: () -> Vec3?) = +SimpleNode {
-        val position = pos()
-        this@setLookingPos().npcTarget.lookingPos = position
-    }
-
-    infix fun NPCProperty.setLookingEntity(entity: () -> Entity?) = +SimpleNode {
-        val target = entity()
-        this@setLookingEntity().npcTarget.lookingEntity = target
-    }
-
-    infix fun NPCProperty.setLookingTeam(team: () -> Team?) = +SimpleNode {
-        val target = team()
-        this@setLookingTeam().npcTarget.lookingTeam = target
-    }
-
-    infix fun NPCProperty.moveToPos(pos: () -> Vec3) = +NpcMoveToBlockNode(this, pos)
-    infix fun NPCProperty.moveToEntity(target: () -> Entity) = +NpcMoveToEntityNode(this, target)
-    infix fun NPCProperty.moveToTeam(target: () -> Team) = +NpcMoveToTeamNode(this, target)
-    infix fun NPCProperty.moveToBiome(biomeName: () -> String) = +NpcMoveToBlockNode(this) {
-        val npc = this@moveToBiome()
-        val biome = biomeName().rl
-
-        val pos = (npc.level as ServerLevel).findClosestBiome3d(
-            { it.`is`(biome) },
-            npc.blockPosition(),
-            6400,
-            32,
-            64
-        )?.first ?: npc.blockPosition()
-        Vec3(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
-    }
-
-    fun NPCProperty.moveToStructure(structureName: () -> String, offset: () -> BlockPos = { BlockPos.ZERO }) =
-        +NpcMoveToBlockNode(this) {
-            val npc = this@moveToStructure()
-            val level = npc.level as ServerLevel
-            val structure = level.getStructure(structureName(), npc.blockPosition()).pos
-            val offsetPos = offset()
-
-            Vec3(
-                structure.x.toDouble() + offsetPos.x,
-                structure.y.toDouble() + offsetPos.y,
-                structure.z.toDouble() + offsetPos.z
-            )
-        }
-
+    // ------------------------------------
+    //          Функции квестов
+    // ------------------------------------
     fun ProgressManager.addMessage(message: () -> String) = +SimpleNode {
         val list = this.manager.team.extraData.getList("hollowengine_progress_tasks", 8)
         list += StringTag.valueOf(message())
@@ -220,70 +118,6 @@ interface IContextBuilder {
         }
     }
 
-    infix fun NPCProperty.lookAtPos(target: () -> Vec3) = +NpcLookToBlockNode(this, target)
-
-    fun NPCProperty.lookAtEntityType(entity: () -> String) {
-        val entityType = ForgeRegistries.ENTITY_TYPES.getValue(entity().rl)!!
-
-        lookAtEntity {
-            val npc = this()
-            val level = npc.level
-
-            level.getEntitiesOfClass(LivingEntity::class.java, AABB.ofSize(npc.position(), 25.0, 25.0, 25.0)) {
-                it.type == entityType
-            }.minByOrNull { it.distanceTo(npc) } ?: npc
-        }
-    }
-
-    infix fun NPCProperty.lookAtEntity(target: () -> Entity) = +NpcLookToEntityNode(this, target)
-
-    infix fun NPCProperty.lookAtTeam(target: () -> Team) = +NpcLookToTeamNode(this, target)
-
-
-    infix fun NPCProperty.setTarget(value: (() -> LivingEntity?)?) = +SimpleNode {
-        this@setTarget().target = value?.invoke()
-    }
-
-    infix fun NPCProperty.setTargetTeam(value: () -> Team) = setTarget {
-        return@setTarget value().onlineMembers.minByOrNull { it.distanceToSqr(this()) }
-    }
-
-    infix fun NPCProperty.giveLeftHand(item: () -> ItemStack?) = +SimpleNode {
-        this@giveLeftHand().setItemInHand(InteractionHand.OFF_HAND, item() ?: ItemStack.EMPTY)
-    }
-
-    infix fun NPCProperty.giveRightHand(item: () -> ItemStack?) = +SimpleNode {
-        this@giveRightHand().setItemInHand(InteractionHand.MAIN_HAND, item() ?: ItemStack.EMPTY)
-    }
-
-    infix fun NPCProperty.play(block: AnimationContainer.() -> Unit) = +SimpleNode {
-        val container = AnimationContainer().apply(block)
-
-        val serverLayers = this@play()[AnimatedEntityCapability::class].layers
-
-        if (serverLayers.any { it.animation == container.animation }) return@SimpleNode
-
-        StartAnimationPacket(
-            this@play().id,
-            container.animation,
-            container.layerMode,
-            container.playType,
-            container.speed
-        ).send(PacketDistributor.TRACKING_ENTITY.with(this@play))
-
-        if (container.playType != PlayMode.ONCE) {
-            //Нужно на случай если клиентская сущность выйдет из зоны видимости (удалится)
-            serverLayers.addNoUpdate(
-                AnimationLayer(
-                    container.animation,
-                    container.layerMode,
-                    container.playType,
-                    container.speed
-                )
-            )
-        }
-    }
-
     @JvmName("playerPlay")
     infix fun PlayerProperty.play(block: AnimationContainer.() -> Unit) = +SimpleNode {
         val container = AnimationContainer().apply(block)
@@ -293,39 +127,22 @@ interface IContextBuilder {
         if (serverLayers.any { it.animation == container.animation }) return@SimpleNode
 
         StartAnimationPacket(
-            this@play().id,
-            container.animation,
-            container.layerMode,
-            container.playType,
-            container.speed
+            this@play().id, container.animation, container.layerMode, container.playType, container.speed
         ).send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(this@play))
 
         if (container.playType != PlayMode.ONCE) {
             //Нужно на случай если клиентская сущность выйдет из зоны видимости (удалится)
             serverLayers.addNoUpdate(
                 AnimationLayer(
-                    container.animation,
-                    container.layerMode,
-                    container.playType,
-                    container.speed
+                    container.animation, container.layerMode, container.playType, container.speed
                 )
             )
         }
     }
 
-    infix fun NPCProperty.playLooped(animation: () -> String) = play {
-        this.playType = PlayMode.LOOPED
-        this.animation = animation()
-    }
-
     @JvmName("playerPlayLooped")
     infix fun PlayerProperty.playLooped(animation: () -> String) = play {
         this.playType = PlayMode.LOOPED
-        this.animation = animation()
-    }
-
-    infix fun NPCProperty.playOnce(animation: () -> String) = play {
-        this.playType = PlayMode.ONCE
         this.animation = animation()
     }
 
@@ -335,21 +152,10 @@ interface IContextBuilder {
         this.animation = animation()
     }
 
-    infix fun NPCProperty.playFreeze(animation: () -> String) = play {
-        this.playType = PlayMode.LAST_FRAME
-        this.animation = animation()
-    }
-
     @JvmName("playerPlayFreeze")
     infix fun PlayerProperty.playFreeze(animation: () -> String) = play {
         this.playType = PlayMode.LAST_FRAME
         this.animation = animation()
-    }
-
-    infix fun NPCProperty.stop(animation: () -> String) = +SimpleNode {
-        val anim = animation()
-        this@stop()[AnimatedEntityCapability::class].layers.removeIfNoUpdate { it.animation == anim }
-        StopAnimationPacket(this@stop().id, anim).send(PacketDistributor.TRACKING_ENTITY.with(this@stop))
     }
 
     @JvmName("playerStop")
@@ -371,62 +177,10 @@ interface IContextBuilder {
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
 
-    infix fun NPCProperty.configure(body: AnimatedEntityCapability.() -> Unit) = +SimpleNode {
-        this@configure()[AnimatedEntityCapability::class].apply(body)
-    }
-
     @JvmName("playerConfigure")
     infix fun PlayerProperty.configure(body: AnimatedEntityCapability.() -> Unit) = +SimpleNode {
         this@configure()[AnimatedEntityCapability::class].apply(body)
     }
-
-    infix fun NPCProperty.useBlock(target: () -> Vec3) {
-        this.moveToPos(target)
-        this.lookAtPos(target)
-        +SimpleNode {
-            val entity = this@useBlock()
-            val pos = target()
-            val hit = entity.level.clip(
-                ClipContext(
-                    pos,
-                    pos,
-                    ClipContext.Block.OUTLINE,
-                    ClipContext.Fluid.NONE,
-                    entity
-                )
-            )
-            entity.swing(InteractionHand.MAIN_HAND)
-            val state = entity.level.getBlockState(hit.blockPos)
-            state.use(entity.level, entity.fakePlayer, InteractionHand.MAIN_HAND, hit)
-        }
-    }
-
-    infix fun NPCProperty.destroyBlock(target: () -> Vec3) {
-        this.moveToPos(target)
-        this.lookAtPos(target)
-        +SimpleNode {
-            val entity = this@destroyBlock()
-            val manager = entity.fakePlayer.gameMode
-
-            manager.destroyBlock(BlockPos(target()))
-            entity.swing(InteractionHand.MAIN_HAND)
-        }
-    }
-
-    infix fun NPCProperty.addTrade(offer: () -> MerchantOffer) = +SimpleNode {
-        this@addTrade().npcTrader.npcOffers.add(offer())
-    }
-
-    fun NPCProperty.clearTrades() = +SimpleNode {
-        this@clearTrades().npcTrader.npcOffers.clear()
-    }
-
-    fun NPCProperty.clearTradeUses() = +SimpleNode {
-        this@clearTradeUses().npcTrader.npcOffers.forEach { it.resetUses() }
-    }
-
-
-    fun AnimatedEntityCapability.skin(name: String) = "skins/$name"
 
     infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach {
@@ -438,26 +192,6 @@ interface IContextBuilder {
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text().mcTranslate) }
     }
 
-
-    fun NPCProperty.despawn() = +SimpleNode { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
-
-    infix fun NPCProperty.addEffect(effect: ParticleEffect.() -> Unit) = +SimpleNode {
-        this@addEffect().addEffect(ParticleEffect("".rl, "").apply(effect))
-    }
-
-    infix fun NPCProperty.dropItem(stack: () -> ItemStack) = +SimpleNode {
-        val entity = this@dropItem()
-        val p = entity.position()
-        val entityStack = ItemEntity(entity.level, p.x, p.y + entity.eyeHeight, p.z, stack())
-        entityStack.setDefaultPickUpDelay()
-        val f8 = Mth.sin(entity.xRot * Mth.PI / 180f)
-        val f3 = Mth.sin(entity.yHeadRot * Mth.PI / 180f)
-        val f4 = Mth.cos(entity.yHeadRot * Mth.PI / 180f)
-        entityStack.setDeltaMovement(
-            -f3 * 0.3, -f8 * 0.3 + 0.1, f4 * 0.3
-        )
-        entity.level.addFreshEntity(entityStack)
-    }
 
     fun PlayerProperty.saveInventory() = next {
         val player = this@saveInventory()
@@ -486,26 +220,21 @@ interface IContextBuilder {
         TeamHelper(this@modify).apply(inv)
     }
 
-    infix fun NPCProperty.requestItems(block: GiveItemList.() -> Unit) = +NpcItemListNode(block, this@requestItems)
-
-    fun NPCProperty.waitInteract() = +NpcInteractNode(this@waitInteract)
-
     class PosWaiter {
-        var vec = Vec3(0.0, 0.0, 0.0)
+        var pos = Vec3(0.0, 0.0, 0.0)
         var radius = 0.0
         var inverse = false
+        var ignoreY = true
     }
 
     infix fun Team.waitPos(context: PosWaiter.() -> Unit) {
         next {
-            val pos = PosWaiter().apply(
+            val waiter = PosWaiter().apply(
                 context
-            ).vec
+            )
+            val pos = waiter.pos
             this@waitPos.capability(StoryTeamCapability::class).aimMarks += AimMark(
-                pos.x,
-                pos.y,
-                pos.z,
-                NpcIcon.QUESTION.image
+                pos.x, pos.y, pos.z, NpcIcon.QUESTION.image, waiter.ignoreY
             )
         }
         waitForgeEvent<ServerTickEvent> {
@@ -513,16 +242,17 @@ interface IContextBuilder {
             val waiter = PosWaiter().apply(context)
 
             this@waitPos.onlineMembers.forEach {
-                val distance = it.distanceToSqr(waiter.vec)
-                if (!waiter.inverse) {
-                    if (distance <= waiter.radius * waiter.radius) result = true
-                } else {
-                    if (distance >= waiter.radius * waiter.radius) result = true
-                }
+                val distance: (Vec3) -> Double =
+                    if (!waiter.ignoreY) { pos: Vec3 -> sqrt(it.distanceToSqr(pos)) } else it::distanceToXZ
+                val compare: (Double) -> Boolean =
+                    if (!waiter.inverse) { len: Double -> len <= waiter.radius }
+                    else { len: Double -> len >= waiter.radius }
+
+                result = result || compare(distance(waiter.pos))
             }
 
-            if (!result) {
-                this@waitPos.capability(StoryTeamCapability::class).aimMarks.removeIf { it.x == waiter.vec.x && it.y == waiter.vec.y && it.z == waiter.vec.z }
+            if (result) {
+                this@waitPos.capability(StoryTeamCapability::class).aimMarks.removeIf { it.x == waiter.pos.x && it.y == waiter.pos.y && it.z == waiter.pos.z }
             }
 
             result
@@ -557,11 +287,6 @@ interface IContextBuilder {
         }
     }
 
-    infix fun NPCProperty.tpTo(target: TeleportContainer.() -> Unit) = +SimpleNode {
-        val tp = TeleportContainer().apply(target)
-        val teleport = tp.pos
-        this@tpTo.invoke().teleportTo(teleport.x, teleport.y, teleport.z)
-    }
 
     infix fun Team.tpTo(teleport: TeleportContainer.() -> Unit) = +SimpleNode {
         val config = TeleportContainer().apply(teleport)

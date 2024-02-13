@@ -18,5 +18,6 @@ class AimMark(
     val x: Double,
     val y: Double,
     val z: Double,
-    val icon: @Serializable(ForResourceLocation::class) ResourceLocation
+    val icon: @Serializable(ForResourceLocation::class) ResourceLocation,
+    val ignoreY: Boolean
 )

@@ -10,6 +10,7 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.NpcContainer
 import java.util.*
@@ -17,7 +18,8 @@ import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
 class NpcDelegate(
-    val settings: () -> NpcContainer,
+    val builder: IContextBuilder,
+    val settings: () -> NpcContainer
 ) : Node(), ReadOnlyProperty<Any?, NPCProperty> {
 
     val npc: NPCEntity by lazy {
@@ -75,8 +77,8 @@ class NpcDelegate(
         entity
     }
 
-    override fun getValue(thisRef: Any?, property: KProperty<*>): () -> NPCEntity {
-        return { npc }
+    override fun getValue(thisRef: Any?, property: KProperty<*>): NPCProperty {
+        return NPCProperty(builder) { npc }
     }
 
     override fun tick(): Boolean {
@@ -88,5 +90,3 @@ class NpcDelegate(
 
     override fun deserializeNBT(nbt: CompoundTag) {}
 }
-
-typealias NPCProperty = () -> NPCEntity

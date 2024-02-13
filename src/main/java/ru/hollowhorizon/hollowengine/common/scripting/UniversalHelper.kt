@@ -9,6 +9,7 @@ import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraftforge.registries.ForgeRegistries
 import net.minecraftforge.server.ServerLifecycleHooks
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.rl
 import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
@@ -17,6 +18,8 @@ import kotlin.reflect.KProperty
 fun main() {
     val book = item("minecraft:written_book", 1, "{author:\"Dev\",filtered_title:\"Hollow\",pages:['{\"text\":\"Hello...\"}','{\"text\":\"There is letters\"}','{\"text\":\"на русском тоже!\\n\\n\\nда\"}'],title:\"Hollow\"}")
 }
+
+fun AnimatedEntityCapability.skin(name: String) = "skins/$name"
 
 val Team.randomPlayer get() = onlineMembers.random()
 
