@@ -21,17 +21,30 @@ class StorageItemListNode(itemList: StorageItemList.() -> Unit) : Node() {
     override fun tick(): Boolean {
         val block = itemList.level.getBlockEntity(itemList.bpos) ?: return true
         block.getCapability(ForgeCapabilities.ITEM_HANDLER).ifPresent { itemHandler ->
-            itemList.items.removeIf { stack ->
-                for (i in 0 until itemHandler.slots) {
-                    val item = itemHandler.getStackInSlot(i)
-                    if (stack.item == item.item) {
-                        val remaining = item.count
-                        item.shrink(stack.count)
-                        stack.shrink(remaining)
-                        return@removeIf stack.isEmpty
+            if(itemList.consumeItems) {
+                itemList.items.removeIf { stack ->
+                    for (i in 0 until itemHandler.slots) {
+                        val item = itemHandler.getStackInSlot(i)
+                        if (stack.item == item.item) {
+                            val remaining = item.count
+                            item.shrink(stack.count)
+                            stack.shrink(remaining)
+                            return@removeIf stack.isEmpty
+                        }
                     }
+                    false
                 }
-                false
+            } else {
+                if(itemList.items.all { stack ->
+                    var count = stack.count
+                    for (i in 0 until itemHandler.slots) {
+                        val item = itemHandler.getStackInSlot(i)
+                        if (stack.item == item.item) {
+                            count -= item.count
+                        }
+                    }
+                    count <= 0
+                }) itemList.items.clear()
             }
         }
         return itemList.items.isNotEmpty()
@@ -60,6 +73,7 @@ class StorageItemListNode(itemList: StorageItemList.() -> Unit) : Node() {
 class StorageItemList : GiveItemList() {
     var world = "minecraft:overworld"
     var pos = Vec3.ZERO
+    var consumeItems = true
 
     val bpos by lazy { BlockPos(pos) }
     val level by lazy {
