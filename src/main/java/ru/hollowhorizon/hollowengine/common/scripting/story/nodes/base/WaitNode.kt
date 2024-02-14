@@ -28,3 +28,14 @@ class WaitNode(var startTime: () -> Int) : Node() {
 }
 
 fun IContextBuilder.wait(time: () -> Int) = +WaitNode(time)
+
+fun IContextBuilder.await(condition: () -> Boolean) = +object : Node() {
+    override fun tick(): Boolean {
+        return !condition()
+    }
+
+    override fun serializeNBT() = CompoundTag()
+
+    override fun deserializeNBT(p0: CompoundTag) {}
+
+}

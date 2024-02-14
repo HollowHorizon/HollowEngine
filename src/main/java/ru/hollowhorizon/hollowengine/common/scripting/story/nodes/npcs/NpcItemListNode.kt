@@ -7,7 +7,7 @@ import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 
-class GiveItemList {
+open class GiveItemList {
     val items = mutableListOf<ItemStack>()
     var text = "hollowengine.npc_need"
 

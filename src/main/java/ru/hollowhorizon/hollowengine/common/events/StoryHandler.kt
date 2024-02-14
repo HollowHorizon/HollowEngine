@@ -146,7 +146,7 @@ object StoryHandler {
         stories.allKeys.forEach { story ->
             val file = story.fromReadablePath()
 
-            runScript(ServerLifecycleHooks.getCurrentServer(), event.team, file).start()
+            runScript(ServerLifecycleHooks.getCurrentServer(), event.team, file)
         }
     }
 }
