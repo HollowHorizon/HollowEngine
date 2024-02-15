@@ -74,7 +74,7 @@ class ModelEditScreen(val npc: NPCEntity) : HollowScreen() {
 
                                 xRot?.float = 0f
                                 yRot?.float = 0f
-                                zPos?.float = 0f
+                                zRot?.float = 0f
 
                                 xScale?.float = 1f
                                 yScale?.float = 1f
