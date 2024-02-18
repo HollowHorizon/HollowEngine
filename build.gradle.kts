@@ -109,6 +109,9 @@ dependencies {
     minecraft("net.minecraftforge:forge:${mcVersion}-${forgeVersion}")
     annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
 
+    implementation(kotlin("script-runtime"))
+    implementation(kotlin("scripting-jvm-host"))
+    implementation(kotlin("scripting-jvm"))
     implementation("thedarkcolour:kotlinforforge:$kffVersion")
     implementation(fg.deobf("ru.hollowhorizon:kotlinscript:${ksffVersion}"))
     implementation(fg.deobf("ru.hollowhorizon:hc:${mcVersion}-${hcVersion}"))
@@ -123,10 +126,6 @@ dependencies {
     implementation(fg.deobf("curse.maven:spark-361579:4505309"))
     implementation(fg.deobf("curse.maven:item-filters-309674:4553326"))
     implementation(fg.deobf("curse.maven:ftb-quests-forge-289412:5060506"))
-
-    implementation(kotlin("script-runtime"))
-    implementation(kotlin("scripting-jvm-host"))
-    implementation(kotlin("scripting-jvm"))
 }
 
 fun Jar.createManifest() = manifest {

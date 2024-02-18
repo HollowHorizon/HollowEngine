@@ -33,6 +33,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.goals.BlockBreakGoal
 import ru.hollowhorizon.hollowengine.common.npcs.goals.LadderClimbGoal
 import ru.hollowhorizon.hollowengine.common.npcs.goals.OpenDoorGoal
 import ru.hollowhorizon.hollowengine.common.npcs.pathing.NPCPathNavigator
+import ru.hollowhorizon.hollowengine.common.npcs.pathing.NPCPathNavigatorV2
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
 class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
@@ -71,7 +72,7 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
         npcTrader.npcOffers = MerchantOffers(pCompound.getCompound("npc_trades"))
     }
 
-    override fun createNavigation(pLevel: Level) = NPCPathNavigator(this, pLevel)
+    override fun createNavigation(pLevel: Level) = super.createNavigation(pLevel) //NPCPathNavigatorV2(this, pLevel)
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         if (pHand == InteractionHand.MAIN_HAND) {

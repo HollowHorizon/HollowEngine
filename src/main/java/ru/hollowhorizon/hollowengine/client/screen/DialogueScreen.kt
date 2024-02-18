@@ -13,6 +13,7 @@ import net.minecraftforge.api.distmarker.Dist
 import net.minecraftforge.api.distmarker.OnlyIn
 import net.minecraftforge.common.MinecraftForge
 import org.lwjgl.glfw.GLFW
+import ru.hollowhorizon.hc.api.IAutoScaled
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.util.Alignment
 import ru.hollowhorizon.hc.client.screens.util.WidgetPlacement
@@ -40,7 +41,7 @@ class OnChoicePerform(private val choice: Int) : HollowPacketV3<OnChoicePerform>
 }
 
 @OnlyIn(Dist.CLIENT)
-object DialogueScreen : HollowScreen("".mcText) {
+object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
     var canClose: Boolean = false
     var background: String? = null
     var textBox: DialogueTextBox? = null
@@ -86,6 +87,8 @@ object DialogueScreen : HollowScreen("".mcText) {
             )
         }
         choices.clear()
+
+        Minecraft.getInstance().options.hideGui = true
     }
 
     override fun render(stack: PoseStack, mouseX: Int, mouseY: Int, partialTick: Float) {
@@ -163,6 +166,12 @@ object DialogueScreen : HollowScreen("".mcText) {
             GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_ENTER -> notifyClick()
         }
         return super.keyPressed(pKeyCode, pScanCode, pModifiers)
+    }
+
+    override fun onClose() {
+        super.onClose()
+        cleanup()
+        Minecraft.getInstance().options.hideGui = false
     }
 
     fun cleanup() {
