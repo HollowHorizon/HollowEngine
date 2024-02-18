@@ -32,8 +32,6 @@ import ru.hollowhorizon.hollowengine.common.npcs.NpcTarget
 import ru.hollowhorizon.hollowengine.common.npcs.goals.BlockBreakGoal
 import ru.hollowhorizon.hollowengine.common.npcs.goals.LadderClimbGoal
 import ru.hollowhorizon.hollowengine.common.npcs.goals.OpenDoorGoal
-import ru.hollowhorizon.hollowengine.common.npcs.pathing.NPCPathNavigator
-import ru.hollowhorizon.hollowengine.common.npcs.pathing.NPCPathNavigatorV2
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
 class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
@@ -124,7 +122,7 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
     }
 
     override fun doPush(pEntity: Entity) {
-        if(this[NPCCapability::class].hitboxMode != HitboxMode.EMPTY) super.doPush(pEntity)
+        if (this[NPCCapability::class].hitboxMode != HitboxMode.EMPTY) super.doPush(pEntity)
     }
 
     override fun isPushable(): Boolean {
