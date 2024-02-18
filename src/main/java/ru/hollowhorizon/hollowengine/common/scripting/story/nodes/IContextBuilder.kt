@@ -4,59 +4,44 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import dev.ftb.mods.ftbteams.data.Team
-import net.minecraft.core.BlockPos
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.StringTag
 import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
-import net.minecraft.util.Mth
-import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.Entity
-import net.minecraft.world.entity.LivingEntity
-import net.minecraft.world.entity.item.ItemEntity
-import net.minecraft.world.item.ItemStack
-import net.minecraft.world.item.trading.MerchantOffer
-import net.minecraft.world.level.ClipContext
-import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import net.minecraftforge.common.util.ITeleporter
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.network.PacketDistributor
-import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayMode
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
-import ru.hollowhorizon.hc.client.models.gltf.manager.RawPose
 import ru.hollowhorizon.hc.client.models.gltf.manager.SubModel
+import ru.hollowhorizon.hc.client.screens.CloseGuiPacket
 import ru.hollowhorizon.hc.client.utils.capability
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
-import ru.hollowhorizon.hc.client.utils.nbt.loadAsNBT
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
 import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
-import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
+import ru.hollowhorizon.hc.common.ui.Widget
 import ru.hollowhorizon.hollowengine.common.capabilities.AimMark
 import ru.hollowhorizon.hollowengine.common.capabilities.StoryTeamCapability
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
-import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
-import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
 import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NPCProperty
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NpcDelegate
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.distanceToXZ
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.PlayerProperty
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.AnimationContainer
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.NpcContainer
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.TeamHelper
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.TeleportContainer
-import ru.hollowhorizon.hollowengine.common.util.getStructure
-import ru.hollowhorizon.hollowengine.cutscenes.replay.Replay
-import ru.hollowhorizon.hollowengine.cutscenes.replay.ReplayPlayer
 import java.util.function.Function
 import kotlin.math.sqrt
 
@@ -76,6 +61,10 @@ interface IContextBuilder {
     fun NPCEntity.Companion.creating(settings: NpcContainer.() -> Unit) =
         +NpcDelegate(this@IContextBuilder) { NpcContainer().apply(settings) }.apply { manager = stateMachine }
 
+
+    fun Widget.close() {
+        stateMachine.team.onlineMembers.forEach { CloseGuiPacket().send(PacketDistributor.PLAYER.with { it }) }
+    }
 
     fun NPCEntity.Companion.fromSubModel(subModel: NpcContainer.() -> SubModel) = +NpcDelegate(this@IContextBuilder) {
         NpcContainer().apply {
