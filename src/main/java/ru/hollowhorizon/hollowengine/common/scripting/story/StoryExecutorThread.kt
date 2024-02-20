@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import dev.ftb.mods.ftbteams.data.Team
-import kotlinx.coroutines.async
+import kotlinx.coroutines.*
 import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hc.HollowCore
@@ -14,6 +14,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 import ru.hollowhorizon.hollowengine.common.scripting.StoryLogger
 import ru.hollowhorizon.hollowengine.common.scripting.story.coroutines.ScriptContext
 import java.io.File
+import kotlin.concurrent.thread
 import kotlin.script.experimental.api.ResultValue
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.constructorArgs
@@ -22,8 +23,9 @@ import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.loadDependencies
 import kotlin.script.experimental.jvm.util.isError
 
+@OptIn(DelicateCoroutinesApi::class)
 fun runScript(server: MinecraftServer, team: Team, file: File, isCommand: Boolean = false) =
-    ScriptContext.scope.async(ScriptContext.scriptContext) {
+    thread {
 
         StoryLogger.LOGGER.info("Starting event \"{}\", for team \"{}\".", file.toReadablePath(), team.name.string)
         val shouldRecompile = ScriptingCompiler.shouldRecompile(file) || isCommand
@@ -36,7 +38,7 @@ fun runScript(server: MinecraftServer, team: Team, file: File, isCommand: Boolea
                     it.sendSystemMessage("§c[ERROR]§r $error".mcText)
                 }
             }
-            return@async
+            return@thread
         }
 
         val res = story.execute {
