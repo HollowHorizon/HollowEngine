@@ -25,6 +25,10 @@ val Team.randomPlayer get() = onlineMembers.random()
 
 val Team.ownerPlayer get() = ServerLifecycleHooks.getCurrentServer().playerList.getPlayer(owner)
 
+fun Team.forEachPlayer(action: (ServerPlayer) -> Unit) {
+    onlineMembers.forEach { action(it) }
+}
+
 fun item(item: String, count: Int = 1, nbt: CompoundTag? = null) = ItemStack(
     ForgeRegistries.ITEMS.getValue(item.rl) ?: throw IllegalStateException("Item $item not found!"),
     count,
@@ -41,7 +45,7 @@ fun tag(tag: String): TagKey<Item> {
 }
 
 fun <T> runtime(default: () -> T) = RuntimeVariable(default)
-fun <T> runtime() = RuntimeVariable { throw IllegalStateException("Default value not found, runtime property does not exists") }
+fun <T> runtime() = RuntimeVariable<T> { throw IllegalStateException("Default value not found, runtime property does not exists") }
 
 val RUNTIME_PROPERTIES = mutableMapOf<String, Any?>()
 

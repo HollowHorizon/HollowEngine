@@ -5,8 +5,11 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Vector3f
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.UseSerializers
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.MutableComponent
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraftforge.api.distmarker.Dist
@@ -19,6 +22,8 @@ import ru.hollowhorizon.hc.client.screens.util.Alignment
 import ru.hollowhorizon.hc.client.screens.util.WidgetPlacement
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.utils.*
+import ru.hollowhorizon.hc.client.utils.nbt.ForEntity
+import ru.hollowhorizon.hc.client.utils.nbt.ForTextComponent
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.client.screen.widget.dialogue.DialogueTextBox
@@ -40,27 +45,26 @@ class OnChoicePerform(private val choice: Int) : HollowPacketV3<OnChoicePerform>
 
 }
 
+var CLIENT_OPTIONS: DialogueOptions = DefaultOptions()
+    set(value) {
+        field = value
+        DialogueScreen.doInit()
+    }
+
 @OnlyIn(Dist.CLIENT)
 object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
     var canClose: Boolean = false
-    var background: String? = null
-    var textBox: DialogueTextBox? = null
-    var currentName = "".mcText
-    val crystalAnimator by GuiAnimator.Reversed(0, 20, 1.5F) { x ->
+    private var textBox: DialogueTextBox? = null
+    private val crystalAnimator by GuiAnimator.Reversed(0, 20, 1.5F) { x ->
         if (x < 0.5F) 4F * x * x * x
         else 1F - (-2 * x + 2.0).pow(3.0).toFloat() / 2F
     }
-    var color: Int = 0xFFFFFFFF.toInt()
-    var STATUS_ICON = "hollowengine:gui/dialogues/status.png"
-    var OVERLAY = "hollowengine:gui/dialogues/overlay.png"
-    var NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
-    var CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/choice_button.png"
-    val characters = LinkedHashSet<LivingEntity>()
-    val choices = ArrayList<Component>()
+
+    fun doInit() = init()
 
 
     override fun init() {
-        val text = textBox?.text
+        val lastText = textBox?.text ?: "".mcText
         this.children().clear()
         this.renderables.clear()
 
@@ -69,80 +73,70 @@ object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
                 ::DialogueTextBox, Alignment.BOTTOM_CENTER, 0, 0, this.width, this.height, 300, 50
             )
         )
-        text?.let {
-            textBox?.text = it
-            textBox?.complete = true
-        }
+        textBox?.text = CLIENT_OPTIONS.text
+        if(lastText == CLIENT_OPTIONS.text) textBox?.complete = true
 
-        choices.forEachIndexed { i, choice ->
+        CLIENT_OPTIONS.choices.forEachIndexed { i, choice ->
             addRenderableWidget(
                 WidgetPlacement.configureWidget(
                     { x, y, w, h ->
-                        BaseButton(x, y, w, h, choice, {
+                        BaseButton(x, y, w, h, choice.mcTranslate, {
                             this@DialogueScreen.init()
                             OnChoicePerform(i).send()
-                        }, CHOICE_BUTTON.rl, textColor = 0xFFFFFF, textColorHovered = 0xEDC213)
+                        }, CLIENT_OPTIONS.choiceButton.rl, textColor = 0xFFFFFF, textColorHovered = 0xEDC213)
                     }, Alignment.CENTER, 0, this.height / 3 - 25 * i, this.width, this.height, 320, 20
                 )
             )
         }
-        choices.clear()
+        CLIENT_OPTIONS.choices.clear()
 
         Minecraft.getInstance().options.hideGui = true
     }
 
     override fun render(stack: PoseStack, mouseX: Int, mouseY: Int, partialTick: Float) {
-        val col = color.toRGBA()
-
         renderBackground(stack)
-        if (background != null) {
+        if (CLIENT_OPTIONS.background != null) {
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F)
-            bind(background!!.rl.namespace, background!!.rl.path)
+            bind(CLIENT_OPTIONS.background!!.rl.namespace, CLIENT_OPTIONS.background!!.rl.path)
             blit(stack, 0, 0, 0F, 0F, this.width, this.height, this.width, this.height)
         }
         drawCharacters(mouseX, mouseY)
-        drawStatus(stack, col)
+        drawStatus(stack)
 
         RenderSystem.enableBlend()
         RenderSystem.defaultBlendFunc()
-        RenderSystem.setShaderColor(col.r, col.g, col.b, col.a)
-        bind(OVERLAY.rl.namespace, OVERLAY.rl.path)
+        bind(CLIENT_OPTIONS.overlay.rl.namespace, CLIENT_OPTIONS.overlay.rl.path)
         blit(stack, 0, this.height - 55, 0F, 0F, this.width, 55, this.width, 55)
-        RenderSystem.setShaderColor(1F, 1F, 1F, 1F)
 
         super.render(stack, mouseX, mouseY, partialTick)
 
-        if (this.currentName.string.isNotEmpty()) drawNameBox(stack, col)
+        if (CLIENT_OPTIONS.name.string.isNotEmpty()) drawNameBox(stack)
     }
 
-    private fun drawNameBox(stack: PoseStack, col: RGBA) {
+    private fun drawNameBox(stack: PoseStack) {
         RenderSystem.enableBlend()
         RenderSystem.defaultBlendFunc()
-        RenderSystem.setShaderColor(col.r, col.g, col.b, col.a)
         stack.pushPose()
         stack.translate(0.0, 0.0, 700.0)
-        bind(NAME_OVERLAY.rl.namespace, NAME_OVERLAY.rl.path)
-        val size = this.font.width(this.currentName) + 10
+        bind(CLIENT_OPTIONS.nameOverlay.rl.namespace, CLIENT_OPTIONS.nameOverlay.rl.path)
+        val size = this.font.width(CLIENT_OPTIONS.name) + 10
         blit(stack, 5, this.height - 73, 0F, 0F, size, 15, size, 15)
-        RenderSystem.setShaderColor(1F, 1F, 1F, 1F)
 
-        this.font.drawShadow(stack, this.currentName, 10F, this.height - 60F - font.lineHeight, 0xFFFFFF)
+        this.font.drawShadow(stack, CLIENT_OPTIONS.name, 10F, this.height - 60F - font.lineHeight, 0xFFFFFF)
         stack.popPose()
     }
 
-    private fun drawStatus(stack: PoseStack, col: RGBA) {
+    private fun drawStatus(stack: PoseStack) {
         if (this.textBox?.complete == true) {
-            RenderSystem.setShaderColor(col.r, col.g, col.b, col.a)
-            bind(STATUS_ICON.rl.namespace, STATUS_ICON.rl.path)
+            bind(CLIENT_OPTIONS.statusIcon.rl.namespace, CLIENT_OPTIONS.statusIcon.rl.path)
             blit(stack, this.width - 60 + crystalAnimator, this.height - 47, 0F, 0F, 40, 40, 40, 40)
-            RenderSystem.setShaderColor(1F, 1F, 1F, 1F)
         }
     }
 
 
     private fun drawCharacters(mouseX: Int, mouseY: Int) {
-        val w = this.width / (characters.size + 1).toFloat()
-        characters.forEachIndexed { i, entity ->
+        val w = this.width / (CLIENT_OPTIONS.characters.size + 1f)
+        CLIENT_OPTIONS.characters.filterIsInstance<LivingEntity>().forEachIndexed { i, entity ->
             val x = (i + 1) * w
             val y = this.height * 0.85F
 
@@ -162,7 +156,7 @@ object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
 
     override fun keyPressed(pKeyCode: Int, pScanCode: Int, pModifiers: Int): Boolean {
         when (pKeyCode) {
-            GLFW.GLFW_KEY_ESCAPE -> if(shouldCloseOnEsc()) onClose()
+            GLFW.GLFW_KEY_ESCAPE -> if (shouldCloseOnEsc()) onClose()
             GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_ENTER -> notifyClick()
         }
         return super.keyPressed(pKeyCode, pScanCode, pModifiers)
@@ -175,16 +169,7 @@ object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
     }
 
     fun cleanup() {
-        background = null
         textBox = null
-        currentName = "".mcText
-        color = 0xFFFFFFFF.toInt()
-        STATUS_ICON = "hollowengine:gui/dialogues/status.png"
-        OVERLAY = "hollowengine:gui/dialogues/overlay.png"
-        NAME_OVERLAY = "hollowengine:gui/dialogues/name_overlay.png"
-        CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/choice_button.png"
-        characters.clear()
-        choices.clear()
     }
 
     fun notifyClick() {
@@ -213,8 +198,8 @@ object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
         quaternion.mul(quaternion1)
         stack.mulPose(quaternion)
         val isNpc = entity is NPCEntity
-        val oldIcon = if(isNpc) entity[NPCCapability::class].icon else NpcIcon.EMPTY
-        if(isNpc) entity[NPCCapability::class].icon = NpcIcon.EMPTY
+        val oldIcon = if (isNpc) entity[NPCCapability::class].icon else NpcIcon.EMPTY
+        if (isNpc) entity[NPCCapability::class].icon = NpcIcon.EMPTY
         val f2: Float = entity.yBodyRot
         val f3: Float = entity.yRot
         val f4: Float = entity.xRot
@@ -259,35 +244,38 @@ object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
         entity.xRot = f4
         entity.yHeadRotO = f5
         entity.yHeadRot = f6
-        if(isNpc) entity[NPCCapability::class].icon = oldIcon
+        if (isNpc) entity[NPCCapability::class].icon = oldIcon
         modelView.popPose()
 
         RenderSystem.applyModelViewMatrix()
         Lighting.setupFor3DItems()
     }
 
-    fun updateChoices(choices: Collection<Component>) {
-        this.choices.addAll(choices)
-        init()
-    }
-
-    fun updateText(text: String) {
-        this.textBox?.text = text
-    }
-
-    fun updateName(name: Component) {
-        this.currentName = name.copy()
-    }
-
-    fun addEntity(entity: Int) {
-        if (characters.any { it.id == entity }) return
-        Minecraft.getInstance().level?.getEntity(entity)?.let { characters += it as LivingEntity }
-    }
-
-    fun removeEntity(entity: Int) {
-        characters.removeIf { it.id == entity }
-    }
-
     override fun shouldCloseOnEsc() = canClose
     override fun isPauseScreen() = false
 }
+
+interface DialogueOptions {
+    val name: Component
+    val text: Component
+    val characters: ArrayList<Entity>
+    val choices: ArrayList<String>
+    val background: String?
+    val statusIcon: String
+    val overlay: String
+    val nameOverlay: String
+    val choiceButton: String
+}
+
+@Serializable
+data class DefaultOptions(
+    override var name: @Serializable(ForTextComponent::class) Component = "".mcText,
+    override var text: @Serializable(ForTextComponent::class) Component = "".mcText,
+    override var characters: ArrayList<@Serializable(ForEntity::class) Entity> = arrayListOf(),
+    override var choices: ArrayList<String> = arrayListOf(),
+    override var background: String? = null,
+    override var statusIcon: String = "hollowengine:gui/dialogues/status.png",
+    override var overlay: String = "hollowengine:gui/dialogues/overlay.png",
+    override var nameOverlay: String = "hollowengine:gui/dialogues/name_overlay.png",
+    override var choiceButton: String = "hollowengine:textures/gui/dialogues/choice_button.png"
+) : DialogueOptions

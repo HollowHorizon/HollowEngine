@@ -4,7 +4,6 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues
 
 import dev.ftb.mods.ftbteams.data.Team
 import kotlinx.serialization.Serializable
-import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerPlayer
@@ -19,11 +18,14 @@ import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hollowengine.client.screen.CLIENT_OPTIONS
+import ru.hollowhorizon.hollowengine.client.screen.DefaultOptions
 import ru.hollowhorizon.hollowengine.client.screen.DialogueScreen
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.ServerMouseClickedEvent
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
+import ru.hollowhorizon.hollowengine.common.scripting.forEachPlayer
 import ru.hollowhorizon.hollowengine.common.scripting.ownerPlayer
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.HasInnerNodes
@@ -33,6 +35,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.events.ClickNode
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NPCProperty
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.PlayerProperty
+
+var SERVER_OPTIONS = DefaultOptions()
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
@@ -49,23 +53,9 @@ class DialogueScreenPacket(private val enable: Boolean, private val canClose: Bo
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
-class DialogueSayPacket(
-    var text: String = "", var name: String = "", val entity: Int
-) : HollowPacketV3<DialogueSayPacket> {
-    override fun handle(player: Player, data: DialogueSayPacket) {
-        DialogueScreen.updateText(data.text)
-        DialogueScreen.updateName(data.name.mcText)
-        DialogueScreen.addEntity(data.entity)
-    }
-
-}
-
-@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
-@Serializable
-class DialogueChoicePacket(val choices: List<String>) : HollowPacketV3<DialogueChoicePacket> {
-    override fun handle(player: Player, data: DialogueChoicePacket) {
-        if(Minecraft.getInstance().screen !is DialogueScreen) DialogueScreen.open()
-        DialogueScreen.updateChoices(data.choices.map { it.mcText })
+class UpdateDialoguePacket(val options: DefaultOptions = SERVER_OPTIONS) : HollowPacketV3<UpdateDialoguePacket> {
+    override fun handle(player: Player, data: UpdateDialoguePacket) {
+        CLIENT_OPTIONS = options
     }
 
 }
@@ -158,15 +148,20 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
         } else {
             val result = +SimpleNode {
                 val npc = this@say()
-                manager.team.onlineMembers.forEach {
-                    DialogueSayPacket(text(), npc.displayName.string, npc.id)
-                        .send(PacketDistributor.PLAYER.with { it })
+                SERVER_OPTIONS.update(manager.team) {
+                    this.text = text().mcTranslate
+                    this.name = npc.displayName
+                    if(npc !in characters) characters.add(npc)
                 }
             }
             +ClickNode(MouseButton.LEFT)
 
             return result
         }
+    }
+
+    fun options(options: DefaultOptions.() -> Unit) = next {
+        SERVER_OPTIONS.update(manager.team, options)
     }
 
     @JvmName("playerSay")
@@ -180,10 +175,11 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
             }
         } else {
             val result = +SimpleNode {
-                val npc = this@say()
-                manager.team.onlineMembers.forEach {
-                    DialogueSayPacket(text(), npc.displayName.string, npc.id)
-                        .send(PacketDistributor.PLAYER.with { it })
+                val player = this@say()
+                SERVER_OPTIONS.update(manager.team) {
+                    this.text = text().mcTranslate
+                    this.name = player.displayName
+                    if(player !in characters) characters.add(player)
                 }
             }
             +ClickNode(MouseButton.LEFT)
@@ -200,9 +196,12 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
             }
         } else {
             val result = +SimpleNode {
-                manager.team.onlineMembers.forEach {
-                    DialogueSayPacket(text(), this@send.name.string, this@send.ownerPlayer?.id ?: -1)
-                        .send(PacketDistributor.PLAYER.with { it })
+                SERVER_OPTIONS.update(manager.team) {
+                    this.text = text().mcTranslate
+                    ownerPlayer?.let {
+                        this.name = it.name
+                        if(it !in characters) characters.add(it)
+                    }
                 }
             }
             +ClickNode(MouseButton.LEFT)
@@ -211,18 +210,14 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
         }
     }
 
-    fun send(body: DialogueSayPacket.() -> Unit) {
-        +SimpleNode {
-            manager.team.onlineMembers.forEach {
-                DialogueSayPacket("hollowengine.no_text_dialogue", "", -1).apply(body)
-                    .send(PacketDistributor.PLAYER.with { it })
-            }
-        }
-    }
-
     fun choice(action: ChoiceAction = ChoiceAction.SCREEN, context: DialogueChoiceContext.() -> Unit) =
         +ChoicesNode(action, DialogueChoiceContext(action, stateMachine).apply(context))
 
+}
+
+private fun DefaultOptions.update(team: Team, function: DefaultOptions.() -> Unit) {
+    this.function()
+    team.forEachPlayer { UpdateDialoguePacket(this).send(PacketDistributor.PLAYER.with { it }) }
 }
 
 enum class ChoiceAction {
@@ -282,10 +277,11 @@ class ChoicesNode(val action: ChoiceAction, choiceContext: DialogueChoiceContext
     }
 
     private fun performChoice() {
-        manager.team.onlineMembers.forEach {
-            DialogueChoicePacket(choices.keys.map { it.string })
-                .send(PacketDistributor.PLAYER.with { it })
+        SERVER_OPTIONS.update(manager.team) {
+            this.choices.clear()
+            this.choices.addAll(this@ChoicesNode.choices.keys.map { it.string })
         }
+        SERVER_OPTIONS.choices.clear() //без этого кнопки останутся после выбора
     }
 
     override fun serializeNBT() = CompoundTag().apply {

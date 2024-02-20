@@ -20,10 +20,7 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
 import ru.hollowhorizon.hc.client.models.gltf.manager.SubModel
 import ru.hollowhorizon.hc.client.screens.CloseGuiPacket
-import ru.hollowhorizon.hc.client.utils.capability
-import ru.hollowhorizon.hc.client.utils.get
-import ru.hollowhorizon.hc.client.utils.mcTranslate
-import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
 import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
 import ru.hollowhorizon.hc.common.ui.Widget
@@ -37,6 +34,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NPCProperty
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NpcDelegate
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.distanceToXZ
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.name
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.PlayerProperty
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.AnimationContainer
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.NpcContainer
@@ -155,14 +153,19 @@ interface IContextBuilder {
     }
 
 
-    infix fun NPCProperty.say(text: () -> String) = +SimpleNode {
-        val component = Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
+    infix fun NPCProperty.say(text: () -> String) = sayComponent { text().mcTranslate }
+
+    infix fun NPCProperty.sayComponent(text: () -> Component) = +SimpleNode {
+        val component = ("§6[§7" + this@sayComponent().displayName.string + "§6]§7 ").mcText + text()
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
 
     @JvmName("playerSay")
-    infix fun PlayerProperty.say(text: () -> String) = +SimpleNode {
-        val component = Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
+    infix fun PlayerProperty.say(text: () -> String) = sayComponent { text().mcTranslate }
+
+    @JvmName("playerSayComponent")
+    infix fun PlayerProperty.sayComponent(text: () -> Component) = +SimpleNode {
+        val component = ("§6[§7" + this@sayComponent().displayName.string + "§6]§7 ").mcText + text()
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
 
@@ -217,15 +220,15 @@ interface IContextBuilder {
     }
 
     infix fun Team.waitPos(context: PosWaiter.() -> Unit) {
-        next {
-            val waiter = PosWaiter().apply(
-                context
-            )
-            val pos = waiter.pos
-            this@waitPos.capability(StoryTeamCapability::class).aimMarks += AimMark(
-                pos.x, pos.y, pos.z, NpcIcon.QUESTION.image, waiter.ignoreY
-            )
-        }
+//        next {
+//            val waiter = PosWaiter().apply(
+//                context
+//            )
+//            val pos = waiter.pos
+//            this@waitPos.capability(StoryTeamCapability::class).aimMarks += AimMark(
+//                pos.x, pos.y, pos.z, NpcIcon.QUESTION.image, waiter.ignoreY
+//            )
+//        }
         waitForgeEvent<ServerTickEvent> {
             var result = false
             val waiter = PosWaiter().apply(context)
@@ -241,7 +244,7 @@ interface IContextBuilder {
             }
 
             if (result) {
-                this@waitPos.capability(StoryTeamCapability::class).aimMarks.removeIf { it.x == waiter.pos.x && it.y == waiter.pos.y && it.z == waiter.pos.z }
+                //this@waitPos.capability(StoryTeamCapability::class).aimMarks.removeIf { it.x == waiter.pos.x && it.y == waiter.pos.y && it.z == waiter.pos.z }
             }
 
             result
