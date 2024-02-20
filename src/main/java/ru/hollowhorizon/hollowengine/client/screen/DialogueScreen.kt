@@ -276,7 +276,7 @@ object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
     }
 
     fun updateName(name: Component) {
-        this.currentName = name
+        this.currentName = name.copy()
     }
 
     fun addEntity(entity: Int) {

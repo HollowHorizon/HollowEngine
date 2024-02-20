@@ -5,6 +5,7 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.get
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
@@ -44,6 +45,14 @@ var NPCProperty.invulnerable
             next {
                 this@invulnerable().isInvulnerable = value
             }
+        }
+    }
+
+var NPCProperty.name: String
+    get() = this().displayName.string
+    set(value) {
+        next {
+            this@name().customName = value.mcTranslate
         }
     }
 

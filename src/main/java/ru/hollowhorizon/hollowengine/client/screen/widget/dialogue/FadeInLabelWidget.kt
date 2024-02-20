@@ -19,7 +19,7 @@ class FadeInLabelWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(
     }
 
     fun setText(text: Component) {
-        this.text = text
+        this.text = text.copy()
     }
 
     fun setText(text: String) {
