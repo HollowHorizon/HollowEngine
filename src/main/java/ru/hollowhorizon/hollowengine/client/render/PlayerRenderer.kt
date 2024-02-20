@@ -124,10 +124,7 @@ object PlayerRenderer {
             when {
                 entity.hurtTime > 0 -> {
                     val name = manager.typeToAnimationMap[AnimationType.HURT]?.name ?: return@let
-                    if (capability.layers.any { it.animation == name }) {
-                        capability.layers.filter { it.animation == name }.forEach { it.time = 0 }
-                        return@let
-                    }
+                    if (capability.layers.any { it.animation == name }) return@let
 
                     capability.layers += AnimationLayer(
                         name,
@@ -139,10 +136,7 @@ object PlayerRenderer {
 
                 entity.swinging -> {
                     val name = manager.typeToAnimationMap[AnimationType.SWING]?.name ?: return@let
-                    if (capability.layers.any { it.animation == name }) {
-                        capability.layers.filter { it.animation == name }.forEach { it.time = 0 }
-                        return@let
-                    }
+                    if (capability.layers.any { it.animation == name }) return@let
 
                     capability.layers += AnimationLayer(
                         name,
