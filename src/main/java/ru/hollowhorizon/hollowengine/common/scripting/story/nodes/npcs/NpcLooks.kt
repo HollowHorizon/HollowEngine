@@ -43,7 +43,8 @@ class NpcLookToBlockNode(npcConsumer: NPCProperty, var pos: () -> Vec3, var spee
     }
 }
 
-class NpcLookToEntityNode(npcConsumer: NPCProperty, var target: () -> Entity?, var speed: Vec2 = Vec2(10f, 30f)) : Node() {
+class NpcLookToEntityNode(npcConsumer: NPCProperty, var target: () -> Entity?, var speed: Vec2 = Vec2(10f, 30f)) :
+    Node() {
     val npc by lazy { npcConsumer() }
     private var ticks = 30
 
@@ -102,25 +103,32 @@ inline infix fun <reified T> NPCProperty.lookAt(target: NpcTarget<T>) {
 }
 
 @Suppress("UNCHECKED_CAST")
-inline infix fun <reified T> NPCProperty.lookAlwaysAt(target: NpcTarget<T>?) {
+inline infix fun <reified T> NPCProperty.lookAlwaysAt(target: NpcTarget<T>) {
     builder.apply {
-        if(target == null) {
-            next {
-                this@lookAlwaysAt().npcTarget.lookingPos = null
-                this@lookAlwaysAt().npcTarget.lookingEntity = null
-                this@lookAlwaysAt().npcTarget.lookingTeam = null
-            }
-            return@apply
-        }
 
         val type = T::class.java
         when {
-            Vec3::class.java.isAssignableFrom(type) -> next { this@lookAlwaysAt().npcTarget.lookingPos = target() as Vec3 }
-            Entity::class.java.isAssignableFrom(type) -> next { this@lookAlwaysAt().npcTarget.lookingEntity = target() as Entity }
-            Team::class.java.isAssignableFrom(type) -> next { this@lookAlwaysAt().npcTarget.lookingTeam = target() as Team }
+            Vec3::class.java.isAssignableFrom(type) -> next {
+                this@lookAlwaysAt().npcTarget.lookingPos = target() as Vec3
+            }
+
+            Entity::class.java.isAssignableFrom(type) -> next {
+                this@lookAlwaysAt().npcTarget.lookingEntity = target() as Entity
+            }
+
+            Team::class.java.isAssignableFrom(type) -> next {
+                this@lookAlwaysAt().npcTarget.lookingTeam = target() as Team
+            }
+
             else -> throw IllegalArgumentException("Can't move to ${type.name} target!")
         }
     }
+}
+
+fun NPCProperty.stopLookAlways() = next {
+    this@stopLookAlways().npcTarget.lookingPos = null
+    this@stopLookAlways().npcTarget.lookingEntity = null
+    this@stopLookAlways().npcTarget.lookingTeam = null
 }
 
 

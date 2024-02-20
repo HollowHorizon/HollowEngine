@@ -146,17 +146,12 @@ fun NPCProperty.moveToStructure(structureName: () -> String, offset: () -> Block
     }
 }
 
-inline infix fun <reified T> NPCProperty.moveAlwaysTo(target: NpcTarget<T>?) {
-    builder.apply {
-        if (target == null) {
-            next {
-                this@moveAlwaysTo().npcTarget.movingPos = null
-                this@moveAlwaysTo().npcTarget.movingEntity = null
-                this@moveAlwaysTo().npcTarget.movingTeam = null
-            }
-            return@apply
-        }
+fun test() {
+    val npc: NPCProperty = null as NPCProperty
+}
 
+inline infix fun <reified T> NPCProperty.moveAlwaysTo(target: NpcTarget<T>) {
+    builder.apply {
         val type = T::class.java
         when {
             Vec3::class.java.isAssignableFrom(type) -> next {
@@ -176,6 +171,11 @@ inline infix fun <reified T> NPCProperty.moveAlwaysTo(target: NpcTarget<T>?) {
     }
 }
 
+fun NPCProperty.stopMoveAlways() =  next {
+    this@stopMoveAlways().npcTarget.movingPos = null
+    this@stopMoveAlways().npcTarget.movingEntity = null
+    this@stopMoveAlways().npcTarget.movingTeam = null
+}
 
 inline infix fun <reified T> NPCProperty.setTarget(target: NpcTarget<T>) = builder.apply {
     val type = T::class.java
