@@ -8,8 +8,10 @@ import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.RenderType
 import net.minecraft.world.entity.player.Player
 import net.minecraftforge.client.event.InputEvent
+import net.minecraftforge.client.event.RenderGuiOverlayEvent
 import net.minecraftforge.client.event.RenderLevelStageEvent
 import net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles
+import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import ru.hollowhorizon.hc.client.math.Spline3D
 import ru.hollowhorizon.hc.client.utils.math.Interpolation
@@ -74,8 +76,21 @@ object CameraHandler {
     }
 
     @SubscribeEvent
+    fun onRenderOverlay(event: RenderGuiOverlayEvent.Pre) {
+        if (mc.player?.mainHandItem?.item != ModItems.CAMERA.get()) return
+        if(event.overlay != VanillaGuiOverlay.HOTBAR.type()) return
+
+        Minecraft.getInstance().font.apply {
+            drawShadow(event.poseStack, "rotation z: $zRot", 5f, 5f, 0xFFFFFF)
+            drawShadow(event.poseStack, "point count: ${points.size}", 5f, 14f, 0xFFFFFF)
+        }
+
+    }
+
+    @SubscribeEvent
     fun onClicked(event: InputEvent.MouseButton.Post) {
         val player = mc.player ?: return
+        if (mc.screen != null) return
         if (player.mainHandItem.item != ModItems.CAMERA.get() || event.action != 0) return
 
         when (event.button) {
@@ -102,6 +117,7 @@ object CameraHandler {
     @SubscribeEvent
     fun onKeyPressed(event: InputEvent.Key) {
         if (mc.player?.mainHandItem?.item != ModItems.CAMERA.get()) return
+        if(event.action == 0) return
 
         val key = Keybind.fromCode(event.key)
         when (key) {
