@@ -117,6 +117,7 @@ object CameraHandler {
     @SubscribeEvent
     fun onKeyPressed(event: InputEvent.Key) {
         if (mc.player?.mainHandItem?.item != ModItems.CAMERA.get()) return
+        if (mc.screen != null) return
         if(event.action == 0) return
 
         val key = Keybind.fromCode(event.key)
