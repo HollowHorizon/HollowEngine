@@ -95,6 +95,7 @@ class DialogueNode(val nodes: List<Node>, val npc: NPCProperty? = null) : Node()
     }
 
     private fun onStart() {
+        SERVER_OPTIONS = DialogueOptions()
         npc?.let {
             val entity = it()
             entity[NPCCapability::class].icon = NpcIcon.DIALOGUE
