@@ -137,19 +137,18 @@ class DialogueNode(val nodes: List<Node>, val npc: NPCProperty? = null) : Node()
 class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine) : NodeContextBuilder(stateMachine) {
     var dialogueNpc: NPCProperty? = null
 
-    override fun NPCProperty.say(text: () -> String): SimpleNode {
+    override fun NPCProperty.sayComponent(text: () -> Component): SimpleNode {
         if (action == ChoiceAction.WORLD) {
-            wait { (text().length / 14 + 15).sec }
             return next {
                 val component =
-                    Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
+                    Component.literal("§6[§7" + this@sayComponent().displayName.string + "§6]§7 ").append(text())
                 stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
             }
         } else {
             val result = +SimpleNode {
-                val npc = this@say()
+                val npc = this@sayComponent()
                 SERVER_OPTIONS.update(manager.team) {
-                    this.text = text().mcTranslate
+                    this.text = text()
                     this.name = npc.displayName
                     if(npc !in characters) characters.add(npc)
                 }
@@ -164,20 +163,19 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
         SERVER_OPTIONS.update(manager.team, options)
     }
 
-    @JvmName("playerSay")
-    override fun PlayerProperty.say(text: () -> String): SimpleNode {
+    @JvmName("playerSayComponent")
+    override fun PlayerProperty.sayComponent(text: () -> Component): SimpleNode {
         if (action == ChoiceAction.WORLD) {
-            wait { (text().length / 14 + 15).sec }
             return next {
                 val component =
-                    Component.literal("§6[§7" + this@say().displayName.string + "§6]§7 ").append(text().mcTranslate)
+                    Component.literal("§6[§7" + this@sayComponent().displayName.string + "§6]§7 ").append(text())
                 stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
             }
         } else {
             val result = +SimpleNode {
-                val player = this@say()
+                val player = this@sayComponent()
                 SERVER_OPTIONS.update(manager.team) {
-                    this.text = text().mcTranslate
+                    this.text = text()
                     this.name = player.displayName
                     if(player !in characters) characters.add(player)
                 }

@@ -18,7 +18,6 @@ import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
 class NpcDelegate(
-    val builder: IContextBuilder,
     val settings: () -> NpcContainer
 ) : Node(), ReadOnlyProperty<Any?, NPCProperty> {
 
@@ -78,7 +77,7 @@ class NpcDelegate(
     }
 
     override fun getValue(thisRef: Any?, property: KProperty<*>): NPCProperty {
-        return NPCProperty(builder) { npc }
+        return NPCProperty { npc }
     }
 
     override fun tick(): Boolean {

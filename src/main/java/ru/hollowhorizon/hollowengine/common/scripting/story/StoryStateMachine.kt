@@ -18,7 +18,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.deserializeNodes
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.serializeNodes
 
-open class StoryStateMachine(val server: MinecraftServer, val team: Team) : IContextBuilder {
+open class StoryStateMachine(val server: MinecraftServer, val team: Team) : IContextBuilder() {
     val variables = ArrayList<StoryVariable<*>>()
     val startTasks = ArrayList<() -> Unit>()
     val onTickTasks = ArrayList<() -> Unit>()

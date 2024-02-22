@@ -4,51 +4,68 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import dev.ftb.mods.ftbteams.data.Team
+import net.minecraft.core.BlockPos
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.StringTag
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
+import net.minecraft.util.Mth
+import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.item.ItemEntity
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.trading.MerchantOffer
+import net.minecraft.world.level.ClipContext
+import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import net.minecraftforge.common.util.ITeleporter
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.network.PacketDistributor
+import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayMode
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
+import ru.hollowhorizon.hc.client.models.gltf.manager.RawPose
 import ru.hollowhorizon.hc.client.models.gltf.manager.SubModel
 import ru.hollowhorizon.hc.client.screens.CloseGuiPacket
 import ru.hollowhorizon.hc.client.utils.*
+import ru.hollowhorizon.hc.client.utils.nbt.loadAsNBT
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
 import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
 import ru.hollowhorizon.hc.common.ui.Widget
 import ru.hollowhorizon.hollowengine.common.capabilities.AimMark
 import ru.hollowhorizon.hollowengine.common.capabilities.StoryTeamCapability
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
+import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
+import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
+import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
 import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NPCProperty
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NpcDelegate
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.distanceToXZ
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.PlayerProperty
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.AnimationContainer
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.NpcContainer
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.TeamHelper
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.TeleportContainer
+import ru.hollowhorizon.hollowengine.common.util.getStructure
+import ru.hollowhorizon.hollowengine.cutscenes.replay.Replay
+import ru.hollowhorizon.hollowengine.cutscenes.replay.ReplayPlayer
 import java.util.function.Function
 import kotlin.math.sqrt
 
-interface IContextBuilder {
-    val stateMachine: StoryStateMachine
+abstract class IContextBuilder {
+    abstract val stateMachine: StoryStateMachine
 
     /**
      * Функция по добавлению новых задач (чтобы при добавлении задач в цикле они добавлялись именно в цикл, а не основную машину состояний)
      */
-    operator fun <T : Node> T.unaryPlus(): T
+    abstract operator fun <T : Node> T.unaryPlus(): T
 
 
     // ------------------------------------
@@ -56,14 +73,14 @@ interface IContextBuilder {
     // ------------------------------------
 
     fun NPCEntity.Companion.creating(settings: NpcContainer.() -> Unit) =
-        +NpcDelegate(this@IContextBuilder) { NpcContainer().apply(settings) }.apply { manager = stateMachine }
+        +NpcDelegate { NpcContainer().apply(settings) }.apply { manager = stateMachine }
 
 
     fun Widget.close() {
         stateMachine.team.onlineMembers.forEach { CloseGuiPacket().send(PacketDistributor.PLAYER.with { it }) }
     }
 
-    fun NPCEntity.Companion.fromSubModel(subModel: NpcContainer.() -> SubModel) = +NpcDelegate(this@IContextBuilder) {
+    fun NPCEntity.Companion.fromSubModel(subModel: NpcContainer.() -> SubModel) = +NpcDelegate {
         NpcContainer().apply {
             val settings = subModel()
             model = settings.model
@@ -72,6 +89,336 @@ interface IContextBuilder {
             subModels.putAll(settings.subModels)
         }
     }.apply { manager = stateMachine }
+
+    var NPCProperty.hitboxMode
+        get(): HitboxMode = this()[NPCCapability::class].hitboxMode
+        set(value) {
+            next {
+                this@hitboxMode()[NPCCapability::class].hitboxMode = value
+            }
+        }
+
+    var NPCProperty.icon
+        get(): NpcIcon = this()[NPCCapability::class].icon
+        set(value) {
+            next {
+                this@icon()[NPCCapability::class].icon = value
+            }
+        }
+
+    var NPCProperty.invulnerable
+        get() = this().isInvulnerable
+        set(value) {
+            next {
+                this@invulnerable().isInvulnerable = value
+            }
+        }
+
+    var NPCProperty.name: String
+        get() = this().displayName.string
+        set(value) {
+            next {
+                this@name().customName = value.mcTranslate
+            }
+        }
+
+    infix fun NPCProperty.giveLeftHand(item: () -> ItemStack?) {
+        next {
+            this@giveLeftHand().setItemInHand(InteractionHand.OFF_HAND, item() ?: ItemStack.EMPTY)
+        }
+    }
+
+    infix fun NPCProperty.giveRightHand(item: () -> ItemStack?) {
+        next {
+            this@giveRightHand().setItemInHand(InteractionHand.MAIN_HAND, item() ?: ItemStack.EMPTY)
+        }
+    }
+
+    infix fun NPCProperty.configure(body: AnimatedEntityCapability.() -> Unit) {
+        next {
+            this@configure()[AnimatedEntityCapability::class].apply(body)
+        }
+    }
+
+    fun NPCProperty.despawn() = next { this@despawn().remove(Entity.RemovalReason.DISCARDED) }
+
+    @Suppress("UNCHECKED_CAST")
+    inline infix fun <reified T> NPCProperty.moveTo(target: NpcTarget<T>) {
+        val type = T::class.java
+        when {
+            Vec3::class.java.isAssignableFrom(type) -> +NpcMoveToBlockNode(this@moveTo, target as NpcTarget<Vec3>)
+            Entity::class.java.isAssignableFrom(type) -> +NpcMoveToEntityNode(this@moveTo, target as NpcTarget<Entity>)
+            Team::class.java.isAssignableFrom(type) -> +NpcMoveToTeamNode(this@moveTo, target as NpcTarget<Team>)
+            else -> throw IllegalArgumentException("Can't move to ${type.name} target!")
+        }
+    }
+
+    infix fun NPCProperty.moveToBiome(biomeName: () -> String) {
+        +NpcMoveToBlockNode(this@moveToBiome) {
+            val npc = this@moveToBiome()
+            val biome = biomeName().rl
+
+            val pos = (npc.level as ServerLevel).findClosestBiome3d(
+                { it.`is`(biome) }, npc.blockPosition(), 6400, 32, 64
+            )?.first ?: npc.blockPosition()
+            Vec3(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
+        }
+    }
+
+    fun NPCProperty.moveToStructure(structureName: () -> String, offset: () -> BlockPos = { BlockPos.ZERO }) {
+        +NpcMoveToBlockNode(this@moveToStructure) {
+            val npc = this@moveToStructure()
+            val level = npc.level as ServerLevel
+            val structure = level.getStructure(structureName(), npc.blockPosition()).pos
+            val offsetPos = offset()
+
+            Vec3(
+                structure.x.toDouble() + offsetPos.x,
+                structure.y.toDouble() + offsetPos.y,
+                structure.z.toDouble() + offsetPos.z
+            )
+        }
+    }
+
+    inline infix fun <reified T> NPCProperty.moveAlwaysTo(target: NpcTarget<T>) {
+        val type = T::class.java
+        when {
+            Vec3::class.java.isAssignableFrom(type) -> next {
+                this@moveAlwaysTo().npcTarget.movingPos = target() as Vec3
+            }
+
+            Entity::class.java.isAssignableFrom(type) -> next {
+                this@moveAlwaysTo().npcTarget.movingEntity = target() as Entity
+            }
+
+            Team::class.java.isAssignableFrom(type) -> next {
+                this@moveAlwaysTo().npcTarget.movingTeam = target() as Team
+            }
+
+            else -> throw IllegalArgumentException("Can't move to ${type.name} target!")
+        }
+    }
+
+    fun NPCProperty.stopMoveAlways() = next {
+        this@stopMoveAlways().npcTarget.movingPos = null
+        this@stopMoveAlways().npcTarget.movingEntity = null
+        this@stopMoveAlways().npcTarget.movingTeam = null
+    }
+
+    inline infix fun <reified T> NPCProperty.setTarget(target: NpcTarget<T>) {
+        val type = T::class.java
+        when {
+            Vec3::class.java.isAssignableFrom(type) -> throw UnsupportedOperationException("Can't attack a block!")
+            LivingEntity::class.java.isAssignableFrom(type) -> next {
+                this@setTarget().target = target() as LivingEntity
+            }
+
+            Team::class.java.isAssignableFrom(type) -> next {
+                this@setTarget().target = (target() as Team).onlineMembers
+                    .minByOrNull { it.distanceToSqr(this@setTarget()) }
+            }
+
+            else -> throw IllegalArgumentException("Can't move to ${type.name} target!")
+        }
+    }
+
+    fun NPCProperty.clearTarget() {
+        next { this@clearTarget().target = null }
+    }
+
+    infix fun NPCProperty.setPose(fileName: () -> String?) {
+        next {
+            val file = fileName()
+            if (file == null) {
+                this@setPose()[AnimatedEntityCapability::class].pose = RawPose()
+                return@next
+            }
+            val replay = RawPose.fromNBT(
+                DirectoryManager.HOLLOW_ENGINE.resolve("npcs/poses/").resolve(file).inputStream().loadAsNBT()
+            )
+            this@setPose()[AnimatedEntityCapability::class].pose = replay
+        }
+    }
+
+    infix fun NPCProperty.play(block: AnimationContainer.() -> Unit) {
+        next {
+            val container = AnimationContainer().apply(block)
+
+            val serverLayers = this@play()[AnimatedEntityCapability::class].layers
+
+            if (serverLayers.any { it.animation == container.animation }) return@next
+
+            StartAnimationPacket(
+                this@play().id, container.animation, container.layerMode, container.playType, container.speed
+            ).send(PacketDistributor.TRACKING_ENTITY.with(this@play))
+
+            if (container.playType != PlayMode.ONCE) {
+                //Нужно на случай если клиентская сущность выйдет из зоны видимости (удалится)
+                serverLayers.addNoUpdate(
+                    AnimationLayer(
+                        container.animation, container.layerMode, container.playType, container.speed
+                    )
+                )
+            }
+        }
+    }
+
+
+    infix fun NPCProperty.playLooped(animation: () -> String) = play {
+        this.playType = PlayMode.LOOPED
+        this.animation = animation()
+    }
+
+    infix fun NPCProperty.playOnce(animation: () -> String) = play {
+        this.playType = PlayMode.ONCE
+        this.animation = animation()
+    }
+
+    infix fun NPCProperty.playFreeze(animation: () -> String) = play {
+        this.playType = PlayMode.LAST_FRAME
+        this.animation = animation()
+    }
+
+    infix fun NPCProperty.stop(animation: () -> String) {
+        next {
+            val anim = animation()
+            this@stop()[AnimatedEntityCapability::class].layers.removeIfNoUpdate { it.animation == anim }
+            StopAnimationPacket(this@stop().id, anim).send(PacketDistributor.TRACKING_ENTITY.with(this@stop))
+        }
+    }
+
+    infix fun NPCProperty.useBlock(target: () -> Vec3) {
+        this moveTo target
+        this lookAt target
+        next {
+            val entity = this@useBlock()
+            val pos = target()
+            val hit = entity.level.clip(
+                ClipContext(
+                    pos, pos, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, entity
+                )
+            )
+            entity.swing(InteractionHand.MAIN_HAND)
+            val state = entity.level.getBlockState(hit.blockPos)
+            state.use(entity.level, entity.fakePlayer, InteractionHand.MAIN_HAND, hit)
+        }
+    }
+
+    infix fun NPCProperty.destroyBlock(target: () -> Vec3) {
+        this moveTo target
+        this lookAt target
+        next {
+            val entity = this@destroyBlock()
+            val manager = entity.fakePlayer.gameMode
+
+            manager.destroyBlock(BlockPos(target()))
+            entity.swing(InteractionHand.MAIN_HAND)
+        }
+    }
+
+    infix fun NPCProperty.dropItem(stack: () -> ItemStack) = next {
+        val entity = this@dropItem()
+        val p = entity.position()
+        val entityStack = ItemEntity(entity.level, p.x, p.y + entity.eyeHeight, p.z, stack())
+        entityStack.setDefaultPickUpDelay()
+        val f8 = Mth.sin(entity.xRot * Mth.PI / 180f)
+        val f3 = Mth.sin(entity.yHeadRot * Mth.PI / 180f)
+        val f4 = Mth.cos(entity.yHeadRot * Mth.PI / 180f)
+        entityStack.setDeltaMovement(
+            -f3 * 0.3, -f8 * 0.3 + 0.1, f4 * 0.3
+        )
+        entity.level.addFreshEntity(entityStack)
+    }
+
+    infix fun NPCProperty.requestItems(block: GiveItemList.() -> Unit) {
+        +NpcItemListNode(block, this@requestItems)
+    }
+
+    fun NPCProperty.waitInteract() {
+        +NpcInteractNode(this@waitInteract)
+    }
+
+    infix fun NPCProperty.tpTo(target: TeleportContainer.() -> Unit) = next {
+        val tp = TeleportContainer().apply(target)
+        val teleport = tp.pos
+        this@tpTo.invoke().teleportTo(teleport.x, teleport.y, teleport.z)
+    }
+
+    infix fun NPCProperty.addTrade(offer: () -> MerchantOffer) = next {
+        this@addTrade().npcTrader.npcOffers.add(offer())
+    }
+
+    fun NPCProperty.clearTrades() = next {
+        this@clearTrades().npcTrader.npcOffers.clear()
+    }
+
+    fun NPCProperty.clearTradeUses() = next {
+        this@clearTradeUses().npcTrader.npcOffers.forEach { it.resetUses() }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    inline infix fun <reified T> NPCProperty.lookAt(target: NpcTarget<T>) {
+        val type = T::class.java
+        when {
+            Vec3::class.java.isAssignableFrom(type) -> +NpcLookToBlockNode(this@lookAt, target as NpcTarget<Vec3>)
+            Entity::class.java.isAssignableFrom(type) -> +NpcLookToEntityNode(this@lookAt, target as NpcTarget<Entity>)
+            Team::class.java.isAssignableFrom(type) -> +NpcLookToTeamNode(this@lookAt, target as NpcTarget<Team>)
+            else -> throw IllegalArgumentException("Can't move to ${type.name} target!")
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    inline infix fun <reified T> NPCProperty.lookAlwaysAt(target: NpcTarget<T>) {
+
+        val type = T::class.java
+        when {
+            Vec3::class.java.isAssignableFrom(type) -> next {
+                this@lookAlwaysAt().npcTarget.lookingPos = target() as Vec3
+            }
+
+            Entity::class.java.isAssignableFrom(type) -> next {
+                this@lookAlwaysAt().npcTarget.lookingEntity = target() as Entity
+            }
+
+            Team::class.java.isAssignableFrom(type) -> next {
+                this@lookAlwaysAt().npcTarget.lookingTeam = target() as Team
+            }
+
+            else -> throw IllegalArgumentException("Can't move to ${type.name} target!")
+        }
+    }
+
+    fun NPCProperty.stopLookAlways() = next {
+        this@stopLookAlways().npcTarget.lookingPos = null
+        this@stopLookAlways().npcTarget.lookingEntity = null
+        this@stopLookAlways().npcTarget.lookingTeam = null
+    }
+
+
+    fun NPCProperty.lookAtEntityType(entity: () -> String) {
+        val entityType = ForgeRegistries.ENTITY_TYPES.getValue(entity().rl)!!
+
+        lookAt {
+            val npc = this()
+            val level = npc.level
+
+            level.getEntitiesOfClass(LivingEntity::class.java, AABB.ofSize(npc.position(), 25.0, 25.0, 25.0)) {
+                it.type == entityType
+            }.minByOrNull { it.distanceTo(npc) } ?: npc
+        }
+    }
+
+    infix fun NPCProperty.replay(file: () -> String) {
+        next {
+            val replay = Replay.fromFile(DirectoryManager.HOLLOW_ENGINE.resolve("replays").resolve(file()))
+            ReplayPlayer(this@replay()).apply {
+                saveEntity = true
+                isLooped = false
+                play(this@replay().level, replay)
+            }
+        }
+    }
+
 
     // ------------------------------------
     //          Функции квестов
@@ -154,7 +501,7 @@ interface IContextBuilder {
 
     infix fun NPCProperty.say(text: () -> String) = sayComponent { text().mcTranslate }
 
-    infix fun NPCProperty.sayComponent(text: () -> Component) = +SimpleNode {
+    open infix fun NPCProperty.sayComponent(text: () -> Component) = +SimpleNode {
         val component = ("§6[§7" + this@sayComponent().displayName.string + "§6]§7 ").mcText + text()
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
@@ -163,7 +510,7 @@ interface IContextBuilder {
     infix fun PlayerProperty.say(text: () -> String) = sayComponent { text().mcTranslate }
 
     @JvmName("playerSayComponent")
-    infix fun PlayerProperty.sayComponent(text: () -> Component) = +SimpleNode {
+    open infix fun PlayerProperty.sayComponent(text: () -> Component) = +SimpleNode {
         val component = ("§6[§7" + this@sayComponent().displayName.string + "§6]§7 ").mcText + text()
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(component) }
     }
@@ -179,7 +526,7 @@ interface IContextBuilder {
         }
     }
 
-    infix fun Team.send(text: () -> String) = +SimpleNode {
+    open infix fun Team.send(text: () -> String) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text().mcTranslate) }
     }
 
