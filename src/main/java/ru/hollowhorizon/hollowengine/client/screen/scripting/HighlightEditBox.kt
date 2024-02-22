@@ -14,7 +14,7 @@ import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.sounds.SoundEvents
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hc.client.screens.util.Anchor
+import ru.hollowhorizon.hc.common.ui.Anchor
 import ru.hollowhorizon.hc.client.utils.drawScaled
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.rl

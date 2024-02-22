@@ -5,7 +5,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Font
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hc.client.screens.util.Anchor
+import ru.hollowhorizon.hc.common.ui.Anchor
 import ru.hollowhorizon.hc.client.utils.drawScaled
 import ru.hollowhorizon.hc.client.utils.mcText
 import java.util.regex.Pattern

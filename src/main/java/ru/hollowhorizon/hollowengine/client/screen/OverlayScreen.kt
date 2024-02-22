@@ -5,17 +5,15 @@ import com.mojang.blaze3d.vertex.PoseStack
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.player.Player
-import net.minecraftforge.network.NetworkDirection
 import ru.hollowhorizon.hc.client.handlers.ClientTickHandler
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hc.client.screens.util.Anchor
 import ru.hollowhorizon.hc.client.utils.drawScaled
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toRGBA
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
-import ru.hollowhorizon.hc.common.network.Packet
+import ru.hollowhorizon.hc.common.ui.Anchor
 
 object OverlayScreen : HollowScreen("".toSTC()) {
     private var text: String = ""
@@ -38,7 +36,7 @@ object OverlayScreen : HollowScreen("".toSTC()) {
 
         if (isOverlayMode) alpha = 0f
 
-        if(texture.isNotEmpty()) {
+        if (texture.isNotEmpty()) {
             RenderSystem.enableBlend()
             RenderSystem.defaultBlendFunc()
             RenderSystem.setShaderColor(rgba.r, rgba.g, rgba.b, alpha)
@@ -151,5 +149,6 @@ data class ARGB(val a: Int, val r: Int, val g: Int, val b: Int) {
         (g * 255).toInt(),
         (b * 255).toInt()
     )
+
     fun toInt() = (a shl 24) or (r shl 16) or (g shl 8) or b
 }

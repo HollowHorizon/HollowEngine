@@ -2,9 +2,9 @@ package ru.hollowhorizon.hollowengine.client.screen.widget.box
 
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.network.chat.Component
-import ru.hollowhorizon.hc.client.screens.util.Anchor
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.utils.toSTC
+import ru.hollowhorizon.hc.common.ui.Anchor
 
 class TextBox(
     x: Int, y: Int, width: Int, height: Int,

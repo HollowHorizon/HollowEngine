@@ -16,14 +16,15 @@ import net.minecraftforge.common.MinecraftForge
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.api.IAutoScaled
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hc.client.screens.util.Alignment
 import ru.hollowhorizon.hc.client.screens.util.WidgetPlacement
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.utils.*
+import ru.hollowhorizon.hc.client.utils.math.Interpolation
 import ru.hollowhorizon.hc.client.utils.nbt.ForEntity
 import ru.hollowhorizon.hc.client.utils.nbt.ForTextComponent
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hc.common.ui.Alignment
 import ru.hollowhorizon.hollowengine.client.screen.widget.dialogue.DialogueTextBox
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
@@ -53,10 +54,7 @@ var CLIENT_OPTIONS = DialogueOptions()
 object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
     var canClose: Boolean = false
     private var textBox: DialogueTextBox? = null
-    private val crystalAnimator by GuiAnimator.Reversed(0, 20, 1.5F) { x ->
-        if (x < 0.5F) 4F * x * x * x
-        else 1F - (-2 * x + 2.0).pow(3.0).toFloat() / 2F
-    }
+    private val crystalAnimator by GuiAnimator.Reversed(0, 20, 30, Interpolation.BACK_OUT.function)
 
     fun doInit() = init()
 
@@ -68,11 +66,12 @@ object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
 
         this.textBox = addRenderableWidget(
             WidgetPlacement.configureWidget(
-                ::DialogueTextBox, Alignment.BOTTOM_CENTER, 0, 0, this.width, this.height, 300, 50
+                ::DialogueTextBox, Alignment.BOTTOM_CENTER, 0, 0, this.width, this.height,
+                (this.width * 0.8f).toInt(), 50
             )
         )
         textBox?.text = CLIENT_OPTIONS.text
-        if(lastText == CLIENT_OPTIONS.text) textBox?.complete = true
+        if (lastText == CLIENT_OPTIONS.text) textBox?.complete = true
 
         CLIENT_OPTIONS.choices.forEachIndexed { i, choice ->
             addRenderableWidget(
@@ -99,7 +98,6 @@ object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
             blit(stack, 0, 0, 0F, 0F, this.width, this.height, this.width, this.height)
         }
         drawCharacters(mouseX, mouseY)
-        drawStatus(stack)
 
         RenderSystem.enableBlend()
         RenderSystem.defaultBlendFunc()
@@ -107,6 +105,8 @@ object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
         blit(stack, 0, this.height - 55, 0F, 0F, this.width, 55, this.width, 55)
 
         super.render(stack, mouseX, mouseY, partialTick)
+
+        drawStatus(stack)
 
         if (CLIENT_OPTIONS.name.string.isNotEmpty()) drawNameBox(stack)
     }
@@ -136,10 +136,10 @@ object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
         val w = this.width / (CLIENT_OPTIONS.characters.size + 1f)
         CLIENT_OPTIONS.characters.filterIsInstance<LivingEntity>().forEachIndexed { i, entity ->
             val x = (i + 1) * w
-            val y = this.height * 0.85F
+            val y = this.height * 0.95F
 
             drawEntity(
-                x, y, 70f,
+                x, y, 100f,
                 x - mouseX,
                 y - this.height * 0.35f - mouseY,
                 entity

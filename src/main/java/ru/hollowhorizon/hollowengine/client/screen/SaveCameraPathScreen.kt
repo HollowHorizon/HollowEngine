@@ -2,8 +2,8 @@ package ru.hollowhorizon.hollowengine.client.screen
 
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hc.client.screens.util.Alignment
-import ru.hollowhorizon.hc.client.screens.util.Anchor
+import ru.hollowhorizon.hc.common.ui.Alignment
+import ru.hollowhorizon.hc.common.ui.Anchor
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.screens.widget.layout.PlacementType
 import ru.hollowhorizon.hc.client.screens.widget.layout.box

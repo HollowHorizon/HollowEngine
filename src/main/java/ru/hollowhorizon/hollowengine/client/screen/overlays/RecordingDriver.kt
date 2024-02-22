@@ -10,7 +10,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hc.client.handlers.ClientTickHandler
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hc.client.screens.util.Anchor
+import ru.hollowhorizon.hc.common.ui.Anchor
 import ru.hollowhorizon.hc.client.utils.drawScaled
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcText

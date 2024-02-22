@@ -2,18 +2,16 @@ package ru.hollowhorizon.hollowengine.client.screen
 
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
-import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hc.client.screens.util.Alignment
 import ru.hollowhorizon.hc.client.screens.util.WidgetPlacement
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.common.network.send
+import ru.hollowhorizon.hc.common.ui.Alignment
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues.ChoiceScreenPacket
 
 object ChoiceScreen : HollowScreen() {

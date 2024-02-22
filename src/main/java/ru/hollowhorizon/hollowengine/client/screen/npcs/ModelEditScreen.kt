@@ -11,7 +11,7 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.GltfManager
 import ru.hollowhorizon.hc.client.models.gltf.manager.Pose
 import ru.hollowhorizon.hc.client.models.gltf.manager.RawPose
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hc.client.screens.util.Alignment
+import ru.hollowhorizon.hc.common.ui.Alignment
 import ru.hollowhorizon.hc.client.screens.widget.LabelWidget
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.screens.widget.layout.PlacementType

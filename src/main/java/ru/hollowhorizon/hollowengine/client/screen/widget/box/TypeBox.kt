@@ -1,10 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.screen.widget.box
 
-import ru.hollowhorizon.hc.client.screens.util.Alignment
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.screens.widget.layout.box
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hc.client.utils.toTTC
+import ru.hollowhorizon.hc.common.ui.Alignment
 import ru.hollowhorizon.hollowengine.client.screen.widget.TextFieldChoicerWidget
 
 class TypeBox(

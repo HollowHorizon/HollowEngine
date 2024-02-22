@@ -15,7 +15,7 @@ class FadeInLabelWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(
     private var isUpdated = false
     override fun init() {
         super.init()
-        animator = GuiAnimator.Single(0, width, 1f, Interpolation.EXPO_OUT.function)
+        animator = GuiAnimator.Single(0, width, 20, Interpolation.EXPO_OUT.function)
     }
 
     fun setText(text: Component) {
@@ -36,7 +36,7 @@ class FadeInLabelWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(
 
     override fun renderButton(stack: PoseStack, mouseX: Int, mouseY: Int, ticks: Float) {
         super.renderButton(stack, mouseX, mouseY, ticks)
-        ScissorUtil.push(x, y, animator!!.value, height)
+        ScissorUtil.push(x, y, animator!!.value.toInt(), height)
         stack.pushPose()
         stack.translate(0.0, 0.0, 500.0)
         font.drawShadow(stack, text, x.toFloat(), y + height / 2f - font.lineHeight / 2f, 0xFFFFFF)
@@ -59,7 +59,7 @@ class FadeInLabelWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(
         get() = animator!!.isFinished()
 
     fun complete() {
-        animator!!.setTime(1.0f)
+        animator!!.value = animator!!.end.toFloat()
     }
 
     fun getText(): String {

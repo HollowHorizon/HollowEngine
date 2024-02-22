@@ -2,9 +2,9 @@ package ru.hollowhorizon.hollowengine.client.screen
 
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hc.client.screens.util.Alignment
 import ru.hollowhorizon.hc.client.screens.widget.layout.box
 import ru.hollowhorizon.hc.client.utils.toSTC
+import ru.hollowhorizon.hc.common.ui.Alignment
 import ru.hollowhorizon.hollowengine.client.screen.widget.ModelPreviewWidget
 import ru.hollowhorizon.hollowengine.client.screen.widget.box.TypeBox
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
