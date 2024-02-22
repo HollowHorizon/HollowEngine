@@ -5,10 +5,8 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.math.Vector3f
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.UseSerializers
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.MutableComponent
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
@@ -45,7 +43,7 @@ class OnChoicePerform(private val choice: Int) : HollowPacketV3<OnChoicePerform>
 
 }
 
-var CLIENT_OPTIONS: DialogueOptions = DefaultOptions()
+var CLIENT_OPTIONS = DialogueOptions()
     set(value) {
         field = value
         DialogueScreen.doInit()
@@ -255,27 +253,15 @@ object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
     override fun isPauseScreen() = false
 }
 
-interface DialogueOptions {
-    val name: Component
-    val text: Component
-    val characters: ArrayList<Entity>
-    val choices: ArrayList<String>
-    val background: String?
-    val statusIcon: String
-    val overlay: String
-    val nameOverlay: String
-    val choiceButton: String
-}
-
 @Serializable
-data class DefaultOptions(
-    override var name: @Serializable(ForTextComponent::class) Component = "".mcText,
-    override var text: @Serializable(ForTextComponent::class) Component = "".mcText,
-    override var characters: ArrayList<@Serializable(ForEntity::class) Entity> = arrayListOf(),
-    override var choices: ArrayList<String> = arrayListOf(),
-    override var background: String? = null,
-    override var statusIcon: String = "hollowengine:gui/dialogues/status.png",
-    override var overlay: String = "hollowengine:gui/dialogues/overlay.png",
-    override var nameOverlay: String = "hollowengine:gui/dialogues/name_overlay.png",
-    override var choiceButton: String = "hollowengine:textures/gui/dialogues/choice_button.png"
-) : DialogueOptions
+data class DialogueOptions(
+    var name: @Serializable(ForTextComponent::class) Component = "".mcText,
+    var text: @Serializable(ForTextComponent::class) Component = "".mcText,
+    var characters: ArrayList<@Serializable(ForEntity::class) Entity> = arrayListOf(),
+    var choices: ArrayList<String> = arrayListOf(),
+    var background: String? = null,
+    var statusIcon: String = "hollowengine:gui/dialogues/status.png",
+    var overlay: String = "hollowengine:gui/dialogues/overlay.png",
+    var nameOverlay: String = "hollowengine:gui/dialogues/name_overlay.png",
+    var choiceButton: String = "hollowengine:textures/gui/dialogues/choice_button.png"
+)

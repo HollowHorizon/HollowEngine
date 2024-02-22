@@ -29,7 +29,7 @@ object OverlayScreen : HollowScreen("".toSTC()) {
 
     override fun render(stack: PoseStack, mouseX: Int, mouseY: Int, particalTick: Float) {
         val rgba = color.toRGBA()
-        var alpha = ((ClientTickHandler.ticks - ticks + particalTick) / maxTicks.toFloat()).coerceAtMost(1.0f)
+        var alpha = ((ClientTickHandler.clientTicks - ticks + particalTick) / maxTicks.toFloat()).coerceAtMost(1.0f)
 
         if (fadeType == FadeType.FADE_OUT) {
             alpha = 1f - alpha
@@ -87,7 +87,7 @@ object OverlayScreen : HollowScreen("".toSTC()) {
     fun makeBlack(text: String, subtitle: String, color: Int, texture: String, time: Int) {
         Minecraft.getInstance().setScreen(this)
         isOverlayMode = false
-        ticks = ClientTickHandler.ticks
+        ticks = ClientTickHandler.clientTicks
         maxTicks = time
         fadeType = FadeType.FADE_IN
         this.color = color
@@ -99,7 +99,7 @@ object OverlayScreen : HollowScreen("".toSTC()) {
     fun makeTransparent(text: String, subtitle: String, color: Int, texture: String, time: Int) {
         Minecraft.getInstance().setScreen(this)
         isOverlayMode = false
-        ticks = ClientTickHandler.ticks
+        ticks = ClientTickHandler.clientTicks
         maxTicks = time
         fadeType = FadeType.FADE_OUT
         this.color = color

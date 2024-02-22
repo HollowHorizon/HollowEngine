@@ -23,7 +23,7 @@ open class NpcMoveToBlockNode(npcConsumer: NPCProperty, var pos: () -> Vec3) : N
     override fun tick(): Boolean {
         val navigator = npc.navigation
 
-        navigator.moveTo(block.x, block.y, block.z, 1.0)
+        navigator.moveTo(navigator.createPath(block.x, block.y, block.z, 0), 1.0)
 
         val dist = npc.distanceToXZ(block) > 1
 

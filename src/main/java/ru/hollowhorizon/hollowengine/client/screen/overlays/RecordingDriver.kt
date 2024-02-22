@@ -24,15 +24,15 @@ object RecordingDriver {
     var enable = false
         set(value) {
             field = value
-            if(!value) pausedTime += ClientTickHandler.ticks - startTime
-            else startTime = ClientTickHandler.ticks
+            if(!value) pausedTime += ClientTickHandler.clientTicks - startTime
+            else startTime = ClientTickHandler.clientTicks
         }
 
     fun draw(stack: PoseStack, x: Int, y: Int, partialTick: Float) {
         if (!enable) return
 
         val window = Minecraft.getInstance().window
-        val progress = (pausedTime + ClientTickHandler.ticks - startTime + partialTick) / 20f
+        val progress = (pausedTime + ClientTickHandler.clientTicks - startTime + partialTick) / 20f
 
         RenderSystem.setShaderTexture(0, texture)
         Screen.blit(stack, x, y, 0f, 0f, 16, 16, 16, 16)
@@ -57,7 +57,7 @@ object RecordingDriver {
 
     fun resetTime() {
         pausedTime = 0
-        startTime = ClientTickHandler.ticks
+        startTime = ClientTickHandler.clientTicks
     }
 }
 

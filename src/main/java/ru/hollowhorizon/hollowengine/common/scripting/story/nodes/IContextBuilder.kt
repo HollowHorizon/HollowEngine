@@ -7,6 +7,7 @@ import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.StringTag
 import net.minecraft.network.chat.Component
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
@@ -27,14 +28,12 @@ import ru.hollowhorizon.hc.common.ui.Widget
 import ru.hollowhorizon.hollowengine.common.capabilities.AimMark
 import ru.hollowhorizon.hollowengine.common.capabilities.StoryTeamCapability
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
-import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
 import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NPCProperty
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NpcDelegate
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.distanceToXZ
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.name
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.PlayerProperty
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.AnimationContainer
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.NpcContainer
@@ -215,20 +214,18 @@ interface IContextBuilder {
     class PosWaiter {
         var pos = Vec3(0.0, 0.0, 0.0)
         var radius = 0.0
+        var icon: ResourceLocation = ResourceLocation("hollowengine:textures/gui/icons/empty.png")
         var inverse = false
         var ignoreY = true
     }
 
     infix fun Team.waitPos(context: PosWaiter.() -> Unit) {
-//        next {
-//            val waiter = PosWaiter().apply(
-//                context
-//            )
-//            val pos = waiter.pos
-//            this@waitPos.capability(StoryTeamCapability::class).aimMarks += AimMark(
-//                pos.x, pos.y, pos.z, NpcIcon.QUESTION.image, waiter.ignoreY
-//            )
-//        }
+        next {
+            val waiter = PosWaiter().apply(context)
+            val pos = waiter.pos
+            this@waitPos.capability(StoryTeamCapability::class).aimMarks +=
+                AimMark(pos.x, pos.y, pos.z, waiter.icon, waiter.ignoreY)
+        }
         waitForgeEvent<ServerTickEvent> {
             var result = false
             val waiter = PosWaiter().apply(context)
@@ -244,7 +241,7 @@ interface IContextBuilder {
             }
 
             if (result) {
-                //this@waitPos.capability(StoryTeamCapability::class).aimMarks.removeIf { it.x == waiter.pos.x && it.y == waiter.pos.y && it.z == waiter.pos.z }
+                this@waitPos.capability(StoryTeamCapability::class).aimMarks.removeIf { it.x == waiter.pos.x && it.y == waiter.pos.y && it.z == waiter.pos.z }
             }
 
             result

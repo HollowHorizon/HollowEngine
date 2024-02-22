@@ -19,7 +19,7 @@ import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.client.screen.CLIENT_OPTIONS
-import ru.hollowhorizon.hollowengine.client.screen.DefaultOptions
+import ru.hollowhorizon.hollowengine.client.screen.DialogueOptions
 import ru.hollowhorizon.hollowengine.client.screen.DialogueScreen
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.ServerMouseClickedEvent
@@ -36,7 +36,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.events.Cl
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.NPCProperty
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.PlayerProperty
 
-var SERVER_OPTIONS = DefaultOptions()
+var SERVER_OPTIONS = DialogueOptions()
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
@@ -53,7 +53,7 @@ class DialogueScreenPacket(private val enable: Boolean, private val canClose: Bo
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
-class UpdateDialoguePacket(val options: DefaultOptions = SERVER_OPTIONS) : HollowPacketV3<UpdateDialoguePacket> {
+class UpdateDialoguePacket(private val options: DialogueOptions = SERVER_OPTIONS) : HollowPacketV3<UpdateDialoguePacket> {
     override fun handle(player: Player, data: UpdateDialoguePacket) {
         CLIENT_OPTIONS = options
     }
@@ -160,7 +160,7 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
         }
     }
 
-    fun options(options: DefaultOptions.() -> Unit) = next {
+    fun options(options: DialogueOptions.() -> Unit) = next {
         SERVER_OPTIONS.update(manager.team, options)
     }
 
@@ -215,7 +215,7 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
 
 }
 
-private fun DefaultOptions.update(team: Team, function: DefaultOptions.() -> Unit) {
+private fun DialogueOptions.update(team: Team, function: DialogueOptions.() -> Unit) {
     this.function()
     team.forEachPlayer { UpdateDialoguePacket(this).send(PacketDistributor.PLAYER.with { it }) }
 }
