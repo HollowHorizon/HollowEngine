@@ -67,10 +67,10 @@ class CameraContainer(val team: Team) {
     private var isStarted = false
     private val paths = ArrayDeque<ICameraPath>()
 
-    fun spline(time: Int, path: String, interpolation: Interpolation = Interpolation.LINEAR) {
+    fun spline(time: Int, path: String, interpolation: Interpolation = Interpolation.LINEAR, enableBoarders: Boolean = false, boardersInterpolation: Interpolation = Interpolation.LINEAR) {
         val nbt = DirectoryManager.HOLLOW_ENGINE.resolve("camera/${path}").inputStream().loadAsNBT()
         val cameraPath = NBTFormat.deserialize<CameraPath>(nbt)
-        paths.add(CurveCameraPath(time, cameraPath, interpolation))
+        paths.add(CurveCameraPath(time, cameraPath, interpolation, enableBoarders, boardersInterpolation))
     }
 
     fun static(time: Int, pos: Vec3, rotation: Vec3) {
