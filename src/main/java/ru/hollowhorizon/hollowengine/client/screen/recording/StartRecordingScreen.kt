@@ -1,7 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.screen.recording
 
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.components.toasts.SystemToast
+import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.sounds.SoundEvents
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.common.ui.Alignment
@@ -67,6 +70,7 @@ class StartRecordingScreen : HollowScreen() {
                     "".mcText,
                     "hollowengine:textures/gui/text_field.png".rl
                 )
+                modelName.value = "hollowengine:models/entity/player_model.gltf"
                 modelName.setResponder {
                     if (!ResourceLocation.isValidResourceLocation(it) || !it.rl.exists() ||
                         !(it.endsWith(".gltf") || it.endsWith(".glb"))
@@ -82,9 +86,12 @@ class StartRecordingScreen : HollowScreen() {
                     0, 0, 43.pc.w().value, 20,
                     "hollowengine.start".mcTranslate,
                     {
-                        if (modelName.value.rl.exists()) {
+                        if (modelName.value.rl.exists() && modelName.value.isNotEmpty()) {
                             startRecording(replayName.value, modelName.value)
                             onClose()
+                        } else {
+
+                            Minecraft.getInstance().toasts.addToast(SystemToast(SystemToast.SystemToastIds.TUTORIAL_HINT, "HollowEngine Error".mcText, "Invalid model path!".mcText))
                         }
                     },
                     "hollowengine:textures/gui/long_button.png".rl
