@@ -5,6 +5,7 @@ import net.minecraft.client.gui.components.toasts.SystemToast
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.sounds.SoundEvents
+import ru.hollowhorizon.hc.api.IAutoScaled
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.common.ui.Alignment
@@ -18,7 +19,7 @@ import ru.hollowhorizon.hollowengine.client.screen.overlays.RecordingDriver
 import ru.hollowhorizon.hollowengine.client.screen.widget.HollowTextFieldWidget
 import ru.hollowhorizon.hollowengine.cutscenes.replay.ToggleRecordingPacket
 
-class StartRecordingScreen : HollowScreen() {
+class StartRecordingScreen : HollowScreen(), IAutoScaled {
 
     init {
         Minecraft.getInstance().keyboardHandler.setSendRepeatsToGui(true)
@@ -90,7 +91,6 @@ class StartRecordingScreen : HollowScreen() {
                             startRecording(replayName.value, modelName.value)
                             onClose()
                         } else {
-
                             Minecraft.getInstance().toasts.addToast(SystemToast(SystemToast.SystemToastIds.TUTORIAL_HINT, "HollowEngine Error".mcText, "Invalid model path!".mcText))
                         }
                     },

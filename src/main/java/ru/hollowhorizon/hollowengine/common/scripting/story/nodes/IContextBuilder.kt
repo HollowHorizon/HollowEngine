@@ -185,13 +185,19 @@ abstract class IContextBuilder {
         when {
             Vec3::class.java.isAssignableFrom(type) -> next {
                 this@moveAlwaysTo().npcTarget.movingPos = target() as Vec3
+                this@moveAlwaysTo().npcTarget.movingEntity = null
+                this@moveAlwaysTo().npcTarget.movingTeam = null
             }
 
             Entity::class.java.isAssignableFrom(type) -> next {
+                this@moveAlwaysTo().npcTarget.movingPos = null
                 this@moveAlwaysTo().npcTarget.movingEntity = target() as Entity
+                this@moveAlwaysTo().npcTarget.movingTeam = null
             }
 
             Team::class.java.isAssignableFrom(type) -> next {
+                this@moveAlwaysTo().npcTarget.movingPos = null
+                this@moveAlwaysTo().npcTarget.movingEntity = null
                 this@moveAlwaysTo().npcTarget.movingTeam = target() as Team
             }
 
@@ -374,13 +380,19 @@ abstract class IContextBuilder {
         when {
             Vec3::class.java.isAssignableFrom(type) -> next {
                 this@lookAlwaysAt().npcTarget.lookingPos = target() as Vec3
+                this@lookAlwaysAt().npcTarget.lookingEntity = null
+                this@lookAlwaysAt().npcTarget.lookingTeam = null
             }
 
             Entity::class.java.isAssignableFrom(type) -> next {
+                this@lookAlwaysAt().npcTarget.lookingPos = null
                 this@lookAlwaysAt().npcTarget.lookingEntity = target() as Entity
+                this@lookAlwaysAt().npcTarget.lookingTeam = null
             }
 
             Team::class.java.isAssignableFrom(type) -> next {
+                this@lookAlwaysAt().npcTarget.lookingPos = null
+                this@lookAlwaysAt().npcTarget.lookingEntity = null
                 this@lookAlwaysAt().npcTarget.lookingTeam = target() as Team
             }
 

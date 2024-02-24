@@ -2,6 +2,8 @@ package ru.hollowhorizon.hollowengine.client.screen.recording
 
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.components.AbstractWidget
+import net.minecraftforge.event.entity.player.PlayerInteractEvent
+import ru.hollowhorizon.hc.api.IAutoScaled
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayMode
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
@@ -17,12 +19,15 @@ import ru.hollowhorizon.hc.client.screens.widget.layout.box
 import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hollowengine.client.screen.overlays.RecordingDriver
 import ru.hollowhorizon.hollowengine.client.screen.widget.HollowTextFieldWidget
+import ru.hollowhorizon.hollowengine.common.scripting.item
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.waitForgeEvent
 import ru.hollowhorizon.hollowengine.cutscenes.replay.PauseRecordingPacket
 import ru.hollowhorizon.hollowengine.cutscenes.replay.RecordingContainer
 import java.lang.Float
 import java.util.regex.Pattern
 
-class PlayAnimationScreen(val play: Boolean) : HollowScreen() {
+class PlayAnimationScreen(val play: Boolean) : HollowScreen(), IAutoScaled {
     lateinit var animation: BaseButton
     lateinit var layerMode: BaseButton
     lateinit var playMode: BaseButton
@@ -37,7 +42,7 @@ class PlayAnimationScreen(val play: Boolean) : HollowScreen() {
         box {
             align = Alignment.CENTER
             padding = 5.pc x 5.pc
-            alignElements = Alignment.CENTER
+            alignElements = Alignment.LEFT_CENTER
             spacing = 2.pc x 4.pc
             placementType = PlacementType.GRID
             size = 90.pc x 90.pc
@@ -227,5 +232,3 @@ class PlayAnimationScreen(val play: Boolean) : HollowScreen() {
         }
     }
 }
-
-

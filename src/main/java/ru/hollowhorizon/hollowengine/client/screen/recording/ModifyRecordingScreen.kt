@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.screen.recording
 
 import net.minecraft.client.Minecraft
+import ru.hollowhorizon.hc.api.IAutoScaled
 import ru.hollowhorizon.hc.client.models.gltf.animations.PlayMode
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.GltfManager
@@ -16,7 +17,7 @@ import ru.hollowhorizon.hollowengine.cutscenes.replay.PauseRecordingPacket
 import ru.hollowhorizon.hollowengine.cutscenes.replay.RecordingContainer
 import ru.hollowhorizon.hollowengine.cutscenes.replay.ToggleRecordingPacket
 
-class ModifyRecordingScreen : HollowScreen() {
+class ModifyRecordingScreen : HollowScreen(), IAutoScaled {
 
     override fun init() {
         super.init()
@@ -79,6 +80,8 @@ class ModifyRecordingScreen : HollowScreen() {
                     {
                         RecordingDriver.enable = false
                         Minecraft.getInstance().player!![AnimatedEntityCapability::class].model = "%NO_MODEL%"
+                        Minecraft.getInstance().player!![AnimatedEntityCapability::class].animations.clear()
+                        Minecraft.getInstance().player!![AnimatedEntityCapability::class].layers.clear()
                         ToggleRecordingPacket("").send()
                         onClose()
                     },
