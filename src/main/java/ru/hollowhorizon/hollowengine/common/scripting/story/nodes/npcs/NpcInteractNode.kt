@@ -21,7 +21,13 @@ class NpcInteractNode(npcConsumer: NPCProperty) : Node() {
         return !hasInteracted
     }
 
-    override fun serializeNBT() = CompoundTag()
+    override fun serializeNBT() = CompoundTag().apply {
+        putBoolean("hasInteracted", hasInteracted)
+        putBoolean("isStarted", isStarted)
+    }
 
-    override fun deserializeNBT(nbt: CompoundTag) {}
+    override fun deserializeNBT(nbt: CompoundTag) {
+        hasInteracted = nbt.getBoolean("hasInteracted")
+        isStarted = nbt.getBoolean("isStarted")
+    }
 }

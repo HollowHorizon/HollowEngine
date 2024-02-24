@@ -573,7 +573,7 @@ abstract class IContextBuilder {
     class PosWaiter {
         var pos = Vec3(0.0, 0.0, 0.0)
         var radius = 0.0
-        var icon: ResourceLocation = ResourceLocation("hollowengine:textures/gui/icons/empty.png")
+        var icon: ResourceLocation = ResourceLocation("hollowengine:textures/gui/icons/question.png")
         var inverse = false
         var ignoreY = true
     }

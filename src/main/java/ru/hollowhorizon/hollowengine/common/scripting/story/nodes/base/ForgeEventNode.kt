@@ -31,8 +31,14 @@ open class ForgeEventNode<T : Event>(private val type: Class<T>, open val action
         return !isEnded
     }
 
-    override fun serializeNBT() = CompoundTag()
-    override fun deserializeNBT(nbt: CompoundTag) = Unit
+    override fun serializeNBT() = CompoundTag().apply {
+        putBoolean("isEnded", isEnded)
+        putBoolean("isStarted", isStarted)
+    }
+    override fun deserializeNBT(nbt: CompoundTag) {
+        isEnded = nbt.getBoolean("isEnded")
+        isStarted = nbt.getBoolean("isStarted")
+    }
 }
 
 inline fun <reified T : Event> IContextBuilder.waitForgeEvent(noinline function: (T) -> Boolean) =
