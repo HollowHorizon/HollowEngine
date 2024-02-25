@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.screen
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
+import ru.hollowhorizon.hc.api.IAutoScaled
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.common.ui.Alignment
 import ru.hollowhorizon.hc.common.ui.Anchor
@@ -14,7 +15,7 @@ import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.toSTC
 import ru.hollowhorizon.hollowengine.HollowEngine
 
-class ProgressManagerScreen : HollowScreen("Progress Manager".toSTC()) {
+class ProgressManagerScreen : HollowScreen("Progress Manager".toSTC()), IAutoScaled {
 
     override fun init() {
         super.init()
