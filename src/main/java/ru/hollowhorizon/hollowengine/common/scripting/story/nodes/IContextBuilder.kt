@@ -576,11 +576,13 @@ abstract class IContextBuilder {
         var icon: ResourceLocation = ResourceLocation("hollowengine:textures/gui/icons/question.png")
         var inverse = false
         var ignoreY = true
+        var createIcon = true
     }
 
     infix fun Team.waitPos(context: PosWaiter.() -> Unit) {
         next {
             val waiter = PosWaiter().apply(context)
+            if(!waiter.createIcon) return@next
             val pos = waiter.pos
             this@waitPos.capability(StoryTeamCapability::class).aimMarks +=
                 AimMark(pos.x, pos.y, pos.z, waiter.icon, waiter.ignoreY)
