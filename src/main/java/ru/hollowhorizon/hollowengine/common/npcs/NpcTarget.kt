@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.npcs
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import dev.ftb.mods.ftbteams.data.Team
 import net.minecraft.commands.arguments.EntityAnchorArgument
+import net.minecraft.core.BlockPos
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.entity.Entity
@@ -21,17 +22,22 @@ class NpcTarget(val level: Level) : INBTSerializable<CompoundTag> {
     var lookingTeam: Team? = null
 
     fun tick(entity: NPCEntity) {
-        if (movingPos != null) entity.navigation.moveTo(movingPos!!.x, movingPos!!.y, movingPos!!.z, 1.0)
+        if (movingPos != null) {
+            entity.navigation.moveTo(entity.navigation.createPath(BlockPos(movingPos!!), 0), 1.0)
+        }
         if (lookingPos != null) entity.lookControl.setLookAt(lookingPos!!.x, lookingPos!!.y, lookingPos!!.z)
 
         if (this.movingEntity != null) entity.navigation.moveTo(this.movingEntity!!, 1.0)
-        if (this.lookingEntity != null) entity.lookAt(EntityAnchorArgument.Anchor.EYES, this.lookingEntity!!.eyePosition)
+        if (this.lookingEntity != null) entity.lookAt(
+            EntityAnchorArgument.Anchor.EYES,
+            this.lookingEntity!!.eyePosition
+        )
 
         if (this.movingTeam != null) {
             val nearest = this.movingTeam!!.onlineMembers!!.minByOrNull { it.distanceToSqr(entity) } ?: return
             entity.navigation.moveTo(nearest, 1.0)
         }
-        if(this.lookingTeam != null) {
+        if (this.lookingTeam != null) {
             val nearest = this.lookingTeam!!.onlineMembers!!.minByOrNull { it.distanceToSqr(entity) } ?: return
             entity.lookAt(EntityAnchorArgument.Anchor.EYES, nearest.eyePosition)
         }
