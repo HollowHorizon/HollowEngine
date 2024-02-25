@@ -56,6 +56,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.TeleportC
 import ru.hollowhorizon.hollowengine.common.util.getStructure
 import ru.hollowhorizon.hollowengine.cutscenes.replay.Replay
 import ru.hollowhorizon.hollowengine.cutscenes.replay.ReplayPlayer
+import java.util.*
 import java.util.function.Function
 import kotlin.math.sqrt
 
@@ -665,6 +666,10 @@ abstract class IContextBuilder {
                     false
             })
         }
+    }
+
+    fun ConditionNode.Elif(condition: () -> Boolean, tasks: NodeContextBuilder.() -> Unit = {}) = If(condition, tasks).apply {
+        this@Elif.setElseTasks(Collections.singletonList(this))
     }
 
     fun pos(x: Number, y: Number, z: Number) = Vec3(x.toDouble(), y.toDouble(), z.toDouble())

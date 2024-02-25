@@ -4,6 +4,8 @@ import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.HasInnerNodes
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
+import java.util.*
+import kotlin.collections.ArrayList
 
 class ConditionNode(
     private var condition: () -> Boolean,
@@ -55,3 +57,4 @@ fun IContextBuilder.If(condition: () -> Boolean, ifTasks: NodeContextBuilder.() 
 
 infix fun ConditionNode.Else(tasks: NodeContextBuilder.() -> Unit) =
     setElseTasks(NodeContextBuilder(manager).apply(tasks).tasks)
+
