@@ -23,9 +23,6 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
 
 object StoryHandler {
-    @JvmField
-    @HollowConfig("mmo_mode", description = "In mmo mode all players will be have own team")
-    var MMO_MODE = false
     private val events = HashMap<Team, HashMap<String, StoryStateMachine>>()
     private var isStoryPlaying = false
     private val afterTickTasks = ArrayList<Runnable>()

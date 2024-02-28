@@ -70,7 +70,7 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
         npcTrader.npcOffers = MerchantOffers(pCompound.getCompound("npc_trades"))
     }
 
-    override fun createNavigation(pLevel: Level) = super.createNavigation(pLevel) //NPCPathNavigatorV2(this, pLevel)
+    override fun createNavigation(pLevel: Level) = super.createNavigation(pLevel).apply { nodeEvaluator.setCanOpenDoors(true); nodeEvaluator.setCanPassDoors(true) } //NPCPathNavigatorV2(this, pLevel)
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         if (pHand == InteractionHand.MAIN_HAND) {

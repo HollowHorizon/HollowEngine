@@ -91,7 +91,9 @@ fun reloadModEvents(path: String, script: ModScriptBase) {
     Thread.currentThread().contextClassLoader = script.javaClass.classLoader
 
     val events = script.javaClass.declaredMethods.filter {
-        it.parameterCount == 1 && it.returnType == Void.TYPE && Event::class.java.isAssignableFrom(it.parameterTypes[0]) && it.declaredAnnotations.any { annotation -> annotation is SubscribeEvent }
+        it.parameterCount == 1 && it.returnType == Void.TYPE &&
+                Event::class.java.isAssignableFrom(it.parameterTypes[0]) &&
+                it.declaredAnnotations.any { annotation -> annotation is SubscribeEvent }
     }
 
     val lookup = MethodHandles.privateLookupIn(script.javaClass, implLookup)
@@ -112,8 +114,6 @@ fun reloadModEvents(path: String, script: ModScriptBase) {
 val MOD_EVENTS = HashMap<String, List<Consumer<Event>>>()
 
 fun Lookup.createInvokerFunction(method: Method, target: Any): Consumer<Event> {
-    // Use the 'LambdaMetafactory' to generate a consumer which can be passed directly to an 'IEventBus'
-    // when registering a listener, this reduces the overhead involved when reflectively invoking methods.
     try {
         val methodHandle = unreflect(method)
         val callSite = LambdaMetafactory.metafactory(

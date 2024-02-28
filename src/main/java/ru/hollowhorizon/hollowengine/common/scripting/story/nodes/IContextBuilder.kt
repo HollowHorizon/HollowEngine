@@ -610,6 +610,10 @@ abstract class IContextBuilder {
         }
     }
 
+    infix fun Team.removeMark(pos: () -> Vec3) = next {
+        this@removeMark.capability(StoryTeamCapability::class).aimMarks.removeIf { it.x == pos().x && it.y == pos().y && it.z == pos().z }
+    }
+
     fun async(body: NodeContextBuilder.() -> Unit): AsyncProperty {
         val chainNode = ChainNode(NodeContextBuilder(stateMachine).apply(body).tasks)
         val index = stateMachine.asyncNodes.size
