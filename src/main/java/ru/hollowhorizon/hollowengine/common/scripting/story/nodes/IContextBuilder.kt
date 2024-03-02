@@ -432,6 +432,18 @@ abstract class IContextBuilder {
         }
     }
 
+    infix fun NPCProperty.replayAndWait(file: () -> String) {
+        wait {
+            val replay = Replay.fromFile(DirectoryManager.HOLLOW_ENGINE.resolve("replays").resolve(file()))
+            ReplayPlayer(this@replayAndWait()).apply {
+                saveEntity = true
+                isLooped = false
+                play(this@replayAndWait().level, replay)
+            }
+            replay.points.count()
+        }
+    }
+
 
     // ------------------------------------
     //          Функции квестов
