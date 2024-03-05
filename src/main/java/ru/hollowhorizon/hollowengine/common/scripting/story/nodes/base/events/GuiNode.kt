@@ -35,10 +35,14 @@ class GuiNode(gui: Widget.() -> Unit) : Node() {
         isEnded = event.entity in manager.team.onlineMembers
     }
 
-    override fun serializeNBT() = CompoundTag()
+    override fun serializeNBT() = CompoundTag().apply {
+        putBoolean("isEnded", isEnded)
+        putBoolean("isStarted", isStarted)
+    }
 
     override fun deserializeNBT(nbt: CompoundTag) {
-
+        isEnded = nbt.getBoolean("isEnded")
+        isStarted = nbt.getBoolean("isStarted")
     }
 
 }
