@@ -25,13 +25,13 @@ class NpcTarget(val level: Level) : INBTSerializable<CompoundTag> {
         if (movingPos != null) {
             entity.navigation.moveTo(entity.navigation.createPath(BlockPos(movingPos!!), 0), 1.0)
         }
-        if (lookingPos != null) entity.lookControl.setLookAt(lookingPos!!.x, lookingPos!!.y, lookingPos!!.z)
+        if (lookingPos != null) entity.lookControl.setLookAt(lookingPos!!.x, lookingPos!!.y, lookingPos!!.z, 10f, 30f)
 
         if (this.movingEntity != null) entity.navigation.moveTo(this.movingEntity!!, 1.0)
-        if (this.lookingEntity != null) entity.lookAt(
-            EntityAnchorArgument.Anchor.EYES,
-            this.lookingEntity!!.eyePosition
-        )
+        if (this.lookingEntity != null) {
+            val eyes = lookingEntity!!.eyePosition
+            entity.lookControl.setLookAt(eyes.x, eyes.y, eyes.z, 10f, 30f)
+        }
 
         if (this.movingTeam != null) {
             val nearest = this.movingTeam!!.onlineMembers!!.minByOrNull { it.distanceToSqr(entity) } ?: return
@@ -39,7 +39,8 @@ class NpcTarget(val level: Level) : INBTSerializable<CompoundTag> {
         }
         if (this.lookingTeam != null) {
             val nearest = this.lookingTeam!!.onlineMembers!!.minByOrNull { it.distanceToSqr(entity) } ?: return
-            entity.lookAt(EntityAnchorArgument.Anchor.EYES, nearest.eyePosition)
+            val eyes = nearest.eyePosition
+            entity.lookControl.setLookAt(eyes.x, eyes.y, eyes.z, 10f, 30f)
         }
     }
 
