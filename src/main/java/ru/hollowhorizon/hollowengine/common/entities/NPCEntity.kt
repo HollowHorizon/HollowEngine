@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
+import net.minecraft.core.BlockPos
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.syncher.EntityDataAccessor
 import net.minecraft.network.syncher.EntityDataSerializers
@@ -14,6 +15,7 @@ import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.trading.MerchantOffers
+import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
 import net.minecraftforge.common.capabilities.Capability
@@ -47,6 +49,8 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
     var shouldGetItem: (ItemStack) -> Boolean = { false }
     val npcTarget = NpcTarget(level)
     val npcTrader = MerchantNpc()
+    private var loadedChunk: ChunkPos = chunkPosition()
+    private var loadedChunkO: ChunkPos = loadedChunk
 
     init {
         setCanPickUpLoot(true)
@@ -119,6 +123,27 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
     override fun tick() {
         super.tick()
         npcTarget.tick(this)
+
+        val level = level as? ServerLevel ?: return
+
+        loadedChunk = chunkPosition()
+
+        if(loadedChunk != loadedChunkO) {
+            level.setChunkForced(loadedChunk.x, loadedChunk.z, true)
+
+            if(!level.entities.all.filterIsInstance<NPCEntity>().any { it.chunkPosition() == loadedChunkO }) level.setChunkForced(loadedChunkO.x, loadedChunkO.z, false)
+        }
+
+        loadedChunkO = loadedChunk
+    }
+
+    override fun remove(pReason: RemovalReason) {
+        super.remove(pReason)
+
+        val level = level as? ServerLevel ?: return
+        val entities = level.entities.all.filterIsInstance<NPCEntity>()
+        if(!entities.any { it.chunkPosition() == loadedChunkO }) level.setChunkForced(loadedChunkO.x, loadedChunkO.z, false)
+        if(!entities.any { it.chunkPosition() == loadedChunk }) level.setChunkForced(loadedChunk.x, loadedChunk.z, false)
     }
 
     override fun doPush(pEntity: Entity) {
@@ -167,6 +192,10 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
         super.save(pCompound)
         pCompound.putFloat("sizeX", entityData[sizeX])
         pCompound.putFloat("sizeY", entityData[sizeY])
+        pCompound.putInt("loadedChunkX", loadedChunk.x)
+        pCompound.putInt("loadedChunkZ", loadedChunk.z)
+        pCompound.putInt("loadedChunkXO", loadedChunkO.x)
+        pCompound.putInt("loadedChunkZO", loadedChunkO.z)
         return true
     }
 
@@ -175,6 +204,8 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
 
         entityData[sizeX] = pCompound.getFloat("sizeX")
         entityData[sizeY] = pCompound.getFloat("sizeY")
+        loadedChunk = ChunkPos(pCompound.getInt("loadedChunkX"), pCompound.getInt("loadedChunkZ"))
+        loadedChunkO = ChunkPos(pCompound.getInt("loadedChunkXO"), pCompound.getInt("loadedChunkZO"))
     }
 
     companion object {

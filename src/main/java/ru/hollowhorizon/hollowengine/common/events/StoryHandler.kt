@@ -53,6 +53,8 @@ object StoryHandler {
 
     @JvmStatic
     fun onServerTick(event: ServerTickEvent) {
+        if(!event.server.isReady || !event.server.overworld().forcedChunks.all { event.server.overworld().areEntitiesLoaded(it) }) return
+
         isStoryPlaying = true
         events.forEach { (team, stories) ->
             stories
