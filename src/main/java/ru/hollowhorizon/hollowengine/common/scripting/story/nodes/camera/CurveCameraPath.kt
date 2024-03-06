@@ -66,7 +66,7 @@ class CurveCameraPath(override val maxTime: Int, val path: CameraPath, val inter
 
     @SubscribeEvent
     fun onOverlay(event: RenderGuiOverlayEvent.Pre) {
-        if (event.overlay != VanillaGuiOverlay.VIGNETTE.type()) return
+        if (event.overlay != VanillaGuiOverlay.VIGNETTE.type() || !boarders) return
 
         val width = event.window.guiScaledWidth
         val height = event.window.guiScaledHeight
