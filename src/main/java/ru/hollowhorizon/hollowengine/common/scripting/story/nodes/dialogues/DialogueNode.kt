@@ -127,11 +127,15 @@ class DialogueNode(val nodes: List<Node>, val npc: NPCProperty? = null) : Node()
     override fun serializeNBT() = CompoundTag().apply {
         putInt("index", index)
         serializeNodes("nodes", nodes)
+        putBoolean("started", isStarted)
+        putBoolean("ended", isEnded)
     }
 
     override fun deserializeNBT(nbt: CompoundTag) {
         index = nbt.getInt("index")
         nbt.deserializeNodes("nodes", nodes)
+        isStarted = nbt.getBoolean("started")
+        isStarted = nbt.getBoolean("ended")
     }
 }
 

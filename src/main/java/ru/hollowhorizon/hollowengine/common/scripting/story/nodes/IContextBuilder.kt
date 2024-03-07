@@ -31,6 +31,7 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimationLayer
 import ru.hollowhorizon.hc.client.models.gltf.manager.RawPose
 import ru.hollowhorizon.hc.client.models.gltf.manager.SubModel
+import ru.hollowhorizon.hc.client.render.shaders.post.PostChainPacket
 import ru.hollowhorizon.hc.client.screens.CloseGuiPacket
 import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hc.client.utils.nbt.loadAsNBT
@@ -583,6 +584,14 @@ abstract class IContextBuilder {
         TeamHelper(this@modify).apply(inv)
     }
 
+    infix fun Team.postEffect(effect: () -> ResourceLocation) = next {
+        PostChainPacket(effect()).send(*this@postEffect.onlineMembers.toTypedArray())
+    }
+
+    fun Team.clearPostEffects() = +SimpleNode {
+        PostChainPacket(null).send(*this@clearPostEffects.onlineMembers.toTypedArray())
+    }
+
     class PosWaiter {
         var pos = Vec3(0.0, 0.0, 0.0)
         var radius = 0.0
@@ -595,7 +604,7 @@ abstract class IContextBuilder {
     infix fun Team.waitPos(context: PosWaiter.() -> Unit) {
         next {
             val waiter = PosWaiter().apply(context)
-            if(!waiter.createIcon) return@next
+            if (!waiter.createIcon) return@next
             val pos = waiter.pos
             this@waitPos.capability(StoryTeamCapability::class).aimMarks +=
                 AimMark(pos.x, pos.y, pos.z, waiter.icon, waiter.ignoreY)
@@ -684,9 +693,10 @@ abstract class IContextBuilder {
         }
     }
 
-    fun ConditionNode.Elif(condition: () -> Boolean, tasks: NodeContextBuilder.() -> Unit = {}) = If(condition, tasks).apply {
-        this@Elif.setElseTasks(Collections.singletonList(this))
-    }
+    fun ConditionNode.Elif(condition: () -> Boolean, tasks: NodeContextBuilder.() -> Unit = {}) =
+        If(condition, tasks).apply {
+            this@Elif.setElseTasks(Collections.singletonList(this))
+        }
 
     fun pos(x: Number, y: Number, z: Number) = Vec3(x.toDouble(), y.toDouble(), z.toDouble())
     fun vec(x: Number, y: Number) = Vec2(x.toFloat(), y.toFloat())

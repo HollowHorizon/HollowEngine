@@ -91,7 +91,6 @@ object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
     }
 
     override fun render(stack: PoseStack, mouseX: Int, mouseY: Int, partialTick: Float) {
-        renderBackground(stack)
         if (CLIENT_OPTIONS.background != null) {
             RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F)
             bind(CLIENT_OPTIONS.background!!.rl.namespace, CLIENT_OPTIONS.background!!.rl.path)
