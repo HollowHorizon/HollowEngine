@@ -4,9 +4,6 @@ import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.network.chat.Component
-import net.minecraft.world.effect.MobEffectInstance
-import net.minecraft.world.effect.MobEffects
-import net.minecraft.world.food.FoodProperties
 import net.minecraft.world.item.Item
 import net.minecraftforge.client.event.InputEvent
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent
@@ -16,8 +13,6 @@ import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay
 import net.minecraftforge.event.entity.player.ItemTooltipEvent
 import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.loading.moddiscovery.ModInfo
-import net.minecraftforge.registries.DeferredRegister
-import net.minecraftforge.registries.ForgeRegistries
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.get
@@ -33,7 +28,6 @@ import ru.hollowhorizon.hollowengine.client.screen.recording.StartRecordingScree
 import ru.hollowhorizon.hollowengine.common.network.KeybindPacket
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
-import ru.hollowhorizon.hollowengine.common.tabs.HOLLOWENGINE_TAB
 import ru.hollowhorizon.hollowengine.common.util.Keybind
 import ru.hollowhorizon.hollowengine.cutscenes.replay.PauseRecordingPacket
 import thedarkcolour.kotlinforforge.forge.MOD_BUS
@@ -44,7 +38,6 @@ object ClientEvents {
     val TOGGLE_RECORDING = KeyMapping(keyBindName("toggle_recording"), GLFW.GLFW_KEY_V, HE_CATEGORY)
     val canceledButtons = hashSetOf<MouseButton>()
     private val customTooltips = HashMap<Item, MutableList<Component>>()
-    private val customModNames = HashMap<String, String>()
 
     private fun keyBindName(name: String) = "key.${HollowEngine.MODID}.$name"
 
@@ -52,32 +45,24 @@ object ClientEvents {
         customTooltips.computeIfAbsent(item) { ArrayList() }.add(tooltip)
     }
 
-    fun setModName(modid: String, new: String) {
-        val optionalMod = ModList.get().getModContainerById(modid)
+    fun updateModNames() {
+        val optionalMod = ModList.get().getModContainerById(HollowEngine.MODID)
 
         if (!optionalMod.isPresent) return
 
         val mod = optionalMod.get().modInfo
 
-        customModNames[modid] = mod.displayName
+        if(mod.displayName != "Hollow Engine") {
+            val displayNameSetter = ModInfo::class.java.getDeclaredField("displayName")
 
-        val displayNameSetter = ModInfo::class.java.getDeclaredField("displayName")
-
-        displayNameSetter.isAccessible = true
-        displayNameSetter[mod] = new
+            displayNameSetter.isAccessible = true
+            displayNameSetter[mod] = "Hollow Engine"
+        }
     }
 
 
     fun resetClientScripting() {
         customTooltips.clear()
-        customModNames.forEach { (modid, original) ->
-            val mod = ModList.get().getModContainerById(modid).get().modInfo
-
-            val displayNameSetter = ModInfo::class.java.getDeclaredField("displayName")
-
-            displayNameSetter.isAccessible = true
-            displayNameSetter[mod] = original
-        }
     }
 
     @JvmStatic

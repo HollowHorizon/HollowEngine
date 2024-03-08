@@ -19,7 +19,6 @@ open class ContentScriptBase(
     val recipes: MutableMap<RecipeType<*>, MutableMap<ResourceLocation, Recipe<*>>>,
     val byName: MutableMap<ResourceLocation, Recipe<*>>
 ) {
-    val mods = Mods
 
     init {
         RecipeHelper.currentScript = this
@@ -68,11 +67,5 @@ open class ContentScriptBase(
     fun addRecipe(recipe: Recipe<*>) {
         recipes.computeIfAbsent(recipe.type) { hashMapOf() }[recipe.id] = recipe
         byName[recipe.id] = recipe
-    }
-}
-
-object Mods {
-    operator fun set(modid: String, name: String) {
-        if(isPhysicalClient) ClientEvents.setModName(modid, name)
     }
 }

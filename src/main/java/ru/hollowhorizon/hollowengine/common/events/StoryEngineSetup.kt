@@ -7,6 +7,7 @@ import net.minecraftforge.client.event.EntityRenderersEvent
 import net.minecraftforge.common.ForgeMod
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent
+import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.client.render.entity.NPCRenderer
 import ru.hollowhorizon.hollowengine.common.registry.ModDimensions
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
@@ -27,6 +28,7 @@ object StoryEngineSetup {
         ModDimensions.DIMENSIONS.register(MOD_BUS)
 
         TeamEvent.LOADED.register(StoryHandler::onTeamLoaded)
+        ClientEvents.updateModNames()
     }
 
     private fun entityRenderers(event: EntityRenderersEvent.RegisterRenderers) {
