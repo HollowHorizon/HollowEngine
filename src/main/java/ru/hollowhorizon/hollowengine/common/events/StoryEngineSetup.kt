@@ -42,6 +42,7 @@ object StoryEngineSetup {
         event.put(ModEntities.NPC_ENTITY.get(), Mob.createMobAttributes().apply {
             add(Attributes.ATTACK_DAMAGE, 0.2)
             add(Attributes.MOVEMENT_SPEED, 0.2)
+            add(Attributes.FOLLOW_RANGE, 128.0)
             add(ForgeMod.STEP_HEIGHT_ADDITION.get(), 1.25)
         }.build())
     }

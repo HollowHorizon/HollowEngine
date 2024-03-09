@@ -34,8 +34,10 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
     fun tick(event: ServerTickEvent) {
         if (event.phase != TickEvent.Phase.END) return
 
-        onTickTasks.forEach { it() }
-        onTickTasks.clear()
+        if(onTickTasks.isNotEmpty()) {
+            onTickTasks.forEach { it() }
+            onTickTasks.clear()
+        }
 
         val toRemove = asyncNodeIds.mapNotNull { if(!asyncNodes[it].tick()) it else null }
 
