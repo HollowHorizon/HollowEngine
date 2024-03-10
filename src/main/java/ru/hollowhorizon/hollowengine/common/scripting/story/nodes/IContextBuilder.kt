@@ -234,18 +234,18 @@ abstract class IContextBuilder {
         next { this@clearTarget().target = null }
     }
 
-    infix fun NPCProperty.setPose(fileName: () -> String?) {
+    infix fun NPCProperty.setPose(fileName: () -> String) {
         next {
             val file = fileName()
-            if (file == null) {
-                this@setPose()[AnimatedEntityCapability::class].pose = RawPose()
-                return@next
-            }
             val replay = RawPose.fromNBT(
                 DirectoryManager.HOLLOW_ENGINE.resolve("npcs/poses/").resolve(file).inputStream().loadAsNBT()
             )
             this@setPose()[AnimatedEntityCapability::class].pose = replay
         }
+    }
+
+    fun NPCProperty.clearPose() {
+        next { this@clearPose()[AnimatedEntityCapability::class].pose = RawPose() }
     }
 
     infix fun NPCProperty.play(block: AnimationContainer.() -> Unit) {
@@ -546,7 +546,7 @@ abstract class IContextBuilder {
         this@configure()[AnimatedEntityCapability::class].apply(body)
     }
 
-    infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
+    open infix fun Team.sendAsPlayer(text: () -> String) = +SimpleNode {
         stateMachine.team.onlineMembers.forEach {
             it.sendSystemMessage(Component.literal("§6[§7${it.displayName.string}§6]§7 ").append(text().mcTranslate))
         }

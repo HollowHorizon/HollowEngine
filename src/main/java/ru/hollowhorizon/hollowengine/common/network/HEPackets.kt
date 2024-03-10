@@ -14,7 +14,6 @@ import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
-import ru.hollowhorizon.hc.common.network.Packet
 import ru.hollowhorizon.hollowengine.common.events.ServerKeyPressedEvent
 import ru.hollowhorizon.hollowengine.common.util.Keybind
 

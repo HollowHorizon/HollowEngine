@@ -2,8 +2,8 @@ package ru.hollowhorizon.hollowengine.client.screen.widget.box
 
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.screens.widget.layout.box
-import ru.hollowhorizon.hc.client.utils.toSTC
-import ru.hollowhorizon.hc.client.utils.toTTC
+import ru.hollowhorizon.hc.client.utils.mcText
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.common.ui.Alignment
 import ru.hollowhorizon.hollowengine.client.screen.widget.TextFieldChoicerWidget
 
@@ -12,7 +12,7 @@ class TypeBox(
     val text: String = "hollowengine.input_model_path", // translatable
     val textFieldText: String = "hollowengine.model_example", // translatable
     val onValueChange: (TypeBox) -> Unit = {},
-) : HollowWidget(x, y, width, height, "".toSTC()) {
+) : HollowWidget(x, y, width, height, "".mcText) {
     var currentText: String = ""
 
     override fun init() {
@@ -22,7 +22,7 @@ class TypeBox(
                 align = Alignment.TOP_CENTER
                 size = 100.pc x 30.pc
                 elements {
-                    +TextBox(0, 0, 100.pc.w().value, 100.pc.h().value, this@TypeBox.text.toTTC())
+                    +TextBox(0, 0, 100.pc.w().value, 100.pc.h().value, this@TypeBox.text.mcTranslate)
                 }
             }
 

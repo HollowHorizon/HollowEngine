@@ -5,17 +5,17 @@ import com.mojang.blaze3d.vertex.PoseStack
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hc.client.handlers.ClientTickHandler
+import ru.hollowhorizon.hc.client.handlers.TickHandler
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.utils.drawScaled
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toRGBA
-import ru.hollowhorizon.hc.client.utils.toSTC
+import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hc.common.ui.Anchor
 
-object OverlayScreen : HollowScreen("".toSTC()) {
+object OverlayScreen : HollowScreen("".mcText) {
     private var text: String = ""
     var subtitle: String = ""
     var color = 0xFFFFFF
@@ -27,7 +27,7 @@ object OverlayScreen : HollowScreen("".toSTC()) {
 
     override fun render(stack: PoseStack, mouseX: Int, mouseY: Int, particalTick: Float) {
         val rgba = color.toRGBA()
-        var alpha = ((ClientTickHandler.clientTicks - ticks + particalTick) / maxTicks.toFloat()).coerceAtMost(1.0f)
+        var alpha = ((TickHandler.clientTicks - ticks + particalTick) / maxTicks.toFloat()).coerceAtMost(1.0f)
 
         if (fadeType == FadeType.FADE_OUT) {
             alpha = 1f - alpha
@@ -50,7 +50,7 @@ object OverlayScreen : HollowScreen("".toSTC()) {
         if (text.isNotEmpty()) font.drawScaled(
             stack,
             Anchor.CENTER,
-            text.toSTC(),
+            text.mcText,
             this.width / 2,
             this.height / 3,
             0xFFFFFF,
@@ -58,7 +58,7 @@ object OverlayScreen : HollowScreen("".toSTC()) {
         )
         if (subtitle.isNotEmpty()) font.drawScaled(
             stack, Anchor.CENTER,
-            subtitle.toSTC(),
+            subtitle.mcText,
             this.width / 2,
             this.height / 3 + font.lineHeight * 3,
             0xFFFFFF,
@@ -85,7 +85,7 @@ object OverlayScreen : HollowScreen("".toSTC()) {
     fun makeBlack(text: String, subtitle: String, color: Int, texture: String, time: Int) {
         Minecraft.getInstance().setScreen(this)
         isOverlayMode = false
-        ticks = ClientTickHandler.clientTicks
+        ticks = TickHandler.clientTicks
         maxTicks = time
         fadeType = FadeType.FADE_IN
         this.color = color
@@ -97,7 +97,7 @@ object OverlayScreen : HollowScreen("".toSTC()) {
     fun makeTransparent(text: String, subtitle: String, color: Int, texture: String, time: Int) {
         Minecraft.getInstance().setScreen(this)
         isOverlayMode = false
-        ticks = ClientTickHandler.clientTicks
+        ticks = TickHandler.clientTicks
         maxTicks = time
         fadeType = FadeType.FADE_OUT
         this.color = color

@@ -16,9 +16,9 @@ import net.minecraftforge.client.event.RenderLevelStageEvent
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hc.client.utils.toSTC
+import ru.hollowhorizon.hc.client.utils.mcText
 
-class CutsceneWorldEditScreen : HollowScreen("".toSTC()) {
+class CutsceneWorldEditScreen : HollowScreen("".mcText) {
     private var lookPos: BlockPos? = null
     private var currentButton = -1
 

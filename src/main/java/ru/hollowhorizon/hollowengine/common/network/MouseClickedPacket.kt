@@ -4,10 +4,8 @@ import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.event.entity.player.PlayerEvent
-import net.minecraftforge.network.NetworkDirection
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
-import ru.hollowhorizon.hc.common.network.Packet
 import ru.hollowhorizon.hollowengine.client.ClientEvents
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)

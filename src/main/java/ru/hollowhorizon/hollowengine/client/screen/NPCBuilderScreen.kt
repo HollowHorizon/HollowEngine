@@ -3,13 +3,13 @@ package ru.hollowhorizon.hollowengine.client.screen
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.widget.layout.box
-import ru.hollowhorizon.hc.client.utils.toSTC
+import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.ui.Alignment
 import ru.hollowhorizon.hollowengine.client.screen.widget.ModelPreviewWidget
 import ru.hollowhorizon.hollowengine.client.screen.widget.box.TypeBox
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 
-class NPCBuilderScreen : HollowScreen("".toSTC()) {
+class NPCBuilderScreen : HollowScreen("".mcText) {
     val npc: NPCEntity = NPCEntity(Minecraft.getInstance().level!!)
 
     override fun init() {

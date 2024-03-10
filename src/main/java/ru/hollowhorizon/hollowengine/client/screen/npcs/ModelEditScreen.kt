@@ -11,12 +11,11 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.GltfManager
 import ru.hollowhorizon.hc.client.models.gltf.manager.Pose
 import ru.hollowhorizon.hc.client.models.gltf.manager.RawPose
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hc.common.ui.Alignment
-import ru.hollowhorizon.hc.client.screens.widget.LabelWidget
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.screens.widget.layout.PlacementType
 import ru.hollowhorizon.hc.client.screens.widget.layout.box
 import ru.hollowhorizon.hc.client.utils.*
+import ru.hollowhorizon.hc.common.ui.Alignment
 import ru.hollowhorizon.hollowengine.client.screen.widget.FloatTextField
 import ru.hollowhorizon.hollowengine.client.screen.widget.ModelPreviewWidget
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity

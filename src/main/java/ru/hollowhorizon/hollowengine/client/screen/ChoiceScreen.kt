@@ -7,11 +7,9 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.Style
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hc.client.screens.util.WidgetPlacement
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.common.ui.Alignment
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues.ChoiceScreenPacket
 
 object ChoiceScreen : HollowScreen() {
@@ -21,22 +19,16 @@ object ChoiceScreen : HollowScreen() {
         this.clearWidgets()
         container.choices.forEachIndexed { i, choice ->
             addRenderableWidget(
-                WidgetPlacement.configureWidget(
-                    { x, y, w, h ->
-                        Button(x, y, w, h, choice.mcText) {
-                            this@ChoiceScreen.init()
-                            OnChoicePerform(i).send()
-                        }
-                    },
-                    Alignment.LEFT_CENTER,
+                Button(
                     20 + container.buttonX,
-                    this.height / 4 - 25 * i - container.buttonY,
-                    this.width,
-                    this.height,
-                    320,
-                    20
-                )
+                    this.height / 4 + 25 * i + container.buttonY,
+                    320, 20, choice.mcText
+                ) {
+                    this@ChoiceScreen.init()
+                    OnChoicePerform(i).send()
+                }
             )
+
         }
         container.choices.clear()
     }

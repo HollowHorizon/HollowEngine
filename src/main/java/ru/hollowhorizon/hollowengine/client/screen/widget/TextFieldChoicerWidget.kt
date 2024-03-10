@@ -2,8 +2,8 @@ package ru.hollowhorizon.hollowengine.client.screen.widget
 
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.screens.widget.layout.box
+import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.client.utils.toSTC
 
 class TextFieldChoicerWidget(
     x: Int,
@@ -13,7 +13,7 @@ class TextFieldChoicerWidget(
     val text: String,
     val consumer: (String) -> Unit,
 ) :
-    HollowWidget(x, y, width, height, "".toSTC()) {
+    HollowWidget(x, y, width, height, "".mcText) {
     var currentText: String = ""
 
     override fun init() {
@@ -29,7 +29,7 @@ class TextFieldChoicerWidget(
                     0,
                     100.pc.w().value,
                     100.pc.h().value,
-                    text.toSTC(),
+                    text.mcText,
                     "hollowengine:textures/gui/text_field.png".rl
                 )
                 widget.setResponder {

@@ -7,6 +7,7 @@ object PostEffect {
     val GRAY = "hc:shaders/post/gray.json".rl
     val SHAKE = "hc:shaders/post/shake.json".rl
     val VIGNETTE = "hc:shaders/post/vig.json".rl
+    val GLITCH = "hc:shaders/post/glitch.json".rl
     val BLUR = "shaders/post/blur.json".rl
 
     fun create(string: String) = string.rl

@@ -9,7 +9,7 @@ import net.minecraftforge.client.event.RenderHandEvent
 import net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import ru.hollowhorizon.hc.HollowCore
-import ru.hollowhorizon.hc.client.handlers.ClientTickHandler
+import ru.hollowhorizon.hc.client.handlers.TickHandler
 import ru.hollowhorizon.hc.client.utils.math.Interpolation
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
@@ -21,7 +21,7 @@ object ScreenShakeHandler {
     var config = ScreenShakePacket()
     var enabled = false
         set(value) {
-            startTime = ClientTickHandler.ticksNotPaused
+            startTime = TickHandler.ticksNotPaused
             field = value
         }
 
@@ -30,7 +30,7 @@ object ScreenShakeHandler {
         if (!enabled) return
         val random = Minecraft.getInstance().player?.random ?: return
 
-        val percent = ((ClientTickHandler.ticksNotPaused - startTime + event.partialTick.toFloat()) / config.duration)
+        val percent = ((TickHandler.ticksNotPaused - startTime + event.partialTick.toFloat()) / config.duration)
             .coerceAtLeast(0f)
             .coerceAtMost(1f)
 
@@ -65,7 +65,7 @@ object ScreenShakeHandler {
         if (!enabled) return
         val random = Minecraft.getInstance().player?.random ?: return
 
-        val percent = ((ClientTickHandler.ticksNotPaused - startTime + event.partialTick) / config.duration)
+        val percent = ((TickHandler.ticksNotPaused - startTime + event.partialTick) / config.duration)
         val intensity = config.updateIntensity(percent).coerceAtLeast(0f)
 
         if (config.targets.contains(ShakeTarget.HAND)) {
@@ -105,12 +105,12 @@ class ScreenShakePacket(
     fun updateIntensity(percent: Float): Float {
         return if (intensity2 != intensity3) {
             if (percent >= 0.5f) {
-                Mth.lerp(intensityEnd.function(percent * 2 - 0.5f), intensity2, intensity3)
+                Mth.lerp(intensityEnd(percent * 2 - 0.5f), intensity2, intensity3)
             } else {
-                Mth.lerp(intensityStart.function(percent * 2), intensity1, intensity2)
+                Mth.lerp(intensityStart(percent * 2), intensity1, intensity2)
             }
         } else {
-            Mth.lerp(intensityStart.function(percent), intensity1, intensity2)
+            Mth.lerp(intensityStart(percent), intensity1, intensity2)
         }
     }
 }

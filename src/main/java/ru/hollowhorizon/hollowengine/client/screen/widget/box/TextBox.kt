@@ -3,16 +3,16 @@ package ru.hollowhorizon.hollowengine.client.screen.widget.box
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
-import ru.hollowhorizon.hc.client.utils.toSTC
+import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.ui.Anchor
 
 class TextBox(
     x: Int, y: Int, width: Int, height: Int,
-    var text: Component = "".toSTC(),
+    var text: Component = "".mcText,
     var color: Int = 0xFFFFFF,
     val shade: Boolean = true,
     val anchor: Anchor = Anchor.CENTER
-) : HollowWidget(x, y, width, height, "".toSTC()) {
+) : HollowWidget(x, y, width, height, "".mcText) {
     override fun renderButton(stack: PoseStack, mouseX: Int, mouseY: Int, ticks: Float) {
         super.renderButton(stack, mouseX, mouseY, ticks)
         val x =

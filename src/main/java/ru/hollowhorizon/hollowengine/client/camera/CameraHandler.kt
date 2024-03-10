@@ -13,13 +13,16 @@ import net.minecraftforge.client.event.RenderLevelStageEvent
 import net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay
 import net.minecraftforge.eventbus.api.SubscribeEvent
-import ru.hollowhorizon.hc.client.math.Spline3D
+import ru.hollowhorizon.hc.client.utils.math.Spline3D
+import ru.hollowhorizon.hc.client.utils.colored
 import ru.hollowhorizon.hc.client.utils.math.Interpolation
 import ru.hollowhorizon.hc.client.utils.mc
+import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.nbt.ForVector3d
 import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
 import ru.hollowhorizon.hc.client.utils.nbt.save
 import ru.hollowhorizon.hc.client.utils.nbt.serialize
+import ru.hollowhorizon.hc.client.utils.plus
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.client.screen.SaveCameraPathScreen
@@ -28,6 +31,10 @@ import ru.hollowhorizon.hollowengine.common.registry.ModItems
 import ru.hollowhorizon.hollowengine.common.util.Keybind
 
 object CameraHandler {
+    private var xRot = 0f
+    private var xRotO = 0f
+    private var yRot = 0f
+    private var yRotO = 0f
     private var zRot = 0f
     private val points = ArrayList<Point>()
     private lateinit var spline: Spline3D
@@ -77,13 +84,20 @@ object CameraHandler {
 
     @SubscribeEvent
     fun onRenderOverlay(event: RenderGuiOverlayEvent.Pre) {
-        if (mc.player?.mainHandItem?.item != ModItems.CAMERA.get()) return
+        val player = mc.player ?: return
+        if (player.mainHandItem.item != ModItems.CAMERA.get()) return
         if(event.overlay != VanillaGuiOverlay.HOTBAR.type()) return
-
+        xRot += player.xRot - xRotO
+        yRot += player.yHeadRot - yRotO
         Minecraft.getInstance().font.apply {
-            drawShadow(event.poseStack, "rotation z: $zRot", 5f, 5f, 0xFFFFFF)
-            drawShadow(event.poseStack, "point count: ${points.size}", 5f, 14f, 0xFFFFFF)
+            drawShadow(event.poseStack, "rotation ".mcText + "x".mcText.colored(0xf23d30) + ": $xRot".mcText, 5f, 5f, 0xFFFFFF)
+            drawShadow(event.poseStack, "rotation ".mcText + "y".mcText.colored(0x52f26d) + ": $yRot".mcText, 5f, 14f, 0xFFFFFF)
+            drawShadow(event.poseStack, "rotation ".mcText + "z".mcText.colored(0x5285f2) + ": $zRot".mcText, 5f, 23f, 0xFFFFFF)
+            drawShadow(event.poseStack, "point count: ${points.size}", 5f, 32f, 0xFFFFFF)
         }
+
+        xRotO = player.xRot
+        yRotO = player.yHeadRot
 
     }
 
@@ -131,7 +145,8 @@ object CameraHandler {
 
     @SubscribeEvent
     fun onComputeAngles(event: ComputeCameraAngles) {
-        if (mc.player?.mainHandItem?.item != ModItems.CAMERA.get()) return
+        val player = mc.player ?: return
+        if (player.mainHandItem.item != ModItems.CAMERA.get()) return
         event.roll = zRot
     }
 
@@ -140,8 +155,6 @@ object CameraHandler {
         val x = player.x
         val y = player.y + player.eyeHeight
         val z = player.z
-        val xRot = player.getViewXRot(mc.partialTick)
-        val yRot = player.getViewYRot(mc.partialTick)
 
         points += Point(x, y, z, xRot, yRot, zRot)
 

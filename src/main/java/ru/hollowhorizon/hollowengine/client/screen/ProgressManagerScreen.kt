@@ -5,17 +5,17 @@ import com.mojang.blaze3d.vertex.PoseStack
 import dev.ftb.mods.ftbteams.FTBTeamsAPI
 import ru.hollowhorizon.hc.api.IAutoScaled
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hc.common.ui.Alignment
-import ru.hollowhorizon.hc.common.ui.Anchor
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.screens.widget.layout.PlacementType
 import ru.hollowhorizon.hc.client.screens.widget.layout.box
 import ru.hollowhorizon.hc.client.utils.drawScaled
+import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.mcTranslate
-import ru.hollowhorizon.hc.client.utils.toSTC
+import ru.hollowhorizon.hc.common.ui.Alignment
+import ru.hollowhorizon.hc.common.ui.Anchor
 import ru.hollowhorizon.hollowengine.HollowEngine
 
-class ProgressManagerScreen : HollowScreen("Progress Manager".toSTC()), IAutoScaled {
+class ProgressManagerScreen : HollowScreen("Progress Manager".mcText), IAutoScaled {
 
     override fun init() {
         super.init()
@@ -79,7 +79,7 @@ class ProgressManagerScreen : HollowScreen("Progress Manager".toSTC()), IAutoSca
         super.render(pMatrixStack, pMouseX, pMouseY, pPartialTicks)
     }
 
-    class TaskWidget(task: String, w: Int, h: Int) : HollowWidget(0, 0, w, h, task.toSTC()) {
+    class TaskWidget(task: String, w: Int, h: Int) : HollowWidget(0, 0, w, h, task.mcText) {
         override fun init() {
             box {
                 size = 100.pc x 100.pc

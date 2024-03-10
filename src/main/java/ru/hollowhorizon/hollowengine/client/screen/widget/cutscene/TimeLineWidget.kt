@@ -4,10 +4,10 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.utils.ScissorUtil
+import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.client.utils.toSTC
 
-class TimeLineWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x, y, width, height, "".toSTC()) {
+class TimeLineWidget(x: Int, y: Int, width: Int, height: Int) : HollowWidget(x, y, width, height, "".mcText) {
     private var isLeftKeyDown: Boolean = false
     private var cursorX = -1
 

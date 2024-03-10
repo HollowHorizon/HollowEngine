@@ -18,7 +18,6 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent
 import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent
 import net.minecraftforge.fml.loading.FMLEnvironment
 import ru.hollowhorizon.hc.HollowCore
-import ru.hollowhorizon.hc.api.registy.HollowMod
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.registry.RegistryLoader
 import ru.hollowhorizon.hollowengine.client.ClientEvents
@@ -40,8 +39,8 @@ import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStru
 import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructureSets
 import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructures
 import ru.hollowhorizon.hollowengine.common.scripting.mod.runModScript
+import ru.hollowhorizon.hollowengine.common.structures.StructureBiome
 
-@HollowMod(HollowEngine.MODID)
 @Mod(HollowEngine.MODID)
 class HollowEngine {
     init {
@@ -75,6 +74,9 @@ class HollowEngine {
         }
 
         MOD_BUS.addListener(this::registerPacks)
+
+        ModStructures.addStructure("rustic_temple") {
+        }
 
         ModStructures.STRUCTURES.register(MOD_BUS)
         ModStructures.STRUCTURE_TYPES.register(MOD_BUS)

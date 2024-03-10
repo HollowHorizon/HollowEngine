@@ -212,6 +212,29 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
         }
     }
 
+    override infix fun Team.sendAsPlayer(text: () -> String): SimpleNode {
+        if (action == ChoiceAction.WORLD) {
+            return next {
+                stateMachine.team.onlineMembers.forEach {
+                    it.sendSystemMessage(Component.literal("§6[§7${it.displayName.string}§6]§7 ").append(text().mcTranslate))
+                }
+            }
+        } else {
+            val result = +SimpleNode {
+                SERVER_OPTIONS.update(manager.team) {
+                    this.text = text().mcTranslate
+                    ownerPlayer?.let {
+                        this.name = it.name
+                        if(it !in characters) characters.add(it)
+                    }
+                }
+            }
+            +ClickNode(MouseButton.LEFT)
+
+            return result
+        }
+    }
+
     fun choice(action: ChoiceAction = ChoiceAction.SCREEN, context: DialogueChoiceContext.() -> Unit) =
         +ChoicesNode(action, DialogueChoiceContext(action, stateMachine).apply(context))
 

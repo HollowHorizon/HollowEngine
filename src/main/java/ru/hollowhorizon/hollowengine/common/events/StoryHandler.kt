@@ -12,7 +12,6 @@ import net.minecraftforge.event.entity.player.PlayerEvent
 import net.minecraftforge.event.level.LevelEvent
 import net.minecraftforge.event.server.ServerStoppingEvent
 import net.minecraftforge.server.ServerLifecycleHooks
-import ru.hollowhorizon.hc.api.utils.HollowConfig
 import ru.hollowhorizon.hc.client.utils.isLogicalClient
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.mcTranslate

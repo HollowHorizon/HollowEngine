@@ -8,14 +8,10 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
 import net.minecraft.world.entity.LivingEntity
-import ru.hollowhorizon.hc.client.handlers.ClientTickHandler
-import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hc.common.ui.Anchor
+import ru.hollowhorizon.hc.client.handlers.TickHandler
 import ru.hollowhorizon.hc.client.utils.drawScaled
-import ru.hollowhorizon.hc.client.utils.get
-import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.rl
-import kotlin.math.atan
+import ru.hollowhorizon.hc.common.ui.Anchor
 
 object RecordingDriver {
     val texture = "hollowengine:textures/gui/icons/recording.png".rl
@@ -24,15 +20,15 @@ object RecordingDriver {
     var enable = false
         set(value) {
             field = value
-            if(!value) pausedTime += ClientTickHandler.clientTicks - startTime
-            else startTime = ClientTickHandler.clientTicks
+            if (!value) pausedTime += TickHandler.clientTicks - startTime
+            else startTime = TickHandler.clientTicks
         }
 
     fun draw(stack: PoseStack, x: Int, y: Int, partialTick: Float) {
         if (!enable) return
 
         val window = Minecraft.getInstance().window
-        val progress = (pausedTime + ClientTickHandler.clientTicks - startTime + partialTick) / 20f
+        val progress = (pausedTime + TickHandler.clientTicks - startTime + partialTick) / 20f
 
         RenderSystem.setShaderTexture(0, texture)
         Screen.blit(stack, x, y, 0f, 0f, 16, 16, 16, 16)
@@ -42,7 +38,13 @@ object RecordingDriver {
         val hours = ((progress / 3600f) % 60f).toInt()
 
         Minecraft.getInstance().font.drawScaled(
-            stack, Anchor.START, Component.translatable("hollowengine.recoring_tooltip", hours, minutes, String.format("%.3f", seconds)), x + 20, y + 3, 0x0CA7f5, 1.2f
+            stack,
+            Anchor.START,
+            Component.translatable("hollowengine.recoring_tooltip", hours, minutes, String.format("%.3f", seconds)),
+            x + 20,
+            y + 3,
+            0x0CA7f5,
+            1.2f
         )
         //hollowengine:models/entity/player_model.gltf
         renderEntityInInventory(
@@ -57,7 +59,7 @@ object RecordingDriver {
 
     fun resetTime() {
         pausedTime = 0
-        startTime = ClientTickHandler.clientTicks
+        startTime = TickHandler.clientTicks
     }
 }
 

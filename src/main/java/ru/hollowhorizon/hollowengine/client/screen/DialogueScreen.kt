@@ -16,7 +16,6 @@ import net.minecraftforge.common.MinecraftForge
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.api.IAutoScaled
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hc.client.screens.util.WidgetPlacement
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hc.client.utils.math.Interpolation
@@ -24,7 +23,6 @@ import ru.hollowhorizon.hc.client.utils.nbt.ForEntity
 import ru.hollowhorizon.hc.client.utils.nbt.ForTextComponent
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
-import ru.hollowhorizon.hc.common.ui.Alignment
 import ru.hollowhorizon.hollowengine.client.screen.widget.dialogue.DialogueTextBox
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
@@ -33,7 +31,6 @@ import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.dialogues.ApplyChoiceEvent
 import kotlin.math.atan
-import kotlin.math.pow
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
 @Serializable
@@ -54,7 +51,7 @@ var CLIENT_OPTIONS = DialogueOptions()
 object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
     var canClose: Boolean = false
     private var textBox: DialogueTextBox? = null
-    private val crystalAnimator by GuiAnimator.Reversed(0, 20, 30, Interpolation.BACK_OUT.function)
+    private val crystalAnimator by GuiAnimator.Reversed(0, 20, 30, Interpolation.BACK_OUT::invoke)
 
     fun doInit() = init()
 
@@ -65,9 +62,8 @@ object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
         this.renderables.clear()
 
         this.textBox = addRenderableWidget(
-            WidgetPlacement.configureWidget(
-                ::DialogueTextBox, Alignment.BOTTOM_CENTER, 0, 0, this.width, this.height,
-                (this.width * 0.8f).toInt(), 50
+            DialogueTextBox(
+                0, height - 50, width, 50
             )
         )
         textBox?.text = CLIENT_OPTIONS.text
@@ -75,13 +71,13 @@ object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
 
         CLIENT_OPTIONS.choices.forEachIndexed { i, choice ->
             addRenderableWidget(
-                WidgetPlacement.configureWidget(
-                    { x, y, w, h ->
-                        BaseButton(x, y, w, h, choice.mcTranslate, {
-                            this@DialogueScreen.init()
-                            OnChoicePerform(i).send()
-                        }, CLIENT_OPTIONS.choiceButton.rl, textColor = 0xFFFFFF, textColorHovered = 0xEDC213)
-                    }, Alignment.CENTER, 0, this.height / 3 - 25 * i, this.width, this.height, 320, 20
+                BaseButton(
+                    width / 2 - 160,
+                    height / 2 - (25 * CLIENT_OPTIONS.choices.size) / 2 + 25 * i,
+                    320, 20, choice.mcTranslate, {
+                        this@DialogueScreen.init()
+                        OnChoicePerform(i).send()
+                    }, CLIENT_OPTIONS.choiceButton.rl, textColor = 0xFFFFFF, textColorHovered = 0xEDC213
                 )
             )
         }

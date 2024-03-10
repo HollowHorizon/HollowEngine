@@ -11,7 +11,7 @@ import net.minecraftforge.client.event.ViewportEvent
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import ru.hollowhorizon.hc.api.utils.Polymorphic
-import ru.hollowhorizon.hc.client.handlers.ClientTickHandler
+import ru.hollowhorizon.hc.client.handlers.TickHandler
 import ru.hollowhorizon.hc.client.utils.nbt.ForEntity
 import ru.hollowhorizon.hc.client.utils.nbt.ForVec3
 import ru.hollowhorizon.hollowengine.common.scripting.forEachPlayer
@@ -26,7 +26,7 @@ class EntityCameraPath(
     val entity: @Serializable(with = ForEntity::class) Entity
 ) : ICameraPath {
     @Transient
-    var startTime = ClientTickHandler.currentTicks()
+    var startTime = TickHandler.currentTicks()
     override fun serverUpdate(team: Team) {
         team.forEachPlayer { team.forEachPlayer { it.moveTo(pos.x, pos.y, pos.z) } }
     }
@@ -37,7 +37,7 @@ class EntityCameraPath(
     }
 
     override fun reset() {
-        startTime = ClientTickHandler.currentTicks()
+        startTime = TickHandler.currentTicks()
     }
 
     override fun onStartClient() {
@@ -48,7 +48,7 @@ class EntityCameraPath(
     @SubscribeEvent
     fun updateCamera(event: ViewportEvent.ComputeCameraAngles) {
         val partialTick = Minecraft.getInstance().partialTick
-        val time = ClientTickHandler.currentTicks() - startTime + partialTick
+        val time = TickHandler.currentTicks() - startTime + partialTick
         val factor = time / maxTime
 
         if (factor > 1) MinecraftForge.EVENT_BUS.unregister(this)
@@ -66,5 +66,5 @@ class EntityCameraPath(
         }
     }
 
-    override val isEnd get() = ClientTickHandler.currentTicks() - startTime >= maxTime
+    override val isEnd get() = TickHandler.currentTicks() - startTime >= maxTime
 }

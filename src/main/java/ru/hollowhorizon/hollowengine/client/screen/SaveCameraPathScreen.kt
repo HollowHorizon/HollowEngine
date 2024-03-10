@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.screen
 
+import com.mojang.math.Quaternion
+import com.mojang.math.Vector3f
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.common.ui.Alignment
@@ -14,6 +16,10 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.client.camera.CameraPath
 import ru.hollowhorizon.hollowengine.client.camera.SaveOnServerPacket
 import ru.hollowhorizon.hollowengine.client.screen.widget.HollowTextFieldWidget
+
+fun test() {
+    val vec = Vector3f()
+}
 
 class SaveCameraPathScreen(val path: CameraPath) : HollowScreen() {
 
