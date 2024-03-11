@@ -8,8 +8,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilde
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 
 open class ForgeEventNode<T : Event>(private val type: Class<T>, open val action: (T) -> Boolean) : Node() {
-    private var isStarted = false
-    private var isEnded = false
+    protected var isStarted = false
+    protected var isEnded = false
 
     @SubscribeEvent
     fun onEvent(event: T) {
