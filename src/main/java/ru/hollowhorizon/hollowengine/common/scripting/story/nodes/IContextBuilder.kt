@@ -371,7 +371,7 @@ abstract class IContextBuilder {
             Vec3::class.java.isAssignableFrom(type) -> +NpcLookToBlockNode(this@lookAt, target as NpcTarget<Vec3>)
             Entity::class.java.isAssignableFrom(type) -> +NpcLookToEntityNode(this@lookAt, target as NpcTarget<Entity>)
             Team::class.java.isAssignableFrom(type) -> +NpcLookToTeamNode(this@lookAt, target as NpcTarget<Team>)
-            else -> throw IllegalArgumentException("Can't move to ${type.name} target!")
+            else -> throw IllegalArgumentException("Can't look at ${type.name} target!")
         }
     }
 
@@ -398,7 +398,7 @@ abstract class IContextBuilder {
                 this@lookAlwaysAt().npcTarget.lookingTeam = target() as Team
             }
 
-            else -> throw IllegalArgumentException("Can't move to ${type.name} target!")
+            else -> throw IllegalArgumentException("Can't look at ${type.name} target!")
         }
     }
 
