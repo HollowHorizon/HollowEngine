@@ -45,7 +45,7 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
             setGameMode(GameType.CREATIVE)
         }
     }
-    var onInteract: (Player) -> Unit = {}
+    var onInteract: (Player) -> Unit = EMPTY_INTERACT
     var shouldGetItem: (ItemStack) -> Boolean = { false }
     val npcTarget = NpcTarget(level)
     val npcTrader = MerchantNpc()
@@ -209,6 +209,8 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
     }
 
     companion object {
+        val EMPTY_INTERACT: (Player) -> Unit = {}
+
         @JvmField
         val sizeX: EntityDataAccessor<Float> =
             SynchedEntityData.defineId(NPCEntity::class.java, EntityDataSerializers.FLOAT)

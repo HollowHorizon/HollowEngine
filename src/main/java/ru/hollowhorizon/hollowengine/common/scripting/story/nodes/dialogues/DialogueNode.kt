@@ -21,6 +21,8 @@ import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.client.screen.CLIENT_OPTIONS
 import ru.hollowhorizon.hollowengine.client.screen.DialogueOptions
 import ru.hollowhorizon.hollowengine.client.screen.DialogueScreen
+import ru.hollowhorizon.hollowengine.client.screen.overlays.DrawMousePacket
+import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.ServerMouseClickedEvent
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
@@ -87,7 +89,8 @@ class DialogueNode(val nodes: List<Node>, val npc: NPCProperty? = null) : Node()
             npc?.let {
                 val entity = it()
                 entity[NPCCapability::class].icon = NpcIcon.EMPTY
-                entity.onInteract = {}
+                DrawMousePacket(enable = false, onlyOnNpc = false).send(*manager.team.onlineMembers.toTypedArray())
+                entity.onInteract = NPCEntity.EMPTY_INTERACT
             }
         }
 
@@ -99,6 +102,7 @@ class DialogueNode(val nodes: List<Node>, val npc: NPCProperty? = null) : Node()
         npc?.let {
             val entity = it()
             entity[NPCCapability::class].icon = NpcIcon.DIALOGUE
+            DrawMousePacket(enable = true, onlyOnNpc = true).send(*manager.team.onlineMembers.toTypedArray())
             entity.onInteract = {
                 if (it is ServerPlayer && it in manager.team.onlineMembers) {
                     DialogueScreenPacket(true, canClose = true).send(PacketDistributor.PLAYER.with { it })
@@ -120,7 +124,8 @@ class DialogueNode(val nodes: List<Node>, val npc: NPCProperty? = null) : Node()
         npc?.let {
             val entity = it()
             entity[NPCCapability::class].icon = NpcIcon.EMPTY
-            entity.onInteract = {}
+            DrawMousePacket(enable = false, onlyOnNpc = false).send(*manager.team.onlineMembers.toTypedArray())
+            entity.onInteract = NPCEntity.EMPTY_INTERACT
         }
     }
 

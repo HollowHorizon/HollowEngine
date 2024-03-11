@@ -5,6 +5,8 @@ import net.minecraft.nbt.ListTag
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hc.client.utils.mcTranslate
+import ru.hollowhorizon.hollowengine.client.screen.overlays.DrawMousePacket
+import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 
 open class GiveItemList {
@@ -37,6 +39,7 @@ class NpcItemListNode(itemList: GiveItemList.() -> Unit, npcConsumer: NPCPropert
                 }
                 itemList.items.any { entityItem.item == it.item }
             }
+            DrawMousePacket(enable = true, onlyOnNpc = true).send(*manager.team.onlineMembers.toTypedArray())
             npc.onInteract = { player ->
                 player.sendSystemMessage(itemList.text.mcTranslate)
                 itemList.items.forEach {
@@ -46,8 +49,9 @@ class NpcItemListNode(itemList: GiveItemList.() -> Unit, npcConsumer: NPCPropert
         }
         val hasItems = itemList.items.isNotEmpty()
         if (!hasItems) {
+            DrawMousePacket(enable = false, onlyOnNpc = false).send(*manager.team.onlineMembers.toTypedArray())
             npc.shouldGetItem = { false }
-            npc.onInteract = {}
+            npc.onInteract = NPCEntity.EMPTY_INTERACT
         }
         return hasItems
     }

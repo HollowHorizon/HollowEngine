@@ -7,13 +7,16 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.player.Player
+import net.minecraft.world.phys.EntityHitResult
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.use
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 
 object MouseOverlay {
+    var onlyOnNpc = false
     val texture = "hollowengine:textures/gui/icons/mouse.png".rl
     var enable = false
         set(value) {
@@ -25,6 +28,12 @@ object MouseOverlay {
     private var startTime = 0
 
     fun draw(stack: PoseStack, x: Int, y: Int, partialTick: Float) {
+        if (onlyOnNpc) {
+            val npc = (Minecraft.getInstance().hitResult as? EntityHitResult)?.entity ?: return
+            
+            if(npc !is NPCEntity) return
+        }
+
         var progress = Mth.clamp((currentTime - startTime + partialTick) / 20f, 0f, 1f)
 
         if(!enable) progress = 1f - progress
@@ -56,9 +65,10 @@ object MouseOverlay {
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
-class DrawMousePacket(private val enable: Boolean): HollowPacketV3<DrawMousePacket> {
+class DrawMousePacket(private val enable: Boolean, private val onlyOnNpc: Boolean = false): HollowPacketV3<DrawMousePacket> {
     override fun handle(player: Player, data: DrawMousePacket) {
         MouseOverlay.enable = data.enable
+        MouseOverlay.onlyOnNpc = data.onlyOnNpc
     }
 
 }

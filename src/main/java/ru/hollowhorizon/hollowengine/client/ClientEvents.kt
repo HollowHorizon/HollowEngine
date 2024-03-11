@@ -52,7 +52,7 @@ object ClientEvents {
 
         val mod = optionalMod.get().modInfo
 
-        if(mod.displayName != "Hollow Engine") {
+        if (mod.displayName != "Hollow Engine") {
             val displayNameSetter = ModInfo::class.java.getDeclaredField("displayName")
 
             displayNameSetter.isAccessible = true
