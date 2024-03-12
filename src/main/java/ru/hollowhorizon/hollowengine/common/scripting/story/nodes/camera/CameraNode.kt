@@ -67,10 +67,10 @@ class CameraContainer(val team: Team) {
     private var isStarted = false
     private val paths = ArrayDeque<ICameraPath>()
 
-    fun spline(time: Int, path: String, interpolation: Interpolation = Interpolation.LINEAR, enableBoarders: Boolean = false, boardersInterpolation: Interpolation = Interpolation.LINEAR) {
+    fun spline(time: Int, path: String, interpolation: Interpolation = Interpolation.LINEAR, enableBoarders: Boolean = false, boardersInterpolation: Interpolation = Interpolation.LINEAR, rotationInterpolation: Interpolation = Interpolation.LINEAR) {
         val nbt = DirectoryManager.HOLLOW_ENGINE.resolve("camera/${path}").inputStream().loadAsNBT()
         val cameraPath = NBTFormat.deserialize<CameraPath>(nbt)
-        paths.add(CurveCameraPath(time, cameraPath, interpolation, enableBoarders, boardersInterpolation))
+        paths.add(CurveCameraPath(time, cameraPath, interpolation, enableBoarders, boardersInterpolation, rotationInterpolation))
     }
 
     fun static(time: Int, pos: Vec3, rotation: Vec3) {
@@ -93,11 +93,11 @@ class CameraContainer(val team: Team) {
 
     fun update() {
         if (!isStarted) {
+            paths.firstOrNull()?.reset()
             paths.firstOrNull()?.onStartServer(team)
             isStarted = true
         } else if (paths.firstOrNull()?.isEnd == true) {
             paths.removeFirst()
-            paths.firstOrNull()?.reset()
             isStarted = false
         }
         paths.firstOrNull()?.serverUpdate(team)
