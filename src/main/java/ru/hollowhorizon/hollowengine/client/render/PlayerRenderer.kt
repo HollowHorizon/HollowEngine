@@ -35,7 +35,6 @@ object PlayerRenderer {
         val stack = event.poseStack
 
         val capability = event.entity[AnimatedEntityCapability::class]
-
         if (capability.model == "%NO_MODEL%") return
 
         event.isCanceled = true

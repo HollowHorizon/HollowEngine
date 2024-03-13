@@ -116,17 +116,17 @@ dependencies {
     implementation("com.github.SrRapero720.watermedia:build:2.0.28")
     implementation(fg.deobf("ru.hollowhorizon:kotlinscript:${ksffVersion}"))
     implementation(fg.deobf("ru.hollowhorizon:hc:${mcVersion}-${hcVersion}"))
-    implementation(fg.deobf("curse.maven:ftb-teams-forge-404468:4611938"))
+    compileOnly(fg.deobf("curse.maven:ftb-teams-forge-404468:4611938"))
     implementation(fg.deobf("curse.maven:ftb-library-forge-404465:4661834"))
     implementation(fg.deobf("curse.maven:architectury-api-419699:4555749"))
     implementation(fg.deobf("curse.maven:jei-238222:4712866"))
     implementation(fg.deobf("curse.maven:wthit-forge-455982:4819215"))
     implementation(fg.deobf("curse.maven:badpackets-615134:4784364"))
-    implementation(fg.deobf("curse.maven:embeddium-908741:4984830"))
-    implementation(fg.deobf("curse.maven:oculus-581495:4763262"))
+    compileOnly(fg.deobf("curse.maven:embeddium-908741:4984830"))
+    compileOnly(fg.deobf("curse.maven:oculus-581495:4763262"))
     implementation(fg.deobf("curse.maven:spark-361579:4505309"))
     implementation(fg.deobf("curse.maven:item-filters-309674:4553326"))
-    implementation(fg.deobf("curse.maven:ftb-quests-forge-289412:5060506"))
+    compileOnly(fg.deobf("curse.maven:ftb-quests-forge-289412:5060506"))
 }
 
 fun Jar.createManifest() = manifest {

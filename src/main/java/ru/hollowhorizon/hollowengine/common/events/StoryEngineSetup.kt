@@ -11,6 +11,7 @@ import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.client.render.entity.NPCRenderer
 import ru.hollowhorizon.hollowengine.common.registry.ModDimensions
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
+import ru.hollowhorizon.hollowengine.common.util.ModUtil
 import thedarkcolour.kotlinforforge.forge.MOD_BUS
 
 object StoryEngineSetup {
@@ -28,7 +29,7 @@ object StoryEngineSetup {
         ModDimensions.DIMENSIONS.register(MOD_BUS)
 
         TeamEvent.LOADED.register(StoryHandler::onTeamLoaded)
-        ClientEvents.updateModNames()
+        ModUtil.updateModNames()
     }
 
     private fun entityRenderers(event: EntityRenderersEvent.RegisterRenderers) {
