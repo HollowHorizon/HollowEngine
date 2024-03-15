@@ -28,6 +28,7 @@ import ru.hollowhorizon.hollowengine.client.screen.recording.StartRecordingScree
 import ru.hollowhorizon.hollowengine.common.network.KeybindPacket
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
+import ru.hollowhorizon.hollowengine.common.network.PlayerSkinLocationPacket
 import ru.hollowhorizon.hollowengine.common.util.Keybind
 import ru.hollowhorizon.hollowengine.cutscenes.replay.PauseRecordingPacket
 import thedarkcolour.kotlinforforge.forge.MOD_BUS
@@ -109,6 +110,7 @@ object ClientEvents {
     @JvmStatic
     fun renderPlayer(event: RenderPlayerEvent.Pre) {
         PlayerRenderer.render(event)
+        PlayerSkinLocationPacket().send()
     }
 
     fun initKeys() {

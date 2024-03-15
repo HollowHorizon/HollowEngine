@@ -19,6 +19,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.StoryLogger
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.players.PLAYER_SKIN
 import ru.hollowhorizon.hollowengine.common.scripting.story.runScript
 
 object StoryHandler {
@@ -133,6 +134,11 @@ object StoryHandler {
         }
         if (isStoryPlaying) afterTickTasks.add(command)
         else command.run()
+    }
+
+    @JvmStatic
+    fun playerSkin(e: ServerPlayerSkinEvent) {
+        PLAYER_SKIN = e.skin
     }
 
     fun onTeamLoaded(event: TeamEvent) {

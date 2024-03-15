@@ -40,7 +40,7 @@ class MouseButtonWaitResetPacket : HollowPacketV3<MouseButtonWaitResetPacket> {
 class Container(val data: MouseButton)
 
 enum class MouseButton {
-    LEFT, RIGHT, MIDDLE;
+    LEFT, RIGHT, MIDDLE, EMPTY;
 
     companion object {
         fun from(value: Int): MouseButton {

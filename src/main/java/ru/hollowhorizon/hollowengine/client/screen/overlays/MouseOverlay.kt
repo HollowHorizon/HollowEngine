@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.*
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.EntityHitResult
@@ -14,10 +15,19 @@ import ru.hollowhorizon.hc.client.utils.use
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.network.MouseButton
 
 object MouseOverlay {
+    var mouseButton = MouseButton.RIGHT
     var onlyOnNpc = false
-    val texture = "hollowengine:textures/gui/icons/mouse.png".rl
+    val texture: ResourceLocation
+        get() = when (mouseButton) {
+            MouseButton.RIGHT -> "hollowengine:textures/gui/icons/mouse_rbc.png".rl
+            MouseButton.LEFT -> "hollowengine:textures/gui/icons/mouse_lbc.png".rl
+            MouseButton.MIDDLE -> "hollowengine:textures/gui/icons/mouse_mbc.png".rl
+            else -> "hollowengine:textures/gui/icons/mouse.png".rl
+        }
+
     var enable = false
         set(value) {
             startTime = currentTime
@@ -65,10 +75,10 @@ object MouseOverlay {
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
-class DrawMousePacket(private val enable: Boolean, private val onlyOnNpc: Boolean = false): HollowPacketV3<DrawMousePacket> {
+class DrawMousePacket(private val enable: Boolean, private val onlyOnNpc: Boolean = false, private val button: MouseButton = MouseButton.RIGHT): HollowPacketV3<DrawMousePacket> {
     override fun handle(player: Player, data: DrawMousePacket) {
         MouseOverlay.enable = data.enable
         MouseOverlay.onlyOnNpc = data.onlyOnNpc
+        MouseOverlay.mouseButton = data.button
     }
-
 }

@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.network
 
 import kotlinx.serialization.Serializable
+import net.minecraft.client.player.LocalPlayer
+import net.minecraft.client.renderer.entity.player.PlayerRenderer
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.HoverEvent
@@ -15,6 +17,7 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.common.events.ServerKeyPressedEvent
+import ru.hollowhorizon.hollowengine.common.events.ServerPlayerSkinEvent
 import ru.hollowhorizon.hollowengine.common.util.Keybind
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
@@ -77,5 +80,13 @@ class ShowModelInfoPacket(val model: String) : HollowPacketV3<ShowModelInfoPacke
 class KeybindPacket(private val key: Keybind) : HollowPacketV3<KeybindPacket> {
     override fun handle(player: Player, data: KeybindPacket) {
         MinecraftForge.EVENT_BUS.post(ServerKeyPressedEvent(player, data.key))
+    }
+}
+
+@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@Serializable
+class PlayerSkinLocationPacket: HollowPacketV3<PlayerSkinLocationPacket> {
+    override fun handle(player: Player, data: PlayerSkinLocationPacket) {
+        MinecraftForge.EVENT_BUS.post(ServerPlayerSkinEvent(player, (player as LocalPlayer).skinTextureLocation))
     }
 }

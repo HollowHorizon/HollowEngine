@@ -12,6 +12,7 @@ import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.material.Material
 import net.minecraftforge.event.TickEvent
 import net.minecraftforge.event.TickEvent.ServerTickEvent
+import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.scripting.StoryLogger
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
@@ -29,7 +30,6 @@ open class StoryStateMachine(val server: MinecraftServer, val team: Team) : ICon
     val asyncNodeIds = ArrayList<Int>()
     var isStarted = false
     val isEnded get() = currentIndex >= nodes.size && asyncNodeIds.isEmpty() && onTickTasks.isEmpty()
-
 
     fun tick(event: ServerTickEvent) {
         if (event.phase != TickEvent.Phase.END) return

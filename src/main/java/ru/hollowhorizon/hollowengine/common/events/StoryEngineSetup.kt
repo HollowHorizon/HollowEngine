@@ -22,6 +22,7 @@ object StoryEngineSetup {
         forgeBus.addListener(StoryHandler::onServerTick)
         forgeBus.addListener(StoryHandler::onServerShutdown)
         forgeBus.addListener(StoryHandler::onWorldSave)
+        forgeBus.addListener(StoryHandler::playerSkin)
         MOD_BUS.addListener(::onAttributeCreation)
         MOD_BUS.addListener(this::entityRenderers)
 

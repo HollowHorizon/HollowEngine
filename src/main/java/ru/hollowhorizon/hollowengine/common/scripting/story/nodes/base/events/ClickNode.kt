@@ -18,7 +18,7 @@ class ClickNode(var clickType: MouseButton, val drawIcon: Boolean = false) :
         if (drawIcon) {
             if (!isStarted) {
                 MouseButtonWaitPacket(clickType).send(*manager.team.onlineMembers.toTypedArray())
-                DrawMousePacket(true).send(*manager.team.onlineMembers.toTypedArray())
+                DrawMousePacket(true, button = clickType).send(*manager.team.onlineMembers.toTypedArray())
             }
             if (isEnded) DrawMousePacket(false).send(*manager.team.onlineMembers.toTypedArray())
         }
@@ -37,5 +37,16 @@ class ClickNode(var clickType: MouseButton, val drawIcon: Boolean = false) :
     }
 }
 
-fun IContextBuilder.waitClick() =
-    +ClickNode(MouseButton.RIGHT, true)
+fun IContextBuilder.waitClick() = waitInteract {
+    drawIcon = true
+}
+
+infix fun IContextBuilder.waitInteract(context: ClickContext.() -> Unit): ClickNode {
+    val ctx = ClickContext().apply(context)
+    return +ClickNode(ctx.button, ctx.drawIcon)
+}
+
+class ClickContext {
+    var button = MouseButton.RIGHT
+    var drawIcon = false
+}

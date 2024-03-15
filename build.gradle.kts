@@ -1,37 +1,14 @@
-
-import net.minecraftforge.gradle.userdev.UserDevExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import org.spongepowered.asm.gradle.plugins.MixinExtension
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
-buildscript {
-    repositories {
-        maven { url = uri("https://repo.spongepowered.org/repository/maven-public/") }
-        maven { url = uri("https://maven.parchmentmc.org") }
-        gradlePluginPortal()
-        mavenCentral()
-    }
-    dependencies {
-        classpath("org.parchmentmc:librarian:1.+")
-        classpath("org.spongepowered:mixingradle:0.7.38")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0")
-    }
-}
-
 plugins {
+    id("com.modrinth.minotaur") version "2.+"
     id("net.minecraftforge.gradle") version "[6.0,6.2)"
-    id("org.jetbrains.kotlin.jvm").version("1.8.21")
-    id("org.jetbrains.kotlin.plugin.serialization").version("1.8.21")
     id("org.parchmentmc.librarian.forgegradle") version "1.+"
-}
-
-apply {
-    plugin("kotlin")
-    plugin("maven-publish")
-    plugin("net.minecraftforge.gradle")
-    plugin("org.spongepowered.mixin")
-    plugin("org.parchmentmc.librarian.forgegradle")
+    id("org.spongepowered.mixin") version "0.7.38"
+    kotlin("jvm") version "1.9.23"
+    kotlin("plugin.serialization") version "1.9.23"
 }
 
 val mcVersion: String by project
@@ -59,7 +36,7 @@ tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
 }
 
-configure<UserDevExtension> {
+minecraft {
     mappings("parchment", "${mappingsVersion}-$mcVersion")
 
     accessTransformer("src/main/resources/META-INF/accesstransformer.cfg")
@@ -100,7 +77,7 @@ repositories {
     }
 }
 
-configure<MixinExtension> {
+mixin {
     add(sourceSets.main.get(), "hollowengine.refmap.json")
     config("hollowengine.mixins.json")
 }
