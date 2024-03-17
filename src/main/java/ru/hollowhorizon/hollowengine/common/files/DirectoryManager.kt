@@ -55,8 +55,3 @@ object DirectoryManager {
         return FMLPaths.GAMEDIR.get().resolve("hollowengine").resolve(this).toFile()
     }
 }
-
-fun main() {
-    val script = File("C:\\Users\\user\\Desktop\\papka_with_papkami\\MyJavaProjects\\HollowEngine\\run\\hollowengine\\scripts\\npc_example.se.kts")
-    println(script.toReadablePath())
-}
