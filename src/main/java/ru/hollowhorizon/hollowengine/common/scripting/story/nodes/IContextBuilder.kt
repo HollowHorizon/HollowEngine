@@ -556,6 +556,10 @@ abstract class IContextBuilder {
         stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text().mcTranslate) }
     }
 
+    open infix fun Team.sendComponent(text: () -> Component) = +SimpleNode {
+        stateMachine.team.onlineMembers.forEach { it.sendSystemMessage(text()) }
+    }
+
 
     fun PlayerProperty.saveInventory() = next {
         val player = this@saveInventory()
