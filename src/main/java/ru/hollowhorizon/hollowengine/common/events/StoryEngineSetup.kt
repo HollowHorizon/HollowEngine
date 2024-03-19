@@ -7,7 +7,7 @@ import net.minecraftforge.client.event.EntityRenderersEvent
 import net.minecraftforge.common.ForgeMod
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent
-import ru.hollowhorizon.hollowengine.client.ClientEvents
+import ru.hollowhorizon.hollowengine.client.render.AimMarkRenderer
 import ru.hollowhorizon.hollowengine.client.render.entity.NPCRenderer
 import ru.hollowhorizon.hollowengine.common.registry.ModDimensions
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
@@ -22,6 +22,7 @@ object StoryEngineSetup {
         forgeBus.addListener(StoryHandler::onServerTick)
         forgeBus.addListener(StoryHandler::onServerShutdown)
         forgeBus.addListener(StoryHandler::onWorldSave)
+        forgeBus.register(AimMarkRenderer)
         MOD_BUS.addListener(::onAttributeCreation)
         MOD_BUS.addListener(this::entityRenderers)
 

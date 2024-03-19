@@ -63,7 +63,6 @@ class HollowEngine {
             forgeBus.addListener(ClientEvents::onTooltipRender)
             forgeBus.register(CameraHandler)
             forgeBus.register(ScreenShakeHandler)
-            forgeBus.register(AimMarkRenderer)
             forgeBus.addListener(ClientEvents::renderPlayer)
             MOD_BUS.addListener(::clientInit)
             MOD_BUS.register(ModShaders)
