@@ -24,7 +24,6 @@ import ru.hollowhorizon.hollowengine.client.ClientEvents
 import ru.hollowhorizon.hollowengine.client.ClientEvents.initKeys
 import ru.hollowhorizon.hollowengine.client.camera.CameraHandler
 import ru.hollowhorizon.hollowengine.client.camera.ScreenShakeHandler
-import ru.hollowhorizon.hollowengine.client.render.AimMarkRenderer
 import ru.hollowhorizon.hollowengine.client.shaders.ModShaders
 import ru.hollowhorizon.hollowengine.common.commands.HECommands
 import ru.hollowhorizon.hollowengine.common.commands.HEStoryCommands
