@@ -37,7 +37,7 @@ open class ForgeEventNode<T : Event>(private val type: Class<T>, open val action
     }
     override fun deserializeNBT(nbt: CompoundTag) {
         isEnded = nbt.getBoolean("isEnded")
-        isStarted = nbt.getBoolean("isStarted")
+        isStarted = false
     }
 }
 

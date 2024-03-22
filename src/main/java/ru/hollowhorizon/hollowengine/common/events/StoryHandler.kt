@@ -92,6 +92,8 @@ object StoryHandler {
             }
             team.extraData.put("hollowengine_stories", storiesNBT)
             team.save()
+            team.manager.save()
+            team.manager.saveNow()
         }
     }
 
@@ -105,6 +107,8 @@ object StoryHandler {
             }
             team.extraData.put("hollowengine_stories", storiesNBT)
             team.save()
+            team.manager.save()
+            team.manager.saveNow()
         }
     }
 
