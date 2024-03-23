@@ -6,6 +6,7 @@ import net.minecraft.network.syncher.EntityDataAccessor
 import net.minecraft.network.syncher.EntityDataSerializers
 import net.minecraft.network.syncher.SynchedEntityData
 import net.minecraft.server.level.ServerLevel
+import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.entity.*
@@ -14,6 +15,8 @@ import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.trading.Merchant
+import net.minecraft.world.item.trading.MerchantOffer
 import net.minecraft.world.item.trading.MerchantOffers
 import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.level.GameType
@@ -36,7 +39,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.goals.LadderClimbGoal
 import ru.hollowhorizon.hollowengine.common.npcs.goals.OpenDoorGoal
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
-class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
+class NPCEntity : PathfinderMob, IAnimated, Merchant, ICapabilitySyncer {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
     constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
 
@@ -48,7 +51,8 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
     var onInteract: (Player) -> Unit = EMPTY_INTERACT
     var shouldGetItem: (ItemStack) -> Boolean = { false }
     val npcTarget = NpcTarget(level)
-    val npcTrader = MerchantNpc()
+    private var tradePlayer: Player? = null
+    var npcOffers = MerchantOffers()
     private var loadedChunk: ChunkPos = chunkPosition()
     private var loadedChunkO: ChunkPos = loadedChunk
 
@@ -62,25 +66,55 @@ class NPCEntity : PathfinderMob, IAnimated, ICapabilitySyncer {
         entityData.define(sizeY, 1.8f)
     }
 
+    override fun setTradingPlayer(pTradingPlayer: Player?) {
+        tradePlayer = pTradingPlayer
+    }
+
+    override fun getTradingPlayer() = tradePlayer
+
+    override fun getOffers() = npcOffers
+
+    override fun overrideOffers(pOffers: MerchantOffers) {}
+
+    override fun notifyTrade(pOffer: MerchantOffer) {
+        pOffer.increaseUses()
+        if (level is ServerLevel) {
+            ExperienceOrb.award(level as ServerLevel, position(), pOffer.xp)
+        }
+    }
+
+    override fun notifyTradeUpdated(pStack: ItemStack) {
+    }
+
+    override fun getVillagerXp() = 0
+
+    override fun overrideXp(pXp: Int) {}
+
+    override fun showProgressBar() = false
+
+    override fun getNotifyTradeSound() = SoundEvents.VILLAGER_YES
+
+    override fun isClientSide() = level.isClientSide
+
     override fun addAdditionalSaveData(pCompound: CompoundTag) {
         super.addAdditionalSaveData(pCompound)
         pCompound.put("npc_target", npcTarget.serializeNBT())
-        pCompound.put("npc_trades", npcTrader.npcOffers.createTag())
+        pCompound.put("npc_trades", npcOffers.createTag())
     }
 
     override fun readAdditionalSaveData(pCompound: CompoundTag) {
         super.readAdditionalSaveData(pCompound)
         npcTarget.deserializeNBT(pCompound["npc_target"] as? CompoundTag ?: return)
-        npcTrader.npcOffers = MerchantOffers(pCompound.getCompound("npc_trades"))
+        npcOffers = MerchantOffers(pCompound.getCompound("npc_trades"))
     }
 
     override fun createNavigation(pLevel: Level) = super.createNavigation(pLevel).apply { nodeEvaluator.setCanOpenDoors(true); nodeEvaluator.setCanPassDoors(true) } //NPCPathNavigatorV2(this, pLevel)
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         if (pHand == InteractionHand.MAIN_HAND) {
-            if (npcTrader.npcOffers.size > 0 && !pPlayer.level.isClientSide) {
-                npcTrader.tradingPlayer = pPlayer
-                npcTrader.openTradingScreen(pPlayer, name, 1)
+            if (npcOffers.size > 0 && !pPlayer.level.isClientSide) {
+                tradingPlayer = pPlayer
+                openTradingScreen(pPlayer, name, 1)
             }
 
             onInteract(pPlayer)

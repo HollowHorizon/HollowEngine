@@ -353,15 +353,15 @@ abstract class IContextBuilder {
     }
 
     infix fun NPCProperty.addTrade(offer: () -> MerchantOffer) = next {
-        this@addTrade().npcTrader.npcOffers.add(offer())
+        this@addTrade().npcOffers.add(offer())
     }
 
     fun NPCProperty.clearTrades() = next {
-        this@clearTrades().npcTrader.npcOffers.clear()
+        this@clearTrades().npcOffers.clear()
     }
 
     fun NPCProperty.clearTradeUses() = next {
-        this@clearTradeUses().npcTrader.npcOffers.forEach { it.resetUses() }
+        this@clearTradeUses().npcOffers.forEach { it.resetUses() }
     }
 
     @Suppress("UNCHECKED_CAST")
