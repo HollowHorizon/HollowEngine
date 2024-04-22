@@ -195,7 +195,7 @@ object CodeEditor {
                 }
                 if (editor.isTextChanged) {
                     val text = editor.currentLineText
-                    if (editor.cursorPositionColumn - 1 in 0..text.length) complete(text[editor.cursorPositionColumn - 1])
+                    if (editor.cursorPositionColumn - 1 in 0 until text.length) complete(text[editor.cursorPositionColumn - 1])
                     file.code = editor.text.substringBeforeLast("\n")
                     SaveFilePacket(file.path, file.code).send()
                 }
