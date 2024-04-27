@@ -30,12 +30,15 @@ import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.network.chat.Component
 import net.minecraftforge.network.PacketDistributor
+import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.get
+import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.register
 import ru.hollowhorizon.hollowengine.client.utils.roundTo
 import ru.hollowhorizon.hollowengine.common.capabilities.PlayerStoryCapability
+import ru.hollowhorizon.hollowengine.common.capabilities.StoriesCapability
 import ru.hollowhorizon.hollowengine.common.events.StoryHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -52,12 +55,16 @@ object HEStoryCommands {
                 "pos" {
                     val player = source.playerOrException
                     val loc = player.pick(100.0, 0.0f, true).location
-                    CopyTextPacket("pos(${loc.x.roundTo(2)}, ${loc.y.roundTo(2)}, ${loc.z.roundTo(2)})").send(PacketDistributor.PLAYER.with {player})
+                    CopyTextPacket("pos(${loc.x.roundTo(2)}, ${loc.y.roundTo(2)}, ${loc.z.roundTo(2)})").send(
+                        PacketDistributor.PLAYER.with { player })
                 }
 
                 "start-script"(
                     arg("players", EntityArgument.players()),
-                    arg("script", StringArgumentType.greedyString(), DirectoryManager.getStoryEvents().map { it.toReadablePath() })
+                    arg(
+                        "script",
+                        StringArgumentType.greedyString(),
+                        DirectoryManager.getStoryEvents().map { it.toReadablePath() })
                 ) {
                     val players = EntityArgument.getPlayers(this, "players")
                     val raw = StringArgumentType.getString(this, "script")
@@ -70,7 +77,10 @@ object HEStoryCommands {
 
                 "stop-script"(
                     arg("players", EntityArgument.players()),
-                    arg("script", StringArgumentType.greedyString(), DirectoryManager.getStoryEvents().map { it.toReadablePath() })
+                    arg(
+                        "script",
+                        StringArgumentType.greedyString(),
+                        DirectoryManager.getStoryEvents().map { it.toReadablePath() })
                 ) {
                     val players = EntityArgument.getPlayers(this, "players")
                     val eventPath = StringArgumentType.getString(this, "script")
@@ -89,7 +99,7 @@ object HEStoryCommands {
                     val player = source.playerOrException
                     player.sendSystemMessage(Component.translatable("hollowengine.commands.active_events"))
                     StoryHandler.getActiveEvents()
-                        .ifEmpty{ mutableListOf("No active events") }
+                        .ifEmpty { mutableListOf("No active events.") }
                         .forEach(
                             Consumer { name: String ->
                                 player.sendSystemMessage(
@@ -99,6 +109,36 @@ object HEStoryCommands {
                                 )
                             }
                         )
+                }
+
+                "active-npcs" {
+                    val player = source.playerOrException
+                    val npcs = source.server.overworld()[StoriesCapability::class].activeNpcs.values
+
+                    if (npcs.isNotEmpty()) {
+                        player.sendSystemMessage("§6На данный момент в игре есть нпс:".mcText)
+                        npcs.forEach { name ->
+                            player.sendSystemMessage("§6 - §7$name".mcText)
+                        }
+                    } else {
+                        player.sendSystemMessage("No active npcs.".mcText)
+                    }
+                }
+
+                "remove-npc"(
+                    arg(
+                        "npc",
+                        StringArgumentType.greedyString(),
+                        ServerLifecycleHooks.getCurrentServer()?.overworld()
+                            ?.get(StoriesCapability::class)?.activeNpcs?.values ?: emptyList()
+                    )
+                ) {
+                    source.server.overworld()[StoriesCapability::class].activeNpcs.values.remove(
+                        StringArgumentType.getString(
+                            this,
+                            "npc"
+                        )
+                    )
                 }
             }
         }
