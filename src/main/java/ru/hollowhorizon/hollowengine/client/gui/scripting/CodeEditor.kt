@@ -357,7 +357,7 @@ object CodeEditor {
                 ImGui.closeCurrentPopup()
             }
 
-            if (ImGui.menuItem(FontAwesomeIcons.FileCode + " Создать Сюжетное события")) {
+            if (ImGui.menuItem(FontAwesomeIcons.FileCode + " Создать Сюжетное событие")) {
                 inputAction = 3
                 inputText = "Введите название скрипта:"
                 ImGui.closeCurrentPopup()
