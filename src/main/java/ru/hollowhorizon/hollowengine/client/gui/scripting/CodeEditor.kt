@@ -154,7 +154,7 @@ object CodeEditor {
             ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize or ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.NoTitleBar
         )
 
-        if (currentPath.endsWith(".kts")) {
+        if (currentPath.endsWith(".kts") && files.isNotEmpty()) {
             val engine = ModList.get().getModContainerById("hollowengine").get().modInfo
             val compiler = ModList.get().getModContainerById("kotlinscript").get().modInfo
             ImGui.text("Minecraft ${Minecraft.getInstance().game.version.name} | ${engine.displayName} ${engine.version} | ${compiler.displayName} ${compiler.version}")
@@ -172,7 +172,8 @@ object CodeEditor {
         }
 
         ImGui.beginTabBar("##Files")
-        files.forEach { file ->
+        files.removeIf { file ->
+            val lastOpen = file.open.get()
             if (ImGui.beginTabItem(file.name, file.open, ImGuiTabItemFlags.None)) {
                 if (currentFile != file.name) {
                     editor.text = file.code
@@ -207,6 +208,7 @@ object CodeEditor {
 
                 ImGui.endTabItem()
             }
+            lastOpen && !file.open.get()
         }
         ImGui.endTabBar()
         ImGui.end()
