@@ -16,7 +16,7 @@ plugins {
 
 val mcVersion: String by project
 val modVersion = project.file("VERSION").readText().trim()
-val pat = project.file("PAT").readText().trim()
+val pat = if (project.file("PAT").exists()) project.file("PAT").readText().trim() else "" // Non null check
 val mappingsVersion: String by project
 val hcVersion: String by project
 val forgeVersion: String by project
