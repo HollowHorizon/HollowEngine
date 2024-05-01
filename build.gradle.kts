@@ -149,7 +149,7 @@ modrinth {
     versionNumber.set(modVersion) 
     versionType.set("release") 
     uploadFile.set(tasks.jar) 
-    gameVersions.addAll(arrayOf("1.19", "1.19.1", "1.19.2")) 
+    gameVersions.addAll("1.19", "1.19.1", "1.19.2") 
     loaders.add("forge") 
     dependencies { 
         // scope.type
