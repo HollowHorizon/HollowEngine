@@ -156,6 +156,14 @@ abstract class IContextBuilder {
             }
         }
 
+    var Safe<NPCEntity>.isRunning: Boolean
+        get() = this().isSprinting
+        set(value) {
+            next {
+                this@isRunning().isSprinting = value
+            }
+        }
+
     infix fun Safe<NPCEntity>.giveLeftHand(item: () -> ItemStack?) {
         next {
             this@giveLeftHand().setItemInHand(InteractionHand.OFF_HAND, item() ?: ItemStack.EMPTY)
