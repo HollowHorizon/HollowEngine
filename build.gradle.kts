@@ -146,7 +146,8 @@ val jar = tasks.named<Jar>("jar") {
 modrinth {
     token.set(pat) 
     projectId.set("tDUCPbAl") 
-    versionNumber.set(modVersion) 
+    versionNumber.set(modVersion)
+    versionName.set("[Forge $mcVersion] ${project.name} $mcVersion-$modVersion")
     versionType.set("release") 
     uploadFile.set(tasks.jar) 
     gameVersions.addAll("1.19", "1.19.1", "1.19.2") 
