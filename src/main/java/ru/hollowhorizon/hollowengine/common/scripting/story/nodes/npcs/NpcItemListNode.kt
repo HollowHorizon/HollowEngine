@@ -83,7 +83,7 @@ class NpcItemListNode(itemList: GiveItemList.() -> Unit, val npc: Safe<NPCEntity
     override fun tick(): Boolean {
         if(!npc.isLoaded) return true
         val npc = npc()
-        if (!isStarted) {
+        if (!isStarted || npc.onInteract == NPCEntity.EMPTY_INTERACT) {
             isStarted = true
             npc.shouldGetItem = { entityItem ->
                 val item = itemList.items.find { it.item == entityItem.item }
