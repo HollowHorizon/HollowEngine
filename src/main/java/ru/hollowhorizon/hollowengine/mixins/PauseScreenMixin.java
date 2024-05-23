@@ -33,8 +33,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import ru.hollowhorizon.hollowengine.client.gui.ExampleGui;
-import ru.hollowhorizon.hollowengine.client.gui.NodeEditorScreen;
+import ru.hollowhorizon.hollowengine.client.gui.NodeEditor;
 import ru.hollowhorizon.hollowengine.client.gui.scripting.CodeEditorGui;
 import ru.hollowhorizon.hollowengine.client.screen.widget.ScaleableButton;
 
@@ -50,10 +49,5 @@ public class PauseScreenMixin extends Screen {
             Minecraft.getInstance().setScreen(new CodeEditorGui());
             return Unit.INSTANCE;
         }));
-
-//        addRenderableWidget(new ScaleableButton(5, 25, 20, 20, "hollowengine:textures/gui/hollowengine.png", "HollowEngine: Nodes", button -> {
-//            Minecraft.getInstance().setScreen(new NodeEditorScreen());
-//            return Unit.INSTANCE;
-//        }));
     }
 }

@@ -28,6 +28,8 @@ import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.Node
 
+fun IContextBuilder.wait(time: () -> Int) = +WaitNode(time)
+
 class WaitNode(var startTime: () -> Int) : Node() {
     var isStarted = false
     var time = 0
@@ -50,8 +52,6 @@ class WaitNode(var startTime: () -> Int) : Node() {
         isStarted = nbt.getBoolean("isStarted")
     }
 }
-
-fun IContextBuilder.wait(time: () -> Int) = +WaitNode(time)
 
 fun IContextBuilder.await(condition: () -> Boolean) = +object : Node() {
     override fun tick(): Boolean {

@@ -65,18 +65,18 @@ class CurveCameraPath(
 ) :
     ICameraPath {
     @Transient
-    var startTime = TickHandler.currentTicks()
+    var startTime = TickHandler.currentTicks
 
     @Transient
     var spline = Spline3D(path.positions, path.rotations)
 
 
     override fun reset() {
-        startTime = TickHandler.currentTicks()
+        startTime = TickHandler.currentTicks
     }
 
     override fun serverUpdate(players: List<Player>) {
-        val time = TickHandler.currentTicks() - startTime
+        val time = TickHandler.currentTicks - startTime
         spline.getPoint(interpolation(time / maxTime.toFloat()).toDouble()).apply {
             if (this.x.isNaN() || this.y.isNaN() || this.z.isNaN()) {
                 HollowCore.LOGGER.warn("NaN in spline: {}, {}, {}", x, y, z)
@@ -86,7 +86,7 @@ class CurveCameraPath(
                 it.moveTo(this.x, this.y, this.z)
             }
         }
-        HollowCore.LOGGER.info("server: {}/{}", TickHandler.currentTicks() - startTime, maxTime)
+        HollowCore.LOGGER.info("server: {}/{}", TickHandler.currentTicks - startTime, maxTime)
     }
 
     override fun onStartClient() {
@@ -95,7 +95,7 @@ class CurveCameraPath(
 
     @SubscribeEvent
     fun updateCamera(event: ViewportEvent.ComputeCameraAngles) {
-        val time = TickHandler.currentTicks() - startTime + Minecraft.getInstance().partialTick
+        val time = TickHandler.currentTicks - startTime + Minecraft.getInstance().partialTick
         val factor = (time / maxTime).coerceAtLeast(0f)
 
         if (factor > 1) MinecraftForge.EVENT_BUS.unregister(this)
@@ -131,7 +131,7 @@ class CurveCameraPath(
 
     @SubscribeEvent
     fun onComputeFov(event: ViewportEvent.ComputeFov) {
-        val time = TickHandler.currentTicks() - startTime + Minecraft.getInstance().partialTick
+        val time = TickHandler.currentTicks - startTime + Minecraft.getInstance().partialTick
         val factor = (time / maxTime).coerceIn(0f, 1f)
 
         val interpolated = interpolation(factor).toDouble()
@@ -154,7 +154,7 @@ class CurveCameraPath(
 
             val width = event.window.guiScaledWidth
             val height = event.window.guiScaledHeight
-            val time = TickHandler.currentTicks() - startTime + Minecraft.getInstance().partialTick
+            val time = TickHandler.currentTicks - startTime + Minecraft.getInstance().partialTick
 
             val totalTicks = 10 // Общее количество тиков для анимации
 
@@ -178,5 +178,5 @@ class CurveCameraPath(
         }
     }
 
-    override val isEnd get() = TickHandler.currentTicks() - startTime >= maxTime
+    override val isEnd get() = TickHandler.currentTicks - startTime >= maxTime
 }

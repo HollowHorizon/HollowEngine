@@ -30,9 +30,7 @@ import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.RenderType
-import net.minecraft.util.Mth
 import net.minecraft.world.entity.player.Player
-import net.minecraft.world.phys.Vec3
 import net.minecraftforge.client.event.InputEvent
 import net.minecraftforge.client.event.RenderGuiOverlayEvent
 import net.minecraftforge.client.event.RenderLevelStageEvent
@@ -52,6 +50,7 @@ import ru.hollowhorizon.hc.client.utils.plus
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.client.screen.SaveCameraPathScreen
+import ru.hollowhorizon.hollowengine.client.screen.overlays.SelectingOverlay
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
 import ru.hollowhorizon.hollowengine.common.util.Keybind
@@ -188,11 +187,13 @@ object CameraHandler {
                 if (fov <= 1) fov -= 0.1
                 else fov--
             }
+
             Keybind.RIGHT_BRACKET -> fov++
             Keybind.C -> {
                 zRot = 0f
                 fov = 70.0
             }
+
             else -> {}
         }
     }
@@ -246,7 +247,7 @@ object CameraHandler {
 class CameraPath(
     val startPos: @Serializable(ForVector3d::class) Vector3d,
     val points: List<Point>,
-    var time: Int = 0
+    var time: Int = 0,
 ) {
     var interpolation = Interpolation.LINEAR
     val positions get() = points.map { Vector3d(startPos.x + it.x, startPos.y + it.y, startPos.z + it.z) }
@@ -259,7 +260,8 @@ class SaveOnServerPacket(private val path: CameraPath, private val fileName: Str
     HollowPacketV3<SaveOnServerPacket> {
     override fun handle(player: Player, data: SaveOnServerPacket) {
         if (player.mainHandItem.item == ModItems.CAMERA.get()) {
-            val file = DirectoryManager.HOLLOW_ENGINE.resolve("camera/$fileName.nbt")
+            val name = if (!fileName.contains('.')) "$fileName.nbt" else fileName
+            val file = DirectoryManager.HOLLOW_ENGINE.resolve("camera/$name.nbt")
             file.parentFile.mkdirs()
 
             NBTFormat.serialize(data.path).save(file.outputStream())

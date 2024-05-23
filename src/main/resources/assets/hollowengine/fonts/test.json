@@ -1,0 +1,39 @@
+{
+  inPins: {
+    2: {
+      "Узел": {
+        first: 1001,
+        second: "NODE"
+      }
+    }
+  },
+  links: {
+    1000: [
+      1001
+    ]
+  },
+  nextNodeId: 3,
+  nextPinId: 1002,
+  nodes: [
+    {
+      ru.hollowhorizon.hollowengine.common.npcs.nodes.StartNode: {
+        name: "Начало"
+      }
+    },
+    1,
+    {
+      ru.hollowhorizon.hollowengine.common.npcs.nodes.EndNode: {
+        name: "Конец"
+      }
+    },
+    2
+  ],
+  outPins: {
+    1: {
+      "Узел": {
+        first: 1000,
+        second: "NODE"
+      }
+    }
+  }
+}

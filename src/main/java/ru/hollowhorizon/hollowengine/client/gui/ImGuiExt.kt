@@ -25,6 +25,8 @@
 package ru.hollowhorizon.hollowengine.client.gui
 
 import imgui.*
+import imgui.extension.nodeditor.NodeEditor
+import imgui.type.ImInt
 import net.minecraft.client.Minecraft
 
 
@@ -131,3 +133,31 @@ fun hsva(hue: Float, saturation: Float, value: Float, alpha: Float): Int {
 
 val width get() = Minecraft.getInstance().window.width.toFloat()
 val height get() = Minecraft.getInstance().window.height.toFloat()
+
+fun comboNode(type: String, values: Array<String>, value: ImInt): Boolean {
+    var changed = false
+    ImGui.pushItemWidth(350f)
+    val width = values.map { ImGui.calcTextSize(it) }.maxBy { it.x }
+    if(ImGui.button(values[value.get()], width.x+5, width.y+5f)) ImGui.openPopup(type)
+    val cursorX = NodeEditor.toScreenX(ImGui.getCursorPos().x)
+    val cursorY = NodeEditor.toScreenY(ImGui.getCursorPos().y)
+    ImGui.sameLine()
+    ImGui.text(type)
+
+    NodeEditor.suspend()
+    ImGui.setNextWindowSize(0f, 512f)
+    if(ImGui.beginPopup(type)) {
+        ImGui.setWindowPos(cursorX, cursorY)
+
+        for((i, name) in values.withIndex()) {
+            if(ImGui.selectable(name)) {
+                value.set(i)
+                changed = true
+            }
+        }
+        ImGui.endPopup()
+    }
+    NodeEditor.resume()
+    ImGui.popItemWidth()
+    return changed
+}

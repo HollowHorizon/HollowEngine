@@ -45,7 +45,7 @@ object ScreenShakeHandler {
     var config = ScreenShakePacket()
     var enabled = false
         set(value) {
-            startTime = TickHandler.ticksNotPaused
+            startTime = TickHandler.currentTicks
             field = value
         }
 
@@ -54,7 +54,7 @@ object ScreenShakeHandler {
         if (!enabled) return
         val random = Minecraft.getInstance().player?.random ?: return
 
-        val percent = ((TickHandler.ticksNotPaused - startTime + event.partialTick.toFloat()) / config.duration)
+        val percent = ((TickHandler.currentTicks - startTime + event.partialTick.toFloat()) / config.duration)
             .coerceAtLeast(0f)
             .coerceAtMost(1f)
 
@@ -89,7 +89,7 @@ object ScreenShakeHandler {
         if (!enabled) return
         val random = Minecraft.getInstance().player?.random ?: return
 
-        val percent = ((TickHandler.ticksNotPaused - startTime + event.partialTick) / config.duration)
+        val percent = ((TickHandler.currentTicks - startTime + event.partialTick) / config.duration)
         val intensity = config.updateIntensity(percent).coerceAtLeast(0f)
 
         if (config.targets.contains(ShakeTarget.HAND)) {

@@ -29,7 +29,7 @@ import com.mojang.blaze3d.vertex.PoseStack
 import it.unimi.dsi.fastutil.ints.IntLists
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.vehicle.Minecart
-import ru.hollowhorizon.hc.api.IAutoScaled
+import ru.hollowhorizon.hc.api.AutoScaled
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.widget.HollowWidget
 import ru.hollowhorizon.hc.client.screens.widget.layout.PlacementType
@@ -43,7 +43,7 @@ import ru.hollowhorizon.hc.common.ui.Anchor
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.capabilities.PlayerStoryCapability
 
-class ProgressManagerScreen : HollowScreen("Progress Manager".mcText), IAutoScaled {
+class ProgressManagerScreen : HollowScreen("Progress Manager".mcText), AutoScaled {
 
     override fun init() {
         super.init()

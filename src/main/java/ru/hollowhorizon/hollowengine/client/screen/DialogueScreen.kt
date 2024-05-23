@@ -38,7 +38,7 @@ import net.minecraftforge.api.distmarker.Dist
 import net.minecraftforge.api.distmarker.OnlyIn
 import net.minecraftforge.common.MinecraftForge
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hc.api.IAutoScaled
+import ru.hollowhorizon.hc.api.AutoScaled
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.screens.widget.button.BaseButton
 import ru.hollowhorizon.hc.client.utils.*
@@ -72,7 +72,7 @@ var CLIENT_OPTIONS = DialogueOptions()
     }
 
 @OnlyIn(Dist.CLIENT)
-object DialogueScreen : HollowScreen("".mcText), IAutoScaled {
+object DialogueScreen : HollowScreen("".mcText), AutoScaled {
     var canClose: Boolean = false
     private var textBox: DialogueTextBox? = null
     private val crystalAnimator by GuiAnimator.Reversed(0, 20, 30, Interpolation.BACK_OUT::invoke)

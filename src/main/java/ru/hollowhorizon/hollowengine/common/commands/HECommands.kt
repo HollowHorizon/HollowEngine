@@ -35,7 +35,7 @@ import net.minecraftforge.network.PacketDistributor
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.common.commands.arg
-import ru.hollowhorizon.hc.common.commands.register
+import ru.hollowhorizon.hc.common.commands.onRegisterCommands
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.network.CopyTextPacket
@@ -45,7 +45,7 @@ import java.io.File
 object HECommands {
     @JvmStatic
     fun register(dispatcher: CommandDispatcher<CommandSourceStack>) {
-        dispatcher.register {
+        dispatcher.onRegisterCommands {
             "hollowengine" {
                 "compile-all" {
                     DirectoryManager.compileAll()

@@ -26,16 +26,23 @@ package ru.hollowhorizon.hollowengine.common.commands
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.arguments.StringArgumentType
+import kotlinx.serialization.Serializable
+import net.minecraft.client.Minecraft
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.network.chat.Component
+import net.minecraft.world.entity.player.Player
 import net.minecraftforge.network.PacketDistributor
 import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.client.screens.ImGuiScreen
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.common.commands.arg
-import ru.hollowhorizon.hc.common.commands.register
+import ru.hollowhorizon.hc.common.commands.onRegisterCommands
+import ru.hollowhorizon.hc.common.network.HollowPacketV2
+import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hollowengine.client.gui.dialogue.SonharDialogueGui
 import ru.hollowhorizon.hollowengine.client.utils.roundTo
 import ru.hollowhorizon.hollowengine.common.capabilities.PlayerStoryCapability
 import ru.hollowhorizon.hollowengine.common.capabilities.StoriesCapability
@@ -50,7 +57,7 @@ import java.util.function.Consumer
 object HEStoryCommands {
     @JvmStatic
     fun register(dispatcher: CommandDispatcher<CommandSourceStack>) {
-        dispatcher.register {
+        dispatcher.onRegisterCommands {
             "hollowengine" {
                 "pos" {
                     val player = source.playerOrException

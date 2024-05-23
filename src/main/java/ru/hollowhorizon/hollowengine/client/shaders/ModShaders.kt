@@ -26,6 +26,7 @@ package ru.hollowhorizon.hollowengine.client.shaders
 
 import com.mojang.blaze3d.shaders.Uniform
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
+import net.minecraft.client.renderer.ShaderInstance
 import net.minecraftforge.client.event.RegisterShadersEvent
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraftforge.registries.ForgeRegistries
@@ -35,6 +36,7 @@ import java.util.function.Consumer
 
 object ModShaders {
     lateinit var PARTICLE: HollowShaderInstance
+    lateinit var BARRIER: ShaderInstance
 
     @SubscribeEvent
     fun onShaderRegistry(event: RegisterShadersEvent) {
@@ -44,5 +46,9 @@ object ModShaders {
         }
 
         event.registerShader(PARTICLE) {}
+
+        event.registerShader(ShaderInstance(event.resourceManager, "$MODID:barrier".rl, DefaultVertexFormat.POSITION_COLOR_TEX).apply{
+            BARRIER = this
+        }) {}
     }
 }

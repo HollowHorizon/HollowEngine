@@ -43,6 +43,7 @@ import net.minecraft.world.level.ClipContext
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
+import net.minecraftforge.event.TickEvent.PlayerTickEvent
 import net.minecraftforge.event.TickEvent.ServerTickEvent
 import net.minecraftforge.network.PacketDistributor
 import net.minecraftforge.registries.ForgeRegistries
@@ -66,6 +67,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
+import ru.hollowhorizon.hollowengine.common.scripting.item
 import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.*
@@ -80,6 +82,12 @@ import ru.hollowhorizon.hollowengine.cutscenes.replay.Replay
 import ru.hollowhorizon.hollowengine.cutscenes.replay.ReplayPlayer
 import java.util.*
 import kotlin.math.sqrt
+
+fun StoryStateMachine.main() {
+    waitForgeEvent<PlayerTickEvent> {
+        return@waitForgeEvent it.player.inventory.items.sumOf { if(it.item != item("minecraft:apple").item) 0 else it.count } >= 5
+    }
+}
 
 abstract class IContextBuilder {
     abstract val stateMachine: StoryStateMachine

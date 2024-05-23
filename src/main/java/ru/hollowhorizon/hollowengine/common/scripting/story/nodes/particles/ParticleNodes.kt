@@ -25,33 +25,13 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes.particles
 
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hc.client.render.particles.DiscardType
-import ru.hollowhorizon.hc.client.render.particles.HollowParticleBuilder
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.effects.ParticleEmitterInfo
 import ru.hollowhorizon.hc.common.effects.ParticleHelper
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.SimpleNode
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.next
-import kotlin.math.cos
-import kotlin.math.sin
-
-
-class ParticleContainer(val server: MinecraftServer) {
-    private lateinit var settings: HollowParticleBuilder
-    var world = "minecraft:overworld"
-    var particle = "hc:circle"
-
-    fun settings(builder: HollowParticleBuilder.() -> Unit) {
-        val dimension = server.levelKeys().find { it.location() == world.rl }
-            ?: throw IllegalStateException("Dimension $world not found. Or not loaded!")
-
-        settings = HollowParticleBuilder.create(server.getLevel(dimension)!!, particle, builder)
-    }
-}
 
 class EffekseerContainer {
     var world = "minecraft:overworld"
@@ -87,11 +67,10 @@ fun IContextBuilder.effekseer(path: EffekseerContainer.() -> Unit) = next {
 
     val info =
         ParticleEmitterInfo(container.path.removeSuffix(".efkefc").rl, container.emitter).apply {
-            if(container.entity != null) {
+            if (container.entity != null) {
                 bindOnEntity(container.entity!!)
-                if(container.target.isNotEmpty()) bindOnTarget(container.target)
-            }
-            else position(container.pos)
+                if (container.target.isNotEmpty()) bindOnTarget(container.target)
+            } else position(container.pos)
             scale(container.scale.x.toFloat(), container.scale.y.toFloat(), container.scale.z.toFloat())
             rotation(container.rotation.x.toFloat(), container.rotation.y.toFloat(), container.rotation.z.toFloat())
             dynamic0 = container.dynamic0
@@ -101,8 +80,4 @@ fun IContextBuilder.effekseer(path: EffekseerContainer.() -> Unit) = next {
         }
 
     ParticleHelper.addParticle(manager.server.getLevel(dimension)!!, info, true)
-}
-
-fun IContextBuilder.particles(builder: ParticleContainer.() -> Unit) = +SimpleNode {
-    ParticleContainer(this@particles.stateMachine.server).apply(builder)
 }

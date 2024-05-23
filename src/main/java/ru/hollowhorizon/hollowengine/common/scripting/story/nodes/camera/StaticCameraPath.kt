@@ -46,11 +46,11 @@ class StaticCameraPath(
     val rotation: @Serializable(ForVector3f::class) Vector3f,
 ) : ICameraPath {
     @Transient
-    var startTime = TickHandler.currentTicks()
-    override val isEnd get() = TickHandler.currentTicks() - startTime >= maxTime
+    var startTime = TickHandler.currentTicks
+    override val isEnd get() = TickHandler.currentTicks - startTime >= maxTime
 
     override fun reset() {
-        startTime = TickHandler.currentTicks()
+        startTime = TickHandler.currentTicks
     }
 
     override fun serverUpdate(players: List<Player>) {

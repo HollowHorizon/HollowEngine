@@ -50,7 +50,7 @@ class EntityCameraPath(
     val entity: @Serializable(with = ForEntity::class) Entity,
 ) : ICameraPath {
     @Transient
-    var startTime = TickHandler.currentTicks()
+    var startTime = TickHandler.currentTicks
     override fun serverUpdate(players: List<Player>) {
         players.forEach { it.moveTo(pos.x, pos.y, pos.z) }
     }
@@ -62,7 +62,7 @@ class EntityCameraPath(
     }
 
     override fun reset() {
-        startTime = TickHandler.currentTicks()
+        startTime = TickHandler.currentTicks
     }
 
     override fun onStartClient() {
@@ -73,7 +73,7 @@ class EntityCameraPath(
     @SubscribeEvent
     fun updateCamera(event: ViewportEvent.ComputeCameraAngles) {
         val partialTick = Minecraft.getInstance().partialTick
-        val time = TickHandler.currentTicks() - startTime + partialTick
+        val time = TickHandler.currentTicks - startTime + partialTick
         val factor = time / maxTime
 
         if (factor > 1) MinecraftForge.EVENT_BUS.unregister(this)
@@ -91,5 +91,5 @@ class EntityCameraPath(
         }
     }
 
-    override val isEnd get() = TickHandler.currentTicks() - startTime >= maxTime
+    override val isEnd get() = TickHandler.currentTicks - startTime >= maxTime
 }

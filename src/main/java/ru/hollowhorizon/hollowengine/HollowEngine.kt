@@ -58,11 +58,12 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.getModScripts
 import ru.hollowhorizon.hollowengine.common.network.NetworkHandler
 import ru.hollowhorizon.hollowengine.common.recipes.RecipeReloadListener
+import ru.hollowhorizon.hollowengine.common.registry.NodesRegistry
+import ru.hollowhorizon.hollowengine.common.registry.PinsRegistry
 import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructurePieces
 import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructureSets
 import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructures
 import ru.hollowhorizon.hollowengine.common.scripting.mod.runModScript
-import ru.hollowhorizon.hollowengine.common.structures.StructureBiome
 
 @Mod(HollowEngine.MODID)
 class HollowEngine {
@@ -78,16 +79,13 @@ class HollowEngine {
         forgeBus.addListener(this::addReloadListenerEvent)
         MOD_BUS.addListener(::setup)
         MOD_BUS.addListener(::onLoadingComplete)
+        forgeBus.addListener(NodesRegistry::onReload)
+        forgeBus.addListener(PinsRegistry::onReload)
         if (FMLEnvironment.dist.isClient) {
             initKeys()
-            forgeBus.addListener(ClientEvents::renderOverlay)
-            forgeBus.addListener(ClientEvents::onScreenOpen)
-            forgeBus.addListener(ClientEvents::onKeyPressed)
-            forgeBus.addListener(ClientEvents::onClicked)
-            forgeBus.addListener(ClientEvents::onTooltipRender)
+            forgeBus.register(ClientEvents)
             forgeBus.register(CameraHandler)
             forgeBus.register(ScreenShakeHandler)
-            forgeBus.addListener(ClientEvents::renderPlayer)
             MOD_BUS.addListener(::clientInit)
             MOD_BUS.register(ModShaders)
         }

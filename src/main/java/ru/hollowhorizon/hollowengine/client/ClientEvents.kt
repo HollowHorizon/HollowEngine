@@ -33,10 +33,13 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.TitleScreen
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.Item
+
 import net.minecraftforge.client.event.*
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay
 import net.minecraftforge.event.entity.player.ItemTooltipEvent
+import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraftforge.fml.ModList
+
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.screens.ImGuiScreen
@@ -44,12 +47,16 @@ import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hollowengine.HollowEngine
+
 import ru.hollowhorizon.hollowengine.client.gui.height
 import ru.hollowhorizon.hollowengine.client.gui.width
+
 import ru.hollowhorizon.hollowengine.client.render.PlayerRenderer
 import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
+import ru.hollowhorizon.hollowengine.client.screen.overlays.BoxRenderer
 import ru.hollowhorizon.hollowengine.client.screen.overlays.MouseOverlay
 import ru.hollowhorizon.hollowengine.client.screen.overlays.RecordingDriver
+import ru.hollowhorizon.hollowengine.client.screen.overlays.SelectingOverlay
 import ru.hollowhorizon.hollowengine.client.screen.recording.ModifyRecordingScreen
 import ru.hollowhorizon.hollowengine.client.screen.recording.StartRecordingScreen
 import ru.hollowhorizon.hollowengine.common.network.KeybindPacket
@@ -78,11 +85,12 @@ object ClientEvents {
         customTooltips.clear()
     }
 
-    @JvmStatic
+    @SubscribeEvent
     fun onScreenOpen(event: ScreenEvent.Opening) {
         if (event.screen is TitleScreen && !ignoreOptifine && ModList.get().isLoaded("optifine")) {
             event.newScreen = ImGuiScreen {
-                ImGui.getBackgroundDrawList().addRectFilled(0f, 0f, width, height, ImGui.colorConvertFloat4ToU32(0f, 0f, 0f, 1f))
+                ImGui.getBackgroundDrawList()
+                    .addRectFilled(0f, 0f, width, height, ImGui.colorConvertFloat4ToU32(0f, 0f, 0f, 1f))
                 ImGui.begin(
                     "Предупреждение",
                     ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.AlwaysAutoResize
@@ -100,7 +108,7 @@ object ClientEvents {
         }
     }
 
-    @JvmStatic
+    @SubscribeEvent
     fun renderOverlay(event: RenderGuiOverlayEvent.Post) {
         if (event.overlay != VanillaGuiOverlay.HOTBAR.type()) return
 
@@ -111,14 +119,13 @@ object ClientEvents {
         RecordingDriver.draw(event.poseStack, 10, 10, event.partialTick)
     }
 
-    @JvmStatic
-    fun onTooltipRender(event: ItemTooltipEvent) {
-        val item = event.itemStack.item
-
-        if (item in customTooltips) event.toolTip.addAll(customTooltips[item] ?: emptyList())
+    @SubscribeEvent
+    @Suppress("removal")
+    fun renderWorldLast(event: RenderLevelLastEvent) {
+        BoxRenderer.draw(event.poseStack)
     }
 
-    @JvmStatic
+    @SubscribeEvent
     fun onClicked(event: InputEvent.MouseButton.Pre) {
         if (event.action != 1) return
 
@@ -128,16 +135,14 @@ object ClientEvents {
         if (canceledButtons.removeIf { it.ordinal == button.ordinal }) event.isCanceled = true
     }
 
-    @JvmStatic
+    @SubscribeEvent
     fun onKeyPressed(event: InputEvent.Key) {
         val key = InputConstants.getKey(
             event.key,
             event.scanCode
         )
 
-//        if (event.key == GLFW.GLFW_KEY_M) {
-//            Minecraft.getInstance().setScreen(ExampleGui())
-//        }
+        //if(event.key == GLFW.GLFW_KEY_M) ExampleGui().open()
 
         if (Minecraft.getInstance().screen != null) return
 
@@ -161,7 +166,14 @@ object ClientEvents {
         if (event.action == 0) KeybindPacket(Keybind.fromCode(event.key)).send()
     }
 
-    @JvmStatic
+    @SubscribeEvent
+    fun onTooltipRender(event: ItemTooltipEvent) {
+        val item = event.itemStack.item
+
+        if (item in customTooltips) event.toolTip.addAll(customTooltips[item] ?: emptyList())
+    }
+
+    @SubscribeEvent
     fun renderPlayer(event: RenderPlayerEvent.Pre) {
         PlayerRenderer.render(event)
     }

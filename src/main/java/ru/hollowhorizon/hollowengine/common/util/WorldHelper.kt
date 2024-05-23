@@ -204,17 +204,17 @@ fun ServerLevel.getStructure(path: String, pos: BlockPos = BlockPos.ZERO): Struc
             pos, 100, false
         )
     }
-    val spos = capability["hollowengine:$path"] ?: throw IllegalStateException("Structure $path not found!")
-    val bpos = BlockPos(spos.x, spos.y, spos.z)
-    val structures = level.structureManager().getAllStructuresAt(bpos)
-    val structure = structures.mapNotNull { it.key as? ScriptedStructure }.first { it.location.path == path }
-    return StructureWrapper(this, bpos, level.structureManager().getStructureAt(bpos, structure).pieces.first())
+    val spos = capability["hollowengine:$path"]?.center ?: throw IllegalStateException("Structure $path not found!")
+    val structures = level.structureManager().getAllStructuresAt(spos)
+    val structure = structures
+        .firstNotNullOf { if ((it.key as? ScriptedStructure)?.location?.path == path) it.key else null }
+    return StructureWrapper(this, spos, level.structureManager().getStructureAt(spos, structure).pieces.first())
 }
 
 class StructureWrapper(
     val level: ServerLevel,
     val pos: BlockPos,
-    val first: StructurePiece
+    val first: StructurePiece,
 ) {
     fun getLocalPos(x: Int = 0, y: Int = 0, z: Int = 0): BlockPos {
         return BlockPos(pos.x + x, pos.y + y, pos.z + z)

@@ -55,7 +55,7 @@ import net.minecraftforge.registries.ForgeRegistries
 import net.minecraftforge.server.ServerLifecycleHooks
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.get
-import ru.hollowhorizon.hollowengine.common.capabilities.Pos
+import ru.hollowhorizon.hollowengine.common.capabilities.SAABB
 import ru.hollowhorizon.hollowengine.common.capabilities.StructuresCapability
 import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructurePieces
 import ru.hollowhorizon.hollowengine.common.registry.worldgen.structures.ModStructures
@@ -75,7 +75,7 @@ class ScriptedStructure(settings: StructureSettings, val location: ResourceLocat
         val z = (chunkPos.z shl 4) + 7
         var y: Int
 
-        when(container.spawnMode) {
+        when (container.spawnMode) {
             SpawnMode.UNDERGROUND -> {
                 val column = context.chunkGenerator.getBaseColumn(x, z, context.heightAccessor, context.randomState)
 
@@ -97,13 +97,21 @@ class ScriptedStructure(settings: StructureSettings, val location: ResourceLocat
                     currentY++
                 }
 
-                if(maxSize < container.minSizeY) return Optional.empty()
+                if (maxSize < container.minSizeY) return Optional.empty()
 
                 y = maxY - 1
             }
+
             SpawnMode.SURFACE -> {
-                y = context.chunkGenerator.getFirstOccupiedHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, context.heightAccessor, context.randomState)
+                y = context.chunkGenerator.getFirstOccupiedHeight(
+                    x,
+                    z,
+                    Heightmap.Types.WORLD_SURFACE_WG,
+                    context.heightAccessor,
+                    context.randomState
+                )
             }
+
             SpawnMode.AIR -> {
                 y = context.heightAccessor.maxBuildHeight - context.random.nextInt(50) - container.minSizeY
             }
@@ -142,7 +150,7 @@ class ScriptedStructure(settings: StructureSettings, val location: ResourceLocat
         pChunkPos: ChunkPos,
         p_226604_: Int,
         pHeightAccessor: LevelHeightAccessor,
-        pValidBiome: Predicate<Holder<Biome>>
+        pValidBiome: Predicate<Holder<Biome>>,
     ): StructureStart {
         val generatedStructures =
             ServerLifecycleHooks.getCurrentServer().overworld()[StructuresCapability::class].structures
@@ -161,7 +169,8 @@ class ScriptedStructure(settings: StructureSettings, val location: ResourceLocat
             val structurestart = StructureStart(this, pChunkPos, p_226604_, structurepiecesbuilder.build())
             if (structurestart.isValid) {
                 val box = structurestart.pieces.first().boundingBox
-                generatedStructures[location.toString()] = Pos(box.minX(), box.minY(), box.minZ())
+                generatedStructures[location.toString()] =
+                    SAABB(box.minX(), box.minY(), box.minZ(), box.maxX(), box.maxY(), box.maxZ())
                 return structurestart
             }
         }
@@ -189,7 +198,7 @@ class ScriptedStructure(settings: StructureSettings, val location: ResourceLocat
             manager: StructureTemplateManager,
             pLocation: ResourceLocation,
             pStartPos: BlockPos,
-            pRotation: Rotation
+            pRotation: Rotation,
         ) : super(
             ModStructurePieces.PIECE.get(),
             0,
@@ -225,7 +234,7 @@ class ScriptedStructure(settings: StructureSettings, val location: ResourceLocat
             pPos: BlockPos,
             pLevel: ServerLevelAccessor,
             pRandom: RandomSource,
-            pBox: BoundingBox
+            pBox: BoundingBox,
         ) {
         }
     }

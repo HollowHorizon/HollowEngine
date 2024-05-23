@@ -27,171 +27,199 @@ package ru.hollowhorizon.hollowengine.client.gui
 import com.mojang.blaze3d.vertex.PoseStack
 import imgui.ImGui
 import imgui.flag.ImGuiInputTextFlags
-import imgui.flag.ImGuiWindowFlags
 import imgui.type.ImBoolean
-import imgui.type.ImDouble
+import imgui.type.ImFloat
 import imgui.type.ImInt
 import imgui.type.ImString
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.player.Player
-import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hc.client.handlers.TickHandler
+import ru.hollowhorizon.hc.client.imgui.ImGuiMethods.entity
 import ru.hollowhorizon.hc.client.imgui.ImguiHandler
 import ru.hollowhorizon.hc.client.models.gltf.Transform
 import ru.hollowhorizon.hc.client.models.gltf.animations.AnimationType
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.gltf.manager.GltfManager
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hc.client.utils.get
-import ru.hollowhorizon.hc.client.utils.mcText
-import ru.hollowhorizon.hc.client.utils.nbt.ForVec3
-import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
-import ru.hollowhorizon.hollowengine.client.gui.widget.ComboFilterState
-import ru.hollowhorizon.hollowengine.client.gui.widget.ImInputCombo
-import ru.hollowhorizon.hollowengine.common.commands.listModels
+import ru.hollowhorizon.hollowengine.client.gui.docking.DockingHelper
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
+import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 
-class NPCCreatorGui(x: Double, y: Double, z: Double) : HollowScreen() {
-    private val state = ComboFilterState()
-    val npcName = ImString().apply {
-        set(
-            arrayOf(
-                "Элдриан", "Лунара", "Зефир", "Аурелиан", "Нираллия",
-                "Гриммар", "Лирель", "Силвана", "Фэйт", "Эландор",
-                "Изабель", "Торган", "Амаранта", "Финнрод", "Элисия",
-                "Лордран", "Алевтина", "Северин", "Эвелина", "Дракондор",
-                "Иллирия", "Варгрим", "Феодора", "Леонин", "Иридия",
-                "Таэлин", "Ксантия", "Лиандор", "Ясмина", "Верендил",
-                "Аэлара", "Ренгар", "Эмберлин", "Гвиндор", "Лиллиана",
-                "Азариэль", "Лавиния", "Моргрим", "Селеста", "Эльрик",
-                "Лунис", "Изольда", "Фэррон", "Элинор", "Дариан",
-                "Нефелия", "Стормгард", "Сарафина", "Галадриэль",
-                "Демитриус"
-            ).random()
+class NPCCreatorGui(val npc: NPCEntity, private val npcId: Int) : HollowScreen() {
+    private val npcName = ImString().apply {
+        if (npc.hasCustomName()) set(npc.customName?.string ?: "")
+        else set(
+            String(NPCCreatorGui::class.java.getResourceAsStream("/internal/npc.names")!!.readAllBytes())
+                .split("\r\n", "\n").random()
         )
     }
-    val npcModel = ImString().apply {
-        set("hollowengine:models/entity/player_model.gltf")
+    private val npcModel = ImString().apply {
+        set(npc[AnimatedEntityCapability::class].model)
     }
-    val npcWorld = ImString().apply {
-        set(Minecraft.getInstance().level?.dimension()?.location() ?: "minecraft:overworld")
-    }
-    val npcX = ImDouble().apply { set(x) }
-    val npcY = ImDouble().apply { set(y) }
-    val npcZ = ImDouble().apply { set(z) }
-    val showName = ImBoolean().apply { set(true) }
-    var model = GltfManager.getOrCreate(npcModel.get().rl)
-    val animations = HashMap<String, String>()
-    val textures = HashMap<String, String>()
-    val tX = floatArrayOf(0f)
-    val tY = floatArrayOf(0f)
-    val tZ = floatArrayOf(0f)
-    val rX = floatArrayOf(0f)
-    val rY = floatArrayOf(0f)
-    val rZ = floatArrayOf(0f)
-    val sX = floatArrayOf(1f)
-    val sY = floatArrayOf(1f)
-    val sZ = floatArrayOf(1f)
+    private val showName = ImBoolean().apply { set(npc.isCustomNameVisible) }
+    private val switchHeadRot = ImBoolean().apply { set(npc[AnimatedEntityCapability::class].switchHeadRot) }
+    private val invulnerable = ImBoolean().apply { set(npc.isInvulnerable) }
+    private var model = GltfManager.getOrCreate(npcModel.get().rl)
+    private val animations = HashMap<String, String>()
+    private val textures = npc[AnimatedEntityCapability::class].textures.toMutableMap()
+    private val hitboxWidth = ImFloat(npc.entityData[NPCEntity.sizeX])
+    private val hitboxHeight = ImFloat(npc.entityData[NPCEntity.sizeY])
+    private val hitboxMode = ImInt().apply { set(npc[NPCCapability::class].hitboxMode.ordinal) }
+    private val showHitbox = ImBoolean().apply { set(false) }
+    private val tX = floatArrayOf(0f)
+    private val tY = floatArrayOf(0f)
+    private val tZ = floatArrayOf(0f)
+    private val rX = floatArrayOf(0f)
+    private val rY = floatArrayOf(0f)
+    private val rZ = floatArrayOf(0f)
+    private val sX = floatArrayOf(1f)
+    private val sY = floatArrayOf(1f)
+    private val sZ = floatArrayOf(1f)
 
     override fun render(pPoseStack: PoseStack, pMouseX: Int, pMouseY: Int, pPartialTick: Float) {
         super.render(pPoseStack, pMouseX, pMouseY, pPartialTick)
 
+        if (!npc.isAddedToWorld) npc.tickCount = TickHandler.currentTicks
+
         ImguiHandler.drawFrame {
-            val window = Minecraft.getInstance().window
-            ImGui.setNextWindowPos(0f, 0f)
-            ImGui.setNextWindowSize(window.width.toFloat(), window.height.toFloat())
-            ImGui.begin(
-                "Редактор Персонажей",
-                ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize or ImGuiWindowFlags.HorizontalScrollbar or
-                        ImGuiWindowFlags.NoCollapse
-            )
-            if (ImGui.beginTabBar("##tabs")) {
-                if (ImGui.beginTabItem("Основное")) {
-                    drawGeneral()
+            DockingHelper.splitWindows(
+                {
+                    if (ImGui.beginTabBar("##tabs")) {
+                        if (ImGui.beginTabItem("Основное")) {
+                            drawGeneral()
 
-                    val size = ImGui.calcTextSize("Создать")
-                    ImGui.setCursorPos(
-                        ImGui.getWindowWidth() - size.x - ImGui.getStyle().windowPaddingX * 2,
-                        ImGui.getWindowHeight() - size.y - ImGui.getStyle().windowPaddingY * 2
-                    )
-                    if (ImGui.button("Создать")) {
-                        onClose()
-                        NPCCreatorPacket(
-                            npcName.get(),
-                            npcModel.get(),
-                            npcWorld.get(),
-                            Vec3(npcX.get(), npcY.get(), npcZ.get()),
-                            showName.get(),
-                            animations.map { AnimationType.valueOf(it.key) to it.value }.toMap(),
-                            textures.filter { it.value.isNotEmpty() },
-                            tX[0], tY[0], tZ[0], rX[0], rY[0], rZ[0], sX[0], sY[0], sZ[0]
-                        ).send()
+                            val size = ImGui.calcTextSize("Создать   Отмена")
+                            ImGui.setCursorPos(
+                                ImGui.getWindowWidth() - size.x - ImGui.getStyle().windowPaddingX * 2,
+                                ImGui.getWindowHeight() - size.y - ImGui.getStyle().windowPaddingY * 2
+                            )
+                            if (ImGui.button("Сохранить")) {
+                                onClose()
+                                NPCCreatorPacket(
+                                    npcId,
+                                    npcName.get(),
+                                    npcModel.get(),
+                                    showName.get(),
+                                    switchHeadRot.get(),
+                                    invulnerable.get(), hitboxWidth.get(), hitboxHeight.get(),
+                                    HitboxMode.entries[hitboxMode.get()],
+                                    animations.map { AnimationType.valueOf(it.key) to it.value }.toMap(),
+                                    textures.filter { it.value.isNotEmpty() },
+                                    tX[0], tY[0], tZ[0], rX[0], rY[0], rZ[0], sX[0], sY[0], sZ[0]
+                                ).send()
+                            }
+                            ImGui.sameLine()
+                            if (ImGui.button("Отмена")) {
+                                onClose()
+                            }
+
+                            ImGui.endTabItem()
+                        }
+
+                        if (ImGui.beginTabItem("Анимации")) {
+                            drawAnimations()
+                            ImGui.endTabItem()
+                        }
+
+                        if (ImGui.beginTabItem("Текстуры")) {
+                            drawTextures()
+                            ImGui.endTabItem()
+                        }
+
+                        if (ImGui.beginTabItem("Аттрибуты")) {
+                            drawAttributes()
+                            ImGui.endTabItem()
+                        }
+
+                        if (ImGui.beginTabItem("Дополнительное")) {
+                            drawTransforms()
+                            ImGui.endTabItem()
+                        }
+                        ImGui.endTabBar()
                     }
+                },
+                {
+                    ImGui.checkbox("Показать хитбокс", showHitbox)
 
-                    ImGui.endTabItem()
-                }
-
-                if (ImGui.beginTabItem("Анимации")) {
-                    drawAnimations()
-                    ImGui.endTabItem()
-                }
-
-                if (ImGui.beginTabItem("Текстуры")) {
-                    drawTextures()
-                    ImGui.endTabItem()
-                }
-
-                if (ImGui.beginTabItem("Дополнительное")) {
-                    drawTransforms()
-                    ImGui.endTabItem()
-                }
-                ImGui.endTabBar()
-            }
-            ImGui.end()
+                    val disp = Minecraft.getInstance().entityRenderDispatcher
+                    val last = disp.shouldRenderHitBoxes()
+                    disp.setRenderHitBoxes(showHitbox.get())
+                    val size = ImGui.getContentRegionAvail()
+                    entity(npc, size.x, size.y)
+                    disp.setRenderHitBoxes(last)
+                })
         }
     }
 
     private fun drawGeneral() {
-        ImGui.pushItemWidth(400f)
+        ImGui.pushItemWidth(700f)
         ImGui.inputText("Имя персонажа", npcName)
-        if (ImInputCombo.inputCombo("Модель персонажа", npcModel, state, *listModels().toTypedArray())) {
-            model = GltfManager.getOrCreate(npcModel.get().rl)
+        if (ImGui.inputText("Модель персонажа", npcModel)) {
+            val npcModel = npcModel.get().rl
+            if(npcModel.exists() && (npcModel.path.endsWith(".gltf") || npcModel.path.endsWith(".glb"))) {
+                model = GltfManager.getOrCreate(npcModel)
+                npc[AnimatedEntityCapability::class].model = npcModel.toString()
+            }
+        }
+        ImGui.popItemWidth()
+
+        if (ImGui.checkbox("Показывать имя", showName)) {
+            npc.isCustomNameVisible = showName.get()
+        }
+        ImGui.checkbox("Инверсировать поворот головы", switchHeadRot)
+        ImGui.checkbox("Бессмертный", invulnerable)
+
+        ImGui.text("Размер хитбокса:")
+        ImGui.pushItemWidth(160f)
+        var hitbox = ImGui.inputFloat("Ширина", hitboxWidth, 0.1f, 0.5f, "%.2f")
+        ImGui.sameLine()
+        hitbox = hitbox or ImGui.inputFloat("Высота", hitboxHeight, 0.1f, 0.5f, "%.2f")
+        ImGui.popItemWidth()
+
+        if (hitbox) {
+            npc.setDimensions(hitboxWidth.get() to hitboxHeight.get())
+            npc.refreshDimensions()
         }
 
-        ImGui.inputText("Мир", npcWorld)
-        ImGui.popItemWidth()
+        ImGui.combo("Режим хитбокса", hitboxMode, arrayOf("Блокируемый", "Толкаемый", "Пустой"))
+    }
 
-        ImGui.pushItemWidth(120f)
-        ImGui.inputDouble("x", npcX)
-        ImGui.sameLine()
-        ImGui.inputDouble("y", npcY)
-        ImGui.sameLine()
-        ImGui.inputDouble("z", npcZ)
-        ImGui.checkbox("Показывать имя", showName)
-        ImGui.popItemWidth()
+    private fun drawAttributes() {
+        ImGui.textWrapped("Понимаешь, редактор атрибутов у NPC - это, конечно, важная штука, но... - Говорит Халва, делая виноватое лицо и смотря в пол.")
+        ImGui.separator()
+        ImGui.textWrapped("Во-первых, Халва был очень занят другими, более критичными задачами. Загибает пальцы Оптимизация рендеринга, фиксы багов, работа над новыми фичами - все это отнимало уйму времени и сил. - Говорит Халва с серьезным лицом.")
+        ImGui.separator()
+        ImGui.textWrapped("Во-вторых, это не такая простая задача, как может показаться. Нужно продумать интерфейс, логику сохранения и загрузки, интеграцию с остальными системами... Вздыхает Халва не хотел делать что-то наспех и потом жалеть об этом.")
+        ImGui.separator()
+        ImGui.textWrapped("И наконец, *Халва делает невинное лицо*, может быть, Халва просто хотел оставить эту задачу для молодых и перспективных разработчиков, таких как ты? *Подмигивает.*\nЧтобы у них была возможность проявить себя и внести свой вклад в развитие проекта.")
+        ImGui.separator()
+        ImGui.textWrapped("*Халва разводит руками.* Вот такие дела, мой друг. Халва понимает, что редактор атрибутов - это важно и нужно, но... *Делает виноватое лицо.* Не всегда все получается так, как хочется. \n*Вздыхает.* Халва обещает, что вернется к этой задаче при первой же возможности... или хотя бы будет более убедительно оправдываться в следующий раз. *Ухмыляется* :)")
     }
 
 
     private fun drawAnimations() {
         val animationNames = model.animationPlayer.nameToAnimationMap.keys.toTypedArray()
-        val animationTypes = model.animationPlayer.typeToAnimationMap
+        val animationTypes =
+            model.animationPlayer.typeToAnimationMap.map { it.key.name to it.value.name }.toMap() + animations
         var animationToChange: Pair<String, String>? = null
 
-        for (anim in animationTypes.map { it.key.toString() to it.value.name }
-            .sortedBy { AnimationType.valueOf(it.first).ordinal }) {
-            val index = ImInt(
-                animationNames.indexOf(
-                    if (anim.first !in animations.keys) anim.second else animations[anim.first]
-                )
-            )
-            if (ImGui.combo(anim.first.lowercase().capitalize() + " анимация", index, animationNames)) {
-                animationToChange = anim.first to animationNames[index.get()]
+        for (type in AnimationType.entries) {
+            val anim = animationTypes[type.name] ?: ""
+            val index = ImInt(animationNames.indexOf(anim))
+            if (ImGui.combo(type.name.lowercase().capitalize() + " анимация", index, animationNames)) {
+                animationToChange = type.name to animationNames[index.get()]
             }
         }
 
-        animationToChange?.let { animations[it.first] = it.second }
+        animationToChange?.let {
+            animations[it.first] = it.second
+            npc[AnimatedEntityCapability::class].animations.put(AnimationType.valueOf(it.first), it.second)
+        }
     }
 
     private fun drawTextures() {
@@ -204,63 +232,81 @@ class NPCCreatorGui(x: Double, y: Double, z: Double) : HollowScreen() {
             text.set(textures.computeIfAbsent(texture) { "" })
             ImGui.pushID(texture)
             if (ImGui.inputText("", text, ImGuiInputTextFlags.NoUndoRedo)) {
-                textures[texture] = text.get()
+                val new = text.get()
+                textures[texture] = new
+                if (new.isEmpty()) npc[AnimatedEntityCapability::class].textures.remove(texture)
+                else npc[AnimatedEntityCapability::class].textures[texture] = new
             }
             ImGui.popID()
         }
     }
 
     private fun drawTransforms() {
+        var changed = false
+
         ImGui.text("Перемещение")
         ImGui.separator()
         ImGui.pushItemWidth(120f)
 
         ImGui.pushID("T")
-        ImGui.dragFloat("X", tX, 0.1f, -10f, 10f); ImGui.sameLine()
-        ImGui.dragFloat("Y", tY, 0.1f, -10f, 10f); ImGui.sameLine()
-        ImGui.dragFloat("Z", tZ, 0.1f, -10f, 10f)
+        changed = changed or ImGui.dragFloat("X", tX, 0.01f, -10f, 10f); ImGui.sameLine()
+        changed = changed or ImGui.dragFloat("Y", tY, 0.01f, -10f, 10f); ImGui.sameLine()
+        changed = changed or ImGui.dragFloat("Z", tZ, 0.01f, -10f, 10f)
         ImGui.popID()
 
         ImGui.text("Поворот")
         ImGui.separator()
 
         ImGui.pushID("R")
-        ImGui.dragFloat("X", rX, 1f, -360f, 360f); ImGui.sameLine()
-        ImGui.dragFloat("Y", rY, 1f, -360f, 360f); ImGui.sameLine()
-        ImGui.dragFloat("Z", rZ, 1f, -360f, 360f)
+        changed = changed or ImGui.dragFloat("X", rX, 1f, -360f, 360f); ImGui.sameLine()
+        changed = changed or ImGui.dragFloat("Y", rY, 1f, -360f, 360f); ImGui.sameLine()
+        changed = changed or ImGui.dragFloat("Z", rZ, 1f, -360f, 360f)
         ImGui.popID()
 
         ImGui.text("Масштаб")
         ImGui.separator()
 
         ImGui.pushID("S")
-        ImGui.dragFloat("X", sX, 0.1f, 0.01f, 10f); ImGui.sameLine()
-        ImGui.dragFloat("Y", sY, 0.1f, 0.01f, 10f); ImGui.sameLine()
-        ImGui.dragFloat("Z", sZ, 0.1f, 0.01f, 10f)
+        changed = changed or ImGui.dragFloat("X", sX, 0.01f, 0.001f, 10f); ImGui.sameLine()
+        changed = changed or ImGui.dragFloat("Y", sY, 0.01f, 0.001f, 10f); ImGui.sameLine()
+        changed = changed or ImGui.dragFloat("Z", sZ, 0.01f, 0.001f, 10f)
         ImGui.popID()
 
         ImGui.popItemWidth()
+
+        if (changed) {
+            npc[AnimatedEntityCapability::class].transform =
+                Transform(tX[0], tY[0], tZ[0], rX[0], rY[0], rZ[0], sX[0], sY[0], sZ[0])
+        }
     }
+
+    override fun isPauseScreen() = false
 }
 
 @HollowPacketV2
 @Serializable
 class NPCCreatorPacket(
-    val name: String,
-    val model: String,
-    val world: String,
-    val pos: @Serializable(ForVec3::class) Vec3,
-    val showName: Boolean,
-    val animations: Map<AnimationType, String>,
-    val textures: Map<String, String>,
-    val tX: Float, val tY: Float, val tZ: Float,
-    val rX: Float, val rY: Float, val rZ: Float,
-    val sX: Float, val sY: Float, val sZ: Float,
+    private val id: Int,
+    private val name: String,
+    private val model: String,
+    private val showName: Boolean,
+    private val switchHeadRot: Boolean,
+    private val invulnerable: Boolean,
+    private val hitboxWidth: Float,
+    private val hitboxHeight: Float,
+    private val hitboxMode: HitboxMode,
+    private val animations: Map<AnimationType, String>,
+    private val textures: Map<String, String>,
+    private val tX: Float, private val tY: Float, private val tZ: Float,
+    private val rX: Float, private val rY: Float, private val rZ: Float,
+    private val sX: Float, private val sY: Float, private val sZ: Float,
 ) : HollowPacketV3<NPCCreatorPacket> {
     override fun handle(player: Player, data: NPCCreatorPacket) {
-        val entity = NPCEntity(player.level).apply {
-            setPos(pos)
-            level.addFreshEntity(this)
+        val entity = player.level.getEntity(id) as? NPCEntity
+
+        if (entity == null) {
+            player.sendSystemMessage("Ошибка, персонаж не был заспавнен!".mcText.colored(0xFF2222))
+            return
         }
 
         entity[AnimatedEntityCapability::class].apply {
@@ -268,11 +314,16 @@ class NPCCreatorPacket(
             animations.putAll(this@NPCCreatorPacket.animations)
             textures.putAll(this@NPCCreatorPacket.textures)
             transform = Transform(tX, tY, tZ, rX, rY, rZ, sX, sY, sZ)
+            switchHeadRot = this@NPCCreatorPacket.switchHeadRot
         }
-        entity.moveTo(pos.x, pos.y, pos.z, player.yHeadRot, player.xRot)
+        entity[NPCCapability::class].hitboxMode = hitboxMode
 
-        entity.isCustomNameVisible = this@NPCCreatorPacket.showName && this@NPCCreatorPacket.name.isNotEmpty()
-        entity.customName = this@NPCCreatorPacket.name.mcText
+        entity.isInvulnerable = invulnerable
+        entity.isCustomNameVisible = showName && this@NPCCreatorPacket.name.isNotEmpty()
+        entity.customName = name.mcText
+        entity.setDimensions(hitboxWidth to hitboxHeight)
+        entity.refreshDimensions()
     }
+
 
 }

@@ -79,6 +79,8 @@ class NPCEntity : PathfinderMob, IAnimated, Merchant, ICapabilitySyncer {
 
     init {
         setCanPickUpLoot(true)
+
+        this[NPCCapability::class].script.init(this)
     }
 
     override fun defineSynchedData() {
@@ -179,6 +181,8 @@ class NPCEntity : PathfinderMob, IAnimated, Merchant, ICapabilitySyncer {
     override fun tick() {
         super.tick()
         npcTarget.tick(this)
+
+        if(!isClientSide && isAlive) this[NPCCapability::class].script.update()
     }
 
     override fun remove(pReason: RemovalReason) {

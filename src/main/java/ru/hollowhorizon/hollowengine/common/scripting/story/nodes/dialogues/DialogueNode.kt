@@ -230,7 +230,7 @@ class DialogueContext(val action: ChoiceAction, stateMachine: StoryStateMachine)
 
 }
 
-private fun DialogueOptions.update(players: List<ServerPlayer>, function: DialogueOptions.() -> Unit) {
+fun DialogueOptions.update(players: List<ServerPlayer>, function: DialogueOptions.() -> Unit) {
     this.function()
     players.forEach { UpdateDialoguePacket(this).send(PacketDistributor.PLAYER.with { it }) }
 }

@@ -26,14 +26,24 @@ package ru.hollowhorizon.hollowengine.common.capabilities
 
 import kotlinx.serialization.Serializable
 import net.minecraft.core.BlockPos
-import net.minecraft.server.level.ServerLevel
+import net.minecraft.world.level.Level
+import net.minecraft.world.phys.AABB
 import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2
 
-@HollowCapabilityV2(ServerLevel::class)
-class StructuresCapability: CapabilityInstance() {
-    val structures by syncableMap<String, Pos>()
+@HollowCapabilityV2(Level::class)
+class StructuresCapability : CapabilityInstance() {
+    val structures by syncableMap<String, SAABB>()
 }
 
 @Serializable
-class Pos(val x: Int, val y: Int, val z: Int)
+class SAABB(val x0: Int, val y0: Int, val z0: Int, val x1: Int, val y1: Int, val z1: Int) {
+    fun toAABB() = AABB(BlockPos(x0, y0, z0), BlockPos(x1+1, y1+1, z1+1))
+
+    val center
+        get() = BlockPos(
+            x0 + (x1 - x0) / 2,
+            y0 + (y1 - y0) / 2,
+            z0 + (z1 - z0) / 2
+        )
+}

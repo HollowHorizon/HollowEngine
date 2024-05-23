@@ -77,9 +77,9 @@ public abstract class LocateCommandMixin {
                 if(structure.get() instanceof ScriptedStructure) {
                     var name = ((ScriptedStructure) structure.get()).getLocation().toString();
                     if (capability.getStructures().containsKey(name)) {
-                        var pos = capability.getStructures().get(name);
+                        var pos = capability.getStructures().get(name).getCenter();
 
-                        var pair = new Pair<>(new BlockPos(pos.getX(), pos.getY(), pos.getZ()), structure);
+                        var pair = new Pair<>(pos, structure);
 
                         cir.setReturnValue(showLocateResult(pSource, pStructure, blockpos, pair, "commands.locate.biome.success", true));
                     }

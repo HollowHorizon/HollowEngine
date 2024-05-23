@@ -38,11 +38,13 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hc.client.utils.nbt.ForVec3
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.utils.get
+import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.client.gui.NPCCreatorGui
-import ru.hollowhorizon.hollowengine.client.screen.npcs.ModelEditScreen
+import ru.hollowhorizon.hollowengine.client.gui.NPCToolGui
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.tabs.HOLLOWENGINE_TAB
 
@@ -54,8 +56,11 @@ class NpcTool : Item(Properties().tab(HOLLOWENGINE_TAB).stacksTo(1)) {
         pInteractionTarget: LivingEntity,
         pUsedHand: InteractionHand,
     ): InteractionResult {
-        if (pUsedHand == InteractionHand.MAIN_HAND && pPlayer.level.isClientSide && pInteractionTarget is NPCEntity) {
-            Minecraft.getInstance().setScreen(ModelEditScreen(pInteractionTarget))
+        if (pUsedHand == InteractionHand.MAIN_HAND && pPlayer.level.isClientSide &&
+            pInteractionTarget is NPCEntity && pPlayer.hasPermissions(2)
+        ) {
+            NPCToolGui(pInteractionTarget).open()
+            return InteractionResult.SUCCESS
         }
 
         return super.interactLivingEntity(pStack, pPlayer, pInteractionTarget, pUsedHand)
@@ -75,7 +80,12 @@ class NpcTool : Item(Properties().tab(HOLLOWENGINE_TAB).stacksTo(1)) {
 
             val pos = pPlayer.pick(25.0, 0f, false).location
 
-            OpenEditorScreen(pos).send(pPlayer as ServerPlayer)
+            val npc = NPCEntity(pLevel)
+            npc[AnimatedEntityCapability::class].model = "hollowengine:models/entity/player_model.gltf"
+            npc.setPos(pos)
+            pLevel.addFreshEntity(npc)
+
+            OpenEditorScreen(npc.id).send(pPlayer as ServerPlayer)
         }
 
         return super.use(pLevel, pPlayer, pUsedHand)
@@ -84,9 +94,11 @@ class NpcTool : Item(Properties().tab(HOLLOWENGINE_TAB).stacksTo(1)) {
 
 @HollowPacketV2
 @Serializable
-class OpenEditorScreen(val pos: @Serializable(ForVec3::class) Vec3) : HollowPacketV3<OpenEditorScreen> {
+class OpenEditorScreen(private val npcId: Int) : HollowPacketV3<OpenEditorScreen> {
     override fun handle(player: Player, data: OpenEditorScreen) {
-        Minecraft.getInstance().setScreen(NPCCreatorGui(pos.x, pos.y, pos.z))
+        val level = Minecraft.getInstance().level ?: return
+        val npc = level.getEntity(npcId) as? NPCEntity ?: NPCEntity(level)
+        Minecraft.getInstance().setScreen(NPCCreatorGui(npc, npcId))
     }
 
 }

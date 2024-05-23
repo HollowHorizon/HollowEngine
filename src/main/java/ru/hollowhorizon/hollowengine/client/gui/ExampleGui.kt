@@ -25,11 +25,12 @@
 package ru.hollowhorizon.hollowengine.client.gui
 
 import com.mojang.blaze3d.vertex.PoseStack
+import imgui.ImGui
+import imgui.flag.ImGuiWindowFlags
+import net.minecraft.client.Minecraft
+import ru.hollowhorizon.hc.client.imgui.ImGuiMethods.centredWindow
 import ru.hollowhorizon.hc.client.imgui.ImguiHandler
 import ru.hollowhorizon.hc.client.screens.HollowScreen
-import ru.hollowhorizon.hollowengine.client.gui.scripting.CodeEditor
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
-import java.io.File
 
 class ExampleGui : HollowScreen() {
     val registry = Registry<State, Track>(State()).apply {
@@ -54,10 +55,18 @@ class ExampleGui : HollowScreen() {
     }
 
 
-
     override fun render(pPoseStack: PoseStack, pMouseX: Int, pMouseY: Int, pPartialTick: Float) {
         ImguiHandler.drawFrame {
-            CodeEditor.draw()
+            val window = Minecraft.getInstance().window
+            ImGui.setNextWindowSize(window.width.toFloat(), window.height.toFloat())
+            centredWindow(args = ImGuiWindowFlags.AlwaysAutoResize or ImGuiWindowFlags.NoTitleBar or ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoBackground) {
+                val size = 0.4f
+                ImGui.setNextWindowPos(0f, (1f - size) * window.height)
+                if (ImGui.beginChild("Timeline", window.width.toFloat(), window.height * size)) {
+                    Sequentity.draw(registry)
+                }
+                ImGui.endChild()
+            }
         }
     }
 }

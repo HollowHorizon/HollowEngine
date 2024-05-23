@@ -36,20 +36,20 @@ class CodeEditorGui: HollowScreen() {
 
     override fun render(pPoseStack: PoseStack, pMouseX: Int, pMouseY: Int, pPartialTick: Float) {
         ImguiHandler.drawFrame {
-            CodeEditor.draw()
+            IDEGui.draw()
             if(shouldClose) onClose()
         }
     }
 
     override fun onClose() {
         if(!shouldClose) {
-            CodeEditor.shouldClose = true
+            IDEGui.shouldClose = true
             shouldClose = true
             return
         }
 
         super.onClose()
-        CodeEditor.onClose()
+        IDEGui.onClose()
         shouldClose = false
     }
 
