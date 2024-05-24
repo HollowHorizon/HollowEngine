@@ -81,6 +81,7 @@ class HollowEngine {
         if (FMLEnvironment.dist.isClient) {
             initKeys()
             forgeBus.addListener(ClientEvents::renderOverlay)
+            forgeBus.addListener(ClientEvents::onScreenOpen)
             forgeBus.addListener(ClientEvents::onKeyPressed)
             forgeBus.addListener(ClientEvents::onClicked)
             forgeBus.addListener(ClientEvents::onTooltipRender)

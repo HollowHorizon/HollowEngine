@@ -25,22 +25,27 @@
 package ru.hollowhorizon.hollowengine.client
 
 import com.mojang.blaze3d.platform.InputConstants
+import imgui.ImGui
+import imgui.flag.ImGuiDir
+import imgui.flag.ImGuiWindowFlags
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.TitleScreen
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.Item
-import net.minecraftforge.client.event.InputEvent
-import net.minecraftforge.client.event.RegisterKeyMappingsEvent
-import net.minecraftforge.client.event.RenderGuiOverlayEvent
-import net.minecraftforge.client.event.RenderPlayerEvent
+import net.minecraftforge.client.event.*
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay
 import net.minecraftforge.event.entity.player.ItemTooltipEvent
+import net.minecraftforge.fml.ModList
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.screens.ImGuiScreen
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.client.gui.height
+import ru.hollowhorizon.hollowengine.client.gui.width
 import ru.hollowhorizon.hollowengine.client.render.PlayerRenderer
 import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
 import ru.hollowhorizon.hollowengine.client.screen.overlays.MouseOverlay
@@ -59,6 +64,7 @@ object ClientEvents {
     val OPEN_EVENT_LIST = KeyMapping(keyBindName("event_list"), GLFW.GLFW_KEY_GRAVE_ACCENT, HE_CATEGORY)
     val TOGGLE_RECORDING = KeyMapping(keyBindName("toggle_recording"), GLFW.GLFW_KEY_V, HE_CATEGORY)
     val canceledButtons = hashSetOf<MouseButton>()
+    var ignoreOptifine = false
     private val customTooltips = HashMap<Item, MutableList<Component>>()
 
     private fun keyBindName(name: String) = "key.${HollowEngine.MODID}.$name"
@@ -70,6 +76,29 @@ object ClientEvents {
 
     fun resetClientScripting() {
         customTooltips.clear()
+    }
+
+    @JvmStatic
+    fun onScreenOpen(event: ScreenEvent.Opening) {
+        if (event.screen is TitleScreen && !ignoreOptifine && ModList.get().isLoaded("optifine")) {
+            Minecraft.getInstance().mainRenderTarget.clear(Minecraft.ON_OSX)
+            event.newScreen = ImGuiScreen {
+                ImGui.getBackgroundDrawList().addRectFilled(0f, 0f, width, height, ImGui.colorConvertFloat4ToU32(0f, 0f, 0f, 1f))
+                ImGui.begin(
+                    "Предупреждение",
+                    ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.AlwaysAutoResize
+                )
+                ImGui.setWindowPos(width / 2 - ImGui.getWindowSizeX() / 2, height / 2 - ImGui.getWindowSizeY() / 2)
+                ImGui.textWrapped("Внимание, HollowEngine не совместим с OptiFine, рекомендуем использовать вместо него моды Embeddium и Oculus!")
+                if (ImGui.button("Мне и с OptiFine норм")) {
+                    ignoreOptifine = true
+                    Minecraft.getInstance().screen?.onClose()
+                }
+                ImGui.sameLine()
+                if (ImGui.button("Ладно, сейчас установлю")) Minecraft.getInstance().stop()
+                ImGui.end()
+            }
+        }
     }
 
     @JvmStatic
