@@ -81,7 +81,6 @@ object ClientEvents {
     @JvmStatic
     fun onScreenOpen(event: ScreenEvent.Opening) {
         if (event.screen is TitleScreen && !ignoreOptifine && ModList.get().isLoaded("optifine")) {
-            Minecraft.getInstance().mainRenderTarget.clear(Minecraft.ON_OSX)
             event.newScreen = ImGuiScreen {
                 ImGui.getBackgroundDrawList().addRectFilled(0f, 0f, width, height, ImGui.colorConvertFloat4ToU32(0f, 0f, 0f, 1f))
                 ImGui.begin(
