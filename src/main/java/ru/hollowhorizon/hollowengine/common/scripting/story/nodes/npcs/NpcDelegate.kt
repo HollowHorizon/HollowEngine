@@ -60,7 +60,7 @@ class NpcDelegate(
     }
 
     fun spawn() {
-        if(entityUUID != null) return
+        //if(entityUUID != null) return
 
         check(ResourceLocation.isValidResourceLocation(settings.model)) { "Invalid model path: ${settings.model}" }
 
@@ -69,15 +69,15 @@ class NpcDelegate(
         val level = manager.server.getLevel(dimension)
             ?: throw IllegalStateException("Dimension ${settings.world} not found. Or not loaded")
 
-        val npcs = level[StoriesCapability::class].activeNpcs
+        //val npcs = level[StoriesCapability::class].activeNpcs
 
-        npcs.entries.find { it.value == settings.name }?.key?.let {
-            entityUUID = UUID.fromString(it)
-            manager.scriptRequirements += {
-                !npcs.containsKey(entityUUID.toString()) || property.isLoaded
-            }
-            return
-        }
+//        npcs.entries.find { it.value == settings.name }?.key?.let {
+//            entityUUID = UUID.fromString(it)
+//            manager.scriptRequirements += {
+//                !npcs.containsKey(entityUUID.toString()) || property.isLoaded
+//            }
+//            return
+//        }
 
         val entity = NPCEntity(level).apply {
             setPos(settings.pos.x, settings.pos.y, settings.pos.z)
@@ -107,14 +107,14 @@ class NpcDelegate(
             customName = settings.name.mcText
 
             level.addFreshEntity(this)
-            npcs[this.uuid.toString()] = settings.name
+            //npcs[this.uuid.toString()] = settings.name
         }
 
         entityUUID = entity.uuid
 
-        manager.scriptRequirements += {
-            !npcs.containsKey(entityUUID.toString()) || property.isLoaded
-        }
+//        manager.scriptRequirements += {
+//            !npcs.containsKey(entityUUID.toString()) || property.isLoaded
+//        }
     }
 
     override fun getValue(thisRef: Any?, property: KProperty<*>): Safe<NPCEntity> {
