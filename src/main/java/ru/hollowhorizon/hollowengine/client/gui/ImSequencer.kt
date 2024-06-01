@@ -32,9 +32,6 @@ import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiMouseCursor
 import imgui.type.ImBoolean
 import imgui.type.ImInt
-import ru.hollowhorizon.hc.client.imgui.FontAwesomeIcons
-import ru.hollowhorizon.hollowengine.client.gui.sequencer.events
-import ru.hollowhorizon.hollowengine.client.gui.sequencer.lister
 import kotlin.math.abs
 
 object Sequentity {
@@ -85,9 +82,21 @@ object Sequentity {
             val cursor = ImVec2(w.x + state.pan.x, w.y + state.pan.y)
             val cursorPos = cursor.clone() + pos - ImGui.getWindowPos()
             val size = timeToPx(1f)
-            painter.addCircleFilled(cursorPos.x, cursorPos.y, size, ImGui.colorConvertFloat4ToU32(0.2f, 0.63f, 0.92f,1f), 4)
-            if(ImGui.isMouseHoveringRect(cursorPos.x - size/2, cursorPos.y - size/2, cursorPos.x + size/2, cursorPos.y + size/2)) {
-                painter.addCircle(cursorPos.x, cursorPos.y, size, ImGui.colorConvertFloat4ToU32(1f, 1f, 1f,1f), 4, 3f)
+            painter.addCircleFilled(
+                cursorPos.x,
+                cursorPos.y,
+                size,
+                ImGui.colorConvertFloat4ToU32(0.2f, 0.63f, 0.92f, 1f),
+                4
+            )
+            if (ImGui.isMouseHoveringRect(
+                    cursorPos.x - size / 2,
+                    cursorPos.y - size / 2,
+                    cursorPos.x + size / 2,
+                    cursorPos.y + size / 2
+                )
+            ) {
+                painter.addCircle(cursorPos.x, cursorPos.y, size, ImGui.colorConvertFloat4ToU32(1f, 1f, 1f, 1f), 4, 3f)
             }
         }
         point(10f)
@@ -169,7 +178,7 @@ object Sequentity {
                     state.targetPan.x += ImGui.getIO().mouseDelta.x
                     state.targetPan.y += ImGui.getIO().mouseDelta.y
                     val posY = state.targetPan.y - ImGui.getWindowPos().y - timeToPx(1f)
-                    if(posY > 0) state.targetPan.y = ImGui.getWindowPos().y + timeToPx(1f)
+                    if (posY > 0) state.targetPan.y = ImGui.getWindowPos().y + timeToPx(1f)
                 }
 
                 panH -> state.targetPan.x += ImGui.getIO().mouseDelta.x

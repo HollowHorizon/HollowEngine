@@ -26,20 +26,17 @@ package ru.hollowhorizon.hollowengine.client
 
 import com.mojang.blaze3d.platform.InputConstants
 import imgui.ImGui
-import imgui.flag.ImGuiDir
 import imgui.flag.ImGuiWindowFlags
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.TitleScreen
 import net.minecraft.network.chat.Component
 import net.minecraft.world.item.Item
-
 import net.minecraftforge.client.event.*
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay
 import net.minecraftforge.event.entity.player.ItemTooltipEvent
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraftforge.fml.ModList
-
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.screens.ImGuiScreen
@@ -47,16 +44,13 @@ import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hollowengine.HollowEngine
-
 import ru.hollowhorizon.hollowengine.client.gui.height
 import ru.hollowhorizon.hollowengine.client.gui.width
-
 import ru.hollowhorizon.hollowengine.client.render.PlayerRenderer
 import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
 import ru.hollowhorizon.hollowengine.client.screen.overlays.BoxRenderer
 import ru.hollowhorizon.hollowengine.client.screen.overlays.MouseOverlay
 import ru.hollowhorizon.hollowengine.client.screen.overlays.RecordingDriver
-import ru.hollowhorizon.hollowengine.client.screen.overlays.SelectingOverlay
 import ru.hollowhorizon.hollowengine.client.screen.recording.ModifyRecordingScreen
 import ru.hollowhorizon.hollowengine.client.screen.recording.StartRecordingScreen
 import ru.hollowhorizon.hollowengine.common.network.KeybindPacket
@@ -141,8 +135,6 @@ object ClientEvents {
             event.key,
             event.scanCode
         )
-
-        //if(event.key == GLFW.GLFW_KEY_M) ExampleGui().open()
 
         if (Minecraft.getInstance().screen != null) return
 

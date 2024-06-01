@@ -90,10 +90,9 @@ mixin {
 
 dependencies {
     minecraft("net.minecraftforge:forge:${mcVersion}-${forgeVersion}")
+    
+    annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
 
-    implementation(kotlin("script-runtime"))
-    implementation(kotlin("scripting-jvm-host"))
-    implementation(kotlin("scripting-jvm"))
     implementation("thedarkcolour:kotlinforforge:$kffVersion")
     implementation(fg.deobf("ru.hollowhorizon:kotlinscript:${ksffVersion}"))
     implementation(fg.deobf("ru.hollowhorizon:hc:${mcVersion}-${hcVersion}"))
@@ -109,8 +108,6 @@ dependencies {
 
     compileOnly(fg.deobf("curse.maven:ftb-library-forge-404465:4661834"))
     compileOnly(fg.deobf("curse.maven:ftb-quests-forge-289412:5060506"))
-
-    annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
 }
 
 fun Jar.createManifest() = manifest {
