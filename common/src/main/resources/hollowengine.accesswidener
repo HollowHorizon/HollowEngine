@@ -1,0 +1,9 @@
+accessWidener v2 named
+
+accessible method net/minecraft/client/renderer/entity/EntityRenderers register (Lnet/minecraft/world/entity/EntityType;Lnet/minecraft/client/renderer/entity/EntityRendererProvider;)V
+accessible field com/mojang/blaze3d/platform/GlStateManager TEXTURES [Lcom/mojang/blaze3d/platform/GlStateManager$TextureState;
+accessible field com/mojang/blaze3d/platform/GlStateManager activeTexture I
+accessible class com/mojang/blaze3d/platform/GlStateManager$TextureState
+
+accessible class net/minecraft/client/renderer/RenderStateShard$OutputStateShard
+accessible field net/minecraft/client/renderer/RenderStateShard PARTICLES_TARGET Lnet/minecraft/client/renderer/RenderStateShard$OutputStateShard;
