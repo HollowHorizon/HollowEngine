@@ -15,7 +15,7 @@ import ru.hollowhorizon.hollowengine.common.world.StoryTellerWorldChunkGenerator
 
 object ModDimensions : HollowRegistry() {
     val STORYTELLER_DIMENSION =
-        ResourceKey.create(Registries.DIMENSION, ResourceLocation(HollowEngine.MODID, "storyteller_dimension"))
+        ResourceKey.create(Registries.DIMENSION, ResourceLocation.fromNamespaceAndPath(HollowEngine.MODID, "storyteller_dimension"))
     val STORYTELLER_GENERATOR: RegistryObject<MapCodec<StoryTellerWorldChunkGenerator>> by register(
         "${HollowEngine.MODID}:storyteller_dimension".rl,
         registry = BuiltInRegistries.CHUNK_GENERATOR

@@ -1,118 +1,80 @@
+import net.fabricmc.loom.api.remapping.RemapperExtension
+import net.fabricmc.loom.api.remapping.RemapperParameters
+import net.fabricmc.loom.extension.LoomGradleExtensionImpl
+import net.fabricmc.loom.extension.RemapperExtensionHolder
+import net.fabricmc.tinyremapper.TinyRemapper
+
 plugins {
-    id("multiloader-loader")
-    id("net.minecraftforge.gradle").version("[6.0,6.2)")
-    id("org.spongepowered.mixin").version("0.7-SNAPSHOT")
-    id("org.parchmentmc.librarian.forgegradle").version("1.+")
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 val minecraft_version: String by project
 val mod_name: String by project
 val mod_id: String by project
 val forge_version: String by project
-val imguiVersion: String by project
+val common: Configuration by configurations.creating
+val shadowCommon: Configuration by configurations.creating
+
+loom {
+    forge {
+        convertAccessWideners = true
+        extraAccessWideners.add(loom.accessWidenerPath.get().asFile.name)
+        mixinConfig("$mod_id.mixins.json")
+        mixinConfig("$mod_id.forge.mixins.json")
+        (loom as LoomGradleExtensionImpl).remapperExtensions.add(ForgeFixer)
+    }
+}
+
+architectury {
+    platformSetupLoomIde()
+    forge()
+}
+
+configurations {
+    compileClasspath.get().extendsFrom(common)
+    runtimeClasspath.get().extendsFrom(common)
+    named("developmentForge").get().extendsFrom(common)
+}
 
 base {
     archivesName = "$mod_name-forge-$minecraft_version"
 }
 
-mixin {
-    add(sourceSets.main.get(), "$mod_id.refmap.json")
-
-    config("$mod_id.mixins.json")
-    config("$mod_id.forge.mixins.json")
-}
-
-minecraft {
-    mappings("parchment", "2024.05.01-$minecraft_version")
-
-    copyIdeResources = true
-
-    val at = file("src/main/resources/META-INF/accesstransformer.cfg")
-    if (at.exists()) accessTransformer(at)
-
-    runs {
-        create("client") {
-            workingDirectory(file("runs/client"))
-            ideaModule("${rootProject.name}.${project.name}.main")
-            taskName("Client")
-            mods {
-                create("modClientRun") {
-                    source(sourceSets.main.get())
-                }
-            }
-        }
-
-        create("server") {
-            workingDirectory(file("runs/server"))
-            ideaModule("${rootProject.name}.${project.name}.main")
-            taskName("Server")
-            mods {
-                create("modServerRun") {
-                    source(sourceSets.main.get())
-                }
-            }
-        }
-
-        create("data") {
-            workingDirectory(file("runs/data"))
-            ideaModule("${rootProject.name}.${project.name}.main")
-            args(
-                "--mod", mod_id, "--all",
-                "--output", file("src/generated/resources/"),
-                "--existing", file("src/main/resources/")
-            )
-            taskName("Data")
-            mods {
-                create("modDataRun") {
-                    source(sourceSets.main.get())
-                }
-            }
-        }
-    }
-}
-
-sourceSets.main.get().resources.srcDir("src/generated/resources")
-repositories {
-    mavenCentral()
-    maven {
-        name = "Kotlin for Forge"
-        url = uri("https://thedarkcolour.github.io/KotlinForForge/")
-        content { includeGroup("thedarkcolour") }
-    }
-    flatDir { dirs("libs") }
-}
 dependencies {
-    minecraft("net.minecraftforge:forge:${minecraft_version}-${forge_version}")
-    annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
+    forge("net.minecraftforge:forge:${minecraft_version}-${forge_version}")
 
     // Hack fix for now, force jopt-simple to be exactly 5.0.4 because Mojang ships that version, but some transtive dependencies request 6.0+
-    implementation("net.sf.jopt-simple:jopt-simple:5.0.4") { version { strictly("5.0.4") } }
+    implementation("net.sf.jopt-simple:jopt-simple:5.0.4")
 
-    implementation("thedarkcolour:kotlinforforge:4.10.0")
-    implementation("ru.hollowhorizon:hollowcore-forge:$minecraft_version-1.0.0")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.22")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.6.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
-    implementation("org.ow2.asm:asm:9.7")
-    implementation("org.reflections:reflections:0.10.2")
-
-    implementation("io.github.spair:imgui-java-binding:$imguiVersion")
-    implementation("io.github.spair:imgui-java-lwjgl3:$imguiVersion")
-    implementation("io.github.spair:imgui-java-natives-windows:$imguiVersion")
-    implementation("io.github.spair:imgui-java-natives-linux:$imguiVersion")
-    implementation("io.github.spair:imgui-java-natives-macos:$imguiVersion")
+    common(project(path = ":common", configuration = "namedElements")) { isTransitive = false }
+    shadowCommon(project(path = ":common", configuration = "transformProductionForge")) { isTransitive = false }
 }
 
-publishing {
-    publications {
-        create<MavenPublication>(mod_name) {
-            fg.component(this)
-        }
+tasks {
+    shadowJar {
+        configurations = listOf(shadowCommon)
+        archiveClassifier = "dev-shadow"
+    }
+
+    remapJar {
+        inputFile.set(shadowJar.get().archiveFile)
+        dependsOn(shadowJar.get())
+        archiveClassifier.set(null as String?)
     }
 }
 
-sourceSets.forEach { src: SourceSet ->
-    val dir = layout.buildDirectory.dir("sourceSets/${src.name}")
-    src.output.setResourcesDir(dir)
-    src.java.destinationDirectory = dir
+object ForgeFixer : RemapperExtensionHolder(object : RemapperParameters {}) {
+    override fun getRemapperExtensionClass(): Property<Class<out RemapperExtension<*>>> {
+        throw UnsupportedOperationException("How did you call this method?")
+    }
+
+    override fun apply(
+        tinyRemapperBuilder: TinyRemapper.Builder,
+        sourceNamespace: String,
+        targetNamespace: String,
+        objectFactory: ObjectFactory,
+    ) {
+        // Under some strange circumstances there are errors with mapping source names, but that doesn't stop me from compiling the jar, does it?
+        tinyRemapperBuilder.ignoreConflicts(true)
+    }
 }

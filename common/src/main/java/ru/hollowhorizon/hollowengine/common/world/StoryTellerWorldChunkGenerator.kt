@@ -45,21 +45,20 @@ class StoryTellerWorldChunkGenerator(biomeSource: BiomeSource) : ChunkGenerator(
     override fun getGenDepth(): Int = 384
 
     override fun fillFromNoise(
-        pExecutor: Executor,
-        pBlender: Blender,
-        pRandom: RandomState,
-        pStructureManager: StructureManager,
-        pChunk: ChunkAccess,
+        blender: Blender,
+        randomState: RandomState,
+        structureManager: StructureManager,
+        chunkAccess: ChunkAccess,
     ): CompletableFuture<ChunkAccess> {
-        if (pChunk.pos.x == 0 && pChunk.pos.z == 0) {
-            val heightmapOcean = pChunk.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG)
-            val heightmapSurface = pChunk.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG)
-            pChunk.setBlockState(BlockPos(0, 49, 0), Blocks.DIAMOND_BLOCK.defaultBlockState(), false)
+        if (chunkAccess.pos.x == 0 && chunkAccess.pos.z == 0) {
+            val heightmapOcean = chunkAccess.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG)
+            val heightmapSurface = chunkAccess.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG)
+            chunkAccess.setBlockState(BlockPos(0, 49, 0), Blocks.DIAMOND_BLOCK.defaultBlockState(), false)
             heightmapOcean.update(0, 49, 0, Blocks.DIAMOND_BLOCK.defaultBlockState())
             heightmapSurface.update(0, 49, 0, Blocks.DIAMOND_BLOCK.defaultBlockState())
         }
 
-        return CompletableFuture.completedFuture(pChunk)
+        return CompletableFuture.completedFuture(chunkAccess)
     }
 
     override fun getSeaLevel(): Int = -63

@@ -6,9 +6,11 @@
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "DimensionTypeMixin",
+    "GameTypeMixin",
     "RecipeManagerAccessor"
   ],
   "client": [
+    "InventoryMixin"
   ],
   "server": [],
   "injectors": {

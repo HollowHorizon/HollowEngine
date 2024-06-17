@@ -1,0 +1,94 @@
+package ru.hollowhorizon.hollowengine.client.gui
+
+import imgui.extension.nodeditor.NodeEditor
+import imgui.extension.nodeditor.NodeEditorConfig
+import imgui.extension.nodeditor.NodeEditorContext
+import imgui.extension.nodeditor.flag.NodeEditorStyleColor
+import imgui.extension.nodeditor.flag.NodeEditorStyleVar
+import imgui.flag.ImGuiStyleVar
+import imgui.flag.ImGuiWindowFlags
+import imgui.internal.ImGui
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.network.chat.Component
+import ru.hollowhorizon.hc.client.imgui.ImGuiMethods.centredWindow
+import ru.hollowhorizon.hc.client.imgui.ImguiHandler
+import ru.hollowhorizon.hc.client.utils.open
+import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.client.utils.toTexture
+import ru.hollowhorizon.hc.common.events.Event
+import ru.hollowhorizon.hc.common.events.SubscribeEvent
+import ru.hollowhorizon.hc.common.events.post
+import ru.hollowhorizon.hollowengine.client.gui.npcs.NpcBehaviorGui
+import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+
+class NPCToolGui(val npc: NPCEntity) : Screen(Component.empty()) {
+    val npcOptions = ArrayList<NpcOption>()
+
+    override fun init() {
+        super.init()
+
+        npcOptions.clear()
+
+        NpcOptionsEvent(npcOptions::add, npc).post()
+    }
+
+    override fun render(pPoseStack: GuiGraphics, pMouseX: Int, pMouseY: Int, pPartialTick: Float) {
+        renderBackground(pPoseStack, pMouseX, pMouseY, pPartialTick)
+        ImguiHandler.drawFrame {
+            val window = Minecraft.getInstance().window
+            val width = window.width * 0.9f
+            val height = window.height * 0.9f
+            ImGui.setNextWindowSize(width, height)
+            ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 15f)
+            ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 3f)
+            ImGui.pushStyleVar(ImGuiStyleVar.WindowTitleAlign, 0.5f, 0.5f)
+            centredWindow(
+                "Меню персонажа",
+                ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize or ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.AlwaysAutoResize
+            ) {
+                val size =
+                    (ImGui.getContentRegionMax().x - ImGui.getStyle().itemSpacingX * 4) / 4 - ImGui.getStyle().framePaddingX * 2
+
+                npcOptions.forEachIndexed { index, npcOption ->
+                    if (imageButton(npcOption.icon, npcOption.name, size)) npcOption.onClick()
+                    if ((index + 1) % 4 != 0) ImGui.sameLine()
+                }
+            }
+            ImGui.popStyleVar(3)
+        }
+    }
+
+    fun imageButton(image: String, desc: String, size: Float): Boolean {
+        val isClicked = ImGui.imageButton("hollowengine:textures/gui/icons/$image.png".rl.toTexture().id, size, size)
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupBorderSize, 3f)
+        if (ImGui.isItemHovered()) ImGui.setTooltip(desc)
+        ImGui.popStyleVar()
+        return isClicked
+    }
+}
+
+val config = NodeEditorConfig().apply {
+    settingsFile = "hollowengine/nodes.json"
+}
+val context = NodeEditorContext(config)
+
+@SubscribeEvent(100)
+fun registerNpcOptions(event: NpcOptionsEvent) {
+    event.register(NpcOption("Настройка персонажа", "wrench") { NPCCreatorGui(event.npc, event.npc.id).open() })
+    event.register(NpcOption("Поведение", "nodes") {
+        NpcBehaviorGui().open()
+    })
+    event.register(NpcOption("Редактор поз", "pose") {})
+    event.register(NpcOption("Торговля", "merchant") {})
+    event.register(NpcOption("Задания", "quest") {})
+}
+
+class NpcOption(val name: String, val icon: String, val onClick: () -> Unit)
+
+class NpcOptionsEvent(private val generator: (NpcOption) -> Unit, val npc: NPCEntity) : Event {
+    fun register(npc: NpcOption) {
+        generator(npc)
+    }
+}

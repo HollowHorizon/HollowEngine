@@ -118,5 +118,7 @@
   "node_categories.server": "Сервер",
   "node_categories.general": "Основное",
   "node_categories.waiters": "Ожидание",
-  "node_categories.dialogues": "Диалоги"
+  "node_categories.dialogues": "Диалоги",
+
+  "gameMode.storyteller": "Режим Рассказчика"
 }

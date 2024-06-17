@@ -1,44 +1,20 @@
 pluginManagement {
     repositories {
-        gradlePluginPortal()
         mavenCentral()
+        gradlePluginPortal()
+        maven("https://plugins.gradle.org/m2/")
         maven("https://maven.parchmentmc.org")
-        exclusiveContent {
-            forRepository {
-                maven("https://maven.fabricmc.net")
-            }
-            filter {
-                includeGroup("net.fabricmc")
-                includeGroup("fabric-loom")
-            }
-        }
-        exclusiveContent {
-            forRepository {
-                maven("https://maven.minecraftforge.net")
-            }
-            filter {
-                includeGroupAndSubgroups("net.minecraftforge")
-            }
-        }
+        maven("https://maven.fabricmc.net/")
+        maven("https://repo.spongepowered.org/repository/maven-public/")
+        maven("https://maven.neoforged.net/releases")
+        maven("https://maven.architectury.dev")
+        maven("https://maven.minecraftforge.net")
+    }
 
-
-        exclusiveContent {
-            forRepository {
-                maven("https://maven.neoforged.net/releases")
-            }
-            filter {
-                includeGroupAndSubgroups("net.neoforged")
-                includeGroup("codechicken")
-            }
-        }
-        exclusiveContent {
-            forRepository {
-                maven("https://repo.spongepowered.org/repository/maven-public")
-            }
-            filter {
-                includeGroupAndSubgroups("org.spongepowered")
-            }
-        }
+    val kotlinVersion: String by settings
+    plugins {
+        kotlin("jvm") version kotlinVersion
+        kotlin("plugin.serialization") version kotlinVersion
     }
 }
 
@@ -48,7 +24,9 @@ plugins {
 
 rootProject.name = "HollowEngine"
 
-include("common")
-include("fabric")
-include("forge")
-include("neoforge")
+include(
+    "common",
+    "fabric",
+    "forge",
+    "neoforge"
+)

@@ -1,77 +1,44 @@
-import org.jetbrains.kotlin.gradle.utils.extendsFrom
-
 plugins {
-    id("multiloader-loader")
-    id("net.neoforged.gradle.userdev").version("7.0.133")
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
-val minecraft_version: String by project
-val mod_name: String by project
-val mod_id: String by project
-val neoforge_version: String by project
-val imguiVersion: String by project
+val neoforgeVersion = project.properties["neoforge_version"].toString()
+val modName = project.properties["mod_name"].toString()
 
-val at = file("src/main/resources/META-INF/accesstransformer.cfg")
-if (at.exists()) minecraft.accessTransformers.file(at)
+val common: Configuration by configurations.creating
+val forgeLike: Configuration by configurations.creating
+val shadowCommon: Configuration by configurations.creating
 
-val library by configurations.creating
+architectury {
+    platformSetupLoomIde()
+    neoForge()
+}
+
+base {
+    archivesName = "$modName-neoforge"
+}
+
 configurations {
-    implementation.get().extendsFrom(library)
-}
-
-runs {
-    configureEach {
-        modSource(project.sourceSets.main.get())
-        dependencies {
-            runtime(library)
-        }
-    }
-    create("client") {
-        systemProperty("neoforge.enabledGameTestNamespaces", mod_id)
-    }
-    create("server") {
-        systemProperty("neoforge.enabledGameTestNamespaces", mod_id)
-        programArgument("--nogui")
-    }
-
-    create("gameTestServer") {
-        systemProperty("neoforge.enabledGameTestNamespaces", mod_id)
-    }
-
-    create("data") {
-        programArguments.addAll(
-            "--mod", mod_id, "--all", "--output",
-            file("src/generated/resources/").absolutePath,
-            "--existing", file("src/main/resources/").absolutePath
-        )
-    }
-}
-
-sourceSets.main.get().resources { srcDir("src/generated/resources") }
-
-repositories {
-    mavenCentral()
-    maven {
-        name = "Kotlin for Forge"
-        url = uri("https://thedarkcolour.github.io/KotlinForForge/")
-        content { includeGroup("thedarkcolour") }
-    }
-    flatDir { dirs("libs") }
+    compileClasspath.get().extendsFrom(common, forgeLike)
+    runtimeClasspath.get().extendsFrom(common, forgeLike)
+    named("developmentNeoForge").get().extendsFrom(common)
+    named("developmentForgeLike").get().extendsFrom(forgeLike)
 }
 
 dependencies {
-    implementation("net.neoforged:neoforge:$neoforge_version")
+    neoForge("net.neoforged:neoforge:$neoforgeVersion")
 
-    implementation("thedarkcolour:kotlinforforge-neoforge:5.2.0")
-    implementation("ru.hollowhorizon:hollowcore-neoforge:$minecraft_version-1.0.0")
+    common(project(path = ":common", configuration = "namedElements")) { isTransitive = false }
+    shadowCommon(project(path = ":common", configuration = "transformProductionNeoForge")) { isTransitive = false }
+}
 
-    compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-core:1.6.3")
-    compileOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
-    library("org.reflections:reflections:0.10.2")
+tasks {
+    shadowJar {
+        configurations = listOf(shadowCommon)
+        archiveClassifier = "dev-shadow"
+    }
 
-    library("io.github.spair:imgui-java-binding:$imguiVersion")
-    library("io.github.spair:imgui-java-lwjgl3:$imguiVersion")
-    library("io.github.spair:imgui-java-natives-windows:$imguiVersion")
-    library("io.github.spair:imgui-java-natives-linux:$imguiVersion")
-    library("io.github.spair:imgui-java-natives-macos:$imguiVersion")
+    remapJar {
+        inputFile.set(shadowJar.get().archiveFile)
+    }
 }

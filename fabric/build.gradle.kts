@@ -5,71 +5,59 @@ val mod_id: String by project
 val fabric_loader_version: String by project
 val fabric_version: String by project
 val imguiVersion: String by project
+val common: Configuration by configurations.creating {
+    isCanBeResolved = true
+    isCanBeConsumed = false
+}
+
+val shadowBundle: Configuration by configurations.creating {
+    isCanBeResolved = true
+    isCanBeConsumed = false
+}
 
 plugins {
-    id("multiloader-loader")
-    id("fabric-loom").version("1.6-SNAPSHOT")
+    id("com.github.johnrengelman.shadow") version "8.1.1"
+}
+
+architectury {
+    platformSetupLoomIde()
+    fabric()
+}
+
+base {
+    archivesName.set("${archivesName.get()}-fabric")
 }
 
 repositories {
-    maven("https://maven.cleanroommc.com")
-    maven("https://cursemaven.com")
-    flatDir {
-        dirs("libs")
-    }
+    flatDir { dirs("libs") }
+}
+
+configurations {
+    compileClasspath { extendsFrom(common) }
+    runtimeClasspath { extendsFrom(common) }
+    named("developmentFabric") { extendsFrom(common) }
 }
 
 dependencies {
-    minecraft("com.mojang:minecraft:$minecraft_version")
-    mappings(loom.officialMojangMappings())
+    modImplementation("net.fabricmc:fabric-loader:$fabric_loader_version") { include(this) }
+    modImplementation("net.fabricmc.fabric-api:fabric-api:$fabric_version") { include(this) }
 
-    modImplementation("ru.hollowhorizon:hollowcore-fabric:$minecraft_version-1.0.3")
-    modImplementation("net.fabricmc:fabric-language-kotlin:1.11.0+kotlin.2.0.0")
-    modImplementation("net.fabricmc:fabric-loader:$fabric_loader_version")
-    modImplementation("net.fabricmc.fabric-api:fabric-api:$fabric_version")
-    modImplementation("sodium:sodium-fabric:0.5.8+mc1.20.6")
-    modImplementation("iris:iris:1.7.0+mc1.20.6")
+    implementation("ru.hollowhorizon:HollowCore-fabric:$minecraft_version-1.0.0-dev-shadow")
+    modImplementation("mods:sodium-fabric:0.5.9+mc${minecraft_version}")
+    modImplementation("mods:iris:1.7.1+mc${minecraft_version}")
 
-    implementation("org.anarres:jcpp:1.4.14")
-    implementation("io.github.douira:glsl-transformer:2.0.1")
-    implementation("org.ow2.asm:asm:9.7")
-
-    fun shadow(dependency: String) {
-        include(dependency)
-        implementation(dependency)
-    }
-
-    shadow("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.22")
-    shadow("org.jetbrains.kotlinx:kotlinx-serialization-core:1.6.3")
-    shadow("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
-    shadow("io.github.classgraph:classgraph:4.8.173")
-    shadow("javassist:javassist:3.12.1.GA")
-    shadow("io.github.spair:imgui-java-binding:$imguiVersion")
-    shadow("io.github.spair:imgui-java-lwjgl3:$imguiVersion")
-    shadow("io.github.spair:imgui-java-natives-windows:$imguiVersion")
-    shadow("io.github.spair:imgui-java-natives-linux:$imguiVersion")
-    shadow("io.github.spair:imgui-java-natives-macos:$imguiVersion")
+    common(project(path = ":common", configuration = "namedElements")) { isTransitive = false }
+    shadowBundle(project(path = ":common", configuration = "transformProductionFabric"))
 }
 
-loom {
-    val aw = project(":common").file("src/main/resources/$mod_id.accesswidener")
-    if (aw.exists()) accessWidenerPath.set(aw)
-
-    mixin {
-        defaultRefmapName.set("${mod_id}.refmap.json")
+tasks {
+    shadowJar {
+        configurations = listOf(shadowBundle)
+        archiveClassifier = "dev-shadow"
+        relocate("team._0mods.aeternus", "team._0mods.aeternus.fabric")
     }
-    runs {
-        named("client") {
-            client()
-            configName = "Fabric Client"
-            ideConfigGenerated(true)
-            runDir("runs/client")
-        }
-        named("server") {
-            server()
-            configName = "Fabric Server"
-            ideConfigGenerated(true)
-            runDir("runs/server")
-        }
+
+    remapJar {
+        inputFile.set(shadowJar.get().archiveFile)
     }
 }
