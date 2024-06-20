@@ -157,6 +157,10 @@ allprojects {
             useDaemonFallbackStrategy.set(false)
             compilerOptions.freeCompilerArgs.add("-Xjvm-default=all")
         }
+
+        java {
+            withSourcesJar()
+        }
     }
 }
 

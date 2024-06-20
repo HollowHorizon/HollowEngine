@@ -13,6 +13,7 @@ class NPCCapability : CapabilityInstance() {
     var hitboxMode by syncable(HitboxMode.PULLING)
     var icon by syncable(NpcIcon.EMPTY)
     var mouseButton by syncable(HoverIcon.NONE)
+    var script by syncable(ScriptGraph())
 }
 
 @Serializable

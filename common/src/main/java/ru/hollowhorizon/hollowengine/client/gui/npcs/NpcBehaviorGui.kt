@@ -4,7 +4,6 @@ import imgui.ImGui
 import imgui.extension.nodeditor.NodeEditor
 import imgui.extension.nodeditor.NodeEditorContext
 import imgui.extension.texteditor.TextEditor
-import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
 import imgui.type.ImInt
@@ -14,14 +13,24 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
 import ru.hollowhorizon.hc.client.imgui.ImguiHandler
+import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcText
+import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.npcs.ScriptGraph
 
 class NpcBehaviorGui : Screen("".mcText) {
     val entries = arrayListOf(
-        "Мой слой 1", "Какие-то ебучие ноды", "Ахуенные скрипты kts"
+        "Мой слой 1", "Слой: Ноды", "Слой: Скрипты"
     )
     val editor = TextEditor()
     val ctx = NodeEditorContext()
+    val graph = ScriptGraph().apply {
+        npc = NPCEntity(Minecraft.getInstance().level!!).apply {
+            this[AnimatedEntityCapability::class].model = "hollowengine:models/entity/player_model.gltf"
+        }
+    }
+
     override fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
         renderBackground(guiGraphics, mouseX, mouseY, partialTick)
         ImguiHandler.drawFrame {
@@ -34,14 +43,12 @@ class NpcBehaviorGui : Screen("".mcText) {
                 "Поведение персонажа", ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize or
                         ImGuiWindowFlags.NoTitleBar
             ) {
-                when(entries[BehaviorLayers.selected]) {
-                    "Какие-то ебучие ноды" -> {
-                        NodeEditor.setCurrentEditor(ctx)
-                        NodeEditor.begin("Behavior")
-                        NodeEditor.end()
+                when (entries[BehaviorLayers.selected]) {
+                    "Слой: Ноды" -> {
+                        GraphRenderer.draw(graph)
                     }
 
-                    "Ахуенные скрипты kts" -> {
+                    "Слой: Скрипты" -> {
                         editor.render("fun main() {\n    println(\"Hello World!\")\n}")
                     }
 
