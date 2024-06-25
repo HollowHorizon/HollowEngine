@@ -12,7 +12,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
-import ru.hollowhorizon.hc.client.imgui.ImguiHandler
+import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcText
@@ -33,7 +33,7 @@ class NpcBehaviorGui : Screen("".mcText) {
 
     override fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
         renderBackground(guiGraphics, mouseX, mouseY, partialTick)
-        ImguiHandler.drawFrame {
+        ImGuiHandler.drawFrame {
             ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f)
 
             val window = Minecraft.getInstance().window

@@ -22,6 +22,8 @@ import net.minecraft.world.level.Level
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
 import ru.hollowhorizon.hc.client.utils.get
+import ru.hollowhorizon.hc.client.utils.open
+import ru.hollowhorizon.hollowengine.client.gui.npcs.trading.TradeMenuGui
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
@@ -99,14 +101,11 @@ class NPCEntity : PathfinderMob, IAnimated, Merchant {
         .apply { nodeEvaluator.setCanOpenDoors(true); nodeEvaluator.setCanPassDoors(true) } //NPCPathNavigatorV2(this, pLevel)
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
-        if (pHand == InteractionHand.MAIN_HAND) {
-            if (npcOffers.size > 0 && !pPlayer.level().isClientSide) {
-                tradingPlayer = pPlayer
-                openTradingScreen(pPlayer, name, 1)
+        if (pHand == InteractionHand.MAIN_HAND && level().isClientSide) {
+            if (pPlayer.getItemInHand(pHand).isEmpty) {
+                TradeMenuGui(this, false).open()
                 return InteractionResult.SUCCESS
             }
-
-            onInteract(pPlayer)
         }
 
         return super.mobInteract(pPlayer, pHand)
@@ -136,12 +135,24 @@ class NPCEntity : PathfinderMob, IAnimated, Merchant {
         pItemEntity.discard()
     }
 
-    override fun tick() {
-        super.tick()
+    override fun customServerAiStep() {
+        val capability = this[NPCCapability::class]
+
+        if (capability.currentTrade != -1) {
+            val trade = capability.trades[capability.currentTrade]
+            if (trade.matches(capability.tradeContainer)) capability.tradeContainer.setItem(6, trade.output.copy())
+            else if (!capability.tradeContainer.getItem(6).isEmpty) {
+                capability.tradeContainer.setItem(6, ItemStack.EMPTY)
+            }
+        }
     }
 
-    override fun remove(pReason: RemovalReason) {
-        super.remove(pReason)
+    override fun dropEquipment() {
+        super.dropEquipment()
+        val tradeSlots = this[NPCCapability::class].tradeContainer
+
+        tradeSlots.items.forEach(::spawnAtLocation)
+        tradeSlots.clearContent()
     }
 
     override fun doPush(pEntity: Entity) {

@@ -8,13 +8,13 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
-import ru.hollowhorizon.hc.client.imgui.ImguiHandler
+import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
 import ru.hollowhorizon.hc.client.utils.rl
 
 class QuestsGui : Screen(Component.empty()) {
     override fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
         renderBackground(guiGraphics, mouseX, mouseY, partialTick)
-        ImguiHandler.drawFrame {
+        ImGuiHandler.drawFrame {
             ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f)
             ImGui.setNextWindowPos(0f, 0f)
             val window = Minecraft.getInstance().window

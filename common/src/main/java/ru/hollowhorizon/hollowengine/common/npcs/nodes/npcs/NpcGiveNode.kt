@@ -58,7 +58,7 @@ class NpcGiveItemNode : NPCOperationNode() {
     }
 
     override fun draw(graph: ScriptGraph) {
-        item(item, 64f, 64f, true)
+        item(item, 64f, 64f, "item", true)
         if (ImGui.isItemClicked()) {
             isOpen.set(true)
         }
@@ -77,7 +77,7 @@ class NpcGiveItemNode : NPCOperationNode() {
             val inventory = player.inventory
 
             for ((i, invItem) in inventory.items.subList(9, 36).withIndex()) {
-                item(invItem, 64f, 64f, true)
+                item(invItem, 64f, 64f, (i+9).toString(), true)
                 if (ImGui.isItemClicked()) {
                     item = invItem.copy()
                     isOpen.set(false)
@@ -86,7 +86,7 @@ class NpcGiveItemNode : NPCOperationNode() {
             }
             ImGui.separator()
             for ((i, invItem) in inventory.items.subList(0, 9).withIndex()) {
-                item(invItem, 64f, 64f, true)
+                item(invItem, 64f, 64f, i.toString(), true)
                 if (ImGui.isItemClicked()) {
                     item = invItem.copy()
                     isOpen.set(false)
@@ -122,7 +122,7 @@ class NpcRequestItemNode : NPCOperationNode() {
     override fun draw(graph: ScriptGraph) {
         val player = Minecraft.getInstance().player ?: return
 
-        item(item, 64f, 64f, true)
+        item(item, 64f, 64f, "item", true)
         if (ImGui.isItemClicked()) ImGui.openPopup("Выбор предмета##item_picker")
 
         NodeEditor.suspend()
@@ -135,7 +135,7 @@ class NpcRequestItemNode : NPCOperationNode() {
             val inventory = player.inventory
 
             for ((i, invItem) in inventory.items.subList(9, 36).withIndex()) {
-                item(invItem, 64f, 64f, true)
+                item(invItem, 64f, 64f, (i+9).toString(), true)
                 if (ImGui.isItemClicked()) {
                     item = invItem.copy()
                     ImGui.closeCurrentPopup()
@@ -144,7 +144,7 @@ class NpcRequestItemNode : NPCOperationNode() {
             }
             ImGui.separator()
             for ((i, invItem) in inventory.items.subList(0, 9).withIndex()) {
-                item(invItem, 64f, 64f, true)
+                item(invItem, 64f, 64f, i.toString(), true)
                 if (ImGui.isItemClicked()) {
                     item = invItem.copy()
                     ImGui.closeCurrentPopup()

@@ -31,6 +31,8 @@ import ru.hollowhorizon.hollowengine.common.registry.NodesRegistry
 import kotlin.math.max
 
 object GraphRenderer {
+    val a = ImLong()
+    val b = ImLong()
     private val context = NodeEditorContext(NodeEditorConfig().apply { settingsFile = "node_editor.json" })
 
     fun draw(graph: ScriptGraph) {
@@ -55,42 +57,47 @@ object GraphRenderer {
             NodeRenderer.draw(pinMap, id, node)
         }
 
-        if (NodeEditor.beginCreate()) {
-            val a = ImLong()
-            val b = ImLong()
+        val pin = pinMap.entries.find { it.value == a.get().toInt() }?.key ?: pinMap.entries.find {
+            it.value == b.get().toInt()
+        }?.key
 
-            val pin = pinMap.entries.find { it.value == a.get().toInt() }?.key ?: pinMap.entries.find {
-                it.value == b.get().toInt()
-            }?.key
+        val color = ImVec4(1f, 1f, 1f, 1f)
+        if (pin != null) ImGui.colorConvertU32ToFloat4(pin.color, color)
+        val thickness = if (pin?.type == Pins.NODE) 5f else 3f
 
-            val color = ImVec4(1f, 1f, 1f, 1f)
-            if (pin != null) ImGui.colorConvertU32ToFloat4(pin.color, color)
-            val thickness = if (pin?.type == Pins.NODE) 5f else 3f
+        if (NodeEditor.beginCreate(color.x, color.y, color.z, color.w, thickness)) {
 
-            if (NodeEditor.queryNewLink(a, b, color.x, color.y, color.z, color.w, 15f)) {
-                fun connect() {
+            if (NodeEditor.queryNewLink(a, b, color.x, color.y, color.z, color.w, thickness)) {
+                fun connect(): Boolean {
                     val first = a.get().toInt()
                     val second = b.get().toInt()
 
-                    val inputId = pinMap.entries.find { it.value == first }?.key ?: return
-                    val outputId = pinMap.entries.find { it.value == second }?.key ?: return
+                    val inputId = pinMap.entries.find { it.value == first }?.key ?: return false
+                    val outputId = pinMap.entries.find { it.value == second }?.key ?: return false
 
                     val inputNode =
-                        graph.nodes.find { it.inputs.contains(inputId) || it.outputs.contains(inputId) } ?: return
+                        graph.nodes.find { it.inputs.contains(inputId) || it.outputs.contains(inputId) } ?: return false
                     val outputNode =
-                        graph.nodes.find { it.inputs.contains(outputId) || it.outputs.contains(outputId) } ?: return
+                        graph.nodes.find { it.inputs.contains(outputId) || it.outputs.contains(outputId) } ?: return false
 
-                    if (inputId.type != outputId.type) return
-                    if (inputNode == outputNode) return
+                    if (inputId.type != outputId.type) return false // Пины разных типов не будут работать
+                    if (inputNode == outputNode) return false // Подключить пин к самому себе нельзя
+                    if (inputId.mode == outputId.mode) return false // Входной и выходной пины должны иметь разный типы
 
-                    if (NodeEditor.acceptNewItem()) graph.connections += Connection(
-                        inputNode,
-                        outputNode,
-                        inputId,
-                        outputId
-                    )
+                    if (NodeEditor.acceptNewItem(color.x, color.y, color.z, color.w, thickness)) {
+                        graph.connections += Connection(
+                            inputNode,
+                            outputNode,
+                            inputId,
+                            outputId
+                        )
+                    }
+                    a.set(0)
+                    b.set(0)
+
+                    return true
                 }
-                connect()
+                if(!connect()) NodeEditor.rejectNewItem(1f, 0.25f, 0.25f, 1f, 3f)
             }
         }
         NodeEditor.endCreate()
@@ -355,7 +362,6 @@ object NodeRenderer {
             val drawList = NodeEditor.getNodeBackgroundDrawList(id.toLong())
             val halfBorderWidth = NodeEditor.getStyle().nodeBorderWidth * 0.5f
 
-            val animation = Blaze3D.getTime().toFloat() / 50f
             val uvX: Float = (headerMax.x - headerMin.x) / (4.0f * 64f)
             val uvY: Float = (headerMax.y - headerMin.y) / (4.0f * 64f)
 
@@ -374,9 +380,9 @@ object NodeRenderer {
                     headerMin.y + halfBorderWidth,
                     headerMax.x,
                     headerMax.y + (0),
-                    animation,
                     0f,
-                    uvX + animation,
+                    0f,
+                    uvX,
                     uvY,
                     color,
                     NodeEditor.getStyle().nodeRounding,

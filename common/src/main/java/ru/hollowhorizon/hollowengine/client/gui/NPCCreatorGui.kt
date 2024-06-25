@@ -15,7 +15,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.client.imgui.DockingHelper
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods.entity
-import ru.hollowhorizon.hc.client.imgui.ImguiHandler
+import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
 import ru.hollowhorizon.hc.client.models.gltf.Transform
 import ru.hollowhorizon.hc.client.models.gltf.animations.AnimationType
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
@@ -64,7 +64,7 @@ class NPCCreatorGui(val npc: NPCEntity, private val npcId: Int) : Screen(Compone
 
         npc.tickCount = Minecraft.getInstance().player?.tickCount ?: 0
 
-        ImguiHandler.drawFrame {
+        ImGuiHandler.drawFrame {
             DockingHelper.splitHorizontally(
                 {
                     if (ImGui.beginTabBar("##tabs")) {

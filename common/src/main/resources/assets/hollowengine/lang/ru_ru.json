@@ -58,6 +58,13 @@
   "ftbquests.task.hollowengine.story_event": "Сюжетное событие",
   "ftbquests.task.hollowengine.story_event.story_event": "Путь к файлу скрипта",
 
+  "_comment": "Npc Tool Actions",
+  "npc_tool.options": "Настройка персонажа",
+  "npc_tool.behavior": "Поведение",
+  "npc_tool.pose_editor": "Редактор поз",
+  "npc_tool.trades": "Торговля",
+  "npc_tool.quests": "Квесты",
+
   "_comment": "Visual Scripting Nodes",
   "nodes.hollowengine.general.start": "Начало",
   "nodes.hollowengine.general.start.desc": "Точка входа вашего скрипта, с неё он запускается.\nИх может быть несколько.",
@@ -133,5 +140,9 @@
   "node_categories.waiters": "Ожидание",
   "node_colors.waiters": "#a45effff",
 
-  "gameMode.storyteller": "Режим Рассказчика"
+  "gameMode.storyteller": "Режим Рассказчика",
+  "item.hollowengine.target_selector": "Настройщик цели",
+  "item.hollowengine.target_selector.hc_desc": "ПКМ: добавить цель. SHIFT + ПКМ: очистить список целей.",
+
+  "npc_trade_editor.delete_trade": "Удалить лот"
 }

@@ -1,19 +1,17 @@
 package ru.hollowhorizon.hollowengine.client.gui
 
-import imgui.extension.nodeditor.NodeEditor
 import imgui.extension.nodeditor.NodeEditorConfig
 import imgui.extension.nodeditor.NodeEditorContext
-import imgui.extension.nodeditor.flag.NodeEditorStyleColor
-import imgui.extension.nodeditor.flag.NodeEditorStyleVar
 import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
 import imgui.internal.ImGui
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
+import net.minecraft.locale.Language
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods.centredWindow
-import ru.hollowhorizon.hc.client.imgui.ImguiHandler
+import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
@@ -21,6 +19,7 @@ import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.npcs.NpcBehaviorGui
+import ru.hollowhorizon.hollowengine.client.gui.npcs.trading.TradeMenuGui
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 
 class NPCToolGui(val npc: NPCEntity) : Screen(Component.empty()) {
@@ -36,7 +35,7 @@ class NPCToolGui(val npc: NPCEntity) : Screen(Component.empty()) {
 
     override fun render(pPoseStack: GuiGraphics, pMouseX: Int, pMouseY: Int, pPartialTick: Float) {
         renderBackground(pPoseStack, pMouseX, pMouseY, pPartialTick)
-        ImguiHandler.drawFrame {
+        ImGuiHandler.drawFrame {
             val window = Minecraft.getInstance().window
             val width = window.width * 0.9f
             val height = window.height * 0.9f
@@ -52,7 +51,7 @@ class NPCToolGui(val npc: NPCEntity) : Screen(Component.empty()) {
                     (ImGui.getContentRegionMax().x - ImGui.getStyle().itemSpacingX * 4) / 4 - ImGui.getStyle().framePaddingX * 2
 
                 npcOptions.forEachIndexed { index, npcOption ->
-                    if (imageButton(npcOption.icon, npcOption.name, size)) npcOption.onClick()
+                    if (imageButton(npcOption.name, size)) npcOption.onClick()
                     if ((index + 1) % 4 != 0) ImGui.sameLine()
                 }
             }
@@ -60,10 +59,10 @@ class NPCToolGui(val npc: NPCEntity) : Screen(Component.empty()) {
         }
     }
 
-    fun imageButton(image: String, desc: String, size: Float): Boolean {
+    fun imageButton(image: String, size: Float): Boolean {
         val isClicked = ImGui.imageButton("hollowengine:textures/gui/icons/$image.png".rl.toTexture().id, size, size)
         ImGui.pushStyleVar(ImGuiStyleVar.PopupBorderSize, 3f)
-        if (ImGui.isItemHovered()) ImGui.setTooltip(desc)
+        if (ImGui.isItemHovered()) ImGui.setTooltip(Language.getInstance().getOrDefault("npc_tool.$image", "No description available."))
         ImGui.popStyleVar()
         return isClicked
     }
@@ -76,16 +75,18 @@ val context = NodeEditorContext(config)
 
 @SubscribeEvent(100)
 fun registerNpcOptions(event: NpcOptionsEvent) {
-    event.register(NpcOption("Настройка персонажа", "wrench") { NPCCreatorGui(event.npc, event.npc.id).open() })
-    event.register(NpcOption("Поведение", "nodes") {
+    event.register(NpcOption("options") { NPCCreatorGui(event.npc, event.npc.id).open() })
+    event.register(NpcOption("behavior") {
         NpcBehaviorGui().open()
     })
-    event.register(NpcOption("Редактор поз", "pose") {})
-    event.register(NpcOption("Торговля", "merchant") {})
-    event.register(NpcOption("Задания", "quest") {})
+    event.register(NpcOption("pose_editor") {})
+    event.register(NpcOption("trades") {
+        TradeMenuGui(event.npc, true).open()
+    })
+    event.register(NpcOption("quests") {})
 }
 
-class NpcOption(val name: String, val icon: String, val onClick: () -> Unit)
+class NpcOption(val name: String, val onClick: () -> Unit)
 
 class NpcOptionsEvent(private val generator: (NpcOption) -> Unit, val npc: NPCEntity) : Event {
     fun register(npc: NpcOption) {
