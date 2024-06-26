@@ -4,7 +4,7 @@ license = "All Rights Reserved"
 [[mods]]
 modId = "hollowengine"
 version = "${file.jarVersion}"
-displayName = "Hollow Engine" # Don't change it! This may break the game!
+displayName = "HollowEngine Legacy" # Don't change it! This may break the game!
 description = '''
 '''
 

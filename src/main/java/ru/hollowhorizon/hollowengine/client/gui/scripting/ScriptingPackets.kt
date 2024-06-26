@@ -281,7 +281,7 @@ class ScriptStartedPacket(val script: String) : HollowPacketV3<ScriptStartedPack
             IDEGui.editor.setErrorMarkers(emptyMap())
             if (Minecraft.getInstance().screen is CodeEditorGui) {
                 (Minecraft.getInstance().screen as CodeEditorGui).onClose()
-            }
+            } else return
 
             if (script.endsWith(".mod.kts") || script.endsWith(".content.kts")) {
                 player.sendSystemMessage(

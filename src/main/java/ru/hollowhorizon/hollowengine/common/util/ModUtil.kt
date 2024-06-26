@@ -36,11 +36,11 @@ object ModUtil {
 
         val mod = optionalMod.get().modInfo
 
-        if (mod.displayName != "Hollow Engine") {
+        if (mod.displayName != "HollowEngine Legacy") {
             val displayNameSetter = ModInfo::class.java.getDeclaredField("displayName")
 
             displayNameSetter.isAccessible = true
-            displayNameSetter[mod] = "Hollow Engine"
+            displayNameSetter[mod] = "HollowEngine Legacy"
         }
     }
 }
