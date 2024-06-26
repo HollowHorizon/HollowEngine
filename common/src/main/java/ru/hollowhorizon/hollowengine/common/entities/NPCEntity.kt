@@ -139,6 +139,10 @@ class NPCEntity : PathfinderMob, IAnimated, Merchant {
         val capability = this[NPCCapability::class]
 
         if (capability.currentTrade != -1) {
+            if(capability.currentTrade >= capability.trades.size) {
+                capability.currentTrade = -1
+                return
+            }
             val trade = capability.trades[capability.currentTrade]
             if (trade.matches(capability.tradeContainer)) capability.tradeContainer.setItem(6, trade.output.copy())
             else if (!capability.tradeContainer.getItem(6).isEmpty) {

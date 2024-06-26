@@ -218,13 +218,18 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : Screen("
         }
 
         ImGui.setCursorPos(8f * scale, 149f * scale)
-        ImGui.image("hollowengine:textures/gui/trades/left_button.png".rl.toTexture().id, 25f * scale, 15f * scale)
+        val windowPos = ImGui.getWindowPos()
+        var hovered = ImGui.isMouseHoveringRect(windowPos.x+ 8f * scale,windowPos.y+ 149f * scale,windowPos.x+ 8f * scale + 25f * scale,windowPos.y+ 149f * scale+ 15f * scale)
+        var light = if(hovered && page > 0) 0.8f else 1f
+        ImGui.image("hollowengine:textures/gui/trades/left_button.png".rl.toTexture().id, 25f * scale, 15f * scale, 0f, 0f, 1f, 1f, light, light, light,1f)
         if (ImGui.isItemClicked()) {
             page = (page - 1).coerceAtLeast(0)
         }
 
         ImGui.setCursorPos(85f * scale, 149f * scale)
-        ImGui.image("hollowengine:textures/gui/trades/right_button.png".rl.toTexture().id, 25f * scale, 15f * scale)
+        hovered = ImGui.isMouseHoveringRect(windowPos.x+ 85f * scale,windowPos.y+ 149f * scale,windowPos.x+ 85f * scale + 25f * scale,windowPos.y+ 149f * scale+ 15f * scale)
+        light = if(hovered && page < pageCount - 1) 0.8f else 1f
+        ImGui.image("hollowengine:textures/gui/trades/right_button.png".rl.toTexture().id, 25f * scale, 15f * scale, 0f, 0f, 1f, 1f, light, light, light,1f)
         if (ImGui.isItemClicked()) {
             page = (page + 1).coerceAtMost(pageCount - 1)
         }

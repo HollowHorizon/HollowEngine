@@ -10,8 +10,8 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.locale.Language
 import net.minecraft.network.chat.Component
-import ru.hollowhorizon.hc.client.imgui.ImGuiMethods.centredWindow
 import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
+import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
@@ -19,8 +19,10 @@ import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.npcs.NpcBehaviorGui
+import ru.hollowhorizon.hollowengine.client.gui.npcs.quests.QuestsMenuGui
 import ru.hollowhorizon.hollowengine.client.gui.npcs.trading.TradeMenuGui
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 
 class NPCToolGui(val npc: NPCEntity) : Screen(Component.empty()) {
     val npcOptions = ArrayList<NpcOption>()
@@ -62,7 +64,9 @@ class NPCToolGui(val npc: NPCEntity) : Screen(Component.empty()) {
     fun imageButton(image: String, size: Float): Boolean {
         val isClicked = ImGui.imageButton("hollowengine:textures/gui/icons/$image.png".rl.toTexture().id, size, size)
         ImGui.pushStyleVar(ImGuiStyleVar.PopupBorderSize, 3f)
-        if (ImGui.isItemHovered()) ImGui.setTooltip(Language.getInstance().getOrDefault("npc_tool.$image", "No description available."))
+        if (ImGui.isItemHovered()) ImGui.setTooltip(
+            Language.getInstance().getOrDefault("npc_tool.$image", "No description available.")
+        )
         ImGui.popStyleVar()
         return isClicked
     }
@@ -83,7 +87,9 @@ fun registerNpcOptions(event: NpcOptionsEvent) {
     event.register(NpcOption("trades") {
         TradeMenuGui(event.npc, true).open()
     })
-    event.register(NpcOption("quests") {})
+    event.register(NpcOption("quests") {
+        QuestsMenuGui(event.npc[NPCCapability::class].questGraph).open()
+    })
 }
 
 class NpcOption(val name: String, val onClick: () -> Unit)

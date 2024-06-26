@@ -138,7 +138,7 @@ fun onPlaceTrade(event: ContainerEvent.OnClick) {
 
         event.isCanceled = true
         val holdItem = manager.PLAYERS_HOLD_STACKS[event.player.uuid]
-        event.container.setItem(event.slot, holdItem!!.copy())
+        event.container.setItem(event.slot, holdItem?.copy() ?: ItemStack.EMPTY)
 
         if (event.player.level().isClientSide) {
             val screen = Minecraft.getInstance().screen as? TradeMenuGui ?: return
