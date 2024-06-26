@@ -116,7 +116,7 @@ object ClientEvents {
     @SubscribeEvent
     @Suppress("removal")
     fun renderWorldLast(event: RenderLevelLastEvent) {
-        BoxRenderer.draw(event.poseStack)
+        //BoxRenderer.draw(event.poseStack)
     }
 
     @SubscribeEvent
