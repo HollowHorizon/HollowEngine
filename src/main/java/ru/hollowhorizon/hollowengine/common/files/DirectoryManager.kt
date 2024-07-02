@@ -44,8 +44,6 @@ object DirectoryManager {
     private fun getScripts() =
         SCRIPTS_DIR.walk().filter { it.path.endsWith(".kts") }.toList()
 
-    fun getAllDialogues() = getScripts().filter { it.path.endsWith(".hsd.kts") }
-
     fun getStoryEvents() = getScripts().filter { it.path.endsWith(".se.kts") }
 
     fun firstJoinEvents() = getStoryEvents().filter { it.readLines().any { it.startsWith("@file:EntryPoint") } }
