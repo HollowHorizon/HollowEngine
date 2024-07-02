@@ -60,6 +60,8 @@ fun ServerPlayer.addStage(stage: String) = GameStageHelper.addStage(this, stage)
 fun ServerPlayer.removeStage(stage: String) = GameStageHelper.removeStage(this, stage)
 val ServerPlayer.stages get() = GameStageHelper.getPlayerData(this)?.stages ?: emptyList()
 
+val ServerPlayer.stringName: String get() = this.displayName.string
+
 fun StoryStateMachine.test() {
     val players by server.players.filter { it.hasStage("progressable") }
 
