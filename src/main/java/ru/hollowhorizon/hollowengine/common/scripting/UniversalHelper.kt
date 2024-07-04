@@ -119,6 +119,14 @@ val String.strikethrough: String
         return tr.string
     }
 
+val String.underline: String
+    get() {
+        val tr = this.mcTranslate
+        val style = tr.style
+        style.withUnderlined(true)
+        return tr.string
+    }
+
 fun item(item: String, count: Int = 1, nbt: CompoundTag? = null) = ItemStack(
     ForgeRegistries.ITEMS.getValue(item.rl) ?: throw IllegalStateException("Item $item not found!"),
     count,
