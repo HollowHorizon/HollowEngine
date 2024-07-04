@@ -92,6 +92,7 @@ val String.bold: String
         val tr = this.mcTranslate
         val style = tr.style
         style.withBold(true)
+        tr.style = style
         return tr.string
     }
 
@@ -100,6 +101,7 @@ val String.italic: String
         val tr = this.mcTranslate
         val style = tr.style
         style.withItalic(true)
+        tr.style = style
         return tr.string
     }
 
@@ -108,6 +110,7 @@ val String.obfuscated: String
         val tr = this.mcTranslate
         val style = tr.style
         style.withObfuscated(true)
+        tr.style = style
         return tr.string
     }
 
@@ -116,6 +119,7 @@ val String.strikethrough: String
         val tr = this.mcTranslate
         val style = tr.style
         style.withStrikethrough(true)
+        tr.style = style
         return tr.string
     }
 
@@ -124,6 +128,7 @@ val String.underline: String
         val tr = this.mcTranslate
         val style = tr.style
         style.withUnderlined(true)
+        tr.style = style
         return tr.string
     }
 
