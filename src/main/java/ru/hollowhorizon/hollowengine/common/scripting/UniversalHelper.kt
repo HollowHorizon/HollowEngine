@@ -25,8 +25,10 @@
 package ru.hollowhorizon.hollowengine.common.scripting
 
 import net.darkhax.gamestages.GameStageHelper
+import net.minecraft.ChatFormatting
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.TagParser
+import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.tags.TagKey
@@ -34,6 +36,7 @@ import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.progressManager
@@ -67,6 +70,54 @@ fun StoryStateMachine.test() {
 
     players.progressManager.addMessage { "Напиши привет в чат!" }
 }
+
+fun String.color(color: Int): String {
+    val tr = this.mcTranslate
+    val style = tr.style
+    style.withColor(color)
+    tr.style = style
+    return tr.string
+}
+
+fun String.color(color: String): String {
+    val tr = this.mcTranslate
+    val style = tr.style
+    style.withColor(Integer.valueOf(color))
+    tr.style = style
+    return tr.string
+}
+
+val String.bold: String
+    get() {
+        val tr = this.mcTranslate
+        val style = tr.style
+        style.withBold(true)
+        return tr.string
+    }
+
+val String.italic: String
+    get() {
+        val tr = this.mcTranslate
+        val style = tr.style
+        style.withItalic(true)
+        return tr.string
+    }
+
+val String.obfuscated: String
+    get() {
+        val tr = this.mcTranslate
+        val style = tr.style
+        style.withObfuscated(true)
+        return tr.string
+    }
+
+val String.strikethrough: String
+    get() {
+        val tr = this.mcTranslate
+        val style = tr.style
+        style.withStrikethrough(true)
+        return tr.string
+    }
 
 fun item(item: String, count: Int = 1, nbt: CompoundTag? = null) = ItemStack(
     ForgeRegistries.ITEMS.getValue(item.rl) ?: throw IllegalStateException("Item $item not found!"),
