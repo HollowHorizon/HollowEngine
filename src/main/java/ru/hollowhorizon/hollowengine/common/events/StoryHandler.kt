@@ -154,11 +154,13 @@ object StoryHandler {
         }
     }
 
-    fun addStoryEvent(eventPath: String, event: StoryStateMachine, beingRecompiled: Boolean = false) {
+    fun addStoryEvent(eventPath: String, event: StoryStateMachine, resetProgress: Boolean = false) {
         val savedData = event.server.overworld()[StoriesCapability::class].stories[eventPath]
 
-        savedData?.let {
-            event.deserialize(it.nbt)
+        if(!resetProgress) {
+            savedData?.let {
+                event.deserialize(it.nbt)
+            }
         }
 
         event.isStarted = true

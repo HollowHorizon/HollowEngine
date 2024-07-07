@@ -30,6 +30,7 @@ import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraftforge.common.MinecraftForge
@@ -40,8 +41,6 @@ import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.client.gui.dialogue.SonharDialogueGui
-import ru.hollowhorizon.hollowengine.client.screen.ChoiceScreen
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.HasInnerNodes
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.IContextBuilder
@@ -72,7 +71,7 @@ class SonharUpdateDialoguePacket(
     var text: List<String> = arrayListOf(),
     var sounds: List<String> = arrayListOf(),
     var choices: List<String> = arrayListOf(),
-    var entity: Int = -1,
+    var entities: List<Int> = arrayListOf(),
 ) : HollowPacketV3<SonharUpdateDialoguePacket> {
     override fun handle(player: Player, data: SonharUpdateDialoguePacket) {
         SonharDialogueGui.text.clear()
@@ -81,7 +80,10 @@ class SonharUpdateDialoguePacket(
         SonharDialogueGui.sounds.addAll(sounds)
         SonharDialogueGui.choices.clear()
         SonharDialogueGui.choices.addAll(choices)
-        SonharDialogueGui.entity = Minecraft.getInstance().level?.getEntity(entity) as? LivingEntity
+
+        SonharDialogueGui.entities = entities.map {
+            Minecraft.getInstance().level?.getEntity(it) as? LivingEntity
+        }
     }
 
 }
@@ -92,14 +94,20 @@ class ChoiceContext(val stateMachine: StoryStateMachine) {
     var sounds = arrayListOf<String>()
     val choices = LinkedHashMap<Component, List<Node>>()
     var open: Boolean = true
-    var entity: Safe<NPCEntity>? = null
+    var entities = arrayListOf<Safe<*>>()
+
+    fun Safe<*>.entry(text: String, sound: String) {
+        this@ChoiceContext.text += text
+        this@ChoiceContext.sounds += sound
+        this@ChoiceContext.entities += this
+    }
 
     operator fun String.invoke(tasks: NodeContextBuilder.() -> Unit) {
         choices[this.mcText] = NodeContextBuilder(stateMachine).apply(tasks).tasks
     }
 }
 
-class ChoiceScreenNode(val choiceContext: ChoiceContext) : Node(), HasInnerNodes {
+class ChoiceScreenNode(private val choiceContext: ChoiceContext) : Node(), HasInnerNodes {
     val choices = choiceContext.choices
     var index = 0
     var performedChoice: List<Node>? = null
@@ -118,7 +126,9 @@ class ChoiceScreenNode(val choiceContext: ChoiceContext) : Node(), HasInnerNodes
                     choiceContext.text,
                     choiceContext.sounds,
                     choiceContext.choices.map { it.key.string },
-                    choiceContext.entity?.invoke()?.id ?: -1
+                    choiceContext.entities.map {
+                        (it() as? Entity ?: (it() as List<*>).random() as Entity).id
+                    }
                 ).send(it)
             }
         }

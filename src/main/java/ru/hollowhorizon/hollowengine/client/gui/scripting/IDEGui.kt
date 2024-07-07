@@ -59,24 +59,6 @@ object IDEGui {
 
         tabSize = 4
         text = """
-            val npc by NPCEntity.creating {
-                model = "hollowengine:models/model.gltf"
-                textures["default_color_map"] = skin("TheHollowHorizon")
-                pos = team.randomPos(5f)
-            }
-
-            npc moveTo { team }
-
-            npc lookAt { team.randomPos(5f) }
-
-            npc requestItems {
-                +item("minecraft:stone", 10)
-                +item("minecraft:dirt", 10)
-            }
-
-            npc.name = "Виталик"
-
-            npc say { "Привет, я \$\{npc()!!.name.string}" }
         """.trimIndent()
     }
     var tree = Tree("Загрузка", "null")

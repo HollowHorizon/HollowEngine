@@ -27,6 +27,7 @@ package ru.hollowhorizon.hollowengine.client.gui.dialogue
 import com.mojang.blaze3d.vertex.PoseStack
 import imgui.ImGui
 import imgui.flag.ImGuiCol
+import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
 import net.minecraft.client.Minecraft
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
@@ -37,16 +38,14 @@ import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods.centredWindow
 import ru.hollowhorizon.hc.client.imgui.ImguiHandler
-import ru.hollowhorizon.hc.client.imgui.image
-import ru.hollowhorizon.hc.client.render.render
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.client.screen.OnChoicePerform
-import kotlin.math.min
 
 object SonharDialogueGui : HollowScreen() {
     val BG = "hollowengine:textures/gui/dialogues/sonhar_dialogue_menu.png".rl
     val CHOICE_BUTTON = "hollowengine:textures/gui/dialogues/sonhar_dialogue_choice.png".rl
+    val CHOICE_BUTTON_LARGE = "hollowengine:textures/gui/dialogues/sonhar_dialogue_choice_large.png".rl
     val CHOICE_SWITCH_LEFT = "hollowengine:textures/gui/dialogues/sonhar_dialogue_button_left.png".rl
     val CHOICE_SWITCH_RIGHT = "hollowengine:textures/gui/dialogues/sonhar_dialogue_button_right.png".rl
     val DIALOGUE_SWITCH_LEFT = "hollowengine:textures/gui/dialogues/sonhar_dialogue_button_left_1.png".rl
@@ -59,7 +58,7 @@ object SonharDialogueGui : HollowScreen() {
     var textIndex = 0
     var choices = arrayListOf<String>()
     var currentPage = 0
-    var entity: LivingEntity? = null
+    var entities: List<LivingEntity?> = arrayListOf<LivingEntity?>()
 
     override fun render(pPoseStack: PoseStack, pMouseX: Int, pMouseY: Int, pPartialTick: Float) {
         renderBackground(pPoseStack)
@@ -71,26 +70,13 @@ object SonharDialogueGui : HollowScreen() {
 
         centredWindow(
             args = ImGuiWindowFlags.NoBackground or ImGuiWindowFlags.NoTitleBar or
-                    ImGuiWindowFlags.AlwaysAutoResize
+                    ImGuiWindowFlags.AlwaysAutoResize or ImGuiWindowFlags.NoMove
         ) {
             image(BG, 311 * scale, 191 * scale)
 
-            if (entity != null) {
+            if (entities[textIndex] != null) {
                 ImGui.setCursorPos(209 * scale, 21 * scale)
-                npc(entity!!, 64 * scale, 64 * scale, 62 * scale, 1.75f)
-            }
-
-            if (choices.size > 3) {
-                ImGui.setCursorPos(211 * scale, 145 * scale)
-                if (button("", CHOICE_SWITCH_LEFT, 11 * scale, 17 * scale)) {
-                    currentPage--
-                    currentPage = currentPage.coerceAtLeast(0)
-                }
-                ImGui.sameLine()
-                if (button("", CHOICE_SWITCH_RIGHT, 11 * scale, 17 * scale)) {
-                    currentPage++
-                    currentPage = currentPage.coerceAtMost(choices.size / 3)
-                }
+                npc(entities[textIndex]!!, 64 * scale, 64 * scale, 52 * scale, 1.75f)
             }
 
             ImGui.setCursorPos(212 * scale, 91 * scale)
@@ -117,54 +103,42 @@ object SonharDialogueGui : HollowScreen() {
             ImGui.getStyle().setColor(ImGuiCol.Text, old.x, old.y, old.z, old.w)
 
             ImGui.setCursorPos(40 * scale, 80 * scale)
-            if (button("", DIALOGUE_SWITCH_LEFT, 19 * scale, 11 * scale, true)) {
+            if (textIndex > 0 && button("", DIALOGUE_SWITCH_LEFT, 19 * scale, 11 * scale, true)) {
                 textIndex--
                 textIndex = textIndex.coerceAtLeast(0)
             }
             ImGui.setCursorPos(185 * scale, 80 * scale)
-            if (button("", DIALOGUE_SWITCH_RIGHT, 19 * scale, 11 * scale, true)) {
+            if (textIndex < text.size - 1 && button("", DIALOGUE_SWITCH_RIGHT, 19 * scale, 11 * scale, true)) {
                 textIndex++
                 textIndex = textIndex.coerceAtMost(text.size - 1)
             }
 
             if (textIndex == text.size - 1) {
-                ImGui.setCursorPos(40 * scale, 100 * scale)
-                if (currentPage < choices.size && button(
-                        choices[currentPage],
-                        CHOICE_BUTTON,
-                        163 * scale,
-                        22 * scale
-                    )
-                ) {
-                    choices.clear()
-                    OnChoicePerform(currentPage + 0).send()
-                    currentPage = 0
+                ImGui.setCursorPos(38 * scale, 95 * scale)
+                ImGui.pushStyleColor(ImGuiCol.ChildBg, 0f, 0f, 0f, 0f)
+                ImGui.pushStyleColor(ImGuiCol.ScrollbarBg, 0f, 0f, 0f, 0f)
+                ImGui.pushStyleColor(ImGuiCol.ScrollbarGrab, 0.58f, 0.45f, 0.35f, 1f)
+                ImGui.pushStyleColor(ImGuiCol.ScrollbarGrabHovered, 0.6f, 0.5f, 0.4f, 1f)
+                ImGui.pushStyleColor(ImGuiCol.ScrollbarGrabActive, 0.62f, 0.52f, 0.4f, 1f)
+                ImGui.beginChild("##choices", 168 * scale, 80f * scale, false, ImGuiWindowFlags.AlwaysAutoResize)
+                for (i in choices.indices) {
+                    if (button(
+                            choices[i],
+                            CHOICE_BUTTON,
+                            163 * scale,
+                            22 * scale
+                        )
+                    ) {
+                        choices.clear()
+                        OnChoicePerform(i).send()
+                        break
+                    }
                 }
-                if (currentPage + 1 < choices.size && button(
-                        choices[currentPage + 1],
-                        CHOICE_BUTTON,
-                        163 * scale,
-                        22 * scale
-                    )
-                ) {
-                    choices.clear()
-                    OnChoicePerform(currentPage + 1).send()
-                    currentPage = 0
-                }
-                if (currentPage + 2 < choices.size && button(
-                        choices[currentPage + 2],
-                        CHOICE_BUTTON,
-                        163 * scale,
-                        22 * scale
-                    )
-                ) {
-                    choices.clear()
-                    OnChoicePerform(currentPage + 2).send()
-                    currentPage = 0
-                }
+                ImGui.endChild()
+                ImGui.popStyleColor(5)
             }
 
-            ImGui.popTextWrapPos()  
+            ImGui.popTextWrapPos()
         }
     }
 
@@ -175,7 +149,18 @@ object SonharDialogueGui : HollowScreen() {
         height: Float,
         horizontal: Boolean = false,
     ): Boolean {
+        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 0f, 0f)
+
         val cursorPos = ImGui.getCursorPos()
+
+        var height = if (label.length > 45) height * 2 else height
+        var image =
+            if (label.length > 45) "${image.namespace}:${image.path.substringBeforeLast(".png")}_medium.png".rl else image
+
+        height = if (label.length > 80) (height / 2) * 3 else height
+        image =
+            if (label.length > 80) "${image.namespace}:${image.path.substringBeforeLast("_medium.png")}_large.png".rl else image
+
 
         ImGui.invisibleButton("##$label", width, height)
         val hovered = ImGui.isItemHovered()
@@ -207,6 +192,7 @@ object SonharDialogueGui : HollowScreen() {
 
         ImGui.setCursorPos(cursorPos.x, cursorPos.y + height)
 
+        ImGui.popStyleVar()
 
         return pressed
     }

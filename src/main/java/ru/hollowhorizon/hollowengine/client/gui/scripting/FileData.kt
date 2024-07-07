@@ -48,7 +48,7 @@ abstract class FileData(
 
 class ScriptFileData(name: String, path: String, open: ImBoolean, var code: String) : FileData(name, path, open) {
     override fun draw() {
-        if (IDEGui.currentFile != name) IDEGui.editor.text = code
+        IDEGui.editor.text = code
         IDEGui.currentFile = name
         IDEGui.currentPath = path
         IDEGui.editor.render("Code Editor")
