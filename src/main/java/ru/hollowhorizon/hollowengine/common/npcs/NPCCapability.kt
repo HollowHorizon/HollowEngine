@@ -39,6 +39,7 @@ class NPCCapability: CapabilityInstance() {
     var icon by syncable(NpcIcon.EMPTY)
     var mouseButton by syncable(MouseButton.NONE)
     var script by syncable(ScriptGraph())
+    var flying by syncable(false)
 }
 
 @Serializable

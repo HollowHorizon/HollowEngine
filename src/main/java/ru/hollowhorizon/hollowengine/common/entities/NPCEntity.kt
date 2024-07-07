@@ -24,6 +24,7 @@
 
 package ru.hollowhorizon.hollowengine.common.entities
 
+import net.minecraft.core.BlockPos
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.syncher.EntityDataAccessor
 import net.minecraft.network.syncher.EntityDataSerializers
@@ -34,8 +35,12 @@ import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.entity.*
+import net.minecraft.world.entity.ai.control.MoveControl
 import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
+import net.minecraft.world.entity.ai.navigation.FlyingPathNavigation
+import net.minecraft.world.entity.ai.navigation.GroundPathNavigation
+import net.minecraft.world.entity.ai.navigation.PathNavigation
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
@@ -44,6 +49,7 @@ import net.minecraft.world.item.trading.MerchantOffer
 import net.minecraft.world.item.trading.MerchantOffers
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
+import net.minecraft.world.phys.Vec3
 import net.minecraftforge.common.capabilities.Capability
 import net.minecraftforge.common.util.FakePlayerFactory
 import ru.hollowhorizon.hc.HollowCore
@@ -54,6 +60,7 @@ import ru.hollowhorizon.hc.common.capabilities.ICapabilitySyncer
 import ru.hollowhorizon.hollowengine.client.render.effects.EffectsCapability
 import ru.hollowhorizon.hollowengine.client.render.effects.ParticleEffect
 import ru.hollowhorizon.hollowengine.common.capabilities.StoriesCapability
+import ru.hollowhorizon.hollowengine.common.npcs.FlyingNpcMoveControl
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcTarget
@@ -82,6 +89,13 @@ class NPCEntity : PathfinderMob, IAnimated, Merchant, ICapabilitySyncer {
 
         this[NPCCapability::class].script.init(this)
     }
+
+    var flying: Boolean
+        get() = this[NPCCapability::class].flying
+        set(value) {
+            this[NPCCapability::class].flying = value
+            navigation = createNavigation(level)
+        }
 
     override fun defineSynchedData() {
         super.defineSynchedData()
@@ -131,8 +145,56 @@ class NPCEntity : PathfinderMob, IAnimated, Merchant, ICapabilitySyncer {
         npcOffers = MerchantOffers(pCompound.getCompound("npc_trades"))
     }
 
-    override fun createNavigation(pLevel: Level) = super.createNavigation(pLevel)
-        .apply { nodeEvaluator.setCanOpenDoors(true); nodeEvaluator.setCanPassDoors(true) } //NPCPathNavigatorV2(this, pLevel)
+    override fun createNavigation(pLevel: Level): PathNavigation {
+        val navigator =
+            if (flying) FlyingPathNavigation(this, pLevel)
+            else GroundPathNavigation(this, pLevel)
+        navigator.nodeEvaluator.setCanOpenDoors(true)
+        navigator.nodeEvaluator.setCanPassDoors(true)
+
+        this.moveControl = if (flying) FlyingNpcMoveControl(this)
+        else MoveControl(this)
+
+        return navigator
+    }
+
+    override fun travel(pTravelVector: Vec3) {
+        if (flying) {
+            if (this.isEffectiveAi || this.isControlledByLocalInstance) {
+                if (this.isInWater) {
+                    this.moveRelative(0.02f, pTravelVector)
+                    this.move(MoverType.SELF, this.deltaMovement)
+                    this.deltaMovement = deltaMovement.scale(0.800000011920929)
+                } else if (this.isInLava) {
+                    this.moveRelative(0.02f, pTravelVector)
+                    this.move(MoverType.SELF, this.deltaMovement)
+                    this.deltaMovement = deltaMovement.scale(0.5)
+                } else {
+                    val ground = BlockPos(this.x, this.y - 1.0, this.z)
+                    var f = 0.91f
+                    if (this.onGround) {
+                        f = level.getBlockState(ground)
+                            .getFriction(this.level, ground, this) * 0.91f
+                    }
+
+                    val f1 = 0.16277137f / (f * f * f)
+                    f = 0.91f
+                    if (this.onGround) {
+                        f = level.getBlockState(ground)
+                            .getFriction(this.level, ground, this) * 0.91f
+                    }
+
+                    this.moveRelative(if (this.onGround) 0.1f * f1 else 0.02f, pTravelVector)
+                    this.move(MoverType.SELF, this.deltaMovement)
+                    this.deltaMovement = deltaMovement.scale(f.toDouble())
+                }
+            }
+
+            this.calculateEntityAnimation(this, false)
+        } else {
+            super.travel(pTravelVector)
+        }
+    }
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         if (pHand == InteractionHand.MAIN_HAND) {
@@ -182,7 +244,9 @@ class NPCEntity : PathfinderMob, IAnimated, Merchant, ICapabilitySyncer {
         super.tick()
         npcTarget.tick(this)
 
-        if(!isClientSide && isAlive) this[NPCCapability::class].script.update()
+        if (!isClientSide && isAlive) {
+            this[NPCCapability::class].script.update()
+        }
     }
 
     override fun remove(pReason: RemovalReason) {

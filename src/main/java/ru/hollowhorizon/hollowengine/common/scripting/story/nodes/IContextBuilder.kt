@@ -85,7 +85,7 @@ import kotlin.math.sqrt
 
 fun StoryStateMachine.main() {
     waitForgeEvent<PlayerTickEvent> {
-        return@waitForgeEvent it.player.inventory.items.sumOf { if(it.item != item("minecraft:apple").item) 0 else it.count } >= 5
+        return@waitForgeEvent it.player.inventory.items.sumOf { if (it.item != item("minecraft:apple").item) 0 else it.count } >= 5
     }
 }
 
@@ -135,6 +135,14 @@ abstract class IContextBuilder {
         set(value) {
             next {
                 this@hitboxMode()[NPCCapability::class].hitboxMode = value
+            }
+        }
+
+    var Safe<NPCEntity>.flying
+        get() = this().flying
+        set(value) {
+            next {
+                this@flying().flying = value
             }
         }
 
