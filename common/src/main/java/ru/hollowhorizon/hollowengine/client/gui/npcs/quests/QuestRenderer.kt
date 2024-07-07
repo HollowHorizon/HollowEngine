@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.npcs.quests
 
+import imgui.ImGui
 import imgui.ImGui.*
 import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiMouseButton
@@ -15,6 +16,7 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
 import ru.hollowhorizon.hollowengine.common.npcs.quests.QuestGraph
 import ru.hollowhorizon.hollowengine.common.npcs.quests.QuestNode
+import ru.hollowhorizon.hollowengine.common.registry.QUEST_TASKS
 
 object QuestRenderer {
     private val descriptionBuffer = ImString(500)
@@ -26,7 +28,7 @@ object QuestRenderer {
         imgui.internal.ImGui.getWindowDrawList().addImage(
             "hollowengine:textures/gui/quests/quest_icon.png".rl.toTexture().id,
             screenPos.x, screenPos.y,
-            screenPos.x + 120f, screenPos.y + 120f,
+            screenPos.x + 125f, screenPos.y + 110f,
             0f,
             0f,
             1f,
@@ -41,15 +43,15 @@ object QuestRenderer {
 
         val old = currentBufferType
         currentBufferType = BufferType.BACKGROUND
-        setCursorPos(pos.x + 20f, pos.y + 20f)
-        ImGuiMethods.item(questNode.icon, 80f, 80f, properties = ItemProperties().apply {
+        setCursorPos(pos.x + 25f, pos.y + 15f)
+        ImGuiMethods.item(questNode.icon, 75f, 80f, properties = ItemProperties().apply {
             disableResize = true
             tooltip = false
         }, isNodeEditor = true)
         currentBufferType = old
 
         setCursorPos(pos.x, pos.y)
-        dummy(120f, 120f)
+        dummy(125f, 110f)
         val clicked =
             imgui.internal.ImGui.isItemHovered() && imgui.internal.ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)
 
@@ -74,7 +76,7 @@ object QuestRenderer {
                 endTabItem()
             }
             if (beginTabItem("Задания")) {
-                drawTasks()
+                drawTasks(node)
                 endTabItem()
             }
             if (beginTabItem("Награды")) {
@@ -95,28 +97,40 @@ object QuestRenderer {
 
         ImGuiMethods.textShadow("Описание: ")
         descriptionBuffer.set(node.description)
-        inputTextMultiline("##description", descriptionBuffer)
+        inputTextMultiline("##description", descriptionBuffer, ImGui.getContentRegionAvailX(), 100f)
         node.description = descriptionBuffer.get()
 
         separator()
 
         ImGuiMethods.textShadow("Сообщение при выполнении: ")
         descriptionBuffer.set(node.completeDescription)
-        inputTextMultiline("##complete_desc", descriptionBuffer)
+        inputTextMultiline("##complete_desc", descriptionBuffer, ImGui.getContentRegionAvailX(), 100f)
         node.completeDescription = descriptionBuffer.get()
 
         popStyleVar(2)
 
     }
 
-    private fun drawTasks() {
+    private fun drawTasks(node: QuestNode) {
         beginChild("##reward_list", getContentRegionMaxX(), getContentRegionAvailY() - 50f)
 
-        repeat(15) {
-            ImGuiMethods.textShadow("Задание: Принести предмет")
-            ImGuiMethods.textShadow("Предмет: "); sameLine()
-            ImGuiMethods.item(ItemStack(Items.DIAMOND), 80f, 80f)
-            separator()
+        if (node.tasks.isEmpty()) {
+            val text = "Список заданий пуст."
+            val len = calcTextSize(text)
+            setCursorPos(
+                getCursorPosX() + getContentRegionAvailX() / 2 - len.x / 2,
+                getCursorPosY() + getContentRegionAvailY() / 2 - len.y / 2
+            )
+            ImGuiMethods.textShadow(text)
+        }
+
+        node.tasks.forEachIndexed { index, questTask ->
+
+            pushStyleVar(ImGuiStyleVar.ChildBorderSize, 5f)
+            beginChild("##task_$index", getContentRegionAvailX(), 610f, true)
+            questTask.drawEditor()
+            endChild()
+            popStyleVar()
         }
 
         endChild()
@@ -124,20 +138,15 @@ object QuestRenderer {
         if (button("Добавить задание", getContentRegionMaxX(), 45f)) {
             openPopup("new_task")
         }
-        taskPopup()
+        taskPopup(node)
     }
 
-    private fun taskPopup() {
+    private fun taskPopup(node: QuestNode) {
         if (isPopupOpen("new_task") && beginPopup("new_task")) {
-            ImGuiMethods.item(ItemStack(Items.DIAMOND), 40f, 40f); sameLine()
-            if (selectable("Принести предметы")) {
-
+            QUEST_TASKS.forEach { (name, creator) ->
+                if (selectable(name)) node.tasks.add(creator())
             }
 
-            ImGuiMethods.item(ItemStack(Items.IRON_SWORD), 40f, 40f); sameLine()
-            if (selectable("Убить моба")) {
-
-            }
             endPopup()
         }
     }
@@ -158,6 +167,10 @@ object QuestRenderer {
             openPopup("new_reward")
         }
 
+        rewardPopup()
+    }
+
+    fun rewardPopup() {
         if (isPopupOpen("new_reward") && beginPopup("new_reward")) {
             ImGuiMethods.item(ItemStack(Items.DIAMOND), 40f, 40f); sameLine()
             if (selectable("Предмет")) {

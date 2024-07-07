@@ -65,6 +65,11 @@
   "npc_tool.trades": "Торговля",
   "npc_tool.quests": "Квесты",
 
+  "npc_menu.talk": "Поговорить",
+  "npc_menu.trade": "Торговать",
+  "npc_menu.quests": "Задания",
+  "npc_menu.invite": "Пригласить в группу",
+
   "_comment": "Visual Scripting Nodes",
   "nodes.hollowengine.general.start": "Начало",
   "nodes.hollowengine.general.start.desc": "Точка входа вашего скрипта, с неё он запускается.\nИх может быть несколько.",

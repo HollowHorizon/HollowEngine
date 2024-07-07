@@ -85,23 +85,23 @@ class QuestsMenuGui(val graph: QuestGraph) : Screen("".mcText) {
 
             val length = sqrt((outputPosX - inputPosX).pow(2) + (outputPosY - inputPosY).pow(2))
 
-            val animation = -(Blaze3D.getTime().toFloat() % 4f) / 4f
+            val animation = -(Blaze3D.getTime().toFloat() % 6f) / 6f
 
             ImGui.getWindowDrawList().addImageQuad(
                 "hollowengine:textures/gui/quests/quest_line.png".rl.toTexture().id,
-                inputPosX + 10 * Mth.cos(rotation),
-                inputPosY - 10 * Mth.sin(rotation),
-                outputPosX + 10 * Mth.cos(rotation),
-                outputPosY - 10 * Mth.sin(rotation),
-                outputPosX - 10 * Mth.cos(rotation),
-                outputPosY + 10 * Mth.sin(rotation),
-                inputPosX - 10 * Mth.cos(rotation),
-                inputPosY + 10 * Mth.sin(rotation),
+                inputPosX + 20 * Mth.cos(rotation),
+                inputPosY - 20 * Mth.sin(rotation),
+                outputPosX + 20 * Mth.cos(rotation),
+                outputPosY - 20 * Mth.sin(rotation),
+                outputPosX - 20 * Mth.cos(rotation),
+                outputPosY + 20 * Mth.sin(rotation),
+                inputPosX - 20 * Mth.cos(rotation),
+                inputPosY + 20 * Mth.sin(rotation),
                 animation,
                 0f,
-                length / 120 + animation,
+                length /220 + animation,
                 0f,
-                length / 120 + animation,
+                length /220 + animation,
                 1f,
                 animation,
                 1f,

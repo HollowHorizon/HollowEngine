@@ -111,6 +111,7 @@ allprojects {
         mavenCentral()
         maven("https://repo.spongepowered.org/repository/maven-public/")
         maven("https://maven.0mods.team/releases")
+        maven("https://maven.cleanroommc.com")
         flatDir { dirs("libs") }
     }
 

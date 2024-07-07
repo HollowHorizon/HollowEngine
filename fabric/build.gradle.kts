@@ -43,8 +43,8 @@ dependencies {
     modImplementation("net.fabricmc.fabric-api:fabric-api:$fabric_version") { include(this) }
 
     implementation("ru.hollowhorizon:hollowcore-fabric:$minecraft_version-1.0.0-dev-shadow")
-    modImplementation("mods:sodium-fabric:0.5.9+mc${minecraft_version}")
-    modImplementation("mods:iris:1.7.1+mc${minecraft_version}")
+    modImplementation("mods:sodium-fabric:0.5.11+mc${minecraft_version}")
+    modImplementation("mods:iris:1.7.3+mc${minecraft_version}")
 
     common(project(path = ":common", configuration = "namedElements")) { isTransitive = false }
     shadowBundle(project(path = ":common", configuration = "transformProductionFabric"))

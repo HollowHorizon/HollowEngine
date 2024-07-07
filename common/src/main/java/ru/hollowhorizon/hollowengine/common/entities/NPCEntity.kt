@@ -23,10 +23,11 @@ import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.open
-import ru.hollowhorizon.hollowengine.client.gui.npcs.trading.TradeMenuGui
+import ru.hollowhorizon.hollowengine.client.gui.npcs.NPCMenuGui
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
+import ru.hollowhorizon.hollowengine.common.registry.ModItems
 
 class NPCEntity : PathfinderMob, IAnimated, Merchant {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
@@ -101,11 +102,9 @@ class NPCEntity : PathfinderMob, IAnimated, Merchant {
         .apply { nodeEvaluator.setCanOpenDoors(true); nodeEvaluator.setCanPassDoors(true) } //NPCPathNavigatorV2(this, pLevel)
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
-        if (pHand == InteractionHand.MAIN_HAND && level().isClientSide) {
-            if (pPlayer.getItemInHand(pHand).isEmpty) {
-                TradeMenuGui(this, false).open()
-                return InteractionResult.SUCCESS
-            }
+        if (pHand == InteractionHand.MAIN_HAND && level().isClientSide && pPlayer.mainHandItem.item != ModItems.NPC_TOOL.get()) {
+            NPCMenuGui(this).open()
+            return InteractionResult.SUCCESS
         }
 
         return super.mobInteract(pPlayer, pHand)
@@ -139,7 +138,7 @@ class NPCEntity : PathfinderMob, IAnimated, Merchant {
         val capability = this[NPCCapability::class]
 
         if (capability.currentTrade != -1) {
-            if(capability.currentTrade >= capability.trades.size) {
+            if (capability.currentTrade >= capability.trades.size) {
                 capability.currentTrade = -1
                 return
             }

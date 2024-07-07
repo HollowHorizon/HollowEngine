@@ -36,10 +36,17 @@ import kotlin.math.min
 class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : Screen("".mcText) {
     private val GUI = "hollowengine:textures/gui/trades/trade_menu.png".rl
     private val TRADE_ICON = "hollowengine:textures/gui/trades/trade_icon.png".rl
-    private val scale = 5f
+    private var scale = 1f
     var page = (npc[NPCCapability::class].currentTrade / 9).coerceAtLeast(0)
     private var pageCount = 0
     var selectedTrade = npc[NPCCapability::class].currentTrade % 9
+
+    override fun init() {
+        super.init()
+
+        val window = Minecraft.getInstance().window
+        scale = min(window.width * 0.9f / 420f, window.height * 0.9f / 170f)
+    }
 
     override fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
         renderBackground(guiGraphics, mouseX, mouseY, partialTick)
@@ -51,7 +58,7 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : Screen("
             ) {
                 drawBackground()
 
-                pushFontSize(40) {
+                pushFontSize((scale*10f).toInt()) {
                     drawInventory()
                     drawTrades()
                     drawCurrentTrade()
@@ -169,6 +176,18 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : Screen("
 
     private fun drawBackground() {
         ImGuiMethods.image(GUI, 420f * scale, 170f * scale)
+
+        ImGuiMethods.pushFontSize((10 * scale).toInt()) {
+            var text = "Инвентарь"
+            var size = ImGui.calcTextSize(text)
+            ImGui.setCursorPos(277.5f * scale - size.x / 2, 69.5f * scale - size.y / 2)
+            textShadow(text)
+
+            text = "Торговля"
+            size = ImGui.calcTextSize(text)
+            ImGui.setCursorPos(170.5f * scale - size.x / 2, 64.5f * scale - size.y / 2)
+            textShadow(text)
+        }
     }
 
     private fun ImGuiMethods.drawInventory() {
@@ -191,7 +210,7 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : Screen("
 
     private fun ImGuiMethods.drawEntity() {
         ImGui.setCursorPos(331f * scale, 10f * scale)
-        entity(npc, 78f * scale, 83f * scale, scale = 1.45f, offsetX = scale, offsetY = 50f * scale, rotation = false)
+        entity(npc, 78f * scale, 83f * scale, scale = 1.45f, offsetX = scale, offsetY = 50f * scale, rotation = true)
         ImGui.setCursorPos(331f * scale, 10f * scale)
         image("hollowengine:textures/gui/trades/entity_overlay.png".rl, 78f * scale, 83f * scale)
     }
@@ -219,24 +238,58 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : Screen("
 
         ImGui.setCursorPos(8f * scale, 149f * scale)
         val windowPos = ImGui.getWindowPos()
-        var hovered = ImGui.isMouseHoveringRect(windowPos.x+ 8f * scale,windowPos.y+ 149f * scale,windowPos.x+ 8f * scale + 25f * scale,windowPos.y+ 149f * scale+ 15f * scale)
-        var light = if(hovered && page > 0) 0.8f else 1f
-        ImGui.image("hollowengine:textures/gui/trades/left_button.png".rl.toTexture().id, 25f * scale, 15f * scale, 0f, 0f, 1f, 1f, light, light, light,1f)
+        var hovered = ImGui.isMouseHoveringRect(
+            windowPos.x + 8f * scale,
+            windowPos.y + 149f * scale,
+            windowPos.x + 8f * scale + 25f * scale,
+            windowPos.y + 149f * scale + 15f * scale
+        )
+        var light = if (hovered && page > 0) 0.8f else 1f
+        ImGui.image(
+            "hollowengine:textures/gui/trades/left_button.png".rl.toTexture().id,
+            25f * scale,
+            15f * scale,
+            0f,
+            0f,
+            1f,
+            1f,
+            light,
+            light,
+            light,
+            1f
+        )
         if (ImGui.isItemClicked()) {
             page = (page - 1).coerceAtLeast(0)
         }
 
         ImGui.setCursorPos(85f * scale, 149f * scale)
-        hovered = ImGui.isMouseHoveringRect(windowPos.x+ 85f * scale,windowPos.y+ 149f * scale,windowPos.x+ 85f * scale + 25f * scale,windowPos.y+ 149f * scale+ 15f * scale)
-        light = if(hovered && page < pageCount - 1) 0.8f else 1f
-        ImGui.image("hollowengine:textures/gui/trades/right_button.png".rl.toTexture().id, 25f * scale, 15f * scale, 0f, 0f, 1f, 1f, light, light, light,1f)
+        hovered = ImGui.isMouseHoveringRect(
+            windowPos.x + 85f * scale,
+            windowPos.y + 149f * scale,
+            windowPos.x + 85f * scale + 25f * scale,
+            windowPos.y + 149f * scale + 15f * scale
+        )
+        light = if (hovered && page < pageCount - 1) 0.8f else 1f
+        ImGui.image(
+            "hollowengine:textures/gui/trades/right_button.png".rl.toTexture().id,
+            25f * scale,
+            15f * scale,
+            0f,
+            0f,
+            1f,
+            1f,
+            light,
+            light,
+            light,
+            1f
+        )
         if (ImGui.isItemClicked()) {
             page = (page + 1).coerceAtMost(pageCount - 1)
         }
 
         ImGui.setCursorPos(39f * scale, 149f * scale)
         ImGui.image("hollowengine:textures/gui/trades/counter.png".rl.toTexture().id, 40f * scale, 15f * scale)
-        pushFontSize(50) {
+        pushFontSize((10 * scale).toInt()) {
             val text = "${page + 1} / $pageCount"
             val textSize = imgui.ImGui.calcTextSize(text)
             ImGui.setCursorPos(59f * scale - textSize.x / 2, 156.5f * scale - textSize.y / 2)
@@ -255,12 +308,12 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : Screen("
         }
         val color = if (!ImGui.isItemHovered()) ImVec4(0.8f, 0.8f, 0.8f, 1f)
         else ImVec4(1f, 1f, 1f, 1f)
-        ImGui.setCursorPos(cursor.x, cursor.y)
+        ImGui.setCursorPos(cursor.x, cursor.y - 2 * scale)
 
         ImGui.image(
             "hollowengine:textures/gui/trades/add_trade_icon.png".rl.toTexture().id,
-            32f * scale,
-            41f * scale,
+            36f * scale,
+            43f * scale,
             0f,
             0f,
             1f,
@@ -319,7 +372,7 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : Screen("
     override fun onClose() {
         super.onClose()
         SelectTradePacket(npc.id, -1).send()
-        if(editMode) ClearContainerPacket(npc.id).send()
+        if (editMode) ClearContainerPacket(npc.id).send()
     }
 
     override fun isPauseScreen() = false
@@ -327,6 +380,8 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : Screen("
 
 @SubscribeEvent
 fun loadFontSizesEvent(event: LoadFontEvent) {
+    event.loadFont(10)
+    event.loadFont(20)
     event.loadFont(40)
     event.loadFont(50)
 }
