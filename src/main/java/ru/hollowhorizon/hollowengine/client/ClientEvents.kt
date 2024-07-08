@@ -48,11 +48,11 @@ import ru.hollowhorizon.hollowengine.client.gui.height
 import ru.hollowhorizon.hollowengine.client.gui.width
 import ru.hollowhorizon.hollowengine.client.render.PlayerRenderer
 import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
-import ru.hollowhorizon.hollowengine.client.screen.overlays.BoxRenderer
 import ru.hollowhorizon.hollowengine.client.screen.overlays.MouseOverlay
 import ru.hollowhorizon.hollowengine.client.screen.overlays.RecordingDriver
 import ru.hollowhorizon.hollowengine.client.screen.recording.ModifyRecordingScreen
 import ru.hollowhorizon.hollowengine.client.screen.recording.StartRecordingScreen
+import ru.hollowhorizon.hollowengine.client.screen.scripting.CodeEditorScreen
 import ru.hollowhorizon.hollowengine.common.network.KeybindPacket
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.network.MouseClickedPacket
@@ -64,6 +64,7 @@ object ClientEvents {
     const val HE_CATEGORY = "key.categories.hollowengine.keys"
     val OPEN_EVENT_LIST = KeyMapping(keyBindName("event_list"), GLFW.GLFW_KEY_GRAVE_ACCENT, HE_CATEGORY)
     val TOGGLE_RECORDING = KeyMapping(keyBindName("toggle_recording"), GLFW.GLFW_KEY_V, HE_CATEGORY)
+    val OPEN_IDE = KeyMapping(keyBindName("open_ide"), GLFW.GLFW_KEY_H, HE_CATEGORY)
     val canceledButtons = hashSetOf<MouseButton>()
     var ignoreOptifine = false
     private val customTooltips = HashMap<Item, MutableList<Component>>()
@@ -142,6 +143,10 @@ object ClientEvents {
             Minecraft.getInstance().setScreen(ProgressManagerScreen())
         }
 
+        if (OPEN_IDE.isActiveAndMatches(key)) {
+            CodeEditorScreen().open()
+        }
+
 
         if (TOGGLE_RECORDING.isActiveAndMatches(key) && event.action == 0) {
             val player = Minecraft.getInstance().player ?: return
@@ -174,6 +179,7 @@ object ClientEvents {
         MOD_BUS.addListener { event: RegisterKeyMappingsEvent ->
             event.register(OPEN_EVENT_LIST)
             event.register(TOGGLE_RECORDING)
+            event.register(OPEN_IDE)
         }
     }
 }

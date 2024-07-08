@@ -40,11 +40,13 @@ import net.minecraftforge.registries.ForgeRegistries
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.handlers.TickHandler
 import ru.hollowhorizon.hc.client.imgui.FontAwesomeIcons
+import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
 import ru.hollowhorizon.hollowengine.client.gui.height
 import ru.hollowhorizon.hollowengine.client.gui.width
 import ru.hollowhorizon.hollowengine.client.utils.roundTo
+import ru.hollowhorizon.hollowengine.common.capabilities.StoriesCapability
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import java.io.File
 import kotlin.math.min
@@ -143,16 +145,19 @@ object IDEGui {
             val compiler = ModList.get().getModContainerById("kotlinscript").get().modInfo
             ImGui.text("Minecraft ${Minecraft.getInstance().game.version.name} | ${engine.displayName} ${engine.version} | ${compiler.displayName} ${compiler.version}")
             ImGui.sameLine()
-            ImGui.setCursorPosX(ImGui.getWindowWidth() - 100f)
-            if (ImGui.imageButton("hollowengine:textures/gui/play.png".rl.toTexture().id, 32f, 32f)) {
-                RunScriptPacket(currentPath).send()
+            ImGui.setCursorPosX(ImGui.getWindowWidth() - 50f)
+            val stories = Minecraft.getInstance().level!![StoriesCapability::class].stories
+            if(!stories.contains(currentPath)) {
+                if (ImGui.imageButton("hollowengine:textures/gui/play.png".rl.toTexture().id, 32f, 32f)) {
+                    RunScriptPacket(currentPath).send()
+                }
+                if (ImGui.isItemHovered()) ImGui.setTooltip("Запустить скрипт")
+            } else {
+                if (ImGui.imageButton("hollowengine:textures/gui/stop.png".rl.toTexture().id, 32f, 32f)) {
+                    StopScriptPacket(currentPath).send()
+                }
+                if (ImGui.isItemHovered()) ImGui.setTooltip("Остановить скрипт")
             }
-            if (ImGui.isItemHovered()) ImGui.setTooltip("Запустить скрипт")
-            ImGui.sameLine()
-            if (ImGui.imageButton("hollowengine:textures/gui/stop.png".rl.toTexture().id, 32f, 32f)) {
-                StopScriptPacket(currentPath).send()
-            }
-            if (ImGui.isItemHovered()) ImGui.setTooltip("Остановить скрипт")
         }
 
         ImGui.beginTabBar("##Files")

@@ -57,6 +57,7 @@ object StoryHandler {
 
     fun stopEvent(eventPath: String) {
         events.remove(eventPath)
+        ServerLifecycleHooks.getCurrentServer().overworld()[StoriesCapability::class].stories.remove(eventPath)
     }
 
     fun restartEvent(eventPath: String) {

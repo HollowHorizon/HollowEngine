@@ -37,6 +37,7 @@ class CodeEditorGui: HollowScreen() {
     override fun render(pPoseStack: PoseStack, pMouseX: Int, pMouseY: Int, pPartialTick: Float) {
         ImguiHandler.drawFrame {
             IDEGui.draw()
+
             if(shouldClose) onClose()
         }
     }

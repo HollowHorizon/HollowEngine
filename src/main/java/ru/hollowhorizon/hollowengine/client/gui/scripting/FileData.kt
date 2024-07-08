@@ -25,15 +25,12 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import imgui.ImGui
+import imgui.extension.texteditor.TextEditor
+import imgui.extension.texteditor.flag.TextEditorPaletteIndex
 import imgui.type.ImBoolean
 import net.minecraft.client.renderer.texture.DynamicTexture
-import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
-import ru.hollowhorizon.hc.client.utils.nbt.serialize
 import ru.hollowhorizon.hollowengine.client.gui.NodeEditor
-import ru.hollowhorizon.hollowengine.client.gui.width
 import ru.hollowhorizon.hollowengine.common.npcs.ScriptGraph
-import java.io.ByteArrayOutputStream
-import java.io.DataOutputStream
 import kotlin.math.min
 
 abstract class FileData(
@@ -48,7 +45,7 @@ abstract class FileData(
 
 class ScriptFileData(name: String, path: String, open: ImBoolean, var code: String) : FileData(name, path, open) {
     override fun draw() {
-        IDEGui.editor.text = code
+        if (IDEGui.editor.text.substringBeforeLast('\n') != code) IDEGui.editor.text = code
         IDEGui.currentFile = name
         IDEGui.currentPath = path
         IDEGui.editor.render("Code Editor")
