@@ -25,25 +25,37 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import com.mojang.blaze3d.vertex.PoseStack
+import imgui.ImGui
 import ru.hollowhorizon.hc.client.imgui.ImguiHandler
 import ru.hollowhorizon.hc.client.screens.HollowScreen
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 
-class CodeEditorGui: HollowScreen() {
+class CodeEditorGui : HollowScreen() {
     init {
         RequestTreePacket().send()
     }
+
     var shouldClose = false
+    var loadSettings = true
 
     override fun render(pPoseStack: PoseStack, pMouseX: Int, pMouseY: Int, pPartialTick: Float) {
+        val file = DirectoryManager.HOLLOW_ENGINE.resolve(".gui_cache/code_editor.halva")
+        if (!file.parentFile.exists()) file.parentFile.mkdirs()
+        if(!file.exists()) file.createNewFile()
         ImguiHandler.drawFrame {
+            if (loadSettings) {
+                loadSettings = false
+                ImGui.loadIniSettingsFromMemory(file.readText())
+            }
             IDEGui.draw()
+            file.writeText(ImGui.saveIniSettingsToMemory())
 
-            if(shouldClose) onClose()
+            if (shouldClose) onClose()
         }
     }
 
     override fun onClose() {
-        if(!shouldClose) {
+        if (!shouldClose) {
             IDEGui.shouldClose = true
             shouldClose = true
             return

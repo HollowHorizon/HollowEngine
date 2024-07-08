@@ -9,6 +9,7 @@
   "key.categories.hollowengine.keys": "HollowEngine Keys",
   "key.hollowengine.event_list": "Event List",
   "key.hollowengine.toggle_recording": "On/Off action recording",
+  "key.hollowengine.open_ide": "Open Code Editor",
   "hollowengine.scripting.story.script_not_found": "Script \"%s\" not found!",
   "hollowengine.commands.pos.error": "§6[§bHollow Engine§6] §7Could not get position!",
   "hollowengine.commands.copy": "§6[§bHollow Engine§6] §7Value: %s",

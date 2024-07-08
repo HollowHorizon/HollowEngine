@@ -153,13 +153,13 @@ object SonharDialogueGui : HollowScreen() {
 
         val cursorPos = ImGui.getCursorPos()
 
-        var height = if (label.length > 45) height * 2 else height
+        var height = if (label.length > 30) height * 1.5f else height
         var image =
-            if (label.length > 45) "${image.namespace}:${image.path.substringBeforeLast(".png")}_medium.png".rl else image
+            if (label.length > 30) "${image.namespace}:${image.path.substringBeforeLast(".png")}_medium.png".rl else image
 
-        height = if (label.length > 80) (height / 2) * 3 else height
+        height = if (label.length > 60) height / 1.5f * 2.15f else height
         image =
-            if (label.length > 80) "${image.namespace}:${image.path.substringBeforeLast("_medium.png")}_large.png".rl else image
+            if (label.length > 60) "${image.namespace}:${image.path.substringBeforeLast("_medium.png")}_large.png".rl else image
 
 
         ImGui.invisibleButton("##$label", width, height)
@@ -180,7 +180,7 @@ object SonharDialogueGui : HollowScreen() {
                 v1 = if (hovered) height * 2 else height
             )
         }
-        val textSize = ImGui.calcTextSize(label, false, 160f * scale)
+        val textSize = ImGui.calcTextSize(label, false, 140f * scale)
         ImGui.setCursorPos(cursorPos.x + width / 2 - textSize.x / 2, cursorPos.y + 8f)
 
         if (label.isNotEmpty()) {

@@ -8,6 +8,7 @@
   "key.categories.hollowengine.keys": "HollowEngine: Клавиши",
   "key.hollowengine.event_list": "Список Событий",
   "key.hollowengine.toggle_recording": "Вкл./Выкл. Запись действий",
+  "key.hollowengine.open_ide": "Открыть редактор кода",
   "hollowengine.scripting.story.script_not_found": "Скрипт \"%s\" не найден!",
   "hollowengine.commands.pos.error": "§6[§bHollow Engine§6] §7Не удаётся найти указанный блок!",
   "hollowengine.commands.copy": "§6[§bHollow Engine§6] §7Значение: %s скопировано.",

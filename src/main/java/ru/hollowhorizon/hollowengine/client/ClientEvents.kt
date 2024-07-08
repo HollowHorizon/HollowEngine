@@ -45,6 +45,7 @@ import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.height
+import ru.hollowhorizon.hollowengine.client.gui.scripting.CodeEditorGui
 import ru.hollowhorizon.hollowengine.client.gui.width
 import ru.hollowhorizon.hollowengine.client.render.PlayerRenderer
 import ru.hollowhorizon.hollowengine.client.screen.ProgressManagerScreen
@@ -144,7 +145,7 @@ object ClientEvents {
         }
 
         if (OPEN_IDE.isActiveAndMatches(key)) {
-            CodeEditorScreen().open()
+            CodeEditorGui().open()
         }
 
 
