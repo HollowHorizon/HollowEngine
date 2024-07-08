@@ -29,6 +29,7 @@ import net.minecraft.ChatFormatting
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.TagParser
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.ComponentUtils
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.tags.TagKey
@@ -72,64 +73,50 @@ fun StoryStateMachine.test() {
 }
 
 fun String.color(color: Int): String {
-    val tr = this.mcTranslate
-    val style = tr.style
-    style.withColor(color)
-    tr.style = style
-    return tr.string
+    var tr = this.mcTranslate
+    val style = tr.style.withColor(color)
+    return ComponentUtils.mergeStyles(tr, style).string
 }
 
 fun String.color(color: String): String {
     val tr = this.mcTranslate
-    val style = tr.style
-    style.withColor(Integer.valueOf(color))
-    tr.style = style
-    return tr.string
+    val style = tr.style.withColor(Integer.valueOf(color))
+    return ComponentUtils.mergeStyles(tr, style).string
 }
 
 val String.bold: String
     get() {
         val tr = this.mcTranslate
-        val style = tr.style
-        style.withBold(true)
-        tr.style = style
-        return tr.string
+        val style = tr.style.withBold(true)
+        return ComponentUtils.mergeStyles(tr, style).string
     }
 
 val String.italic: String
     get() {
         val tr = this.mcTranslate
-        val style = tr.style
-        style.withItalic(true)
-        tr.style = style
-        return tr.string
+        val style = tr.style.withItalic(true)
+        return ComponentUtils.mergeStyles(tr, style).string
     }
 
 val String.obfuscated: String
     get() {
         val tr = this.mcTranslate
-        val style = tr.style
-        style.withObfuscated(true)
-        tr.style = style
-        return tr.string
+        val style = tr.style.withObfuscated(true)
+        return ComponentUtils.mergeStyles(tr, style).string
     }
 
 val String.strikethrough: String
     get() {
         val tr = this.mcTranslate
-        val style = tr.style
-        style.withStrikethrough(true)
-        tr.style = style
-        return tr.string
+        val style = tr.style.withStrikethrough(true)
+        return ComponentUtils.mergeStyles(tr, style).string
     }
 
 val String.underline: String
     get() {
         val tr = this.mcTranslate
-        val style = tr.style
-        style.withUnderlined(true)
-        tr.style = style
-        return tr.string
+        val style = tr.style.withUnderlined(true)
+        return ComponentUtils.mergeStyles(tr, style).string
     }
 
 fun item(item: String, count: Int = 1, nbt: CompoundTag? = null) = ItemStack(
