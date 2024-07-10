@@ -18,6 +18,7 @@ import ru.hollowhorizon.hollowengine.client.gui.npcs.quests.QuestsMenuGui
 import ru.hollowhorizon.hollowengine.client.gui.npcs.trading.TradeMenuGui
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
+import ru.hollowhorizon.hollowengine.common.npcs.quests.QuestsCapability
 import kotlin.math.min
 
 class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
@@ -88,7 +89,7 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
                         TradeMenuGui(npc, false).open()
                     }
                     2 -> {
-                        QuestsMenuGui(npc[NPCCapability::class].questGraph).open()
+                        QuestsMenuGui(npc[QuestsCapability::class].questGraph, false).open()
                     }
                     3 -> {
                         onClose()

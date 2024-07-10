@@ -26,8 +26,6 @@ class NPCCapability : CapabilityInstance() {
     val trades by syncableList<TradeOffer>()
     var currentTrade by syncable(-1)
     var tradeContainer by container(TradeContainer(this))
-
-    var questGraph by syncable(QuestGraph())
 }
 
 class TradeContainer(capability: CapabilityInstance) : HollowContainer(capability, 7, intArrayOf(6)) {

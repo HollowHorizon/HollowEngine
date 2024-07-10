@@ -8,7 +8,6 @@ import imgui.extension.nodeditor.NodeEditorContext
 import imgui.extension.nodeditor.flag.NodeEditorStyleColor
 import imgui.extension.nodeditor.flag.NodeEditorStyleVar
 import imgui.flag.ImGuiCol
-import imgui.flag.ImGuiMouseButton
 import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
 import imgui.internal.ImGui
@@ -19,11 +18,8 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.locale.Language
 import net.minecraft.util.Mth
-import ru.hollowhorizon.hc.client.imgui.BufferType
 import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
-import ru.hollowhorizon.hc.client.imgui.addons.ItemProperties
-import ru.hollowhorizon.hc.client.imgui.currentBufferType
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
@@ -34,8 +30,10 @@ import ru.hollowhorizon.hollowengine.common.npcs.quests.QuestNode
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-class QuestsMenuGui(val graph: QuestGraph) : Screen("".mcText) {
-    private val context = NodeEditorContext(NodeEditorConfig().apply { settingsFile = "npc_quests.json" })
+class QuestsMenuGui(val graph: QuestGraph, val editMode: Boolean = true) : Screen("".mcText) {
+    private val context = NodeEditorContext(NodeEditorConfig().apply {
+        settingsFile = "npc_quests.json"
+    })
     private val titleBuffer = ImString(100)
     private val subtitleBuffer = ImString(250)
     var lastModalPopup = -1
@@ -99,9 +97,9 @@ class QuestsMenuGui(val graph: QuestGraph) : Screen("".mcText) {
                 inputPosY + 20 * Mth.sin(rotation),
                 animation,
                 0f,
-                length /220 + animation,
+                length / 220 + animation,
                 0f,
-                length /220 + animation,
+                length / 220 + animation,
                 1f,
                 animation,
                 1f,
@@ -116,6 +114,8 @@ class QuestsMenuGui(val graph: QuestGraph) : Screen("".mcText) {
 
         graph.nodes.forEachIndexed { index, questNode ->
             val id = (index + 1).toLong()
+            val nodeX = NodeEditor.getNodePositionX(id)
+            val nodeY = NodeEditor.getNodePositionY(id)
             pushID(id)
             NodeEditor.beginNode(id)
 
@@ -124,6 +124,10 @@ class QuestsMenuGui(val graph: QuestGraph) : Screen("".mcText) {
             }
 
             NodeEditor.endNode()
+
+            if(!editMode) {
+                NodeEditor.setNodePosition(id, nodeX, nodeY)
+            }
 
             popID()
         }

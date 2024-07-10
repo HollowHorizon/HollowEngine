@@ -4,7 +4,7 @@ plugins {
     java
     `maven-publish`
     id("architectury-plugin") version "3.4-SNAPSHOT"
-    id("dev.architectury.loom") version "1.6-SNAPSHOT" apply false
+    id("dev.architectury.loom") version "1.7-SNAPSHOT" apply false
     kotlin("jvm")
     kotlin("plugin.serialization")
 }
@@ -130,11 +130,10 @@ allprojects {
 
         implementation("com.akuleshov7:ktoml-core:0.5.1")
 
-        implementation("io.github.spair:imgui-java-binding:$imguiVersion")
-        implementation("io.github.spair:imgui-java-lwjgl3:$imguiVersion")
-        implementation("io.github.spair:imgui-java-natives-windows:$imguiVersion")
-        implementation("io.github.spair:imgui-java-natives-linux:$imguiVersion")
-        implementation("io.github.spair:imgui-java-natives-macos:$imguiVersion")
+        implementation("team.0mods:imgui-app:$imguiVersion")
+        implementation("team.0mods:imgui-binding:$imguiVersion")
+        implementation("team.0mods:imgui-lwjgl3:$imguiVersion")
+        implementation("team.0mods:imgui-binding-natives:$imguiVersion")
 
         implementation("org.anarres:jcpp:1.4.14")
         implementation("io.github.douira:glsl-transformer:2.0.1")
