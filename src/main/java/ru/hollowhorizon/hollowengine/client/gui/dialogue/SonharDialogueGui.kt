@@ -33,6 +33,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.resources.sounds.SimpleSoundInstance
 import net.minecraft.client.resources.sounds.SoundInstance
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.sounds.SoundEvents
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
@@ -151,7 +152,7 @@ object SonharDialogueGui : HollowScreen() {
     ): Boolean {
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 0f, 0f)
 
-        val cursorPos = ImGui.getCursorPos()
+        val cursorPos = ImGui.getCursorScreenPos()
 
         var height = if (label.length > 30) height * 1.5f else height
         var image =
@@ -161,12 +162,11 @@ object SonharDialogueGui : HollowScreen() {
         image =
             if (label.length > 60) "${image.namespace}:${image.path.substringBeforeLast("_medium.png")}_large.png".rl else image
 
-
         ImGui.invisibleButton("##$label", width, height)
         val hovered = ImGui.isItemHovered()
         val pressed = ImGui.isItemClicked()
 
-        ImGui.setCursorPos(cursorPos.x, cursorPos.y)
+        ImGui.setCursorScreenPos(cursorPos.x, cursorPos.y)
         if (horizontal) {
             ImGuiMethods.image(
                 image, width, height, width * 2, height,
@@ -181,18 +181,34 @@ object SonharDialogueGui : HollowScreen() {
             )
         }
         val textSize = ImGui.calcTextSize(label, false, 140f * scale)
-        ImGui.setCursorPos(cursorPos.x + width / 2 - textSize.x / 2, cursorPos.y + 8f)
+        if (label.length > 30) textSize.set(width - 40, textSize.y)
 
         if (label.isNotEmpty()) {
-            val old = ImGui.getStyle().getColor(ImGuiCol.Text)
-            ImGui.getStyle().setColor(ImGuiCol.Text, 0f, 0f, 0f, 1f)
-            ImGui.textWrapped(label)
-            ImGui.getStyle().setColor(ImGuiCol.Text, old.x, old.y, old.z, old.w)
+            ImGui.getWindowDrawList()
+                .addText(
+                    ImGui.getFont(),
+                    ImGui.getFontSize().toFloat(),
+                    cursorPos.x + width / 2 - textSize.x / 2,
+                    cursorPos.y + 8f,
+                    ImGui.colorConvertFloat4ToU32(0f, 0f, 0f, 1f),
+                    label,
+                    150* scale
+                )
         }
-
-        ImGui.setCursorPos(cursorPos.x, cursorPos.y + height)
-
         ImGui.popStyleVar()
+
+        if(pressed) {
+            Minecraft.getInstance().soundManager.play(
+                SimpleSoundInstance(
+                    SoundEvents.UI_BUTTON_CLICK,
+                    SoundSource.MASTER,
+                    1.0f,
+                    1.0f,
+                    Minecraft.getInstance().player!!.random,
+                    Minecraft.getInstance().player!!.blockPosition()
+                )
+            )
+        }
 
         return pressed
     }

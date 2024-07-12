@@ -67,6 +67,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
+import ru.hollowhorizon.hollowengine.common.scripting.StoryLogger
 import ru.hollowhorizon.hollowengine.common.scripting.item
 import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
@@ -574,6 +575,7 @@ abstract class IContextBuilder {
     // ------------------------------------
     fun ProgressManager.addMessage(message: () -> String) = next {
         players().forEach {
+            StoryLogger.LOGGER.info("Задание для {}: ", it.name.string, message())
             val story = it[PlayerStoryCapability::class]
             story.quests += message()
         }
@@ -581,6 +583,7 @@ abstract class IContextBuilder {
 
     fun ProgressManager.removeMessage(message: () -> String) = +SimpleNode {
         players().forEach {
+            StoryLogger.LOGGER.info("Удаляю задание для {}: ", it.name.string, message())
             val story = it[PlayerStoryCapability::class]
             story.quests -= message()
         }
@@ -588,6 +591,7 @@ abstract class IContextBuilder {
 
     fun ProgressManager.clear() = +SimpleNode {
         players().forEach {
+            StoryLogger.LOGGER.info("Удаляю все задания для {}.", it.name.string)
             val story = it[PlayerStoryCapability::class]
             story.quests.clear()
         }
