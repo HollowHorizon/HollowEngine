@@ -4,6 +4,7 @@
   "item.hollowengine.storyteller_dim_teleporter": "Teleport: Storyteller Dimension",
   "item.hollowengine.camera": "Camera",
   "item.hollowengine.npc_tool": "NPC Configuration Tool",
+  "item.hollowengine.area_selector": "Zone Adjuster",
   "item.hollowengine.target_selector": "Настройщик цели",
   "item.hollowengine.target_selector.hc_desc": "ПКМ: добавить цель. SHIFT + ПКМ: очистить список целей.",
   "key.categories.hollowengine.keys": "HollowEngine Keys",
@@ -56,6 +57,104 @@
   "hollowengine.npc_choicer.vanilla": "Adds models that other mobs in the game already have, so far only vanilla ones.",
   "hollowengine.progress_manager.event_list": "Event List",
   "hollowengine.progress_manager.no_tasks": "No tasks yet, maybe they will appear later!",
+  "hollowengine.input_model_path": "Enter a model path:",
+  "hollowengine.model_edit.text": "text",
   "ftbquests.task.hollowengine.story_event": "Story Event",
-  "ftbquests.task.hollowengine.story_event.story_event": "Script file path"
+  "ftbquests.task.hollowengine.story_event.story_event": "Script file path",
+
+  "_comment": "Visual Scripting Nodes",
+  "nodes.hollowengine.general.start": "Start",
+  "nodes.hollowengine.general.start.desc": "The entry point of your script, from which it runs.\nThere can be several of them.",
+  "nodes.hollowengine.general.end": "End",
+  "nodes.hollowengine.general.end.desc": "Script termination point.\nThere can be several of them.\nWhen at least one such node is reached, the script stops.",
+  "nodes.hollowengine.general.condition": "Condition",
+  "nodes.hollowengine.general.condition.desc": "Selects one of two forks depending on the condition.\nTrue - upper node | False - lower node",
+
+  "nodes.hollowengine.npcs.move_to": "Move to",
+  "nodes.hollowengine.npcs.move_to.desc": "Gives the character a new task - to come to the specified coordinates.\nThe character moves to the next node, when the npc approaches the target at the specified distance.\nCoordinates can change dynamically.",
+  "nodes.hollowengine.npcs.look_at": "Look at",
+  "nodes.hollowengine.npcs.look_at.desc": "Gives the character a new task to look at the specified coordinates.",
+  "nodes.hollowengine.npcs.say": "Say",
+  "nodes.hollowengine.npcs.say.desc": "Displays a message in chat on behalf of the npcs.",
+  "nodes.hollowengine.npcs.animation_start": "Start animation",
+  "nodes.hollowengine.npcs.animation_start.desc": "Starts the specified animation of the model.\nLayers:\n  Additive - stacks with other animations.\n  Overwrite - overwrites other animations.\nModes:\n  Single - plays 1 time.\n  Cyclic - played endlessly starting over.\n  Last frame - played endlessly stopping at the last frame.\n  Reverse - played endlessly, either in forward or reverse order.",
+  "nodes.hollowengine.npcs.animation_stop": "Stop animation",
+  "nodes.hollowengine.npcs.animation_stop.desc": "Stops the specified model animation.",
+  "nodes.hollowengine.npcs.interact": "Interact",
+  "nodes.hollowengine.npcs.interact.desc": "Waits for the player to right-click on the character.",
+  "nodes.hollowengine.npcs.throw_item": "Drop item",
+  "nodes.hollowengine.npcs.throw_item.desc": "Drops the indicated item in the direction he is looking.",
+
+  "nodes.hollowengine.server.command": "Command",
+  "nodes.hollowengine.server.command.desc": "Runs the specified command on behalf of the server.",
+  "nodes.hollowengine.server.player_by_nick": "Nickname player",
+  "nodes.hollowengine.server.player_by_nick.desc": "Gives out the player whose nickname you specify.\nIf the player is not on the server, it will generate an error.",
+  "nodes.hollowengine.server.nearest_player": "Nearest player",
+  "nodes.hollowengine.server.nearest_player.desc": "Gives out the player who is closest to the current character.",
+  "nodes.hollowengine.server.player_info": "Player data",
+  "nodes.hollowengine.server.player_info.desc": "Outputs player data:\n  Coordinates in the world\n  Eye coordinates in the world (e.g. so that the character looks at your eyes instead of your feet)\n  Player Nick\n  Player Health",
+  "nodes.hollowengine.server.message": "Message",
+  "nodes.hollowengine.server.message.desc": "Outputs the specified message to the chat room.",
+
+  "nodes.hollowengine.dialogues.start": "Beginning of the dialog",
+  "nodes.hollowengine.dialogues.end": "End of dialog",
+  "nodes.hollowengine.dialogues.say": "Message",
+  "nodes.hollowengine.dialogues.choice": "Choice",
+
+  "nodes.hollowengine.waiters.wait": "Wait time",
+  "nodes.hollowengine.waiters.wait.desc": "Waits for the specified number of ticks, then moves on to the next node.",
+
+  "_comment": "Visual Scripting Pins",
+  "pins.hollowengine.node": "Node",
+  "pins.hollowengine.dialogue": "Dialogue",
+  "pins.hollowengine.string": "String",
+  "pins.hollowengine.vec3": "Coordinates",
+  "pins.hollowengine.double": "Double",
+  "pins.hollowengine.float": "Float",
+  "pins.hollowengine.integer": "Integer",
+  "pins.hollowengine.player": "Player",
+  "pins.hollowengine.npc": "NPC",
+  "pins.hollowengine.boolean": "Boolean",
+
+  "_comment": "Nodes Categories",
+  "node_categories.npcs": "NPC",
+  "node_categories.server": "Server",
+  "node_categories.general": "General",
+  "node_categories.waiters": "Waiting",
+  "node_categories.dialogues": "Dialogues",
+
+  "_comment": "EDITOR",
+
+  "codeEditor.hollowengine.loading": "Loading",
+
+  "codeEditor.hollowengine.script.run": "Run script",
+  "codeEditor.hollowengine.script.stop": "Stop script",
+
+  "codeEditor.hollowengine.insert.pos": "Insert your coordinates",
+  "codeEditor.hollowengine.insert.look": "Insert your look pos",
+  "codeEditor.hollowengine.insert.itemInHand": "Insert item from your hand",
+  "codeEditor.hollowengine.insert.itemFromInv": "Insert item from inventory",
+
+  "codeEditor.hollowengine.inNewVersion": "It's complicated; I'll do it later :)",
+
+  "codeEditor.hollowengine.rename": "Rename",
+  "codeEditor.hollowengine.rename.new": "Enter a new script name",
+
+  "codeEditor.hollowengine.enter": "Enter the name of the",
+  "codeEditor.hollowengine.enter.directory": "Directory",
+  "codeEditor.hollowengine.enter.script": "Script",
+
+  "codeEditor.hollowengine.delete": "Delete",
+  "codeEditor.hollowengine.delete.warning": "Are you sure you want to",
+  "codeEditor.hollowengine.delete.warning.script": "delete this script",
+  "codeEditor.hollowengine.delete.warning.dir": "delete this directory",
+
+  "codeEditor.hollowengine.yes": "Continue",
+  "codeEditor.hollowengine.no": "Cancel",
+
+  "codeEditor.hollowengine.create": "Create",
+  "codeEditor.hollowengine.create.folder": "Folder",
+  "codeEditor.hollowengine.create.story": "Story Script",
+  "codeEditor.hollowengine.create.content": "Content Script",
+  "codeEditor.hollowengine.create.mod": "Mod Script"
 }
