@@ -43,8 +43,10 @@ import ru.hollowhorizon.hc.client.imgui.FontAwesomeIcons
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
+import ru.hollowhorizon.hollowengine.HollowEngine.Companion.MODID
 import ru.hollowhorizon.hollowengine.client.gui.height
 import ru.hollowhorizon.hollowengine.client.gui.width
+import ru.hollowhorizon.hollowengine.client.translate
 import ru.hollowhorizon.hollowengine.client.utils.roundTo
 import ru.hollowhorizon.hollowengine.common.capabilities.StoriesCapability
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
@@ -63,7 +65,7 @@ object IDEGui {
         text = """
         """.trimIndent()
     }
-    var tree = Tree("Загрузка", "null")
+    var tree = Tree("codeEditor.$MODID.loading".translate, "null")
     var updateTime = 0
     val input = ImString()
     var inputText = ""
@@ -151,12 +153,12 @@ object IDEGui {
                 if (ImGui.imageButton("hollowengine:textures/gui/play.png".rl.toTexture().id, 32f, 32f)) {
                     RunScriptPacket(currentPath).send()
                 }
-                if (ImGui.isItemHovered()) ImGui.setTooltip("Запустить скрипт")
+                if (ImGui.isItemHovered()) ImGui.setTooltip("codeEditor.$MODID.script.run".translate)
             } else {
                 if (ImGui.imageButton("hollowengine:textures/gui/stop.png".rl.toTexture().id, 32f, 32f)) {
                     StopScriptPacket(currentPath).send()
                 }
-                if (ImGui.isItemHovered()) ImGui.setTooltip("Остановить скрипт")
+                if (ImGui.isItemHovered()) ImGui.setTooltip("codeEditor.$MODID.script.stop".translate)
             }
         }
 
@@ -261,19 +263,19 @@ object IDEGui {
         val player = Minecraft.getInstance().player ?: return
 
         if (ImGui.beginPopup("ScriptPopup")) {
-            if (ImGui.menuItem(FontAwesomeIcons.Globe + " Вставить ваши координаты")) {
+            if (ImGui.menuItem(FontAwesomeIcons.Globe + " " + "codeEditor.$MODID.insert.pos".translate)) {
                 val loc = player.position()
                 val text = "pos(${loc.x.roundTo(2)}, ${loc.y.roundTo(2)}, ${loc.z.roundTo(2)})"
                 insertAtCursor(text)
                 ImGui.closeCurrentPopup()
             }
-            if (ImGui.menuItem(FontAwesomeIcons.Eye + " Вставить координаты взгляда")) {
+            if (ImGui.menuItem(FontAwesomeIcons.Eye + " " + "codeEditor.$MODID.insert.look".translate)) {
                 val loc = player.pick(100.0, 0.0f, true).location
                 val text = "pos(${loc.x.roundTo(2)}, ${loc.y.roundTo(2)}, ${loc.z.roundTo(2)})"
                 insertAtCursor(text)
                 ImGui.closeCurrentPopup()
             }
-            if (ImGui.menuItem(FontAwesomeIcons.HandPaper + " Вставить предмет из вашей руки")) {
+            if (ImGui.menuItem(FontAwesomeIcons.HandPaper + " " + "codeEditor.$MODID.insert.itemInHand".translate)) {
                 val item = player.getMainHandItem()
                 val location = "\"" + ForgeRegistries.ITEMS.getKey(item.item).toString() + "\""
                 val count = item.count
@@ -291,8 +293,8 @@ object IDEGui {
                 insertAtCursor(text)
                 ImGui.closeCurrentPopup()
             }
-            if (ImGui.menuItem(FontAwesomeIcons.Toolbox + " Выбрать предмет из инвентаря")) {
-                insertAtCursor("Это сложно, сделаю позже :)")
+            if (ImGui.menuItem(FontAwesomeIcons.Toolbox + " " + "codeEditor.$MODID.insert.itemFromInv".translate)) {
+                insertAtCursor("codeEditor.$MODID.inNewVersion".translate)
                 ImGui.closeCurrentPopup()
             }
             ImGui.endPopup()
@@ -309,14 +311,14 @@ object IDEGui {
 
     fun drawFolderPopup(folder: String) {
         if (ImGui.beginPopup("FileTreePopup##$folder")) {
-            if (ImGui.menuItem(FontAwesomeIcons.Pen + " Переименовать")) {
+            if (ImGui.menuItem(FontAwesomeIcons.Pen + " " + "codeEditor.$MODID.rename".translate)) {
                 inputAction = 0
-                inputText = "Введите новое название скрипта:"
+                inputText = "codeEditor.$MODID.rename.new".translate + ":"
                 ImGui.closeCurrentPopup()
             }
-            if (ImGui.menuItem(FontAwesomeIcons.TrashAlt + " Удалить")) {
+            if (ImGui.menuItem(FontAwesomeIcons.TrashAlt + " " + "codeEditor.$MODID.delete".translate)) {
                 inputAction = 1
-                inputText = "Вы уверены, что хотите\nудалить этот скрипт?"
+                inputText = "codeEditor.$MODID.delete.warning".translate + "\n" + "codeEditor.$MODID.delete.warning.script".translate + "?"
                 ImGui.closeCurrentPopup()
             }
             ImGui.endPopup()
@@ -325,32 +327,32 @@ object IDEGui {
 
     fun drawFilePopup(file: String) {
         if (ImGui.beginPopup("FolderTreePopup##$file")) {
-            if (ImGui.menuItem(FontAwesomeIcons.Folder + " Создать папку")) {
+            if (ImGui.menuItem(FontAwesomeIcons.Folder + " " + "codeEditor.$MODID.create".translate + " " + "codeEditor.$MODID.create.folder".translate)) {
                 inputAction = 2
-                inputText = "Введите название папки:"
+                inputText = "codeEditor.hollowengine.enter".translate + " " + "codeEditor.hollowengine.enter.directory".translate + ":"
                 ImGui.closeCurrentPopup()
             }
 
-            if (ImGui.menuItem(FontAwesomeIcons.FileCode + " Создать Сюжетное событие")) {
+            if (ImGui.menuItem(FontAwesomeIcons.FileCode + " " + "codeEditor.$MODID.create".translate + " " + "codeEditor.$MODID.create.story".translate)) {
                 inputAction = 3
-                inputText = "Введите название скрипта:"
+                inputText = "codeEditor.hollowengine.enter".translate + " " + "codeEditor.hollowengine.enter.script".translate + ":"
                 ImGui.closeCurrentPopup()
             }
 
-            if (ImGui.menuItem(FontAwesomeIcons.FileCode + " Создать Контент-скрипт")) {
+            if (ImGui.menuItem(FontAwesomeIcons.FileCode + " " + "codeEditor.$MODID.create".translate + " " + "codeEditor.$MODID.create.content".translate)) {
                 inputAction = 4
-                inputText = "Введите название скрипта:"
+                inputText = "codeEditor.hollowengine.enter".translate + " " + "codeEditor.hollowengine.enter.script".translate + ":"
                 ImGui.closeCurrentPopup()
             }
-            if (ImGui.menuItem(FontAwesomeIcons.FileCode + " Создать Мод-скрипт")) {
+            if (ImGui.menuItem(FontAwesomeIcons.FileCode + " " + "codeEditor.$MODID.create".translate + " " + "codeEditor.$MODID.create.mod".translate)) {
                 inputAction = 5
-                inputText = "Введите название скрипта:"
+                inputText = "codeEditor.hollowengine.enter".translate + " " + "codeEditor.hollowengine.enter.script".translate + ":"
                 ImGui.closeCurrentPopup()
             }
 
-            if (ImGui.menuItem(FontAwesomeIcons.TrashAlt + " Удалить папку")) {
+            if (ImGui.menuItem(FontAwesomeIcons.TrashAlt + " " + "codeEditor.$MODID.delete.dir".translate)) {
                 inputAction = 6
-                inputText = "Вы уверены, что хотите\nудалить эту папку?"
+                inputText = "codeEditor.$MODID.delete.warning".translate + "\n" + "codeEditor.$MODID.delete.warning.dir".translate + "?"
                 ImGui.closeCurrentPopup()
             }
             ImGui.endPopup()
@@ -374,7 +376,7 @@ object IDEGui {
             ImGui.separator()
 
             if (inputAction == 1 || inputAction == 6) {
-                if (ImGui.button("Да", 120f, 0f)) {
+                if (ImGui.button("codeEditor.$MODID.yes".translate, 120f, 0f)) {
                     inputAction = -1
                     files.removeIf { it.path.startsWith(selectedPath) }
                     if (selectedPath.isNotEmpty()) DeleteFilePacket(selectedPath).send()
@@ -382,7 +384,7 @@ object IDEGui {
                     input.set("")
                 }
                 ImGui.sameLine()
-                if (ImGui.button("Отмена", 120f, 0f)) {
+                if (ImGui.button("codeEditor.$MODID.no".translate, 120f, 0f)) {
                     inputAction = -1
                     ImGui.closeCurrentPopup()
                     input.set("")
@@ -410,7 +412,7 @@ object IDEGui {
                     this.input.set("")
                 }
                 ImGui.sameLine()
-                if (ImGui.button("Отмена", 120f, 0f)) {
+                if (ImGui.button("codeEditor.$MODID.no".translate, 120f, 0f)) {
                     inputAction = -1
                     ImGui.closeCurrentPopup()
                     input.set("")

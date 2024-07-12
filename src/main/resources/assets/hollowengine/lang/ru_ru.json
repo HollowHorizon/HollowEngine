@@ -67,7 +67,6 @@
   "nodes.hollowengine.general.condition": "Условие",
   "nodes.hollowengine.general.condition.desc": "Выбирает одну из двух развилок в зависимости от условия.\nTrue - верхняя нода | False - нижняя нода",
 
-
   "nodes.hollowengine.npcs.move_to": "Идти",
   "nodes.hollowengine.npcs.move_to.desc": "Даёт персонажу новую задачу - прийти на указанные координаты.\nК следующей ноде переходит, когда нпс приблизится к цели на указанное расстояние.\nКоординаты могут менятся динамически.",
   "nodes.hollowengine.npcs.look_at": "Смотреть",
@@ -119,5 +118,39 @@
   "node_categories.server": "Сервер",
   "node_categories.general": "Основное",
   "node_categories.waiters": "Ожидание",
-  "node_categories.dialogues": "Диалоги"
+  "node_categories.dialogues": "Диалоги",
+
+
+  "codeEditor.hollowengine.loading": "Загрузка",
+
+  "codeEditor.hollowengine.script.run": "Запустить скрипт",
+  "codeEditor.hollowengine.script.stop": "Остановить скрипт",
+
+  "codeEditor.hollowengine.insert.pos": "Вставить ваши координаты",
+  "codeEditor.hollowengine.insert.look": "Вставить координаты вашего взгляда",
+  "codeEditor.hollowengine.insert.itemInHand": "Вставить предмет из вашей руки",
+  "codeEditor.hollowengine.insert.itemFromInv": "Вставить предмет из вашего инвентаря",
+
+  "codeEditor.hollowengine.inNewVersion": "Это сложно, сделаю позже :)",
+
+  "codeEditor.hollowengine.rename": "Переименовать",
+  "codeEditor.hollowengine.rename.new": "Введите новое имя скрипта",
+
+  "codeEditor.hollowengine.enter": "Введите название",
+  "codeEditor.hollowengine.enter.directory": "папки",
+  "codeEditor.hollowengine.enter.script": "скрипта",
+
+  "codeEditor.hollowengine.delete": "Удалить",
+  "codeEditor.hollowengine.delete.warning": "Вы уверены, что хотите",
+  "codeEditor.hollowengine.delete.warning.script": "удалить этот скрипт",
+  "codeEditor.hollowengine.delete.warning.dir": "удалить эту папку",
+
+  "codeEditor.hollowengine.yes": "Продолжить",
+  "codeEditor.hollowengine.no": "Отменить",
+
+  "codeEditor.hollowengine.create": "Создать",
+  "codeEditor.hollowengine.create.folder": "Папку",
+  "codeEditor.hollowengine.create.story": "Сюжетный скрипт",
+  "codeEditor.hollowengine.create.content": "Контент-скрипт",
+  "codeEditor.hollowengine.create.mod": "Мод-скрипт"
 }
