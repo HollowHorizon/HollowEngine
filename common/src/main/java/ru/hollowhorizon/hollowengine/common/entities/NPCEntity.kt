@@ -29,14 +29,13 @@ import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
 
-class NPCEntity : PathfinderMob, IAnimated, Merchant {
+class NPCEntity : PathfinderMob, IAnimated {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
     constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
 
     var onInteract: (Player) -> Unit = EMPTY_INTERACT
     var shouldGetItem: (ItemStack) -> Boolean = { false }
     private var tradePlayer: Player? = null
-    var npcOffers = MerchantOffers()
 
     init {
         setCanPickUpLoot(true)
@@ -48,54 +47,12 @@ class NPCEntity : PathfinderMob, IAnimated, Merchant {
         super.defineSynchedData(builder)
     }
 
-    override fun setTradingPlayer(pTradingPlayer: Player?) {
-        tradePlayer = pTradingPlayer
-    }
-
-    override fun getTradingPlayer() = tradePlayer
-
-    override fun getOffers() = npcOffers
-
-    override fun overrideOffers(pOffers: MerchantOffers) {}
-
-    override fun notifyTrade(pOffer: MerchantOffer) {
-        pOffer.increaseUses()
-
-        ExperienceOrb.award(level() as? ServerLevel ?: return, position(), pOffer.xp)
-
-    }
-
-    override fun notifyTradeUpdated(pStack: ItemStack) {
-    }
-
-    override fun getVillagerXp() = 0
-
-    override fun overrideXp(pXp: Int) {}
-
-    override fun showProgressBar() = false
-
-    override fun getNotifyTradeSound() = SoundEvents.VILLAGER_YES
-
-    override fun isClientSide() = level().isClientSide
-
     override fun addAdditionalSaveData(pCompound: CompoundTag) {
         super.addAdditionalSaveData(pCompound)
-        MerchantOffers.CODEC
-            .encodeStart(NbtOps.INSTANCE, npcOffers)
-            .resultOrPartial { HollowCore.LOGGER.warn("Error when serializing npc trades: {}", it) }
-            .ifPresent {
-                pCompound.put("npc_trades", it)
-            }
     }
 
     override fun readAdditionalSaveData(pCompound: CompoundTag) {
         super.readAdditionalSaveData(pCompound)
-        MerchantOffers.CODEC
-            .parse(NbtOps.INSTANCE, pCompound.get("npc_trades"))
-            .resultOrPartial { HollowCore.LOGGER.warn("Error when reading npc trades: {}", it) }
-            .ifPresent {
-                npcOffers = it
-            }
     }
 
     override fun createNavigation(pLevel: Level) = super.createNavigation(pLevel)

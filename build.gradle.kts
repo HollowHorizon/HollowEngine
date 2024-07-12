@@ -126,6 +126,12 @@ allprojects {
         implementation("org.jetbrains.kotlin:kotlin-reflect:1.9.22")
         implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.0-RC")
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
+        implementation("org.jetbrains.kotlin:kotlin-scripting-jvm:2.0.0")
+        implementation("org.jetbrains.kotlin:kotlin-scripting-jvm-host:2.0.0")
+        implementation("org.jetbrains.kotlin:kotlin-script-runtime:2.0.0")
+        implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.0")
+        implementation("org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:2.0.0")
+        implementation("org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:2.0.0")
         implementation("org.ow2.asm:asm:9.7")
 
         implementation("com.akuleshov7:ktoml-core:0.5.1")

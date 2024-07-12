@@ -1,37 +1,70 @@
 package ru.hollowhorizon.hollowengine.client.gui
 
+import imgui.ImGui
+import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiStyleVar
-import imgui.flag.ImGuiWindowFlags
-import imgui.internal.ImGui
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphics
-import net.minecraft.client.gui.screens.Screen
-import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
-import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
+import ru.hollowhorizon.hc.client.utils.SkinDownloader
 import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.client.utils.toTexture
+import kotlin.math.min
 
-class QuestsGui : Screen(Component.empty()) {
-    override fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
-        renderBackground(guiGraphics, mouseX, mouseY, partialTick)
-        ImGuiHandler.drawFrame {
-            ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f)
-            ImGui.setNextWindowPos(0f, 0f)
-            val window = Minecraft.getInstance().window
-            ImGui.setNextWindowSize(window.width.toFloat(), window.height.toFloat())
+class QuestsGui : ImGuiScreen() {
+    private var scale = 1f
 
-            ImGuiMethods.centredWindow(
-                args = ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize or ImGuiWindowFlags.NoTitleBar or
-                        ImGuiWindowFlags.NoBackground
-            ) {
-                val width = window.width
-                val ratio = 0.0828125f
-                image("hollowengine:textures/gui/event_list/event_list.png".rl, width.toFloat(), width * ratio)
-                val size = ImGui.calcTextSize("Список событий")
-                ImGui.setCursorPos(width / 2f - size.x / 2, width * ratio / 2 - size.y / 2)
-                text("Список событий")
+    override fun init() {
+        super.init()
+
+        val window = Minecraft.getInstance().window
+        scale = min(window.width * 0.75f / 242f, window.height * 0.75f / 170f)
+    }
+
+    override fun ImGuiMethods.draw() {
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f)
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f)
+        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, scale*2, scale*2)
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0f)
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarSize, 3f*scale)
+        ImGui.pushStyleColor(ImGuiCol.ChildBg, 0f, 0f, 0f, 0f)
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarGrab, 0.82f, 0.41f, 0f, 1f)
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarGrabActive, 1f, 0.5f, 0f, 1f)
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarGrabHovered, 0.9f, 0.4f, 0f, 1f)
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarBg, 0f, 0f, 0f, 0f)
+        centredWindow {
+            val pos = ImGui.getCursorPos()
+            ImGui.image(
+                "hollowengine:textures/gui/quests/quests_menu.png".rl.toTexture().id,
+                242f * scale,
+                170f * scale
+            )
+
+            ImGui.setCursorPos(pos.x + 35 * scale, pos.y + 4 * scale)
+            pushFontSize((100 * scale / 6.511f).toInt()) {
+                textShadow("Квесты")
+                ImGui.sameLine()
+                ImGui.setCursorPosX(pos.x + 155 * scale)
+                textShadow("Описание")
             }
-            ImGui.popStyleVar()
+
+            ImGui.setCursorPos(pos.x + 7 * scale, pos.y + 30 * scale)
+
+            ImGui.beginChild("Quests", 106f * scale, 136f * scale)
+
+            ImGui.image("hollowengine:textures/gui/quests/quest.png".rl.toTexture().id, 100f * scale, 22f * scale)
+            ImGui.image("hollowengine:textures/gui/quests/quest.png".rl.toTexture().id, 100f * scale, 22f * scale)
+            ImGui.image("hollowengine:textures/gui/quests/quest.png".rl.toTexture().id, 100f * scale, 22f * scale)
+            ImGui.image("hollowengine:textures/gui/quests/quest.png".rl.toTexture().id, 100f * scale, 22f * scale)
+            ImGui.image("hollowengine:textures/gui/quests/quest.png".rl.toTexture().id, 100f * scale, 22f * scale)
+            ImGui.image("hollowengine:textures/gui/quests/quest.png".rl.toTexture().id, 100f * scale, 22f * scale)
+            ImGui.image("hollowengine:textures/gui/quests/quest.png".rl.toTexture().id, 100f * scale, 22f * scale)
+            ImGui.image("hollowengine:textures/gui/quests/quest.png".rl.toTexture().id, 100f * scale, 22f * scale)
+            ImGui.image("hollowengine:textures/gui/quests/quest.png".rl.toTexture().id, 100f * scale, 22f * scale)
+
+
+            ImGui.endChild()
         }
+        ImGui.popStyleVar(5)
+        ImGui.popStyleColor(5)
     }
 }

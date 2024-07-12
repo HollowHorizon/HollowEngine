@@ -21,8 +21,8 @@ import ru.hollowhorizon.hollowengine.client.gui.QuestsGui;
 public abstract class InventoryMixin extends EffectRenderingInventoryScreen<InventoryMenu> {
     @Unique
     private WidgetSprites hollowengine$sprites = new WidgetSprites(
-            ResourceLocation.fromNamespaceAndPath(HollowEngine.MODID, "textures/gui/buttons/quest_button.png"),
-            ResourceLocation.fromNamespaceAndPath(HollowEngine.MODID, "textures/gui/buttons/quest_button_hovered.png")
+            ResourceLocation.fromNamespaceAndPath(HollowEngine.MODID, "textures/gui/quests/inventory_button.png"),
+            ResourceLocation.fromNamespaceAndPath(HollowEngine.MODID, "textures/gui/quests/inventory_button_hovered.png")
     );
 
     public InventoryMixin(InventoryMenu $$0, Inventory $$1, Component $$2) {
@@ -31,7 +31,7 @@ public abstract class InventoryMixin extends EffectRenderingInventoryScreen<Inve
 
     @Inject(method = "init", at = @At("TAIL"))
     private void onInit(CallbackInfo ci) {
-        this.addRenderableWidget(new ImageTextButton(this.leftPos + 42, this.topPos + 170, 90, 18, hollowengine$sprites, "Квесты", button -> {
+        this.addRenderableWidget(new ImageTextButton(this.leftPos + 131, this.topPos + 58, 22, 24, hollowengine$sprites, button -> {
             ForgeKotlinKt.open(new QuestsGui());
         }));
     }

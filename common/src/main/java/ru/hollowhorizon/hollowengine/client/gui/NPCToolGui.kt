@@ -89,7 +89,7 @@ fun registerNpcOptions(event: NpcOptionsEvent) {
         TradeMenuGui(event.npc, true).open()
     })
     event.register(NpcOption("quests") {
-        QuestsMenuGui(event.npc[QuestsCapability::class].questGraph).open()
+        QuestsMenuGui(event.npc).open()
     })
 }
 

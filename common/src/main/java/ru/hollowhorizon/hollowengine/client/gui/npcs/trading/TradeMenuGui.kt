@@ -384,4 +384,7 @@ fun loadFontSizesEvent(event: LoadFontEvent) {
     event.loadFont(20)
     event.loadFont(40)
     event.loadFont(50)
+    event.loadFont(70)
+    event.loadFont(90)
+    event.loadFont(100)
 }

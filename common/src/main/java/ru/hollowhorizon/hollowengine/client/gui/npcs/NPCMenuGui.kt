@@ -17,8 +17,6 @@ import ru.hollowhorizon.hollowengine.client.gui.ImGuiScreen
 import ru.hollowhorizon.hollowengine.client.gui.npcs.quests.QuestsMenuGui
 import ru.hollowhorizon.hollowengine.client.gui.npcs.trading.TradeMenuGui
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
-import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
-import ru.hollowhorizon.hollowengine.common.npcs.quests.QuestsCapability
 import kotlin.math.min
 
 class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
@@ -78,23 +76,40 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
         setCursorPos(70 * scale, getWindowSizeY() / 2 - size / 2)
 
         buttons.forEachIndexed { index, s ->
-            if(drawButton(index, s)) {
-                when(index) {
+            if (drawButton(index, s)) {
+                when (index) {
                     0 -> {
                         onClose()
                         Minecraft.getInstance().player?.sendSystemMessage("[Ирис] Мне не о чем с тобой поговорить.".mcText)
-                        npc[AnimatedEntityCapability::class].layers.add(AnimationLayer("yes", LayerMode.ADD, PlayMode.ONCE, 1f))
+                        npc[AnimatedEntityCapability::class].layers.add(
+                            AnimationLayer(
+                                "yes",
+                                LayerMode.ADD,
+                                PlayMode.ONCE,
+                                1f
+                            )
+                        )
                     }
+
                     1 -> {
                         TradeMenuGui(npc, false).open()
                     }
+
                     2 -> {
-                        QuestsMenuGui(npc[QuestsCapability::class].questGraph, false).open()
+                        QuestsMenuGui(npc, false).open()
                     }
+
                     3 -> {
                         onClose()
                         Minecraft.getInstance().player?.sendSystemMessage("[Ирис] Мне Халва говорил не вступать в группу с какими-то незнакомыми дяденьками...".mcText)
-                        npc[AnimatedEntityCapability::class].layers.add(AnimationLayer("no", LayerMode.ADD, PlayMode.ONCE, 1f))
+                        npc[AnimatedEntityCapability::class].layers.add(
+                            AnimationLayer(
+                                "no",
+                                LayerMode.ADD,
+                                PlayMode.ONCE,
+                                1f
+                            )
+                        )
                     }
                 }
             }
@@ -180,7 +195,12 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
             fontSize + fontSize * 0.1f * size,
             pos.x + 102.5f * scale - textSize.x / 2 + 2.5f,
             pos.y + 12f * scale - textSize.y / 2 + 2.5f,
-            colorConvertFloat4ToU32(color.x * 0.5f, color.y * 0.5f, color.z * 0.5f, color.w * 0.5f * ImGui.getStyle().alpha),
+            colorConvertFloat4ToU32(
+                color.x * 0.5f,
+                color.y * 0.5f,
+                color.z * 0.5f,
+                color.w * 0.5f * ImGui.getStyle().alpha
+            ),
             name
         )
         list.addText(
@@ -209,7 +229,14 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
 
         image("hollowengine:textures/gui/npc_menu/character.png".rl.toTexture().id, 118f * scale, 155f * scale)
         setCursorPos(331f * scale, 76 * scale)
-        ImGuiMethods.entity(npc, 96 * scale, 136 * scale, scale = 1.25f, offsetY = 50 * scale, alpha = ImGui.getStyle().alpha)
+        ImGuiMethods.entity(
+            npc,
+            96 * scale,
+            136 * scale,
+            scale = 1.25f,
+            offsetY = 50 * scale,
+            alpha = ImGui.getStyle().alpha
+        )
     }
 
     class ButtonData(var size: Float)

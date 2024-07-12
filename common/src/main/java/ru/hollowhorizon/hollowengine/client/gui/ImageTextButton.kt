@@ -18,7 +18,6 @@ class ImageTextButton(
     width: Int,
     height: Int,
     sprites: WidgetSprites,
-    private val text: String,
     onPress: OnPress,
 ) : ImageButton(x, y, width, height, sprites, onPress) {
     private var animationTicks = Blaze3D.getTime()
@@ -33,14 +32,6 @@ class ImageTextButton(
         if (!isHoveredOrFocused) transparency = 1f - transparency
         blit(graphics.pose(), backSprite, x, y, width, height, 1f-transparency)
         blit(graphics.pose(), frontSprite, x, y, width, height, transparency)
-
-        graphics.drawString(
-            Minecraft.getInstance().font,
-            text,
-            x + width / 2 - Minecraft.getInstance().font.width(text) / 2,
-            y + height / 2 - 4,
-            0xFFFFFF
-        )
 
         wasHoveredOrFocused = isHoveredOrFocused
     }

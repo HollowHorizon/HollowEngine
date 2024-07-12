@@ -9,9 +9,7 @@ import imgui.extension.nodeditor.flag.NodeEditorStyleColor
 import imgui.extension.nodeditor.flag.NodeEditorStyleVar
 import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiStyleVar
-import imgui.flag.ImGuiWindowFlags
 import imgui.internal.ImGui
-import imgui.type.ImBoolean
 import imgui.type.ImString
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
@@ -20,17 +18,18 @@ import net.minecraft.locale.Language
 import net.minecraft.util.Mth
 import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
-import ru.hollowhorizon.hc.client.utils.mcText
-import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.client.utils.toTexture
+import ru.hollowhorizon.hc.client.utils.*
+import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.nodes.itemPicker
 import ru.hollowhorizon.hollowengine.common.npcs.quests.QuestConnection
 import ru.hollowhorizon.hollowengine.common.npcs.quests.QuestGraph
 import ru.hollowhorizon.hollowengine.common.npcs.quests.QuestNode
+import ru.hollowhorizon.hollowengine.common.npcs.quests.QuestsCapability
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-class QuestsMenuGui(val graph: QuestGraph, val editMode: Boolean = true) : Screen("".mcText) {
+class QuestsMenuGui(val npc: NPCEntity, val editMode: Boolean = true) : Screen("".mcText) {
+    val graph: QuestGraph = npc[QuestsCapability::class].questGraph
     private val context = NodeEditorContext(NodeEditorConfig().apply {
         settingsFile = "npc_quests.json"
     })
@@ -114,19 +113,23 @@ class QuestsMenuGui(val graph: QuestGraph, val editMode: Boolean = true) : Scree
 
         graph.nodes.forEachIndexed { index, questNode ->
             val id = (index + 1).toLong()
-            val nodeX = NodeEditor.getNodePositionX(id)
-            val nodeY = NodeEditor.getNodePositionY(id)
+            NodeEditor.setNodePosition(id, questNode.pos[0], questNode.pos[1])
+
             pushID(id)
+
             NodeEditor.beginNode(id)
 
-            if (QuestRenderer.drawPreview(questNode)) {
-                lastModalPopup = index
+            if (QuestRenderer.drawPreview(questNode, editMode)) {
+                QuestAcceptScreen(npc, questNode, editMode).open()
             }
 
             NodeEditor.endNode()
 
-            if(!editMode) {
-                NodeEditor.setNodePosition(id, nodeX, nodeY)
+            if (editMode) {
+                val nodeX = NodeEditor.getNodePositionX(id)
+                val nodeY = NodeEditor.getNodePositionY(id)
+                questNode.pos[0] = nodeX
+                questNode.pos[1] = nodeY
             }
 
             popID()
@@ -141,39 +144,6 @@ class QuestsMenuGui(val graph: QuestGraph, val editMode: Boolean = true) : Scree
         NodeEditor.end()
         NodeEditor.popStyleVar(3)
         NodeEditor.popStyleColor(2)
-
-        if (lastModalPopup != -1) {
-            ImGui.openPopup(graph.nodes[lastModalPopup].title)
-        }
-        if (lastModalPopup != -1 && isPopupOpen(graph.nodes[lastModalPopup].title)) {
-            val node = graph.nodes[lastModalPopup]
-
-            val open = ImBoolean(true)
-
-            pushStyleVar(ImGuiStyleVar.WindowBorderSize, 2f)
-
-            if (beginPopupModal(
-                    graph.nodes[lastModalPopup].title,
-                    open,
-                    ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize
-                )
-            ) {
-                val window = Minecraft.getInstance().window
-                setWindowSize(window.width * 0.7f, window.height * 0.7f)
-                ImGuiMethods.centerWindow()
-
-                QuestRenderer.drawEditor(graph, node)
-
-                endPopup()
-            }
-
-            popStyleVar()
-
-            if (!open.get()) {
-                lastModalPopup = -1
-                closeCurrentPopup()
-            }
-        }
     }
 
     private fun drawQuestEditorPopups() {
@@ -289,7 +259,8 @@ class QuestsMenuGui(val graph: QuestGraph, val editMode: Boolean = true) : Scree
 
         if (isPopupOpen("quests_editor") && beginPopup("quests_editor")) {
             if (selectable("Создать квест")) {
-                graph.nodes.add(QuestNode())
+                val node = QuestNode()
+                graph.nodes.add(node)
 
                 val canvasX = NodeEditor.toCanvasX(ImGui.getMousePosX()) - 80f
                 val canvasY = NodeEditor.toCanvasY(ImGui.getMousePosY()) - 80f
@@ -298,6 +269,9 @@ class QuestsMenuGui(val graph: QuestGraph, val editMode: Boolean = true) : Scree
                     canvasX,
                     canvasY
                 )
+                node.pos[0] = canvasX
+                node.pos[1] = canvasY
+
 
                 closeCurrentPopup()
             }
@@ -311,5 +285,8 @@ class QuestsMenuGui(val graph: QuestGraph, val editMode: Boolean = true) : Scree
         style.popupBorderSize = border
     }
 
-
+    override fun onClose() {
+        super.onClose()
+        npc[QuestsCapability::class].questGraph = graph
+    }
 }

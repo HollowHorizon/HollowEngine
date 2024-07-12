@@ -3,14 +3,13 @@ package ru.hollowhorizon.hollowengine.common.npcs.quests.tasks
 import imgui.ImGui
 import imgui.flag.ImGuiStyleVar
 import imgui.type.ImString
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hc.api.utils.Polymorphic
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
-import ru.hollowhorizon.hollowengine.client.gui.npcs.quests.QuestRenderer
+import ru.hollowhorizon.hc.client.utils.nbt.ForItemStack
 
 @Serializable
 @Polymorphic(QuestTask::class)
@@ -19,9 +18,11 @@ abstract class AbstractQuestTask : QuestTask {
     override var description = ""
     override var completeText = ""
     override var completeAnimation = ""
+    override var icon: @Serializable(ForItemStack::class) ItemStack = ItemStack.EMPTY
 
     @Transient
     val nameBuffer = ImString(100)
+
     @Transient
     val textBuffer = ImString(500)
 
@@ -69,7 +70,7 @@ interface QuestTask {
     var completeText: String
     var completeAnimation: String
 
-    val icon: ItemStack get() = ItemStack.EMPTY
+    var icon: ItemStack
 
     fun check(player: Player): Boolean
 
