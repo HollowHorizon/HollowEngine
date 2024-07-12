@@ -40,7 +40,7 @@ annotation class AfterScript(val scriptPath: String)
  */
 @Target(AnnotationTarget.FILE)
 @Retention(AnnotationRetention.SOURCE)
-annotation class FirstJoinScript
+annotation class JoinScript
 
 /**
  * Скрипт с этой аннотацией после завершения будет перезапущен заново

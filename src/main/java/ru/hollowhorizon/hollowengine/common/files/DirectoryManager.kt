@@ -48,6 +48,8 @@ object DirectoryManager {
 
     fun firstJoinEvents() = getStoryEvents().filter { it.readLines().any { it.startsWith("@file:EntryPoint") } }
 
+    fun joinEvents() = getStoryEvents().filter { it.readLines().any { it.startsWith("@file:JoinScript") } }
+
     fun getModScripts() = getScripts().filter { it.path.endsWith(".mod.kts") }
 
     fun getContentScripts() = getScripts().filter { it.path.endsWith(".content.kts") }

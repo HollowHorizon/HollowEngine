@@ -73,6 +73,8 @@ object StoryHandler {
     fun onPlayerJoin(event: PlayerEvent.PlayerLoggedInEvent) {
         val player = event.entity as ServerPlayer
 
+        DirectoryManager.joinEvents().forEach { runScript(player.server, it) }
+
         if (player.stats.getValue(Stats.CUSTOM[Stats.PLAY_TIME]) == 0) {
             DirectoryManager.firstJoinEvents().forEach { runScript(player.server, it) }
         }
