@@ -33,7 +33,6 @@ import net.minecraftforge.event.entity.EntityAttributeCreationEvent
 import ru.hollowhorizon.hc.client.utils.isPhysicalClient
 import ru.hollowhorizon.hollowengine.client.render.AimMarkRenderer
 import ru.hollowhorizon.hollowengine.client.render.entity.NPCRenderer
-import ru.hollowhorizon.hollowengine.client.render.entity.SeatRenderer
 import ru.hollowhorizon.hollowengine.common.registry.ModDimensions
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.util.ModUtil
@@ -61,9 +60,10 @@ object StoryEngineSetup {
     }
 
     private fun entityRenderers(event: EntityRenderersEvent.RegisterRenderers) {
-        event.registerEntityRenderer(ModEntities.NPC_ENTITY.get(), ::NPCRenderer)
-
-        event.registerEntityRenderer(ModEntities.SEAT.get(), ::SeatRenderer)
+        event.registerEntityRenderer(
+            ModEntities.NPC_ENTITY.get(),
+            ::NPCRenderer
+        )
     }
 
     private fun onAttributeCreation(event: EntityAttributeCreationEvent) {

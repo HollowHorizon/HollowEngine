@@ -26,7 +26,6 @@ package ru.hollowhorizon.hollowengine.common.scripting
 
 import net.darkhax.gamestages.GameStageHelper
 import net.minecraft.ChatFormatting
-import net.minecraft.core.Direction
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.TagParser
 import net.minecraft.network.chat.Component
@@ -41,7 +40,6 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.SeatContainer
 import ru.hollowhorizon.hollowengine.common.scripting.story.progressManager
 import ru.hollowhorizon.hollowengine.common.util.SafeGetter
 import ru.hollowhorizon.hollowengine.common.util.filter
@@ -60,18 +58,6 @@ fun AnimatedEntityCapability.skin(name: String) = "skins/$name"
 
 val MinecraftServer.players get() = SafeGetter(playerList::getPlayers)
 
-val SeatContainer.north: Direction
-    get() = Direction.SOUTH
-
-val SeatContainer.south: Direction
-    get() = Direction.NORTH
-
-val SeatContainer.west: Direction
-    get() = Direction.EAST
-
-val SeatContainer.east: Direction
-    get() = Direction.WEST
-
 fun ServerPlayer.hasStage(stage: String) = GameStageHelper.hasStage(this, stage)
 
 fun ServerPlayer.addStage(stage: String) = GameStageHelper.addStage(this, stage)
@@ -86,44 +72,44 @@ fun StoryStateMachine.test() {
     players.progressManager.addMessage { "Напиши привет в чат!" }
 }
 
-fun String.color(color: Int): Component {
-    val tr = this.mcTranslate
+fun String.color(color: Int): String {
+    var tr = this.mcTranslate
     val style = tr.style.withColor(color)
-    return ComponentUtils.mergeStyles(tr, style)
+    return ComponentUtils.mergeStyles(tr, style).string
 }
 
-fun String.color(color: String): Component {
+fun String.color(color: String): String {
     val tr = this.mcTranslate
     val style = tr.style.withColor(Integer.valueOf(color))
-    return ComponentUtils.mergeStyles(tr, style)
+    return ComponentUtils.mergeStyles(tr, style).string
 }
 
-val String.bold: Component
+val String.bold: String
     get() {
         val tr = this.mcTranslate
         val style = tr.style.withBold(true)
-        return ComponentUtils.mergeStyles(tr, style)
+        return ComponentUtils.mergeStyles(tr, style).string
     }
 
-val String.italic: Component
+val String.italic: String
     get() {
         val tr = this.mcTranslate
         val style = tr.style.withItalic(true)
-        return ComponentUtils.mergeStyles(tr, style)
+        return ComponentUtils.mergeStyles(tr, style).string
     }
 
-val String.obfuscated: Component
+val String.obfuscated: String
     get() {
         val tr = this.mcTranslate
         val style = tr.style.withObfuscated(true)
-        return ComponentUtils.mergeStyles(tr, style)
+        return ComponentUtils.mergeStyles(tr, style).string
     }
 
-val String.strikethrough: Component
+val String.strikethrough: String
     get() {
         val tr = this.mcTranslate
         val style = tr.style.withStrikethrough(true)
-        return ComponentUtils.mergeStyles(tr, style)
+        return ComponentUtils.mergeStyles(tr, style).string
     }
 
 val String.underline: String

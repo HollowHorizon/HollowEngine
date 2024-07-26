@@ -34,9 +34,7 @@ import ru.hollowhorizon.hc.client.utils.colored
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.plus
-import ru.hollowhorizon.hollowengine.HollowEngine.Companion.MODID
 import ru.hollowhorizon.hollowengine.client.screen.overlays.DrawMousePacket
-import ru.hollowhorizon.hollowengine.client.translate
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.network.MouseButton
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
@@ -51,7 +49,7 @@ open class NPCOperationNode: OperationNode() {
 
 class NpcSuspendScriptNode: NPCOperationNode() {
     val suspend by inPin<Boolean, BooleanPin>().apply {
-        name = "nodes.$MODID.npcs.suspend".translate
+        name = "Приостановить скрипт"
     }
 
     override fun tick(graph: ScriptGraph) {
@@ -64,7 +62,7 @@ class NpcSuspendScriptNode: NPCOperationNode() {
 class MoveToNode: NPCOperationNode() {
     val target by inPin<Vec3, Vec3Pin>()
     val speed by inPin<Double, DoublePin>().apply {
-        name = "nodes.$MODID.npcs.speed_modifier".translate
+        name = "Модификатор скорости"
     }
     val distance by inPin<Double, DoublePin>().apply {
         name = "Расстояние до остановки"

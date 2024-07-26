@@ -28,9 +28,7 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import ru.hollowhorizon.hc.client.utils.mcText
-import ru.hollowhorizon.hollowengine.HollowEngine.Companion.MODID
 import ru.hollowhorizon.hollowengine.client.screen.DialogueOptions
-import ru.hollowhorizon.hollowengine.client.translate
 import ru.hollowhorizon.hollowengine.common.network.ServerMouseClickedEvent
 import ru.hollowhorizon.hollowengine.common.npcs.ScriptGraph
 import ru.hollowhorizon.hollowengine.common.npcs.connections.inputPins
@@ -95,10 +93,10 @@ open class DialogueOperationNode() : DialogueNode() {
 
 class DialogueSayNode() : DialogueOperationNode() {
     var name by inPin<String, StringPin>().apply {
-        name = "nodes.$MODID.dialogues.name".translate
+        name = "Имя"
     }
     var text by inPin<String, StringPin>().apply {
-        name = "nodes.$MODID.dialogues.say".translate
+        name = "Сообщение"
     }
     var isStarted = false
     var complete = false
