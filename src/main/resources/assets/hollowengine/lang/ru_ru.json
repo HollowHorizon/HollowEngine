@@ -5,6 +5,8 @@
   "item.hollowengine.camera": "Камера",
   "item.hollowengine.npc_tool": "Инструмент Настройки Персонажа",
   "item.hollowengine.area_selector": "Настройщик Зоны",
+  "item.hollowengine.target_selector": "Настройщик цели",
+  "item.hollowengine.target_selector.hc_desc": "ПКМ: добавить цель. SHIFT + ПКМ: очистить список целей.",
   "key.categories.hollowengine.keys": "HollowEngine: Клавиши",
   "key.hollowengine.event_list": "Список Событий",
   "key.hollowengine.toggle_recording": "Вкл./Выкл. Запись действий",
@@ -51,6 +53,7 @@
   "hollowengine.npc_creation.choice_type": "Выберите тип NPC",
   "hollowengine.npc_creation.model": "Модель NPC",
   "hollowengine.npc_choicer.hollowcore": "Добавляет модели со скелетными анимациями. Поддерживаемые форматы:",
+  "hollowengine.npc_choicer.timecore": "Добавляет модели из BlockBench, включая анимированные. Поддерживаемые форматы:",
   "hollowengine.npc_choicer.vanilla": "Добавляет модели, которые уже есть у других мобов в игре, пока только ванильных.",
   "hollowengine.progress_manager.event_list": "Список событий",
   "hollowengine.progress_manager.no_tasks": "Заданий пока нет, возможно они появятся позже!",
@@ -59,7 +62,17 @@
   "ftbquests.task.hollowengine.story_event": "Сюжетное событие",
   "ftbquests.task.hollowengine.story_event.story_event": "Путь к файлу скрипта",
 
+  "error.hollowengine.no_permission": "У вас нет прав на редактирование скриптов!",
+
+  "npctool.hollowengine.npc.setting": "Настройка персонажа",
+  "npctool.hollowengine.npc.nodes": "Настройка поведения персонажа",
+  "npctool.hollowengine.npc.pose": "Редактор поз",
+
   "_comment": "Visual Scripting Nodes",
+  "nodes.hollowengine.unlink": "Удалить соединение",
+
+  "nodes.hollowengine.no_desc": "Описания нет",
+
   "nodes.hollowengine.general.start": "Начало",
   "nodes.hollowengine.general.start.desc": "Точка входа вашего скрипта, с неё он запускается.\nИх может быть несколько.",
   "nodes.hollowengine.general.end": "Конец",
@@ -79,8 +92,11 @@
   "nodes.hollowengine.npcs.animation_stop.desc": "Останавливает указанную анимацию модели.",
   "nodes.hollowengine.npcs.interact": "Взаимодействие",
   "nodes.hollowengine.npcs.interact.desc": "Ждёт, пока игрок нажмёт правой кнопкой мыши по персонажу.",
+  "nodes.hollowengine.npcs.suspend": "Приостановить скрипт",
   "nodes.hollowengine.npcs.throw_item": "Бросить предмет",
   "nodes.hollowengine.npcs.throw_item.desc": "Бросает указанный предмет в сторону, куда смотрит.",
+  "nodes.hollowengine.npcs.cause": "Персонаж \"%s\" столкнулся с ошибкой в скрипте! Скрипт остановлен, подробнее в логах.",
+  "nodes.hollowengine.npcs.speed_modifier": "Модификатор скорости",
 
   "nodes.hollowengine.server.command": "Команда",
   "nodes.hollowengine.server.command.desc": "Запускает указанную команду от лица сервера.",
@@ -112,6 +128,9 @@
   "pins.hollowengine.player": "Игрок",
   "pins.hollowengine.npc": "Персонаж",
   "pins.hollowengine.boolean": "Boolean",
+  "pins.hollowengine.eye": "Координаты глаз",
+  "pins.hollowengine.health": "Здоровье",
+  "pins.hollowengine.name": "Имя",
 
   "_comment": "Nodes Categories",
   "node_categories.npcs": "Персонаж",
@@ -120,6 +139,11 @@
   "node_categories.waiters": "Ожидание",
   "node_categories.dialogues": "Диалоги",
 
+  "codeEditor.hollowengine.warning": "Предупреждение",
+
+  "codeEditor.hollowengine.optifine.warning": "Внимание, HollowEngine не совместим с OptiFine, рекомендуем использовать вместо него моды Embeddium и Oculus!",
+  "codeEditor.hollowengine.optifine.continue": "Мне и с OptiFine норм",
+  "codeEditor.hollowengine.optifine.close": "Ладно, сейчас установлю",
 
   "codeEditor.hollowengine.loading": "Загрузка",
 
@@ -141,6 +165,7 @@
   "codeEditor.hollowengine.enter.script": "скрипта",
 
   "codeEditor.hollowengine.delete": "Удалить",
+  "codeEditor.hollowengine.delete.dir": "Удалить папку",
   "codeEditor.hollowengine.delete.warning": "Вы уверены, что хотите",
   "codeEditor.hollowengine.delete.warning.script": "удалить этот скрипт",
   "codeEditor.hollowengine.delete.warning.dir": "удалить эту папку",

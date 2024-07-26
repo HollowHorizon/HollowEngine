@@ -276,10 +276,10 @@ object IDEGui {
                 ImGui.closeCurrentPopup()
             }
             if (ImGui.menuItem(FontAwesomeIcons.HandPaper + " " + "codeEditor.$MODID.insert.itemInHand".translate)) {
-                val item = player.getMainHandItem()
+                val item = player.mainHandItem
                 val location = "\"" + ForgeRegistries.ITEMS.getKey(item.item).toString() + "\""
                 val count = item.count
-                val nbt = if (item.hasTag()) item.getOrCreateTag() else null
+                val nbt = item.tag
                 val text = when {
                     nbt == null && count > 1 -> "item($location, $count)"
                     nbt == null && count == 1 -> "item($location)"
