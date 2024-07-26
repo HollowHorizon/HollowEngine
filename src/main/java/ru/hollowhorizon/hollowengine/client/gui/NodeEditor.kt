@@ -36,8 +36,6 @@ import imgui.type.ImInt
 import net.minecraft.locale.Language
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hc.client.imgui.FontAwesomeIcons
-import ru.hollowhorizon.hollowengine.HollowEngine.Companion.MODID
-import ru.hollowhorizon.hollowengine.client.translate
 import ru.hollowhorizon.hollowengine.common.npcs.CURRENT_GRAPH
 import ru.hollowhorizon.hollowengine.common.npcs.ScriptGraph
 import ru.hollowhorizon.hollowengine.common.npcs.connections.Connection
@@ -144,7 +142,7 @@ object NodeEditor {
             if (ImGui.isItemHovered()) {
                 ImGui.beginTooltip()
                 val pattern = "nodes.${node.type.namespace}.${node.type.path.replace('/', '.')}.desc"
-                val desc = if (languageManager.has(pattern)) languageManager.getOrDefault(pattern) else "nodes.$MODID.no_desc".translate + "."
+                val desc = if (languageManager.has(pattern)) languageManager.getOrDefault(pattern) else "Описания нет."
                 ImGui.textColored(ImGui.colorConvertFloat4ToU32(1f, 0.84313726f, 0f, 1f), desc)
                 ImGui.endTooltip()
             }
@@ -215,7 +213,7 @@ object NodeEditor {
             val node = nodeMap.entries.find { it.value == targetNode }?.key
             if (node != null && ImGui.beginPopup("node_context")) {
                 if (ImGui.button(
-                        "${"codeEditor.hollowengine.delete".translate} ($targetNode) " + languageManager.getOrDefault(
+                        "Удалить ($targetNode) " + languageManager.getOrDefault(
                             "nodes.${node.type.namespace}.${
                                 node.type.path.replace(
                                     '/',
@@ -243,7 +241,7 @@ object NodeEditor {
             val targetLink = ImGui.getStateStorage().getInt(ImGui.getID("delete_link_id"))
             val node = nodeMap.entries.find { it.value == targetLink }?.key
             if (node != null && ImGui.beginPopup("link_context")) {
-                if (ImGui.button("nodes.$MODID.unlink")) {
+                if (ImGui.button("Удалить соединение")) {
                     graph.connections.removeAt(targetLink - 1)
                     ImGui.closeCurrentPopup()
                 }

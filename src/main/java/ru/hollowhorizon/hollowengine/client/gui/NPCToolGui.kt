@@ -35,9 +35,7 @@ import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
-import ru.hollowhorizon.hollowengine.HollowEngine.Companion.MODID
 import ru.hollowhorizon.hollowengine.client.gui.npcs.ScriptNodeEditor
-import ru.hollowhorizon.hollowengine.client.translate
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 
@@ -47,18 +45,15 @@ class NPCToolGui(val npc: NPCEntity) : HollowScreen() {
             val window = Minecraft.getInstance().window
             ImGui.setNextWindowSize(window.width * 0.9f, window.height * 0.9f)
             centredWindow {
-                //Настройка персонажа
-                if (imageButton("wrench", "npctool.$MODID.npc.setting".translate)) {
+                if (imageButton("wrench", "Настройка персонажа")) {
                     NPCCreatorGui(npc, npc.id).open()
                 }
                 sameLine()
-                //Настройка поведения персонажа
-                if (imageButton("nodes", "npctool.$MODID.npc.nodes".translate)) {
+                if (imageButton("nodes", "Настройка поведения персонажа")) {
                     ScriptNodeEditor(npc).open()
                 }
                 sameLine()
-                //Редактор поз
-                imageButton("pose", "npctool.$MODID.npc.pose".translate)
+                imageButton("pose", "Редактор поз")
             }
         }
     }

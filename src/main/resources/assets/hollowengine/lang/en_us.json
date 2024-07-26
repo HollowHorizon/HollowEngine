@@ -5,9 +5,9 @@
   "item.hollowengine.camera": "Camera",
   "item.hollowengine.npc_tool": "NPC Configuration Tool",
   "item.hollowengine.area_selector": "Zone Adjuster",
-  "item.hollowengine.target_selector": "Target selector",
-  "item.hollowengine.target_selector.hc_desc": "RMC: add target. SHIFT + RMC: clear target list.",
-  "key.categories.hollowengine.keys": "HollowEngine Keybinds",
+  "item.hollowengine.target_selector": "Настройщик цели",
+  "item.hollowengine.target_selector.hc_desc": "ПКМ: добавить цель. SHIFT + ПКМ: очистить список целей.",
+  "key.categories.hollowengine.keys": "HollowEngine Keys",
   "key.hollowengine.event_list": "Event List",
   "key.hollowengine.toggle_recording": "On/Off action recording",
   "key.hollowengine.open_ide": "Open Code Editor",
@@ -62,24 +62,13 @@
   "ftbquests.task.hollowengine.story_event": "Story Event",
   "ftbquests.task.hollowengine.story_event.story_event": "Script file path",
 
-  "error.hollowengine.no_permission": "You don't have permissions to edit scripts!",
-
-  "npctool.hollowengine.npc.setting": "Setting NPC",
-  "npctool.hollowengine.npc.nodes": "Setting NPC Behavior",
-  "npctool.hollowengine.npc.pose": "Pose Editor",
-
   "_comment": "Visual Scripting Nodes",
-  "nodes.hollowengine.unlink": "Unlink",
-
-  "nodes.hollowengine.no_desc": "No description",
-
   "nodes.hollowengine.general.start": "Start",
   "nodes.hollowengine.general.start.desc": "The entry point of your script, from which it runs.\nThere can be several of them.",
   "nodes.hollowengine.general.end": "End",
   "nodes.hollowengine.general.end.desc": "Script termination point.\nThere can be several of them.\nWhen at least one such node is reached, the script stops.",
   "nodes.hollowengine.general.condition": "Condition",
   "nodes.hollowengine.general.condition.desc": "Selects one of two forks depending on the condition.\nTrue - upper node | False - lower node",
-  "nodes.hollowengine.general.time_in_ticks": "Time in ticks",
 
   "nodes.hollowengine.npcs.move_to": "Move to",
   "nodes.hollowengine.npcs.move_to.desc": "Gives the character a new task - to come to the specified coordinates.\nThe character moves to the next node, when the npc approaches the target at the specified distance.\nCoordinates can change dynamically.",
@@ -93,11 +82,8 @@
   "nodes.hollowengine.npcs.animation_stop.desc": "Stops the specified model animation.",
   "nodes.hollowengine.npcs.interact": "Interact",
   "nodes.hollowengine.npcs.interact.desc": "Waits for the player to right-click on the character.",
-  "nodes.hollowengine.npcs.suspend": "Suspend",
   "nodes.hollowengine.npcs.throw_item": "Drop item",
   "nodes.hollowengine.npcs.throw_item.desc": "Drops the indicated item in the direction he is looking.",
-  "nodes.hollowengine.npcs.cause": "NPC \"%s\" cause with error in script! Script stopped, view more info in logs.",
-  "nodes.hollowengine.npcs.speed_modifier": "Speed Modifier",
 
   "nodes.hollowengine.server.command": "Command",
   "nodes.hollowengine.server.command.desc": "Runs the specified command on behalf of the server.",
@@ -114,7 +100,6 @@
   "nodes.hollowengine.dialogues.end": "End of dialog",
   "nodes.hollowengine.dialogues.say": "Message",
   "nodes.hollowengine.dialogues.choice": "Choice",
-  "nodes.hollowengine.dialogues.name": "Name",
 
   "nodes.hollowengine.waiters.wait": "Wait time",
   "nodes.hollowengine.waiters.wait.desc": "Waits for the specified number of ticks, then moves on to the next node.",
@@ -130,9 +115,6 @@
   "pins.hollowengine.player": "Player",
   "pins.hollowengine.npc": "NPC",
   "pins.hollowengine.boolean": "Boolean",
-  "pins.hollowengine.eye": "Look coordinates",
-  "pins.hollowengine.health": "Health",
-  "pins.hollowengine.name": "Name",
 
   "_comment": "Nodes Categories",
   "node_categories.npcs": "NPC",
@@ -142,11 +124,6 @@
   "node_categories.dialogues": "Dialogues",
 
   "_comment": "EDITOR",
-  "codeEditor.hollowengine.warning": "Caution",
-
-  "codeEditor.hollowengine.optifine.warning": "Warning, HollowEngine is not compatible with OptiFine, we recommend using Embeddium and Oculus mods instead!",
-  "codeEditor.hollowengine.optifine.continue": "I'm fine with OptiFine.",
-  "codeEditor.hollowengine.optifine.close": "Okay, I'll install it now.",
 
   "codeEditor.hollowengine.loading": "Loading",
 
@@ -168,7 +145,6 @@
   "codeEditor.hollowengine.enter.script": "Script",
 
   "codeEditor.hollowengine.delete": "Delete",
-  "codeEditor.hollowengine.delete.dir": "Delete directory",
   "codeEditor.hollowengine.delete.warning": "Are you sure you want to",
   "codeEditor.hollowengine.delete.warning.script": "delete this script",
   "codeEditor.hollowengine.delete.warning.dir": "delete this directory",

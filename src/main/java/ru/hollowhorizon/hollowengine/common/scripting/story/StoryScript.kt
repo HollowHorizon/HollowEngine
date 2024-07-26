@@ -66,7 +66,7 @@ class StoryScriptConfiguration : AbstractHollowScriptConfiguration({
         "ru.hollowhorizon.hc.common.ui.widgets.*",
         "ru.hollowhorizon.hc.common.ui.animations.*",
         "net.minecraftforge.event.*",
-        "net.minecraft.core.*",
+        "net.minecraft.core.BlockPos",
         "net.minecraft.world.item.trading.MerchantOffer",
         "ru.hollowhorizon.hc.client.utils.*",
         "net.minecraft.world.level.Level"
