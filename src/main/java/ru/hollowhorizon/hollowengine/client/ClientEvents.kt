@@ -46,6 +46,7 @@ import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.HollowEngine.Companion.MODID
 import ru.hollowhorizon.hollowengine.client.gui.height
+import ru.hollowhorizon.hollowengine.client.gui.scripting.CodeEditor
 import ru.hollowhorizon.hollowengine.client.gui.scripting.CodeEditorGui
 import ru.hollowhorizon.hollowengine.client.gui.width
 import ru.hollowhorizon.hollowengine.client.render.PlayerRenderer

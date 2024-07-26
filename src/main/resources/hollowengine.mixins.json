@@ -10,7 +10,9 @@
     "EntityAccessor",
     "LocateCommandMixin",
     "LookControlInvoker",
-    "RecipeManagerAccessor"
+    "RecipeManagerAccessor",
+    "scripting.BindingTraceContextAccessor",
+    "scripting.SlicedMapImplAccessor"
   ],
   "client": [
     "CameraInvoker",

@@ -39,7 +39,6 @@ import ru.hollowhorizon.hollowengine.client.screen.overlays.RecordingDriver
 import ru.hollowhorizon.hollowengine.cutscenes.replay.ToggleRecordingPacket
 
 class ModifyRecordingScreen : HollowScreen(), AutoScaled {
-
     override fun render(pPoseStack: PoseStack, pMouseX: Int, pMouseY: Int, pPartialTick: Float) {
         renderBackground(pPoseStack)
         ImguiHandler.drawFrame {

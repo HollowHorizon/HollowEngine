@@ -55,7 +55,7 @@ class NPCToolGui(val npc: NPCEntity) : HollowScreen() {
                     ScriptNodeEditor(npc).open()
                 }
                 //sameLine()
-//              //imageButton("pose", "npctool.$MODID.npc.pose".translate)
+                //imageButton("pose", "npctool.$MODID.npc.pose".translate)
             }
         }
     }

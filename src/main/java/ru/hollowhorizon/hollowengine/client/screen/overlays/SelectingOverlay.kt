@@ -38,7 +38,7 @@ import ru.hollowhorizon.hollowengine.client.shaders.ModShaders
 import kotlin.math.min
 
 
-class HollowRenderTypes(
+/*class HollowRenderTypes(
     pName: String,
     pFormat: VertexFormat,
     pMode: VertexFormat.Mode,
@@ -71,10 +71,9 @@ class HollowRenderTypes(
             )
         }
     }
-}
+}*/
 
 object SelectingOverlay {
-
     fun draw(stack: PoseStack, aabb: AABB, partialTick: Float) {
         val zero = BoxRenderer.moveToZero(aabb)
         val minX = zero.minX.toFloat()

@@ -26,6 +26,7 @@ package ru.hollowhorizon.hollowengine.common.commands
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.arguments.StringArgumentType
+import net.minecraft.client.Minecraft
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
@@ -34,8 +35,10 @@ import net.minecraft.network.chat.Style
 import net.minecraftforge.network.PacketDistributor
 import net.minecraftforge.registries.ForgeRegistries
 import ru.hollowhorizon.hc.client.utils.mcTranslate
+import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.onRegisterCommands
+import ru.hollowhorizon.hollowengine.client.gui.scripting.CodeEditor
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.network.CopyTextPacket
