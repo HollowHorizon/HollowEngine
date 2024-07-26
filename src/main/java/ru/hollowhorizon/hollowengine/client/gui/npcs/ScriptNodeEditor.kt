@@ -30,16 +30,18 @@ import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
+import net.minecraft.commands.Commands
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods.centredWindow
 import ru.hollowhorizon.hc.client.imgui.ImguiHandler
 import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hc.client.utils.get
-import ru.hollowhorizon.hc.client.utils.mcText
+import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hollowengine.HollowEngine.Companion.MODID
 import ru.hollowhorizon.hollowengine.client.gui.NodeEditor
 import ru.hollowhorizon.hollowengine.client.gui.NodeEditorV2
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
@@ -82,8 +84,8 @@ class ScriptNodeEditor(val npc: NPCEntity) : HollowScreen() {
 class SaveNodesPacket(val graph: @Serializable(ForCompoundNBT::class) CompoundTag, val npcId: Int) :
     HollowPacketV3<SaveNodesPacket> {
     override fun handle(player: Player, data: SaveNodesPacket) {
-        if (!player.hasPermissions(2)) {
-            player.sendSystemMessage("У вас нет прав на редактирование скриптов!".mcText)
+        if (!player.hasPermissions(Commands.LEVEL_GAMEMASTERS)) {
+            player.sendSystemMessage("error.$MODID.no_permission".mcTranslate)
         }
         val npc = player.level.getEntity(npcId) as? NPCEntity ?: return
         val graph = ScriptGraph()

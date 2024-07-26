@@ -7,7 +7,7 @@ import java.time.format.DateTimeFormatter
 
 plugins {
     id("com.modrinth.minotaur") version "2.+"
-    id("net.minecraftforge.gradle") version "6.0.25"
+    id("net.minecraftforge.gradle") version "[6.0,6.2)"
     id("org.parchmentmc.librarian.forgegradle") version "1.+"
     id("org.spongepowered.mixin") version "0.7.38"
     kotlin("jvm") version "1.9.23"
