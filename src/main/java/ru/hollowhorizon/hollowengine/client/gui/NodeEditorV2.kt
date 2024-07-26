@@ -32,6 +32,8 @@ import imgui.extension.nodeditor.flag.NodeEditorPinKind
 import imgui.type.ImLong
 import net.minecraft.locale.Language
 import ru.hollowhorizon.hc.client.imgui.FontAwesomeIcons
+import ru.hollowhorizon.hollowengine.HollowEngine.Companion.MODID
+import ru.hollowhorizon.hollowengine.client.translate
 import ru.hollowhorizon.hollowengine.common.npcs.CURRENT_GRAPH
 import ru.hollowhorizon.hollowengine.common.npcs.ScriptGraph
 import ru.hollowhorizon.hollowengine.common.npcs.connections.Connection
@@ -40,7 +42,6 @@ import ru.hollowhorizon.hollowengine.common.npcs.nodes.pins.Pin
 import ru.hollowhorizon.hollowengine.common.npcs.nodes.pins.isConnected
 import ru.hollowhorizon.hollowengine.common.registry.NodesRegistry
 import kotlin.math.max
-
 
 object NodeEditorV2 {
     val config = NodeEditorConfig().apply {
@@ -71,7 +72,7 @@ object NodeEditorV2 {
             if (ImGui.isItemHovered()) tooltip = {
                 ImGui.beginTooltip()
                 val pattern = "nodes.${node.type.namespace}.${node.type.path.replace('/', '.')}.desc"
-                val desc = if (languageManager.has(pattern)) languageManager.getOrDefault(pattern) else "Описания нет."
+                val desc = if (languageManager.has(pattern)) languageManager.getOrDefault(pattern) else "nodes.$MODID.no_desc". translate + "."
                 ImGui.textColored(ImGui.colorConvertFloat4ToU32(1f, 0.84313726f, 0f, 1f), desc)
                 ImGui.endTooltip()
             }
@@ -209,7 +210,7 @@ object NodeEditorV2 {
             val targetLink = ImGui.getStateStorage().getInt(ImGui.getID("delete_link_id"))
             val node = nodeMap.entries.find { it.value == targetLink }?.key
             if (node != null && ImGui.beginPopup("link_context")) {
-                if (ImGui.button("Удалить соединение")) {
+                if (ImGui.button("nodes.$MODID.unlink")) {
                     graph.connections.removeAt(targetLink - 1)
                     ImGui.closeCurrentPopup()
                 }

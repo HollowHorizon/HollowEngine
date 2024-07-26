@@ -25,7 +25,8 @@
 package ru.hollowhorizon.hollowengine.common.npcs.nodes.base
 
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.HollowEngine.Companion.MODID
+import ru.hollowhorizon.hollowengine.client.translate
 import ru.hollowhorizon.hollowengine.common.npcs.ScriptGraph
 import ru.hollowhorizon.hollowengine.common.npcs.connections.inputPins
 import ru.hollowhorizon.hollowengine.common.npcs.nodes.ScriptNode
@@ -70,7 +71,7 @@ open class OperationNode: ScriptNode() {
 class IfNode: OperationNode() {
     val then by outPin<ScriptNode, NodePin>()
     val condition by inPin<Boolean, BooleanPin>().apply {
-        name = "Условие"
+        name = "nodes.$MODID.general.condition".translate
     }
 
     override fun tick(graph: ScriptGraph) {
@@ -87,7 +88,7 @@ class IfNode: OperationNode() {
 
 class WaitNode: OperationNode() {
     val count by inPin<Int, IntPin>().apply {
-        name = "Время в тиках"
+        name = "nodes.$MODID.general.time_in_ticks".translate
     }
     var time = -1
 
