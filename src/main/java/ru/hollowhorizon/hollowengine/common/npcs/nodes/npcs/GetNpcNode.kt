@@ -30,7 +30,9 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hc.client.utils.isLogicalServer
+import ru.hollowhorizon.hollowengine.HollowEngine.Companion.MODID
 import ru.hollowhorizon.hollowengine.client.gui.comboNode
+import ru.hollowhorizon.hollowengine.client.translate
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.CURRENT_GRAPH
 import ru.hollowhorizon.hollowengine.common.npcs.ScriptGraph
@@ -55,7 +57,7 @@ class GetNpcNode : ScriptNode() {
         val index = npcs.indexOfFirst { it.uuid == uuid }
         val id = ImInt(if (index != -1) index else 0)
 
-        comboNode("Персонаж", npcs.map { it.displayName.string }.toTypedArray(), id)
+        comboNode("pins.$MODID.npc".translate, npcs.map { it.displayName.string }.toTypedArray(), id)
         uuid = npcs[id.get()].uuid
     }
 
@@ -77,19 +79,19 @@ class GetNpcNode : ScriptNode() {
 class NpcInfoNode : ScriptNode() {
     val npc by inPin<NPCEntity, NpcPin>()
     val position by outPin<Vec3, Vec3Pin>().apply {
-        name = "Координаты"
+        name = "pins.$MODID.vec3".translate
         updater = { npc.position() }
     }
     val positionHead by outPin<Vec3, Vec3Pin>().apply {
-        name = "Координаты Глаз"
+        name = "pins.$MODID.eye".translate
         updater = { npc.eyePosition }
     }
     val name by outPin<String, StringPin>().apply {
-        name = "Имя"
+        name = "pins.$MODID.name"
         updater = { npc.name.string }
     }
     val health by outPin<Float, FloatPin>().apply {
-        name = "Здоровье"
+        name = "pins.$MODID.health".translate
         updater = { npc.health }
     }
 }

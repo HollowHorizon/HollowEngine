@@ -44,7 +44,6 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.capabilities.PlayerStoryCapability
 
 class ProgressManagerScreen : HollowScreen("Progress Manager".mcText), AutoScaled {
-
     override fun init() {
         super.init()
 

@@ -44,7 +44,9 @@ import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.mcTranslate
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.HollowEngine.Companion.MODID
 import ru.hollowhorizon.hollowengine.client.gui.height
+import ru.hollowhorizon.hollowengine.client.gui.scripting.CodeEditor
 import ru.hollowhorizon.hollowengine.client.gui.scripting.CodeEditorGui
 import ru.hollowhorizon.hollowengine.client.gui.width
 import ru.hollowhorizon.hollowengine.client.render.PlayerRenderer
@@ -70,12 +72,11 @@ object ClientEvents {
     var ignoreOptifine = false
     private val customTooltips = HashMap<Item, MutableList<Component>>()
 
-    private fun keyBindName(name: String) = "key.${HollowEngine.MODID}.$name"
+    private fun keyBindName(name: String) = "key.$MODID.$name"
 
     fun addTooltip(item: Item, tooltip: Component) {
         customTooltips.computeIfAbsent(item) { ArrayList() }.add(tooltip)
     }
-
 
     fun resetClientScripting() {
         customTooltips.clear()
@@ -88,17 +89,17 @@ object ClientEvents {
                 ImGui.getBackgroundDrawList()
                     .addRectFilled(0f, 0f, width, height, ImGui.colorConvertFloat4ToU32(0f, 0f, 0f, 1f))
                 ImGui.begin(
-                    "Предупреждение",
+                    "codeEditor.$MODID.warning".translate,
                     ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.AlwaysAutoResize
                 )
                 ImGui.setWindowPos(width / 2 - ImGui.getWindowSizeX() / 2, height / 2 - ImGui.getWindowSizeY() / 2)
-                ImGui.textWrapped("Внимание, HollowEngine не совместим с OptiFine, рекомендуем использовать вместо него моды Embeddium и Oculus!")
-                if (ImGui.button("Мне и с OptiFine норм")) {
+                ImGui.textWrapped("codeEditor.$MODID.optifine.warning".translate)
+                if (ImGui.button("codeEditor.$MODID.optifine.continue".translate)) {
                     ignoreOptifine = true
                     Minecraft.getInstance().screen?.onClose()
                 }
                 ImGui.sameLine()
-                if (ImGui.button("Ладно, сейчас установлю")) Minecraft.getInstance().stop()
+                if (ImGui.button("codeEditor.$MODID.optifine.close".translate)) Minecraft.getInstance().stop()
                 ImGui.end()
             }
         }
@@ -147,7 +148,6 @@ object ClientEvents {
         if (OPEN_IDE.isActiveAndMatches(key)) {
             CodeEditorGui().open()
         }
-
 
         if (TOGGLE_RECORDING.isActiveAndMatches(key) && event.action == 0) {
             val player = Minecraft.getInstance().player ?: return

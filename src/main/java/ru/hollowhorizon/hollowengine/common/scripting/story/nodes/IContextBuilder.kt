@@ -27,6 +27,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
 
 import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
 import net.minecraft.nbt.ListTag
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
@@ -63,11 +64,11 @@ import ru.hollowhorizon.hollowengine.common.capabilities.AimMark
 import ru.hollowhorizon.hollowengine.common.capabilities.PlayerStoryCapability
 import ru.hollowhorizon.hollowengine.common.capabilities.StoriesCapability
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.entities.SeatEntity
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
-import ru.hollowhorizon.hollowengine.common.scripting.StoryLogger
 import ru.hollowhorizon.hollowengine.common.scripting.item
 import ru.hollowhorizon.hollowengine.common.scripting.story.ProgressManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryStateMachine
@@ -76,6 +77,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.base.events.In
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.npcs.*
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.AnimationContainer
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.NpcContainer
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.SeatContainer
 import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.util.TeleportContainer
 import ru.hollowhorizon.hollowengine.common.util.Safe
 import ru.hollowhorizon.hollowengine.common.util.getStructure
@@ -97,7 +99,6 @@ abstract class IContextBuilder {
      * Функция по добавлению новых задач (чтобы при добавлении задач в цикле они добавлялись именно в цикл, а не основную машину состояний)
      */
     abstract operator fun <T : Node> T.unaryPlus(): T
-
 
     // ------------------------------------
     //          Функции персонажей
@@ -180,6 +181,16 @@ abstract class IContextBuilder {
                 this@isRunning().isSprinting = value
             }
         }
+
+    fun Safe<List<ServerPlayer>>.seat(seat: SeatContainer.() -> Unit) {
+        next {
+            val c = SeatContainer().apply(seat)
+
+            this@seat().forEach {
+                SeatEntity.seat(it, BlockPos(c.pos), c.offset, c.rot)
+            }
+        }
+    }
 
     infix fun Safe<NPCEntity>.giveLeftHand(item: () -> ItemStack?) {
         next {
@@ -575,7 +586,6 @@ abstract class IContextBuilder {
     // ------------------------------------
     fun ProgressManager.addMessage(message: () -> String) = next {
         players().forEach {
-            StoryLogger.LOGGER.info("Задание для {}: ", it.name.string, message())
             val story = it[PlayerStoryCapability::class]
             story.quests += message()
         }
@@ -583,7 +593,6 @@ abstract class IContextBuilder {
 
     fun ProgressManager.removeMessage(message: () -> String) = +SimpleNode {
         players().forEach {
-            StoryLogger.LOGGER.info("Удаляю задание для {}: ", it.name.string, message())
             val story = it[PlayerStoryCapability::class]
             story.quests -= message()
         }
@@ -591,7 +600,6 @@ abstract class IContextBuilder {
 
     fun ProgressManager.clear() = +SimpleNode {
         players().forEach {
-            StoryLogger.LOGGER.info("Удаляю все задания для {}.", it.name.string)
             val story = it[PlayerStoryCapability::class]
             story.quests.clear()
         }

@@ -34,6 +34,8 @@ import net.minecraftforge.common.util.INBTSerializable
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.colored
 import ru.hollowhorizon.hc.client.utils.mcText
+import ru.hollowhorizon.hc.client.utils.mcTranslate
+import ru.hollowhorizon.hollowengine.HollowEngine.Companion.MODID
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.connections.Connection
 import ru.hollowhorizon.hollowengine.common.npcs.connections.toConnection
@@ -48,7 +50,7 @@ import ru.hollowhorizon.hollowengine.common.util.serialize
 
 lateinit var CURRENT_GRAPH: ScriptGraph
 
-open class ScriptGraph : INBTSerializable<CompoundTag> {
+open class  ScriptGraph : INBTSerializable<CompoundTag> {
     val nodes = ArrayList<ScriptNode>()
     val connections = ArrayList<Connection>()
     lateinit var npc: NPCEntity
@@ -84,7 +86,7 @@ open class ScriptGraph : INBTSerializable<CompoundTag> {
         } catch (e: Exception) {
             npc.server?.playerList?.players?.filter { it.hasPermissions(2) }?.forEach {
                 it.sendSystemMessage(
-                    "Персонаж \'${npc.name.string}\' столкнулся с ошибкой в скрипте! Скрипт остановлен, подробнее в логах.".mcText.colored(
+                    "nodes.$MODID.npcs.cause".mcTranslate(npc.name.string).colored(
                         0xFF222
                     )
                 )

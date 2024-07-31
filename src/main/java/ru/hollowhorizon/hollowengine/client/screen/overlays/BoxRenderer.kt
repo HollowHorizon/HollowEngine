@@ -40,7 +40,6 @@ import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.math.Interpolation
 import ru.hollowhorizon.hollowengine.common.capabilities.StructuresCapability
 
-
 object BoxRenderer {
     var START = Vec3(0.0, 0.0, 0.0)
         set(value) {
