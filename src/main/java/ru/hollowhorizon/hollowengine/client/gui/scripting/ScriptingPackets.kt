@@ -86,6 +86,7 @@ class RequestTreePacket : HollowPacketV3<RequestTreePacket> {
 
         val tree = IDEGui.tree(DirectoryManager.HOLLOW_ENGINE)
         LoadTreePacket(tree).send(player as ServerPlayer)
+        HollowCore.LOGGER.warn("Отправлен список файлов игроку {}", player.name.string)
     }
 }
 
@@ -93,6 +94,7 @@ class RequestTreePacket : HollowPacketV3<RequestTreePacket> {
 @Serializable
 class LoadTreePacket(private val tree: Tree) : HollowPacketV3<LoadTreePacket> {
     override fun handle(player: Player, data: LoadTreePacket) {
+        HollowCore.LOGGER.warn("Получен список файлов от сервера. Прошлый: {}, Текущий: {}", IDEGui.tree, data.tree)
         IDEGui.tree = data.tree
     }
 }

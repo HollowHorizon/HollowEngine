@@ -31,7 +31,8 @@ import ru.hollowhorizon.hc.client.screens.HollowScreen
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 
 class CodeEditorGui : HollowScreen() {
-    init {
+
+    override fun init() {
         RequestTreePacket().send()
     }
 

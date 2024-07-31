@@ -50,12 +50,12 @@ class NPCToolGui(val npc: NPCEntity) : HollowScreen() {
                 if (imageButton("wrench", "npctool.$MODID.npc.setting".translate)) {
                     NPCCreatorGui(npc, npc.id).open()
                 }
-                sameLine()
-                if (imageButton("nodes", "npctool.$MODID.npc.nodes".translate)) {
-                    ScriptNodeEditor(npc).open()
-                }
                 //sameLine()
-                //imageButton("pose", "npctool.$MODID.npc.pose".translate)
+                //if (imageButton("nodes", "Настройка поведения персонажа")) {
+                    //ScriptNodeEditor(npc).open()
+                //}
+                //sameLine()
+                //imageButton("pose", "Редактор поз")
             }
         }
     }
