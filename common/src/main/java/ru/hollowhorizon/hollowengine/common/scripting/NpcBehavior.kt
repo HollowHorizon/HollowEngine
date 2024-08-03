@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting
 
+import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hc.common.scripting.kotlin.AbstractHollowScriptConfiguration
@@ -18,7 +19,8 @@ abstract class NpcBehaviorScript(npc: NPCEntity) : NpcBehavior(npc)
 class NpcScriptConfiguration : AbstractHollowScriptConfiguration({
     defaultImports(
         "ru.hollowhorizon.hollowengine.common.scripting.*",
-        "ru.hollowhorizon.hc.client.utils.*"
+        "ru.hollowhorizon.hc.client.utils.*",
+        "net.minecraft.world.item.ItemStack"
     )
 
     baseClass(NpcBehavior::class)
@@ -32,7 +34,7 @@ abstract class NpcBehavior(val npc: NPCEntity) {
         return false
     }
 
-    fun onInteract(player: Player): Boolean {
+    fun onInteract(player: Player, pHand: InteractionHand): Boolean {
         return false
     }
 }

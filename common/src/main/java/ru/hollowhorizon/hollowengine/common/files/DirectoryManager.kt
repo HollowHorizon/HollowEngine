@@ -9,4 +9,15 @@ object DirectoryManager {
             if (!exists()) mkdirs()
         }.toPath()
     }
+
+    @JvmStatic
+    fun File.toReadablePath(): String {
+        val path = this.toPath()
+        return HOLLOW_ENGINE.relativize(path).toString().replace("\\", "/")
+    }
+
+    @JvmStatic
+    fun String.fromReadablePath(): File {
+        return HOLLOW_ENGINE.resolve(this).toFile()
+    }
 }

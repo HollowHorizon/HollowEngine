@@ -1,10 +1,12 @@
 {
   "itemGroup.hollowengine": "HollowEngine",
+  
   "entity.hollowengine.npc_entity": "Персонаж",
+  
   "item.hollowengine.storyteller_dim_teleporter": "Телепорт: Измерение Рассказчика",
   "item.hollowengine.camera": "Камера",
   "item.hollowengine.npc_tool": "Инструмент Настройки Персонажа",
-  "item.hollowengine.area_selector": "Настройщик Зоны",
+  
   "key.categories.hollowengine.keys": "HollowEngine: Клавиши",
   "key.hollowengine.event_list": "Список Событий",
   "key.hollowengine.toggle_recording": "Вкл./Выкл. Запись действий",
@@ -53,22 +55,22 @@
   "hollowengine.npc_choicer.vanilla": "Добавляет модели, которые уже есть у других мобов в игре, пока только ванильных.",
   "hollowengine.progress_manager.event_list": "Список событий",
   "hollowengine.progress_manager.no_tasks": "Заданий пока нет, возможно они появятся позже!",
-  "hollowengine.input_model_path": "Введите путь к модели:",
-  "hollowengine.model_edit.text": "текст",
   "ftbquests.task.hollowengine.story_event": "Сюжетное событие",
   "ftbquests.task.hollowengine.story_event.story_event": "Путь к файлу скрипта",
 
-  "_comment": "Npc Tool Actions",
+  "npc_tool.trades": "Торговля",
+  "npc_tool.quests": "Квесты",
   "npc_tool.options": "Настройка персонажа",
   "npc_tool.behavior": "Поведение",
   "npc_tool.pose_editor": "Редактор поз",
-  "npc_tool.trades": "Торговля",
-  "npc_tool.quests": "Квесты",
+
 
   "npc_menu.talk": "Поговорить",
   "npc_menu.trade": "Торговать",
   "npc_menu.quests": "Задания",
   "npc_menu.invite": "Пригласить в группу",
+
+  "mod_tabs.code_editor": "Втроенная среда разработки",
 
   "_comment": "Visual Scripting Nodes",
   "nodes.hollowengine.general.start": "Начало",
@@ -149,5 +151,40 @@
   "item.hollowengine.target_selector": "Настройщик цели",
   "item.hollowengine.target_selector.hc_desc": "ПКМ: добавить цель. SHIFT + ПКМ: очистить список целей.",
 
-  "npc_trade_editor.delete_trade": "Удалить лот"
+  "npc_trade_editor.delete_trade": "Удалить лот",
+
+  "codeEditor.hollowengine.loading": "Загрузка",
+
+  "codeEditor.hollowengine.script.run": "Запустить скрипт",
+  "codeEditor.hollowengine.script.stop": "Остановить скрипт",
+
+  "codeEditor.hollowengine.insert.pos": "Вставить ваши координаты",
+  "codeEditor.hollowengine.insert.look": "Вставить координаты вашего взгляда",
+  "codeEditor.hollowengine.insert.itemInHand": "Вставить предмет из вашей руки",
+  "codeEditor.hollowengine.insert.itemFromInv": "Вставить предмет из вашего инвентаря",
+
+  "codeEditor.hollowengine.inNewVersion": "Это сложно, сделаю позже :)",
+
+  "codeEditor.hollowengine.rename": "Переименовать",
+  "codeEditor.hollowengine.rename.new": "Введите новое имя скрипта",
+
+  "codeEditor.hollowengine.enter": "Введите название",
+  "codeEditor.hollowengine.enter.directory": "папки",
+  "codeEditor.hollowengine.enter.script": "скрипта",
+
+  "codeEditor.hollowengine.delete": "Удалить",
+  "codeEditor.hollowengine.delete.dir": "Удалить папку",
+  "codeEditor.hollowengine.delete.warning": "Вы уверены, что хотите",
+  "codeEditor.hollowengine.delete.warning.script": "удалить этот скрипт",
+  "codeEditor.hollowengine.delete.warning.dir": "удалить эту папку",
+
+  "codeEditor.hollowengine.yes": "Продолжить",
+  "codeEditor.hollowengine.no": "Отменить",
+
+  "codeEditor.hollowengine.create": "Создать",
+  "codeEditor.hollowengine.create.folder": "Папку",
+  "codeEditor.hollowengine.create.story": "Сюжетный скрипт",
+  "codeEditor.hollowengine.create.content": "Контент-скрипт",
+  "codeEditor.hollowengine.create.mod": "Мод-скрипт",
+  "hollowengine.npc_choicer.timecore": "Adds models from BlockBench, including animated. Supported formats:"
 }

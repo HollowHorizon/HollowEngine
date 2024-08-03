@@ -1,12 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.NbtOps
 import net.minecraft.network.syncher.EntityDataAccessor
 import net.minecraft.network.syncher.EntityDataSerializers
 import net.minecraft.network.syncher.SynchedEntityData
-import net.minecraft.server.level.ServerLevel
-import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.entity.*
@@ -15,11 +12,7 @@ import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
-import net.minecraft.world.item.trading.Merchant
-import net.minecraft.world.item.trading.MerchantOffer
-import net.minecraft.world.item.trading.MerchantOffers
 import net.minecraft.world.level.Level
-import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.open
@@ -28,14 +21,13 @@ import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
+import ru.hollowhorizon.hollowengine.common.scripting.NpcBehavior
 
 class NPCEntity : PathfinderMob, IAnimated {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
     constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
 
-    var onInteract: (Player) -> Unit = EMPTY_INTERACT
-    var shouldGetItem: (ItemStack) -> Boolean = { false }
-    private var tradePlayer: Player? = null
+    private val script: NpcBehavior? = null
 
     init {
         setCanPickUpLoot(true)
@@ -60,7 +52,10 @@ class NPCEntity : PathfinderMob, IAnimated {
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         if (pHand == InteractionHand.MAIN_HAND && level().isClientSide && pPlayer.mainHandItem.item != ModItems.NPC_TOOL.get()) {
+            if (script?.onInteract(pPlayer, pHand) == true) return InteractionResult.SUCCESS
+
             NPCMenuGui(this).open()
+
             return InteractionResult.SUCCESS
         }
 
@@ -81,14 +76,16 @@ class NPCEntity : PathfinderMob, IAnimated {
     }
 
     override fun wantsToPickUp(pStack: ItemStack): Boolean {
-        return shouldGetItem(pStack)
+        return true
     }
 
     override fun pickUpItem(pItemEntity: ItemEntity) {
         val item = pItemEntity.item
-        onItemPickup(pItemEntity)
-        this.take(pItemEntity, item.count)
-        pItemEntity.discard()
+        if (script?.onItemPickUp(item) == true) {
+            onItemPickup(pItemEntity)
+            this.take(pItemEntity, item.count)
+            pItemEntity.discard()
+        }
     }
 
     override fun customServerAiStep() {
@@ -130,6 +127,7 @@ class NPCEntity : PathfinderMob, IAnimated {
     override fun aiStep() {
         updateSwingTime()
         super.aiStep()
+        script?.onTick()
     }
 
     override fun removeWhenFarAway(dist: Double) = false

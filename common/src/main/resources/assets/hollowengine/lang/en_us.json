@@ -1,14 +1,18 @@
 {
   "itemGroup.hollowengine": "HollowEngine",
+  
   "entity.hollowengine.npc_entity": "Character",
+  
   "item.hollowengine.storyteller_dim_teleporter": "Teleport: Storyteller Dimension",
   "item.hollowengine.camera": "Camera",
   "item.hollowengine.npc_tool": "NPC Configuration Tool",
   "item.hollowengine.target_selector": "Настройщик цели",
   "item.hollowengine.target_selector.hc_desc": "ПКМ: добавить цель. SHIFT + ПКМ: очистить список целей.",
+  
   "key.categories.hollowengine.keys": "HollowEngine Keys",
   "key.hollowengine.event_list": "Event List",
   "key.hollowengine.toggle_recording": "On/Off action recording",
+  
   "hollowengine.scripting.story.script_not_found": "Script \"%s\" not found!",
   "hollowengine.commands.pos.error": "§6[§bHollow Engine§6] §7Could not get position!",
   "hollowengine.commands.copy": "§6[§bHollow Engine§6] §7Value: %s",
@@ -55,15 +59,12 @@
   "hollowengine.npc_choicer.vanilla": "Adds models that other mobs in the game already have, so far only vanilla ones.",
   "hollowengine.progress_manager.event_list": "Event List",
   "hollowengine.progress_manager.no_tasks": "No tasks yet, maybe they will appear later!",
-  "ftbquests.task.hollowengine.story_event": "Story Event",
-  "ftbquests.task.hollowengine.story_event.story_event": "Script file path",
-
-  "_comment": "Npc Tool Actions",
+  
   "npc_tool.options": "NPC Options",
   "npc_tool.behavior": "NPC Behaivor",
   "npc_tool.pose_editor": "Pose Editor",
   "npc_tool.trades": "Trades Editor",
   "npc_tool.quests": "Quests Editor",
-
+  
   "npc_trade_editor.delete_trade": "Delete trade"
 }

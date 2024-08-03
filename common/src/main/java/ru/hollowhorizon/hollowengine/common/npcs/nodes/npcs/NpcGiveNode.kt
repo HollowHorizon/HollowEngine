@@ -114,7 +114,6 @@ class NpcRequestItemNode : NPCOperationNode() {
     var item: ItemStack = ItemStack.EMPTY
 
     override fun tick(graph: ScriptGraph) {
-        npc.shouldGetItem = { item.item == it.item }
 
         complete(graph)
     }

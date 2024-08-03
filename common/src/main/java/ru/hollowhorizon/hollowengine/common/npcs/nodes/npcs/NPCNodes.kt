@@ -118,14 +118,11 @@ class NpcInteractNode : NPCOperationNode() {
 
         if (!isStarted) {
             isStarted = true
-            npc.onInteract = { player ->
-                hasInteracted = true
-            }
+
         }
         if (hasInteracted) {
             isStarted = false
             hasInteracted = false
-            npc.onInteract = NPCEntity.EMPTY_INTERACT
             complete(graph)
         }
     }
