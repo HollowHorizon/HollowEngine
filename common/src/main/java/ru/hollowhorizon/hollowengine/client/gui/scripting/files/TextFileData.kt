@@ -5,8 +5,10 @@ import com.mojang.blaze3d.platform.InputConstants
 import imgui.ImGui
 import imgui.ImVec2
 import imgui.extension.texteditor.TextEditor
+import imgui.flag.ImGuiCol
 import imgui.type.ImBoolean
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.Screen
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
 import ru.hollowhorizon.hc.common.coroutines.scopeAsync
@@ -28,6 +30,8 @@ var changeTime = 0.0
 
 class TextFileData(name: String, path: String, open: ImBoolean, var code: String) : FileData(name, path, open) {
     override fun draw() {
+        ImGui.pushStyleColor(ImGuiCol.TextSelectedBg, 1f, 1f, 1f, 1f)
+
         if (path.startsWith("%")) IDEGui.editor.isReadOnly = true
         if (IDEGui.editor.text.substringBeforeLast('\n') != code) IDEGui.editor.text = code
 
@@ -37,33 +41,72 @@ class TextFileData(name: String, path: String, open: ImBoolean, var code: String
 
         IDEGui.editor.render("Code Editor")
 
+        if (IDEGui.editor.isTextChanged) IDEGui.editor.text =
+            IDEGui.editor.text.substringBeforeLast("\n").replace("\t", "    ")
+
         val completions = ArrayList(COMPLETIONS)
+
+        val line = IDEGui.editor.currentLineText
 
         val maxX = (completions.maxOfOrNull { ImGui.calcTextSize(it.toString()).x } ?: 0f) / 2
         val pos = ImVec2(
             (startPos.x + ImGui.calcTextSize(
-                IDEGui.editor.currentLineText.substring(0, IDEGui.editor.cursorPositionColumn)
+                line.substring(0, IDEGui.editor.cursorPositionColumn.coerceAtMost(line.length))
             ).x - maxX).coerceAtLeast(0f), startPos.y + (IDEGui.editor.cursorPositionLine + 1) * ImGui.getFontSize()
         )
 
-        if (openPopup) {
-            if (Blaze3D.getTime() - changeTime > 1.0) {
-                ImGui.openPopup("##completions")
-                openPopup = false
-            }
+        if (openPopup && !(GLFW.GLFW_KEY_SPACE..GLFW.GLFW_KEY_Z).any {
+                InputConstants.isKeyDown(
+                    Minecraft.getInstance().window.window,
+                    it
+                )
+            }) {
+            ImGui.openPopup("##completions")
+            openPopup = false
         }
+        if(COMPLETIONS.isNotEmpty() && !ImGui.isPopupOpen("##completions")) COMPLETIONS.clear()
         ImGuiMethods.popup("##completions") {
             ImGui.setWindowPos(pos.x, pos.y)
 
+            val array = (GLFW.GLFW_KEY_SPACE..GLFW.GLFW_KEY_Z).toMutableList()
+            array.add(GLFW.GLFW_KEY_BACKSPACE)
+
+            for (i in array) {
+                if (InputConstants.isKeyDown(Minecraft.getInstance().window.window, i)) {
+                    ImGui.closeCurrentPopup()
+                    if (i != GLFW.GLFW_KEY_BACKSPACE) {
+                        val char = if (Screen.hasShiftDown()) Char(i).uppercase()
+                        else Char(i).lowercase()
+                        IDEGui.editor.insertText(char)
+                    } else if (Blaze3D.getTime() - changeTime > 0.5) {
+                        changeTime = Blaze3D.getTime()
+                        val column = IDEGui.editor.cursorPositionColumn
+                        val line = IDEGui.editor.cursorPositionLine
+                        if (column in 0..IDEGui.editor.currentLineText.length) {
+                            val text = IDEGui.editor.currentLineText.removeRange((column - 1).coerceAtLeast(0), column)
+                            val lines = IDEGui.editor.textLines
+                            lines[line] = text
+                            IDEGui.editor.textLines = lines
+                            IDEGui.editor.setCursorPosition(
+                                line,
+                                (column - 1).coerceAtLeast(0)
+                            )
+                        }
+                    }
+
+                    break
+                }
+            }
+
             completions.forEach {
-                if (it.draw() || (ImGui.isItemFocused() && (InputConstants.isKeyDown(
+                if (it.draw() || ((ImGui.isItemFocused() || ImGui.isItemHovered()) && (InputConstants.isKeyDown(
                         Minecraft.getInstance().window.window, GLFW.GLFW_KEY_ENTER
                     ) || InputConstants.isKeyDown(
                         Minecraft.getInstance().window.window, GLFW.GLFW_KEY_TAB
                     )))
                 ) {
                     it.complete(IDEGui.editor)
-                    COMPLETIONS.clear()
+                    ImGui.closeCurrentPopup()
                 }
                 ImGui.separator()
             }
@@ -78,21 +121,19 @@ class TextFileData(name: String, path: String, open: ImBoolean, var code: String
             ImGui.endDragDropTarget()
         }
 
-        if (IDEGui.shouldClose) ImGui.setKeyboardFocusHere(-1)
-
         if (IDEGui.editor.isTextChanged) {
-            IDEGui.editor.text = IDEGui.editor.text.substringBeforeLast("\n").replace("\t", "    ")
-            openPopup = false
-            changeTime = Blaze3D.getTime()
-
             code = IDEGui.editor.text.substringBeforeLast("\n")
             save()
         }
+
+        if (IDEGui.shouldClose) ImGui.setKeyboardFocusHere(-1)
 
         IDEGui.drawScriptPopup()
         if (ImGui.isItemHovered() && ImGui.isMouseClicked(1)) ImGui.openPopup("ScriptPopup")
 
         if (path.startsWith("%")) IDEGui.editor.isReadOnly = false
+
+        ImGui.popStyleColor()
     }
 
     override fun save() {
@@ -100,22 +141,21 @@ class TextFileData(name: String, path: String, open: ImBoolean, var code: String
         scopeAsync {
             val ext = path.substringAfter('.').substringBeforeLast('.')
             val index = IDEGui.editor.index
-            if (index >= 0 && index < IDEGui.editor.text.length) {
-                ScriptType.entries.find { it.type == ext }?.let {
-                    when (it) {
-                        ScriptType.NPC_BEHAVIOR -> {
-                            currentCodeIndex = index
-                            val r = ScriptingCompiler.compileText<NpcBehaviorScript>(code)
+            ScriptType.entries.find { it.type == ext }?.let {
+                when (it) {
+                    ScriptType.NPC_BEHAVIOR -> {
+                        currentCodeIndex = index
+                        val r = ScriptingCompiler.compileText<NpcBehaviorScript>(code)
 
-                            if(r.errors == null) ScriptCompiledEvent(File(".")).post()
-                        }
+                        if (r.errors == null) ScriptCompiledEvent(File(".")).post()
+                    }
 
-                        else -> {
+                    else -> {
 
-                        }
                     }
                 }
             }
+
         }
         SaveFilePacket(path, code.toByteArray()).send()
     }
@@ -126,6 +166,8 @@ val COMPLETIONS = ArrayList<CodeCompletion>()
 
 @SubscribeEvent
 fun onCompleteEvent(event: CodeCompletionEvent) {
+    if (Minecraft.getInstance().screen != IDEGui) return
+
     COMPLETIONS.clear()
     COMPLETIONS.addAll(event.completions.distinct())
 
@@ -134,12 +176,16 @@ fun onCompleteEvent(event: CodeCompletionEvent) {
 
 @SubscribeEvent
 fun onScriptError(event: ScriptErrorEvent) {
+    if (Minecraft.getInstance().screen != IDEGui) return
+
     IDEGui.editor.setErrorMarkers(event.error.map { it.line to it.format() }.groupBy { it.first }
         .mapValues { it.value.joinToString("\n") { it.second } })
 }
 
 @SubscribeEvent
 fun onScriptCompiled(event: ScriptCompiledEvent) {
+    if (Minecraft.getInstance().screen != IDEGui) return
+
     IDEGui.editor.setErrorMarkers(mapOf())
 }
 

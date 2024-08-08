@@ -5,7 +5,6 @@ import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiStyleVar
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
-import ru.hollowhorizon.hc.client.utils.SkinDownloader
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
 import kotlin.math.min
@@ -23,9 +22,9 @@ class QuestsGui : ImGuiScreen() {
     override fun ImGuiMethods.draw() {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f)
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f)
-        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, scale*2, scale*2)
+        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, scale * 2, scale * 2)
         ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, 0f)
-        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarSize, 3f*scale)
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarSize, 3f * scale)
         ImGui.pushStyleColor(ImGuiCol.ChildBg, 0f, 0f, 0f, 0f)
         ImGui.pushStyleColor(ImGuiCol.ScrollbarGrab, 0.82f, 0.41f, 0f, 1f)
         ImGui.pushStyleColor(ImGuiCol.ScrollbarGrabActive, 1f, 0.5f, 0f, 1f)
@@ -63,6 +62,11 @@ class QuestsGui : ImGuiScreen() {
 
 
             ImGui.endChild()
+
+            val window = Minecraft.getInstance().window
+            pushFontSize(50) {
+                textShadow("Брысь отсюда, тут пока ещё ничего не готово :)")
+            }
         }
         ImGui.popStyleVar(5)
         ImGui.popStyleColor(5)

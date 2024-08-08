@@ -57,21 +57,21 @@
   "hollowengine.progress_manager.no_tasks": "Заданий пока нет, возможно они появятся позже!",
   "ftbquests.task.hollowengine.story_event": "Сюжетное событие",
   "ftbquests.task.hollowengine.story_event.story_event": "Путь к файлу скрипта",
-
+  
   "npc_tool.trades": "Торговля",
   "npc_tool.quests": "Квесты",
   "npc_tool.options": "Настройка персонажа",
   "npc_tool.behavior": "Поведение",
   "npc_tool.pose_editor": "Редактор поз",
-
-
+  "npc_tool.empty": "Пусто",
+  
   "npc_menu.talk": "Поговорить",
   "npc_menu.trade": "Торговать",
   "npc_menu.quests": "Задания",
   "npc_menu.invite": "Пригласить в группу",
-
+  
   "mod_tabs.code_editor": "Втроенная среда разработки",
-
+  
   "_comment": "Visual Scripting Nodes",
   "nodes.hollowengine.general.start": "Начало",
   "nodes.hollowengine.general.start.desc": "Точка входа вашего скрипта, с неё он запускается.\nИх может быть несколько.",
@@ -79,8 +79,7 @@
   "nodes.hollowengine.general.end.desc": "Точка завершения скрипта.\nИх может быть несколько.\nДостигнув хотя бы одной такой ноды скрипт останавливается.",
   "nodes.hollowengine.general.condition": "Условие",
   "nodes.hollowengine.general.condition.desc": "Выбирает одну из двух развилок в зависимости от условия.\nTrue - верхняя нода | False - нижняя нода",
-
-
+  
   "nodes.hollowengine.npcs.move_to": "Идти",
   "nodes.hollowengine.npcs.move_to.desc": "Даёт персонажу новую задачу - прийти на указанные координаты.\nК следующей ноде переходит, когда нпс приблизится к цели на указанное расстояние.\nКоординаты могут менятся динамически.",
   "nodes.hollowengine.npcs.look_at": "Смотреть",
@@ -95,7 +94,7 @@
   "nodes.hollowengine.npcs.interact.desc": "Ждёт, пока игрок нажмёт правой кнопкой мыши по персонажу.",
   "nodes.hollowengine.npcs.throw_item": "Бросить предмет",
   "nodes.hollowengine.npcs.throw_item.desc": "Бросает указанный предмет в сторону, куда смотрит.",
-
+  
   "nodes.hollowengine.server.command": "Команда",
   "nodes.hollowengine.server.command.desc": "Запускает указанную команду от лица сервера.",
   "nodes.hollowengine.server.player_by_nick": "Игрок по нику",
@@ -108,15 +107,15 @@
   "nodes.hollowengine.server.player_info.desc": "Выдаёт данные игрока:\n  Координаты в мире\n  Координаты глаз в мире (например чтобы персонаж смотрел вам в глаза, а не в ноги)\n  Ник игрока\n  Здоровье игрока",
   "nodes.hollowengine.server.message": "Сообщение",
   "nodes.hollowengine.server.message.desc": "Выводит указанное сообщение в чат.",
-
+  
   "nodes.hollowengine.dialogues.start": "Начало диалога",
   "nodes.hollowengine.dialogues.end": "Конец диалога",
   "nodes.hollowengine.dialogues.say": "Сообщение",
   "nodes.hollowengine.dialogues.choice": "Выбор",
-
+  
   "nodes.hollowengine.waiters.wait": "Ждать Время",
   "nodes.hollowengine.waiters.wait.desc": "Ждёт указанное количество тиков, после чего переходит к следующей ноде.",
-
+  
   "_comment": "Visual Scripting Pins",
   "pins.hollowengine.node": "Нода",
   "pins.hollowengine.node.color": "#7d7d7dff",
@@ -136,7 +135,7 @@
   "pins.hollowengine.npc.color": "#5ee7ffff",
   "pins.hollowengine.boolean": "Boolean",
   "pins.hollowengine.boolean.color": "#5ee7ffff",
-
+  
   "_comment": "Nodes Categories",
   "node_categories.npcs": "Персонаж",
   "node_colors.npcs": "#f5aa42ff",
@@ -146,41 +145,41 @@
   "node_colors.general": "#7d7d7dff",
   "node_categories.waiters": "Ожидание",
   "node_colors.waiters": "#a45effff",
-
+  
   "gameMode.storyteller": "Режим Рассказчика",
   "item.hollowengine.target_selector": "Настройщик цели",
   "item.hollowengine.target_selector.hc_desc": "ПКМ: добавить цель. SHIFT + ПКМ: очистить список целей.",
-
+  
   "npc_trade_editor.delete_trade": "Удалить лот",
-
+  
   "codeEditor.hollowengine.loading": "Загрузка",
-
+  
   "codeEditor.hollowengine.script.run": "Запустить скрипт",
   "codeEditor.hollowengine.script.stop": "Остановить скрипт",
-
+  
   "codeEditor.hollowengine.insert.pos": "Вставить ваши координаты",
   "codeEditor.hollowengine.insert.look": "Вставить координаты вашего взгляда",
   "codeEditor.hollowengine.insert.itemInHand": "Вставить предмет из вашей руки",
   "codeEditor.hollowengine.insert.itemFromInv": "Вставить предмет из вашего инвентаря",
-
+  
   "codeEditor.hollowengine.inNewVersion": "Это сложно, сделаю позже :)",
-
+  
   "codeEditor.hollowengine.rename": "Переименовать",
   "codeEditor.hollowengine.rename.new": "Введите новое имя скрипта",
-
+  
   "codeEditor.hollowengine.enter": "Введите название",
   "codeEditor.hollowengine.enter.directory": "папки",
   "codeEditor.hollowengine.enter.script": "скрипта",
-
+  
   "codeEditor.hollowengine.delete": "Удалить",
   "codeEditor.hollowengine.delete.dir": "Удалить папку",
   "codeEditor.hollowengine.delete.warning": "Вы уверены, что хотите",
   "codeEditor.hollowengine.delete.warning.script": "удалить этот скрипт",
   "codeEditor.hollowengine.delete.warning.dir": "удалить эту папку",
-
+  
   "codeEditor.hollowengine.yes": "Продолжить",
   "codeEditor.hollowengine.no": "Отменить",
-
+  
   "codeEditor.hollowengine.create": "Создать",
   "codeEditor.hollowengine.create.folder": "Папку",
   "codeEditor.hollowengine.create.story": "Сюжетный скрипт",

@@ -19,29 +19,32 @@ import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hc.common.network.RequestPacket
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.EpisodeFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
+import ru.hollowhorizon.hollowengine.common.story.episode.Episode
 import java.io.ByteArrayInputStream
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
 class ToastPacket(val message: @Serializable(ForTextComponent::class) Component) : HollowPacketV3<ToastPacket> {
     override fun handle(player: Player) {
-        Minecraft.getInstance().toasts.addToast(
-            SystemToast(
-                SystemToast.SystemToastId.PERIODIC_NOTIFICATION,
-                "Уведомление".literal,
-                message
-            )
-        )
+        player.sendToast(message)
     }
 
 }
 
-fun ServerPlayer.sendToast(message: Component) {
-    ToastPacket(message).send(this)
+fun Player.sendToast(message: Component) {
+    if (this !is ServerPlayer) Minecraft.getInstance().toasts.addToast(
+        SystemToast(
+            SystemToast.SystemToastId.PERIODIC_NOTIFICATION,
+            "Уведомление".literal,
+            message
+        )
+    )
+    else ToastPacket(message).send(this)
 }
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
@@ -63,7 +66,7 @@ class RequestFilePacket(val path: String) : HollowPacketV3<RequestFilePacket> {
                 return
             }
 
-            val fileTypes = setOf(".kts", ".json", ".txt", ".mcfunction", ".md", ".vcn", ".png")
+            val fileTypes = setOf(".kts", ".json", ".txt", ".mcfunction", ".md", ".vcn", ".png", ".episode")
             if (fileTypes.any { path.endsWith(it) }) {
                 val file = path.fromReadablePath().readBytes()
                 UpdateFilePacket(
@@ -71,6 +74,7 @@ class RequestFilePacket(val path: String) : HollowPacketV3<RequestFilePacket> {
                     file,
                     when {
                         path.endsWith(".vcn") -> FileType.NODE
+                        path.endsWith(".episode") -> FileType.EPISODE
                         path.endsWith(".png") -> FileType.IMAGE
                         else -> FileType.TEXT
                     }
@@ -143,7 +147,7 @@ class SaveFilePacket(val path: String, val bytes: ByteArray) : HollowPacketV3<Sa
 }
 
 enum class FileType {
-    TEXT, NODE, IMAGE
+    TEXT, NODE, IMAGE, EPISODE
 }
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
@@ -159,6 +163,12 @@ class UpdateFilePacket(val path: String, val bytes: ByteArray, val type: FileTyp
             }
 
             FileType.NODE -> {
+            }
+
+            FileType.EPISODE -> {
+                IDEGui.files.add(
+                    EpisodeFileData(path.substringAfterLast('/'), path, ImBoolean(true), Episode())
+                )
             }
 
             FileType.IMAGE -> {

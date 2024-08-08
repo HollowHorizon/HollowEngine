@@ -47,7 +47,6 @@ class NpcSuspendScriptNode : NPCOperationNode() {
     }
 
     override fun tick(graph: ScriptGraph) {
-        npc[NPCCapability::class].script.suspend = suspend
         if (suspend) npc.navigation.stop()
         complete(graph)
     }
