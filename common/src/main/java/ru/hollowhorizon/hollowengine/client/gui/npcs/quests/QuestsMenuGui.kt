@@ -13,8 +13,10 @@ import imgui.internal.ImGui
 import imgui.type.ImString
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.components.toasts.SystemToast
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.locale.Language
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.util.Mth
 import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
@@ -229,7 +231,8 @@ class QuestsMenuGui(val npc: NPCEntity, val editMode: Boolean = true) : Screen("
 
                 separator()
                 if (menuItem("Изменить рамку")) {
-                    TODO("Это пока не реализовано!")
+                    Minecraft.getInstance().toasts.addToast(SystemToast(SystemToast.SystemToastId.PERIODIC_NOTIFICATION, "Уведомление".literal, "Это пока не реализовано.".literal))
+                    //TODO("Это пока не реализовано!")
                     closeCurrentPopup()
                 }
 

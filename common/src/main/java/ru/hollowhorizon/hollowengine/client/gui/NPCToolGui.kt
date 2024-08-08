@@ -7,14 +7,12 @@ import imgui.flag.ImGuiWindowFlags
 import imgui.internal.ImGui
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.components.toasts.SystemToast
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.locale.Language
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
-import ru.hollowhorizon.hc.client.utils.get
-import ru.hollowhorizon.hc.client.utils.open
-import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.client.utils.toTexture
+import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.post
@@ -82,9 +80,25 @@ val context = NodeEditorContext(config)
 fun registerNpcOptions(event: NpcOptionsEvent) {
     event.register(NpcOption("options") { NPCCreatorGui(event.npc, event.npc.id).open() })
     event.register(NpcOption("behavior") {
-        NpcBehaviorGui().open()
+        Minecraft.getInstance().toasts.addToast(
+            SystemToast(
+                SystemToast.SystemToastId.PERIODIC_NOTIFICATION,
+                "Уведомление".literal,
+                "Временно отключено, используйте скрипты.".literal
+            )
+        )
+        //NpcBehaviorGui().open()
     })
-    event.register(NpcOption("pose_editor") {})
+
+    event.register(NpcOption("pose_editor") {
+        Minecraft.getInstance().toasts.addToast(
+            SystemToast(
+                SystemToast.SystemToastId.PERIODIC_NOTIFICATION,
+                "Уведомление".literal,
+                "Отключено, будет реализовано в редакторе катсцен.".literal
+            )
+        )
+    })
     event.register(NpcOption("trades") {
         TradeMenuGui(event.npc, true).open()
     })

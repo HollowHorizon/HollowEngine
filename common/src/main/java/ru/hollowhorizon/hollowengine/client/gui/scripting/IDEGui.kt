@@ -24,6 +24,7 @@ import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.imgui.FontAwesomeIcons
 import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
 import ru.hollowhorizon.hc.client.utils.*
+import ru.hollowhorizon.hc.common.coroutines.onMainThreadSync
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterKeyBindingsEvent
@@ -50,8 +51,7 @@ object IDEGui : Screen("".literal) {
         setLanguageDefinition(KOTLIN_LANG)
 
         tabSize = 4
-        text = """
-        """.trimIndent()
+        text = ""
     }
     var tree = Tree("codeEditor.$MODID.loading".mcTranslate.string, "null")
     val input = ImString()
@@ -63,7 +63,9 @@ object IDEGui : Screen("".literal) {
     override fun init() {
         super.init()
         scopeSync {
-            reloadTree()
+            onMainThreadSync {
+                reloadTree()
+            }
         }
     }
 
@@ -73,7 +75,12 @@ object IDEGui : Screen("".literal) {
                 0,
                 Minecraft.getInstance().resourceManager.toClientTree()
             )
-            children.find { it.value == "hollowengine" }?.children?.add(tree((DirectoryManager.HOLLOW_ENGINE.resolve("assets").toFile())))
+
+            // Ассеты должны быть клиентские
+            children.find { it.value == "hollowengine" }?.children?.apply {
+                removeIf { it.value == "assets" }
+                add(tree(DirectoryManager.HOLLOW_ENGINE.resolve("assets").toFile()))
+            }
         }
         tree.sort()
     }
@@ -523,14 +530,14 @@ val KOTLIN_LANG = TextEditorLanguageDefinition.c().apply {
             "break", "continue", "switch", "case", "try",
             "catch", "delete", "do", "while", "else", "finally", "if",
             "else", "for", "is", "as", "in", "instanceof",
-            "new", "throw", "typeof", "with", "yield", "when", "return",
+            "new", "throw", "typeof", "typealias", "with", "yield", "when", "return",
             "by", "constructor", "delegate", "dynamic", "field", "get", "set", "init", "value",
             "where", "actual", "annotation", "companion", "field", "external", "infix", "inline", "inner", "internal",
             "open", "operator", "out", "override", "suspend", "vararg",
             "abstract", "extends", "final", "implements", "interface", "super", "throws",
             "data", "class", "fun", "var", "val", "import", "Java", "JSON", "void", "uniform", "using",
             "const", "uint", "float", "int", "double", "vec2", "vec3", "vec4", "sampler2D", "ifdef", "endif",
-            "default", "true", "false"
+            "default", "true", "false", "package"
         )
     )
 

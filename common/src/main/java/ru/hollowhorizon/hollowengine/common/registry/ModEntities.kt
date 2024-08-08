@@ -24,3 +24,9 @@ object ModEntities : HollowRegistry() {
 fun onRegisterAttributes(event: RegisterEntityAttributesEvent) {
     event.register(ModEntities.NPC_ENTITY.get(), Mob.createMobAttributes().add(Attributes.MOVEMENT_SPEED, 0.2).build())
 }
+
+fun main() {
+    val hello = true
+    val world by lazy { false }
+    println("Hello World")
+}

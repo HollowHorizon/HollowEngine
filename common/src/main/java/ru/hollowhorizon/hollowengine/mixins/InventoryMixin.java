@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.mixins;
 
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.screens.inventory.EffectRenderingInventoryScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -20,10 +21,12 @@ import ru.hollowhorizon.hollowengine.client.gui.QuestsGui;
 @Mixin(InventoryScreen.class)
 public abstract class InventoryMixin extends EffectRenderingInventoryScreen<InventoryMenu> {
     @Unique
-    private WidgetSprites hollowengine$sprites = new WidgetSprites(
+    private static final WidgetSprites hollowengine$sprites = new WidgetSprites(
             ResourceLocation.fromNamespaceAndPath(HollowEngine.MODID, "textures/gui/quests/inventory_button.png"),
             ResourceLocation.fromNamespaceAndPath(HollowEngine.MODID, "textures/gui/quests/inventory_button_hovered.png")
     );
+    @Unique
+    private ImageTextButton hollowengine$questsButton;
 
     public InventoryMixin(InventoryMenu $$0, Inventory $$1, Component $$2) {
         super($$0, $$1, $$2);
@@ -31,8 +34,13 @@ public abstract class InventoryMixin extends EffectRenderingInventoryScreen<Inve
 
     @Inject(method = "init", at = @At("TAIL"))
     private void onInit(CallbackInfo ci) {
-        this.addRenderableWidget(new ImageTextButton(this.leftPos + 131, this.topPos + 58, 22, 24, hollowengine$sprites, button -> {
+        hollowengine$questsButton = this.addRenderableWidget(new ImageTextButton(this.leftPos + 131, this.topPos + 58, 22, 24, hollowengine$sprites, button -> {
             ForgeKotlinKt.open(new QuestsGui());
         }));
+    }
+
+    @Inject(method = "method_19891", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/Button;setPosition(II)V"))
+    private void onResize(Button button, CallbackInfo ci) {
+        hollowengine$questsButton.setPosition(this.leftPos + 131, this.topPos + 58);
     }
 }

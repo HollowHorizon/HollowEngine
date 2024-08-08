@@ -6,6 +6,7 @@ import net.minecraft.network.syncher.EntityDataSerializers
 import net.minecraft.network.syncher.SynchedEntityData
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
+import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.entity.*
 import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
@@ -16,18 +17,25 @@ import net.minecraft.world.level.Level
 import ru.hollowhorizon.hc.client.models.gltf.manager.IAnimated
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.open
+import ru.hollowhorizon.hc.common.coroutines.scopeSync
+import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.npcs.NPCMenuGui
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
 import ru.hollowhorizon.hollowengine.common.scripting.NpcBehavior
+import ru.hollowhorizon.hollowengine.common.scripting.NpcBehaviorScript
+import kotlin.script.experimental.api.constructorArgs
+import kotlin.script.experimental.api.valueOrNull
 
 class NPCEntity : PathfinderMob, IAnimated {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
     constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
 
-    private val script: NpcBehavior? = null
+    private var script: NpcBehavior? = null
 
     init {
         setCanPickUpLoot(true)
@@ -159,8 +167,29 @@ class NPCEntity : PathfinderMob, IAnimated {
     override fun load(pCompound: CompoundTag) {
         super.load(pCompound)
 
+        reloadScript()
+
         entityData[sizeX] = pCompound.getFloat("sizeX")
         entityData[sizeY] = pCompound.getFloat("sizeY")
+    }
+
+    override fun hurt(source: DamageSource, amount: Float): Boolean {
+        return super.hurt(source, amount)
+    }
+
+    fun reloadScript() {
+        val type = this[NPCCapability::class].script
+        if(type == "%empty%") {
+            script = null
+            return
+        }
+        scopeSync {
+            val result = ScriptingCompiler.compileFile<NpcBehaviorScript>(type.fromReadablePath()).execute {
+                constructorArgs(this@NPCEntity)
+            }.valueOrNull()?.returnValue?.scriptInstance
+            if (result is NpcBehavior) script = result
+            else HollowEngine.LOGGER.warn("Npc script $type can be loaded!")
+        }
     }
 
     companion object {
