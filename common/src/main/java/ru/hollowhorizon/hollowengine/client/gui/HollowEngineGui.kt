@@ -16,7 +16,7 @@ import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGui
-import ru.hollowhorizon.hollowengine.common.docs.DocsMain
+import ru.hollowhorizon.hollowengine.client.docs.DocsRenderer
 
 object HollowEngineGui : Screen(Component.empty()) {
   val modTabs = ArrayList<Tab>()
@@ -76,5 +76,5 @@ object HollowEngineGui : Screen(Component.empty()) {
 @SubscribeEvent
 fun onAddTab(event: HollowEngineGui.TabEvent) {
   event.register(HollowEngineGui.Tab("code_editor", IDEGui::open))
-  event.register(HollowEngineGui.Tab("docs", DocsMain()::open))
+  event.register(HollowEngineGui.Tab("docs", DocsRenderer()::open))
 }
