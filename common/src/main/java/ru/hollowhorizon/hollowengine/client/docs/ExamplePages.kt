@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.docs
 
 import imgui.ImGui
 
+/*
 @DocsPage("main")
 fun DocsRenderer.main() {
     ImGui.text("Привет 1")
@@ -16,3 +17,4 @@ fun DocsRenderer.main1() {
 fun DocsRenderer.main2() {
     ImGui.text("Привет 3")
 }
+*/

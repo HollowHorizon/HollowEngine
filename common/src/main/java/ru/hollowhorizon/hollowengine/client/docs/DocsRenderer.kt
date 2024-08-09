@@ -30,9 +30,6 @@ class DocsRenderer : Screen(Component.empty()) {
       ImGui.pushStyleVar(ImGuiStyleVar.WindowTitleAlign, 0.5f, 0.5f)
       ImGui.pushStyleColor(ImGuiCol.FrameBg, 0f, 0f, 0f, 0.5f)
 
-      ImGui.setNextWindowSize(width - 64, height - 64)
-      centerWindow()
-
       DockingHelper.splitHorizontally({
         // Root элемент нам не нужен
         tree.children.forEach {
