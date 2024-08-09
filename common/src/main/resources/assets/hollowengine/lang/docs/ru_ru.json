@@ -1,4 +1,11 @@
 {
   "button.tree_show": "Показать",
-  "button.tree_hide": "Скрыть"
+  "button.tree_hide": "Скрыть",
+
+  "he": "HollowEngine",
+
+  "he.welcome": "Добро пожаловать",
+
+  "he.begin": "Начало",
+  "he.begin.mod_requests": "Зависимости мода"
 }
