@@ -1,0 +1,93 @@
+package ru.hollowhorizon.hollowengine.common.docs
+
+import imgui.ImGui
+import imgui.flag.ImGuiCol
+import imgui.flag.ImGuiStyleVar
+import imgui.flag.ImGuiWindowFlags
+import imgui.type.ImBoolean
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.network.chat.Component
+import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
+import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.client.utils.toTexture
+
+class DocsMain: Screen(Component.empty()) {
+  val tree_view = ImBoolean(true)
+
+  val tree_width_type = arrayOf(32f, 128f) // Hide, Show
+
+  override fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
+    super.render(guiGraphics, mouseX, mouseY, partialTick)
+
+    ImGuiHandler.drawFrame {
+      ImGui.setWindowSize(Minecraft.getInstance().window.width + 0.9f, Minecraft.getInstance().window.height * 0.9f)
+
+      val window = Minecraft.getInstance().window
+      val width = window.width * 0.98f
+      val height = window.height * 0.98f
+
+      val tree_size =
+        if(!tree_view.get()) tree_width_type[0]
+        else tree_width_type[1]
+
+      ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 8f)
+      ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 10f, 10f)
+      ImGui.pushStyleVar(ImGuiStyleVar.WindowTitleAlign, 0.5f, 0.5f)
+      ImGui.pushStyleColor(ImGuiCol.FrameBg, 0f, 0f, 0f, 0.5f)
+
+      ImGui.setNextWindowSize(width, height)
+
+      centredWindow(
+        "Документация по HollowEngine",
+        ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize or ImGuiWindowFlags.NoCollapse
+      ) {}
+
+      // Volume & Chapters tree view
+      ImGui.setNextWindowPos(tree_size, ImGui.getWindowHeight())
+      ImGui.begin(
+        "Tree",
+        ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize or ImGuiWindowFlags.NoTitleBar or ImGuiWindowFlags.NoCollapse
+      )
+
+
+
+      ImGui.end()
+
+      // Main
+      ImGui.setWindowSize(ImGui.getWindowWidth() - tree_size, ImGui.getWindowHeight())
+      ImGui.setCursorPosX(tree_size)
+      ImGui.begin(
+        "Main",
+        ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize or ImGuiWindowFlags.NoTitleBar or ImGuiWindowFlags.NoCollapse
+      )
+
+
+
+      ImGui.end()
+
+      ImGui.setCursorPos(8f, 8f)
+      treeButton(tree_view.get())
+
+      ImGui.popStyleColor()
+      ImGui.popStyleVar(3)
+    }
+  }
+
+  private fun treeButton(showTree: Boolean): Boolean {
+    ImGui.pushStyleColor(ImGuiCol.Button, 16, 16, 16, 255)
+    ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 32, 32, 32, 255)
+    ImGui.pushStyleColor(ImGuiCol.ButtonActive, 128, 128, 128, 255)
+
+    val isClick = ImGui.imageButton("hollowengine:docs/icons/arrow.png".rl.toTexture().id, 128f, 128f)
+
+    ImGui.popStyleColor(3)
+
+    if(ImGui.isItemHovered())
+      if(showTree) ImGui.setTooltip(DocsLanguage.getInstance().getOrDefault("button.tree_show"))
+      else ImGui.setTooltip(DocsLanguage.getInstance().getOrDefault("button.tree_hide"))
+
+    return isClick
+  }
+}
