@@ -1,5 +1,6 @@
 accessWidener v2 named
 
+accessible method net/minecraft/client/resources/language/ClientLanguage <init> (Ljava/util/Map;Z)V
 accessible method net/minecraft/client/renderer/entity/EntityRenderers register (Lnet/minecraft/world/entity/EntityType;Lnet/minecraft/client/renderer/entity/EntityRendererProvider;)V
 accessible field com/mojang/blaze3d/platform/GlStateManager TEXTURES [Lcom/mojang/blaze3d/platform/GlStateManager$TextureState;
 accessible field com/mojang/blaze3d/platform/GlStateManager activeTexture I
