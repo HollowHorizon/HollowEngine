@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.docs
+package ru.hollowhorizon.hollowengine.client.docs
 
 import com.google.common.collect.ImmutableMap
 import net.minecraft.client.Minecraft

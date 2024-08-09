@@ -1,3 +1,5 @@
 {
-  "docs.example": "Ну привет..."
+  "main": "Документация",
+  "main.first": "Глава 1",
+  "main.second": "Глава 2"
 }
