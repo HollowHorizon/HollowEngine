@@ -34,7 +34,7 @@ fun DocsRenderer.heWelcome() {
   table("${a}.table0", TableType.WARN, 300f) {
     text("${a}.table0.text0")
     ImGui.newLine()
-    button("${a}.table0.text1", true) { Util.getPlatform().openUri("https://kotlinlang.org/docs/home.html") }
+    button(language.getOrDefault("${a}.table0.text1"), true) { Util.getPlatform().openUri("https://kotlinlang.org/docs/home.html") }
     ImGui.newLine()
     text("${a}.table0.text2")
   }
