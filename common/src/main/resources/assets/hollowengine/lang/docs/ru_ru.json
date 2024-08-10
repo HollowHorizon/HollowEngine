@@ -21,5 +21,12 @@
   "1_he.1_begin": "Начало",
   "1_he.1_begin.0_mod_requests": "Зависимости мода",
 
+  "1_he.1_begin.1_new_directory": "Новая директория",
+  "1_he.1_begin.1_new_directory.text0": "Новая директория",
+  "1_he.1_begin.1_new_directory.text1": "После первого запуска игры с данным модом - в директории игры появилаьс новая папка 'hollowengine'",
+  "1_he.1_begin.1_new_directory.text2": "Открыть папку 'hollowengine'",
+  "1_he.1_begin.1_new_directory.text2_desc": "При нажатии - откроется папка мода",
+
+  "titles": "Описание титульников",
   "titles.welcome.txt": "Очень опасные ребята"
 }
