@@ -3,15 +3,12 @@ package ru.hollowhorizon.hollowengine.client.docs.pages.begin
 import imgui.ImGui
 import net.minecraft.Util
 import net.minecraft.client.Minecraft
-import org.jetbrains.kotlin.codegen.inline.getConstant
 import ru.hollowhorizon.hollowengine.client.docs.DocsPage
 import ru.hollowhorizon.hollowengine.client.docs.DocsRenderer
-import ru.hollowhorizon.hollowengine.client.docs.DocsUtils
 import ru.hollowhorizon.hollowengine.client.docs.DocsUtils.button
 import ru.hollowhorizon.hollowengine.client.docs.DocsUtils.dline
 import ru.hollowhorizon.hollowengine.client.docs.DocsUtils.text
 import ru.hollowhorizon.hollowengine.client.docs.DocsUtils.titleImg
-import ru.hollowhorizon.hollowengine.client.docs.Variables
 import kotlin.io.path.Path
 
 const val a = "1_he.1_begin.1_new_directory"
