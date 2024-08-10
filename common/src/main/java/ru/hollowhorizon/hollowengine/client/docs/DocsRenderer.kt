@@ -21,14 +21,9 @@ class DocsRenderer : Screen(Component.empty()) {
     super.render(guiGraphics, mouseX, mouseY, partialTick)
 
     ImGuiHandler.drawFrame {
-      val window = Minecraft.getInstance().window
-      val width = window.width * 0.98f
-      val height = window.height * 0.98f
-
-      ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 8f)
-      ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 10f, 10f)
-      ImGui.pushStyleVar(ImGuiStyleVar.WindowTitleAlign, 0.5f, 0.5f)
-      ImGui.pushStyleColor(ImGuiCol.FrameBg, 0f, 0f, 0f, 0.5f)
+      ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 16f)
+      ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 8f, 8f)
+      ImGui.pushStyleColor(ImGuiCol.FrameBg, 0.64f, 0.64f, 0.64f, 0.5f)
 
       DockingHelper.splitHorizontally({
         // Root элемент нам не нужен
@@ -44,7 +39,7 @@ class DocsRenderer : Screen(Component.empty()) {
       })
 
       ImGui.popStyleColor()
-      ImGui.popStyleVar(3)
+      ImGui.popStyleVar(2)
     }
   }
 

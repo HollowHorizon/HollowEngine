@@ -5,7 +5,6 @@ import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
-import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
 
@@ -17,6 +16,8 @@ import ru.hollowhorizon.hc.client.utils.toTexture
  * Утилиты специально для документации
  */
 object DocsUtils {
+  private val docsLang = DocsLanguage.getInstance() 
+  
   /**
    * @author _BENDY659_ and HollowHorizon
    *
@@ -38,7 +39,7 @@ object DocsUtils {
       val textWidth = ImGui.calcTextSize(text).x
 
       if(center) ImGui.sameLine(contextWidth / 2 - textWidth / 2)
-      if(shadow) textShadow(text) else ImGui.text(text)
+      if(shadow) textShadow(text) else ImGui.textWrapped(text)
     }
   }
 
@@ -63,7 +64,9 @@ object DocsUtils {
     ImGui.setCursorPosX(ImGui.getContentRegionAvailX() / 2 - imgW / 2)
     ImGui.image("hollowengine:docs/titles/$titleName.png".rl.toTexture().id, imgW,imgH)
 
-    if (ImGui.isItemHovered()) ImGui.setTooltip(DocsLanguage.getInstance().getOrDefault("titles.$titleName.txt"))
+    val titleText = "title.$titleName.txt"
+
+    if (ImGui.isItemHovered() && docsLang.has(titleText)) ImGui.setTooltip(docsLang.getOrDefault(titleText))
   }
 
   /**
@@ -76,9 +79,9 @@ object DocsUtils {
    * Красивая рамочка (разноцветная)
    * @param name Название рамочки сверху
    * @param type Тип рамки. Есть: note (серая), info (синяя), warn (жёлтая) и err (красная)
-   * @param text Всё что будет внутри этой рамки
+   * @param tableContainer Всё что будет внутри этой рамки
    */
-  fun table(name: String, type: String = "note", textContainer: () -> Unit) {
+  fun table(name: String, type: String = "note", height: Float = 512f, tableContainer: () -> Unit) {
     val typeColor = when (type) {
       "note" -> arrayOf(
       163, 163, 136, 255, // RGBA Border
@@ -98,7 +101,7 @@ object DocsUtils {
       )
       else -> throw IllegalArgumentException("Unknown type: $type")
     }
-
+    val iconPath = "hollowengine:docs/icons/table_$type.png".rl.toTexture().id
     val tableWidth = ImGui.getContentRegionAvailX() * 0.9f
 
     ImGui.pushStyleVar(ImGuiStyleVar.WindowTitleAlign, 0.5f, 0.5f)
@@ -109,19 +112,69 @@ object DocsUtils {
 
     ImGui.setCursorPosX(ImGui.getContentRegionAvailX() / 2 - tableWidth / 2)
     ImGui.beginChild(
-      "##table_$name", tableWidth, 512f, true,
+      "##table_$name", tableWidth, height, true,
       ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize
     )
 
-    text(name, 40, true, true)
+    ImGui.setCursorPosX(0f + 8)
+    ImGui.image(
+      iconPath,
+      58f, 58f,
+      0f, 0f, 1f, 1f,
+      typeColor[0].toFloat(), typeColor[1].toFloat(), typeColor[2].toFloat(), typeColor[3].toFloat()
+    )
+    text(name, 40, true, true); ImGui.sameLine()
+    ImGui.setCursorPosX(ImGui.getWindowWidth() - 58f - 8)
+    ImGui.image(
+      iconPath,
+      58f, 58f,
+      0f, 0f, 1f, 1f,
+      typeColor[0].toFloat(), typeColor[1].toFloat(), typeColor[2].toFloat(), typeColor[3].toFloat()
+    )
 
     ImGui.separator()
     ImGui.newLine()
 
-    textContainer()
+    tableContainer()
 
     ImGui.endChild()
     ImGui.popStyleColor(2)
     ImGui.popStyleVar(3)
+  }
+
+  /**
+   * @author _BENDY659_
+   *
+   * English: Better separator
+   *
+   * Russian: Улучшенный сепаратор
+   */
+  fun dline() {
+    ImGui.newLine()
+    ImGui.newLine()
+    ImGui.separator()
+    ImGui.newLine()
+    ImGui.newLine()
+  }
+
+  /**
+   * @author _BENDY659_
+   *
+   * English: Better Button
+   *
+   * Russian: Улучшенная кнопка
+   */
+  fun button(buttonName: String, center: Boolean = true): Boolean {
+    val contextWidth = ImGui.getContentRegionAvailX()
+    val textWidth = ImGui.calcTextSize(buttonName).x
+
+    ImGui.newLine()
+    if(center) ImGui.sameLine(contextWidth / 2 - textWidth / 2)
+    val buttonResult = ImGui.button(buttonName)
+    ImGui.newLine()
+    
+    if(ImGui.isItemHovered() && docsLang.has("${buttonName}_desc")) ImGui.setTooltip(docsLang.getOrDefault("${buttonName}_desc"))
+    
+    return buttonResult
   }
 }
