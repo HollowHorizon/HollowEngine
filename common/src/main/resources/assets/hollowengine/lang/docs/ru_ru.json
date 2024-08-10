@@ -2,6 +2,8 @@
   "button.tree_show": "Показать",
   "button.tree_hide": "Скрыть",
 
+  "error.text": "lang.translation.err.not_found",
+
   "1_he": "HollowEngine",
 
   "1_he.0_welcome": "Добро пожаловать",
