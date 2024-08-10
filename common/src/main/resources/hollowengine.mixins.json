@@ -22,7 +22,8 @@
     "BiomeMixin",
     "InventoryMixin",
     "LevelRendererMixin",
-    "PauseScreenMixin"
+    "PauseScreenMixin",
+    "WorldOpenFlowsMixin"
   ],
   "server": [],
   "injectors": {

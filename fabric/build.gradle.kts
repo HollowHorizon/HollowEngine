@@ -48,8 +48,6 @@ dependencies {
     modImplementation("me.lucko:fabric-permissions-api:0.3.1")
     modImplementation("mods:spark:1.10.73-fabric")
 
-
-
     common(project(path = ":common", configuration = "namedElements")) { isTransitive = false }
     shadowBundle(project(path = ":common", configuration = "transformProductionFabric"))
 }
