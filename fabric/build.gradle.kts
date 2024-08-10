@@ -41,13 +41,14 @@ configurations {
 dependencies {
     modImplementation("net.fabricmc:fabric-loader:$fabric_loader_version") { include(this) }
     modImplementation("net.fabricmc.fabric-api:fabric-api:$fabric_version") { include(this) }
+    implementation("ru.hollowhorizon:hollowcore-fabric:$minecraft_version-1.0.0-dev-shadow")
+    modImplementation("mods:sodium-fabric:0.5.11+mc${minecraft_version}")
+    modImplementation("mods:iris:1.7.3+mc${minecraft_version}")
 
     modImplementation("me.lucko:fabric-permissions-api:0.3.1")
     modImplementation("mods:spark:1.10.73-fabric")
 
-    implementation("ru.hollowhorizon:hollowcore-fabric:$minecraft_version-1.0.0-dev-shadow")
-    modImplementation("mods:sodium-fabric:0.5.11+mc${minecraft_version}")
-    modImplementation("mods:iris:1.7.3+mc${minecraft_version}")
+
 
     common(project(path = ":common", configuration = "namedElements")) { isTransitive = false }
     shadowBundle(project(path = ":common", configuration = "transformProductionFabric"))
