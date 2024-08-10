@@ -4,9 +4,11 @@ import imgui.ImGui
 import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
+import imgui.type.ImInt
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
+import kotlin.collections.set
 
 /**
  * English:
@@ -16,30 +18,34 @@ import ru.hollowhorizon.hc.client.utils.toTexture
  * Утилиты специально для документации
  */
 object DocsUtils {
-  private val docsLang = DocsLanguage.getInstance() 
-  
+  private val docsLang = DocsLanguage.getInstance()
+
   /**
    * @author _BENDY659_ and HollowHorizon
    *
    * > English:
    * Displays the text in of the page
-   * @param text Your text to be shown
+   * @param text ID text fore the translate
    * @param fontSize Text size.The size can only be: 10b 20b 40b 50b 70b 90 or 100
    * @param center Determines whether the text should be centered on the page
    *
    * > Russian:
    * Отображает текст на странице
-   * @param text Ваш текст который будет показан
+   * @param textId ID текст для перевода
    * @param fontSize Размер текста. Размер может быть только: 10, 20, 40, 0, 70, 90 или 100
    * @param center Определяет, должен ли текст быть по центру страницы
    */
-  fun text(text: String, fontSize: Int = 30, center: Boolean = true, shadow: Boolean = false) {
+  fun text(textId: String, fontSize: Int = 30, center: Boolean = true, shadow: Boolean = false) {
     ImGuiMethods.pushFontSize(fontSize) {
       val contextWidth = ImGui.getContentRegionAvailX()
+      val text =
+        if (docsLang.has(textId)) docsLang.getOrDefault(textId)
+        else textId
+
       val textWidth = ImGui.calcTextSize(text).x
 
-      if(center) ImGui.sameLine(contextWidth / 2 - textWidth / 2)
-      if(shadow) textShadow(text) else ImGui.textWrapped(text)
+      if (center) ImGui.sameLine(contextWidth / 2 - textWidth / 2)
+      if (shadow) textShadow(text) else ImGui.textWrapped(text)
     }
   }
 
@@ -51,22 +57,24 @@ object DocsUtils {
    *
    * > Russian:
    * Показывает изображение как титульник для страницы
-   * @param titleName Имя титульника. Чтобы изображение появилось корректно, нужно чтобы в пути `hollowengine:docs/titles/` был файл изображения с таким же названием как и название титульника
+   * @param titleId ID титульника. Чтобы изображение появилось корректно, нужно чтобы в пути `hollowengine:docs/titles/` был файл изображения с таким же названием как и название титульника
    * @param customSize Размер титульника. По умолчанию стоит 1920f на 1080f
    * @param titleScale Процент отношения размера титульника от размера страницы
    * Титульник так же имеет hover текст. Чтобы он корректно отображался, нужно в папке перевода `lang/docs/<код_языка>.json` в id текста написать `titles.<имя титульника>.txt`
    */
-  fun titleImg(titleName: String, customSize: Array<Float> = arrayOf(1920f, 1080f), titleScale: Float = 1.0f) {
+  fun titleImg(titleId: String, customSize: Array<Float> = arrayOf(1920f, 1080f), titleScale: Float = 1.0f) {
     val (imageWidth, imageHeight) = customSize[0] to customSize[1]
     val imgW = ImGui.getContentRegionAvailX() * titleScale
     val imgH = imgW * imageHeight / imageWidth
 
     ImGui.setCursorPosX(ImGui.getContentRegionAvailX() / 2 - imgW / 2)
-    ImGui.image("hollowengine:docs/titles/$titleName.png".rl.toTexture().id, imgW,imgH)
+    ImGui.image("hollowengine:docs/titles/$titleId.png".rl.toTexture().id, imgW, imgH)
 
-    val titleText = "title.$titleName.txt"
+    val (titleDesc, descExist) =
+      if (docsLang.has("${titleId}_desc")) docsLang.getOrDefault("${titleId}_desc") to true
+      else titleId to false
 
-    if (ImGui.isItemHovered() && docsLang.has(titleText)) ImGui.setTooltip(docsLang.getOrDefault(titleText))
+    if (ImGui.isItemHovered() && descExist) ImGui.setTooltip(docsLang.getOrDefault(titleDesc))
   }
 
   /**
@@ -81,34 +89,17 @@ object DocsUtils {
    * @param type Тип рамки. Есть: note (серая), info (синяя), warn (жёлтая) и err (красная)
    * @param tableContainer Всё что будет внутри этой рамки
    */
-  fun table(name: String, type: String = "note", height: Float = 512f, tableContainer: () -> Unit) {
-    val typeColor = when (type) {
-      "note" -> arrayOf(
-      163, 163, 136, 255, // RGBA Border
-      30, 40, 60, 156 // RGBA Background
-      )
-      "info" -> arrayOf(
-      50, 120, 207, 255, // RGBA Border
-      7, 27, 96, 156 // RGBA Background
-      )
-      "warn" -> arrayOf(
-      230, 154, 0, 255, // RGBA Border
-      70, 19, 0, 186 // RGBA Background
-      )
-      "err" -> arrayOf(
-      255, 0, 0, 255, // RGBA Border
-      93, 0, 0, 186 // RGBA Background
-      )
-      else -> throw IllegalArgumentException("Unknown type: $type")
-    }
+  fun table(name: String, type: TableType = TableType.NOTE, height: Float = 512f, tableContainer: () -> Unit) {
+    val borderColor = type.borderColor
+    val bgColor = type.backgroundColor
+
     val iconPath = "hollowengine:docs/icons/table_$type.png".rl.toTexture().id
     val tableWidth = ImGui.getContentRegionAvailX() * 0.9f
 
-    ImGui.pushStyleVar(ImGuiStyleVar.WindowTitleAlign, 0.5f, 0.5f)
-    ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 64f)
-    ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 32f)
-    ImGui.pushStyleColor(ImGuiCol.Border, typeColor[0], typeColor[1], typeColor[2], typeColor[3])
-    ImGui.pushStyleColor(ImGuiCol.ChildBg, typeColor[4], typeColor[5], typeColor[6], typeColor[7])
+    ImGui.pushStyleVar(ImGuiStyleVar.ChildBorderSize, 4f)
+    ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 16f)
+    ImGui.pushStyleColor(ImGuiCol.Border, borderColor[0], borderColor[1], borderColor[2], borderColor[3])
+    ImGui.pushStyleColor(ImGuiCol.ChildBg, bgColor[0], bgColor[1], bgColor[2], bgColor[3])
 
     ImGui.setCursorPosX(ImGui.getContentRegionAvailX() / 2 - tableWidth / 2)
     ImGui.beginChild(
@@ -121,7 +112,7 @@ object DocsUtils {
       iconPath,
       58f, 58f,
       0f, 0f, 1f, 1f,
-      typeColor[0].toFloat(), typeColor[1].toFloat(), typeColor[2].toFloat(), typeColor[3].toFloat()
+      borderColor[0].toFloat(), borderColor[1].toFloat(), borderColor[2].toFloat(), borderColor[3].toFloat()
     )
     text(name, 40, true, true); ImGui.sameLine()
     ImGui.setCursorPosX(ImGui.getWindowWidth() - 58f - 8)
@@ -129,7 +120,7 @@ object DocsUtils {
       iconPath,
       58f, 58f,
       0f, 0f, 1f, 1f,
-      typeColor[0].toFloat(), typeColor[1].toFloat(), typeColor[2].toFloat(), typeColor[3].toFloat()
+      borderColor[0].toFloat(), borderColor[1].toFloat(), borderColor[2].toFloat(), borderColor[3].toFloat()
     )
 
     ImGui.separator()
@@ -139,7 +130,7 @@ object DocsUtils {
 
     ImGui.endChild()
     ImGui.popStyleColor(2)
-    ImGui.popStyleVar(3)
+    ImGui.popStyleVar(2)
   }
 
   /**
@@ -164,17 +155,43 @@ object DocsUtils {
    *
    * Russian: Улучшенная кнопка
    */
-  fun button(buttonName: String, center: Boolean = true): Boolean {
+  fun button(buttonId: String, center: Boolean = true, buttonAction: () -> Unit): Boolean {
     val contextWidth = ImGui.getContentRegionAvailX()
-    val textWidth = ImGui.calcTextSize(buttonName).x
+    val textWidth = ImGui.calcTextSize(buttonId).x
 
     ImGui.newLine()
-    if(center) ImGui.sameLine(contextWidth / 2 - textWidth / 2)
-    val buttonResult = ImGui.button(buttonName)
+    if (center) ImGui.sameLine(contextWidth / 2 - textWidth / 2)
+
+    ImGui.pushStyleColor(ImGuiCol.Button, 86, 86, 86, 255)
+    ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 8f)
+    ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 24f, 16f)
+
+    val buttonResult = ImGui.button(buttonId)
+
+    ImGui.popStyleVar(2)
+    ImGui.popStyleColor()
+
     ImGui.newLine()
-    
-    if(ImGui.isItemHovered() && docsLang.has("${buttonName}_desc")) ImGui.setTooltip(docsLang.getOrDefault("${buttonName}_desc"))
-    
+
+    val (buttonDesc, descExist) =
+      if (docsLang.has("${buttonId}_desc")) docsLang.getOrDefault("${buttonId}_desc") to true
+      else buttonId to false
+
+    if (ImGui.isItemHovered() && descExist) ImGui.setTooltip(docsLang.getOrDefault(buttonDesc))
+
+    if (buttonResult) {
+      buttonAction()
+    }
+
     return buttonResult
   }
+}
+
+/* Classes class helpers */
+
+enum class TableType(val borderColor: IntArray, val backgroundColor: IntArray) {
+  NOTE(intArrayOf(163, 163, 136, 255), intArrayOf(30, 40, 60, 156)),
+  INFO(intArrayOf(50, 120, 207, 255), intArrayOf(7, 27, 96, 156)),
+  WARN(intArrayOf(230, 154, 0, 255), intArrayOf(70, 19, 0, 186)),
+  ERR(intArrayOf(255, 0, 0, 255), intArrayOf(93, 0, 0, 186))
 }

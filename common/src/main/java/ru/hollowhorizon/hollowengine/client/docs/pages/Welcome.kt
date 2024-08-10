@@ -10,14 +10,13 @@ import ru.hollowhorizon.hollowengine.client.docs.DocsUtils.dline
 import ru.hollowhorizon.hollowengine.client.docs.DocsUtils.table
 import ru.hollowhorizon.hollowengine.client.docs.DocsUtils.text
 import ru.hollowhorizon.hollowengine.client.docs.DocsUtils.titleImg
+import ru.hollowhorizon.hollowengine.client.docs.TableType
 
-val contextWidth get() = ImGui.getContentRegionAvailX()
+const val a = "1_he.0_welcome"
 
-val text0 get() = DocsLanguage.getInstance().getOrDefault("1_he.0_welcome.text0")
-
-@DocsPage("1_he.0_welcome")
+@DocsPage(a)
 fun DocsRenderer.heWelcome() {
-  text(text0, 50)
+  text("${a}.text0", 50)
 
   ImGui.newLine()
   ImGui.newLine()
@@ -26,29 +25,29 @@ fun DocsRenderer.heWelcome() {
 
   dline()
 
-  text(language.getOrDefault("1_he.0_welcome.text1"))
+  text("${a}.text1")
   ImGui.newLine()
-  text(language.getOrDefault("1_he.0_welcome.text2"))
+  text("${a}.text2")
 
   dline()
 
-  table(language.getOrDefault("1_he.0_welcome.table0"), "warn", 275f) {
-    text(language.getOrDefault("1_he.0_welcome.table0.text0"))
+  table("${a}.table0", TableType.WARN, 300f) {
+    text("${a}.table0.text0")
     ImGui.newLine()
-    if(button(language.getOrDefault("1_he.0_welcome.table0.text1"))) Util.getPlatform().openUri("https://kotlinlang.org/docs/home.html")
+    button("${a}.table0.text1", true) { Util.getPlatform().openUri("https://kotlinlang.org/docs/home.html") }
     ImGui.newLine()
-    text(language.getOrDefault("1_he.0_welcome.table0.text2"))
+    text("${a}.table0.text2")
   }
 
   dline()
 
-  table(language.getOrDefault("1_he.0_welcome.table1"), "err") {
-    text(language.getOrDefault("1_he.0_welcome.table1.text0"))
+  table("${a}.table1", TableType.ERR, 350f) {
+    text("${a}.table1.text0")
     ImGui.newLine()
-    text(language.getOrDefault("1_he.0_welcome.table1.text1"))
+    text("${a}.table1.text1")
 
     dline()
 
-    text(language.getOrDefault("1_he.0_welcome.table1.text2"))
+    text("${a}.table1.text2")
   }
 }
