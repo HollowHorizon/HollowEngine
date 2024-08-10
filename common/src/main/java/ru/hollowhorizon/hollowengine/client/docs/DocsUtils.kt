@@ -9,29 +9,18 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
 
 /**
- * English:
- * Utilities special for Docs
- *
- * Russian:
  * Утилиты специально для документации
  */
 object DocsUtils {
     private val docsLang = DocsLanguage.getInstance()
 
     /**
-     * @author _BENDY659_ and HollowHorizon
-     *
-     * > English:
-     * Displays the text in of the page
-     * @param text ID text fore the translate
-     * @param fontSize Text size.The size can only be: 10b 20b 40b 50b 70b 90 or 100
-     * @param center Determines whether the text should be centered on the page
-     *
-     * > Russian:
      * Отображает текст на странице
      * @param textId ID текст для перевода
      * @param fontSize Размер текста. Размер может быть только: 10, 20, 40, 0, 70, 90 или 100
      * @param center Определяет, должен ли текст быть по центру страницы
+     *
+     * @author _BENDY659_ and HollowHorizon.
      */
     fun text(textId: String, fontSize: Int = 30, center: Boolean = true, shadow: Boolean = false) {
         ImGuiMethods.pushFontSize(fontSize) {
@@ -48,17 +37,13 @@ object DocsUtils {
     }
 
     /**
-     * @author _BENDY659_ and HollowHorizon
-     *
-     * > English:
-     *
-     *
-     * > Russian:
      * Показывает изображение как титульник для страницы
      * @param titleId ID титульника. Чтобы изображение появилось корректно, нужно чтобы в пути `hollowengine:docs/titles/` был файл изображения с таким же названием как и название титульника
      * @param customSize Размер титульника. По умолчанию стоит 1920f на 1080f
      * @param titleScale Процент отношения размера титульника от размера страницы
      * Титульник так же имеет hover текст. Чтобы он корректно отображался, нужно в папке перевода `lang/docs/<код_языка>.json` в id текста написать `titles.<имя титульника>.txt`
+     *
+     * @author _BENDY659_ and HollowHorizon.
      */
     fun titleImg(titleId: String, customSize: Array<Float> = arrayOf(1920f, 1080f), titleScale: Float = 1.0f) {
         val (imageWidth, imageHeight) = customSize[0] to customSize[1]
@@ -78,16 +63,12 @@ object DocsUtils {
     val tableSizes = mutableMapOf<String, Float>()
 
     /**
-     * @author _BENDY659_ and Halva
-     *
-     * > English:
-     *
-     *
-     * > Russian:
      * Красивая рамочка (разноцветная)
      * @param name Название рамочки сверху
      * @param type Тип рамки. Есть: note (серая), info (синяя), warn (жёлтая) и err (красная)
      * @param tableContainer Всё что будет внутри этой рамки
+     *
+     * @author _BENDY659_, HollowHorizon and Halva
      */
     fun table(name: String, type: TableType = TableType.NOTE, height: Float = 512f, tableContainer: () -> Unit) {
         val borderColor = type.borderColor
@@ -140,11 +121,9 @@ object DocsUtils {
     }
 
     /**
+     * Улучшенный сепаратор
+     *
      * @author _BENDY659_
-     *
-     * English: Better separator
-     *
-     * Russian: Улучшенный сепаратор
      */
     fun dline() {
         ImGui.newLine()
@@ -157,9 +136,7 @@ object DocsUtils {
     /**
      * @author _BENDY659_
      *
-     * English: Better Button
-     *
-     * Russian: Улучшенная кнопка
+     * Better Button / Улучшенная кнопка
      */
     fun button(buttonId: String, center: Boolean = true, buttonAction: () -> Unit): Boolean {
         val contextWidth = ImGui.getContentRegionAvailX()
