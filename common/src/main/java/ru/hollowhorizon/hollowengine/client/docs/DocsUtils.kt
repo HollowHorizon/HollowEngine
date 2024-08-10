@@ -149,7 +149,11 @@ object DocsUtils {
         ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 8f)
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 24f, 16f)
 
-        val buttonResult = ImGui.button(buttonId)
+        val buttonText =
+          if(docsLang.has(buttonId)) docsLang.getOrDefault(buttonId)
+          else buttonId
+
+        val buttonResult = ImGui.button(buttonText)
 
         ImGui.popStyleVar(2)
         ImGui.popStyleColor()

@@ -24,11 +24,11 @@ fun DocsRenderer.newDirectory() {
   ImGui.newLine()
   ImGui.newLine()
 
-  text(language.getOrDefault("$a.text1"))
+  text("$a.text1")
 
   dline()
 
-  button(language.getOrDefault("$a.text2")) {
+  button("$a.text2") {
     Util.getPlatform().openPath(Path(Minecraft.getInstance().gameDirectory.resolve("hollowengine").path))
   }
 
