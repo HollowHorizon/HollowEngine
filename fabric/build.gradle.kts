@@ -44,7 +44,6 @@ dependencies {
   implementation("ru.hollowhorizon:hollowcore-fabric:$minecraft_version-1.0.0-dev-shadow")
   modImplementation("mods:sodium-fabric:0.5.11+mc${minecraft_version}")
   modImplementation("mods:iris:1.7.3+mc${minecraft_version}")
-  modImplementation("mods:disablecustomworldsadvice-6.0") // Mod for "Remove screen - Custom World Advice
 
 
   common(project(path = ":common", configuration = "namedElements")) { isTransitive = false }

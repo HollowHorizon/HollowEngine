@@ -20,7 +20,8 @@
   ],
   "client": [
     "InventoryMixin",
-    "PauseScreenMixin"
+    "PauseScreenMixin",
+    "WorldOpenFlowsMixin"
   ],
   "server": [],
   "injectors": {
