@@ -3,6 +3,7 @@
   "button.tree_hide": "Скрыть",
 
   "error.text": "lang.translation.err.not_found",
+  "error.variables.data": "variables.data.read.error",
 
   "1_he": "HollowEngine",
 
@@ -28,6 +29,23 @@
   "1_he.1_begin.1_new_directory.text1": "После первого запуска игры с данным модом - в директории игры появилаьс новая папка 'hollowengine'",
   "1_he.1_begin.1_new_directory.text2": "Открыть папку 'hollowengine'",
   "1_he.1_begin.1_new_directory.text2_desc": "При нажатии - откроется папка мода",
+  "1_he.1_begin.1_new_directory.text3": "В данной папке находятся ещё одни папке, о них выше",
+  "1_he.1_begin.1_new_directory.tabs.tab0": "Пусто",
+  "1_he.1_begin.1_new_directory.tabs.tab0.text": "Выбери любое из выше",
+  "1_he.1_begin.1_new_directory.tabs.tab1": "Assets",
+  "1_he.1_begin.1_new_directory.tabs.tab1.text0": "Место, где вы можете хранить свои ресурсы.",
+  "1_he.1_begin.1_new_directory.tabs.tab1.text1": "Работает по принципу обычных \"Ресурс паков\".",
+  "1_he.1_begin.1_new_directory.tabs.tab1.button": "Открыть папку [assets]",
+  "1_he.1_begin.1_new_directory.tabs.tab1.button_desc": "При нажатии открывает папку 'assets', внутри директории 'hollowengine'",
+  "1_he.1_begin.1_new_directory.tabs.tab2": "Camera",
+  "1_he.1_begin.1_new_directory.tabs.tab2.text0": "Место, где хранятся пути для камеры.",
+  "1_he.1_begin.1_new_directory.tabs.tab2.text1": "Появляется как только вы сохранили свой певый путь для камеры.",
+  "1_he.1_begin.1_new_directory.tabs.tab2.button": "Открыть папку [camera]",
+  "1_he.1_begin.1_new_directory.tabs.tab2.button_desc": "При нажатии открывает папку 'camera', внутри директории 'hollowengine'",
+  "1_he.1_begin.1_new_directory.tabs.tab3": "NPCs",
+  "1_he.1_begin.1_new_directory.tabs.tab4": "Replays",
+  "1_he.1_begin.1_new_directory.tabs.tab5": "Scripts",
+  "1_he.1_begin.1_new_directory.tabs.tab6": "Storyteller world",
 
   "titles": "Описание титульников",
   "titles.welcome.txt": "Очень опасные ребята"
