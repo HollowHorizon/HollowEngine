@@ -4,6 +4,7 @@ import imgui.ImGui
 import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
+import imgui.type.ImBoolean
 import net.minecraft.Util
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
 import ru.hollowhorizon.hc.client.utils.rl
@@ -74,7 +75,7 @@ object DocsUtils {
      *
      * @author _BENDY659_, HollowHorizon and Halva
      */
-    fun table(name: String, type: TableType = TableType.NOTE, height: Float = 512f, tableContainer: () -> Unit) {
+    fun table(name: String, type: TableType = TableType.NOTE, tableContainer: () -> Unit) {
         val borderColor = type.borderColor
         val bgColor = type.backgroundColor
 
@@ -182,6 +183,36 @@ object DocsUtils {
     if(!directory.exists()) directory.createDirectory()
 
     Util.getPlatform().openPath(directory)
+  }
+
+  /**
+   * Code block
+   *
+   * @author _BENDY659_
+   */
+  fun code(id: String, lang: String = "kts", title: String, code: () -> String) {
+    var codeBlockVisible = ImBoolean(false)
+    var buttonText =
+      if(codeBlockVisible.get()) "table.code_block.show"
+      else "table.code_block.hide"
+    var codeBlockHeight =
+      if(codeBlockVisible.get()) tableSizes.computeIfAbsent(id) { 100f }
+      else 64f
+
+    button(buttonText) {
+      if(codeBlockVisible.get()) codeBlockVisible.set(!codeBlockVisible.get())
+    }
+
+    ImGui.beginChild(
+      "##code_block-$id",
+      ImGui.getContentRegionAvailX() * 0.9f / 2 - ImGui.getContentRegionAvailX() / 2, codeBlockHeight,
+      true,
+      ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize
+    )
+
+    ImGui.textWrapped(code())
+
+    ImGui.endChild()
   }
 }
 

@@ -30,7 +30,7 @@ fun DocsRenderer.heWelcome() {
 
   dline()
 
-  table("${a}.table0", TableType.WARN, 300f) {
+  table("${a}.table0", TableType.WARN) {
     text("${a}.table0.text0")
     ImGui.newLine()
     ImGui.newLine()
@@ -42,7 +42,7 @@ fun DocsRenderer.heWelcome() {
 
   dline()
 
-  table("${a}.table1", TableType.ERR, 350f) {
+  table("${a}.table1", TableType.ERR) {
     text("${a}.table1.text0")
     ImGui.newLine()
     text("${a}.table1.text1")
