@@ -4,9 +4,13 @@ import imgui.ImGui
 import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
+import net.minecraft.Util
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
+import kotlin.io.path.Path
+import kotlin.io.path.createDirectory
+import kotlin.io.path.exists
 
 /**
  * Утилиты специально для документации
@@ -127,9 +131,7 @@ object DocsUtils {
      */
     fun dline() {
         ImGui.newLine()
-        ImGui.newLine()
         ImGui.separator()
-        ImGui.newLine()
         ImGui.newLine()
     }
 
@@ -138,27 +140,23 @@ object DocsUtils {
      *
      * Better Button / Улучшенная кнопка
      */
-    fun button(buttonId: String, center: Boolean = true, buttonAction: () -> Unit): Boolean {
+    fun button(buttonId: String, center: Boolean = true, buttonSize: Float = 24f, customColor: Array<Int> = arrayOf(86, 86, 86, 255), buttonAction: () -> Unit): Boolean {
         val contextWidth = ImGui.getContentRegionAvailX()
         val textWidth = ImGui.calcTextSize(buttonId).x
 
-        ImGui.newLine()
-        if (center) ImGui.sameLine(contextWidth / 2 - textWidth / 2)
-
-        ImGui.pushStyleColor(ImGuiCol.Button, 86, 86, 86, 255)
+        ImGui.pushStyleColor(ImGuiCol.Button, customColor[0], customColor[1], customColor[2], customColor[3])
         ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 8f)
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 24f, 16f)
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, buttonSize, buttonSize)
 
         val buttonText =
           if(docsLang.has(buttonId)) docsLang.getOrDefault(buttonId)
           else buttonId
 
+        if (center) ImGui.sameLine((contextWidth / 2 - textWidth / 2))
         val buttonResult = ImGui.button(buttonText)
 
         ImGui.popStyleVar(2)
         ImGui.popStyleColor()
-
-        ImGui.newLine()
 
         val (buttonDesc, descExist) =
             if (docsLang.has("${buttonId}_desc")) docsLang.getOrDefault("${buttonId}_desc") to true
@@ -172,6 +170,19 @@ object DocsUtils {
 
         return buttonResult
     }
+
+  /**
+   * Open directory
+   *
+   * @author _BENDY659_
+   */
+  fun openDir(dir: String) {
+    val directory = Path(dir)
+
+    if(!directory.exists()) directory.createDirectory()
+
+    Util.getPlatform().openPath(directory)
+  }
 }
 
 /* Classes class helpers */
