@@ -11,7 +11,9 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
 import ru.hollowhorizon.hollowengine.client.docs.DocsPage
 import ru.hollowhorizon.hollowengine.client.docs.DocsRenderer
+import ru.hollowhorizon.hollowengine.client.docs.DocsUtils
 import ru.hollowhorizon.hollowengine.client.docs.DocsUtils.button
+import ru.hollowhorizon.hollowengine.client.docs.DocsUtils.code
 import ru.hollowhorizon.hollowengine.client.docs.DocsUtils.dline
 import ru.hollowhorizon.hollowengine.client.docs.DocsUtils.openDir
 import ru.hollowhorizon.hollowengine.client.docs.DocsUtils.text
@@ -129,4 +131,14 @@ fun DocsRenderer.newDirectory() {
   ImGui.setCursorPosX(oldCursorPosX)
 
   ImGui.popStyleVar(2)
+
+  ImGui.newLine()
+
+  code("test", "kts", "Лох") {
+    """
+      val hollow by NPCEntity.creating {
+        name = "TheHollowHorizon"
+      }
+    """.trimIndent()
+  }
 }
