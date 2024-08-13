@@ -5,7 +5,6 @@ import imgui.extension.texteditor.TextEditor
 import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
-import imgui.type.ImBoolean
 import net.minecraft.Util
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
 import ru.hollowhorizon.hc.client.utils.rl
@@ -199,28 +198,26 @@ object DocsUtils {
      * @author _BENDY659_
      */
     fun code(id: String, lang: String = "kts", title: String, code: () -> String) {
-        val codeBlockVisible = ImBoolean(false)
-        val buttonText =
-            if (codeBlockVisible.get()) "table.code_block.show"
-            else "table.code_block.hide"
-        val codeBlockHeight =
-            if (codeBlockVisible.get()) tableSizes.computeIfAbsent(id) { 100f }
-            else 64f
+        val text = code()
 
-        button(buttonText) {
-            if (codeBlockVisible.get()) codeBlockVisible.set(!codeBlockVisible.get())
-        }
+        val codeBlockSize = ImGui.calcTextSize(text)
 
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarBg, 0f, 0f, 0f, 0f)
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarGrab, 0f, 0f, 0f, 0f)
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarGrabActive, 0f, 0f, 0f, 0f)
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarGrabHovered, 0f, 0f, 0f, 0f)
         ImGui.beginChild(
             "##code_block-$id",
-            ImGui.getContentRegionAvailX() * 0.9f / 2 - ImGui.getContentRegionAvailX() / 2, codeBlockHeight,
+            ImGui.getContentRegionAvailX() * 0.9f / 2 - ImGui.getContentRegionAvailX() / 2, codeBlockSize.y+35f,
             true,
             ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize
         )
 
-        EDITOR.render(code())
+        EDITOR.text = text
+        EDITOR.render("##code_block-$id")
 
         ImGui.endChild()
+        ImGui.popStyleColor(4)
     }
 }
 
