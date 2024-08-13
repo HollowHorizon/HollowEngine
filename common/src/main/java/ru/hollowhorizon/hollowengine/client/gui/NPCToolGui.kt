@@ -16,12 +16,9 @@ import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.post
-import ru.hollowhorizon.hollowengine.client.gui.npcs.NpcBehaviorGui
-import ru.hollowhorizon.hollowengine.client.gui.npcs.quests.QuestsMenuGui
+import ru.hollowhorizon.hollowengine.client.gui.npcs.quests.QuestsGraphGui
 import ru.hollowhorizon.hollowengine.client.gui.npcs.trading.TradeMenuGui
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
-import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
-import ru.hollowhorizon.hollowengine.common.npcs.quests.QuestsCapability
 
 class NPCToolGui(val npc: NPCEntity) : Screen(Component.empty()) {
     val npcOptions = ArrayList<NpcOption>()
@@ -103,7 +100,7 @@ fun registerNpcOptions(event: NpcOptionsEvent) {
         TradeMenuGui(event.npc, true).open()
     })
     event.register(NpcOption("quests") {
-        QuestsMenuGui(event.npc).open()
+        QuestsGraphGui(event.npc).open()
     })
 }
 
