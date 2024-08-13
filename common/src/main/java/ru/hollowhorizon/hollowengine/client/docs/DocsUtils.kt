@@ -195,7 +195,7 @@ object DocsUtils {
     /**
      * Code block
      *
-     * @author _BENDY659_
+     * @author HollowHorizon
      */
     fun code(id: String, lang: String = "kts", title: String, code: () -> String) {
         val text = code()
