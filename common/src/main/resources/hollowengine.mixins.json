@@ -19,7 +19,9 @@
     "extra.Varint21LengthFieldPrependerMixin"
   ],
   "client": [
+    "BiomeMixin",
     "InventoryMixin",
+    "LevelRendererMixin",
     "PauseScreenMixin"
   ],
   "server": [],
