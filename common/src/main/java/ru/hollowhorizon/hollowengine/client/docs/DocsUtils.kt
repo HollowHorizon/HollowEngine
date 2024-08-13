@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.docs
 
 import imgui.ImGui
+import imgui.extension.texteditor.TextEditor
 import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
@@ -9,6 +10,7 @@ import net.minecraft.Util
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
+import ru.hollowhorizon.hollowengine.client.gui.scripting.KOTLIN_LANG
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectory
 import kotlin.io.path.exists
@@ -141,7 +143,13 @@ object DocsUtils {
      *
      * Better Button / Улучшенная кнопка
      */
-    fun button(buttonId: String, center: Boolean = true, buttonSize: Float = 24f, customColor: Array<Int> = arrayOf(86, 86, 86, 255), buttonAction: () -> Unit): Boolean {
+    fun button(
+        buttonId: String,
+        center: Boolean = true,
+        buttonSize: Float = 24f,
+        customColor: Array<Int> = arrayOf(86, 86, 86, 255),
+        buttonAction: () -> Unit,
+    ): Boolean {
         val contextWidth = ImGui.getContentRegionAvailX()
         val textWidth = ImGui.calcTextSize(buttonId).x
 
@@ -150,8 +158,8 @@ object DocsUtils {
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, buttonSize, buttonSize)
 
         val buttonText =
-          if(docsLang.has(buttonId)) docsLang.getOrDefault(buttonId)
-          else buttonId
+            if (docsLang.has(buttonId)) docsLang.getOrDefault(buttonId)
+            else buttonId
 
         if (center) ImGui.sameLine((contextWidth / 2 - textWidth / 2))
         val buttonResult = ImGui.button(buttonText)
@@ -172,48 +180,56 @@ object DocsUtils {
         return buttonResult
     }
 
-  /**
-   * Open directory
-   *
-   * @author _BENDY659_
-   */
-  fun openDir(dir: String) {
-    val directory = Path(dir)
+    /**
+     * Open directory
+     *
+     * @author _BENDY659_
+     */
+    fun openDir(dir: String) {
+        val directory = Path(dir)
 
-    if(!directory.exists()) directory.createDirectory()
+        if (!directory.exists()) directory.createDirectory()
 
-    Util.getPlatform().openPath(directory)
-  }
-
-  /**
-   * Code block
-   *
-   * @author _BENDY659_
-   */
-  fun code(id: String, lang: String = "kts", title: String, code: () -> String) {
-    var codeBlockVisible = ImBoolean(false)
-    var buttonText =
-      if(codeBlockVisible.get()) "table.code_block.show"
-      else "table.code_block.hide"
-    var codeBlockHeight =
-      if(codeBlockVisible.get()) tableSizes.computeIfAbsent(id) { 100f }
-      else 64f
-
-    button(buttonText) {
-      if(codeBlockVisible.get()) codeBlockVisible.set(!codeBlockVisible.get())
+        Util.getPlatform().openPath(directory)
     }
 
-    ImGui.beginChild(
-      "##code_block-$id",
-      ImGui.getContentRegionAvailX() * 0.9f / 2 - ImGui.getContentRegionAvailX() / 2, codeBlockHeight,
-      true,
-      ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize
-    )
+    /**
+     * Code block
+     *
+     * @author _BENDY659_
+     */
+    fun code(id: String, lang: String = "kts", title: String, code: () -> String) {
+        val codeBlockVisible = ImBoolean(false)
+        val buttonText =
+            if (codeBlockVisible.get()) "table.code_block.show"
+            else "table.code_block.hide"
+        val codeBlockHeight =
+            if (codeBlockVisible.get()) tableSizes.computeIfAbsent(id) { 100f }
+            else 64f
 
-    ImGui.textWrapped(code())
+        button(buttonText) {
+            if (codeBlockVisible.get()) codeBlockVisible.set(!codeBlockVisible.get())
+        }
 
-    ImGui.endChild()
-  }
+        ImGui.beginChild(
+            "##code_block-$id",
+            ImGui.getContentRegionAvailX() * 0.9f / 2 - ImGui.getContentRegionAvailX() / 2, codeBlockHeight,
+            true,
+            ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize
+        )
+
+        EDITOR.render(code())
+
+        ImGui.endChild()
+    }
+}
+
+val EDITOR = TextEditor().apply {
+    setLanguageDefinition(KOTLIN_LANG)
+
+    tabSize = 4
+    text = ""
+    isReadOnly = true
 }
 
 /* Classes class helpers */

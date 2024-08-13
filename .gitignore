@@ -120,3 +120,4 @@ logs/
 !gradle-wrapper.jar
 
 user.properties
+.kotlin
