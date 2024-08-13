@@ -14,7 +14,7 @@ import ru.hollowhorizon.hc.client.models.gltf.manager.LayerMode
 import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hc.client.utils.math.Interpolation
 import ru.hollowhorizon.hollowengine.client.gui.ImGuiScreen
-import ru.hollowhorizon.hollowengine.client.gui.npcs.quests.QuestsMenuGui
+import ru.hollowhorizon.hollowengine.client.gui.npcs.quests.QuestsGraphGui
 import ru.hollowhorizon.hollowengine.client.gui.npcs.trading.TradeMenuGui
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import kotlin.math.min
@@ -96,7 +96,7 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
                     }
 
                     2 -> {
-                        QuestsMenuGui(npc, false).open()
+                        QuestsGraphGui(npc, false).open()
                     }
 
                     3 -> {

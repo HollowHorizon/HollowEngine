@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import ru.hollowhorizon.hc.client.utils.ForgeKotlinKt;
 import ru.hollowhorizon.hollowengine.HollowEngine;
 import ru.hollowhorizon.hollowengine.client.gui.ImageTextButton;
-import ru.hollowhorizon.hollowengine.client.gui.QuestsGui;
+import ru.hollowhorizon.hollowengine.client.gui.QuestsListGui;
 
 @Mixin(InventoryScreen.class)
 public abstract class InventoryMixin extends EffectRenderingInventoryScreen<InventoryMenu> {
@@ -35,7 +35,7 @@ public abstract class InventoryMixin extends EffectRenderingInventoryScreen<Inve
     @Inject(method = "init", at = @At("TAIL"))
     private void onInit(CallbackInfo ci) {
         hollowengine$questsButton = this.addRenderableWidget(new ImageTextButton(this.leftPos + 131, this.topPos + 58, 22, 24, hollowengine$sprites, button -> {
-            ForgeKotlinKt.open(new QuestsGui());
+            ForgeKotlinKt.open(new QuestsListGui());
         }));
     }
 
