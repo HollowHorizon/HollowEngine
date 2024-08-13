@@ -20,6 +20,7 @@ import ru.hollowhorizon.hc.client.utils.toTexture
 import ru.hollowhorizon.hollowengine.client.gui.ImGuiScreen
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.nodes.itemPicker
+import ru.hollowhorizon.hollowengine.common.npcs.quests.AcceptQuestPacket
 import ru.hollowhorizon.hollowengine.common.npcs.quests.QuestNode
 import ru.hollowhorizon.hollowengine.common.npcs.quests.tasks.CollectItemsTask
 import kotlin.math.min
@@ -138,11 +139,20 @@ class QuestAcceptScreen(val npc: NPCEntity, val questNode: QuestNode, val editMo
         ImGui.popStyleVar(3)
         ImGui.popStyleColor(9)
 
-        ImGui.setCursorPos(70 * scale, 234 * scale)
-        button("accept")
-        ImGui.sameLine()
-        if (button("cancel")) {
-            onClose()
+        if(!editMode) {
+            ImGui.setCursorPos(70 * scale, 234 * scale)
+            if (button("accept")) {
+                AcceptQuestPacket(this.questNode).send()
+                val animator = npc[AnimatedEntityCapability::class]
+                animator.layers.removeIf { it.animation == "offer" }
+                super.onClose()
+            }
+            if(ImGui.isItemHovered()) ImGui.setTooltip("Принять квест")
+            ImGui.sameLine()
+            if (button("cancel")) {
+                onClose()
+            }
+            if(ImGui.isItemHovered()) ImGui.setTooltip("Отказаться от задания")
         }
     }
 
@@ -164,7 +174,7 @@ class QuestAcceptScreen(val npc: NPCEntity, val questNode: QuestNode, val editMo
 
             ImGui.pushStyleVar(ImGuiStyleVar.PopupBorderSize, 2f)
             ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 10f)
-            ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 2*scale, 2*scale)
+            ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 2 * scale, 2 * scale)
             ImGui.pushStyleColor(ImGuiCol.Border, 1f, 1f, 1f, 1f)
             ImGui.pushStyleColor(ImGuiCol.PopupBg, 0f, 0f, 0f, 0.6f)
             if (ImGui.beginPopup("quest_editor")) {
@@ -278,7 +288,7 @@ class QuestAcceptScreen(val npc: NPCEntity, val questNode: QuestNode, val editMo
     }
 
     override fun onClose() {
-        QuestsMenuGui(npc, editMode).open()
+        QuestsGraphGui(npc, editMode).open()
 
         val animator = npc[AnimatedEntityCapability::class]
         animator.layers.removeIf { it.animation == "offer" }

@@ -16,7 +16,6 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.toasts.SystemToast
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.locale.Language
-import net.minecraft.server.level.ServerPlayer
 import net.minecraft.util.Mth
 import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
 import ru.hollowhorizon.hc.client.imgui.ImGuiMethods
@@ -30,7 +29,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.quests.QuestsCapability
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-class QuestsMenuGui(val npc: NPCEntity, val editMode: Boolean = true) : Screen("".mcText) {
+class QuestsGraphGui(val npc: NPCEntity, val editMode: Boolean = true) : Screen("".mcText) {
     val graph: QuestGraph = npc[QuestsCapability::class].questGraph
     private val context = NodeEditorContext(NodeEditorConfig().apply {
         settingsFile = "npc_quests.json"
@@ -115,7 +114,7 @@ class QuestsMenuGui(val npc: NPCEntity, val editMode: Boolean = true) : Screen("
 
         graph.nodes.forEachIndexed { index, questNode ->
             val id = (index + 1).toLong()
-            NodeEditor.setNodePosition(id, questNode.pos[0], questNode.pos[1])
+            if(!editMode) NodeEditor.setNodePosition(id, questNode.pos[0], questNode.pos[1])
 
             pushID(id)
 

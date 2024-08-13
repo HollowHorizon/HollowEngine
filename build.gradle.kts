@@ -134,6 +134,9 @@ allprojects {
         implementation("org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:2.0.0")
         implementation("org.ow2.asm:asm:9.7")
 
+        implementation("net.fabricmc:tiny-remapper:0.10.4")
+        implementation("net.fabricmc:mapping-io:0.6.1")
+
         implementation("com.akuleshov7:ktoml-core:0.5.1")
 
         implementation("team.0mods:imgui-app:$imguiVersion")

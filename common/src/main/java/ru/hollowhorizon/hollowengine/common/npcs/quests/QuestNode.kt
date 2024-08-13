@@ -16,8 +16,6 @@ class QuestNode {
     var title = "Квест"
     var subtitle = "Описание отсутствует."
     var description = subtitle
-    var completeDescription = ""
-    var completeAnimation = ""
 
     val color = floatArrayOf(0.9f, 0.45f, 0f, 1f)
 }
