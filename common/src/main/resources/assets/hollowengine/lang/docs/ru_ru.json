@@ -22,6 +22,7 @@
   "1_he.0_welcome.table1.text2": "Не беспокойте по этой проблеме 'HollowHorizon' и 'AlgorithmLX'. Т.к. к этому он может быть даже не причастен!",
 
   "1_he.1_begin": "Начало",
+
   "1_he.1_begin.0_mod_requests": "Зависимости мода",
 
   "1_he.1_begin.1_new_directory": "Новая директория",
@@ -62,6 +63,12 @@
   "1_he.1_begin.1_new_directory.tabs.tab6.text1": "Создаётся автоматически.",
   "1_he.1_begin.1_new_directory.tabs.tab6.button": "Открыть папку [storyteller_dimension]",
   "1_he.1_begin.1_new_directory.tabs.tab6.button_desc": "При нажатии открывает папку 'storyteller_dimension', внутри директории 'hollowengine'",
+
+  "1_he.2_story_events":  "Сюежтные события",
+
+  "1_he.2_story_events.0_npc": "НИП",
+
+  "1_he.2_story_events.0_npc.0_create": "Создание",
 
   "titles": "Описание титульников",
   "titles.welcome.txt": "Очень опасные ребята"
