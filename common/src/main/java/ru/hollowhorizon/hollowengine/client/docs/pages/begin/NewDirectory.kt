@@ -123,7 +123,87 @@ fun DocsRenderer.newDirectory() {
 
     ImGui.endTabItem()
   }
-  ImGui.popStyleColor(3)
+  ImGui.pushStyleColor(ImGuiCol.TabActive, 0, 186, 0, 255)
+  if (ImGui.beginTabItem(language.getOrDefault("$tabsDir.tab3"))) { // NPCs
+    ImGui.newLine()
+    ImGui.pushStyleColor(ImGuiCol.Text, 0, 186, 0, 255)
+    text("NPCs [npcs]", 50, true, true)
+    ImGui.popStyleColor(); ImGui.sameLine()
+    ImGui.image("hollowengine:docs/icons/npc.png".rl.toTexture().id, 58f, 58f, 0f, 0f, 1f, 1f, 0f, 0.65f, 0f, 1f)
+
+    dline()
+
+    text("$tabsDir.tab3.text0"); ImGui.newLine()
+    text("$tabsDir.tab3.text1")
+
+    dline()
+    ImGui.newLine()
+
+    button("$tabsDir.tab3.button") { openDir(HOLLOW_ENGINE.resolve("npcs").pathString) }
+
+    ImGui.endTabItem()
+  }
+  ImGui.pushStyleColor(ImGuiCol.TabActive, 255, 102, 0, 255)
+  if (ImGui.beginTabItem(language.getOrDefault("$tabsDir.tab4"))) { // Replays
+    ImGui.newLine()
+    ImGui.pushStyleColor(ImGuiCol.Text, 255, 102, 0, 255)
+    text("Replays [replays]", 50, true, true)
+    ImGui.popStyleColor(); ImGui.sameLine()
+    ImGui.image("hollowengine:docs/icons/replay.png".rl.toTexture().id, 58f, 58f, 0f, 0f, 1f, 1f, 1f, 0.51f, 0f, 1f)
+
+    dline()
+
+    text("$tabsDir.tab4.text0"); ImGui.newLine()
+    text("$tabsDir.tab4.text1")
+
+    dline()
+    ImGui.newLine()
+
+    button("$tabsDir.tab4.button") { openDir(HOLLOW_ENGINE.resolve("replays").pathString) }
+
+    ImGui.endTabItem()
+  }
+  ImGui.pushStyleColor(ImGuiCol.TabActive, 135, 0, 255, 255)
+  if (ImGui.beginTabItem(language.getOrDefault("$tabsDir.tab5"))) { // Scripts
+    ImGui.newLine()
+    ImGui.pushStyleColor(ImGuiCol.Text, 135, 0, 255, 255)
+    text("Scripts [scripts]", 50, true, true)
+    ImGui.popStyleColor(); ImGui.sameLine()
+    ImGui.image("hollowengine:docs/icons/scripts.png".rl.toTexture().id, 58f, 58f, 0f, 0f, 1f, 1f, 0.51f, 0f, 1f, 1f)
+
+    dline()
+
+    text("$tabsDir.tab5.text0"); ImGui.newLine()
+    text("$tabsDir.tab5.text1")
+
+    dline()
+    ImGui.newLine()
+
+    button("$tabsDir.tab5.button") { openDir(HOLLOW_ENGINE.resolve("scripts").pathString) }
+
+    ImGui.endTabItem()
+  }
+  ImGui.pushStyleColor(ImGuiCol.TabActive, 117, 117, 117, 255)
+  if (ImGui.beginTabItem(language.getOrDefault("$tabsDir.tab6"))) { // Storyteller World
+    ImGui.newLine()
+    ImGui.pushStyleColor(ImGuiCol.Text, 117, 117, 117, 255)
+    text("Storyteller World [storyteller_dimension]", 50, true, true)
+    ImGui.popStyleColor(); ImGui.sameLine()
+    ImGui.image("hollowengine:docs/icons/world.png".rl.toTexture().id, 58f, 58f, 0f, 0f, 1f, 1f, 0.49f, 0.49f, 0.49f, 1f)
+
+    dline()
+
+    text("$tabsDir.tab6.text0"); ImGui.newLine()
+    text("$tabsDir.tab6.text1")
+
+    dline()
+    ImGui.newLine()
+
+    button("$tabsDir.tab6.button") { openDir(HOLLOW_ENGINE.resolve("storyteller_dimension").pathString) }
+
+    ImGui.endTabItem()
+  }
+  ImGui.popStyleColor(7)
 
   ImGui.endTabBar()
 
@@ -133,12 +213,4 @@ fun DocsRenderer.newDirectory() {
   ImGui.popStyleVar(2)
 
   ImGui.newLine()
-
-  code("test", "kts", "Лох") {
-    """
-      val hollow by NPCEntity.creating {
-        name = "TheHollowHorizon"
-      }
-    """.trimIndent()
-  }
 }

@@ -70,7 +70,8 @@
   "npc_menu.quests": "Задания",
   "npc_menu.invite": "Пригласить в группу",
   
-  "mod_tabs.code_editor": "Втроенная среда разработки",
+  "mod_tabs.code_editor": "Встроенная среда разработки",
+  "mod_tabs.docs": "Документация",
   
   "_comment": "Visual Scripting Nodes",
   "nodes.hollowengine.general.start": "Начало",

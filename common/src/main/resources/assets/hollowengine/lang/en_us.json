@@ -66,5 +66,8 @@
   "npc_tool.trades": "Trades Editor",
   "npc_tool.quests": "Quests Editor",
   
-  "npc_trade_editor.delete_trade": "Delete trade"
+  "npc_trade_editor.delete_trade": "Delete trade",
+
+  "mod_tabs.code_editor": "Built-in development environment",
+  "mod_tabs.docs": "Documentation"
 }
