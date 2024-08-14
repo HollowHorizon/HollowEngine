@@ -78,6 +78,7 @@ data class DocTreeNode(val name: String, val path: String, val children: Mutable
     if (hovered && ImGui.isMouseClicked(0)) {
       page = renderer
     }
+
     return page
   }
 
