@@ -13,6 +13,4 @@ fun DocsRenderer.npcCreate() {
   text("$a.text0", 50)
 
   ImGui.newLine()
-
-  titleImg("")
 }
