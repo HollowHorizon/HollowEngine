@@ -106,13 +106,13 @@ object ClientEvents {
     }
 
     fun hasOptifine(): Boolean {
-        Class<?> clazz = null;
-		try {
-			clazz = Class.forName("net.optifine.shaders.Shaders");
-		} catch (ClassNotFoundException e) {
-			// Оптифайна нет
-		}
-		return clazz != null;
+        var clazz: Class<*>? = null
+	try {
+	    clazz = Class.forName("net.optifine.shaders.Shaders")
+	} catch (ClassNotFoundException e) {
+	    // Оптифайна нет
+	}
+	return clazz != null;
     }
 
     @SubscribeEvent
