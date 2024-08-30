@@ -112,7 +112,7 @@ object ClientEvents {
 		} catch (ClassNotFoundException e) {
 			// Оптифайна нет
 		}
-		return = clazz != null;
+		return clazz != null;
     }
 
     @SubscribeEvent
