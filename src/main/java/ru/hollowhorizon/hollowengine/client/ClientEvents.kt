@@ -109,7 +109,7 @@ object ClientEvents {
         var clazz: Class<*>? = null
 	try {
 	    clazz = Class.forName("net.optifine.shaders.Shaders")
-	} catch (ClassNotFoundException e) {
+	} catch (e: ClassNotFoundException) {
 	    // Оптифайна нет
 	}
 	return clazz != null;
