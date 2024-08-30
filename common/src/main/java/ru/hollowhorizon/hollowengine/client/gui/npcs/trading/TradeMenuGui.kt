@@ -52,13 +52,13 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : Screen("
         renderBackground(guiGraphics, mouseX, mouseY, partialTick)
         ImGuiHandler.drawFrame {
             ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f)
-            centredWindow(
+            window(
                 "Trade Menu",
-                args = ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize or ImGuiWindowFlags.NoTitleBar or ImGuiWindowFlags.AlwaysAutoResize or ImGuiWindowFlags.NoBackground
+                imGuiWindowFlags = ImGuiWindowFlags.NoTitleBar or ImGuiWindowFlags.AlwaysAutoResize or ImGuiWindowFlags.NoBackground
             ) {
                 drawBackground()
 
-                pushFontSize((scale*10f).toInt()) {
+                pushFontSize((scale * 10f).toInt()) {
                     drawInventory()
                     drawTrades()
                     drawCurrentTrade()
@@ -312,16 +312,9 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : Screen("
 
         ImGui.image(
             "hollowengine:textures/gui/trades/add_trade_icon.png".rl.toTexture().id,
-            36f * scale,
-            43f * scale,
-            0f,
-            0f,
-            1f,
-            1f,
-            color.x,
-            color.y,
-            color.z,
-            color.w
+            36f * scale, 43f * scale,
+            0f, 0f, 1f, 1f,
+            color.x, color.y, color.z, color.w
         )
 
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f)

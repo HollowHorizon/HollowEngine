@@ -30,14 +30,12 @@ class ScaleableButton(
     }
 
     override fun renderWidget(guiGraphics: GuiGraphics, x: Int, y: Int, f: Float) {
-        Minecraft.getInstance()
-
         if (lastHovered != isHovered) {
             animation = if (isHovered) GuiAnimator.Single(0, 10, 5, Interpolation.SINE_IN::invoke)
             else GuiAnimator.Single(10, 0, 5, Interpolation.SINE_IN::invoke)
         }
 
-        animation.update(f)
+        animation.update()
         val progress = animation.value / 10f
 
         RenderSystem.enableBlend()

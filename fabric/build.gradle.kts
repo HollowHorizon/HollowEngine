@@ -1,5 +1,9 @@
 @file:Suppress("UnstableApiUsage")
 
+import org.gradle.kotlin.dsl.support.kotlinCompilerOptions
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+
 val minecraft_version: String by project
 val mod_id: String by project
 val fabric_loader_version: String by project

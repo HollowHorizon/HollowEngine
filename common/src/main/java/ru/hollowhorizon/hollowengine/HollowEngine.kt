@@ -6,8 +6,10 @@ import org.apache.logging.log4j.LogManager
 import ru.hollowhorizon.hc.api.HollowMod
 import ru.hollowhorizon.hc.common.config.HollowConfig
 import ru.hollowhorizon.hc.common.config.hollowConfig
+import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hollowengine.common.registry.NodesRegistry
 import ru.hollowhorizon.hollowengine.common.registry.PinsRegistry
+import ru.hollowhorizon.hollowengine.common.scripting.compiler.story.main
 
 @HollowMod
 object HollowEngine {
