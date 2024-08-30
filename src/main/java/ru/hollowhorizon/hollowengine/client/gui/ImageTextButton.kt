@@ -1,0 +1,93 @@
+package ru.hollowhorizon.hollowengine.client.gui
+
+import com.mojang.blaze3d.Blaze3D
+import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.*
+//? if >=1.20.1
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.components.AbstractButton
+import net.minecraft.client.gui.components.Button.OnPress
+import net.minecraft.client.gui.narration.NarrationElementOutput
+import net.minecraft.client.renderer.GameRenderer
+import net.minecraft.resources.ResourceLocation
+import org.joml.Matrix4f
+import ru.hollowhorizon.hc.client.utils.literal
+import ru.hollowhorizon.hc.client.utils.math.Interpolation
+import ru.hollowhorizon.hc.client.utils.rl
+
+class ImageTextButton(
+    x: Int,
+    y: Int,
+    width: Int,
+    height: Int,
+    image: String,
+    hovered: String,
+    val onPress: Runnable,
+) : AbstractButton(x, y, width, height, "".literal) {
+    val backSprite = image.rl
+    val frontSprite = hovered.rl
+    private var animationTicks = Blaze3D.getTime()
+    private var wasHoveredOrFocused = false
+    //? if >=1.20.1 {
+    override fun renderWidget(graphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
+    //?} else {
+    /*override fun renderButton(poseStack: PoseStack, mouseX: Int, mouseY: Int, partialTick: Float) {
+    *///?}
+
+        if (wasHoveredOrFocused != isHoveredOrFocused) animationTicks = Blaze3D.getTime()
+
+        var transparency = Interpolation.SINE_OUT(((Blaze3D.getTime() - animationTicks) * 2).toFloat().coerceAtMost(1f))
+        if (!isHoveredOrFocused) transparency = 1f - transparency
+        //? if >=1.20.1 {
+        blit(graphics.pose(), backSprite, x, y, width, height, 1f - transparency)
+        blit(graphics.pose(), frontSprite, x, y, width, height, transparency)
+        //?} else {
+        /*blit(poseStack, backSprite, x, y, width, height, 1f - transparency)
+        blit(poseStack, frontSprite, x, y, width, height, transparency)
+        *///?}
+
+        wasHoveredOrFocused = isHoveredOrFocused
+    }
+
+    //? if >=1.20.1 {
+    override fun updateWidgetNarration(narrationElementOutput: NarrationElementOutput) {}
+    //?} else {
+    /*override fun updateNarration(narrationElementOutput: NarrationElementOutput) {}
+    *///?}
+    override fun onPress() {
+        onPress.run()
+    }
+
+    fun blit(stack: PoseStack, sprite: ResourceLocation, x: Int, y: Int, width: Int, height: Int, transparency: Float) {
+        RenderSystem.setShaderTexture(0, sprite)
+        RenderSystem.enableBlend()
+        RenderSystem.defaultBlendFunc()
+        RenderSystem.setShader(GameRenderer::getPositionTexColorShader)
+        val pose = stack.last().pose()
+        val tesselator = Tesselator.getInstance()
+        //? if >=1.21 {
+        val builder = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
+        builder.addVertex(pose, x.toFloat(), y.toFloat(), 0f).setUv(0f, 0f)
+            .setColor(1f, 1f, 1f, transparency)
+        builder.addVertex(pose, x.toFloat(), (y + height).toFloat(), 0f).setUv(0f, 1f)
+            .setColor(1f, 1f, 1f, transparency)
+        builder.addVertex(pose, (x + width).toFloat(), (y + height).toFloat(), 0f).setUv(1f, 1f)
+            .setColor(1f, 1f, 1f, transparency)
+        builder.addVertex(pose, (x + width).toFloat(), y.toFloat(), 0f).setUv(1f, 0f)
+            .setColor(1f, 1f, 1f, transparency)
+        BufferUploader.drawWithShader(builder.buildOrThrow())
+        //?} else {
+        /*val builder = tesselator.builder
+        builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
+        builder.vertex(pose, x.toFloat(), y.toFloat(), 0f).uv(0f, 0f)
+            .color(1f, 1f, 1f, transparency).endVertex()
+        builder.vertex(pose, x.toFloat(), (y + height).toFloat(), 0f).uv(0f, 1f)
+            .color(1f, 1f, 1f, transparency).endVertex()
+        builder.vertex(pose, (x + width).toFloat(), (y + height).toFloat(), 0f).uv(1f, 1f)
+            .color(1f, 1f, 1f, transparency).endVertex()
+        builder.vertex(pose, (x + width).toFloat(), y.toFloat(), 0f).uv(1f, 0f)
+            .color(1f, 1f, 1f, transparency).endVertex()
+        tesselator.end()
+        *///?}
+    }
+}

@@ -1,14 +1,13 @@
 name: build
 on: 
   push:
-    branches: [ 1.19.2 ]
+    branches: [ stonecutter ]
 
 jobs:
   build:
     strategy:
       matrix:
-        # Use these Java versions
-        java: [17] # Current Java LTS & minimum supported by Minecraft
+        java: [21]
         os: [ubuntu-20.04]
     runs-on: ${{ matrix.os }}
     steps:

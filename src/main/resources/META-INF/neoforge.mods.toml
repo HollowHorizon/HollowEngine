@@ -1,0 +1,28 @@
+modLoader = "javafml"
+loaderVersion = "[2,)"
+license = "MIT"
+[[mods]]
+modId = "${mod_id}"
+version = "${mod_version}"
+displayName = "${mod_name}"
+logoFile="hollowcore.png"
+credits=""
+authors = "HollowHorizon"
+description = '''HollowCore is a minecraft modding library by HollowHorizon. It is an easy to use and powerful library for easier creation of minecraft mods for Fabric, Forge and NeoForge.
+'''
+[[mixins]]
+config = "hollowcore.mixins.json"
+[[accessTransformers]]
+file="accesstransformer.cfg"
+[[dependencies.hollowcore]]
+modId = "neoforge"
+type="required"
+versionRange = "[2,)"
+ordering = "NONE"
+side = "BOTH"
+[[dependencies.hollowcore]]
+modId = "minecraft"
+type="required"
+versionRange = "[${mc_version},)"
+ordering = "NONE"
+side = "BOTH"
