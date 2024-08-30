@@ -84,7 +84,7 @@ object ClientEvents {
 
     @SubscribeEvent
     fun onScreenOpen(event: ScreenEvent.Opening) {
-        if (event.screen is TitleScreen && !ignoreOptifine && ModList.get().isLoaded("optifine")) {
+        if (event.screen is TitleScreen && !ignoreOptifine && hasOptifine()) {
             event.newScreen = ImGuiScreen {
                 ImGui.getBackgroundDrawList()
                     .addRectFilled(0f, 0f, width, height, ImGui.colorConvertFloat4ToU32(0f, 0f, 0f, 1f))
@@ -103,6 +103,16 @@ object ClientEvents {
                 ImGui.end()
             }
         }
+    }
+
+    fun hasOptifine(): Boolean {
+        Class<?> clazz = null;
+		try {
+			clazz = Class.forName("net.optifine.shaders.Shaders");
+		} catch (ClassNotFoundException e) {
+			// Оптифайна нет
+		}
+		return = clazz != null;
     }
 
     @SubscribeEvent
