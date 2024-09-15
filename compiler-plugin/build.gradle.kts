@@ -25,4 +25,14 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.0")
     implementation("org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:2.0.0")
     implementation("org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:2.0.0")
+
+    testImplementation(kotlin("test-junit"))
+    testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable")
+    testImplementation("dev.zacsweers.kctfork:core:0.5.1")
 }
+
+//tasks {
+//    test {
+//        useJUnitPlatform()
+//    }
+//}
