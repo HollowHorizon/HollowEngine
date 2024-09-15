@@ -1,4 +1,4 @@
-package ru.hollowhorizon.compiler
+package ru.hollowhorizon.hollowengine.compiler
 
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar

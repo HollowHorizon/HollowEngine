@@ -1,4 +1,4 @@
-package ru.hollowhorizon.compiler.story
+package ru.hollowhorizon.hollowengine.compiler.story
 
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
@@ -8,47 +8,40 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.builders.declarations.buildFun
-import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
+import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
+import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionExpressionImpl
 import org.jetbrains.kotlin.ir.symbols.IrValueSymbol
+import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.symbols.impl.IrValueParameterSymbolImpl
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.SYNTHETIC_OFFSET
-import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
-import org.jetbrains.kotlin.name.*
-import ru.hollowhorizon.compiler.story.FunctionTransformer.ctx
+import org.jetbrains.kotlin.name.SpecialNames
+import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
+import ru.hollowhorizon.hollowengine.compiler.story.FunctionTransformer.ctx
 
 
-class FunctionPropertiesTransformer : IrElementTransformerVoid() {
-    private val delegateType = ctx.referenceClass(
-        ClassId(
-            FqName("ru.hollowhorizon.hollowengine.common.scripting.compiler.story"), Name.identifier("PropertyDelegate")
-        )
-    )!!
-    private val delegateConstructor = delegateType.constructors.first()
-    val properties = hashMapOf<IrValueSymbol, IrValueDeclaration>()
-    private val ignoredExpressions = hashSetOf<IrGetValue>()
-    val initializers = hashMapOf<IrVariable, IrExpression>()
-    override fun visitValueParameter(parameter: IrValueParameter): IrStatement {
+class DelegateParametersTransformer : IrElementTransformerVoid() {
+    private val properties = hashMapOf<IrValueSymbol, IrValueDeclaration>()
+
+    override fun visitValueParameter(declaration: IrValueParameter): IrStatement {
         val new = ctx.irFactory.createValueParameter(
-            parameter.startOffset, parameter.endOffset, parameter.origin, parameter.name,
-            ctx.function(0).typeWith(parameter.type), parameter.isAssignable, IrValueParameterSymbolImpl(),
-            parameter.index, parameter.varargElementType, parameter.isCrossinline, parameter.isNoinline,
-            parameter.isHidden
+            declaration.startOffset, declaration.endOffset, declaration.origin, declaration.name,
+            ctx.function(0).typeWith(declaration.type), declaration.isAssignable, IrValueParameterSymbolImpl(),
+            declaration.index, declaration.varargElementType, declaration.isCrossinline, declaration.isNoinline,
+            declaration.isHidden
         ).apply {
-            this.parent = parameter.parent
-            properties[parameter.symbol] = this
+            this.parent = declaration.parent
+            properties[declaration.symbol] = this
         }
 
         return super.visitValueParameter(new)
-    }
-
-    override fun visitSetValue(expression: IrSetValue): IrExpression {
-        return super.visitSetValue(expression)
     }
 
     override fun visitGetValue(expression: IrGetValue): IrExpression {
@@ -64,8 +57,9 @@ class FunctionPropertiesTransformer : IrElementTransformerVoid() {
         return super.visitGetValue(expression)
     }
 
+    @OptIn(UnsafeDuringIrConstructionAPI::class)
     override fun visitCall(expression: IrCall): IrExpression {
-        if (expression.symbol.owner.hasAnnotation(FqName("ru.hollowhorizon.hollowengine.common.scripting.story.StoryFunction"))) {
+        if (expression.symbol.owner.hasAnnotation(Suspendable)) {
             val builder =
                 ctx.irBuiltIns.createIrBuilder(expression.symbol, expression.startOffset, expression.endOffset)
 
@@ -74,9 +68,7 @@ class FunctionPropertiesTransformer : IrElementTransformerVoid() {
                     +irReturn(arg)
                 }
             }
-            newArgs.forEachIndexed { index, irExpression ->
-                expression.putValueArgument(index, irExpression)
-            }
+            newArgs.forEachIndexed(expression::putValueArgument)
         }
         return super.visitCall(expression)
     }

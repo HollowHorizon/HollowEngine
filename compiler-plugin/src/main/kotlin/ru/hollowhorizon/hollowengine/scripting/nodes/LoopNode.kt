@@ -1,7 +1,5 @@
-package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
+package ru.hollowhorizon.hollowengine.scripting.nodes
 
-import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.Tag
 
 class LoopNode(val condition: Node, val body: Node, var doWhile: Boolean = false) : Node {
     var lastCheck = false
@@ -40,17 +38,5 @@ class LoopNode(val condition: Node, val body: Node, var doWhile: Boolean = false
         return false
     }
 
-    override fun serialize() = super.serialize().apply {
-        putBoolean("lastCheck", lastCheck)
-        put("condition", condition.serialize())
-        put("sequence", body.serialize())
-    }
 
-    override fun deserialize(tag: Tag) {
-        (tag as CompoundTag).apply {
-            lastCheck = getBoolean("lastCheck")
-            condition.deserialize(getCompound("condition"))
-            body.deserialize(tag.getCompound("sequence"))
-        }
-    }
 }

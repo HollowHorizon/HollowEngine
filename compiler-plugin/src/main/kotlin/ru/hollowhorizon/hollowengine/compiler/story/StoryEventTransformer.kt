@@ -1,4 +1,4 @@
-package ru.hollowhorizon.compiler.story
+package ru.hollowhorizon.hollowengine.compiler.story
 
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
@@ -9,12 +9,13 @@ import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 /**
  * Транстформирует скрипт или функции таким образом, чтобы они могли быть сериализуемы.
  */
-class StoryEventTransformer(val context: IrPluginContext) : IrElementTransformerVoid() {
+class StoryEventTransformer(private val context: IrPluginContext) : IrElementTransformerVoid() {
     override fun visitFunction(declaration: IrFunction): IrStatement {
-        val builder =
-            context.irBuiltIns.createIrBuilder(declaration.symbol, declaration.startOffset, declaration.endOffset)
-
-        with(builder) {
+        context.irBuiltIns.createIrBuilder(
+            declaration.symbol,
+            declaration.startOffset,
+            declaration.endOffset
+        ).apply {
             with(FunctionTransformer) {
                 transformFunction(declaration)
             }

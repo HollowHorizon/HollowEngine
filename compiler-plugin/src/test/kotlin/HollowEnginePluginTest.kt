@@ -7,20 +7,36 @@ import junit.framework.TestCase.assertEquals
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.Test
-import ru.hollowhorizon.compiler.HollowEngineCompilerRegistrar
+import ru.hollowhorizon.hollowengine.compiler.HollowEngineCompilerRegistrar
 
 class PluginTester {
     @Test
-    fun `Scripting plugin works`() {
+    fun `Scripting compiler test`() {
         val result = compile(
-            sourceFile = SourceFile.kotlin(
+            SourceFile.kotlin(
                 "main.kt", """
-fun main() {
-  println(debug())
-}
+                    fun main() {
+                        println(debug())
+                    }
+                    fun debug() = "Hello, World!"
+                """.trimIndent()
+            )
+        )
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
+    }
 
-fun debug() = "Hello, World!"
-"""
+    @Test
+    fun `Suspendable test`() {
+        val result = compile(
+            SourceFile.kotlin(
+                "main.kt", """
+                    import ru.hollowhorizon.hollowengine.scripting.Suspendable
+                    fun main() {
+                        println(debug())
+                    }
+                    @Suspendable
+                    fun debug() = "Hello, World!"
+                """.trimIndent()
             )
         )
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)

@@ -1,6 +1,5 @@
-package ru.hollowhorizon.hollowengine.common.scripting.story.nodes
+package ru.hollowhorizon.hollowengine.scripting.nodes
 
-import ru.hollowhorizon.hc.HollowCore
 
 class WhenNode(val branches: List<BranchNode>) : Node {
     var branchIndex = -1

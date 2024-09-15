@@ -4,7 +4,7 @@ import ru.hollowhorizon.hc.common.commands.onRegisterCommands
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterCommandsEvent
-import compiler.story.main
+import ru.hollowhorizon.hollowengine.main
 
 @SubscribeEvent
 fun onRegisterCommands(event: RegisterCommandsEvent) {
@@ -12,7 +12,7 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
         "hollowengine" {
             "reload" {
                 scopeSync {
-                    compiler.story.main()
+                    main()
                 }
             }
         }

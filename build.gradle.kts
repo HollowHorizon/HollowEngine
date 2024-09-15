@@ -4,7 +4,7 @@ import net.fabricmc.loom.api.remapping.RemapperParameters
 import net.fabricmc.loom.extension.LoomGradleExtensionImpl
 import net.fabricmc.loom.extension.RemapperExtensionHolder
 import net.fabricmc.tinyremapper.TinyRemapper
-import org.gradle.configurationcache.extensions.capitalized
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.util.*
 
 plugins {
@@ -143,6 +143,14 @@ dependencies {
     implementation("org.ow2.asm:asm-tree:9.7")
     implementation("org.anarres:jcpp:1.4.14")
     implementation("io.github.douira:glsl-transformer:2.0.1")
+
+    implementation("ru.hollowhorizon:HollowEnginePlugin:1.0")
+}
+
+tasks.withType<KotlinCompile> {
+    compilerOptions {
+        freeCompilerArgs.add("-Xplugin=${rootDir.resolve("libs/HollowEnginePlugin-1.0.jar")}")
+    }
 }
 
 afterEvaluate {
@@ -234,7 +242,7 @@ yamlang {
     inputDir.set("assets/${modId}/lang")
 }
 
-if(hasConfig) publishing {
+if (hasConfig) publishing {
     publications {
         create<MavenPublication>(modName) {
             groupId = "ru.hollowhorizon"

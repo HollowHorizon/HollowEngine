@@ -11,7 +11,6 @@ import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
 import ru.hollowhorizon.hc.common.scripting.kotlin.HollowScript
 import ru.hollowhorizon.hollowengine.common.registry.NodesRegistry
 import ru.hollowhorizon.hollowengine.common.registry.PinsRegistry
-import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.SequenceNode
 import java.io.File
 import kotlin.script.experimental.api.valueOrThrow
 
@@ -39,9 +38,7 @@ suspend fun main() {
 
     val test = instance::class.java.declaredMethods.find { it.name == "test" }
 
-    val r = test?.invoke(instance) as SequenceNode
 
-    println(r)
 
 }
 
