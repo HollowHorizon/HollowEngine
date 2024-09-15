@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.scripting.compiler.story
+package ru.hollowhorizon.compiler.story
 
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.ir.util.statements
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import ru.hollowhorizon.hollowengine.common.scripting.compiler.story.StatementsTransformer.transformStatements
+import ru.hollowhorizon.compiler.story.StatementsTransformer.transformStatements
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
 
@@ -20,15 +20,6 @@ object FunctionTransformer {
     lateinit var ctx: IrPluginContext
 
     fun DeclarationIrBuilder.transformFunction(function: IrFunction) {
-        val builder =
-            ctx.irBuiltIns.createIrBuilder(function.symbol, function.startOffset, function.endOffset)
-
-        val delegateType = ctx.referenceClass(
-            ClassId(
-                FqName("ru.hollowhorizon.hollowengine.common.scripting.compiler.story"),
-                Name.identifier("PropertyDelegate")
-            )
-        )!!
 
         if (!function.annotations.hasAnnotation(FqName("ru.hollowhorizon.hollowengine.common.scripting.story.StoryFunction"))) return
         val sequenceNode = ctx.referenceClass(

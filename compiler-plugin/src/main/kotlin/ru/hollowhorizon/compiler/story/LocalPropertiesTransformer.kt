@@ -1,7 +1,5 @@
-package ru.hollowhorizon.hollowengine.common.scripting.compiler.story
+package ru.hollowhorizon.compiler.story
 
-import net.minecraft.nbt.EndTag
-import net.minecraft.nbt.Tag
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.jvm.functionByName
 import org.jetbrains.kotlin.ir.IrStatement
@@ -25,11 +23,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
-import ru.hollowhorizon.hc.client.utils.nbt.deserialize
-import ru.hollowhorizon.hc.client.utils.nbt.deserializeNoInline
-import ru.hollowhorizon.hc.client.utils.nbt.serializeNoInline
-import ru.hollowhorizon.hollowengine.common.scripting.compiler.story.FunctionTransformer.ctx
+import ru.hollowhorizon.compiler.story.FunctionTransformer.ctx
 import kotlin.collections.set
 import kotlin.reflect.KProperty
 
@@ -142,18 +136,9 @@ open class PropertyDelegate<T>(val initializer: () -> T) {
         this.value = value
     }
 
-    fun serialize(): Tag {
-        val v = value ?: return EndTag.INSTANCE
-
-        val type = v::class.java as Class<T & Any>
-
-        return NBTFormat.serializeNoInline(v, type)
+    fun serialize() {
     }
 
-    fun deserialize(tag: Tag) {
-        if (tag is EndTag) return
-
-        //TODO Пусть плагин для компилятора сам определяет тип переменной, генерики использовать запретим, ибо нафиг надо
-        value = NBTFormat.deserializeNoInline(tag, value!!::class.java)
-    }
+    fun deserialize() {
+        }
 }

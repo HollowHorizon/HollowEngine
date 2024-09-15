@@ -7,9 +7,13 @@ import ru.hollowhorizon.hc.api.HollowMod
 import ru.hollowhorizon.hc.common.config.HollowConfig
 import ru.hollowhorizon.hc.common.config.hollowConfig
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
+import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
+import ru.hollowhorizon.hc.common.scripting.kotlin.HollowScript
 import ru.hollowhorizon.hollowengine.common.registry.NodesRegistry
 import ru.hollowhorizon.hollowengine.common.registry.PinsRegistry
-import ru.hollowhorizon.hollowengine.common.scripting.compiler.story.main
+import ru.hollowhorizon.hollowengine.common.scripting.story.nodes.SequenceNode
+import java.io.File
+import kotlin.script.experimental.api.valueOrThrow
 
 @HollowMod
 object HollowEngine {
@@ -24,15 +28,25 @@ object HollowEngine {
     }
 }
 
+suspend fun main() {
+    val old = File("script.kts.jar")
+    if (old.exists()) old.delete()
+    val script = ScriptingCompiler.compileFile<HollowScript>(File("script.kts"))
+
+    val result = script.execute {}
+
+    val instance = result.valueOrThrow().returnValue.scriptInstance!!
+
+    val test = instance::class.java.declaredMethods.find { it.name == "test" }
+
+    val r = test?.invoke(instance) as SequenceNode
+
+    println(r)
+
+}
+
 @Serializable
 class EngineConfig : HollowConfig() {
     @SerialName("enable_mod_resources_in_ide")
     var enableModResources = true
-}
-
-object PacketConfig {
-    const val packetSize = 104857600
-    const val decodeSize = 8388608 * 100
-    const val nbtSize = 2097152 * 100
-    const val var21Size = 8
 }

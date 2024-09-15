@@ -4,11 +4,11 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.Tag
 import ru.hollowhorizon.hc.HollowCore
-import ru.hollowhorizon.hollowengine.common.scripting.compiler.story.PropertyDelegate
+import compiler.story.PropertyDelegate
 
 open class SequenceNode : Node {
     val nodes = ArrayList<Node>()
-    val properties = HashMap<String, PropertyDelegate<*>>()
+    val properties = HashMap<String, compiler.story.PropertyDelegate<*>>()
     private var index = 0
 
     override fun execute(): Boolean {

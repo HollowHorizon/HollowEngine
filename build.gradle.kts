@@ -19,7 +19,8 @@ plugins {
 
 val userConfig = Properties()
 val cfg = rootProject.file("user.properties")
-if (cfg.exists()) userConfig.load(cfg.inputStream())
+val hasConfig = cfg.exists()
+if (hasConfig) userConfig.load(cfg.inputStream())
 
 val modId = fromProperties("mod_id")
 val javaVersion = fromProperties("java_version")
@@ -105,6 +106,7 @@ dependencies {
 
     // KOTLIN //
     dependency("ru.hollowhorizon:HollowCore-$modPlatform-$minecraftVersion:2.0.1:dev")
+    include("ru.hollowhorizon:HollowCore-$modPlatform-$minecraftVersion:2.0.1")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.0")
     dependency("org.jetbrains.kotlin:kotlin-reflect:1.9.22")
     dependency("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.1")
@@ -232,7 +234,7 @@ yamlang {
     inputDir.set("assets/${modId}/lang")
 }
 
-publishing {
+if(hasConfig) publishing {
     publications {
         create<MavenPublication>(modName) {
             groupId = "ru.hollowhorizon"

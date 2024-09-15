@@ -41,9 +41,9 @@ public abstract class InventoryMixin extends EffectRenderingInventoryScreen<Inve
             *///?}
     ))
     private void onResize(Button button, CallbackInfo ci) {
-        //?if>=1.20.1 {
+        //? if >=1.20.1 {
         button.setPosition(this.leftPos + 131, this.topPos + 58);
-        //?}else{
+        //?} else {
         /*hollowengine$questsButton.x = this.leftPos + 131;
         hollowengine$questsButton.y = this.topPos + 58;
          *///?}

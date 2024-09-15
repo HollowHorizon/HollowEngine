@@ -43,4 +43,4 @@ extensions.configure<StonecutterSettings> {
 
 rootProject.name = "HollowEngine"
 
-include("forgefixer")
+include("compiler-plugin")

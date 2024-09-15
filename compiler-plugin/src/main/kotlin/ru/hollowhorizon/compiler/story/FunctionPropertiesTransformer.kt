@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.scripting.compiler.story
+package ru.hollowhorizon.compiler.story
 
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
@@ -20,7 +20,7 @@ import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.name.*
-import ru.hollowhorizon.hollowengine.common.scripting.compiler.story.FunctionTransformer.ctx
+import ru.hollowhorizon.compiler.story.FunctionTransformer.ctx
 
 
 class FunctionPropertiesTransformer : IrElementTransformerVoid() {
