@@ -32,10 +32,11 @@ class LoopNode(val condition: Node, val body: Node, var doWhile: Boolean = false
             if (body.execute()) {
                 lastCheck = false
                 body.reset()
-                return true
+                return false
             }
+            return false
         }
-        return false
+        return true
     }
 
 

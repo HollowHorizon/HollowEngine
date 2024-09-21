@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.npcs.quests
 
 import kotlinx.serialization.Serializable
+import net.minecraft.nbt.Tag
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
@@ -14,7 +15,7 @@ import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 class QuestsCapability : CapabilityInstance() {
     var questGraph by syncable(QuestGraph())
 
-    override fun canAcceptFromClient(player: Player): Boolean {
+    override fun canAcceptFromClient(player: Player, tag: Tag): Boolean {
         return player.hasPermissions(PlayerPermissions.GAMEMASTER)
     }
 }

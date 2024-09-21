@@ -19,6 +19,8 @@ import java.util.concurrent.CompletableFuture
 
 //? if >=1.20.1 {
 import com.mojang.serialization.MapCodec
+import java.util.concurrent.Executor
+import com.mojang.serialization.Codec
 
 class StoryTellerWorldChunkGenerator(biomeSource: BiomeSource) : ChunkGenerator(biomeSource) {
 //?} else {
@@ -109,8 +111,8 @@ class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSo
             RecordCodecBuilder.create { instance: RecordCodecBuilder.Instance<StoryTellerWorldChunkGenerator> ->
                 instance.group(
                     //? if <=1.19.2 {
-                    RegistryOps.retrieveRegistry(Registry.STRUCTURE_SET_REGISTRY).forGetter { it.structureSets },
-                    //?}
+                    /^RegistryOps.retrieveRegistry(Registry.STRUCTURE_SET_REGISTRY).forGetter { it.structureSets },
+                    ^///?}
                     BiomeSource.CODEC.fieldOf("biome_source").forGetter { it.biomeSource }
                 ).apply(instance, ::StoryTellerWorldChunkGenerator)
             }

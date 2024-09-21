@@ -57,6 +57,4 @@ fun compile(
 fun compile(
     sourceFile: SourceFile,
     plugin: CompilerPluginRegistrar = HollowEngineCompilerRegistrar(),
-): JvmCompilationResult {
-    return compile(listOf(sourceFile), plugin)
-}
+): JvmCompilationResult = compile(listOf(sourceFile), plugin)

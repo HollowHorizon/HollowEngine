@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.compiler.story
+package ru.hollowhorizon.hollowengine.compiler.suspendable
 
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
@@ -24,7 +24,7 @@ import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.name.SpecialNames
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
-import ru.hollowhorizon.hollowengine.compiler.story.FunctionTransformer.ctx
+import ru.hollowhorizon.hollowengine.compiler.suspendable.FunctionTransformer.ctx
 
 
 class DelegateParametersTransformer : IrElementTransformerVoid() {

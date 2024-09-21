@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.compiler.story
+package ru.hollowhorizon.hollowengine.compiler.suspendable
 
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.statements
 import ru.hollowhorizon.hollowengine.compiler.identifiers.SequenceNode
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
-import ru.hollowhorizon.hollowengine.compiler.story.StatementsTransformer.transformStatements
+import ru.hollowhorizon.hollowengine.compiler.suspendable.StatementsTransformer.transformStatements
 
 
 object FunctionTransformer {

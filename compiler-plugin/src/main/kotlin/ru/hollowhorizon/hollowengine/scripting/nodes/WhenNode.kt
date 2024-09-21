@@ -7,11 +7,9 @@ class WhenNode(val branches: List<BranchNode>) : Node {
     override fun execute(): Boolean {
         if(branchIndex == -1) branchIndex = branches.indexOfFirst { it.condition.execute() }
 
-        if(branches[branchIndex].body.execute()) {
-            return true
-        }
+        if(branches[branchIndex].body.execute()) return true
 
-        return false
+        return branchIndex == -1
     }
 }
 

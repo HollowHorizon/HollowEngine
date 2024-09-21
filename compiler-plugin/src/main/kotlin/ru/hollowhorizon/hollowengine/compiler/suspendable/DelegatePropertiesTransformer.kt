@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.compiler.story
+package ru.hollowhorizon.hollowengine.compiler.suspendable
 
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.jvm.functionByName
@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.name.Name
 import ru.hollowhorizon.hollowengine.compiler.identifiers.DelegateProperty
-import ru.hollowhorizon.hollowengine.compiler.story.FunctionTransformer.ctx
+import ru.hollowhorizon.hollowengine.compiler.suspendable.FunctionTransformer.ctx
 import kotlin.collections.set
 
 

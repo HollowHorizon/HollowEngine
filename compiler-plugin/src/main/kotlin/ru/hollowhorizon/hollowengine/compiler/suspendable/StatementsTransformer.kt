@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.compiler.story
+package ru.hollowhorizon.hollowengine.compiler.suspendable
 
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder

@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.mixins;
 import com.google.common.collect.Multimap;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
-//? if >=1.20.1
+//? if >=1.21
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeType;
@@ -14,7 +14,7 @@ import java.util.Map;
 
 @Mixin(RecipeManager.class)
 public interface RecipeManagerAccessor {
-    //? if >=1.20.1 {
+    //? if >=1.21 {
     @Accessor("byType")
     Multimap<RecipeType<?>, RecipeHolder<?>> hollowcore$getRecipes();
 

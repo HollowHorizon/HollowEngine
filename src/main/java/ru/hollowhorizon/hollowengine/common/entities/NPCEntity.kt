@@ -44,7 +44,7 @@ class NPCEntity : PathfinderMob, IAnimated {
     }
 
 
-    //? if >=1.20.1 {
+    //? if >=1.21 {
     override fun defineSynchedData(builder: SynchedEntityData.Builder) {
         builder.define(sizeX, 0.6f)
         builder.define(sizeY, 1.8f)
@@ -157,7 +157,7 @@ class NPCEntity : PathfinderMob, IAnimated {
         if (pKey == sizeX || pKey == sizeY) refreshDimensions()
     }
 
-    //? if >=1.20.1 {
+    //? if >=1.21 {
     override fun getDefaultDimensions(pPose: Pose): EntityDimensions {
         return EntityDimensions.fixed(entityData[sizeX], entityData[sizeY])
     }

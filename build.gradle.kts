@@ -83,7 +83,7 @@ repositories {
     maven("https://maven.shedaniel.me/")
     maven("https://maven.architectury.dev/")
     maven("https://maven.terraformersmc.com/releases/")
-    maven("https://maven.0mods.team/releases")
+    maven("https://maven.0mods.team/")
     maven("https://jitpack.io")
     maven("https://maven.neoforged.net/releases")
     maven("https://maven.fabricmc.net/")
@@ -105,8 +105,7 @@ dependencies {
     compileOnly("org.spongepowered:mixin:0.8.7")
 
     // KOTLIN //
-    dependency("ru.hollowhorizon:HollowCore-$modPlatform-$minecraftVersion:2.0.1:dev")
-    include("ru.hollowhorizon:HollowCore-$modPlatform-$minecraftVersion:2.0.1")
+    dependency("ru.hollowhorizon:HollowCore-$modPlatform-$minecraftVersion:2.0.4:dev")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.0")
     dependency("org.jetbrains.kotlin:kotlin-reflect:1.9.22")
     dependency("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.1")
@@ -332,8 +331,8 @@ fun DependencyHandlerScope.setupLoader(loader: String, version: String) {
         "fabric" -> {
             when (version) {
                 "1.21" -> {
-                    "modImplementation"("net.fabricmc:fabric-loader:0.15.11")
-                    "modImplementation"("net.fabricmc.fabric-api:fabric-api:0.102.0+$version")
+                    modImplementation("net.fabricmc:fabric-loader:0.15.11")
+                    modImplementation("net.fabricmc.fabric-api:fabric-api:0.101.2+$version")
                     compileOnly("mods:sodium:0.6.0")
                     compileOnly("mods:iris:1.8.0")
                 }
@@ -355,6 +354,7 @@ fun DependencyHandlerScope.setupLoader(loader: String, version: String) {
 
                 else -> throw IllegalStateException("Unsupported $loader version $version!")
             }
+            dependency("io.github.classgraph:classgraph:4.8.173")
         }
 
         "forge" -> {

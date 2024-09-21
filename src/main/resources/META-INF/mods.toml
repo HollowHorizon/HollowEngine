@@ -21,3 +21,9 @@ mandatory = true
 versionRange = "[${mc_version},)"
 ordering = "NONE"
 side = "BOTH"
+[[dependencies.${mod_id}]]
+modId = "hollowcore"
+mandatory = true
+versionRange = "[2.0.4,3.0)"
+ordering = "NONE"
+side = "BOTH"
