@@ -15,6 +15,8 @@ repositories {
 }
 
 dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-serialization-compiler-plugin:2.0.0")
+
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")

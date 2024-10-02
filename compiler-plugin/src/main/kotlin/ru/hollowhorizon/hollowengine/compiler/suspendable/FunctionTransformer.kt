@@ -2,30 +2,215 @@ package ru.hollowhorizon.hollowengine.compiler.suspendable
 
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
-import org.jetbrains.kotlin.ir.builders.irBlockBody
+import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
+import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.backend.js.JsStatementOrigins
+import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
+import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.types.defaultType
-import org.jetbrains.kotlin.ir.util.hasAnnotation
-import org.jetbrains.kotlin.ir.util.statements
-import ru.hollowhorizon.hollowengine.compiler.identifiers.SequenceNode
+import org.jetbrains.kotlin.ir.declarations.IrValueParameter
+import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrContainerExpression
+import org.jetbrains.kotlin.ir.expressions.IrLoop
+import org.jetbrains.kotlin.ir.expressions.impl.IrWhenImpl
+import org.jetbrains.kotlin.ir.types.isUnit
+import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
+import org.jetbrains.kotlin.name.CallableId
+import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
+import ru.hollowhorizon.hollowengine.compiler.identifiers.ResumeState
+import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendContext
+import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendState
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
-import ru.hollowhorizon.hollowengine.compiler.suspendable.StatementsTransformer.transformStatements
+import ru.hollowhorizon.hollowengine.compiler.identifiers.United
+import ru.hollowhorizon.hollowengine.compiler.suspendable.FunctionTransformer.ctx
 
 
 object FunctionTransformer {
     lateinit var ctx: IrPluginContext
 
     fun DeclarationIrBuilder.transformFunction(function: IrFunction) {
-        if (!function.annotations.hasAnnotation(Suspendable)) return
-        val sequenceNode = ctx.referenceClass(SequenceNode) ?: return
+        function.transformChildrenVoid(PropertyTransformer())
 
-        function.transformChildren(DelegatePropertiesTransformer(), null) // Заменяем все переменные на делегаты
-        function.transformChildren(DelegateParametersTransformer(), null)
-
-        function.body = irBlockBody {
-            transformStatements(function.body!!.statements)
+        function.body = context.irBuiltIns.createIrBuilder(
+            function.symbol, function.startOffset, function.endOffset
+        ).irBlockBody {
+            val context = TransformContext(this, function.valueParameters.last())
+            transform(context, function.body?.statements ?: emptyList())
+            context.build()
         }
-        function.returnType = sequenceNode.defaultType
+
+        if (function.returnType.isUnit()) {
+            val united = ctx.referenceClass(United)!!.constructors.first()
+            function.annotations += irCall(united)
+        }
+        function.returnType = ctx.irBuiltIns.anyNType
+    }
+
+    fun transform(context: TransformContext, statements: List<IrStatement>) {
+        statements.forEach { stmt ->
+            when (stmt) {
+                is IrLoop -> processLoop(context, stmt)
+                is IrCall -> {
+                    if (stmt.symbol == ctx.referenceFunctions(
+                            CallableId(
+                                FqName("ru.hollowhorizon.hollowengine.compiler.suspendable"),
+                                Name.identifier("await")
+                            )
+                        ).first()
+                    ) {
+                        processAwait(context, stmt)
+                    } else if (stmt.symbol.owner.annotations.hasAnnotation(Suspendable)) {
+                        processSuspendable(context, stmt)
+                    } else {
+                        processStatement(context, stmt)
+                    }
+                }
+
+                else -> processStatement(context, stmt)
+            }
+        }
+    }
+
+    private fun processSuspendable(context: TransformContext, stmt: IrCall) {
+        TODO("Нужно реализовать вложенные контексты")
+    }
+
+    private fun processAwait(context: TransformContext, stmt: IrCall) {
+        val conditionIndex = context.index + 1
+        context.append { // Заканчиваем прошлое состояние и переходим к новому
+            +irCall(ctx.referenceClass(SuspendContext)!!.getPropertySetter("index")!!).apply {
+                dispatchReceiver = irGet(context.suspendContext)
+                putValueArgument(0, irInt(conditionIndex))
+            }
+        }
+        context.suspend(true) // Останавливаем текущее состояние
+        context.nextBranch { // Замена `await(<true>)` на `if(<true>) index++` с переходом в следующее состояние
+            +irIfThenElse(
+                ctx.irBuiltIns.unitType, stmt.valueArguments.first()!!,
+                irCall(ctx.referenceClass(SuspendContext)!!.getPropertySetter("index")!!).apply {
+                    dispatchReceiver = irGet(context.suspendContext)
+                    putValueArgument(0, irInt(conditionIndex + 1))
+                },
+                irReturn(irGetObject(ctx.referenceClass(SuspendState)!!))
+            )
+            +irReturn(irGetObject(ctx.referenceClass(ResumeState)!!))
+        }
+        context.nextBranch() // Создаём новое состояние для действий после `await`
+    }
+
+    private fun processLoop(context: TransformContext, loop: IrLoop) {
+        val conditionIndex = context.index + 1
+        var returnIndex = -1
+        context.append { // Заканчиваем прошлый раздел и переходим к новому
+            +irCall(ctx.referenceClass(SuspendContext)!!.getPropertySetter("index")!!).apply {
+                dispatchReceiver = irGet(context.suspendContext)
+                putValueArgument(0, irInt(conditionIndex))
+            }
+        }
+        context.suspend(true) // Останавливаем функцию
+        context.nextBranch { //Заменяем цикл на выражение с переходом к одной из двух фаз
+            +irIfThenElse(ctx.irBuiltIns.unitType, loop.condition,
+                irCall(ctx.referenceClass(SuspendContext)!!.getPropertySetter("index")!!).apply {
+                    dispatchReceiver = irGet(context.suspendContext)
+                    putValueArgument(0, irInt(conditionIndex + 1)) // if true -> branch 1
+                },
+                irCall(ctx.referenceClass(SuspendContext)!!.getPropertySetter("index")!!).apply {
+                    dispatchReceiver = irGet(context.suspendContext)
+                    putValueArgument(0, irInt(returnIndex)) // else -> branch 2
+                })
+        }
+        context.suspend(true)
+
+        context.nextBranch()
+        loop.body?.let {
+            when (it) {
+                is IrContainerExpression -> transform(context, it.statements)
+                is IrCall -> transform(context, listOf(it))
+                else -> error("Unexpected expression type: $it")
+            }
+        }
+
+        context.append { //Возвращаемся к исходной проверке
+            +irCall(ctx.referenceClass(SuspendContext)!!.getPropertySetter("index")!!).apply {
+                dispatchReceiver = irGet(context.suspendContext)
+                putValueArgument(0, irInt(conditionIndex))
+            }
+        }
+        context.suspend()
+
+        context.nextBranch()
+        returnIndex = context.index
+    }
+
+    private fun processStatement(context: TransformContext, statement: IrStatement) {
+        context.append { +statement }
     }
 }
 
+class TransformContext(
+    private val builder: IrBlockBodyBuilder,
+    val suspendContext: IrValueParameter,
+    var index: Int = -1,
+) {
+    val branches = hashMapOf<Int, MutableList<IrStatementsBuilder<*>.() -> Unit>>()
+    fun append(action: IrStatementsBuilder<*>.() -> Unit) {
+        if (index == -1) nextBranch() // Create initial branch
+        val branch = branches[index] ?: error("branch $index not exists!")
+        branch.add(action)
+    }
+
+    fun nextBranch(branch: IrStatementsBuilder<*>.() -> Unit = EMPTY) {
+        index++
+
+        builder.apply {
+            branches.computeIfAbsent(index) { mutableListOf() }.let { if (branch != EMPTY) it.add(branch) }
+        }
+
+
+    }
+
+    fun build() {
+        builder.apply {
+            val eqeqeqInt = ctx.irBuiltIns.eqeqeqSymbol
+
+            val call = irCall(
+                ctx.referenceClass(SuspendContext)!!.getPropertyGetter("index")!!
+            ).apply {
+                dispatchReceiver = irGet(suspendContext)
+            }
+            val temp = irTemporary(call)
+
+
+            +IrWhenImpl(
+                startOffset,
+                endOffset,
+                context.irBuiltIns.unitType,
+                JsStatementOrigins.COROUTINE_SWITCH,
+                branches.map {
+                    irBranch(
+                        irCall(eqeqeqInt).apply {
+                            putValueArgument(0, irGet(temp))
+                            putValueArgument(1, irInt(it.key))
+                        }, irBlock {
+                            it.value.forEach {
+                                this.it()
+                            }
+                        }
+                    )
+                })
+        }
+    }
+
+    fun suspend(resume: Boolean = false) {
+        append {
+            if (resume) +irReturn(irGetObject(ctx.referenceClass(ResumeState)!!))
+            else +irReturn(irGetObject(ctx.referenceClass(SuspendState)!!))
+        }
+    }
+
+    companion object {
+        private val EMPTY: IrStatementsBuilder<*>.() -> Unit = {}
+    }
+}

@@ -6,10 +6,12 @@ import com.tschuchort.compiletesting.SourceFile
 import junit.framework.TestCase.assertEquals
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
+import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationComponentRegistrar
 import org.junit.Test
 import ru.hollowhorizon.hollowengine.compiler.HollowEngineCompilerRegistrar
 
 class PluginTester {
+    @OptIn(ExperimentalCompilerApi::class)
     @Test
     fun `Scripting compiler test`() {
         val result = compile(
@@ -31,15 +33,42 @@ class PluginTester {
             SourceFile.kotlin(
                 "main.kt", """
                     import ru.hollowhorizon.hollowengine.scripting.Suspendable
-                    fun main() {
-                        println(debug())
-                    }
+                    import ru.hollowhorizon.hollowengine.compiler.suspendable.*
+
                     @Suspendable
-                    fun debug() = "Hello, World!"
+                    fun debug(time: Int): String {
+                        println(time)
+                        var data = 2
+                        await(time > 5)
+                        val dataConst = 1
+                        while(time<5) {
+                            data++
+                            var aaa = 0
+                            aaa+=10
+                            println(time+aaa)
+                            
+                            while (time < 4) println("AAAA: "+data)
+                        }
+                        println(time+2)
+                        return "Hello, World!"+time
+                    }
+
+                    fun main() {
+                        val launcher = SuspendLauncher { 
+                            debug(10)
+                        }
+                        
+                        launcher.tick()
+                        if(launcher.isEnd) println(launcher.result)
+                    }
                 """.trimIndent()
             )
         )
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
+
+        result.classLoader.loadClass("MainKt").declaredMethods
+            .first { it.name == "main" && it.parameterCount != 0 }
+            .invoke(null, null)
     }
 }
 
@@ -49,7 +78,7 @@ fun compile(
 ): JvmCompilationResult {
     return KotlinCompilation().apply {
         sources = sourceFiles
-        compilerPluginRegistrars = listOf(plugin)
+        compilerPluginRegistrars = listOf(plugin, SerializationComponentRegistrar())
         inheritClassPath = true
     }.compile()
 }

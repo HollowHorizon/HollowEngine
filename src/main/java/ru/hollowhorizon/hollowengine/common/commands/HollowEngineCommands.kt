@@ -6,7 +6,8 @@ import ru.hollowhorizon.hc.common.events.EventListener
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hc.common.events.tick.TickEvent
-import ru.hollowhorizon.hollowengine.common.scripting.story.getNode
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.example
+import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendLauncher
 import ru.hollowhorizon.hollowengine.scripting.nodes.Node
 
 @SubscribeEvent
@@ -14,13 +15,13 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
     event.dispatcher.onRegisterCommands {
         "hollowengine" {
             "example" {
-                class Listener(val node: Node) : EventListener<TickEvent.Server> {
+                class Listener(val node: SuspendLauncher) : EventListener<TickEvent.Server> {
                     override fun onEvent(event: TickEvent.Server) {
-                        if (node.execute()) EventBus.unregister(this)
+                        if (!node.isEnd) node.tick()
                     }
                 }
 
-                val node = getNode()
+                val node = SuspendLauncher { example() }
                 EventBus.register(Listener(node))
             }
         }
