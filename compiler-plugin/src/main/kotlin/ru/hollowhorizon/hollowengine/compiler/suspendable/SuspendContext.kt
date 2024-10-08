@@ -6,7 +6,7 @@ package ru.hollowhorizon.hollowengine.compiler.suspendable
  */
 open class SuspendContext {
     var index = 0
-    private val properties = hashMapOf<String, Any?>()
+    val properties = hashMapOf<String, Any?>()
 
     fun <T> setProperty(name: String, value: T) {
         properties[name] = value
@@ -14,6 +14,10 @@ open class SuspendContext {
 
     fun <T> getProperty(name: String): T {
         return properties[name]!! as T
+    }
+
+    fun removeProperty(name: String) {
+        properties.remove(name)
     }
 }
 

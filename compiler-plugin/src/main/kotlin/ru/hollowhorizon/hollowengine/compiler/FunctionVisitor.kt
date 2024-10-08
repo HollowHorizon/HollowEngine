@@ -20,10 +20,6 @@ import ru.hollowhorizon.hollowengine.compiler.suspendable.FunctionTransformer
 class FunctionVisitor(private val context: IrPluginContext) : IrElementTransformerVoid() {
     override fun visitFunction(declaration: IrFunction): IrStatement {
         if (!declaration.annotations.hasAnnotation(Suspendable)) return super.visitFunction(declaration)
-        declaration.addValueParameter(
-            "suspendContext",
-            FunctionTransformer.ctx.referenceClass(SuspendContext)!!.defaultType
-        )
 
         context.irBuiltIns.createIrBuilder(
             declaration.symbol,

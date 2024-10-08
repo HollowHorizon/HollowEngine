@@ -70,6 +70,119 @@ class PluginTester {
             .first { it.name == "main" && it.parameterCount != 0 }
             .invoke(null, null)
     }
+
+    @Test
+    fun `Multi-Suspendable test`() {
+        val result = compile(
+            SourceFile.kotlin(
+                "main.kt", """
+                    import ru.hollowhorizon.hollowengine.scripting.Suspendable
+                    import ru.hollowhorizon.hollowengine.compiler.suspendable.*
+
+                    @Suspendable
+                    fun test(time: Int): Int {
+                        println(time)
+                        val data = 2
+                        for(i in 1..10) println(i)
+                        println(1242)
+                        return data
+                    }
+                    @Suspendable
+                    fun debug(time: Int): Int {
+                        println(time)
+                        test(time+1)
+                        return time
+                    }
+                    
+
+                    fun main() {
+                        val launcher = SuspendLauncher { 
+                            debug(10)
+                        }
+                        
+                        launcher.tick()
+                        if(launcher.isEnd) println(launcher.result)
+                    }
+                """.trimIndent()
+            )
+        )
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
+
+        result.classLoader.loadClass("MainKt").declaredMethods
+            .first { it.name == "main" && it.parameterCount != 0 }
+            .invoke(null, null)
+    }
+
+    @Test
+    fun `Loop Suspendable test`() {
+        val result = compile(
+            SourceFile.kotlin(
+                "main.kt", """
+                    import ru.hollowhorizon.hollowengine.scripting.Suspendable
+                    import ru.hollowhorizon.hollowengine.compiler.suspendable.*
+
+                    @Suspendable
+                    fun debug(time: Int): Int {
+                        println(time)
+                        for(i in 0..10) println(i)
+                        return time
+                    }
+                    
+
+                    fun main() {
+                        val launcher = SuspendLauncher { 
+                            debug(10)
+                        }
+                        
+                        launcher.tick()
+                        if(launcher.isEnd) println(launcher.result)
+                    }
+                """.trimIndent()
+            )
+        )
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
+
+        result.classLoader.loadClass("MainKt").declaredMethods
+            .first { it.name == "main" && it.parameterCount != 0 }
+            .invoke(null, null)
+    }
+
+    @Test
+    fun `Inner Suspendable test`() {
+        val result = compile(
+            SourceFile.kotlin(
+                "main.kt", """
+                    import ru.hollowhorizon.hollowengine.scripting.Suspendable
+                    import ru.hollowhorizon.hollowengine.compiler.suspendable.*
+
+                    @Suspendable
+                    fun debug(time: Int): Int {
+                        println(time)
+                        return time
+                    }
+                    @Suspendable
+                    fun debug() {
+                        println(debug(10))
+                    }
+                    
+
+                    fun main() {
+                        val launcher = SuspendLauncher { 
+                            debug()
+                        }
+                        
+                        launcher.tick()
+                        if(launcher.isEnd) println(launcher.result)
+                    }
+                """.trimIndent()
+            )
+        )
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
+
+        result.classLoader.loadClass("MainKt").declaredMethods
+            .first { it.name == "main" && it.parameterCount != 0 }
+            .invoke(null, null)
+    }
 }
 
 fun compile(

@@ -6,7 +6,6 @@ import ru.hollowhorizon.hc.common.events.EventListener
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hc.common.events.tick.TickEvent
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.example
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendLauncher
 import ru.hollowhorizon.hollowengine.scripting.nodes.Node
 
@@ -21,7 +20,7 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                     }
                 }
 
-                val node = SuspendLauncher { example() }
+                val node: SuspendLauncher = null as SuspendLauncher //= SuspendLauncher { example() }
                 EventBus.register(Listener(node))
             }
         }

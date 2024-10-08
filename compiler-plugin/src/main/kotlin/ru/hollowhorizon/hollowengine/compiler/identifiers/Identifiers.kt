@@ -10,6 +10,8 @@ val Suspendable = FqName("ru.hollowhorizon.hollowengine.scripting.Suspendable")
 val United = ClassId(FqName("ru.hollowhorizon.hollowengine.scripting"), Name.identifier("United"))
 val DelegateProperty = ClassId(FqName("ru.hollowhorizon.hollowengine.scripting"), Name.identifier("DelegateProperty"))
 
+val IntIterator = ClassId(FqName("kotlin.collections"), Name.identifier("IntIterator"))
+
 val SequenceNode = ClassId(FqName("ru.hollowhorizon.hollowengine.scripting.nodes"), Name.identifier("SequenceNode"))
 
 val SuspendContext = ClassId(FqName("ru.hollowhorizon.hollowengine.compiler.suspendable"), Name.identifier("SuspendContext"))
