@@ -66,7 +66,7 @@ class ImageTextButton(
         val pose = stack.last().pose()
         val tesselator = Tesselator.getInstance()
         //? if >=1.21 {
-        val builder = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
+        /*val builder = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
         builder.addVertex(pose, x.toFloat(), y.toFloat(), 0f).setUv(0f, 0f)
             .setColor(1f, 1f, 1f, transparency)
         builder.addVertex(pose, x.toFloat(), (y + height).toFloat(), 0f).setUv(0f, 1f)
@@ -76,8 +76,8 @@ class ImageTextButton(
         builder.addVertex(pose, (x + width).toFloat(), y.toFloat(), 0f).setUv(1f, 0f)
             .setColor(1f, 1f, 1f, transparency)
         BufferUploader.drawWithShader(builder.buildOrThrow())
-        //?} else {
-        /*val builder = tesselator.builder
+        *///?} else {
+        val builder = tesselator.builder
         builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
         builder.vertex(pose, x.toFloat(), y.toFloat(), 0f).uv(0f, 0f)
             .color(1f, 1f, 1f, transparency).endVertex()
@@ -88,6 +88,6 @@ class ImageTextButton(
         builder.vertex(pose, (x + width).toFloat(), y.toFloat(), 0f).uv(1f, 0f)
             .color(1f, 1f, 1f, transparency).endVertex()
         tesselator.end()
-        *///?}
+        //?}
     }
 }

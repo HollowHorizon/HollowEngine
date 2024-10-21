@@ -28,7 +28,6 @@ import imgui.ImColor
 import net.minecraft.locale.Language
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hc.client.utils.isLogicalServer
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.common.npcs.CURRENT_GRAPH
 import ru.hollowhorizon.hollowengine.common.npcs.connections.inputPin
@@ -95,7 +94,7 @@ abstract class Pin<T> : ReadWriteProperty<Any?, T>, RegistryEntry {
 
 
     override fun getValue(thisRef: Any?, property: KProperty<*>): T {
-        if (isLogicalServer) update()
+        update()
 
         return if (mode == Mode.OUTPUT) (nextValue ?: value
         ?: throw IllegalStateException("Input Node not connected!"))

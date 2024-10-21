@@ -128,7 +128,7 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : ImGuiScr
         val item1 = slots.getItem(index * 2)
         val item2 = slots.getItem(index * 2 + 1)
         //? if >=1.21 {
-        val isValid1 = ItemStack.isSameItemSameComponents(
+        /*val isValid1 = ItemStack.isSameItemSameComponents(
             trade.inputs[index * 2],
             item1
         ) && item1.count >= trade.inputs[index * 2].count
@@ -136,8 +136,8 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : ImGuiScr
             trade.inputs[index * 2 + 1],
             item2
         ) && item2.count >= trade.inputs[index * 2 + 1].count
-        //?} else {
-        /*val isValid1 = ItemStack.isSameItemSameTags(
+        *///?} else {
+        val isValid1 = ItemStack.isSameItemSameTags(
             trade.inputs[index * 2],
             item1
         ) && item1.count >= trade.inputs[index * 2].count
@@ -145,7 +145,7 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : ImGuiScr
             trade.inputs[index * 2 + 1],
             item2
         ) && item2.count >= trade.inputs[index * 2 + 1].count
-        *///?}
+        //?}
 
         val cursor = ImGui.getCursorPos()
         image("hollowengine:textures/gui/trades/trade_slot_2.png".rl, 26f * scale, 45f * scale)

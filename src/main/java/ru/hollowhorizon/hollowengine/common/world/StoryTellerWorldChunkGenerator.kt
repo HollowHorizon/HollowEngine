@@ -61,8 +61,8 @@ class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSo
 
     override fun fillFromNoise(
         //? if <=1.20.1 {
-        /*executor: Executor,
-        *///?}
+        executor: Executor,
+        //?}
         blender: Blender,
         randomState: RandomState,
         structureManager: StructureManager,
@@ -101,21 +101,21 @@ class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSo
 
     companion object {
         //? if >=1.21 {
-        val CODEC: MapCodec<StoryTellerWorldChunkGenerator> =
+        /*val CODEC: MapCodec<StoryTellerWorldChunkGenerator> =
             RecordCodecBuilder.mapCodec { builder ->
                 builder.group(BiomeSource.CODEC.fieldOf("biome_source").forGetter { it.biomeSource })
                     .apply(builder, ::StoryTellerWorldChunkGenerator)
             }
-        //?} else {
-        /*val CODEC: Codec<StoryTellerWorldChunkGenerator> =
+        *///?} else {
+        val CODEC: Codec<StoryTellerWorldChunkGenerator> =
             RecordCodecBuilder.create { instance: RecordCodecBuilder.Instance<StoryTellerWorldChunkGenerator> ->
                 instance.group(
                     //? if <=1.19.2 {
-                    /^RegistryOps.retrieveRegistry(Registry.STRUCTURE_SET_REGISTRY).forGetter { it.structureSets },
-                    ^///?}
+                    /*RegistryOps.retrieveRegistry(Registry.STRUCTURE_SET_REGISTRY).forGetter { it.structureSets },
+                    *///?}
                     BiomeSource.CODEC.fieldOf("biome_source").forGetter { it.biomeSource }
                 ).apply(instance, ::StoryTellerWorldChunkGenerator)
             }
-        *///?}
+        //?}
     }
 }

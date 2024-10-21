@@ -26,10 +26,10 @@ abstract class ImGuiScreen : Screen("".mcText) {
         *///?}
         mouseX: Int, mouseY: Int, partialTick: Float) {
         //? if >=1.21 {
-        renderBackground(guiGraphics, mouseX, mouseY, partialTick)
-        //?} elif >=1.20.1 {
-        /*renderBackground(guiGraphics)
-        *///?} else {
+        /*renderBackground(guiGraphics, mouseX, mouseY, partialTick)
+        *///?} elif >=1.20.1 {
+        renderBackground(guiGraphics)
+        //?} else {
         /*renderBackground(stack)
         *///?}
         val alpha = (Blaze3D.getTime() - fadeTime).toFloat().coerceAtMost(1f)

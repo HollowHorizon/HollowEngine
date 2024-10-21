@@ -40,10 +40,10 @@ fun Player.sendToast(message: Component) {
     if (this !is ServerPlayer) Minecraft.getInstance().toasts.addToast(
         SystemToast(
             //? if >=1.21 {
-            SystemToast.SystemToastId.PERIODIC_NOTIFICATION,
-            //?} else {
-            /*SystemToast.SystemToastIds.PERIODIC_NOTIFICATION,
-            *///?}
+            /*SystemToast.SystemToastId.PERIODIC_NOTIFICATION,
+            *///?} else {
+            SystemToast.SystemToastIds.PERIODIC_NOTIFICATION,
+            //?}
             "Уведомление".literal,
             message
         )
@@ -103,11 +103,11 @@ class RequestTreePacket(var tree: Tree) : RequestPacket<RequestTreePacket>() {
 
         val hollowEngineTree = IDEGui.tree(DirectoryManager.HOLLOW_ENGINE.toFile())
         val modsTree = Tree("Моды", "mods")
-        if (HollowEngine.config.enableModResources) modsTree.children.add(currentServer.resourceManager.toServerTree())
+        if (HollowEngine.config.modsResources) modsTree.children.add(currentServer.resourceManager.toServerTree())
 
         tree = Tree("Ресурсы", "").apply {
             children += hollowEngineTree
-            if (HollowEngine.config.enableModResources) children += modsTree
+            if (HollowEngine.config.modsResources) children += modsTree
         }
     }
 }

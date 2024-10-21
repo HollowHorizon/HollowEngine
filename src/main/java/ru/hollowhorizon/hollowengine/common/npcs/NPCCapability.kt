@@ -36,10 +36,10 @@ class TradeContainer(capability: CapabilityInstance) : HollowContainer(capabilit
         val validItem = npcData.trades[npcData.currentTrade].inputs[slot]
 
         //? if >=1.21 {
-        return ItemStack.isSameItemSameComponents(validItem, stack)
-        //?} else {
-        /*return ItemStack.isSameItemSameTags(validItem, stack)
-        *///?}
+        /*return ItemStack.isSameItemSameComponents(validItem, stack)
+        *///?} else {
+        return ItemStack.isSameItemSameTags(validItem, stack)
+        //?}
     }
 }
 
@@ -49,10 +49,10 @@ class TradeOffer(var output: ItemStack, val inputs: Array<ItemStack>) {
         for (i in inputs.indices) {
             val input = tradeContainer.getItem(i)
             //? if >=1.21 {
-            if (ItemStack.isSameItemSameComponents(inputs[i], input) && input.count >= inputs[i].count) continue
-            //?} else {
-            /*if (ItemStack.isSameItemSameTags(inputs[i], input) && input.count >= inputs[i].count) continue
-            *///?}
+            /*if (ItemStack.isSameItemSameComponents(inputs[i], input) && input.count >= inputs[i].count) continue
+            *///?} else {
+            if (ItemStack.isSameItemSameTags(inputs[i], input) && input.count >= inputs[i].count) continue
+            //?}
             else return false
         }
         return true

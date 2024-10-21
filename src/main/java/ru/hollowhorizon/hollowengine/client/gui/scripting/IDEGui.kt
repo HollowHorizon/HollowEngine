@@ -37,7 +37,6 @@ import ru.hollowhorizon.hc.common.events.tick.TickEvent
 import ru.hollowhorizon.hc.common.network.request
 import ru.hollowhorizon.hollowengine.HollowEngine.MODID
 import ru.hollowhorizon.hollowengine.client.gui.ImGuiScreen
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.COMPLETIONS
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
@@ -503,7 +502,7 @@ object IDEGui : ImGuiScreen() {
         return tree
     }
 
-    override fun shouldCloseOnEsc() = COMPLETIONS.isEmpty()
+    override fun shouldCloseOnEsc() = true
 }
 
 @Serializable

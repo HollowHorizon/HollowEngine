@@ -4,7 +4,7 @@ import com.google.common.collect.Multimap;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
 //? if >=1.21
-import net.minecraft.world.item.crafting.RecipeHolder;
+/*import net.minecraft.world.item.crafting.RecipeHolder;*/
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeType;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,7 +15,7 @@ import java.util.Map;
 @Mixin(RecipeManager.class)
 public interface RecipeManagerAccessor {
     //? if >=1.21 {
-    @Accessor("byType")
+    /*@Accessor("byType")
     Multimap<RecipeType<?>, RecipeHolder<?>> hollowcore$getRecipes();
 
     @Accessor("byType")
@@ -26,8 +26,8 @@ public interface RecipeManagerAccessor {
 
     @Accessor("byName")
     void hollowcore$setByName(Map<ResourceLocation, Recipe<?>> byName);
-    //?} else {
-    /*@Accessor("recipes")
+    *///?} else {
+    @Accessor("recipes")
     Map<RecipeType<?>, Map<ResourceLocation, Recipe<?>>> hollowcore$getRecipes();
 
     @Accessor("recipes")
@@ -38,5 +38,5 @@ public interface RecipeManagerAccessor {
 
     @Accessor("byName")
     void hollowcore$setByName(Map<ResourceLocation, Recipe<?>> byName);
-    *///?}
+    //?}
 }

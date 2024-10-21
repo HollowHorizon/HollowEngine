@@ -31,7 +31,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hc.client.utils.isLogicalServer
 //? if <=1.19.2
 /*import ru.hollowhorizon.hc.client.utils.math.level*/
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
@@ -70,10 +69,8 @@ class GetNpcNode : ScriptNode() {
     override fun deserialize(tag: CompoundTag) {
         super.deserialize(tag)
         uuid = tag.getUUID("npc")
-        if (isLogicalServer) {
-            val level = CURRENT_GRAPH.npc.level() as ServerLevel
-            npcPin.updater = { level.getEntity(uuid) as NPCEntity }
-        }
+        val level = CURRENT_GRAPH.npc.level() as ServerLevel
+        npcPin.updater = { level.getEntity(uuid) as NPCEntity }
     }
 }
 

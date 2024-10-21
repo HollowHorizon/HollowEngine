@@ -316,7 +316,6 @@ class NPCCreatorPacket(
         entity.setDimensions(hitboxWidth to hitboxHeight)
         entity.refreshDimensions()
         entity[NPCCapability::class].script = script
-        entity.reloadScript()
     }
 
 

@@ -190,10 +190,10 @@ object DocsUtils {
         if (!directory.exists()) directory.createDirectory()
 
         //? if >=1.21 {
-        Util.getPlatform().openPath(directory)
-        //?} else {
-        /*Util.getPlatform().openFile(directory.toFile())
-        *///?}
+        /*Util.getPlatform().openPath(directory)
+        *///?} else {
+        Util.getPlatform().openFile(directory.toFile())
+        //?}
     }
 
     /**

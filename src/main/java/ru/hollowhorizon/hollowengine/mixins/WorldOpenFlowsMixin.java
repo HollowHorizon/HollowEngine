@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(WorldOpenFlows.class)
 public class WorldOpenFlowsMixin {
     @Redirect(
-            method = "openWorldCheckWorldStemCompatibility",
+            method = "doLoadLevel",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/storage/WorldData;worldGenSettingsLifecycle()Lcom/mojang/serialization/Lifecycle;")
     )
     private Lifecycle removeAdviceOnLoad(WorldData instance) {

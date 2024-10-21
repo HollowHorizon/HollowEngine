@@ -7,7 +7,7 @@ plugins {
     id("me.modmuss50.mod-publish-plugin") version "0.5.+" apply false
 }
 
-stonecutter active "1.21-fabric" /* [SC] DO NOT EDIT */
+stonecutter active "1.20.1-fabric" /* [SC] DO NOT EDIT */
 
 stonecutter registerChiseled tasks.register("chiseledBuildAndCollect", stonecutter.chiseled) {
     group = "project"

@@ -52,11 +52,11 @@ object SkyBoxRenderer {
     ) {
         val tessellator = Tesselator.getInstance()
         //? if >=1.21 {
-        val bufferBuilder: BufferBuilder = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
-        //?} else {
-        /*val bufferBuilder: BufferBuilder = tessellator.builder
+        /*val bufferBuilder: BufferBuilder = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
+        *///?} else {
+        val bufferBuilder: BufferBuilder = tessellator.builder
         bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
-        *///?}
+        //?}
         RenderSystem.setShaderTexture(0, TEXTURE)
         for (face in 0..5) {
             val tex: UVRange = TEXTURE_FACES[face]
@@ -111,22 +111,22 @@ object SkyBoxRenderer {
 
             val matrix4f = matrices.last().pose()
             //? if >=1.21 {
-            bufferBuilder.addVertex(matrix4f, -100.0f, -100.0f, -100.0f).setUv(tex.minX, tex.minY)
+            /*bufferBuilder.addVertex(matrix4f, -100.0f, -100.0f, -100.0f).setUv(tex.minX, tex.minY)
             bufferBuilder.addVertex(matrix4f, -100.0f, -100.0f, 100.0f).setUv(tex.minX, tex.maxY)
             bufferBuilder.addVertex(matrix4f, 100.0f, -100.0f, 100.0f).setUv(tex.maxX, tex.maxY)
             bufferBuilder.addVertex(matrix4f, 100.0f, -100.0f, -100.0f).setUv(tex.maxX, tex.minY)
-            //?} else {
-            /*bufferBuilder.vertex(matrix4f, -100.0f, -100.0f, -100.0f).uv(tex.minX, tex.minY)
+            *///?} else {
+            bufferBuilder.vertex(matrix4f, -100.0f, -100.0f, -100.0f).uv(tex.minX, tex.minY)
             bufferBuilder.vertex(matrix4f, -100.0f, -100.0f, 100.0f).uv(tex.minX, tex.maxY)
             bufferBuilder.vertex(matrix4f, 100.0f, -100.0f, 100.0f).uv(tex.maxX, tex.maxY)
             bufferBuilder.vertex(matrix4f, 100.0f, -100.0f, -100.0f).uv(tex.maxX, tex.minY)
-            *///?}
+            //?}
             matrices.popPose()
         }
         //? if >=1.21 {
-        BufferUploader.drawWithShader(bufferBuilder.buildOrThrow())
-        //?} else {
-        /*BufferUploader.drawWithShader(bufferBuilder.end())
-        *///?}
+        /*BufferUploader.drawWithShader(bufferBuilder.buildOrThrow())
+        *///?} else {
+        BufferUploader.drawWithShader(bufferBuilder.end())
+        //?}
     }
 }

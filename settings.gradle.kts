@@ -34,13 +34,11 @@ extensions.configure<StonecutterSettings> {
             for (it in loaders) vers("$version-$it", version)
         }
 
-        mc("1.21", "fabric", "forge", "neoforge")
         mc("1.20.1", "fabric", "forge")
-        mc("1.19.2", "fabric", "forge")
     }
     create(rootProject)
 }
 
 rootProject.name = "HollowEngine"
 
-include("compiler-plugin")
+//include("compiler-plugin")

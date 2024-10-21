@@ -54,10 +54,10 @@ object HollowEngineGui : ImGuiScreen() {
         ImGui.pushStyleVar(ImGuiStyleVar.PopupBorderSize, 3f)
         if (ImGui.isItemHovered()) ImGui.setTooltip(
             //? if >1.20.1 {
-            Language.getInstance().getOrDefault("mod_tabs.$image", "No description available.")
-            //?} else {
-            /*Language.getInstance().getOrDefault("mod_tabs.$image")
-            *///?}
+            /*Language.getInstance().getOrDefault("mod_tabs.$image", "No description available.")
+            *///?} else {
+            Language.getInstance().getOrDefault("mod_tabs.$image")
+            //?}
         )
         ImGui.popStyleVar()
         return isClicked

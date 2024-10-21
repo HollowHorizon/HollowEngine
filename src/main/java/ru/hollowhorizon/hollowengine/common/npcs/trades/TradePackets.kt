@@ -148,10 +148,10 @@ fun onPlaceTrade(event: ContainerEvent.OnClick) {
             val trade = TradeOffer(
                 event.container.getItem(6),
                 //? if >=1.21 {
-                event.container.items.subList(0, 6).toTypedArray(),
-                //?} else {
-                /*(0 until event.container.size).map { event.container.getItem(it) }.toTypedArray()
-                *///?}
+                /*event.container.items.subList(0, 6).toTypedArray(),
+                *///?} else {
+                (0 until event.container.size).map { event.container.getItem(it) }.toTypedArray()
+                //?}
             )
 
             ModifyTradePacket(screen.npc.id, index, trade).send()

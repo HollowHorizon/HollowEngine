@@ -105,28 +105,29 @@ dependencies {
     compileOnly("org.spongepowered:mixin:0.8.7")
 
     // KOTLIN //
-    dependency("ru.hollowhorizon:HollowCore-$modPlatform-$minecraftVersion:2.0.4:dev")
+    dependency("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.13a:dev")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.0")
+    dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.0.0")
+    dependency("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
     dependency("org.jetbrains.kotlin:kotlin-reflect:1.9.22")
     dependency("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.1")
     dependency("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
     dependency("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
 
     // SCRIPTING //
-    dependency("org.jetbrains.kotlin:kotlin-scripting-jvm:2.0.0")
-    dependency("org.jetbrains.kotlin:kotlin-scripting-jvm-host:2.0.0")
-    dependency("org.jetbrains.kotlin:kotlin-script-runtime:2.0.0")
-    dependency("org.jetbrains.kotlin:kotlin-compiler-embeddable-mcfriendly:2.0.0")
-    dependency("org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:2.0.0")
-    dependency("org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:2.0.0")
-    dependency("org.jetbrains.kotlin:kotlin-metadata-jvm:2.0.0")
-    dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.0.0")
-    dependency("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.4.0")
-    dependency("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
-    dependency("org.jetbrains.kotlin:kotlin-scripting-common:2.0.0")
-    dependency("net.fabricmc:tiny-remapper:0.10.4")
-    dependency("net.fabricmc:mapping-io:0.6.1")
-    dependency("gnu.trove:trove:1.0.2")
+    dependency("org.jetbrains.kotlin:kotlin-scripting-jvm:2.0.0", true)
+    dependency("org.jetbrains.kotlin:kotlin-scripting-jvm-host:2.0.0", true)
+    dependency("org.jetbrains.kotlin:kotlin-script-runtime:2.0.0", true)
+    dependency("org.jetbrains.kotlin:kotlin-compiler-embeddable-mcfriendly:2.0.0", true)
+    dependency("org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:2.0.0", true)
+    dependency("org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:2.0.0", true)
+    dependency("org.jetbrains.kotlin:kotlin-metadata-jvm:2.0.0", true)
+    dependency("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.4.0", true)
+    dependency("org.jetbrains.kotlin:kotlin-scripting-common:2.0.0", true)
+
+    dependency("net.fabricmc:tiny-remapper:0.10.4", true)
+    dependency("net.fabricmc:mapping-io:0.6.1", true)
+    dependency("gnu.trove:trove:1.0.2", true)
 
     // CONFIG //
     dependency("com.akuleshov7:ktoml-core-jvm:0.5.1")
@@ -142,7 +143,6 @@ dependencies {
     implementation("org.ow2.asm:asm-tree:9.7")
     implementation("org.anarres:jcpp:1.4.14")
     implementation("io.github.douira:glsl-transformer:2.0.1")
-
     implementation("ru.hollowhorizon:HollowEnginePlugin:1.0")
 }
 
@@ -298,11 +298,12 @@ object ForgeFixer : RemapperExtensionHolder(object : RemapperParameters {}) {
     }
 }
 
-fun DependencyHandlerScope.dependency(path: String) {
+fun DependencyHandlerScope.dependency(path: String, addToJar: Boolean = false) {
     val dependency = implementation(path) {
         exclude("org.jetbrains.kotlin")
         exclude("org.ow2.asm")
     }
+    if(addToJar) include(dependency)
 
     dependency.takeIf { modPlatform == "forge" || modPlatform == "neoforge" }?.let {
         "forgeRuntimeLibrary"(it)

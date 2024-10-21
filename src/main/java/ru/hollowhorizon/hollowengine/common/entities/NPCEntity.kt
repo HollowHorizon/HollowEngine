@@ -19,25 +19,16 @@ import ru.hollowhorizon.hc.client.utils.get
 //? if <=1.19.2
 /*import ru.hollowhorizon.hc.client.utils.math.level*/
 import ru.hollowhorizon.hc.client.utils.open
-import ru.hollowhorizon.hc.common.coroutines.scopeSync
-import ru.hollowhorizon.hc.common.scripting.ScriptingCompiler
-import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.npcs.NPCMenuGui
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
-import ru.hollowhorizon.hollowengine.common.scripting.NpcBehavior
-import ru.hollowhorizon.hollowengine.common.scripting.NpcBehaviorScript
-import kotlin.script.experimental.api.constructorArgs
-import kotlin.script.experimental.api.valueOrNull
 
 class NPCEntity : PathfinderMob, IAnimated {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
     constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
 
-    private var script: NpcBehavior? = null
 
     init {
         setCanPickUpLoot(true)
@@ -45,18 +36,18 @@ class NPCEntity : PathfinderMob, IAnimated {
 
 
     //? if >=1.21 {
-    override fun defineSynchedData(builder: SynchedEntityData.Builder) {
+    /*override fun defineSynchedData(builder: SynchedEntityData.Builder) {
         builder.define(sizeX, 0.6f)
         builder.define(sizeY, 1.8f)
         super.defineSynchedData(builder)
     }
-    //?} else {
-    /*override fun defineSynchedData() {
+    *///?} else {
+    override fun defineSynchedData() {
         entityData.define(sizeX, 0.6f)
         entityData.define(sizeY, 1.8f)
         super.defineSynchedData()
     }
-    *///?}
+    //?}
 
     override fun addAdditionalSaveData(pCompound: CompoundTag) {
         super.addAdditionalSaveData(pCompound)
@@ -71,7 +62,6 @@ class NPCEntity : PathfinderMob, IAnimated {
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         if (pHand == InteractionHand.MAIN_HAND && level().isClientSide && pPlayer.mainHandItem.item != ModItems.NPC_TOOL.get()) {
-            if (script?.onInteract(pPlayer, pHand) == true) return InteractionResult.SUCCESS
 
             NPCMenuGui(this).open()
 
@@ -100,11 +90,9 @@ class NPCEntity : PathfinderMob, IAnimated {
 
     override fun pickUpItem(pItemEntity: ItemEntity) {
         val item = pItemEntity.item
-        if (script?.onItemPickUp(item) == true) {
-            onItemPickup(pItemEntity)
-            this.take(pItemEntity, item.count)
-            pItemEntity.discard()
-        }
+        onItemPickup(pItemEntity)
+        this.take(pItemEntity, item.count)
+        pItemEntity.discard()
     }
 
     override fun customServerAiStep() {
@@ -146,7 +134,6 @@ class NPCEntity : PathfinderMob, IAnimated {
     override fun aiStep() {
         updateSwingTime()
         super.aiStep()
-        script?.onTick()
     }
 
     override fun removeWhenFarAway(dist: Double) = false
@@ -158,14 +145,14 @@ class NPCEntity : PathfinderMob, IAnimated {
     }
 
     //? if >=1.21 {
-    override fun getDefaultDimensions(pPose: Pose): EntityDimensions {
+    /*override fun getDefaultDimensions(pPose: Pose): EntityDimensions {
         return EntityDimensions.fixed(entityData[sizeX], entityData[sizeY])
     }
-    //?} else {
-    /*override fun getDimensions(pose: Pose): EntityDimensions {
+    *///?} else {
+    override fun getDimensions(pose: Pose): EntityDimensions {
         return EntityDimensions.fixed(entityData[sizeX], entityData[sizeY])
     }
-    *///?}
+    //?}
 
     fun setDimensions(xy: Pair<Float, Float>) {
         entityData.apply {
@@ -184,7 +171,6 @@ class NPCEntity : PathfinderMob, IAnimated {
     override fun load(pCompound: CompoundTag) {
         super.load(pCompound)
 
-        reloadScript()
 
         entityData[sizeX] = pCompound.getFloat("sizeX")
         entityData[sizeY] = pCompound.getFloat("sizeY")
@@ -192,21 +178,6 @@ class NPCEntity : PathfinderMob, IAnimated {
 
     override fun hurt(source: DamageSource, amount: Float): Boolean {
         return super.hurt(source, amount)
-    }
-
-    fun reloadScript() {
-        val type = this[NPCCapability::class].script
-        if(type == "%empty%") {
-            script = null
-            return
-        }
-        scopeSync {
-            val result = ScriptingCompiler.compileFile<NpcBehaviorScript>(type.fromReadablePath()).execute {
-                constructorArgs(this@NPCEntity)
-            }.valueOrNull()?.returnValue?.scriptInstance
-            if (result is NpcBehavior) script = result
-            else HollowEngine.LOGGER.warn("Npc script $type can be loaded!")
-        }
     }
 
     companion object {

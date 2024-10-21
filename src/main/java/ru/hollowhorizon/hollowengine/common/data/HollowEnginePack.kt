@@ -4,12 +4,12 @@ import com.google.gson.JsonObject
 import net.minecraft.Util
 //? if >=1.21 {
 
-import net.minecraft.server.packs.PackLocationInfo
+/*import net.minecraft.server.packs.PackLocationInfo
 import net.minecraft.server.packs.repository.PackSource
 import ru.hollowhorizon.hc.client.utils.mcText
 import java.util.*
 
-//?}
+*///?}
 //? if >=1.20.1 {
 import net.minecraft.server.packs.PathPackResources
 import net.minecraft.server.packs.resources.IoSupplier
@@ -22,13 +22,13 @@ import java.io.InputStream
 //? if >=1.20.1 {
 object HollowEnginePack : PathPackResources(
     //? if >=1.21 {
-    PackLocationInfo("HollowEngine Generated Resources", "HollowEngine Resources".mcText, PackSource.BUILT_IN, Optional.empty()),
+    /*PackLocationInfo("HollowEngine Generated Resources", "HollowEngine Resources".mcText, PackSource.BUILT_IN, Optional.empty()),
     DirectoryManager.HOLLOW_ENGINE
-    //?} else {
-    /*"HollowEngine Folder Resources",
+    *///?} else {
+    "HollowEngine Folder Resources",
     DirectoryManager.HOLLOW_ENGINE,
     true
-    *///?}
+    //?}
 ) {
     private val packMetadata = Util.make(JsonObject()) { json ->
         json.add("pack", JsonObject().apply {
