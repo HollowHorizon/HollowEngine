@@ -6,6 +6,7 @@ import ru.hollowhorizon.hc.client.models.internal.manager.AnimationLayer
 import ru.hollowhorizon.hc.client.models.internal.manager.LayerMode
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
+import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
 import ru.hollowhorizon.hc.common.network.sendTrackingEntity
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 
@@ -25,6 +26,10 @@ fun NPCEntity.play(
     if (mode != PlayMode.ONCE) {
         serverLayers.addNoUpdate(AnimationLayer(animation, layer, mode, speed))
     }
+}
+infix fun NPCEntity.stop(animation: String) {
+    this[AnimatedEntityCapability::class].layers.removeIfNoUpdate { it.animation == animation }
+    StopAnimationPacket(id, animation).sendTrackingEntity(this)
 }
 
 infix fun NPCEntity.playOnce(animation: String) = play(animation, mode = PlayMode.ONCE)
