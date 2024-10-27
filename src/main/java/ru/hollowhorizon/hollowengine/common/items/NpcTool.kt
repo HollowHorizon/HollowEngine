@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.items
 
+import com.mojang.blaze3d.systems.RenderSystem
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.server.level.ServerPlayer
@@ -81,7 +82,9 @@ class OpenEditorScreen(private val npcId: Int) : HollowPacketV3<OpenEditorScreen
     override fun handle(player: Player) {
         val level = Minecraft.getInstance().level ?: return
         val npc = level.getEntity(npcId) as? NPCEntity ?: NPCEntity(level)
-        Minecraft.getInstance().setScreen(NPCCreatorGui(npc, npcId))
+        RenderSystem.recordRenderCall {
+            Minecraft.getInstance().setScreen(NPCCreatorGui(npc, npcId))
+        }
     }
 
 }

@@ -105,7 +105,7 @@ dependencies {
     compileOnly("org.spongepowered:mixin:0.8.7")
 
     // KOTLIN //
-    dependency("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.13a:dev")
+    dependency("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.15a:dev")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.0")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.0.0")
     dependency("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
@@ -143,12 +143,12 @@ dependencies {
     implementation("org.ow2.asm:asm-tree:9.7")
     implementation("org.anarres:jcpp:1.4.14")
     implementation("io.github.douira:glsl-transformer:2.0.1")
-    implementation("ru.hollowhorizon:HollowEnginePlugin:1.0")
+    implementation("ru.hollowhorizon:HollowEnginePlugin:1.1c")
 }
 
 tasks.withType<KotlinCompile> {
     compilerOptions {
-        freeCompilerArgs.add("-Xplugin=${rootDir.resolve("libs/HollowEnginePlugin-1.0.jar")}")
+        freeCompilerArgs.add("-Xplugin=${rootDir.resolve("libs/HollowEnginePlugin-1.1c.jar")}")
     }
 }
 

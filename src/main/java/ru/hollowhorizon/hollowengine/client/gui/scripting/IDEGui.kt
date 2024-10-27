@@ -15,11 +15,7 @@ import kotlinx.serialization.Serializable
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.texture.DynamicTexture
-//? if >=1.20.1 {
 import net.minecraft.core.registries.BuiltInRegistries
-//?} else {
-/*import net.minecraft.core.Registry
-*///?}
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.packs.resources.ResourceManager
 import org.lwjgl.glfw.GLFW
@@ -36,6 +32,7 @@ import ru.hollowhorizon.hc.common.events.registry.RegisterKeyBindingsEvent
 import ru.hollowhorizon.hc.common.events.tick.TickEvent
 import ru.hollowhorizon.hc.common.network.request
 import ru.hollowhorizon.hollowengine.HollowEngine.MODID
+import ru.hollowhorizon.hollowengine.client.gui.HollowEngineGui.draw
 import ru.hollowhorizon.hollowengine.client.gui.ImGuiScreen
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
@@ -99,7 +96,7 @@ object IDEGui : ImGuiScreen() {
             loadSettings = false
             ImGui.loadIniSettingsFromMemory(file.readText())
         }
-        draw()
+        drawEditor()
         file.writeText(ImGui.saveIniSettingsToMemory())
 
         if (shouldClose) onClose()
@@ -119,7 +116,7 @@ object IDEGui : ImGuiScreen() {
 
     override fun isPauseScreen() = false
 
-    private fun draw() {
+    private fun drawEditor() {
 
         val window = Minecraft.getInstance().window
         ImGui.setNextWindowPos(0f, 0f)

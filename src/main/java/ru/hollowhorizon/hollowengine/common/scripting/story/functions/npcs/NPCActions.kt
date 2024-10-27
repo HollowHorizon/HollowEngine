@@ -15,6 +15,11 @@ fun NPCEntity.moveTo(entity: Entity, dist: Double = 1.5, speed: Double = 1.0) {
 }
 
 @Suspendable
+fun NPCEntity.lookAt(entity: Entity) {
+    lookControl.setLookAt(entity)
+}
+
+@Suspendable
 fun wait(time: Int) {
     var ticks = time
     while (ticks > 0) {
@@ -35,7 +40,7 @@ fun script() {
 
 val Number.sec get() = (this.toFloat() * 20).toInt()
 
-private infix fun NPCEntity.say(text: String) {
+infix fun NPCEntity.say(text: String) {
     server?.playerList?.players?.forEach {
         it.sendSystemMessage("[${this.name.string}] $text".literal)
     }

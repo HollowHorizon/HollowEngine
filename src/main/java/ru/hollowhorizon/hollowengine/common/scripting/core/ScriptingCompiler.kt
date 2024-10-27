@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core
 
 import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.LOGGER
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.common.scripting.core.host.HollowEngineScriptingHost
 import java.io.ByteArrayOutputStream
@@ -124,7 +125,10 @@ object ScriptingCompiler {
     }
 
     fun logErrors(result: ResultWithDiagnostics<*>) {
-        result.errors().forEach(HollowCore.LOGGER::warn)
+        result.errors().forEach(LOGGER::warn)
+        result.errors().mapNotNull { it.exception }.distinct().forEach {
+            LOGGER.error(it.stackTraceToString())
+        }
     }
 
     private fun ResultWithDiagnostics<*>.errors() = reports.map {

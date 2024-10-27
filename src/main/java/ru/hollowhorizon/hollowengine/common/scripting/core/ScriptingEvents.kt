@@ -2,9 +2,12 @@ package ru.hollowhorizon.hollowengine.common.scripting.core
 
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
+import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.SharedScriptCompilationContext
 import ru.hollowhorizon.hc.common.events.Cancelable
 import ru.hollowhorizon.hc.common.events.Event
 import java.io.File
+import kotlin.script.experimental.api.SourceCode
 
 open class ScriptEvent(val file: File?) : Event
 
@@ -22,3 +25,8 @@ class ScriptErrorEvent(file: File?, val type: ErrorType, val error: List<ScriptE
 class ScriptCompiledEvent(file: File) : ScriptEvent(file)
 class ScriptStartedEvent(file: File?) : ScriptEvent(file)
 
+class AfterCodeAnalysisEvent(
+    val context: SharedScriptCompilationContext,
+    val script: SourceCode,
+    val sources: List<KtFile>
+): Event

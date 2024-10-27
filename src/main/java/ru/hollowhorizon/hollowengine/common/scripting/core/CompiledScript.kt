@@ -64,7 +64,7 @@ data class CompiledScript(
 }
 
 suspend fun KJvmCompiledScript.obfuscate(name: String): kotlin.script.experimental.api.CompiledScript {
-    if (!isProduction) return this
+    if (true || !isProduction) return this
 
     val source = File("hollowcore/$name.jar")
     saveScriptToJar(source)

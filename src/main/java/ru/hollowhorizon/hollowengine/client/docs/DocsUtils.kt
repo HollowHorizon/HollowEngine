@@ -239,5 +239,7 @@ enum class TableType(val borderColor: IntArray, val backgroundColor: IntArray) {
     NOTE(intArrayOf(163, 163, 136, 255), intArrayOf(30, 40, 60, 156)),
     INFO(intArrayOf(50, 120, 207, 255), intArrayOf(7, 27, 96, 156)),
     WARN(intArrayOf(230, 154, 0, 255), intArrayOf(70, 19, 0, 186)),
-    ERR(intArrayOf(255, 0, 0, 255), intArrayOf(93, 0, 0, 186))
+    ERR(intArrayOf(255, 0, 0, 255), intArrayOf(93, 0, 0, 186));
+
+    override fun toString() = name.lowercase()
 }

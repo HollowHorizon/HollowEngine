@@ -18,20 +18,8 @@ abstract class ImGuiScreen : Screen("".mcText) {
         fadeTime = Blaze3D.getTime()
     }
 
-    override fun render(
-        //? if >=1.20.1 {
-        guiGraphics: GuiGraphics,
-        //?} else {
-        /*stack: PoseStack,
-        *///?}
-        mouseX: Int, mouseY: Int, partialTick: Float) {
-        //? if >=1.21 {
-        /*renderBackground(guiGraphics, mouseX, mouseY, partialTick)
-        *///?} elif >=1.20.1 {
+    override fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
         renderBackground(guiGraphics)
-        //?} else {
-        /*renderBackground(stack)
-        *///?}
         val alpha = (Blaze3D.getTime() - fadeTime).toFloat().coerceAtMost(1f)
         ImGui.getStyle().alpha = Interpolation.EXPO_OUT(alpha)
         ImGuiHandler.drawFrame { draw() }

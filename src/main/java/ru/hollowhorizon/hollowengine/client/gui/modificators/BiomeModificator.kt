@@ -22,25 +22,21 @@ object BiomeModificator : ImGuiScreen() {
 
     override fun Graphics.draw() {
         centredWindow {
-            draw()
+            ImGui.checkbox("Включить модификатор биомов", enable)
+            ImGui.checkbox("Включить скайбокс", enableSkybox)
+
+            ImGui.separator()
+
+            ImGui.colorEdit3("Цвет неба", skyColor)
+            ImGui.colorEdit3("Цвет тумана", fogColor)
+            ImGui.colorEdit3("Цвет воды", waterColor)
+            ImGui.colorEdit3("Цвет тумана в воде", waterFogColor)
+
+            ImGui.separator()
+
+            ImGui.sliderFloat("Размер солнца", sunSize, 0f, 500f)
+            ImGui.sliderFloat("Размер луны", moonSize, 0f, 500f)
         }
-    }
-
-    private fun draw() {
-        ImGui.checkbox("Включить модификатор биомов", enable)
-        ImGui.checkbox("Включить скайбокс", enableSkybox)
-
-        ImGui.separator()
-
-        ImGui.colorEdit3("Цвет неба", skyColor)
-        ImGui.colorEdit3("Цвет тумана", fogColor)
-        ImGui.colorEdit3("Цвет воды", waterColor)
-        ImGui.colorEdit3("Цвет тумана в воде", waterFogColor)
-
-        ImGui.separator()
-
-        ImGui.sliderFloat("Размер солнца", sunSize, 0f, 500f)
-        ImGui.sliderFloat("Размер луны", moonSize, 0f, 500f)
     }
 
     fun skyColor() = colorConvert(skyColor)

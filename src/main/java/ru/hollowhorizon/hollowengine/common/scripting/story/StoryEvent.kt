@@ -1,18 +1,22 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
-import ru.hollowhorizon.hollowengine.common.scripting.core.example.AbstractHollowScriptConfiguration
-import ru.hollowhorizon.hollowengine.scripting.nodes.Node
+import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
+import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
 import kotlin.script.experimental.annotations.KotlinScript
+import kotlin.script.experimental.api.defaultImports
 
 @KotlinScript(
     displayName = "Story Event",
     fileExtension = "story.kts",
-    compilationConfiguration = StoryEventConfiguration::class
+    compilationConfiguration = StoryConfiguration::class
 )
-class StoryEvent {
-    lateinit var script: Node // Плагин для компилятора сам инициализирует эту переменную на основе данных из скрипта
+abstract class StoryEvent {
+    abstract fun tick(context: SuspendContext): Any?
 }
 
-class StoryEventConfiguration : AbstractHollowScriptConfiguration({})
-
+class StoryConfiguration: HollowScriptConfiguration({
+    defaultImports(
+        "ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.*"
+    )
+})
 

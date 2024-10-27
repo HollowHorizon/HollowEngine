@@ -4,11 +4,30 @@ import com.tschuchort.compiletesting.JvmCompilationResult
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import junit.framework.TestCase.assertEquals
+import kotlinx.coroutines.runBlocking
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationComponentRegistrar
 import org.junit.Test
 import ru.hollowhorizon.hollowengine.compiler.HollowEngineCompilerRegistrar
+import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
+import java.io.File
+import kotlin.script.experimental.annotations.KotlinScript
+import kotlin.script.experimental.api.*
+import kotlin.script.experimental.host.ScriptingHostConfiguration
+import kotlin.script.experimental.host.StringScriptSource
+import kotlin.script.experimental.host.createCompilationConfigurationFromTemplate
+import kotlin.script.experimental.host.getScriptingClass
+import kotlin.script.experimental.jvm.BasicJvmScriptEvaluator
+import kotlin.script.experimental.jvm.JvmGetScriptingClass
+import kotlin.script.experimental.jvm.dependenciesFromCurrentContext
+import kotlin.script.experimental.jvm.impl.KJvmCompiledScript
+import kotlin.script.experimental.jvm.jvm
+import kotlin.script.experimental.jvm.util.classpathFromClassloader
+import kotlin.script.experimental.jvm.util.isError
+import kotlin.script.experimental.jvmhost.JvmScriptCompiler
+import kotlin.script.experimental.jvmhost.saveToJar
+import kotlin.test.assertFalse
 
 class PluginTester {
     @OptIn(ExperimentalCompilerApi::class)
@@ -55,7 +74,7 @@ class PluginTester {
 
                     fun main() {
                         val launcher = SuspendLauncher { 
-                            debug(10)
+                            //debug(10)
                         }
                         
                         launcher.tick()
@@ -66,7 +85,9 @@ class PluginTester {
         )
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
 
-        result.classLoader.loadClass("MainKt").declaredMethods
+        val type = result.classLoader.loadClass("MainKt")
+
+        type.declaredMethods
             .first { it.name == "main" && it.parameterCount != 0 }
             .invoke(null, null)
     }
@@ -148,40 +169,26 @@ class PluginTester {
     }
 
     @Test
-    fun `Inner Suspendable test`() {
-        val result = compile(
-            SourceFile.kotlin(
-                "main.kt", """
-                    import ru.hollowhorizon.hollowengine.scripting.Suspendable
-                    import ru.hollowhorizon.hollowengine.compiler.suspendable.*
-
-                    @Suspendable
-                    fun debug(time: Int): Int {
-                        println(time)
-                        return time
-                    }
-                    @Suspendable
-                    fun debug() {
-                        println(debug(10))
-                    }
-                    
-
-                    fun main() {
-                        val launcher = SuspendLauncher { 
-                            debug()
-                        }
-                        
-                        launcher.tick()
-                        if(launcher.isEnd) println(launcher.result)
-                    }
-                """.trimIndent()
-            )
+    fun `Script Test`() {
+        val result = compileScript<StoryEvent>(
+            """
+            println("Hello")
+            var data = 1
+            println(data)
+            data = 2
+            """.trimIndent()
         )
-        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
 
-        result.classLoader.loadClass("MainKt").declaredMethods
-            .first { it.name == "main" && it.parameterCount != 0 }
-            .invoke(null, null)
+        assertFalse(result.isError())
+
+        (result.valueOrThrow() as? KJvmCompiledScript)
+            ?.saveToJar(File("script.jar"))
+
+        val r = runBlocking { BasicJvmScriptEvaluator().invoke(result.valueOrThrow(), ScriptEvaluationConfiguration()) }
+
+        (r.valueOrThrow().returnValue.scriptInstance as StoryEvent).tick(SuspendContext())
+
+        println(r)
     }
 }
 
@@ -195,6 +202,83 @@ fun compile(
         inheritClassPath = true
     }.compile()
 }
+
+inline fun <reified T : Any> compileScript(text: String) = runBlocking {
+    val hostConfiguration = TestingScriptingHost()
+    val compilationConfiguration = createCompilationConfiguration<T>(hostConfiguration)
+
+    val compiler = JvmScriptCompiler(hostConfiguration)
+    compiler(StringScriptSource(text), compilationConfiguration).apply {
+        logErrors(this)
+    }
+}
+
+fun logErrors(result: ResultWithDiagnostics<*>) {
+    result.errors().forEach(::println)
+    result.errors().mapNotNull { it.exception }.distinct().forEach {
+        println(it.stackTraceToString())
+    }
+}
+
+data class ScriptError(
+    val severity: Severity,
+    val message: String,
+    val source: String,
+    val line: Int,
+    val column: Int,
+    val exception: Throwable?,
+) {
+
+    enum class Severity { DEBUG, INFO, WARNING, ERROR, FATAL }
+
+    override fun toString() = "$message at $source:$line:$column"
+}
+
+private fun ResultWithDiagnostics<*>.errors() = reports.map {
+    ScriptError(
+        ScriptError.Severity.entries[it.severity.ordinal],
+        it.message,
+        it.sourcePath ?: "",
+        it.location?.start?.line ?: 0,
+        it.location?.start?.col ?: 0,
+        it.exception
+    )
+}
+
+@KotlinScript(
+    displayName = "Story Event",
+    fileExtension = "story.kts",
+    compilationConfiguration = Configuration::class
+)
+abstract class StoryEvent {
+    abstract fun tick(context: SuspendContext): Any?
+}
+
+class Configuration : ScriptCompilationConfiguration({
+    jvm {
+        compilerOptions(
+            "-opt-in=kotlin.time.ExperimentalTime,kotlin.ExperimentalStdlibApi",
+            "-jvm-target=17",
+            "-Xadd-modules=ALL-MODULE-PATH" // Loading kotlin from shadowed jar
+        )
+
+        dependenciesFromCurrentContext(wholeClasspath = true)
+    }
+
+    ide { acceptedLocations(ScriptAcceptedLocation.Everywhere) }
+})
+
+class TestingScriptingHost : ScriptingHostConfiguration({
+    getScriptingClass(JvmGetScriptingClass())
+    classpathFromClassloader(Thread.currentThread().contextClassLoader)
+})
+
+inline fun <reified T : Any> createCompilationConfiguration(hostConfiguration: TestingScriptingHost) =
+    createCompilationConfigurationFromTemplate(
+        KotlinType(T::class),
+        hostConfiguration,
+        TestingScriptingHost::class
+    ) {}
 
 fun compile(
     sourceFile: SourceFile,

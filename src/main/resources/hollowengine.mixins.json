@@ -6,7 +6,12 @@
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "DimensionTypeMixin",
-    "RecipeManagerAccessor"
+    "RecipeManagerAccessor",
+    "scripting.BindingTraceContextAccessor",
+    "scripting.CompilationContextMixin",
+    "scripting.KotlinCoreEnvironmentMixin",
+    "scripting.ScriptJvmCompilerImplsMixin",
+    "scripting.SlicedMapImplAccessor"
   ],
   "client": [
     "BiomeMixin",

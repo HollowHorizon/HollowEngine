@@ -1,18 +1,22 @@
 package ru.hollowhorizon.hollowengine
 
+import imgui.ImGui
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.apache.logging.log4j.LogManager
 import ru.hollowhorizon.hc.api.HollowMod
+import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
 import ru.hollowhorizon.hc.common.config.HollowConfig
 import ru.hollowhorizon.hc.common.config.hollowConfig
+import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
+import ru.hollowhorizon.hollowengine.client.gui.scripting.remember
 import ru.hollowhorizon.hollowengine.common.registry.NodesRegistry
 import ru.hollowhorizon.hollowengine.common.registry.PinsRegistry
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.example.HollowScript
 import ru.hollowhorizon.hollowengine.common.scripting.core.setupScripting
-import ru.hollowhorizon.hollowengine.scripting.Suspendable
+import ru.hollowhorizon.hollowengine.common.scripting.events.loadEvents
 import java.io.File
 import kotlin.script.experimental.api.valueOrThrow
 
@@ -29,28 +33,39 @@ object HollowEngine {
         NodesRegistry
         PinsRegistry
 
-        runBlocking { main() }
-    }
+        loadEvents()
 
-    //write sort algorithm
-    fun main() = runBlocking {
+        var isLoaded = false
+        ImGuiHandler.frames.add {
+            if(!isLoaded) {
+                ImGui.loadIniSettingsFromDisk("hollowengine.ini")
+                isLoaded = true
+            }
+            var ideGui by remember { false }
 
+            ImGui.beginMainMenuBar()
+            if (ImGui.menuItem("Окна")) {
+                ImGui.openPopup("windows")
+            }
+
+            if (ImGui.beginPopup("windows")) {
+                if(ImGui.selectable("Среда разработки")) ideGui = !ideGui
+                ImGui.selectable("Браузер ресурсов")
+                ImGui.selectable("Block Bench")
+                ImGui.selectable("Tik Tok")
+                ImGui.endPopup()
+            }
+
+            if(ideGui) with(IDEGuiV2) {render()}
+
+            ImGui.menuItem("Настройки")
+            ImGui.endMainMenuBar()
+
+            ImGui.saveIniSettingsToDisk("hollowengine.ini")
+        }
     }
 }
 
-suspend fun main() {
-    val old = File("script.kts.jar")
-    if (old.exists()) old.delete()
-    val script = ScriptingCompiler.compileFile<HollowScript>(File("script.kts"))
-
-    val result = script.execute {}
-
-    val instance = result.valueOrThrow().returnValue.scriptInstance!!
-
-    val test = instance::class.java.declaredMethods.find { it.name == "test" }
-
-
-}
 
 @Serializable
 class EngineConfig : HollowConfig() {

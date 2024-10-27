@@ -1,0 +1,8 @@
+debugMode = false
+
+[inventory]
+    enableItemCounts = true
+    enableItemRotation = true
+
+[scripting]
+    includeMods = [ "hollowcore", "hollowengine", "fabric-api" ]

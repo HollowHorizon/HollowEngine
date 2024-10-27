@@ -23,4 +23,5 @@ object DirectoryManager {
     }
 
     val npcScripts get() = HOLLOW_ENGINE.resolve("scripts").toFile().walk().filter { it.name.endsWith(".npc.kts") }
+    val eventScripts get() = HOLLOW_ENGINE.resolve("scripts").toFile().walk().filter { it.name.endsWith(".event.kts") }
 }

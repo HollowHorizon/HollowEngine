@@ -18,12 +18,14 @@ val scriptingClasspath = mutableListOf<File>()
 val deobfClasspath get() = deobfClassPath.walk().toList()
 
 
-
 private fun forgeClasspath() = System.getProperty("java.class.path")
     .split(";").map(::File).toMutableSet()
+
 private fun setupSTDLib(files: Collection<File>) {
     System.setProperty("kotlin.java.stdlib.jar", files.first { it.name.startsWith("kotlin-stdlib") }.absolutePath)
 }
+
+fun compilerJar() = deobfClasspath.first { it.name == "kotlin-compiler-embeddable-mcfriendly-2.0.0.jar" }
 
 
 fun setupScripting() {
@@ -43,7 +45,7 @@ fun cleanup() {
 }
 
 fun setupMods() {
-    Remapper.remap(
+    if(isProduction) Remapper.remap(
         Remapper.DEOBFUSCATE_REMAPPER,
         ModList.mods
             .map { ModList.getFile(it) }

@@ -15,7 +15,6 @@ import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.statements
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
-import org.jetbrains.kotlin.name.FqName
 import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendLauncher
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
 

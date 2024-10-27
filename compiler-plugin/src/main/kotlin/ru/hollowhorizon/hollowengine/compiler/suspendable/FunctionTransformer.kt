@@ -5,11 +5,18 @@ import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irThrow
 import org.jetbrains.kotlin.backend.jvm.functionByName
+import org.jetbrains.kotlin.fir.backend.FirMetadataSource
+import org.jetbrains.kotlin.fir.declarations.builder.FirValueParameterBuilder
+import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
+import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
+import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
+import org.jetbrains.kotlin.fir.types.toLookupTag
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.backend.js.JsStatementOrigins
 import org.jetbrains.kotlin.ir.backend.js.utils.typeArguments
 import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
 import org.jetbrains.kotlin.ir.builders.*
+import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.*
@@ -21,6 +28,7 @@ import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.StandardClassIds
 import ru.hollowhorizon.hollowengine.compiler.identifiers.ResumeState
 import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendContext
 import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendState
@@ -33,6 +41,7 @@ object FunctionTransformer {
     lateinit var ctx: IrPluginContext
 
     fun DeclarationIrBuilder.transformFunction(function: IrFunction) {
+        function.transformChildrenVoid(PropertyTransformer(function))
         function.body = context.irBuiltIns.createIrBuilder(
             function.symbol, function.startOffset, function.endOffset
         ).irBlockBody {
@@ -46,6 +55,12 @@ object FunctionTransformer {
             function.annotations += irCall(united)
         }
         function.returnType = ctx.irBuiltIns.anyNType
+//        (function.metadata as? FirMetadataSource.Function)?.let {
+//            it.fir.replaceReturnTypeRef(buildResolvedTypeRef {
+//                this.type =
+//                    ConeClassLikeTypeImpl(StandardClassIds.Any.toLookupTag(), emptyArray(), isNullable = true)
+//            })
+//        }
     }
 
     fun transform(context: TransformContext, statements: List<IrStatement>) {
@@ -107,6 +122,9 @@ object FunctionTransformer {
         }
         context.suspend(true) // Останавливаем текущее состояние
         context.nextBranch {
+            if(stmt.symbol.owner.valueParameters.last().type != ctx.referenceClass(SuspendContext)?.defaultType) {
+                stmt.symbol.owner.addValueParameter("suspendContext", ctx.referenceClass(SuspendContext)!!.defaultType)
+            }
             val temp = irTemporary(irCall(stmt.symbol).apply {
                 dispatchReceiver = stmt.dispatchReceiver
                 extensionReceiver = stmt.extensionReceiver
