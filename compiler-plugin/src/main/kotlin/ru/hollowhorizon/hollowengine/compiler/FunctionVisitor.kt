@@ -69,7 +69,24 @@ class FunctionVisitor(private val context: IrPluginContext) : IrElementTransform
             isOperator = false,
             isInfix = false
         ).apply {
+            script.transformChildrenVoid(object: IrElementTransformerVoid() {
+                override fun visitDeclaration(declaration: IrDeclarationBase): IrStatement {
+                    if(declaration.parent == script && declaration.origin != IrDeclarationOrigin.INSTANCE_RECEIVER) {
+                        declaration.parent = this@apply
+                    }
+                    return super.visitDeclaration(declaration)
+                }
+
+                override fun visitFunction(declaration: IrFunction): IrStatement {
+                    if(declaration.origin == IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA && declaration.parent == script) {
+                        declaration.parent = this@apply
+                    }
+                    return super.visitFunction(declaration)
+                }
+            })
+            parent = script
             overrides(original)
+
             body = builder.irBlockBody {
                 script.statements.forEach {
                     +it
@@ -79,17 +96,6 @@ class FunctionVisitor(private val context: IrPluginContext) : IrElementTransform
             addValueParameter("context", context.referenceClass(SuspendContext)!!.defaultType)
 
             builder.transformFunction(this)
-
-            body?.transformChildrenVoid(object: IrElementTransformerVoid() {
-                override fun visitDeclaration(declaration: IrDeclarationBase): IrStatement {
-                    if(declaration.parent == script) {
-                        declaration.parent = this@apply
-                    }
-                    return super.visitDeclaration(declaration)
-                }
-            })
-
-            parent = script
         }
         script.statements += function
 

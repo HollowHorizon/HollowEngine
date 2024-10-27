@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hc.client.utils.currentServer
 import ru.hollowhorizon.hc.client.utils.literal
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
@@ -13,6 +14,22 @@ fun NPCEntity.moveTo(entity: Entity, dist: Double = 1.5, speed: Double = 1.0) {
     }
     navigation.stop()
 }
+
+@Suspendable
+infix fun NPCEntity.moveTo(mob: Entity): Unit = moveTo(entity = mob)
+
+@Suspendable
+fun NPCEntity.moveTo(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
+    while (distanceToSqr(pos) > dist*dist) {
+        navigation.moveTo(navigation.createPath(pos.x, pos.y, pos.z, 0), speed)
+    }
+
+    navigation.stop()
+}
+
+@Suspendable
+infix fun NPCEntity.moveTo(position: Vec3): Unit = moveTo(pos = position)
+
 
 @Suspendable
 fun NPCEntity.lookAt(entity: Entity) {

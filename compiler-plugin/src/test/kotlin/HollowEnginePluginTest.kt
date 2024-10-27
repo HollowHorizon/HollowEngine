@@ -175,7 +175,8 @@ class PluginTester {
             println("Hello")
             var data = 1
             println(data)
-            data = 2
+            println({"hello"})
+            data += 2
             """.trimIndent()
         )
 

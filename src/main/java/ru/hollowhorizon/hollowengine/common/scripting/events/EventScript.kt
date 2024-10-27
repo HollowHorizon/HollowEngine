@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.events
 
 import com.google.common.collect.HashMultimap
 import kotlinx.coroutines.runBlocking
+import ru.hollowhorizon.hc.client.utils.currentServer
 import ru.hollowhorizon.hc.common.events.*
 
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -35,16 +36,17 @@ fun loadEvents() {
 
     runBlocking {
         val jar = ScriptingCompiler.compileText<StoryEvent>("""
-            val npc = npc(pos = pos(95, 69, -70))
+            val npc = npc(pos = pos(95, 69, -70)) // Создаём нового нпс
 
-            npc.moveTo(npc)
-            npc say "Привет!"
-            wait(2.sec)
-            npc say "Как дела?"
+            npc moveTo server.players.minBy { it.distanceTo(npc) } // Даём задачу дойти до ближайшего игрока
+            npc say "Привет!" // Вывод в чат от лица npc
+            wait(2.sec) // Приостанавливаем скрипт на 2 секунды
+            npc say "Как дела?" // Вывод в чат от лица npc
         """.trimIndent())
 
         val result = jar.execute()
-        val script = result.valueOrThrow().returnValue.scriptInstance as? StoryEvent ?: error("Script instance is null")
+        //val script = result.valueOrThrow().returnValue.scriptInstance as? StoryEvent ?: error("Script instance is null")
+        //println(script)
     }
 }
 

@@ -55,12 +55,6 @@ object FunctionTransformer {
             function.annotations += irCall(united)
         }
         function.returnType = ctx.irBuiltIns.anyNType
-//        (function.metadata as? FirMetadataSource.Function)?.let {
-//            it.fir.replaceReturnTypeRef(buildResolvedTypeRef {
-//                this.type =
-//                    ConeClassLikeTypeImpl(StandardClassIds.Any.toLookupTag(), emptyArray(), isNullable = true)
-//            })
-//        }
     }
 
     fun transform(context: TransformContext, statements: List<IrStatement>) {
@@ -68,10 +62,6 @@ object FunctionTransformer {
             when (stmt) {
                 is IrLoop -> processLoop(context, stmt)
                 is IrCall -> {
-                    stmt.valueArguments.filterNotNull().forEach {
-                        transform(context, listOf(it))
-                    }
-
                     if (stmt.symbol == ctx.referenceFunctions(
                             CallableId(
                                 FqName("ru.hollowhorizon.hollowengine.compiler.suspendable"), Name.identifier("await")
@@ -123,6 +113,7 @@ object FunctionTransformer {
         context.suspend(true) // Останавливаем текущее состояние
         context.nextBranch {
             if(stmt.symbol.owner.valueParameters.last().type != ctx.referenceClass(SuspendContext)?.defaultType) {
+                stmt.symbol.owner.returnType = ctx.irBuiltIns.anyNType
                 stmt.symbol.owner.addValueParameter("suspendContext", ctx.referenceClass(SuspendContext)!!.defaultType)
             }
             val temp = irTemporary(irCall(stmt.symbol).apply {

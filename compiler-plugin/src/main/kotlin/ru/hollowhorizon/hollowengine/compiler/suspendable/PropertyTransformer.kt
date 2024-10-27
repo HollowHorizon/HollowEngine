@@ -4,11 +4,10 @@ import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.jvm.functionByName
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
-import org.jetbrains.kotlin.ir.builders.*
-import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.IrProperty
-import org.jetbrains.kotlin.ir.declarations.IrValueParameter
-import org.jetbrains.kotlin.ir.declarations.IrVariable
+import org.jetbrains.kotlin.ir.builders.irCall
+import org.jetbrains.kotlin.ir.builders.irGet
+import org.jetbrains.kotlin.ir.builders.irString
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrValueSymbol
 import org.jetbrains.kotlin.ir.types.IrType
@@ -21,12 +20,18 @@ class PropertyTransformer(val function: IrFunction) : IrElementTransformerVoid()
     class Property(val type: IrType, val name: Name, val symbol: IrValueSymbol)
 
     val symbols = arrayListOf<Property>()
+    val getters = arrayListOf<IrSimpleFunction>()
+    val setters = arrayListOf<IrSimpleFunction>()
+
     val setter = ctx.referenceClass(SuspendContext)!!.functionByName("setProperty")
     val getter = ctx.referenceClass(SuspendContext)!!.functionByName("getProperty")
     val context: IrValueParameter = function.valueParameters.last()
 
     override fun visitProperty(declaration: IrProperty): IrStatement {
         declaration.backingField?.let {
+            declaration.getter?.let { getters += it }
+            declaration.setter?.let { setters += it }
+
             it.initializer?.let { initializer ->
                 val builder = ctx.irBuiltIns.createIrBuilder(
                     function.symbol, function.startOffset, function.endOffset
@@ -66,36 +71,37 @@ class PropertyTransformer(val function: IrFunction) : IrElementTransformerVoid()
     }
 
     override fun visitGetValue(expression: IrGetValue): IrExpression {
+        var expr: IrExpression = expression
         symbols.find { it.symbol == expression.symbol }?.let { variable ->
             val builder = ctx.irBuiltIns.createIrBuilder(function.symbol)
 
-            return builder.irCall(getter).apply {
+            expr = builder.irCall(getter).apply {
                 dispatchReceiver = builder.irGet(context)
                 putValueArgument(0, builder.irString(variable.name.asString()))
 
                 putTypeArgument(0, variable.type)
             }
         }
-        return super.visitGetValue(expression)
+        return super.visitExpression(expr)
     }
 
     override fun visitCall(expression: IrCall): IrExpression {
-        if (expression.origin == IrStatementOrigin.GET_PROPERTY) {
+        var expr = expression
+        getters.find { it.symbol == expression.symbol }?.let { _ ->
             val propertyName = expression.symbol.owner.name.asStringStripSpecialMarkers().substring(4)
             val builder = ctx.irBuiltIns.createIrBuilder(function.symbol)
 
-            return builder.irCall(getter).apply {
+            expr = builder.irCall(this.getter, expression.type, origin = IrStatementOrigin.EQ).apply {
                 dispatchReceiver = builder.irGet(this@PropertyTransformer.context)
                 putValueArgument(0, builder.irString(propertyName))
-
                 putTypeArgument(0, expression.type)
             }
         }
-        if(expression.origin == IrStatementOrigin.EQ) {
+        setters.find { it.symbol == expression.symbol }?.let { _ ->
             val propertyName = expression.symbol.owner.name.asStringStripSpecialMarkers().substring(4)
             val builder = ctx.irBuiltIns.createIrBuilder(function.symbol)
 
-            return builder.irCall(setter).apply {
+            expr = builder.irCall(this.setter).apply {
                 dispatchReceiver = builder.irGet(context)
                 putValueArgument(0, builder.irString(propertyName))
                 putValueArgument(1, expression.valueArguments[0])
@@ -103,16 +109,17 @@ class PropertyTransformer(val function: IrFunction) : IrElementTransformerVoid()
                 putTypeArgument(0, expression.type)
             }
         }
-        return super.visitCall(expression)
+        return super.visitCall(expr)
     }
 
     override fun visitSetValue(expression: IrSetValue): IrExpression {
+        var expr: IrExpression = expression
         symbols.find { it.symbol == expression.symbol }?.let { variable ->
             val builder = ctx.irBuiltIns.createIrBuilder(
                 expression.symbol, expression.startOffset, expression.endOffset
             )
 
-            return builder.irCall(setter).apply {
+            expr = builder.irCall(setter).apply {
                 dispatchReceiver = builder.irGet(context)
                 putValueArgument(0, builder.irString(variable.name.asString()))
                 putValueArgument(1, expression.value)
@@ -120,7 +127,7 @@ class PropertyTransformer(val function: IrFunction) : IrElementTransformerVoid()
                 putTypeArgument(0, expression.value.type)
             }
         }
-        return super.visitSetValue(expression)
+        return super.visitExpression(expr)
     }
 
     override fun visitBlock(expression: IrBlock): IrExpression {
