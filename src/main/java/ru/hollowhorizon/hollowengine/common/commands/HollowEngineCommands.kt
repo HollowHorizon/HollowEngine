@@ -1,12 +1,15 @@
 package ru.hollowhorizon.hollowengine.common.commands
 
 import kotlinx.coroutines.runBlocking
+import ru.hollowhorizon.hc.client.utils.literal
 import ru.hollowhorizon.hc.common.commands.onRegisterCommands
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hc.common.events.EventListener
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hc.common.events.tick.TickEvent
+import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
 import ru.hollowhorizon.hollowengine.compiler.suspendable.ResumeState
@@ -20,16 +23,7 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
         "hollowengine" {
             "example" {
                 runBlocking {
-                    val jar = ScriptingCompiler.compileText<StoryEvent>(
-                        """
-            val npc = npc(pos = pos(95, 69, -70)) // Создаём нового нпс
-
-            npc moveTo server.players.minBy { it.distanceTo(npc) } // Даём задачу дойти до ближайшего игрока
-            npc say "Привет!" // Вывод в чат от лица npc
-            wait(2.sec) // Приостанавливаем скрипт на 2 секунды
-            npc say "Как дела?" // Вывод в чат от лица npc
-        """.trimIndent()
-                    )
+                    val jar = ScriptingCompiler.compileFile<StoryEvent>(DirectoryManager.storyScripts.first())
 
                     val result = jar.execute()
                     val script = result.valueOrThrow().returnValue.scriptInstance as? StoryEvent
@@ -52,5 +46,6 @@ class Listener(val story: StoryEvent) : EventListener<TickEvent.Server> {
         while (result == ResumeState) result = story.tick(context)
         if (result == SuspendState) return
         disable = true
+        event.server.playerList.players.forEach { it.sendToast("Скрипт завершён.".literal) }
     }
 }
