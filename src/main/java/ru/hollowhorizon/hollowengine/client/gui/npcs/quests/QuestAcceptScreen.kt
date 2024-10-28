@@ -268,9 +268,9 @@ class QuestAcceptScreen(val npc: NPCEntity, val questNode: QuestNode, val editMo
 
         ImGui.image("hollowengine:textures/gui/npc_menu/nickname.png".rl.toTexture().id, 90f * scale, 20f * scale)
 
-        val size = ImGui.calcTextSize(npc.name.string)
+        val size = ImGui.calcTextSize(npc.name)
         ImGui.setCursorPos(379 * scale - size.x / 2, 50 * scale - size.y / 2)
-        Graphics.textShadow(npc.name.string)
+        Graphics.textShadow(npc.name)
 
         ImGui.setCursorPos(320f * scale, 63 * scale)
 

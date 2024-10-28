@@ -7,6 +7,10 @@ import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.defaultImports
 
+//TODO: Функция ввода из чата
+//TODO: Гуишки
+//TODO: Async-методы
+
 @KotlinScript(
     displayName = "Story Event",
     fileExtension = "story.kts",
@@ -21,7 +25,9 @@ abstract class StoryEvent {
 
 class StoryConfiguration : HollowScriptConfiguration({
     defaultImports(
-        "ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.*"
+        "ru.hollowhorizon.hollowengine.common.scripting.story.functions.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.*",
     )
 })
 

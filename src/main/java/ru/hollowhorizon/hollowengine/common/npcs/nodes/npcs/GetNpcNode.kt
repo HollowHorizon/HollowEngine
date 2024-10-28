@@ -86,7 +86,7 @@ class NpcInfoNode : ScriptNode() {
     }
     val name by outPin<String, StringPin>().apply {
         name = "Имя"
-        updater = { npc.name.string }
+        updater = { npc.name }
     }
     val health by outPin<Float, FloatPin>().apply {
         name = "Здоровье"

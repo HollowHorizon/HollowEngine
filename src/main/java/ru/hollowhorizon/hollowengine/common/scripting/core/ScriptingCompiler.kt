@@ -81,6 +81,8 @@ object ScriptingCompiler {
         val compiler = JvmScriptCompiler(hostConfiguration)
         val result = compiler(FileScriptSource(script), compilationConfiguration)
 
+        logErrors(result)
+
         return processResult(result, script.name, script, compiledJar)
     }
 

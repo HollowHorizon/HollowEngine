@@ -31,8 +31,6 @@ import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 
 class NPCCreatorGui(val npc: NPCEntity, private val npcId: Int) : ImGuiScreen() {
-    val scripts = DirectoryManager.npcScripts.map { it.toReadablePath() }.toMutableList()
-        .also { it.add(0, Language.getInstance().getOrDefault("npc_tool.empty")) }.toTypedArray()
     private val npcName = ImString().apply {
         if (npc.hasCustomName()) set(npc.customName?.string ?: "")
         else set(
@@ -48,7 +46,6 @@ class NPCCreatorGui(val npc: NPCEntity, private val npcId: Int) : ImGuiScreen() 
     private val invulnerable = ImBoolean().apply { set(npc.isInvulnerable) }
     private var model =
         GltfManager.getOrCreate(if (npcModel.get() != "%NO_MODEL%") npcModel.get().rl else "hollowengine:models/entity/player_model.gltf".rl)
-    val script = ImInt(scripts.indexOf(npc[NPCCapability::class].script).coerceAtLeast(0))
     private val animations = HashMap<String, String>()
     private val textures = npc[AnimatedEntityCapability::class].textures.toMutableMap()
     private val hitboxWidth = ImFloat(npc.entityData[NPCEntity.sizeX])
@@ -92,8 +89,7 @@ class NPCCreatorGui(val npc: NPCEntity, private val npcId: Int) : ImGuiScreen() 
                                 HitboxMode.entries[hitboxMode.get()],
                                 animations.map { AnimationType.valueOf(it.key) to it.value }.toMap(),
                                 textures.filter { it.value.isNotEmpty() },
-                                tX[0], tY[0], tZ[0], rX[0], rY[0], rZ[0], sX[0], sY[0], sZ[0],
-                                if (script.get() == 0) "%empty%" else scripts[script.get()]
+                                tX[0], tY[0], tZ[0], rX[0], rY[0], rZ[0], sX[0], sY[0], sZ[0]
                             ).send()
                         }
                         ImGui.sameLine()
@@ -172,7 +168,6 @@ class NPCCreatorGui(val npc: NPCEntity, private val npcId: Int) : ImGuiScreen() 
 
         ImGui.combo("Режим хитбокса", hitboxMode, arrayOf("Блокируемый", "Толкаемый", "Пустой"))
 
-        ImGui.combo("Скрипт", script, scripts)
     }
 
     private fun drawAttributes() {
@@ -286,7 +281,6 @@ class NPCCreatorPacket(
     private val tX: Float, private val tY: Float, private val tZ: Float,
     private val rX: Float, private val rY: Float, private val rZ: Float,
     private val sX: Float, private val sY: Float, private val sZ: Float,
-    val script: String,
 ) : HollowPacketV3<NPCCreatorPacket> {
     override fun handle(player: Player) {
         if (!player.hasPermissions(2)) {
@@ -315,7 +309,6 @@ class NPCCreatorPacket(
         entity.customName = name.mcText
         entity.setDimensions(hitboxWidth to hitboxHeight)
         entity.refreshDimensions()
-        entity[NPCCapability::class].script = script
     }
 
 

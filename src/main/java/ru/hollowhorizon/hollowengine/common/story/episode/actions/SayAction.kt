@@ -50,6 +50,6 @@ class SayAction : Action {
 
         npc.level()
             .getNearbyPlayers(TargetingConditions.forNonCombat(), npc, npc.boundingBox.expandTowards(50.0, 50.0, 50.0))
-            .forEach { it.sendSystemMessage("[${npc.name.string}] $message".literal) }
+            .forEach { it.sendSystemMessage("[${npc.name}] $message".literal) }
     }
 }

@@ -98,11 +98,14 @@ class PluginTester {
             SourceFile.kotlin(
                 "main.kt", """
                     import ru.hollowhorizon.hollowengine.scripting.Suspendable
+                    import ru.hollowhorizon.hollowengine.scripting.Ignore
                     import ru.hollowhorizon.hollowengine.compiler.suspendable.*
 
                     @Suspendable
                     fun test(time: Int): Int {
                         println(time)
+                        @Ignore
+                        val b = 3
                         val data = 2
                         for(i in 1..10) println(i)
                         println(1242)

@@ -98,7 +98,7 @@ class SayNode : NPCOperationNode() {
     }
 
     override fun tick(graph: ScriptGraph) {
-        val name = npc.name
+        val name = npc.displayName
 
         npc.server?.playerList?.players?.forEach {
             it.sendSystemMessage(Component.empty() + "[".mcText.colored(0xDAA520) + name + "] ".mcText.colored(0xDAA520) + message.mcText)

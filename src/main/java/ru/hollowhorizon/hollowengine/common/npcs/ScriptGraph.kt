@@ -85,12 +85,12 @@ open class ScriptGraph : INBTSerializable {
         } catch (e: Exception) {
             npc.server?.playerList?.players?.filter { it.hasPermissions(2) }?.forEach {
                 it.sendSystemMessage(
-                    "Персонаж \'${npc.name.string}\' столкнулся с ошибкой в скрипте! Скрипт остановлен, подробнее в логах.".mcText.colored(
+                    "Персонаж \'${npc.name}\' столкнулся с ошибкой в скрипте! Скрипт остановлен, подробнее в логах.".mcText.colored(
                         0xFF222
                     )
                 )
 
-                HollowCore.LOGGER.error("NPC ${npc.name.string} cause errors! ", e)
+                HollowCore.LOGGER.error("NPC ${npc.name} cause errors! ", e)
 
                 activeNodes.clear()
             }

@@ -11,8 +11,10 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrValueSymbol
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.name.Name
+import ru.hollowhorizon.hollowengine.compiler.identifiers.Ignore
 import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendContext
 import ru.hollowhorizon.hollowengine.compiler.suspendable.FunctionTransformer.ctx
 
@@ -28,21 +30,23 @@ class PropertyTransformer(val function: IrFunction) : IrElementTransformerVoid()
     val context: IrValueParameter = function.valueParameters.last()
 
     override fun visitProperty(declaration: IrProperty): IrStatement {
-        declaration.backingField?.let {
-            declaration.getter?.let { getters += it }
-            declaration.setter?.let { setters += it }
+        if (!declaration.isIgnored()) {
+            declaration.backingField?.let {
+                declaration.getter?.let { getters += it }
+                declaration.setter?.let { setters += it }
 
-            it.initializer?.let { initializer ->
-                val builder = ctx.irBuiltIns.createIrBuilder(
-                    function.symbol, function.startOffset, function.endOffset
-                )
+                it.initializer?.let { initializer ->
+                    val builder = ctx.irBuiltIns.createIrBuilder(
+                        function.symbol, function.startOffset, function.endOffset
+                    )
 
-                return builder.irCall(setter).apply {
-                    dispatchReceiver = builder.irGet(context)
-                    putValueArgument(0, builder.irString(declaration.name.asString()))
-                    putValueArgument(1, initializer.expression)
+                    return builder.irCall(setter).apply {
+                        dispatchReceiver = builder.irGet(context)
+                        putValueArgument(0, builder.irString(declaration.name.asString()))
+                        putValueArgument(1, initializer.expression)
 
-                    putTypeArgument(0, initializer.expression.type)
+                        putTypeArgument(0, initializer.expression.type)
+                    }
                 }
             }
         }
@@ -50,21 +54,23 @@ class PropertyTransformer(val function: IrFunction) : IrElementTransformerVoid()
     }
 
     override fun visitVariable(declaration: IrVariable): IrStatement {
-        symbols += Property(declaration.type, declaration.name, declaration.symbol)
+        if (!declaration.isIgnored()) {
+            symbols += Property(declaration.type, declaration.name, declaration.symbol)
 
-        declaration.initializer?.let { initializer ->
-            val builder = ctx.irBuiltIns.createIrBuilder(
-                function.symbol, function.startOffset, function.endOffset
-            )
+            declaration.initializer?.let { initializer ->
+                val builder = ctx.irBuiltIns.createIrBuilder(
+                    function.symbol, function.startOffset, function.endOffset
+                )
 
-            return builder.irCall(setter).apply {
-                dispatchReceiver = builder.irGet(context)
-                putValueArgument(0, builder.irString(declaration.name.asString()))
-                putValueArgument(1, initializer)
+                return builder.irCall(setter).apply {
+                    dispatchReceiver = builder.irGet(context)
+                    putValueArgument(0, builder.irString(declaration.name.asString()))
+                    putValueArgument(1, initializer)
 
-                putTypeArgument(0, initializer.type)
+                    putTypeArgument(0, initializer.type)
+                }
+
             }
-
         }
 
         return super.visitVariable(declaration)
@@ -139,4 +145,9 @@ class PropertyTransformer(val function: IrFunction) : IrElementTransformerVoid()
         expression.transformChildren(this, null)
         return super.visitWhen(expression)
     }
+}
+
+fun IrMutableAnnotationContainer.isIgnored(): Boolean {
+    val ignore = ctx.referenceClass(Ignore)!!.constructors.first()
+    return annotations.map { it.symbol }.contains(ignore)
 }

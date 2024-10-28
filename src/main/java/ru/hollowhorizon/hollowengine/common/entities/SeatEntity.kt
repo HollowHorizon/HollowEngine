@@ -1,0 +1,102 @@
+package ru.hollowhorizon.hollowengine.common.entities
+
+import net.minecraft.core.Direction
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.network.protocol.game.ClientboundAddEntityPacket
+import net.minecraft.util.Mth
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.vehicle.DismountHelper
+import net.minecraft.world.level.Level
+import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.common.registry.ModEntities
+
+
+class SeatEntity(entityType: EntityType<SeatEntity>, pLevel: Level) : Entity(entityType, pLevel) {
+    constructor(level: Level) : this(ModEntities.SEAT.get(), level)
+
+    constructor(level: Level, pos: Vec3, dir: Direction) : this(level) {
+        this.setPos(pos.x, pos.y, pos.z)
+        this.setRot(dir.opposite.toYRot(), 0F)
+    }
+
+    init {
+        this.noPhysics = true
+    }
+
+    override fun tick() {
+        super.tick()
+        if (this.level().isClientSide) return
+
+        if (this.passengers.isNotEmpty() && !this.level().isEmptyBlock(this.blockPosition())) return
+
+        this.remove(RemovalReason.DISCARDED)
+        this.level().updateNeighbourForOutputSignal(
+            this.blockPosition(),
+            this.level().getBlockState(this.blockPosition()).block
+        )
+    }
+
+    override fun defineSynchedData() {}
+
+    override fun readAdditionalSaveData(p0: CompoundTag) {}
+
+    override fun addAdditionalSaveData(p0: CompoundTag) {}
+
+    override fun getPassengersRidingOffset(): Double = 0.0
+
+    override fun canRide(pVehicle: Entity): Boolean = true
+
+    override fun getAddEntityPacket() = ClientboundAddEntityPacket(this)
+
+    override fun getDismountLocationForPassenger(entity: LivingEntity): Vec3 {
+        val original = this.direction
+        val offsets = arrayOf(original, original.clockWise, original.counterClockWise, original.opposite)
+        for (dir in offsets) {
+            val safeVec = DismountHelper.findSafeDismountLocation(
+                entity.type, this.level(),
+                blockPosition().relative(dir), false
+            )
+            if (safeVec != null) {
+                return safeVec.add(0.0, 0.25, 0.0)
+            }
+        }
+        return super.getDismountLocationForPassenger(entity)
+    }
+
+    override fun addPassenger(entity: Entity) {
+        super.addPassenger(entity)
+        entity.yRot = yRot
+    }
+
+    override fun positionRider(passenger: Entity, callback: MoveFunction) {
+        super.positionRider(passenger, callback)
+        this.yaw(passenger)
+    }
+
+    override fun onPassengerTurned(entity: Entity) {
+        this.yaw(entity)
+    }
+
+    private fun yaw(passenger: Entity) {
+        passenger.setYBodyRot(this.yRot)
+        val wrappedYaw = Mth.wrapDegrees(passenger.yRot - this.yRot)
+        val clampedYaw = Mth.clamp(wrappedYaw, -120.0f, 120.0f)
+        passenger.yRotO += clampedYaw - wrappedYaw
+        passenger.yRot = passenger.yRot + clampedYaw - wrappedYaw
+        passenger.yHeadRot = passenger.yRot
+    }
+
+    companion object {
+        fun seat(player: Entity, dir: Direction) {
+            val level = player.level()
+
+            if (level.isClientSide()) return
+
+            val seat = SeatEntity(level, player.position(), dir)
+            level.addFreshEntity(seat)
+            player.startRiding(seat, false)
+        }
+    }
+}

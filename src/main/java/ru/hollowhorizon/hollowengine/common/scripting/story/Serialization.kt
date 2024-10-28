@@ -6,6 +6,7 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.client.utils.JavaHacks
 import ru.hollowhorizon.hc.client.utils.nbt.*
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
 
@@ -19,7 +20,7 @@ fun SuspendContext.serialize(): CompoundTag = CompoundTag().apply {
                 is Vec3 -> put(name, NBTFormat.serialize(ForVec3, value))
                 else -> {
                     try {
-                        put(name, NBTFormat.serialize(value))
+                        put(name, NBTFormat.serializeNoInline(JavaHacks.forceCast(value), value!!::class.java))
                     } catch (e: Exception) {
                         HollowCore.LOGGER.warn("Failed to serialize $value: ", e)
                     }

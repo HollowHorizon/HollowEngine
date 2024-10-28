@@ -4,7 +4,7 @@ plugins {
     kotlin("plugin.serialization")
 }
 
-version = "1.2a"
+version = "1.3"
 
 base {
     archivesName = "HollowEnginePlugin"

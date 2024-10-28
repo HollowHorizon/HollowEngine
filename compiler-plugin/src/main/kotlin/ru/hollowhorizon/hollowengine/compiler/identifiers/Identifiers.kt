@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.name.Name
 
 val Suspendable = FqName("ru.hollowhorizon.hollowengine.scripting.Suspendable")
 val United = ClassId(FqName("ru.hollowhorizon.hollowengine.scripting"), Name.identifier("United"))
+val Ignore = ClassId(FqName("ru.hollowhorizon.hollowengine.scripting"), Name.identifier("Ignore"))
 val Metadata = ClassId(FqName("kotlin"), Name.identifier("Metadata"))
 val SuspendContext =
     ClassId(FqName("ru.hollowhorizon.hollowengine.compiler.suspendable"), Name.identifier("SuspendContext"))

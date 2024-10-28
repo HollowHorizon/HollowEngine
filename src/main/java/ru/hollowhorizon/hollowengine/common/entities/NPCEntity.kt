@@ -1,27 +1,30 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
+import net.minecraft.core.Vec3i
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.syncher.EntityDataAccessor
 import net.minecraft.network.syncher.EntityDataSerializers
 import net.minecraft.network.syncher.SynchedEntityData
+import net.minecraft.server.level.ServerLevel
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
-import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.entity.*
 import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hc.client.models.internal.manager.IAnimated
 import ru.hollowhorizon.hc.client.utils.get
-//? if <=1.19.2
-/*import ru.hollowhorizon.hc.client.utils.math.level*/
+import ru.hollowhorizon.hc.client.utils.literal
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hollowengine.client.gui.npcs.NPCMenuGui
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
+import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
 
@@ -29,32 +32,25 @@ class NPCEntity : PathfinderMob, IAnimated {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
     constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
 
+    val fakePlayer: ServerPlayer by lazy {
+        //? if fabric {
+        val player = net.fabricmc.fabric.api.entity.FakePlayer.get(level() as ServerLevel)
+        //?} elif forge {
+        /*val player = net.minecraftforge.common.util.FakePlayerFactory.getMinecraft(level() as ServerLevel)
+        *///?}
+        player.setGameMode(GameType.CREATIVE)
+        player
+    }
 
     init {
         setCanPickUpLoot(true)
     }
 
 
-    //? if >=1.21 {
-    /*override fun defineSynchedData(builder: SynchedEntityData.Builder) {
-        builder.define(sizeX, 0.6f)
-        builder.define(sizeY, 1.8f)
-        super.defineSynchedData(builder)
-    }
-    *///?} else {
     override fun defineSynchedData() {
         entityData.define(sizeX, 0.6f)
         entityData.define(sizeY, 1.8f)
         super.defineSynchedData()
-    }
-    //?}
-
-    override fun addAdditionalSaveData(pCompound: CompoundTag) {
-        super.addAdditionalSaveData(pCompound)
-    }
-
-    override fun readAdditionalSaveData(pCompound: CompoundTag) {
-        super.readAdditionalSaveData(pCompound)
     }
 
     override fun createNavigation(pLevel: Level) = super.createNavigation(pLevel)
@@ -62,9 +58,7 @@ class NPCEntity : PathfinderMob, IAnimated {
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         if (pHand == InteractionHand.MAIN_HAND && level().isClientSide && pPlayer.mainHandItem.item != ModItems.NPC_TOOL.get()) {
-
             NPCMenuGui(this).open()
-
             return InteractionResult.SUCCESS
         }
 
@@ -77,37 +71,32 @@ class NPCEntity : PathfinderMob, IAnimated {
     }
 
     override fun isInvulnerable() = true
-
     override fun shouldDespawnInPeaceful() = false
+    override fun canPickUpLoot() = true
+    override fun wantsToPickUp(pStack: ItemStack) = false
 
-    override fun canPickUpLoot(): Boolean {
-        return true
-    }
-
-    override fun wantsToPickUp(pStack: ItemStack): Boolean {
-        return true
-    }
-
-    override fun pickUpItem(pItemEntity: ItemEntity) {
+    public override fun pickUpItem(pItemEntity: ItemEntity) {
         val item = pItemEntity.item
         onItemPickup(pItemEntity)
-        this.take(pItemEntity, item.count)
+        take(pItemEntity, item.count)
         pItemEntity.discard()
     }
 
     override fun customServerAiStep() {
         val capability = this[NPCCapability::class]
 
-        if (capability.currentTrade != -1) {
-            if (capability.currentTrade >= capability.trades.size) {
-                capability.currentTrade = -1
-                return
-            }
-            val trade = capability.trades[capability.currentTrade]
-            if (trade.matches(capability.tradeContainer)) capability.tradeContainer.setItem(6, trade.output.copy())
-            else if (!capability.tradeContainer.getItem(6).isEmpty) {
-                capability.tradeContainer.setItem(6, ItemStack.EMPTY)
-            }
+        if (capability.currentTrade == -1) return
+
+        if (capability.currentTrade >= capability.trades.size) {
+            capability.currentTrade = -1
+            return
+        }
+
+        val trade = capability.trades[capability.currentTrade]
+        if (trade.matches(capability.tradeContainer)) {
+            capability.tradeContainer.setItem(6, trade.output.copy())
+        } else if (!capability.tradeContainer.getItem(6).isEmpty) {
+            capability.tradeContainer.setItem(6, ItemStack.EMPTY)
         }
     }
 
@@ -144,15 +133,8 @@ class NPCEntity : PathfinderMob, IAnimated {
         if (pKey == sizeX || pKey == sizeY) refreshDimensions()
     }
 
-    //? if >=1.21 {
-    /*override fun getDefaultDimensions(pPose: Pose): EntityDimensions {
-        return EntityDimensions.fixed(entityData[sizeX], entityData[sizeY])
-    }
-    *///?} else {
-    override fun getDimensions(pose: Pose): EntityDimensions {
-        return EntityDimensions.fixed(entityData[sizeX], entityData[sizeY])
-    }
-    //?}
+    override fun getDimensions(pose: Pose): EntityDimensions =
+        EntityDimensions.fixed(entityData[sizeX], entityData[sizeY])
 
     fun setDimensions(xy: Pair<Float, Float>) {
         entityData.apply {
@@ -171,18 +153,44 @@ class NPCEntity : PathfinderMob, IAnimated {
     override fun load(pCompound: CompoundTag) {
         super.load(pCompound)
 
-
         entityData[sizeX] = pCompound.getFloat("sizeX")
         entityData[sizeY] = pCompound.getFloat("sizeY")
     }
 
-    override fun hurt(source: DamageSource, amount: Float): Boolean {
-        return super.hurt(source, amount)
+    val pickupDistance get() = pickupReach
+
+    var hitboxMode: HitboxMode
+        get() = this[NPCCapability::class].hitboxMode
+        set(value) {
+            this[NPCCapability::class].hitboxMode = value
+        }
+
+    var icon: NpcIcon
+        get() = this[NPCCapability::class].icon
+        set(value) {
+            this[NPCCapability::class].icon = value
+        }
+
+    var name: String
+        get() = displayName.string
+        set(value) {
+            customName = value.literal
+            isCustomNameVisible = true
+        }
+
+    fun seat() {
+        SeatEntity.seat(this, direction)
+    }
+
+    fun standup() {
+        vehicle?.let { stopRiding() }
+    }
+
+    fun clearTarget() {
+        target = null
     }
 
     companion object {
-        val EMPTY_INTERACT: (Player) -> Unit = {}
-
         @JvmField
         val sizeX: EntityDataAccessor<Float> =
             SynchedEntityData.defineId(NPCEntity::class.java, EntityDataSerializers.FLOAT)

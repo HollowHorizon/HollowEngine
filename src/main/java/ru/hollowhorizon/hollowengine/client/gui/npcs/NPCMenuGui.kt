@@ -221,9 +221,9 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
 
         image("hollowengine:textures/gui/npc_menu/nickname.png".rl.toTexture().id, 90f * scale, 20f * scale)
 
-        val size = calcTextSize(npc.name.string)
+        val size = calcTextSize(npc.name)
         setCursorPos(379 * scale - size.x / 2, 50 * scale - size.y / 2)
-        Graphics.textShadow(npc.name.string)
+        Graphics.textShadow(npc.name)
 
         setCursorPos(320f * scale, 63 * scale)
 

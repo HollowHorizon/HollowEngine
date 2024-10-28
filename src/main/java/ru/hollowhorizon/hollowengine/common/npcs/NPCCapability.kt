@@ -21,7 +21,6 @@ class NPCCapability : CapabilityInstance() {
     var hitboxMode by syncable(HitboxMode.PULLING)
     var icon by syncable(NpcIcon.EMPTY)
     var mouseButton by syncable(HoverIcon.NONE)
-    var script by syncable("%empty%")
 
     val trades by syncableList<TradeOffer>()
     var currentTrade by syncable(-1)

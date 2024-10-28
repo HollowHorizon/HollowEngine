@@ -12,9 +12,9 @@ import ru.hollowhorizon.hc.client.utils.literal
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 
 fun npc(
+    pos: Vec3,
     name: String = "NPC",
     model: String = "hollowengine:models/entity/player_model.gltf",
-    pos: Vec3,
     rotation: Vec2 = rotation(0, 0),
     world: String = "minecraft:overworld",
     size: Pair<Float, Float> = 1.8f to 1.6f,

@@ -22,6 +22,7 @@ val cfg = rootProject.file("user.properties")
 val hasConfig = cfg.exists()
 if (hasConfig) userConfig.load(cfg.inputStream())
 
+val compilerPluginVersion = fromProperties("compiler_plugin")
 val modId = fromProperties("mod_id")
 val javaVersion = fromProperties("java_version")
 val minecraftVersion = stonecutter.current.project.substringBeforeLast('-')
@@ -143,12 +144,12 @@ dependencies {
     implementation("org.ow2.asm:asm-tree:9.7")
     implementation("org.anarres:jcpp:1.4.14")
     implementation("io.github.douira:glsl-transformer:2.0.1")
-    implementation("ru.hollowhorizon:HollowEnginePlugin:1.2a")
+    implementation("ru.hollowhorizon:HollowEnginePlugin:$compilerPluginVersion")
 }
 
 tasks.withType<KotlinCompile> {
     compilerOptions {
-        freeCompilerArgs.add("-Xplugin=${rootDir.resolve("libs/HollowEnginePlugin-1.2a.jar")}")
+        freeCompilerArgs.add("-Xplugin=${rootDir.resolve("libs/HollowEnginePlugin-$compilerPluginVersion.jar")}")
     }
 }
 

@@ -34,35 +34,6 @@ object HollowEngine {
         PinsRegistry
 
         loadEvents()
-
-        var isLoaded = false
-        ImGuiHandler.frames.add {
-            if(!isLoaded) {
-                ImGui.loadIniSettingsFromDisk("hollowengine.ini")
-                isLoaded = true
-            }
-            var ideGui by remember { false }
-
-            ImGui.beginMainMenuBar()
-            if (ImGui.menuItem("Окна")) {
-                ImGui.openPopup("windows")
-            }
-
-            if (ImGui.beginPopup("windows")) {
-                if(ImGui.selectable("Среда разработки")) ideGui = !ideGui
-                ImGui.selectable("Браузер ресурсов")
-                ImGui.selectable("Block Bench")
-                ImGui.selectable("Tik Tok")
-                ImGui.endPopup()
-            }
-
-            if(ideGui) with(IDEGuiV2) {render()}
-
-            ImGui.menuItem("Настройки")
-            ImGui.endMainMenuBar()
-
-            ImGui.saveIniSettingsToDisk("hollowengine.ini")
-        }
     }
 }
 
