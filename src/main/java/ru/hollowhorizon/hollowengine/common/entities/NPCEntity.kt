@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
-import net.minecraft.core.Vec3i
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.syncher.EntityDataAccessor
 import net.minecraft.network.syncher.EntityDataSerializers

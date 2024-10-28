@@ -6,16 +6,20 @@ import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.common.scripting.core.host.HollowEngineScriptingHost
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.io.PrintStream
+import java.util.jar.JarEntry
+import java.util.jar.JarInputStream
+import java.util.jar.JarOutputStream
+import java.util.jar.Manifest
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.host.FileScriptSource
 import kotlin.script.experimental.host.StringScriptSource
 import kotlin.script.experimental.host.createCompilationConfigurationFromTemplate
-import kotlin.script.experimental.jvm.impl.KJvmCompiledScript
+import kotlin.script.experimental.jvm.impl.*
 import kotlin.script.experimental.jvm.util.isError
-import kotlin.script.experimental.jvmhost.BasicJvmScriptJarGenerator
 import kotlin.script.experimental.jvmhost.JvmScriptCompiler
-import kotlin.script.experimental.jvmhost.loadScriptFromJar
+import kotlin.script.experimental.util.PropertiesCollection
 
 fun <R> ResultWithDiagnostics<R>.orException(): R = valueOr {
     throw IllegalStateException(
@@ -76,7 +80,7 @@ object ScriptingCompiler {
         val compiledJar = script.resolveCompiledJar()
         val hashcode = script.readText().hashCode().toString()
 
-        if (compiledJar.exists()) return loadCompiledScript(script, compiledJar, hashcode)
+        if (compiledJar.exists() && compiledJar.loadScriptHashCode() == hashcode) return loadCompiledScript(script, compiledJar, hashcode)
 
         val compiler = JvmScriptCompiler(hostConfiguration)
         val result = compiler(FileScriptSource(script), compilationConfiguration)
@@ -92,20 +96,21 @@ object ScriptingCompiler {
         scriptFile: File? = null,
         compiledJar: File? = null,
     ): CompiledScript {
+        val hash = scriptFile?.readText()?.hashCode()?.toString() ?: ""
         val compiledScript = result.valueOrNull() as KJvmCompiledScript
         return CompiledScript(
             scriptName,
-            scriptFile?.readText()?.hashCode()?.toString() ?: "",
-            compiledScript.obfuscate(scriptName),
+            hash,
+            compiledScript.obfuscate(scriptName, hash),
             scriptFile ?: File(scriptName)
         ).apply {
             if (result.isError()) {
                 handleErrors(result, scriptFile)
             } else {
                 compiledJar?.let {
-                    compiledScript.saveScriptToJar(it)
-                    ScriptCompiledEvent(scriptFile ?: error("Script file not found")).post()
+                    save(it)
                 }
+                ScriptCompiledEvent(scriptFile ?: error("Script file not found")).post()
             }
         }
     }
@@ -148,7 +153,49 @@ object ScriptingCompiler {
     fun loadCompiledScript(script: File, jar: File, hashcode: String) =
         CompiledScript(script.name, hashcode, jar.loadScriptFromJar(), script)
 
-    suspend fun KJvmCompiledScript.saveScriptToJar(outputJar: File) {
-        BasicJvmScriptJarGenerator(outputJar)(this, ScriptEvaluationConfiguration())
+    fun KJvmCompiledScript.saveScriptToJar(outputJar: File, hash: String) {
+        val module = (getCompiledModule() as? KJvmCompiledModuleInMemory)
+            ?: throw IllegalArgumentException("Unsupported module type ${getCompiledModule()}")
+
+        return FileOutputStream(outputJar).use {
+            val manifest = Manifest().apply {
+                mainAttributes.apply {
+                    putValue("Manifest-Version", "1.0")
+                    putValue("Created-By", "HollowCore ScriptingEngine")
+                    putValue("Script-Hashcode", hash)
+                    putValue("Main-Class", scriptClassFQName)
+                }
+            }
+
+            JarOutputStream(it, manifest).use { jar ->
+                // Write sanitized compiled script metadata
+                jar.putNextEntry(JarEntry(scriptMetadataPath(scriptClassFQName)))
+                jar.write(copyWithoutModule().apply(::shrinkSerializableScriptData).toBytes())
+                jar.closeEntry()
+
+                // Write each output file
+                module.compilerOutputFiles.forEach { (path, bytes) ->
+                    jar.putNextEntry(JarEntry(path))
+                    jar.write(bytes)
+                    jar.closeEntry()
+                }
+
+                jar.finish()
+                jar.flush()
+            }
+            it.flush()
+        }
+    }
+
+    private fun shrinkSerializableScriptData(compiledScript: KJvmCompiledScript) {
+        (compiledScript.compilationConfiguration.entries() as? MutableSet<Map.Entry<PropertiesCollection.Key<*>, Any?>>)
+            ?.removeIf { it.key == ScriptCompilationConfiguration.dependencies || it.key == ScriptCompilationConfiguration.defaultImports }
+    }
+
+    fun File.loadScriptHashCode() = inputStream().use { istream ->
+        JarInputStream(istream).use {
+            it.manifest.mainAttributes.getValue("Script-Hashcode")
+                ?: throw IllegalArgumentException("No Script-Hashcode manifest attribute")
+        }
     }
 }

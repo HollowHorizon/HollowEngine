@@ -12,7 +12,6 @@ import kotlin.script.experimental.api.ScriptDiagnostic
 import kotlin.script.experimental.api.ScriptEvaluationConfiguration
 import kotlin.script.experimental.jvm.BasicJvmScriptEvaluator
 import kotlin.script.experimental.jvm.impl.KJvmCompiledScript
-import kotlin.script.experimental.jvmhost.loadScriptFromJar
 
 data class CompiledScript(
     val scriptName: String,
@@ -25,7 +24,7 @@ data class CompiledScript(
     fun save(file: File) {
         if (script == null) return
         runBlocking {
-            (script as? KJvmCompiledScript)?.saveScriptToJar(file)
+            (script as? KJvmCompiledScript)?.saveScriptToJar(file, hash)
         }
     }
 
@@ -63,24 +62,24 @@ data class CompiledScript(
     }
 }
 
-suspend fun KJvmCompiledScript.obfuscate(name: String): kotlin.script.experimental.api.CompiledScript {
-    if (true || !isProduction) return this
+suspend fun KJvmCompiledScript.obfuscate(name: String, hash: String): kotlin.script.experimental.api.CompiledScript {
+    if (!isProduction) return this
 
     val source = File("hollowcore/$name.jar")
-    saveScriptToJar(source)
+    saveScriptToJar(source, hash)
 
     Remapper.remap(
         Remapper.OBFUSCATE_REMAPPER,
         arrayOf(source),
         File("hollowcore/.classpath/").toPath(),
-        *File("hollowcore/.classpath/").walk().map { it.toPath() }.toList().toTypedArray()
+        *deobfClasspath.map { it.toPath() }.toTypedArray()
     )
 
     source.delete()
     val script = File("hollowcore/.classpath/$name.jar")
 
     val obf = script.loadScriptFromJar()
-    obf?.getClass(null) // инициализируем скрипт
+    obf.getClass(null) // инициализируем скрипт
     script.delete()
     return obf ?: throw IllegalStateException("Script can't be loaded!")
 }
