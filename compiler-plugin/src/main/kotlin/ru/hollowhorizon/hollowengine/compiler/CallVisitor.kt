@@ -63,7 +63,7 @@ class CallVisitor(private val context: IrPluginContext) : IrElementTransformerVo
                 expression.endOffset
             )
 
-            if (expression.symbol.owner.annotations.hasAnnotation(Suspendable)) {
+            if (expression.symbol.owner.annotations.hasAnnotation(Suspendable.asSingleFqName())) {
                 return builder.irCall(
                     expression.symbol
                 ).apply {

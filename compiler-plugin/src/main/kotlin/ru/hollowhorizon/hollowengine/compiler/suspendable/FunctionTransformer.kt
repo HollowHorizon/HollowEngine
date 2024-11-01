@@ -5,12 +5,6 @@ import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irThrow
 import org.jetbrains.kotlin.backend.jvm.functionByName
-import org.jetbrains.kotlin.fir.backend.FirMetadataSource
-import org.jetbrains.kotlin.fir.declarations.builder.FirValueParameterBuilder
-import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
-import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
-import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
-import org.jetbrains.kotlin.fir.types.toLookupTag
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.backend.js.JsStatementOrigins
 import org.jetbrains.kotlin.ir.backend.js.utils.typeArguments
@@ -28,7 +22,6 @@ import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.name.StandardClassIds
 import ru.hollowhorizon.hollowengine.compiler.identifiers.ResumeState
 import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendContext
 import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendState
@@ -42,6 +35,7 @@ object FunctionTransformer {
 
     fun DeclarationIrBuilder.transformFunction(function: IrFunction) {
         function.transformChildrenVoid(PropertyTransformer(function))
+
         function.body = context.irBuiltIns.createIrBuilder(
             function.symbol, function.startOffset, function.endOffset
         ).irBlockBody {
@@ -69,7 +63,7 @@ object FunctionTransformer {
                         ).first()
                     ) {
                         processAwait(context, stmt)
-                    } else if (stmt.symbol.owner.annotations.hasAnnotation(Suspendable)) {
+                    } else if (stmt.symbol.owner.annotations.hasAnnotation(Suspendable.asSingleFqName())) {
                         processSuspendable(context, stmt)
                     } else {
                         processStatement(context, stmt)
@@ -80,7 +74,7 @@ object FunctionTransformer {
                 is IrBlock -> transform(context, stmt.statements)
                 is IrReturn -> {
                     val value = stmt.value
-                    if (value is IrCall && value.symbol.owner.annotations.hasAnnotation(Suspendable)) {
+                    if (value is IrCall && value.symbol.owner.annotations.hasAnnotation(Suspendable.asSingleFqName())) {
                         processSuspendable(context, value, true)
                     }
                 }
@@ -112,7 +106,7 @@ object FunctionTransformer {
         }
         context.suspend(true) // Останавливаем текущее состояние
         context.nextBranch {
-            if(stmt.symbol.owner.valueParameters.last().type != ctx.referenceClass(SuspendContext)?.defaultType) {
+            if (stmt.symbol.owner.valueParameters.last().type != ctx.referenceClass(SuspendContext)?.defaultType) {
                 stmt.symbol.owner.returnType = ctx.irBuiltIns.anyNType
                 stmt.symbol.owner.addValueParameter("suspendContext", ctx.referenceClass(SuspendContext)!!.defaultType)
             }
@@ -151,6 +145,12 @@ object FunctionTransformer {
                 +irCall(remover).apply {
                     dispatchReceiver = irGet(context.suspendContext)
                     putValueArgument(0, irString("<inner-context>"))
+                }
+                +irCall(setter).apply {
+                    dispatchReceiver = irGet(context.suspendContext)
+                    putValueArgument(0, irString("suspendArg0"))
+                    putValueArgument(1, irCall(suspendContextType.constructors.first()))
+                    putTypeArgument(0, suspendContextType.defaultType)
                 }
                 +irReturn(irGetObject(ctx.referenceClass(ResumeState)!!))
 
@@ -265,7 +265,6 @@ class TransformContext(
                 dispatchReceiver = irGet(suspendContext)
             }
             val temp = irTemporary(call)
-
 
             +IrWhenImpl(startOffset,
                 endOffset,

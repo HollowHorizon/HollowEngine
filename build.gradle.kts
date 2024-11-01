@@ -106,7 +106,7 @@ dependencies {
     compileOnly("org.spongepowered:mixin:0.8.7")
 
     // KOTLIN //
-    dependency("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.15a:dev")
+    dependency("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.16:dev")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.0")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.0.0")
     dependency("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")

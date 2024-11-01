@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.commands
 
+import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.brigadier.arguments.StringArgumentType
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
@@ -18,6 +19,7 @@ import ru.hollowhorizon.hc.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hc.common.events.tick.TickEvent
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hollowengine.client.gui.npcs.dialogue.DialogueGui
 import ru.hollowhorizon.hollowengine.client.gui.scripting.roundTo
 import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -54,8 +56,12 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                 CopyTextPacket(itemCommand).send(player)
             }
 
+            "dialogue" {
+                OpenScreenPacket().send(source.playerOrException)
+            }
+
             "model"(
-                arg("model", StringArgumentType.greedyString(), listModels()),
+                arg("model", StringArgumentType.greedyString(), ::listModels),
             ) {
                 val player = source.playerOrException
                 val model = StringArgumentType.getString(this, "model")
@@ -72,9 +78,10 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
             "start-script"(
                 arg(
                     "script",
-                    StringArgumentType.greedyString(),
+                    StringArgumentType.greedyString()
+                ) {
                     DirectoryManager.storyScripts.map { it.toReadablePath() }.toList()
-                )
+                }
             ) {
                 val raw = StringArgumentType.getString(this, "script")
                 val script = raw.fromReadablePath()
@@ -121,6 +128,15 @@ fun listModels(): Collection<String> {
         }
 
     return list
+}
+
+@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
+@Serializable
+class OpenScreenPacket : HollowPacketV3<OpenScreenPacket> {
+    override fun handle(player: Player) {
+        RenderSystem.recordRenderCall { DialogueGui.open() }
+    }
+
 }
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)

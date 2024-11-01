@@ -64,8 +64,10 @@ class PluginTester {
                             data++
                             var aaa = 0
                             aaa+=10
-                            println(time+aaa)
-                            
+                            println(time+aaa)                            
+                            do {
+                                println("aaa")
+                            } while(time > 3)
                             while (time < 4) println("AAAA: "+data)
                         }
                         println(time+2)
@@ -104,28 +106,27 @@ class PluginTester {
                     @Suspendable
                     fun test(time: Int): Int {
                         println(time)
-                        @Ignore
-                        val b = 3
                         val data = 2
                         for(i in 1..10) println(i)
-                        println(1242)
+                        if(data > 3) {
+                            test(1242)
+                            val r = test(1242)
+                            test(r)
+                        }
                         return data
                     }
                     @Suspendable
                     fun debug(time: Int): Int {
                         println(time)
                         test(time+1)
-                        return time
-                    }
-                    
-
-                    fun main() {
-                        val launcher = SuspendLauncher { 
-                            debug(10)
-                        }
-                        
-                        launcher.tick()
-                        if(launcher.isEnd) println(launcher.result)
+                        println(time)
+                        test(test(test(time+1)))
+                        println(time)
+                        test(time+1)
+                        println(time)
+                        test(time+1)
+                        println(time)
+                        return test(time+1)
                     }
                 """.trimIndent()
             )
@@ -178,7 +179,8 @@ class PluginTester {
             println("Hello")
             var data = 1
             println(data)
-            println({"hello"})
+            println(message = "aaa")
+            println({"hello"+data})
             data += 2
             """.trimIndent()
         )

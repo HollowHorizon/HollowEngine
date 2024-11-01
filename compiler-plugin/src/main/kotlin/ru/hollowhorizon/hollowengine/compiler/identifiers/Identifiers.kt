@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 
-val Suspendable = FqName("ru.hollowhorizon.hollowengine.scripting.Suspendable")
+val Suspendable = ClassId(FqName("ru.hollowhorizon.hollowengine.scripting"), Name.identifier("Suspendable"))
 val United = ClassId(FqName("ru.hollowhorizon.hollowengine.scripting"), Name.identifier("United"))
 val Ignore = ClassId(FqName("ru.hollowhorizon.hollowengine.scripting"), Name.identifier("Ignore"))
 val Metadata = ClassId(FqName("kotlin"), Name.identifier("Metadata"))
