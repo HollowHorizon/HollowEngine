@@ -19,7 +19,7 @@
   "1_he.0_welcome.table1": "! Предупреждаю !",
   "1_he.0_welcome.table1.text0": "Почти вся докуметация написана: '_BENDY659_'",
   "1_he.0_welcome.table1.text1": "Если вы нашли где-то: ошибку или несостыковку - Сообщите мне на Официальном Discord сервере",
-  "1_he.0_welcome.table1.text2": "Не беспокойте по этой проблеме 'HollowHorizon' и 'AlgorithmLX'. Т.к. к этому он может быть даже не причастен!",
+  "1_he.0_welcome.table1.text2": "Не беспокойте по этой проблеме 'HollowHorizon' и 'AlgorithmLX'. Т.к. к этому они могут быть даже не причастны!",
 
   "1_he.1_begin": "Начало",
 
@@ -63,6 +63,10 @@
   "1_he.1_begin.1_new_directory.tabs.tab6.text1": "Создаётся автоматически.",
   "1_he.1_begin.1_new_directory.tabs.tab6.button": "Открыть папку [storyteller_dimension]",
   "1_he.1_begin.1_new_directory.tabs.tab6.button_desc": "При нажатии открывает папку 'storyteller_dimension', внутри директории 'hollowengine'",
+
+  "1_he.1_begin.2_commands": "/Команды",
+  "1_he.1_begin.2_commands.text0": "Прописав символ для команд '/'",
+  "1_he.1_begin.2_commands.text1": "вы заметили новую команду",
 
   "1_he.2_story_events":  "Сюежтные события",
 

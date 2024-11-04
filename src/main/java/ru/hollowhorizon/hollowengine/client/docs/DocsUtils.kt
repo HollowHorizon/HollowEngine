@@ -9,6 +9,7 @@ import net.minecraft.Util
 import ru.hollowhorizon.hc.client.imgui.Graphics
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
+import ru.hollowhorizon.hollowengine.client.docs.TableType
 import ru.hollowhorizon.hollowengine.client.gui.scripting.KOTLIN_LANG
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectory
@@ -138,9 +139,9 @@ object DocsUtils {
     }
 
     /**
-     * @author _BENDY659_
-     *
      * Better Button / Улучшенная кнопка
+     *
+     * @author _BENDY659_
      */
     fun button(
         buttonId: String,
@@ -228,13 +229,12 @@ object DocsUtils {
 val EDITOR = TextEditor().apply {
     setLanguageDefinition(KOTLIN_LANG)
 
-    tabSize = 4
+    tabSize = 2 // Будит 2 >:(
     text = ""
     isReadOnly = true
 }
 
 /* Classes class helpers */
-
 enum class TableType(val borderColor: IntArray, val backgroundColor: IntArray) {
     NOTE(intArrayOf(163, 163, 136, 255), intArrayOf(30, 40, 60, 156)),
     INFO(intArrayOf(50, 120, 207, 255), intArrayOf(7, 27, 96, 156)),
