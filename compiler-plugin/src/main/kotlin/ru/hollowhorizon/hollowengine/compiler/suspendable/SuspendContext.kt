@@ -7,17 +7,26 @@ package ru.hollowhorizon.hollowengine.compiler.suspendable
 open class SuspendContext {
     var index = 0
     val properties = hashMapOf<String, Any?>()
+    val asyncControllers = hashSetOf<Int>()
 
     fun <T> setProperty(name: String, value: T) {
         properties[name] = value
     }
 
     fun <T> getProperty(name: String): T {
-        return properties[name]!! as T
+        return properties[name] as? T ?: throw IllegalArgumentException("Property $name not found!")
     }
 
     fun removeProperty(name: String) {
         properties.remove(name)
+    }
+
+    fun resetLocks() {
+        properties.filter { it.key.startsWith("<async_") }.map { it.value as AsyncContext }.forEach {
+            it.context.setProperty("\$lock", false)
+            it.context.resetLocks()
+        }
+        (properties["<inner-context>"] as? SuspendContext)?.resetLocks()
     }
 }
 
@@ -29,10 +38,12 @@ class SuspendLauncher(val runnable: SuspendContext.() -> Any?) {
     fun tick() {
         if (isEnd) return
 
+        context.resetLocks()
+
         with(context) {
             var result = runnable()
             while (result == ResumeState) result = runnable()
-            if(result == SuspendState) return
+            if (result == SuspendState) return
             isEnd = true
             this@SuspendLauncher.result = result
         }

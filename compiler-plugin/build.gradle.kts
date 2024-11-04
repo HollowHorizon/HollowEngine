@@ -6,7 +6,8 @@ plugins {
     kotlin("plugin.serialization")
 }
 
-version = "1.3"
+val kotlinVersion: String by rootProject
+version = "1.4a"
 
 base {
     archivesName = "HollowEnginePlugin"
@@ -17,28 +18,28 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-serialization-compiler-plugin:2.0.0")
+    implementation("org.jetbrains.kotlin:kotlin-serialization-compiler-plugin:$kotlinVersion")
 
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 
     // SCRIPTING //
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jvm:2.0.0")
-    implementation("org.jetbrains.kotlin:kotlin-scripting-jvm-host:2.0.0")
-    implementation("org.jetbrains.kotlin:kotlin-script-runtime:2.0.0")
-    implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.0.0")
-    implementation("org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:2.0.0")
-    implementation("org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:2.0.0")
-    implementation("org.jetbrains.kotlin:kotlin-metadata-jvm:2.0.0")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jvm:$kotlinVersion")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-jvm-host:$kotlinVersion")
+    implementation("org.jetbrains.kotlin:kotlin-script-runtime:$kotlinVersion")
+    implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:$kotlinVersion")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:$kotlinVersion")
+    implementation("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.4.0")
-    implementation("org.jetbrains.kotlin:kotlin-scripting-common:2.0.0")
+    implementation("org.jetbrains.kotlin:kotlin-scripting-common:$kotlinVersion")
 
-    implementation("org.jetbrains.kotlin:kotlin-metadata-jvm:2.0.0")
+    implementation("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
 
     testImplementation(kotlin("test-junit"))
     testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable")
-    testImplementation("dev.zacsweers.kctfork:core:0.5.1")
+    testImplementation("dev.zacsweers.kctfork:core:0.6.0-alpha01")
 }
 
 java {

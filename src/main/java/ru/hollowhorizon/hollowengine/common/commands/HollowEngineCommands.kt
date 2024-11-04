@@ -105,10 +105,15 @@ class Listener(val story: StoryEvent) : EventListener<TickEvent.Server> {
     val context = SuspendContext()
 
     override fun onEvent(event: TickEvent.Server) {
-        if (disable || !event.server.isRunning) return
-        var result = story.tick(context)
-        while (result == ResumeState) result = story.tick(context)
-        if (result == SuspendState) return
+        context.resetLocks()
+        try {
+            if (disable || !event.server.isRunning) return
+            var result = story.tick(context)
+            while (result == ResumeState) result = story.tick(context)
+            if (result == SuspendState) return
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         disable = true
         event.server.playerList.players.forEach { it.sendToast("Скрипт завершён.".literal) }
     }

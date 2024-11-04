@@ -1,13 +1,9 @@
 package ru.hollowhorizon.hollowengine.compiler
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
-import org.jetbrains.kotlin.backend.common.checkDeclarationParents
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
-import org.jetbrains.kotlin.backend.common.pop
-import org.jetbrains.kotlin.backend.common.push
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.IrImplementationDetail
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -16,25 +12,26 @@ import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.visitors.*
-import ru.hollowhorizon.hollowengine.compiler.identifiers.ArrayList
 import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendContext
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
 import ru.hollowhorizon.hollowengine.compiler.script.ScriptRelocator
-import ru.hollowhorizon.hollowengine.compiler.suspendable.FunctionTransformer.ctx
-import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendCallTransformer
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendableTransformer
 import java.io.File
 import kotlin.metadata.jvm.KotlinClassMetadata
 
+lateinit var pluginContext: IrPluginContext
+
 class HollowEngineGenerationExtension : IrGenerationExtension {
-    override fun generate(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
-        ctx = pluginContext
+    override fun generate(moduleFragment: IrModuleFragment, context: IrPluginContext) {
+        pluginContext = context
 
         val transformer = object : IrElementTransformerVoid() {
             override fun visitFunction(declaration: IrFunction): IrStatement {
-                if (!declaration.annotations.hasAnnotation(Suspendable.asSingleFqName())) return super.visitFunction(declaration)
+                if (!declaration.annotations.hasAnnotation(Suspendable.asSingleFqName())) return super.visitFunction(
+                    declaration
+                )
 
-                val type = ctx.referenceClass(SuspendContext)!!.defaultType
+                val type = context.referenceClass(SuspendContext)!!.defaultType
                 declaration.addValueParameter("suspendContext", type)
                 declaration.returnType = pluginContext.irBuiltIns.anyNType
 
@@ -46,8 +43,6 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
         moduleFragment.transform(transformer, null)
         moduleFragment.transform(SuspendableTransformer(pluginContext), null)
         moduleFragment.transform(CallVisitor(pluginContext), null)
-
-        moduleFragment.checkDeclarationParents()
     }
 
 }

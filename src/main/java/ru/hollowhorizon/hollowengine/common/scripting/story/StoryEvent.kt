@@ -9,7 +9,6 @@ import kotlin.script.experimental.api.defaultImports
 
 //TODO: Функция ввода из чата
 //TODO: Гуишки
-//TODO: Async-методы
 
 @KotlinScript(
     displayName = "Story Event",

@@ -128,6 +128,15 @@ class PluginTester {
                         println(time)
                         return test(time+1)
                     }
+
+                    fun main() {
+                        val launcher = SuspendLauncher { 
+                            debug(10)
+                        }
+                        
+                        launcher.tick()
+                        if(launcher.isEnd) println(launcher.result)
+                    }
                 """.trimIndent()
             )
         )
@@ -143,14 +152,24 @@ class PluginTester {
         val result = compile(
             SourceFile.kotlin(
                 "main.kt", """
-                    import ru.hollowhorizon.hollowengine.scripting.Suspendable
+                    import ru.hollowhorizon.hollowengine.scripting.*
                     import ru.hollowhorizon.hollowengine.compiler.suspendable.*
 
                     @Suspendable
                     fun debug(time: Int): Int {
-                        println(time)
-                        for(i in 0..10) println(i)
-                        return time
+                        println("Hmm")
+                        val test = 1
+                        val r = async { 
+                            // Тут могут быть вызваны suspendable функции
+                            time + test
+                        }
+                        println("1")
+                        r.start()
+                        println("2")
+                        r.join()
+                        println("3")
+                        r.stop()
+                        return 0
                     }
                     
 
@@ -172,13 +191,27 @@ class PluginTester {
             .invoke(null, null)
     }
 
+    // Я без понятия почему, но при запуске общих тестов он как будто обрабатывает этот код несколько раз
+    // При запуске конкретно этого теста проблемы нет.
     @Test
     fun `Script Test`() {
         val result = compileScript<StoryEvent>(
             """
+            import ru.hollowhorizon.hollowengine.scripting.*
+            import ru.hollowhorizon.hollowengine.compiler.suspendable.*
+            
+            fun test() {println("helloworld")}
             println("Hello")
             var data = 1
             println(data)
+            
+            val async = async {
+                await(data>10)
+            }
+            
+            async.start()
+            async.join()
+            
             println(message = "aaa")
             println({"hello"+data})
             data += 2

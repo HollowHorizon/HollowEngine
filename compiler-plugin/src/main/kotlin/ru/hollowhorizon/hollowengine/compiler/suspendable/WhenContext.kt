@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.compiler.suspendable
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.jvm.functionByName
+import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.IrBlock
@@ -14,13 +15,13 @@ import org.jetbrains.kotlin.ir.util.getPropertySetter
 import ru.hollowhorizon.hollowengine.compiler.identifiers.ResumeState
 import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendContext
 import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendState
-import ru.hollowhorizon.hollowengine.compiler.suspendable.FunctionTransformer.ctx
+import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
 class WhenContext(
     val builder: DeclarationIrBuilder,
     val whenStatement: IrWhen,
     val stateVar: IrExpression,
-    var suspendContext: IrValueParameter,
+    var suspendContext: IrExpression,
     var context: IrPluginContext,
     var nextBranch: Int = 0,
 ) {
@@ -40,7 +41,7 @@ class WhenContext(
         nextBranch()
     }
 
-    fun append(call: IrExpression) {
+    fun append(call: IrStatement) {
         (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.add(call)
     }
 
@@ -51,17 +52,17 @@ class WhenContext(
     fun switchState() {
         append(with(builder) {
             irCall(suspendSetter).apply {
-                dispatchReceiver = irGet(suspendContext)
+                dispatchReceiver = suspendContext
                 putValueArgument(0, irInt(nextBranch))
             }
         })
     }
 
     fun returnResume() {
-        append(builder.irReturn(builder.irGetObject(ctx.referenceClass(ResumeState)!!)))
+        append(builder.irReturn(builder.irGetObject(pluginContext.referenceClass(ResumeState)!!)))
     }
 
     fun returnSuspend() {
-        append(builder.irReturn(builder.irGetObject(ctx.referenceClass(SuspendState)!!)))
+        append(builder.irReturn(builder.irGetObject(pluginContext.referenceClass(SuspendState)!!)))
     }
 }

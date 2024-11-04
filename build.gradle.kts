@@ -22,6 +22,7 @@ val cfg = rootProject.file("user.properties")
 val hasConfig = cfg.exists()
 if (hasConfig) userConfig.load(cfg.inputStream())
 
+val kotlinVersion = fromProperties("kotlinVersion")
 val compilerPluginVersion = fromProperties("compiler_plugin")
 val modId = fromProperties("mod_id")
 val javaVersion = fromProperties("java_version")
@@ -106,25 +107,26 @@ dependencies {
     compileOnly("org.spongepowered:mixin:0.8.7")
 
     // KOTLIN //
-    dependency("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.16:dev")
-    dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.0")
-    dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.0.0")
-    dependency("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
-    dependency("org.jetbrains.kotlin:kotlin-reflect:1.9.22")
-    dependency("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.1")
-    dependency("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
-    dependency("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0-RC")
+    dependency("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.18:dev")
+    include("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.18")
+    dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
+    dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
+    dependency("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
+    dependency("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
+    dependency("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.3")
+    dependency("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    dependency("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 
     // SCRIPTING //
-    dependency("org.jetbrains.kotlin:kotlin-scripting-jvm:2.0.0", true)
-    dependency("org.jetbrains.kotlin:kotlin-scripting-jvm-host:2.0.0", true)
-    dependency("org.jetbrains.kotlin:kotlin-script-runtime:2.0.0", true)
-    dependency("org.jetbrains.kotlin:kotlin-compiler-embeddable-mcfriendly:2.0.0", true)
-    dependency("org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:2.0.0", true)
-    dependency("org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:2.0.0", true)
-    dependency("org.jetbrains.kotlin:kotlin-metadata-jvm:2.0.0", true)
+    dependency("org.jetbrains.kotlin:kotlin-scripting-jvm:$kotlinVersion", true)
+    dependency("org.jetbrains.kotlin:kotlin-scripting-jvm-host:$kotlinVersion", true)
+    dependency("org.jetbrains.kotlin:kotlin-script-runtime:$kotlinVersion", true)
+    dependency("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion", true)
+    dependency("org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:$kotlinVersion", true)
+    dependency("org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:$kotlinVersion", true)
+    dependency("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion", true)
     dependency("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.4.0", true)
-    dependency("org.jetbrains.kotlin:kotlin-scripting-common:2.0.0", true)
+    dependency("org.jetbrains.kotlin:kotlin-scripting-common:$kotlinVersion", true)
 
     dependency("net.fabricmc:tiny-remapper:0.10.4", true)
     dependency("net.fabricmc:mapping-io:0.6.1", true)
@@ -145,13 +147,11 @@ dependencies {
     implementation("org.anarres:jcpp:1.4.14")
     implementation("io.github.douira:glsl-transformer:2.0.1")
     dependency("ru.hollowhorizon:HollowEnginePlugin:$compilerPluginVersion", true)
+
+    kotlinCompilerPluginClasspath("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion")
+    kotlinCompilerPluginClasspath("ru.hollowhorizon:HollowEnginePlugin:$compilerPluginVersion")
 }
 
-tasks.withType<KotlinCompile> {
-    compilerOptions {
-        freeCompilerArgs.add("-Xplugin=${rootDir.resolve("libs/HollowEnginePlugin-$compilerPluginVersion.jar")}")
-    }
-}
 
 afterEvaluate {
     stonecutter {
