@@ -116,6 +116,7 @@ class Listener(val story: StoryEvent) : EventListener<TickEvent.Server> {
         }
         disable = true
         event.server.playerList.players.forEach { it.sendToast("Скрипт завершён.".literal) }
+        EventBus.unregister(this)
     }
 }
 

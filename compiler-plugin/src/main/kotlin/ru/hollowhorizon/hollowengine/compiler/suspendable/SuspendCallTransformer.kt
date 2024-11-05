@@ -240,6 +240,9 @@ class SuspendCallTransformer(
                 }
                 return null
             }
+            is IrClassReference -> {
+                return null
+            }
 
             else -> error("Unexpected statement $statement")
         }

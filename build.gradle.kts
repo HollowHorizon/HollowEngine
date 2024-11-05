@@ -107,8 +107,8 @@ dependencies {
     compileOnly("org.spongepowered:mixin:0.8.7")
 
     // KOTLIN //
-    dependency("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.18:dev")
-    include("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.18")
+    dependency("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.19b:dev")
+    include("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.19b")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
     dependency("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
@@ -342,8 +342,8 @@ fun DependencyHandlerScope.setupLoader(loader: String, version: String) {
                 "1.20.1" -> {
                     "modImplementation"("net.fabricmc:fabric-loader:0.15.11")
                     "modImplementation"("net.fabricmc.fabric-api:fabric-api:0.92.2+$version")
-                    compileOnly("mods:sodium:0.5.11")
-                    compileOnly("mods:iris:1.7.2")
+                    modImplementation("mods:sodium:0.5.11")
+                    modImplementation("mods:iris:1.7.2")
                 }
 
                 "1.19.2" -> {
