@@ -24,9 +24,11 @@ class NPCCapability : CapabilityInstance() {
 
     val trades by syncableList<TradeOffer>()
     var currentTrade by syncable(-1)
+    var inventoryContainer by container(InventoryContainer(this))
     var tradeContainer by container(TradeContainer(this))
 }
 
+class InventoryContainer(capability: CapabilityInstance): HollowContainer(capability, 36, intArrayOf())
 class TradeContainer(capability: CapabilityInstance) : HollowContainer(capability, 7, intArrayOf(6)) {
     override fun canPlaceItem(slot: Int, stack: ItemStack): Boolean {
         val npcData = capability as NPCCapability

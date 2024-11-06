@@ -23,10 +23,8 @@ import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import ru.hollowhorizon.hollowengine.compiler.identifiers.AsyncContext
-import ru.hollowhorizon.hollowengine.compiler.identifiers.AsyncController
+import ru.hollowhorizon.hollowengine.compiler.identifiers.*
 import ru.hollowhorizon.hollowengine.compiler.identifiers.ResumeState
-import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendContext
 import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendState
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
@@ -240,6 +238,16 @@ class SuspendCallTransformer(
                 }
                 return null
             }
+
+            is IrStringConcatenation -> {
+                ArrayList(statement.arguments).forEachIndexed { i, arg ->
+                    val result = transformStatement(arg, true)
+                    result?.let { statement.arguments[i] = it }
+                }
+
+                return null
+            }
+
             is IrClassReference -> {
                 return null
             }
@@ -281,7 +289,7 @@ class SuspendCallTransformer(
                     nextBranch()
                     append(builder.irBlock {
                         val owner = call.symbol.owner
-                        if (owner.valueParameters.last().type != pluginContext.referenceClass(SuspendContext)?.defaultType) {
+                        if (owner.valueParameters.isEmpty() || owner.valueParameters.last().type != pluginContext.referenceClass(SuspendContext)?.defaultType) {
                             owner.returnType = pluginContext.irBuiltIns.anyNType
                             owner.addValueParameter(
                                 "suspendContext",

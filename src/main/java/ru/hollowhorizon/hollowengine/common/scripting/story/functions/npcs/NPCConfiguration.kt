@@ -16,5 +16,11 @@ fun NPCEntity.resetModel() {
 
 val NPCEntity.textures get() = this[AnimatedEntityCapability::class.java].textures
 val NPCEntity.animations get() = this[AnimatedEntityCapability::class.java].animations
-val NPCEntity.transform get() = this[AnimatedEntityCapability::class.java].transform
-val NPCEntity.switchHeadRot get() = this[AnimatedEntityCapability::class.java].switchHeadRot
+var NPCEntity.transform get() = this[AnimatedEntityCapability::class.java].transform
+    set(value) {
+        this[AnimatedEntityCapability::class.java].transform = value
+    }
+var NPCEntity.switchHeadRot get() = this[AnimatedEntityCapability::class.java].switchHeadRot
+    set(value) {
+        this[AnimatedEntityCapability::class.java].switchHeadRot = value
+    }

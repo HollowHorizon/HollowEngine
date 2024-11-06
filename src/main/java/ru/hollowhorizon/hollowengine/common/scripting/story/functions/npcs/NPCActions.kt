@@ -30,7 +30,7 @@ infix fun NPCEntity.move(mob: Entity): Unit = move(entity = mob)
 
 @Suspendable
 fun NPCEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
-    while (distanceToSqr(pos) > dist * dist) {
+    while (distanceToSqr(pos) > dist * dist || !navigation.isDone) {
         navigation.moveTo(navigation.createPath(pos.x, pos.y, pos.z, 0), speed)
     }
 
@@ -40,8 +40,23 @@ fun NPCEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
 @Suspendable
 infix fun NPCEntity.move(position: Vec3): Unit = move(pos = position)
 
-infix fun NPCEntity.look(position: Vec3) = lookControl.setLookAt(position)
-infix fun NPCEntity.look(entity: Entity) = lookControl.setLookAt(entity)
+@Suspendable
+infix fun NPCEntity.look(position: Vec3) {
+    var ticks = 30
+    while (ticks > 0) {
+        lookControl.setLookAt(position)
+        ticks--
+    }
+}
+
+@Suspendable
+infix fun NPCEntity.look(entity: Entity) {
+    var ticks = 30
+    while (ticks > 0) {
+        lookControl.setLookAt(entity)
+        ticks--
+    }
+}
 
 @Suspendable
 infix fun NPCEntity.useBlock(pos: Vec3) {

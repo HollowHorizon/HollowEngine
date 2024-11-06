@@ -7,7 +7,7 @@ plugins {
 }
 
 val kotlinVersion: String by rootProject
-version = "1.4b"
+version = "1.4c"
 
 base {
     archivesName = "HollowEnginePlugin"
