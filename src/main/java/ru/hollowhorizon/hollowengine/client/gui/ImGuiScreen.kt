@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.gui
 import com.mojang.blaze3d.Blaze3D
 import com.mojang.blaze3d.vertex.PoseStack
 import imgui.internal.ImGui
+import net.minecraft.client.Minecraft
 //? if >=1.20.1
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
@@ -12,6 +13,8 @@ import ru.hollowhorizon.hc.client.utils.math.Interpolation
 import ru.hollowhorizon.hc.client.utils.mcText
 
 abstract class ImGuiScreen : Screen("".mcText) {
+    val parent = Minecraft.getInstance().screen
+
     private var fadeTime = 0.0
     override fun init() {
         super.init()
@@ -23,11 +26,13 @@ abstract class ImGuiScreen : Screen("".mcText) {
         val alpha = (Blaze3D.getTime() - fadeTime).toFloat().coerceAtMost(1f)
         ImGui.getStyle().alpha = Interpolation.EXPO_OUT(alpha)
         ImGuiHandler.drawFrame { draw() }
-
     }
 
     abstract fun Graphics.draw()
 
     override fun isPauseScreen() = false
 
+    override fun onClose() {
+        Minecraft.getInstance().setScreen(parent)
+    }
 }

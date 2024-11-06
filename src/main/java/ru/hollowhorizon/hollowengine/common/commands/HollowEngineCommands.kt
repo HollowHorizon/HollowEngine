@@ -12,6 +12,8 @@ import ru.hollowhorizon.hc.client.models.internal.manager.GltfManager
 import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.onRegisterCommands
+import ru.hollowhorizon.hc.common.coroutines.onMainThreadSync
+import ru.hollowhorizon.hc.common.coroutines.scopeAsync
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hc.common.events.EventListener
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
@@ -26,7 +28,10 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
+import ru.hollowhorizon.hollowengine.common.scripting.story.ACTIVE_EVENTS
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
+import ru.hollowhorizon.hollowengine.common.scripting.story.StoryScript
+import ru.hollowhorizon.hollowengine.common.scripting.story.startEvent
 import ru.hollowhorizon.hollowengine.compiler.suspendable.ResumeState
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendState
@@ -85,38 +90,16 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
             ) {
                 val raw = StringArgumentType.getString(this, "script")
                 val script = raw.fromReadablePath()
-                runBlocking {
-                    val jar = ScriptingCompiler.compileFile<StoryEvent>(script)
 
-                    val result = jar.execute()
-                    val script = result.valueOrThrow().returnValue.scriptInstance as? StoryEvent
-                        ?: error("Script instance is null")
-
-                    EventBus.register(Listener(script))
+                if(!script.exists()) {
+                    HollowCore.LOGGER.warn("File $script does not exist!")
+                    source.player?.sendSystemMessage("File $script does not exist!".literal)
                 }
+
+                startEvent(script)
                 HollowCore.LOGGER.info("Started script $script")
             }
         }
-    }
-}
-
-class Listener(val story: StoryEvent) : EventListener<TickEvent.Server> {
-    private var disable = false
-    val context = SuspendContext()
-
-    override fun onEvent(event: TickEvent.Server) {
-        context.resetLocks()
-        try {
-            if (disable || !event.server.isRunning) return
-            var result = story.tick(context)
-            while (result == ResumeState) result = story.tick(context)
-            if (result == SuspendState) return
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        disable = true
-        event.server.playerList.players.forEach { it.sendToast("Скрипт завершён.".literal) }
-        EventBus.unregister(this)
     }
 }
 

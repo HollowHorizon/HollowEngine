@@ -5,7 +5,7 @@ import imgui.type.ImBoolean
 import ru.hollowhorizon.hc.client.imgui.Graphics
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.client.gui.HollowEngineGui
+import ru.hollowhorizon.hollowengine.client.gui.DashBoardScreen
 import ru.hollowhorizon.hollowengine.client.gui.ImGuiScreen
 
 
@@ -53,8 +53,8 @@ object BiomeModificator : ImGuiScreen() {
 }
 
 @SubscribeEvent
-fun onTabRegistry(event: HollowEngineGui.TabEvent) {
-    event.register(HollowEngineGui.Tab("biome_modifier") {
+fun onTabRegistry(event: DashBoardScreen.TabEvent) {
+    event.register(DashBoardScreen.Tab("biome_modifier") {
         BiomeModificator.open()
     })
 }

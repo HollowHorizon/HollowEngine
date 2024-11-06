@@ -1,16 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
-import kotlinx.serialization.Serializable
-import net.minecraft.core.BlockPos
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.IntTag
-import net.minecraft.nbt.ListTag
 import net.minecraft.world.entity.Entity
-import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.JavaHacks
 import ru.hollowhorizon.hc.client.utils.currentServer
-import ru.hollowhorizon.hc.client.utils.nbt.*
+import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
+import ru.hollowhorizon.hc.client.utils.nbt.deserializeNoInline
+import ru.hollowhorizon.hc.client.utils.nbt.serializeNoInline
 import ru.hollowhorizon.hollowengine.compiler.suspendable.AsyncContext
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
 
@@ -53,10 +50,4 @@ fun SuspendContext.deserialize(tag: CompoundTag): SuspendContext {
     asyncControllers.clear()
     asyncControllers.addAll(tag.getIntArray("async_ids").toList())
     return this
-}
-
-fun main() {
-    @Serializable
-    class Test(val bp: @Serializable(ForBlockPos::class) BlockPos)
-    println(NBTFormat.serialize(ForBlockPos, BlockPos(1, 1, 1)))
 }

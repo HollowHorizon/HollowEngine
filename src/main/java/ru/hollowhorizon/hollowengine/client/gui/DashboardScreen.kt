@@ -15,7 +15,7 @@ import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.docs.DocsRenderer
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGui
 
-object HollowEngineGui : ImGuiScreen() {
+object DashBoardScreen : ImGuiScreen() {
     val modTabs = ArrayList<Tab>()
 
     override fun init() {
@@ -30,26 +30,30 @@ object HollowEngineGui : ImGuiScreen() {
         val window = Minecraft.getInstance().window
         val width = window.width * 0.9f
         val height = window.height * 0.9f
-        ImGui.setNextWindowSize(width, height)
         ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 15f)
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 3f)
         ImGui.pushStyleVar(ImGuiStyleVar.WindowTitleAlign, 0.5f, 0.5f)
-        centredWindow(
-            "Меню HollowEngine",
-            ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize or ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.AlwaysAutoResize
-        ) {
+        ImGui.setNextWindowPos((window.width - width) / 2f, (window.height - height) / 2f)
+        ImGui.setNextWindowSize(width, height)
+        centredWindow("HollowEngine Меню", args = ImGuiWindowFlags.NoCollapse) {
             val size =
                 (ImGui.getContentRegionMax().x - ImGui.getStyle().itemSpacingX * 4) / 4 - ImGui.getStyle().framePaddingX * 2
 
             modTabs.forEachIndexed { index, npcOption ->
-                if (imageButton(npcOption.name, size)) npcOption.onClick()
+                // Не знаю почему, но эти кнопки иногда срабатывают при первом открытии окна...
+                // Как вариант дождёмся пока закончится анимация
+                if (imageButton(npcOption.name, size) && ImGui.getStyle().alpha > 0.5f) {
+                    npcOption.onClick()
+                }
                 if ((index + 1) % 4 != 0) ImGui.sameLine()
             }
         }
+
         ImGui.popStyleVar(3)
     }
 
     fun imageButton(image: String, size: Float): Boolean {
+        ImGui.pushID(image)
         val isClicked = ImGui.imageButton("hollowengine:textures/gui/icons/$image.png".rl.toTexture().id, size, size)
         ImGui.pushStyleVar(ImGuiStyleVar.PopupBorderSize, 3f)
         if (ImGui.isItemHovered()) ImGui.setTooltip(
@@ -60,6 +64,7 @@ object HollowEngineGui : ImGuiScreen() {
             //?}
         )
         ImGui.popStyleVar()
+        ImGui.popID()
         return isClicked
     }
 
@@ -72,7 +77,7 @@ object HollowEngineGui : ImGuiScreen() {
 }
 
 @SubscribeEvent
-fun onAddTab(event: HollowEngineGui.TabEvent) {
-    event.register(HollowEngineGui.Tab("code_editor", IDEGui::open))
-    event.register(HollowEngineGui.Tab("docs", DocsRenderer()::open))
+fun onAddTab(event: DashBoardScreen.TabEvent) {
+    event.register(DashBoardScreen.Tab("code_editor", IDEGui::open))
+    event.register(DashBoardScreen.Tab("docs", DocsRenderer()::open))
 }

@@ -107,8 +107,8 @@ dependencies {
     compileOnly("org.spongepowered:mixin:0.8.7")
 
     // KOTLIN //
-    dependency("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.19b:dev")
-    include("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.19b")
+    dependency("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.21a:dev")
+    include("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.21a")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
     dependency("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")

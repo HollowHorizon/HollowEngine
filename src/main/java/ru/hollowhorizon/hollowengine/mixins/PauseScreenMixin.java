@@ -10,8 +10,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import ru.hollowhorizon.hollowengine.client.gui.HollowEngineGui;
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGui;
+import ru.hollowhorizon.hollowengine.client.gui.DashBoardScreen;
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScaleableButton;
 
 @Mixin(PauseScreen.class)
@@ -28,7 +27,7 @@ public class PauseScreenMixin extends Screen {
 
         if (player.hasPermissions(Commands.LEVEL_GAMEMASTERS)) {
             addRenderableWidget(new ScaleableButton(5, 5, 20, 20, "hollowengine:textures/gui/hollowengine.png", "HollowEngine: Scripting", button -> {
-                Minecraft.getInstance().setScreen(HollowEngineGui.INSTANCE);
+                Minecraft.getInstance().setScreen(DashBoardScreen.INSTANCE);
                 return Unit.INSTANCE;
             }));
         }

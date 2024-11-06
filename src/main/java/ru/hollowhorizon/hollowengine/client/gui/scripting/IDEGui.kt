@@ -21,10 +21,7 @@ import net.minecraft.server.packs.resources.ResourceManager
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.imgui.FontAwesomeIcons
 import ru.hollowhorizon.hc.client.imgui.Graphics
-import ru.hollowhorizon.hc.client.utils.mcTranslate
-import ru.hollowhorizon.hc.client.utils.open
-import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.client.utils.stream
+import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hc.common.coroutines.onMainThreadSync
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
@@ -32,7 +29,6 @@ import ru.hollowhorizon.hc.common.events.registry.RegisterKeyBindingsEvent
 import ru.hollowhorizon.hc.common.events.tick.TickEvent
 import ru.hollowhorizon.hc.common.network.request
 import ru.hollowhorizon.hollowengine.HollowEngine.MODID
-import ru.hollowhorizon.hollowengine.client.gui.HollowEngineGui.draw
 import ru.hollowhorizon.hollowengine.client.gui.ImGuiScreen
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
@@ -117,62 +113,9 @@ object IDEGui : ImGuiScreen() {
     override fun isPauseScreen() = false
 
     private fun drawEditor() {
-
-        val window = Minecraft.getInstance().window
-        ImGui.setNextWindowPos(0f, 0f)
-        ImGui.setNextWindowSize(window.width.toFloat(), window.height.toFloat())
-        val shouldDrawWindowContents = ImGui.begin(
-            "CodeEditorSpace",
-            ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize or ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.NoTitleBar
-        )
-        val dockspaceID = ImGui.getID("MyWindow_DockSpace")
-        val workspaceWindowClass = ImGuiWindowClass()
-        workspaceWindowClass.setClassId(dockspaceID)
-        workspaceWindowClass.dockingAllowUnclassed = false
-
-        if (imgui.internal.ImGui.dockBuilderGetNode(dockspaceID).ptr == 0L) {
-            imgui.internal.ImGui.dockBuilderAddNode(
-                dockspaceID, imgui.internal.flag.ImGuiDockNodeFlags.DockSpace or
-                        imgui.internal.flag.ImGuiDockNodeFlags.NoWindowMenuButton or
-                        imgui.internal.flag.ImGuiDockNodeFlags.NoCloseButton
-            )
-            val region = ImGui.getContentRegionAvail()
-            imgui.internal.ImGui.dockBuilderSetNodeSize(dockspaceID, region.x, region.y)
-
-            val leftDockID = ImInt(0)
-            val rightDockID = ImInt(0)
-            imgui.internal.ImGui.dockBuilderSplitNode(dockspaceID, ImGuiDir.Left, 0.4f, leftDockID, rightDockID);
-
-            val pLeftNode = imgui.internal.ImGui.dockBuilderGetNode(leftDockID.get())
-            val pRightNode = imgui.internal.ImGui.dockBuilderGetNode(rightDockID.get())
-            pLeftNode.localFlags = pLeftNode.localFlags or imgui.internal.flag.ImGuiDockNodeFlags.NoTabBar or
-                    imgui.internal.flag.ImGuiDockNodeFlags.NoDockingSplitMe or imgui.internal.flag.ImGuiDockNodeFlags.NoDockingOverMe or
-                    imgui.internal.flag.ImGuiDockNodeFlags.NoTabBar
-            pRightNode.localFlags = pRightNode.localFlags or imgui.internal.flag.ImGuiDockNodeFlags.NoTabBar or
-                    imgui.internal.flag.ImGuiDockNodeFlags.NoDockingSplitMe or imgui.internal.flag.ImGuiDockNodeFlags.NoDockingOverMe or
-                    imgui.internal.flag.ImGuiDockNodeFlags.NoTabBar
-
-            // Dock windows
-            imgui.internal.ImGui.dockBuilderDockWindow("File Tree", leftDockID.get())
-            imgui.internal.ImGui.dockBuilderDockWindow("Code Editor", rightDockID.get())
-
-            imgui.internal.ImGui.dockBuilderFinish(dockspaceID)
-        }
-
-        val dockFlags = if (shouldDrawWindowContents) ImGuiDockNodeFlags.None
-        else ImGuiDockNodeFlags.KeepAliveOnly
-        val region = ImGui.getContentRegionAvail()
-        ImGui.dockSpace(dockspaceID, region.x, region.y, dockFlags, workspaceWindowClass)
-        ImGui.end()
-
-        val windowClass = ImGuiWindowClass()
-        windowClass.dockNodeFlagsOverrideSet = imgui.internal.flag.ImGuiDockNodeFlags.NoTabBar
-
-        ImGui.setNextWindowClass(windowClass)
-
         ImGui.begin(
             "File Tree",
-            ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize or ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.NoTitleBar or
+            ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.NoTitleBar or
                     imgui.internal.flag.ImGuiDockNodeFlags.NoTabBar
         )
         tree.children.forEach {
@@ -182,23 +125,37 @@ object IDEGui : ImGuiScreen() {
 
         ImGui.begin(
             "Code Editor",
-            ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize or ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.NoTitleBar
+            ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.NoTitleBar
         )
 
         if (currentPath.endsWith(".kts") && files.isNotEmpty()) {
-            ImGui.text("Minecraft 1.21 | Fabric | HollowCore Compiler 2.0")
+            ImGui.text("Minecraft 1.24 | HollowForge | Kotlin 2.1.0-Beta2")
+            ImGui.sameLine()
+            ImGui.setCursorPosX(ImGui.getWindowWidth() - 50f)
+            if (ImGui.imageButton("hollowengine:textures/gui/play.png".rl.toTexture().id, 32f, 32f)) {
+                //RunScriptPacket(currentPath).send()
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.beginTooltip()
+                Graphics.text("codeEditor.$MODID.script.run".mcTranslate, shadow = true)
+                ImGui.endTooltip()
+            }
+
         }
 
-        ImGui.beginTabBar("##Files")
+        //ImGui.beginTabBar("##Files")
         files.removeIf { file ->
             val lastOpen = file.open.get()
-            if (ImGui.beginTabItem(file.name, file.open, ImGuiTabItemFlags.None)) {
+            Graphics.window(file.name) {
                 file.draw()
-                ImGui.endTabItem()
             }
+//            if (ImGui.beginTabItem(file.name, file.open, ImGuiTabItemFlags.None)) {
+//                file.draw()
+//                ImGui.endTabItem()
+//            }
             lastOpen && !file.open.get()
         }
-        ImGui.endTabBar()
+        //ImGui.endTabBar()
         ImGui.end()
 
         drawModalInput()
@@ -228,13 +185,18 @@ object IDEGui : ImGuiScreen() {
 
     fun drawTree(tree: Tree) {
         val flags =
-            if (tree.drawArrow) ImGuiTreeNodeFlags.SpanFullWidth else ImGuiTreeNodeFlags.NoTreePushOnOpen or ImGuiTreeNodeFlags.Leaf or ImGuiTreeNodeFlags.SpanFullWidth
+            if (tree.drawArrow) 0 else ImGuiTreeNodeFlags.NoTreePushOnOpen or ImGuiTreeNodeFlags.Leaf
 
         drawFolderPopup(tree.path)
         drawFilePopup(tree.path)
         var hovered = false
         var ignore = false
-        if (ImGui.treeNodeEx(icon(tree.drawArrow, tree.value.substringAfterLast(".")) + " " + tree.value, flags)) {
+
+        val fs = ImGui.getFontSize().toFloat()
+        Graphics.image(icon(tree.drawArrow, tree.value).rl, fs, fs)
+        ImGui.sameLine()
+        ImGui.setCursorPosX(ImGui.getCursorPosX() - 10)
+        if (ImGui.treeNodeEx(tree.value, flags)) {
             hovered = ImGui.isItemHovered()
             tree.children.forEach { drawTree(it) }
 
@@ -299,22 +261,20 @@ object IDEGui : ImGuiScreen() {
     }
 
     private fun icon(isFolder: Boolean, ext: String): String {
-        return if (isFolder) {
-            when (ext) {
-                "fabric", "forge", "c" -> FontAwesomeIcons.Cogs
-                "assets" -> FontAwesomeIcons.Images
-                "data" -> FontAwesomeIcons.Database
-                "minecraft" -> FontAwesomeIcons.Cube
-                else -> FontAwesomeIcons.Folder
-            }
-        } else when (ext) {
-            "kts" -> FontAwesomeIcons.FileCode
-            "json", "txt", "mcfunction", "md" -> FontAwesomeIcons.FileAlt
-            "jar", "zip" -> FontAwesomeIcons.FileArchive
-            "png", "jpg", "jpeg" -> FontAwesomeIcons.FileImage
-            "mp3", "wav", "ogg" -> FontAwesomeIcons.FileAudio
-            else -> FontAwesomeIcons.File
+        val folders = mapOf(
+            "camera" to "folder_camera",
+            "npcs" to "folder_npcs",
+            "replays" to "folder_replays",
+            "scripts" to "folder_scripts",
+            "storyteller_dimension" to "folder_world"
+        )
+        val file = if (isFolder) {
+            folders.entries.find { ext.substringAfter("/").startsWith(it.key) }?.value ?: "folder"
+        } else when (ext.substringAfterLast(".")) {
+            "kts" -> "file_kts"
+            else -> "file"
         }
+        return "hollowengine:textures/gui/icons/$file.png"
     }
 
     fun drawScriptPopup() {
