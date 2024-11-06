@@ -36,14 +36,24 @@ fun SuspendContext.serialize(): CompoundTag = CompoundTag().apply {
 fun SuspendContext.deserialize(tag: CompoundTag): SuspendContext {
     index = tag.getInt("index")
     val props = tag.getCompound("properties")
-    props.allKeys.filter { !it.endsWith("::class") }.forEach {
-        val type = Class.forName(props.getString("$it::class").ifEmpty { return@forEach })
+    props.allKeys.filter { !it.endsWith("::class") }.forEach { name ->
+        val type = Class.forName(props.getString("$name::class").ifEmpty { return@forEach })
 
-        val property = props[it] ?: return@forEach
-        properties[it] = when {
+        val property = props[name]
+        if (property == null) {
+            HollowCore.LOGGER.warn("Property $name not found in $props, trying to create new value")
+            type.constructors.find { it.parameterCount == 0 }?.let {
+                val instance = it.newInstance()
+                properties[name] = instance
+            } ?: type.kotlin.objectInstance?.let { instance ->
+                properties[name] = instance
+            }
+            return@forEach
+        }
+        properties[name] = when {
             type == SuspendContext::class.java -> SuspendContext().deserialize(property as CompoundTag)
             type == AsyncContext::class.java -> AsyncContext(SuspendContext().deserialize(property as CompoundTag))
-            Entity::class.java.isAssignableFrom(type) -> currentServer.overworld().getEntity(props.getUUID(it))
+            Entity::class.java.isAssignableFrom(type) -> currentServer.overworld().getEntity(props.getUUID(name))
             else -> NBTFormat.deserializeNoInline(property, type)
         }
     }
