@@ -1,9 +1,15 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core
 
+import net.minecraft.ChatFormatting
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.LOGGER
+import ru.hollowhorizon.hc.client.utils.colored
+import ru.hollowhorizon.hc.client.utils.currentServer
+import ru.hollowhorizon.hc.client.utils.literal
+import ru.hollowhorizon.hc.client.utils.plus
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.common.scripting.core.host.HollowEngineScriptingHost
+import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -20,44 +26,6 @@ import kotlin.script.experimental.jvm.impl.*
 import kotlin.script.experimental.jvm.util.isError
 import kotlin.script.experimental.jvmhost.JvmScriptCompiler
 import kotlin.script.experimental.util.PropertiesCollection
-
-fun <R> ResultWithDiagnostics<R>.orException(): R = valueOr {
-    throw IllegalStateException(
-        it.errors().joinToString("\n"),
-        it.reports.find { it.exception != null }?.exception
-    )
-}
-
-fun ResultWithDiagnostics.Failure.errors(): List<String> = reports.map { diagnostic ->
-    buildString {
-        if (diagnostic.severity >= ScriptDiagnostic.Severity.WARNING) {
-            append(diagnostic.message)
-
-            if (diagnostic.sourcePath != null || diagnostic.location != null) {
-                append(" at [")
-                diagnostic.sourcePath?.let { append(it.substringAfterLast(File.separatorChar)) }
-                diagnostic.location?.let { path ->
-                    append(':')
-                    append(path.start.line)
-                    append(':')
-                    append(path.start.col)
-                }
-                append("]")
-            }
-            if (diagnostic.exception != null) {
-                append(": ")
-                append(diagnostic.exception)
-                ByteArrayOutputStream().use { os ->
-                    val ps = PrintStream(os)
-                    diagnostic.exception?.printStackTrace(ps)
-                    ps.flush()
-                    append("\n")
-                    append(os.toString())
-                }
-            }
-        }
-    }
-}.filter { it.isNotEmpty() }
 
 object ScriptingCompiler {
 
@@ -80,7 +48,11 @@ object ScriptingCompiler {
         val compiledJar = script.resolveCompiledJar()
         val hashcode = script.readText().hashCode().toString()
 
-        if (compiledJar.exists() && compiledJar.loadScriptHashCode() == hashcode) return loadCompiledScript(script, compiledJar, hashcode)
+        if (compiledJar.exists() && compiledJar.loadScriptHashCode() == hashcode) return loadCompiledScript(
+            script,
+            compiledJar,
+            hashcode
+        )
 
         val compiler = JvmScriptCompiler(hostConfiguration)
         val result = compiler(FileScriptSource(script), compilationConfiguration)
@@ -132,7 +104,14 @@ object ScriptingCompiler {
     }
 
     fun logErrors(result: ResultWithDiagnostics<*>) {
-        result.errors().forEach(LOGGER::warn)
+        result.errors().forEach { error ->
+            LOGGER.warn(error)
+            currentServer.playerList.players
+                .filter { it.hasPermissions(PlayerPermissions.GAMEMASTER) }
+                .forEach {
+                    it.sendSystemMessage("Script Error: ".literal.colored(ChatFormatting.DARK_RED) + error.toString().literal)
+                }
+        }
         result.errors().mapNotNull { it.exception }.distinct().forEach {
             LOGGER.error(it.stackTraceToString())
         }

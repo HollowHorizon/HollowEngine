@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core
 
 import kotlinx.coroutines.runBlocking
+import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.isProduction
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler.saveScriptToJar
@@ -52,7 +53,9 @@ data class CompiledScript(
                     it.location?.start?.line ?: 0,
                     it.location?.start?.col ?: 0,
                     it.exception
-                )
+                ).apply {
+                    HollowCore.LOGGER.warn(this)
+                }
             }
 
             ScriptErrorEvent(scriptFile, ErrorType.RUNTIME_ERROR, errors).post()
