@@ -29,7 +29,7 @@ import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 import ru.hollowhorizon.hollowengine.compiler.suspendable.isIgnored
 
-class ScriptRelocator(val context: IrPluginContext) : IrElementTransformerVoid() {
+class ScriptRelocator() : IrElementTransformerVoid() {
     private var setters = HashMap<IrFunction, IrVariable>()
     private var getters = HashMap<IrFunction, IrVariable>()
 
@@ -40,7 +40,7 @@ class ScriptRelocator(val context: IrPluginContext) : IrElementTransformerVoid()
     override fun visitScript(script: IrScript): IrStatement {
         if(!script.name.asStringStripSpecialMarkers().endsWith(".story.kts")) return super.visitScript(script)
         hasScript = true
-        val builder = context.irBuiltIns.createIrBuilder(
+        val builder = pluginContext.irBuiltIns.createIrBuilder(
             script.symbol,
             script.startOffset,
             script.endOffset
@@ -51,12 +51,12 @@ class ScriptRelocator(val context: IrPluginContext) : IrElementTransformerVoid()
 
         val functions = mutableListOf<IrFunction>()
 
-        this.function = context.irFactory.createSimpleFunction(
+        this.function = pluginContext.irFactory.createSimpleFunction(
             script.startOffset, script.endOffset, script.origin,
             Name.identifier("tick"), DescriptorVisibilities.PUBLIC,
             isInline = false,
             isExpect = false,
-            returnType = script.resultProperty?.owner?.getter?.returnType ?: context.irBuiltIns.unitType,
+            returnType = script.resultProperty?.owner?.getter?.returnType ?: pluginContext.irBuiltIns.unitType,
             modality = Modality.FINAL,
             symbol = IrSimpleFunctionSymbolImpl(),
             isTailrec = false,
@@ -120,7 +120,7 @@ class ScriptRelocator(val context: IrPluginContext) : IrElementTransformerVoid()
     }
 
     override fun visitCall(expression: IrCall): IrExpression {
-        val builder = context.irBuiltIns.createIrBuilder(
+        val builder = pluginContext.irBuiltIns.createIrBuilder(
             expression.symbol,
             expression.startOffset,
             expression.endOffset

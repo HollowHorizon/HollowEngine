@@ -47,7 +47,7 @@ class PropertyTransformer(val function: IrFunction, val context: IrExpression) :
                 if (initializer is IrCall && initializer.symbol == async) {
                     initializer.transformChildrenVoid(this)
                     (initializer.getValueArgument(0) as? IrFunctionExpression)?.function?.apply {
-                        transform(SuspendableTransformer(pluginContext), null)
+                        transform(SuspendableTransformer(), null)
                         returnType = pluginContext.irBuiltIns.anyType
                     }
                     controllers += declaration

@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.ir.visitors.*
 import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendContext
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
 import ru.hollowhorizon.hollowengine.compiler.script.ScriptRelocator
+import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendableParameterChanger
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendableTransformer
 import java.io.File
 import kotlin.metadata.jvm.KotlinClassMetadata
@@ -25,24 +26,9 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
     override fun generate(moduleFragment: IrModuleFragment, context: IrPluginContext) {
         pluginContext = context
 
-        val transformer = object : IrElementTransformerVoid() {
-            override fun visitFunction(declaration: IrFunction): IrStatement {
-                if (!declaration.annotations.hasAnnotation(Suspendable.asSingleFqName())) return super.visitFunction(
-                    declaration
-                )
-
-                val type = context.referenceClass(SuspendContext)!!.defaultType
-                declaration.addValueParameter("suspendContext", type)
-                declaration.returnType = pluginContext.irBuiltIns.anyNType
-
-                return super.visitFunction(declaration)
-            }
-        }
-
-        moduleFragment.transform(ScriptRelocator(pluginContext), null)
-        moduleFragment.transform(transformer, null)
-        moduleFragment.transform(SuspendableTransformer(pluginContext), null)
-        moduleFragment.transform(CallVisitor(pluginContext), null)
+        moduleFragment.transform(ScriptRelocator(), null)
+        moduleFragment.transform(SuspendableParameterChanger(), null)
+        moduleFragment.transform(SuspendableTransformer(), null)
     }
 
 }

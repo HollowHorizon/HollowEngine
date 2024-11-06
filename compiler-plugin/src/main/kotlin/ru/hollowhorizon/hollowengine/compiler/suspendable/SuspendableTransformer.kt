@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.compiler.suspendable
 
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.jvm.functionByName
 import org.jetbrains.kotlin.ir.IrStatement
@@ -21,21 +20,22 @@ import ru.hollowhorizon.hollowengine.compiler.identifiers.AsyncContext
 import ru.hollowhorizon.hollowengine.compiler.identifiers.AsyncController
 import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendContext
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
+import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
-class SuspendableTransformer(val context: IrPluginContext) : IrElementTransformerVoid() {
+class SuspendableTransformer() : IrElementTransformerVoid() {
     @OptIn(UnsafeDuringIrConstructionAPI::class)
-    val suspendGetter = context.referenceClass(SuspendContext)!!.getPropertyGetter("index")!!
-    val getter = context.referenceClass(SuspendContext)!!.functionByName("getProperty")
+    val suspendGetter = pluginContext.referenceClass(SuspendContext)!!.getPropertyGetter("index")!!
+    val getter = pluginContext.referenceClass(SuspendContext)!!.functionByName("getProperty")
 
     @OptIn(UnsafeDuringIrConstructionAPI::class)
-    val asyncControllers = context.referenceClass(SuspendContext)!!.getPropertyGetter("asyncControllers")!!
-    val asyncContext = context.referenceClass(AsyncContext)!!
-    val asyncController = context.referenceClass(AsyncController)!!
+    val asyncControllers = pluginContext.referenceClass(SuspendContext)!!.getPropertyGetter("asyncControllers")!!
+    val asyncContext = pluginContext.referenceClass(AsyncContext)!!
+    val asyncController = pluginContext.referenceClass(AsyncController)!!
     val asyncTick = asyncController.functionByName("tick")
 
     @OptIn(UnsafeDuringIrConstructionAPI::class)
     val contextGetter = asyncContext.getPropertyGetter("context")!!
-    val contains = context.referenceClass(ClassId(FqName("java.util"), Name.identifier("HashSet")))!!
+    val contains = pluginContext.referenceClass(ClassId(FqName("java.util"), Name.identifier("HashSet")))!!
         .functionByName("contains")
 
     override fun visitFunction(declaration: IrFunction): IrStatement {
@@ -43,7 +43,7 @@ class SuspendableTransformer(val context: IrPluginContext) : IrElementTransforme
         if (!declaration.annotations.hasAnnotation(Suspendable.asSingleFqName()) && receiver?.type != asyncContext.defaultType) return super.visitFunction(
             declaration
         )
-        val builder = context.irBuiltIns.createIrBuilder(
+        val builder = pluginContext.irBuiltIns.createIrBuilder(
             declaration.symbol,
             declaration.startOffset,
             declaration.endOffset,
@@ -72,7 +72,7 @@ class SuspendableTransformer(val context: IrPluginContext) : IrElementTransforme
                         whenStatement,
                         stateVar,
                         suspendContext,
-                        this@SuspendableTransformer.context
+                        pluginContext
                     ),
                     transformer.controllers
                 ), null

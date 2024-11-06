@@ -130,9 +130,7 @@ class PluginTester {
                     }
 
                     fun main() {
-                        val launcher = SuspendLauncher { 
-                            debug(10)
-                        }
+                        val launcher = SuspendLauncher {}
                         
                         launcher.tick()
                         if(launcher.isEnd) println(launcher.result)
@@ -174,9 +172,7 @@ class PluginTester {
                     
 
                     fun main() {
-                        val launcher = SuspendLauncher { 
-                            debug(10)
-                        }
+                        val launcher = SuspendLauncher {}
                         
                         launcher.tick()
                         if(launcher.isEnd) println(launcher.result)
