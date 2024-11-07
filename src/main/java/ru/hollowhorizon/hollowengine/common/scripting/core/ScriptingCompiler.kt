@@ -106,11 +106,16 @@ object ScriptingCompiler {
     fun logErrors(result: ResultWithDiagnostics<*>) {
         result.errors().forEach { error ->
             LOGGER.warn(error)
-            currentServer.playerList.players
-                .filter { it.hasPermissions(PlayerPermissions.GAMEMASTER) }
-                .forEach {
-                    it.sendSystemMessage("Script Error: ".literal.colored(ChatFormatting.DARK_RED) + error.toString().literal)
-                }
+            try {
+                currentServer.playerList.players
+                    .filter { it.hasPermissions(PlayerPermissions.GAMEMASTER) }
+                    .forEach {
+                        it.sendSystemMessage("Script Error: ".literal.colored(ChatFormatting.DARK_RED) + error.toString().literal)
+                    }
+            } catch (e: Exception) {
+                //TODO Make there better check...
+                HollowCore.LOGGER.error("Server is not loaded yet")
+            }
         }
         result.errors().mapNotNull { it.exception }.distinct().forEach {
             LOGGER.error(it.stackTraceToString())

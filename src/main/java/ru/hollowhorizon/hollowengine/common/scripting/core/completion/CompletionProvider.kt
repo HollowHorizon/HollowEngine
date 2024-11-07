@@ -1,0 +1,358 @@
+package ru.hollowhorizon.hollowengine.common.scripting.core.completion
+
+import org.jetbrains.kotlin.com.intellij.openapi.editor.Document
+import org.jetbrains.kotlin.com.intellij.openapi.project.Project
+import org.jetbrains.kotlin.com.intellij.psi.PsiElement
+import org.jetbrains.kotlin.com.intellij.psi.tree.TokenSet
+import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor
+import org.jetbrains.kotlin.descriptors.impl.TypeParameterDescriptorImpl
+import org.jetbrains.kotlin.lexer.KtKeywordToken
+import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.renderer.ClassifierNamePolicy
+import org.jetbrains.kotlin.renderer.ParameterNameRenderingPolicy
+import org.jetbrains.kotlin.resolve.BindingContext
+import org.jetbrains.kotlin.resolve.DescriptorUtils
+import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
+import org.jetbrains.kotlin.resolve.scopes.LexicalScope
+import org.jetbrains.kotlin.resolve.scopes.MemberScope
+import org.jetbrains.kotlin.types.KotlinType
+import org.jetbrains.kotlin.types.asFlexibleType
+import org.jetbrains.kotlin.types.isFlexible
+import ru.hollowhorizon.hollowengine.common.scripting.core.AfterCodeAnalysisEvent
+import ru.hollowhorizon.hollowengine.common.scripting.core.completion.codeInsight.ReferenceVariantsHelper
+import ru.hollowhorizon.hollowengine.common.scripting.core.completion.resolve.getResolutionScope
+import ru.hollowhorizon.hollowengine.common.scripting.core.completion.util.importableFqName
+import ru.hollowhorizon.hollowengine.common.scripting.core.completion.util.isVisible
+import java.beans.PropertyDescriptor
+
+class CompletionProvider(
+    private val psiFiles: MutableList<KtFile>,
+    filename: String,
+    private val lineNumber: Int,
+    private val charNumber: Int,
+) {
+    private val NUMBER_OF_CHAR_IN_COMPLETION_NAME = 40
+    private val NUMBER_OF_CHAR_IN_TAIL = 60
+    private val currentProject: Project
+    private var currentPsiFile: KtFile? = null
+    private var currentDocument: Document? = null
+    private var caretPositionOffset: Int = 0
+
+    private val expressionForScope: PsiElement?
+        get() {
+            var element = currentPsiFile!!.findElementAt(caretPositionOffset)
+            while (element !is KtExpression && element != null) {
+                element = element.parent
+            }
+            return element
+        }
+
+    init {
+        psiFiles
+            .filter { it.name == filename }
+            .forEach { currentPsiFile = it }
+        this.currentProject = currentPsiFile!!.project
+        this.currentDocument = currentPsiFile!!.viewProvider.document
+    }
+
+    @Synchronized
+    fun getResult(event: AfterCodeAnalysisEvent): List<CompletionVariant> {
+        try {
+            addExpressionAtCaret()
+
+            val resolveResult = ResolveUtils.analyzeFileForJvm(event, psiFiles, currentProject)
+
+            val analysisResult = resolveResult.first
+            val containerProvider = resolveResult.second
+            val bindingContext = analysisResult.bindingContext
+            val moduleDescriptor = analysisResult.moduleDescriptor
+
+            val element = expressionForScope as? KtElement ?: return emptyList()
+            var descriptors: Collection<DeclarationDescriptor>? = null
+            var isTipsManagerCompletion = true
+            val resolutionFacade = KotlinResolutionFacade(event, containerProvider, moduleDescriptor)
+            val inDescriptor: DeclarationDescriptor =
+                element.getResolutionScope(bindingContext, resolutionFacade).ownerDescriptor
+
+            val helper = ReferenceVariantsHelper(
+                bindingContext,
+                resolutionFacade,
+                analysisResult.moduleDescriptor,
+                VisibilityFilter(inDescriptor, bindingContext, element, resolutionFacade),
+                emptySet()
+            )
+
+            if (element is KtSimpleNameExpression) {
+                descriptors =
+                    helper.getReferenceVariants(element, DescriptorKindFilter.ALL, NAME_FILTER, true, true, true, null)
+            } else if (element.parent is KtSimpleNameExpression) {
+                descriptors = helper.getReferenceVariants(
+                    element.parent as KtSimpleNameExpression,
+                    DescriptorKindFilter.ALL,
+                    NAME_FILTER,
+                    true,
+                    true,
+                    true,
+                    null
+                )
+            } else {
+                isTipsManagerCompletion = false
+                val resolutionScope: LexicalScope?
+                val parent = element.parent
+                if (parent is KtQualifiedExpression) {
+                    val receiverExpression = parent.receiverExpression
+
+                    val expressionType =
+                        bindingContext.get(BindingContext.EXPRESSION_TYPE_INFO, receiverExpression)!!.type
+                    resolutionScope = bindingContext.get(BindingContext.LEXICAL_SCOPE, receiverExpression)
+
+                    if (expressionType != null && resolutionScope != null) {
+                        descriptors = expressionType.memberScope.getContributedDescriptors(
+                            DescriptorKindFilter.ALL,
+                            MemberScope.ALL_NAME_FILTER
+                        )
+                    }
+                } else {
+                    resolutionScope = bindingContext.get(BindingContext.LEXICAL_SCOPE, element as KtExpression)
+                    if (resolutionScope != null) {
+                        descriptors = resolutionScope.getContributedDescriptors(
+                            DescriptorKindFilter.ALL,
+                            MemberScope.ALL_NAME_FILTER
+                        )
+                    } else {
+                        return emptyList()
+                    }
+                }
+            }
+
+            val result = ArrayList<CompletionVariant>()
+
+            if (descriptors != null) {
+                var prefix: String
+                prefix = if (!isTipsManagerCompletion) {
+                    element.parent.text
+                } else {
+                    element.text
+                }
+                prefix = prefix.substringBefore("IntellijIdeaRulezzz", prefix)
+                if (prefix.endsWith(".")) {
+                    prefix = ""
+                }
+
+                if (descriptors !is ArrayList<*>) {
+                    descriptors = ArrayList(descriptors)
+                }
+
+                (descriptors as ArrayList<DeclarationDescriptor>?)?.sortWith { d1, d2 ->
+                    val d1PresText = getPresentableText(d1)
+                    val d2PresText = getPresentableText(d2)
+                    (d1PresText.first + d1PresText.second).compareTo(
+                        d2PresText.first + d2PresText.second,
+                        ignoreCase = true
+                    )
+                }
+
+                for (descriptor in descriptors) {
+                    val presentableText = getPresentableText(descriptor, element.isCallableReference())
+
+                    val fullName = formatName(presentableText.first, NUMBER_OF_CHAR_IN_COMPLETION_NAME)
+                    var completionText = fullName
+                    var position = completionText.indexOf('(')
+                    if (position != -1) {
+                        //If this is a string with a package after
+                        if (completionText[position - 1] == ' ') {
+                            position -= 2
+                        }
+                        //if this is a method without args
+                        if (completionText[position + 1] == ')') {
+                            position++
+                        }
+                        completionText = completionText.substring(0, position + 1)
+                    }
+                    position = completionText.indexOf(":")
+                    if (position != -1) {
+                        completionText = completionText.substring(0, position - 1)
+                    }
+
+                    if (prefix.isEmpty() || fullName.startsWith(prefix)) {
+                        val completionVariant = CompletionVariant(
+                            completionText, fullName,
+                            formatName(presentableText.second, NUMBER_OF_CHAR_IN_TAIL),
+                            getIconFromDescriptor(descriptor)
+                        )
+                        result.add(completionVariant)
+                    }
+                }
+
+                result.addAll(keywordsCompletionVariants(KtTokens.KEYWORDS, prefix))
+                result.addAll(keywordsCompletionVariants(KtTokens.SOFT_KEYWORDS, prefix))
+            }
+
+            return result
+        } catch (e: Throwable) {
+            throw IllegalStateException(e)
+        }
+
+    }
+
+    private fun getIconFromDescriptor(descriptor: DeclarationDescriptor): String {
+        return if (descriptor is FunctionDescriptor) {
+            "method"
+        } else if (descriptor is PropertyDescriptor || descriptor is LocalVariableDescriptor) {
+            "property"
+        } else if (descriptor is ClassDescriptor) {
+            "class"
+        } else if (descriptor is PackageFragmentDescriptor || descriptor is PackageViewDescriptor) {
+            "package"
+        } else if (descriptor is ValueParameterDescriptor) {
+            "genericValue"
+        } else if (descriptor is TypeParameterDescriptorImpl) {
+            "class"
+        } else {
+            ""
+        }
+    }
+
+    private fun formatName(builder: String, symbols: Int): String {
+        return if (builder.length > symbols) {
+            builder.substring(0, symbols) + "..."
+        } else builder
+    }
+
+    private fun addExpressionAtCaret() {
+        caretPositionOffset = getOffsetFromLineAndChar(lineNumber, charNumber)
+        val text = currentPsiFile!!.text
+        if (caretPositionOffset != 0) {
+            val buffer = StringBuilder(text.substring(0, caretPositionOffset))
+            buffer.append("IntellijIdeaRulezzz ")
+            buffer.append(text.substring(caretPositionOffset))
+            psiFiles.remove(currentPsiFile!!)
+            currentPsiFile = JetPsiFactoryUtil.createFile(currentProject, currentPsiFile!!.name, buffer.toString())
+            psiFiles.add(currentPsiFile!!)
+            currentDocument = currentPsiFile!!.viewProvider.document
+        }
+    }
+
+    private fun getOffsetFromLineAndChar(line: Int, charNumber: Int): Int {
+        val lineStart = currentDocument!!.getLineStartOffset(line)
+        return lineStart + charNumber
+    }
+
+    private fun keywordsCompletionVariants(keywords: TokenSet, prefix: String): List<CompletionVariant> {
+        return keywords.types
+            .map { (it as KtKeywordToken).value }
+            .filter { it.startsWith(prefix) }
+            .mapTo(ArrayList()) { CompletionVariant(it, it, "", "") }
+    }
+
+
+    private val RENDERER = IdeDescriptorRenderersScripting.SOURCE_CODE.withOptions {
+        classifierNamePolicy = ClassifierNamePolicy.SHORT
+        typeNormalizer = IdeDescriptorRenderersScripting.APPROXIMATE_FLEXIBLE_TYPES
+        parameterNameRenderingPolicy = ParameterNameRenderingPolicy.NONE
+        typeNormalizer = { kotlinType: KotlinType ->
+            if (kotlinType.isFlexible()) {
+                kotlinType.asFlexibleType().upperBound
+            } else kotlinType
+        }
+    }
+
+    // This code is a fragment of org.jetbrains.kotlin.idea.completion.CompletionSession from Kotlin IDE Plugin
+    // with a few simplifications which were possible because webdemo has very restricted environment (and well,
+    // because requirements on compeltion' quality in web-demo are lower)
+    private inner class VisibilityFilter(
+        private val inDescriptor: DeclarationDescriptor,
+        private val bindingContext: BindingContext,
+        private val element: KtElement,
+        private val resolutionFacade: KotlinResolutionFacade,
+    ) : (DeclarationDescriptor) -> Boolean {
+        override fun invoke(descriptor: DeclarationDescriptor): Boolean {
+            if (descriptor is TypeParameterDescriptor && !isTypeParameterVisible(descriptor)) return false
+
+            if (descriptor is DeclarationDescriptorWithVisibility) {
+                return descriptor.isVisible(element, null, bindingContext, resolutionFacade)
+            }
+
+            if (descriptor.isInternalImplementationDetail()) return false
+
+            return true
+        }
+
+        private fun isTypeParameterVisible(typeParameter: TypeParameterDescriptor): Boolean {
+            val owner = typeParameter.containingDeclaration
+            var parent: DeclarationDescriptor? = inDescriptor
+            while (parent != null) {
+                if (parent == owner) return true
+                if (parent is ClassDescriptor && !parent.isInner) return false
+                parent = parent.containingDeclaration
+            }
+            return true
+        }
+
+        private fun DeclarationDescriptor.isInternalImplementationDetail(): Boolean =
+            importableFqName?.asString() in excludedFromCompletion
+    }
+
+    private val NAME_FILTER = { name: Name ->
+        !name.isSpecial
+    }
+
+    // see DescriptorLookupConverter.createLookupElement
+    private fun getPresentableText(
+        descriptor: DeclarationDescriptor,
+        isCallableReferenceCompletion: Boolean = false,
+    ): Pair<String, String> {
+        var presentableText = if (descriptor is ConstructorDescriptor)
+            descriptor.constructedClass.name.asString()
+        else
+            descriptor.name.asString()
+        var typeText = ""
+        var tailText = ""
+
+        if (descriptor is FunctionDescriptor) {
+            val returnType = descriptor.returnType
+            typeText = if (returnType != null) RENDERER.renderType(returnType) else ""
+
+            if (!isCallableReferenceCompletion)
+                presentableText += RENDERER.renderFunctionParameters(descriptor)
+
+            val extensionFunction = descriptor.extensionReceiverParameter != null
+            val containingDeclaration = descriptor.containingDeclaration
+            if (containingDeclaration != null && extensionFunction) {
+                tailText += " for " + RENDERER.renderType(descriptor.extensionReceiverParameter!!.type)
+                tailText += " in " + DescriptorUtils.getFqName(containingDeclaration)
+            }
+        } else if (descriptor is VariableDescriptor) {
+            val outType = descriptor.type
+            typeText = RENDERER.renderType(outType)
+        } else if (descriptor is ClassDescriptor) {
+            val declaredIn = descriptor.containingDeclaration
+            tailText = " (" + DescriptorUtils.getFqName(declaredIn) + ")"
+        } else {
+            typeText = RENDERER.render(descriptor)
+        }
+
+        return if (typeText.isEmpty()) {
+            Pair(presentableText, tailText)
+        } else {
+            Pair(presentableText, typeText)
+        }
+    }
+
+    private fun KtElement.isCallableReference() =
+        parent is KtCallableReferenceExpression && this == (parent as KtCallableReferenceExpression).callableReference
+
+    companion object {
+        private val excludedFromCompletion: List<String> = listOf(
+            "kotlin.jvm.internal",
+            "kotlin.coroutines.experimental.intrinsics",
+            "kotlin.coroutines.intrinsics",
+            "kotlin.coroutines.experimental.jvm.internal",
+            "kotlin.coroutines.jvm.internal",
+            "kotlin.reflect.jvm.internal"
+        )
+    }
+}
