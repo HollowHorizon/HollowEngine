@@ -20,7 +20,7 @@ object QuestRenderer {
         val pos = getCursorPos()
         val screenPos = getCursorScreenPos()
         imgui.internal.ImGui.getWindowDrawList().addImage(
-            "hollowengine:textures/gui/quests/quest_icon.png".rl.toTexture().id,
+            "hollowengine:textures/gui/quests/quest_icon.png".rl.toTexture().id.toLong(),
             screenPos.x, screenPos.y,
             screenPos.x + 125f, screenPos.y + 110f,
             0f,

@@ -1,10 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core.completion.util
 
-import org.jetbrains.kotlin.renderer.AnnotationArgumentsRenderingPolicy
-import org.jetbrains.kotlin.renderer.ClassifierNamePolicy
-import org.jetbrains.kotlin.renderer.DescriptorRenderer
-import org.jetbrains.kotlin.renderer.DescriptorRendererModifier
-import org.jetbrains.kotlin.renderer.OverrideRenderingPolicy
+import org.jetbrains.kotlin.descriptors.ValueParameterDescriptor
+import org.jetbrains.kotlin.renderer.*
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.checker.NewCapturedTypeConstructor
 import org.jetbrains.kotlin.types.isDynamic
@@ -42,6 +39,37 @@ object IdeDescriptorRenderersScripting {
         modifiers = DescriptorRendererModifier.ALL
         renderUnabbreviatedType = false
         annotationArgumentsRenderingPolicy = AnnotationArgumentsRenderingPolicy.UNLESS_EMPTY
+        valueParametersHandler = object : DescriptorRenderer.ValueParametersHandler {
+            override fun appendBeforeValueParameters(parameterCount: Int, builder: StringBuilder) {
+                builder.append("(")
+            }
+
+            override fun appendAfterValueParameters(parameterCount: Int, builder: StringBuilder) {
+                builder.append(")")
+            }
+
+            override fun appendBeforeValueParameter(
+                parameter: ValueParameterDescriptor,
+                parameterIndex: Int,
+                parameterCount: Int,
+                builder: StringBuilder,
+            ) {
+                builder.append(parameter.name.asString())
+                builder.append(": ")
+            }
+
+            override fun appendAfterValueParameter(
+                parameter: ValueParameterDescriptor,
+                parameterIndex: Int,
+                parameterCount: Int,
+                builder: StringBuilder,
+            ) {
+                if (parameterIndex != parameterCount - 1) {
+                    builder.append(", ")
+                }
+            }
+
+        }
     }
 
     @JvmField

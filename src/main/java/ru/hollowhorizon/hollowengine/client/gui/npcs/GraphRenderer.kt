@@ -372,7 +372,7 @@ object NodeRenderer {
                     nodeColor.w
                 )
                 drawList.addImageRounded(
-                    "hollowengine:textures/gui/icons/blueprint_background.png".rl.toTexture().id,
+                    "hollowengine:textures/gui/icons/blueprint_background.png".rl.toTexture().id.toLong(),
                     headerMin.x - (8 - halfBorderWidth),
                     headerMin.y + halfBorderWidth,
                     headerMax.x,

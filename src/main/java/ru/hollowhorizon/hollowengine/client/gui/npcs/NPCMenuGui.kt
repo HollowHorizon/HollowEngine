@@ -147,7 +147,7 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
 
         ImGui.getWindowDrawList()
             .addImage(
-                "hollowengine:textures/gui/npc_menu/$desc.png".rl.toTexture().id,
+                "hollowengine:textures/gui/npc_menu/$desc.png".rl.toTexture().id.toLong(),
                 pos.x,
                 pos.y,
                 pos.x + 32 * scale + 6.4f * size,
@@ -162,7 +162,7 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
 
         ImGui.getWindowDrawList()
             .addImage(
-                "hollowengine:textures/gui/npc_menu/cursor.png".rl.toTexture().id,
+                "hollowengine:textures/gui/npc_menu/cursor.png".rl.toTexture().id.toLong(),
                 pos.x,
                 pos.y,
                 pos.x + 22 * scale + 4.4f * size,
@@ -174,7 +174,7 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
 
         ImGui.getWindowDrawList()
             .addImage(
-                "hollowengine:textures/gui/npc_menu/button.png".rl.toTexture().id,
+                "hollowengine:textures/gui/npc_menu/button.png".rl.toTexture().id.toLong(),
                 pos.x,
                 pos.y,
                 pos.x + 205 * scale + 41f * size,
@@ -219,7 +219,7 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
     fun drawNpcPreview() {
         setCursorPos(334 * scale, 40 * scale)
 
-        image("hollowengine:textures/gui/npc_menu/nickname.png".rl.toTexture().id, 90f * scale, 20f * scale)
+        image("hollowengine:textures/gui/npc_menu/nickname.png".rl.toTexture().id.toLong(), 90f * scale, 20f * scale)
 
         val size = calcTextSize(npc.name)
         setCursorPos(379 * scale - size.x / 2, 50 * scale - size.y / 2)
@@ -227,7 +227,7 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
 
         setCursorPos(320f * scale, 63 * scale)
 
-        image("hollowengine:textures/gui/npc_menu/character.png".rl.toTexture().id, 118f * scale, 155f * scale)
+        image("hollowengine:textures/gui/npc_menu/character.png".rl.toTexture().id.toLong(), 118f * scale, 155f * scale)
         setCursorPos(331f * scale, 76 * scale)
         Graphics.entity(
             npc,

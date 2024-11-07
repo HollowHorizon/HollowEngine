@@ -52,8 +52,8 @@ class QuestsListGui : ImGuiScreen() {
 
             withFontSize(fontSize) {
                 val pos = ImGui.getCursorPos()
-                ImGui.image(
-                    "hollowengine:textures/gui/quests/quests_menu.png".rl.toTexture().id,
+                image(
+                    "hollowengine:textures/gui/quests/quests_menu.png".rl,
                     242f * scale,
                     170f * scale
                 )
@@ -99,7 +99,7 @@ class QuestsListGui : ImGuiScreen() {
                 if (currentQuest == null) {
                     ImGui.setCursorPos(pos.x + 122f * scale, pos.y + 26f * scale)
                     ImGui.image(
-                        "hollowengine:textures/gui/quests/empty_menu.png".rl.toTexture().id,
+                        "hollowengine:textures/gui/quests/empty_menu.png".rl.toTexture().id.toLong(),
                         120f * scale,
                         144f * scale,
                         0f, 0f, 1f, 1f,
@@ -122,7 +122,7 @@ class QuestsListGui : ImGuiScreen() {
                 } else {
                     ImGui.setCursorPos(pos.x + 122f * scale, pos.y + 26f * scale)
                     ImGui.image(
-                        "hollowengine:textures/gui/quests/quest_menu.png".rl.toTexture().id,
+                        "hollowengine:textures/gui/quests/quest_menu.png".rl.toTexture().id.toLong(),
                         120f * scale,
                         144f * scale
                     )
@@ -181,7 +181,7 @@ class QuestsListGui : ImGuiScreen() {
         var light = if (hovered) 0.8f else 1f
         ImGui.setCursorPos(pos.x + 127f * scale, pos.y + 150f * scale)
         if (page > 0) ImGui.image(
-            "hollowengine:textures/gui/trades/left_button.png".rl.toTexture().id,
+            "hollowengine:textures/gui/trades/left_button.png".rl.toTexture().id.toLong(),
             25f * scale,
             15f * scale,
             0f,
@@ -204,7 +204,7 @@ class QuestsListGui : ImGuiScreen() {
         light = if (hovered) 0.8f else 1f
         ImGui.setCursorPos(pos.x + 212f * scale, pos.y + 150f * scale)
         if (page < 2) ImGui.image(
-            "hollowengine:textures/gui/trades/right_button.png".rl.toTexture().id,
+            "hollowengine:textures/gui/trades/right_button.png".rl.toTexture().id.toLong(),
             25f * scale,
             15f * scale,
             0f,
@@ -231,7 +231,7 @@ class QuestsListGui : ImGuiScreen() {
         else ImVec4(0.8f, 0.8f, 0.8f, ImGui.getStyle().alpha)
 
         ImGui.image(
-            "hollowengine:textures/gui/quests/quest.png".rl.toTexture().id, 100f * scale, 22f * scale,
+            "hollowengine:textures/gui/quests/quest.png".rl.toTexture().id.toLong(), 100f * scale, 22f * scale,
             0f, 0f, 1f, 1f,
             color.x, color.y, color.z, color.w
         )
@@ -253,7 +253,7 @@ class QuestsListGui : ImGuiScreen() {
         val inventory = Minecraft.getInstance().player?.inventory ?: return false
 
         val pos = ImGui.getCursorPos()
-        ImGui.image("hollowengine:textures/gui/quests/slot.png".rl.toTexture().id, 18f * scale, 19f * scale)
+        ImGui.image("hollowengine:textures/gui/quests/slot.png".rl.toTexture().id.toLong(), 18f * scale, 19f * scale)
         ImGui.setCursorPos(pos.x + scale, pos.y + scale * 2)
         Graphics.item(item, 16f * scale, 16f * scale)
 

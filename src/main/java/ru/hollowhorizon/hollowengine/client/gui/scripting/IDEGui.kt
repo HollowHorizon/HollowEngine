@@ -14,6 +14,7 @@ import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.ResourceLocation
@@ -21,6 +22,7 @@ import net.minecraft.server.packs.resources.ResourceManager
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.imgui.FontAwesomeIcons
 import ru.hollowhorizon.hc.client.imgui.Graphics
+import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
 import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hc.common.coroutines.onMainThreadSync
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
@@ -33,9 +35,11 @@ import ru.hollowhorizon.hollowengine.client.gui.ImGuiScreen
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.completionsList
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import java.io.File
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -48,6 +52,7 @@ object IDEGui : ImGuiScreen() {
     val editor = TextEditor().apply {
         setLanguageDefinition(KOTLIN_LANG)
 
+        isImGuiChildIgnored = true
         tabSize = 4
         text = ""
     }
@@ -118,7 +123,7 @@ object IDEGui : ImGuiScreen() {
             ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.NoTitleBar or
                     imgui.internal.flag.ImGuiDockNodeFlags.NoTabBar
         )
-        tree.children.forEach {
+        ArrayList(tree.children).forEach {
             drawTree(it)
         }
         ImGui.end()
@@ -132,7 +137,7 @@ object IDEGui : ImGuiScreen() {
             ImGui.text("Minecraft 1.24 | HollowForge | Kotlin 2.1.0-Beta2")
             ImGui.sameLine()
             ImGui.setCursorPosX(ImGui.getWindowWidth() - 50f)
-            if (ImGui.imageButton("hollowengine:textures/gui/play.png".rl.toTexture().id, 32f, 32f)) {
+            if (ImGui.imageButton("hollowengine:textures/gui/play.png".rl.toTexture().id.toLong(), 32f, 32f)) {
                 //RunScriptPacket(currentPath).send()
             }
             if (ImGui.isItemHovered()) {
@@ -224,7 +229,7 @@ object IDEGui : ImGuiScreen() {
                 val width = imageWidth * scale
                 val height = imageHeight * scale
 
-                ImGui.image(image.id, width, height)
+                ImGui.image(image.id.toLong(), width, height)
             }
             ImGui.popItemWidth()
             ImGui.endDragDropSource()

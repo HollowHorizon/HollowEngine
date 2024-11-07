@@ -139,7 +139,7 @@ class NPCCreatorGui(val npc: NPCEntity, private val npcId: Int) : ImGuiScreen() 
         ImGui.pushItemWidth(700f)
         ImGui.inputText("Имя персонажа", npcName)
         npcModel.set(npc[AnimatedEntityCapability::class].model)
-        if (ImGui.inputText("Модель персонажа", npcModel)) {
+        if (ImGui.inputText("Модель персонажа", npcModel) && npcModel.get() != "%NO_MODEL%") {
             val npcModel = npcModel.get().rl
             if (npcModel.exists() && (npcModel.path.endsWith(".gltf") || npcModel.path.endsWith(".glb"))) {
                 model = GltfManager.getOrCreate(npcModel)

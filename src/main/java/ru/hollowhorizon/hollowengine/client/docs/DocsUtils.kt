@@ -58,7 +58,7 @@ object DocsUtils {
         val imgH = imgW * imageHeight / imageWidth
 
         ImGui.setCursorPosX(ImGui.getContentRegionAvailX() / 2 - imgW / 2)
-        ImGui.image("hollowengine:docs/titles/$titleId.png".rl.toTexture().id, imgW, imgH)
+        ImGui.image("hollowengine:docs/titles/$titleId.png".rl.toTexture().id.toLong(), imgW, imgH)
 
         val (titleDesc, descExist) =
             if (docsLang.has("${titleId}_desc")) docsLang.getOrDefault("${titleId}_desc") to true
@@ -81,7 +81,7 @@ object DocsUtils {
         val borderColor = type.borderColor
         val bgColor = type.backgroundColor
 
-        val iconPath = "hollowengine:docs/icons/table_$type.png".rl.toTexture().id
+        val iconPath = "hollowengine:docs/icons/table_$type.png".rl.toTexture().id.toLong()
         val tableWidth = ImGui.getContentRegionAvailX() * 0.9f
 
         ImGui.pushStyleVar(ImGuiStyleVar.ChildBorderSize, 4f)

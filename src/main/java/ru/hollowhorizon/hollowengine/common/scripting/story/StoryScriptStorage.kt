@@ -1,10 +1,12 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
+import kotlinx.serialization.Serializable
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hc.client.utils.currentServer
 import ru.hollowhorizon.hc.client.utils.get
+import ru.hollowhorizon.hc.client.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2
 import ru.hollowhorizon.hc.common.coroutines.onMainThreadSync
@@ -46,7 +48,10 @@ fun onStoryTick(event: TickEvent.Server) {
 
 @HollowCapabilityV2(MinecraftServer::class)
 class StoryScriptStorage : CapabilityInstance() {
-    var scripts by syncableMap<String, CompoundTag>()
+    var scripts by syncableMap<String, TagWrapper>()
+
+    @Serializable //TODO: Make capabilities support contextual values
+    class TagWrapper(val tag: @Serializable(ForCompoundNBT::class) CompoundTag)
 }
 
 @SubscribeEvent
@@ -56,7 +61,7 @@ fun onStoryScriptLoad(event: ServerEvent.Starting) {
     scripts.forEach { (file, data) ->
         val script = file.fromReadablePath()
 
-        startEvent(script, data)
+        startEvent(script, data.tag)
     }
 }
 
@@ -76,7 +81,7 @@ fun onStoryScriptSave(server: MinecraftServer) {
     ACTIVE_EVENTS.forEach { script ->
         val file = script.file
         val tag = script.context.serialize()
-        scripts[file] = tag
+        scripts[file] = StoryScriptStorage.TagWrapper(tag)
     }
 }
 

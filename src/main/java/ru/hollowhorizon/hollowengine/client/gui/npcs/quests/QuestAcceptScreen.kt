@@ -9,6 +9,7 @@ import imgui.type.ImString
 import net.minecraft.client.Minecraft
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hc.client.imgui.Graphics
+import ru.hollowhorizon.hc.client.imgui.Graphics.image
 import ru.hollowhorizon.hc.client.models.internal.animations.PlayMode
 import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.internal.manager.AnimationLayer
@@ -84,7 +85,7 @@ class QuestAcceptScreen(val npc: NPCEntity, val questNode: QuestNode, val editMo
     private fun drawContextMenu() {
         ImGui.setCursorPos(70 * scale, 24 * scale)
 
-        ImGui.image("hollowengine:textures/gui/quests/name.png".rl.toTexture().id, 190f * scale, 20f * scale)
+        image("hollowengine:textures/gui/quests/name.png".rl.toTexture().id, 190f * scale, 20f * scale)
         ImGui.setCursorPos(77 * scale, 30 * scale)
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 0f, 0f)
         ImGui.pushStyleColor(ImGuiCol.FrameBg, 0f, 0f, 0f, 0f)
@@ -105,7 +106,7 @@ class QuestAcceptScreen(val npc: NPCEntity, val questNode: QuestNode, val editMo
 
         ImGui.setCursorPos(70 * scale, 45 * scale)
 
-        ImGui.image("hollowengine:textures/gui/quests/description.png".rl.toTexture().id, 190f * scale, 98f * scale)
+        image("hollowengine:textures/gui/quests/description.png".rl.toTexture().id, 190f * scale, 98f * scale)
 
         ImGui.setCursorPos(87 * scale, 60 * scale)
 
@@ -115,7 +116,7 @@ class QuestAcceptScreen(val npc: NPCEntity, val questNode: QuestNode, val editMo
 
 
         ImGui.setCursorPos(70 * scale, 144 * scale)
-        ImGui.image("hollowengine:textures/gui/quests/panel.png".rl.toTexture().id, 93f * scale, 89f * scale)
+        image("hollowengine:textures/gui/quests/panel.png".rl.toTexture().id, 93f * scale, 89f * scale)
         var size = ImGui.calcTextSize("Задание").times(0.5f, 0.5f)
         ImGui.setCursorPos(116.5f * scale - size.x, 155 * scale - size.y)
         Graphics.textShadow("Задание")
@@ -126,7 +127,7 @@ class QuestAcceptScreen(val npc: NPCEntity, val questNode: QuestNode, val editMo
         ImGui.endChild()
 
         ImGui.setCursorPos(167 * scale, 144 * scale)
-        ImGui.image("hollowengine:textures/gui/quests/panel.png".rl.toTexture().id, 93f * scale, 89f * scale)
+        image("hollowengine:textures/gui/quests/panel.png".rl.toTexture().id, 93f * scale, 89f * scale)
         size = ImGui.calcTextSize("Награды").times(0.5f, 0.5f)
         ImGui.setCursorPos(213.5f * scale - size.x, 155 * scale - size.y)
         Graphics.textShadow("Награды")
@@ -218,7 +219,7 @@ class QuestAcceptScreen(val npc: NPCEntity, val questNode: QuestNode, val editMo
         val hovered = ImGui.isMouseHoveringRect(pos.x, pos.y, pos.x + 18 * scale, pos.y + 18 * scale)
         val color = if (hovered) 0.75f else 1f
         ImGui.image(
-            "hollowengine:textures/gui/quests/slot_add.png".rl.toTexture().id,
+            "hollowengine:textures/gui/quests/slot_add.png".rl.toTexture().id.toLong(),
             18f * scale,
             19f * scale,
             0f,
@@ -238,7 +239,7 @@ class QuestAcceptScreen(val npc: NPCEntity, val questNode: QuestNode, val editMo
 
     fun drawSlot(item: ItemStack): Boolean {
         val pos = ImGui.getCursorPos()
-        ImGui.image("hollowengine:textures/gui/quests/slot.png".rl.toTexture().id, 18f * scale, 19f * scale)
+        image("hollowengine:textures/gui/quests/slot.png".rl.toTexture().id, 18f * scale, 19f * scale)
         ImGui.setCursorPos(pos.x + scale, pos.y + scale * 2)
         Graphics.item(item, 16f * scale, 16f * scale)
         ImGui.setCursorPos(pos.x, pos.y)
@@ -266,7 +267,7 @@ class QuestAcceptScreen(val npc: NPCEntity, val questNode: QuestNode, val editMo
     fun drawNpcPreview() {
         ImGui.setCursorPos(334 * scale, 40 * scale)
 
-        ImGui.image("hollowengine:textures/gui/npc_menu/nickname.png".rl.toTexture().id, 90f * scale, 20f * scale)
+        image("hollowengine:textures/gui/npc_menu/nickname.png".rl.toTexture().id, 90f * scale, 20f * scale)
 
         val size = ImGui.calcTextSize(npc.name)
         ImGui.setCursorPos(379 * scale - size.x / 2, 50 * scale - size.y / 2)
@@ -274,7 +275,7 @@ class QuestAcceptScreen(val npc: NPCEntity, val questNode: QuestNode, val editMo
 
         ImGui.setCursorPos(320f * scale, 63 * scale)
 
-        ImGui.image("hollowengine:textures/gui/npc_menu/character.png".rl.toTexture().id, 118f * scale, 155f * scale)
+        image("hollowengine:textures/gui/npc_menu/character.png".rl.toTexture().id, 118f * scale, 155f * scale)
         ImGui.setCursorPos(331f * scale, 76 * scale)
         Graphics.entity(
             npc,

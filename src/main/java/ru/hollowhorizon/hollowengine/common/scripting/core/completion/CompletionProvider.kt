@@ -24,9 +24,9 @@ import org.jetbrains.kotlin.types.isFlexible
 import ru.hollowhorizon.hollowengine.common.scripting.core.AfterCodeAnalysisEvent
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.codeInsight.ReferenceVariantsHelper
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.resolve.getResolutionScope
+import ru.hollowhorizon.hollowengine.common.scripting.core.completion.util.IdeDescriptorRenderersScripting
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.util.importableFqName
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.util.isVisible
-import java.beans.PropertyDescriptor
 
 class CompletionProvider(
     private val psiFiles: MutableList<KtFile>,
@@ -158,7 +158,7 @@ class CompletionProvider(
                 for (descriptor in descriptors) {
                     val presentableText = getPresentableText(descriptor, element.isCallableReference())
 
-                    val fullName = formatName(presentableText.first, NUMBER_OF_CHAR_IN_COMPLETION_NAME)
+                    val fullName = presentableText.first
                     var completionText = fullName
                     var position = completionText.indexOf('(')
                     if (position != -1) {
@@ -180,7 +180,7 @@ class CompletionProvider(
                     if (prefix.isEmpty() || fullName.startsWith(prefix)) {
                         val completionVariant = CompletionVariant(
                             completionText, fullName,
-                            formatName(presentableText.second, NUMBER_OF_CHAR_IN_TAIL),
+                            presentableText.second,
                             getIconFromDescriptor(descriptor)
                         )
                         result.add(completionVariant)
@@ -198,21 +198,15 @@ class CompletionProvider(
 
     }
 
-    private fun getIconFromDescriptor(descriptor: DeclarationDescriptor): String {
-        return if (descriptor is FunctionDescriptor) {
-            "method"
-        } else if (descriptor is PropertyDescriptor || descriptor is LocalVariableDescriptor) {
-            "property"
-        } else if (descriptor is ClassDescriptor) {
-            "class"
-        } else if (descriptor is PackageFragmentDescriptor || descriptor is PackageViewDescriptor) {
-            "package"
-        } else if (descriptor is ValueParameterDescriptor) {
-            "genericValue"
-        } else if (descriptor is TypeParameterDescriptorImpl) {
-            "class"
-        } else {
-            ""
+    private fun getIconFromDescriptor(descriptor: DeclarationDescriptor): CompletionVariant.Icon {
+        return when (descriptor) {
+            is FunctionDescriptor -> CompletionVariant.Icon.METHOD
+            is PropertyDescriptor, is LocalVariableDescriptor -> CompletionVariant.Icon.VARIABLE
+            is ClassDescriptor -> CompletionVariant.Icon.CLASS
+            is PackageFragmentDescriptor, is PackageViewDescriptor -> CompletionVariant.Icon.PACKAGE
+            is ValueParameterDescriptor -> CompletionVariant.Icon.VARIABLE
+            is TypeParameterDescriptorImpl -> CompletionVariant.Icon.CLASS
+            else -> CompletionVariant.Icon.UNKNOWN
         }
     }
 
@@ -245,7 +239,7 @@ class CompletionProvider(
         return keywords.types
             .map { (it as KtKeywordToken).value }
             .filter { it.startsWith(prefix) }
-            .mapTo(ArrayList()) { CompletionVariant(it, it, "", "") }
+            .mapTo(ArrayList()) { CompletionVariant(it, it, "", CompletionVariant.Icon.UNKNOWN) }
     }
 
 

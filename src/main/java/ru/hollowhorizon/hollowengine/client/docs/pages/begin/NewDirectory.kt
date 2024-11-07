@@ -85,7 +85,7 @@ fun DocsRenderer.newDirectory() {
     ImGui.pushStyleColor(ImGuiCol.Text, 172, 145, 0, 255)
     text("Assets [assets]", 50, true, true)
     ImGui.popStyleColor(); ImGui.sameLine()
-    ImGui.image("hollowengine:docs/icons/folder.png".rl.toTexture().id, 58f, 58f, 0f, 0f, 1f, 1f, 172f, 145f, 0f, 255f)
+    ImGui.image("hollowengine:docs/icons/folder.png".rl.toTexture().id.toLong(), 58f, 58f, 0f, 0f, 1f, 1f, 172f, 145f, 0f, 255f)
 
     dline()
 
@@ -105,7 +105,7 @@ fun DocsRenderer.newDirectory() {
     ImGui.pushStyleColor(ImGuiCol.Text, 0, 79, 196, 255)
     text("Camera [camera]", 50, true, true)
     ImGui.popStyleColor(); ImGui.sameLine()
-    ImGui.image("hollowengine:docs/icons/camera.png".rl.toTexture().id, 58f, 58f, 0f, 0f, 1f, 1f, 0f, 0.32f, 0.8f, 1f)
+    ImGui.image("hollowengine:docs/icons/camera.png".rl.toTexture().id.toLong(), 58f, 58f, 0f, 0f, 1f, 1f, 0f, 0.32f, 0.8f, 1f)
 
     dline()
 
@@ -125,7 +125,7 @@ fun DocsRenderer.newDirectory() {
     ImGui.pushStyleColor(ImGuiCol.Text, 0, 186, 0, 255)
     text("NPCs [npcs]", 50, true, true)
     ImGui.popStyleColor(); ImGui.sameLine()
-    ImGui.image("hollowengine:docs/icons/npc.png".rl.toTexture().id, 58f, 58f, 0f, 0f, 1f, 1f, 0f, 0.65f, 0f, 1f)
+    ImGui.image("hollowengine:docs/icons/npc.png".rl.toTexture().id.toLong(), 58f, 58f, 0f, 0f, 1f, 1f, 0f, 0.65f, 0f, 1f)
 
     dline()
 
@@ -145,7 +145,7 @@ fun DocsRenderer.newDirectory() {
     ImGui.pushStyleColor(ImGuiCol.Text, 255, 102, 0, 255)
     text("Replays [replays]", 50, true, true)
     ImGui.popStyleColor(); ImGui.sameLine()
-    ImGui.image("hollowengine:docs/icons/replay.png".rl.toTexture().id, 58f, 58f, 0f, 0f, 1f, 1f, 1f, 0.51f, 0f, 1f)
+    ImGui.image("hollowengine:docs/icons/replay.png".rl.toTexture().id.toLong(), 58f, 58f, 0f, 0f, 1f, 1f, 1f, 0.51f, 0f, 1f)
 
     dline()
 
@@ -165,7 +165,7 @@ fun DocsRenderer.newDirectory() {
     ImGui.pushStyleColor(ImGuiCol.Text, 135, 0, 255, 255)
     text("Scripts [scripts]", 50, true, true)
     ImGui.popStyleColor(); ImGui.sameLine()
-    ImGui.image("hollowengine:docs/icons/scripts.png".rl.toTexture().id, 58f, 58f, 0f, 0f, 1f, 1f, 0.51f, 0f, 1f, 1f)
+    ImGui.image("hollowengine:docs/icons/scripts.png".rl.toTexture().id.toLong(), 58f, 58f, 0f, 0f, 1f, 1f, 0.51f, 0f, 1f, 1f)
 
     dline()
 
@@ -185,7 +185,7 @@ fun DocsRenderer.newDirectory() {
     ImGui.pushStyleColor(ImGuiCol.Text, 117, 117, 117, 255)
     text("Storyteller World [storyteller_dimension]", 50, true, true)
     ImGui.popStyleColor(); ImGui.sameLine()
-    ImGui.image("hollowengine:docs/icons/world.png".rl.toTexture().id, 58f, 58f, 0f, 0f, 1f, 1f, 0.49f, 0.49f, 0.49f, 1f)
+    ImGui.image("hollowengine:docs/icons/world.png".rl.toTexture().id.toLong(), 58f, 58f, 0f, 0f, 1f, 1f, 0.49f, 0.49f, 0.49f, 1f)
 
     dline()
 

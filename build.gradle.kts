@@ -22,6 +22,7 @@ val cfg = rootProject.file("user.properties")
 val hasConfig = cfg.exists()
 if (hasConfig) userConfig.load(cfg.inputStream())
 
+val hollowcore = fromProperties("hollowcore")
 val kotlinVersion = fromProperties("kotlinVersion")
 val compilerPluginVersion = fromProperties("compiler_plugin")
 val modId = fromProperties("mod_id")
@@ -77,6 +78,7 @@ base {
 
 repositories {
     mavenCentral()
+    mavenLocal()
     maven("https://repo.spongepowered.org/repository/maven-public/")
     maven("https://maven.0mods.team/releases")
     maven("https://oss.sonatype.org/content/repositories/snapshots/")
@@ -107,8 +109,8 @@ dependencies {
     compileOnly("org.spongepowered:mixin:0.8.7")
 
     // KOTLIN //
-    dependency("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.21a:dev")
-    include("com.github.HollowHorizon.HollowCore:HollowCore-$modPlatform-$minecraftVersion:2.0.21a")
+    dependency("ru.hollowhorizon:HollowCore-$modPlatform-$minecraftVersion:$hollowcore:dev")
+    include("ru.hollowhorizon:HollowCore-$modPlatform-$minecraftVersion:$hollowcore")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
     dependency("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")

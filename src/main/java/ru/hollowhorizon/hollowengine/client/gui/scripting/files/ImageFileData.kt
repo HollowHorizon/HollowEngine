@@ -17,7 +17,7 @@ class ImageFileData(name: String, path: String, open: ImBoolean, val image: Dyna
         val width = imageWidth * scale
         val height = imageHeight * scale
 
-        ImGui.image(image.id, width, height, 0f, 0f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f)
+        ImGui.image(image.id.toLong(), width, height, 0f, 0f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f, 1f)
     }
 
     override fun save() {

@@ -56,7 +56,7 @@ class NPCToolGui(val npc: NPCEntity) : ImGuiScreen() {
     }
 
     fun imageButton(image: String, size: Float): Boolean {
-        val isClicked = ImGui.imageButton("hollowengine:textures/gui/icons/$image.png".rl.toTexture().id, size, size)
+        val isClicked = ImGui.imageButton("hollowengine:textures/gui/icons/$image.png".rl.toTexture().id.toLong(), size, size)
         ImGui.pushStyleVar(ImGuiStyleVar.PopupBorderSize, 3f)
         if (ImGui.isItemHovered()) ImGui.setTooltip(
             //? if >=1.20.1 {

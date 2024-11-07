@@ -69,11 +69,11 @@ object ScriptingCompiler {
         compiledJar: File? = null,
     ): CompiledScript {
         val hash = scriptFile?.readText()?.hashCode()?.toString() ?: ""
-        val compiledScript = result.valueOrNull() as KJvmCompiledScript
+        val compiledScript = result.valueOrNull() as? KJvmCompiledScript
         return CompiledScript(
             scriptName,
             hash,
-            compiledScript.obfuscate(scriptName, hash),
+            compiledScript?.obfuscate(scriptName, hash),
             scriptFile ?: File(scriptName)
         ).apply {
             if (result.isError()) {

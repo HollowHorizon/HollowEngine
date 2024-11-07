@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.events
 
 import com.google.common.collect.HashMultimap
 import kotlinx.coroutines.runBlocking
+import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.common.events.*
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
@@ -21,13 +22,17 @@ abstract class EventScript
 
 fun loadEvents() {
     DirectoryManager.eventScripts.forEach { file ->
-        runBlocking {
-            val jar = ScriptingCompiler.compileFile<EventScript>(file)
+        try {
+            runBlocking {
+                val jar = ScriptingCompiler.compileFile<EventScript>(file)
 
-            val result = jar.execute()
-            val script = result.valueOrThrow().returnValue.scriptInstance ?: error("Script instance is null")
+                val result = jar.execute()
+                val script = result.valueOrThrow().returnValue.scriptInstance ?: error("Script instance is null")
 
-            script.subscribeEvents()
+                script.subscribeEvents()
+            }
+        } catch (e: Exception) {
+            HollowCore.LOGGER.warn(e)
         }
     }
 

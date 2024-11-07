@@ -10,6 +10,7 @@ import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
 import ru.hollowhorizon.hc.common.config.HollowConfig
 import ru.hollowhorizon.hc.common.config.hollowConfig
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.completionsList
 import ru.hollowhorizon.hollowengine.client.gui.scripting.remember
 import ru.hollowhorizon.hollowengine.common.registry.NodesRegistry
 import ru.hollowhorizon.hollowengine.common.registry.PinsRegistry

@@ -99,7 +99,7 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : ImGuiScr
 
         val cursor = ImGui.getCursorPos()
 
-        ImGui.image(TRADE_ICON.toTexture().id, 32f * scale, 41f * scale)
+        image(TRADE_ICON.toTexture().id, 32f * scale, 41f * scale)
 
         ImGui.setCursorPos(cursor.x + 8f * scale, cursor.y + 12f * scale)
 
@@ -252,7 +252,7 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : ImGuiScr
         )
         var light = if (hovered && page > 0) 0.8f else 1f
         ImGui.image(
-            "hollowengine:textures/gui/trades/left_button.png".rl.toTexture().id,
+            "hollowengine:textures/gui/trades/left_button.png".rl.toTexture().id.toLong(),
             25f * scale,
             15f * scale,
             0f,
@@ -277,7 +277,7 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : ImGuiScr
         )
         light = if (hovered && page < pageCount - 1) 0.8f else 1f
         ImGui.image(
-            "hollowengine:textures/gui/trades/right_button.png".rl.toTexture().id,
+            "hollowengine:textures/gui/trades/right_button.png".rl.toTexture().id.toLong(),
             25f * scale,
             15f * scale,
             0f,
@@ -294,7 +294,7 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : ImGuiScr
         }
 
         ImGui.setCursorPos(39f * scale, 149f * scale)
-        ImGui.image("hollowengine:textures/gui/trades/counter.png".rl.toTexture().id, 40f * scale, 15f * scale)
+        ImGui.image("hollowengine:textures/gui/trades/counter.png".rl.toTexture().id.toLong(), 40f * scale, 15f * scale)
         withFontSize((10 * scale).toInt()) {
             val text = "${page + 1} / $pageCount"
             val textSize = imgui.ImGui.calcTextSize(text)
@@ -317,7 +317,7 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : ImGuiScr
         ImGui.setCursorPos(cursor.x, cursor.y - 2 * scale)
 
         ImGui.image(
-            "hollowengine:textures/gui/trades/add_trade_icon.png".rl.toTexture().id,
+            "hollowengine:textures/gui/trades/add_trade_icon.png".rl.toTexture().id.toLong(),
             36f * scale, 43f * scale,
             0f, 0f, 1f, 1f,
             color.x, color.y, color.z, color.w
@@ -344,7 +344,7 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : ImGuiScr
         ImGui.setCursorPos(cursor.x, cursor.y)
 
         ImGui.image(
-            TRADE_ICON.toTexture().id, 32f * scale, 41f * scale, 0f, 0f, 1f, 1f, color.x, color.y, color.z, color.w
+            TRADE_ICON.toTexture().id.toLong(), 32f * scale, 41f * scale, 0f, 0f, 1f, 1f, color.x, color.y, color.z, color.w
         )
 
         val trade = npc[NPCCapability::class].trades[page * 9 + i]

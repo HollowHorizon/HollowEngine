@@ -82,7 +82,7 @@ class QuestsGraphGui(val npc: NPCEntity, val editMode: Boolean = true) : ImGuiSc
             val animation = -(Blaze3D.getTime().toFloat() % 6f) / 6f
 
             ImGui.getWindowDrawList().addImageQuad(
-                "hollowengine:textures/gui/quests/quest_line.png".rl.toTexture().id,
+                "hollowengine:textures/gui/quests/quest_line.png".rl.toTexture().id.toLong(),
                 inputPosX + 20 * Mth.cos(rotation),
                 inputPosY - 20 * Mth.sin(rotation),
                 outputPosX + 20 * Mth.cos(rotation),
