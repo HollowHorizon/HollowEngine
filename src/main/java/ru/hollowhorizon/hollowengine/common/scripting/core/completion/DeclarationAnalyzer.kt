@@ -14,5 +14,6 @@ fun onAnalysisEvent(event: AfterCodeAnalysisEvent) {
 
     val r = provider.getResult(event)
 
+    completionsList.clear()
     completionsList.addAll(r)
 }

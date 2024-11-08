@@ -39,7 +39,7 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
 
         val fontSize = when {
             scale < 1.5f -> 20
-            scale < 2f -> 30
+            scale < 2f -> 25
             scale < 2.5f -> 30
             scale > 3f -> 50
             else -> 40

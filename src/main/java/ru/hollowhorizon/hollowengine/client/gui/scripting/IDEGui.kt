@@ -464,7 +464,7 @@ object IDEGui : ImGuiScreen() {
         return tree
     }
 
-    override fun shouldCloseOnEsc() = true
+    override fun shouldCloseOnEsc() = completionsList.isEmpty()
 }
 
 @Serializable

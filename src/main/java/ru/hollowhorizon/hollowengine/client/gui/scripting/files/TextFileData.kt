@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants
 import imgui.ImGui
 import imgui.ImVec2
 import imgui.flag.ImGuiCol
+import imgui.flag.ImGuiMouseButton
 import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
 import imgui.type.ImBoolean
@@ -19,6 +20,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.events.EventScript
 import ru.hollowhorizon.hollowengine.common.scripting.gui.GuiScript
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.min
 
 var currentLine = 0
 var currentColumn = 0
@@ -35,7 +37,19 @@ class TextFileData(name: String, path: String, open: ImBoolean, var code: String
         IDEGui.currentPath = path
         val startPos = ImGui.getCursorScreenPos()
 
-        ImGui.beginChild("Code Editor", ImVec2(), false, ImGuiWindowFlags.HorizontalScrollbar or ImGuiWindowFlags.NoMove)
+        ImGui.beginChild(
+            "Code Editor",
+            ImVec2(),
+            false,
+            ImGuiWindowFlags.HorizontalScrollbar or ImGuiWindowFlags.NoMove
+        )
+        if (completionsList.isNotEmpty() && GLFW.glfwGetKey(
+                Minecraft.getInstance().window.window,
+                GLFW.GLFW_KEY_ESCAPE
+            ) == GLFW.GLFW_PRESS
+        ) {
+            ImGui.setWindowFocus()
+        }
         IDEGui.editor.render("Code Editor")
 
         drawCompletions(startPos)
@@ -66,16 +80,18 @@ class TextFileData(name: String, path: String, open: ImBoolean, var code: String
         }
 
         if (IDEGui.editor.isTextChanged) {
+            val line = IDEGui.editor.currentLineText.substring(0, IDEGui.editor.cursorPosition.mColumn)
             code = IDEGui.editor.text.substringBeforeLast("\n")
-            ActionManager.launchNewAction {
+            val chars = ('a'..'z') + ('A'..'Z') + ('0'..'9') + '.'
+            if (line.lastOrNull() in chars) ActionManager.launchNewAction {
                 currentLine = IDEGui.editor.cursorPosition.mLine
                 currentColumn = IDEGui.editor.cursorPosition.mColumn
-                completionsList.clear()
                 val extension = name.substringBeforeLast(".").substringAfterLast(".")
-                when (extension) {
+                val result = when (extension) {
                     "story" -> ScriptingCompiler.compileText<StoryEvent>(code)
                     "event" -> ScriptingCompiler.compileText<EventScript>(code)
                     "gui" -> ScriptingCompiler.compileText<GuiScript>(code)
+                    else -> error("Unknown extension: $extension")
                 }
             }
             save()
@@ -98,28 +114,77 @@ class TextFileData(name: String, path: String, open: ImBoolean, var code: String
 }
 
 fun drawCompletions(startPos: ImVec2) {
-    val completionsList = ArrayList(completionsList)
+    val list = ArrayList(completionsList)
 
     val line = IDEGui.editor.currentLineText
 
-    val maxX = (completionsList.maxOfOrNull { ImGui.calcTextSize(it.displayText).x } ?: 0f) / 2
+    val maxX = (list.maxOfOrNull { ImGui.calcTextSize(it.displayText).x } ?: 0f) / 2
     val pos = ImVec2(
         (startPos.x + ImGui.calcTextSize(
             line.substring(0, IDEGui.editor.cursorPosition.mColumn.coerceAtMost(line.length))
-        ).x - maxX).coerceAtLeast(startPos.x), startPos.y + (IDEGui.editor.cursorPosition.mLine + 1) * ImGui.getFontSize() + 5
+        ).x).coerceAtLeast(startPos.x),
+        startPos.y + (IDEGui.editor.cursorPosition.mLine + 1) * ImGui.getFontSize() + 5
     )
 
+    ImGui.pushStyleColor(ImGuiCol.NavHighlight, 0)
     ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 10f)
     ImGui.pushStyleVar(ImGuiStyleVar.ChildBorderSize, 3f)
-    if (completionsList.isNotEmpty()) {
+    if (list.isNotEmpty()) {
+        val sizeX = list.maxOf { ImGui.calcTextSizeX(it.displayText + (if (it.tail == "Unit") "" else it.tail) + " ") } + ImGui.getFontSize() * 2
         ImGui.setCursorScreenPos(pos.x, pos.y)
-        ImGui.beginChild("##Completions", ImVec2(ImGui.getContentRegionAvailX(), ((completionsList.size.toFloat()+1) * ImGui.getFontSize() + 30).coerceAtMost(ImGui.getFontSize() * 20f)), true, ImGuiWindowFlags.NoNavFocus or ImGuiWindowFlags.HorizontalScrollbar)
-        completionsList.forEach {
+        ImGui.beginChild(
+            "##Completions",
+            ImVec2(
+                min(
+                    ImGui.getContentRegionAvailX(),
+                    sizeX
+                ),
+                (list.size.toFloat() * ImGui.getFontSize() + 25 + if(sizeX > ImGui.getContentRegionAvailX()) 10 else 0)
+                    .coerceAtMost(ImGui.getFontSize() * 20f)
+            ),
+            true,
+            ImGuiWindowFlags.HorizontalScrollbar
+        )
+
+        list.forEach {
             it.render(IDEGui.editor)
         }
         ImGui.endChild()
+
+
+        val childPos = ImGui.getItemRectMin()
+        val childSize = ImGui.getItemRectSize()
+
+        val mousePos = ImGui.getMousePos()
+
+        val isMouseOutside = mousePos.x < childPos.x || mousePos.x > (childPos.x + childSize.x) ||
+                mousePos.y < childPos.y || mousePos.y > (childPos.y + childSize.y)
+
+        if (isMouseOutside && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
+            completionsList.clear()
+        }
+
+        for (key in (GLFW.GLFW_KEY_SPACE..GLFW.GLFW_KEY_LAST).reversed()) {
+            if(key == GLFW.GLFW_KEY_LEFT_ALT) break
+            if(key == GLFW.GLFW_KEY_RIGHT_ALT) break
+            if(key == GLFW.GLFW_KEY_TAB) break
+            if(key == GLFW.GLFW_KEY_LEFT_SUPER) break
+            if(key == GLFW.GLFW_KEY_LEFT_SHIFT) break
+            if(key == GLFW.GLFW_KEY_RIGHT_SHIFT) break
+
+            if (GLFW.glfwGetKey(Minecraft.getInstance().window.window, key) == GLFW.GLFW_PRESS) {
+                completionsList.clear()
+            }
+        }
+        if(GLFW.glfwGetKey(Minecraft.getInstance().window.window, GLFW.GLFW_KEY_ESCAPE) == GLFW.GLFW_PRESS) {
+            completionsList.clear()
+        }
+        if(GLFW.glfwGetKey(Minecraft.getInstance().window.window, GLFW.GLFW_KEY_BACKSPACE) == GLFW.GLFW_PRESS) {
+            completionsList.clear()
+        }
     }
     ImGui.popStyleVar(2)
+    ImGui.popStyleColor()
 }
 
 var openPopup = false

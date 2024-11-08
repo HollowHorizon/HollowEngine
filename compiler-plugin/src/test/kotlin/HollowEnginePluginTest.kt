@@ -203,11 +203,13 @@ class PluginTester {
             
             val async = async {
                 await(data>10)
+                println("Data is more than 10!")
             }
             
             async.start()
-            async.join()
             
+            data = 50
+            async.join()
             println(message = "aaa")
             println({"hello"+data})
             data += 2

@@ -191,7 +191,7 @@ class CompletionProvider(
                 result.addAll(keywordsCompletionVariants(KtTokens.SOFT_KEYWORDS, prefix))
             }
 
-            return result
+            return result.sortedBy { it.icon.ordinal }
         } catch (e: Throwable) {
             throw IllegalStateException(e)
         }
