@@ -1,0 +1,37 @@
+package ru.hollowhorizon.hollowengine.client.gui.overlay
+
+import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.BufferUploader
+import com.mojang.blaze3d.vertex.DefaultVertexFormat
+import com.mojang.blaze3d.vertex.Tesselator
+import com.mojang.blaze3d.vertex.VertexFormat
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.renderer.GameRenderer
+import net.minecraft.resources.ResourceLocation
+
+@JvmOverloads
+fun GuiGraphics.blitColor(
+    location: ResourceLocation,
+    x1: Int,
+    y1: Int,
+    width: Int,
+    height: Int,
+    minU: Float = 0f,
+    maxU: Float = 1f,
+    minV: Float = 0f,
+    maxV: Float = 1f,
+) {
+    RenderSystem.setShaderTexture(0, location)
+    RenderSystem.setShader { GameRenderer.getPositionTexColorShader() }
+    val (r, g, b, a) = RenderSystem.getShaderColor()
+    val matrix4f = pose().last().pose()
+    val bufferBuilder = Tesselator.getInstance().builder
+    val y2 = y1 + height
+    val x2 = x1 + width
+    bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
+    bufferBuilder.vertex(matrix4f, x1.toFloat(), y1.toFloat(), 0f).color(r, g, b, a).uv(minU, minV).endVertex()
+    bufferBuilder.vertex(matrix4f, x1.toFloat(), y2.toFloat(), 0f).color(r, g, b, a).uv(minU, maxV).endVertex()
+    bufferBuilder.vertex(matrix4f, x2.toFloat(), y2.toFloat(), 0f).color(r, g, b, a).uv(maxU, maxV).endVertex()
+    bufferBuilder.vertex(matrix4f, x2.toFloat(), y1.toFloat(), 0f).color(r, g, b, a).uv(maxU, minV).endVertex()
+    BufferUploader.drawWithShader(bufferBuilder.end())
+}
