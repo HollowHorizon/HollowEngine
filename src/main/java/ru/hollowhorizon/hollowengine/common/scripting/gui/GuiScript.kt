@@ -1,10 +1,26 @@
 package ru.hollowhorizon.hollowengine.common.scripting.gui
 
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.client.imgui.Graphics
+import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
+import kotlin.script.experimental.annotations.KotlinScript
+import kotlin.script.experimental.api.defaultImports
 
-interface GuiScript {
-    fun Graphics.draw(storage: CompoundTag)
-    fun handle(player: Player, storage: CompoundTag)
+@KotlinScript(
+    "GuiScript", "gui.kts", compilationConfiguration = GuiScriptConfiguration::class
+)
+abstract class GuiScript {
+    val storage = CompoundTag()
+
+    abstract fun Graphics.draw()
 }
+
+class GuiScriptConfiguration : HollowScriptConfiguration({
+    defaultImports(
+        "ru.hollowhorizon.hc.client.imgui.Graphics",
+        "imgui.internal.ImGui",
+        "imgui.internal.ImGui.*",
+        "imgui.*",
+        "ru.hollowhorizon.hc.client.utils.*"
+    )
+})

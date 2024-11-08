@@ -2,9 +2,7 @@ package ru.hollowhorizon.hollowengine.common.commands
 
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.brigadier.arguments.StringArgumentType
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
-import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.HollowCore
@@ -12,31 +10,18 @@ import ru.hollowhorizon.hc.client.models.internal.manager.GltfManager
 import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.onRegisterCommands
-import ru.hollowhorizon.hc.common.coroutines.onMainThreadSync
-import ru.hollowhorizon.hc.common.coroutines.scopeAsync
-import ru.hollowhorizon.hc.common.events.EventBus
-import ru.hollowhorizon.hc.common.events.EventListener
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterCommandsEvent
-import ru.hollowhorizon.hc.common.events.tick.TickEvent
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.client.gui.npcs.dialogue.DialogueGui
 import ru.hollowhorizon.hollowengine.client.gui.scripting.roundTo
-import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
-import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
-import ru.hollowhorizon.hollowengine.common.scripting.story.ACTIVE_EVENTS
-import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
-import ru.hollowhorizon.hollowengine.common.scripting.story.StoryScript
+import ru.hollowhorizon.hollowengine.common.scripting.story.openGui
 import ru.hollowhorizon.hollowengine.common.scripting.story.startEvent
-import ru.hollowhorizon.hollowengine.compiler.suspendable.ResumeState
-import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
-import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendState
 import java.io.File
-import kotlin.script.experimental.api.valueOrThrow
 
 @SubscribeEvent
 fun onRegisterCommands(event: RegisterCommandsEvent) {
@@ -80,6 +65,26 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                 CopyTextPacket("pos(${loc.x.roundTo(2)}, ${loc.y.roundTo(2)}, ${loc.z.roundTo(2)})").send(player)
             }
 
+            "open-gui"(
+                arg(
+                    "script",
+                    StringArgumentType.greedyString()
+                ) {
+                    DirectoryManager.guiScripts.map { it.toReadablePath() }.toList()
+                }
+            ) {
+                val raw = StringArgumentType.getString(this, "script")
+                val script = raw.fromReadablePath()
+
+                if (!script.exists()) {
+                    HollowCore.LOGGER.warn("File $script does not exist!")
+                    source.player?.sendSystemMessage("File $script does not exist!".literal)
+                }
+
+                openGui(script)
+                HollowCore.LOGGER.info("Started script $script")
+            }
+
             "start-script"(
                 arg(
                     "script",
@@ -91,7 +96,7 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                 val raw = StringArgumentType.getString(this, "script")
                 val script = raw.fromReadablePath()
 
-                if(!script.exists()) {
+                if (!script.exists()) {
                     HollowCore.LOGGER.warn("File $script does not exist!")
                     source.player?.sendSystemMessage("File $script does not exist!".literal)
                 }

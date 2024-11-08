@@ -7,9 +7,6 @@ import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.defaultImports
 
-//TODO: Функция ввода из чата
-//TODO: Гуишки
-
 @KotlinScript(
     displayName = "Story Event",
     fileExtension = "story.kts",

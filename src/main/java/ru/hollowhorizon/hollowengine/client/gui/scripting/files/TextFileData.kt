@@ -15,6 +15,8 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGui
 import ru.hollowhorizon.hollowengine.client.gui.scripting.SaveFilePacket
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
+import ru.hollowhorizon.hollowengine.common.scripting.events.EventScript
+import ru.hollowhorizon.hollowengine.common.scripting.gui.GuiScript
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -69,7 +71,12 @@ class TextFileData(name: String, path: String, open: ImBoolean, var code: String
                 currentLine = IDEGui.editor.cursorPosition.mLine
                 currentColumn = IDEGui.editor.cursorPosition.mColumn
                 completionsList.clear()
-                ScriptingCompiler.compileText<StoryEvent>(code)
+                val extension = name.substringBeforeLast(".").substringAfterLast(".")
+                when (extension) {
+                    "story" -> ScriptingCompiler.compileText<StoryEvent>(code)
+                    "event" -> ScriptingCompiler.compileText<EventScript>(code)
+                    "gui" -> ScriptingCompiler.compileText<GuiScript>(code)
+                }
             }
             save()
         }
