@@ -106,7 +106,7 @@ fun drawCompletions(startPos: ImVec2) {
     ImGui.pushStyleVar(ImGuiStyleVar.ChildBorderSize, 3f)
     if (completionsList.isNotEmpty()) {
         ImGui.setCursorScreenPos(pos.x, pos.y)
-        ImGui.beginChild("##Completions", ImVec2(ImGui.getContentRegionAvailX(), (ImGui.getFontSize() * 10f).coerceAtMost((completionsList.size.toFloat()+1) * ImGui.getFontSize())), true, ImGuiWindowFlags.NoNavFocus)
+        ImGui.beginChild("##Completions", ImVec2(ImGui.getContentRegionAvailX(), ((completionsList.size.toFloat()+1) * ImGui.getFontSize() + 30).coerceAtMost(ImGui.getFontSize() * 20f)), true, ImGuiWindowFlags.NoNavFocus or ImGuiWindowFlags.HorizontalScrollbar)
         completionsList.forEach {
             it.render(IDEGui.editor)
         }

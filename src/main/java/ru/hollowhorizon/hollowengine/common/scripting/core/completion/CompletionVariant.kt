@@ -28,8 +28,8 @@ data class CompletionVariant(
             image("hollowengine:textures/gui/icons/autocomplete_${icon.name.lowercase()}.png".rl, fontSize, fontSize)
             ImGui.sameLine()
             textShadow(displayText)
-            ImGui.sameLine()
-            if(tail != "Unit") withColors(ImGuiCol.Text to ImVec4(0.6f, 0.6f, 0.6f, 1f).color) {
+            if(tail != "Unit" && icon != Icon.PACKAGE) withColors(ImGuiCol.Text to ImVec4(0.6f, 0.6f, 0.6f, 1f).color) {
+                ImGui.sameLine()
                 val size = ImGui.calcTextSize(tail)
                 ImGui.setCursorPosX(ImGui.getContentRegionMaxX() - size.x)
                 textShadow(tail)
