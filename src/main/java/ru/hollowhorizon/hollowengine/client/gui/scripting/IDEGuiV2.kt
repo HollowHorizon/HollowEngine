@@ -6,6 +6,7 @@ import imgui.ImVec2
 import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiCond
 import imgui.flag.ImGuiDir
+import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
 import imgui.internal.ImGui
 import imgui.internal.flag.ImGuiDockNodeFlags
@@ -17,21 +18,39 @@ import ru.hollowhorizon.hc.client.imgui.remember
 import ru.hollowhorizon.hc.client.utils.mc
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.client.gui.ImGuiScreen
-import ru.hollowhorizon.hollowengine.client.gui.addLine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.completionsList
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
 import java.io.ByteArrayInputStream
 
-object IDEGuiV2 : ImGuiScreen() {
-    var fileErrors: List<ScriptError> = emptyList()
-    var currentFile = 0
+object IDEGuiV2 : ImGuiScreen("code_editor") {
+    var currentFile = ""
+    var fileToRun = ""
 
     val files = HashSet<FileData>()
     var fileTree = TreeNode.EMPTY
 
     override fun Graphics.draw() {
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, 0xFF302D2B.toInt())
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, 0xFF302D2B.toInt())
+        ImGui.pushStyleColor(ImGuiCol.MenuBarBg, 0)
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, 0xFF302D2B.toInt())
+        ImGui.pushStyleColor(ImGuiCol.Button, 0xFF302D2B.toInt())
+        ImGui.pushStyleColor(ImGuiCol.TitleBgActive, 0xFF302D2B.toInt())
+        ImGui.pushStyleColor(ImGuiCol.NavHighlight, 0xFF4A4543.toInt())
+        ImGui.pushStyleColor(ImGuiCol.Border, 0xFF4A4543.toInt())
+
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarBg, 0)
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarGrab, 0xFF4A4543.toInt())
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarGrabHovered, 0xFF544E4C.toInt())
+        ImGui.pushStyleColor(ImGuiCol.ScrollbarGrabActive, 0xFF544E4C.toInt())
+
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, 15f)
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupBorderSize, 3f)
+
+
         val window = mc.window
         ImGui.setNextWindowPos(0f, 0f)
         ImGui.setNextWindowSize(window.width.toFloat(), window.height.toFloat())
@@ -52,10 +71,13 @@ object IDEGuiV2 : ImGuiScreen() {
         }
         tooltipHover { textShadow("Консоль (Пока не работает)") }
         ImGui.sameLine()
-        ImGui.setCursorPos(old + ImVec2(size + ImGui.getStyle().itemSpacingX +4, 0f))
+        ImGui.setCursorPos(old + ImVec2(size + ImGui.getStyle().itemSpacingX + 4, 0f))
         ImGui.getForegroundDrawList().apply {
-            addLine(ImGui.getCursorScreenPos(), ImGui.getCursorScreenPos() + ImVec2(0f, ImGui.getContentRegionMaxY()), ImGui.getStyle().getColor(ImGuiCol.Separator).color)
-            addLine(ImGui.getCursorScreenPos(), ImGui.getCursorScreenPos() + ImVec2(ImGui.getContentRegionMaxX(), 0f), ImGui.getStyle().getColor(ImGuiCol.Separator).color)
+            addLine(
+                ImGui.getCursorScreenPos(),
+                ImGui.getCursorScreenPos() + ImVec2(0f, ImGui.getContentRegionMaxY()),
+                ImGui.getStyle().getColor(ImGuiCol.Separator).color
+            )
         }
 
         val dockspaceId = ImGui.getID("MainDockspace")
@@ -72,7 +94,7 @@ object IDEGuiV2 : ImGuiScreen() {
             ImGui.dockBuilderAddNode(
                 dockspaceId,
                 ImGuiDockNodeFlags.DockSpace or ImGuiDockNodeFlags.NoWindowMenuButton or ImGuiDockNodeFlags.NoCloseButton or ImGuiDockNodeFlags.NoDockingSplitMe or
-                ImGuiDockNodeFlags.NoDockingOverMe or ImGuiDockNodeFlags.NoDocking or ImGuiDockNodeFlags.NoDockingOverOther
+                        ImGuiDockNodeFlags.NoDockingOverMe or ImGuiDockNodeFlags.NoDocking or ImGuiDockNodeFlags.NoDockingOverOther
             )
             val region = ImGui.getContentRegionAvail()
             ImGui.dockBuilderSetNodeSize(dockspaceId, region.x, region.y)
@@ -81,9 +103,11 @@ object IDEGuiV2 : ImGuiScreen() {
             ImGui.dockBuilderSplitNode(dockspaceId, ImGuiDir.Left, 0.4f, leftDockID, rightDockID)
 
             val pLeftNode = ImGui.dockBuilderGetNode(leftDockID.get())
-            pLeftNode.localFlags = pLeftNode.localFlags or ImGuiDockNodeFlags.NoTabBar or ImGuiDockNodeFlags.NoDockingOverMe or ImGuiDockNodeFlags.NoDockingSplitMe
+            pLeftNode.localFlags =
+                pLeftNode.localFlags or ImGuiDockNodeFlags.NoTabBar or ImGuiDockNodeFlags.NoDockingOverMe or ImGuiDockNodeFlags.NoDockingSplitMe
             val pRightNode = ImGui.dockBuilderGetNode(rightDockID.get())
-            pRightNode.localFlags = pRightNode.localFlags or ImGuiDockNodeFlags.NoTabBar or ImGuiDockNodeFlags.NoWindowMenuButton
+            pRightNode.localFlags =
+                pRightNode.localFlags or ImGuiDockNodeFlags.NoTabBar or ImGuiDockNodeFlags.NoWindowMenuButton
 
             ImGui.dockBuilderDockWindow(projectName, leftDockID.get())
             ImGui.dockBuilderDockWindow(contextName, rightDockID.get())
@@ -97,57 +121,76 @@ object IDEGuiV2 : ImGuiScreen() {
         ImGui.dockSpace(
             dockspaceId, region.x, region.y,
             dockFlags or ImGuiDockNodeFlags.NoDocking or ImGuiDockNodeFlags.NoTabBar or
-            ImGuiDockNodeFlags.NoDockingSplitMe or ImGuiDockNodeFlags.NoDockingOverMe,
-            workspaceWindowClass)
+                    ImGuiDockNodeFlags.NoDockingSplitMe or ImGuiDockNodeFlags.NoDockingOverMe,
+            workspaceWindowClass
+        )
 
         ImGui.end()
 
         if (showProject) drawFileTree(projectName)
 
         ImGui.pushStyleColor(ImGuiCol.DockingEmptyBg, 0)
+        ImGui.pushStyleColor(ImGuiCol.WindowBg, 0xFF221F1E.toInt())
+        ImGui.pushStyleColor(ImGuiCol.TabActive, 0xFF4A4543.toInt())
+        ImGui.pushStyleColor(ImGuiCol.TabHovered, 0xFF4A4543.toInt())
+        ImGui.pushStyleColor(ImGuiCol.Tab, 0xFF302D2B.toInt())
+        ImGui.pushStyleColor(ImGuiCol.TabUnfocused, 0xFF302D2B.toInt())
+        ImGui.pushStyleColor(ImGuiCol.TabUnfocusedActive, 0xFF302D2B.toInt())
+
+        ImGui.pushStyleVar(ImGuiStyleVar.TabRounding, 0f)
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f)
         drawActiveFiles(contextName, rightDockID)
-        ImGui.popStyleColor()
+        ImGui.popStyleVar(2)
+        ImGui.popStyleColor(7)
+
+        ImGui.popStyleVar(2)
+        ImGui.popStyleColor(12)
     }
 
     private fun drawMainMenu() {
         ImGui.beginMenuBar()
         val iconSize = ImGui.getFontSize().toFloat()
         val old = ImGui.getCursorPosY()
-        ImGui.setCursorPosY(ImGui.getStyle().windowPaddingY)
+        ImGui.setCursorPos(ImGui.getStyle().windowPadding)
         Graphics.image("hollowengine:textures/gui/icons/code_editor.png".rl, iconSize, iconSize)
         ImGui.sameLine()
+        ImGui.setCursorPosX(ImGui.getCursorPosX() + ImGui.getStyle().itemSpacingX + 4)
         ImGui.setCursorPosY(old)
 
         fun nothing() = Graphics.textShadow("Тут пока ничего нет...")
 
-        if (ImGui.menuItem("Файл")) ImGui.openPopup("Menu")
-        if (ImGui.menuItem("Правка")) ImGui.openPopup("Menu")
-        if (ImGui.menuItem("Поиск")) ImGui.openPopup("Menu")
-        if (ImGui.menuItem("Настройки")) ImGui.openPopup("Menu")
-
-        Graphics.popup("Menu") {
-            nothing()
+        if (ImGui.beginMenu("Файл")) {
+            if(ImGui.menuItem("Импорт скрипта")) {}
+            if(ImGui.menuItem("Обновить файлы")) {}
+            if(ImGui.menuItem("Выход")) {}
+            ImGui.endMenu()
         }
+        if (ImGui.beginMenu("Правка")) ImGui.endMenu()
+        if (ImGui.beginMenu("Поиск")) ImGui.endMenu()
+        if (ImGui.beginMenu("Настройки")) ImGui.endMenu()
 
-        val size = 400f + (iconSize + ImGui.getStyle().itemSpacingX + ImGui.getStyle().framePaddingX*2) * 3
+        val size = 400f + (iconSize + ImGui.getStyle().itemSpacingX + ImGui.getStyle().framePaddingX * 2) * 3
         ImGui.dummy(ImGui.getContentRegionAvailX() - size, 0f)
         ImGui.pushItemWidth(400f)
         ImGui.setCursorPosY(ImGui.getCursorPosY() + 4)
         Graphics.image("hollowengine:textures/gui/icons/file_kts.png".rl, iconSize, iconSize)
         ImGui.sameLine()
         ImGui.setCursorPosY(ImGui.getCursorPosY() - 4)
-        Graphics.combo("##script_to_run", "example.story.kts") {
-            menuItem("example.story.kts") {}
-            menuItem("npc.story.kts") {}
+        val preview = if(fileToRun.isNotEmpty()) fileToRun.substringAfterLast('/') else "Пусто"
+        Graphics.combo("##script_to_run", preview) {
+            files.forEach { menuItem(it.fileName) { fileToRun = it.filePath } }
         }
         ImGui.popItemWidth()
         ImGui.sameLine()
-        Graphics.imageButton("hollowengine:textures/gui/icons/play.png".rl, iconSize, iconSize){}
+        Graphics.imageButton("hollowengine:textures/gui/icons/play.png".rl, iconSize, iconSize) {}
+        Graphics.tooltipHover { textShadow("Запустить выбранный скрипт") }
         ImGui.sameLine()
-        Graphics.imageButton("hollowengine:textures/gui/icons/stop.png".rl, iconSize, iconSize){}
+        Graphics.imageButton("hollowengine:textures/gui/icons/stop.png".rl, iconSize, iconSize) {}
+        Graphics.tooltipHover { textShadow("Остановить выбранный скрипт") }
 
 
         ImGui.endMenuBar()
+        ImGui.separator()
     }
 
     private fun drawFileTree(windowName: String) {
@@ -156,7 +199,7 @@ object IDEGuiV2 : ImGuiScreen() {
                 ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.NoResize
             )
         ) {
-            fileTree.draw(::drawFilePopup, ::drawFolderPopup)
+            fileTree.draw(::drawFolderPopup, ::drawFilePopup)
         }
         ImGui.end()
     }
@@ -187,7 +230,7 @@ object IDEGuiV2 : ImGuiScreen() {
             ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.NoTitleBar
         )
         val dockId = ImGui.getID("FilesContext")
-        ImGui.dockSpace(dockId, 0f, 0f, ImGuiDockNodeFlags.NoCloseButton or ImGuiDockNodeFlags.NoWindowMenuButton)
+        ImGui.dockSpace(dockId, 0f, 0f, ImGuiDockNodeFlags.NoCloseButton or ImGuiDockNodeFlags.NoWindowMenuButton or ImGuiDockNodeFlags.NoDockingOverMe)
         files.removeIf { file ->
             ImGui.setNextWindowDockID(dockId, ImGuiCond.FirstUseEver)
             val wasOpened = file.isOpen.get()
@@ -198,6 +241,7 @@ object IDEGuiV2 : ImGuiScreen() {
 
             wasOpened && !file.isOpen.get()
         }
+        if(files.isEmpty()) fileToRun = ""
         ImGui.end()
     }
 
@@ -215,6 +259,14 @@ object IDEGuiV2 : ImGuiScreen() {
                 FileType.TEXT -> TextFileData(this, path.substringAfterLast('/'), path, ImBoolean(true), String(bytes))
             }
         )
-        currentFile = files.size - 1
+        currentFile = path
+        if(fileToRun == "") fileToRun = path
     }
+
+    override fun onClose() {
+        super.onClose()
+        files.clear()
+    }
+
+    override fun shouldCloseOnEsc() = completionsList.isEmpty()
 }

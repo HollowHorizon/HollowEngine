@@ -8,6 +8,7 @@ import imgui.flag.ImGuiCol
 import net.minecraft.client.Minecraft
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.imgui.Graphics
+import ru.hollowhorizon.hc.client.utils.mc
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.completionsList
@@ -20,12 +21,10 @@ data class CompletionVariant(
     val tail: String,
     val icon: Icon,
 ) {
-    override fun toString(): String {
-        return displayText
-    }
+    override fun toString() = displayText
 
     fun render(editor: TextEditor) {
-        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, ImVec4(0.2f, 0.2f, 0.2f, 0.7f))
+        ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 0xFF4A4543.toInt())
         val textColor = when (icon) {
             Icon.METHOD -> ImVec4(0.878f, 0.568f, 0.098f, 1f)
             Icon.CLASS -> ImVec4(0.098f, 0.521f, 0f, 1f)
@@ -33,11 +32,11 @@ data class CompletionVariant(
             Icon.PACKAGE -> ImVec4(0.537f, 0.329f, 0.921f, 1f)
             else -> ImVec4(1f, 1f, 1f, 1f)
         }
-        ImGui.pushStyleColor(ImGuiCol.Text, textColor)
+        ImGui.pushStyleColor(ImGuiCol.Text, 0xFFCCCCCC.toInt())
 
         Graphics.apply {
             val pos = ImGui.getCursorPos()
-            val displayText = displayText + if(icon == Icon.CLASS) tail else ""
+            val displayText = displayText + if (icon == Icon.CLASS) tail else ""
 
             val clicked = ImGui.selectable("##$displayText")
             ImGui.setCursorPos(pos)
@@ -59,25 +58,21 @@ data class CompletionVariant(
                 display = display.substring(0, display.length - 4)
                 display += "..."
             }
-            textShadow(display)
+            text(display, shadow = false)
+            if(isChanged) tooltipHover {
+                ImGui.pushTextWrapPos(mc.window.width * 0.9f)
+                ImGui.textWrapped(displayText)
+                ImGui.popTextWrapPos()
+            }
             if (tail != "Unit" && icon != Icon.PACKAGE && icon != Icon.CLASS) withColors(
-                ImGuiCol.Text to ImVec4(
-                    0.6f * textColor.x,
-                    0.6f * textColor.y,
-                    0.6f * textColor.z,
-                    1f
-                ).color
+                ImGuiCol.Text to 0x88888888.toInt()
             ) {
                 ImGui.sameLine()
                 ImGui.setCursorPosX(ImGui.getContentRegionMaxX() - tailSize - 5)
                 textShadow(tail)
             }
 
-            if (clicked || GLFW.glfwGetKey(
-                    Minecraft.getInstance().window.window,
-                    GLFW.GLFW_KEY_ENTER
-                ) == GLFW.GLFW_PRESS
-            ) {
+            if (clicked) {
                 val original = editor.currentLineText
 
                 val column = editor.cursorPosition.mColumn
@@ -101,6 +96,17 @@ data class CompletionVariant(
 
         ImGui.popStyleColor(2)
     }
+
+    val textWidth: Float
+        get() {
+            val spacing = ImGui.getStyle().itemSpacingX
+
+            val displayWidth = ImGui.calcTextSizeX(displayText)
+            val tailWidth = if (tail == "Unit") 0f else ImGui.calcTextSizeX(tail)
+            val iconWidth = ImGui.getFontSize().toFloat()
+
+            return iconWidth + spacing + displayWidth + spacing + tailWidth
+        }
 
     enum class Icon {
         PACKAGE, CLASS, METHOD, VARIABLE, UNKNOWN

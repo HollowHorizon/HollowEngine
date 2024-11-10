@@ -31,6 +31,8 @@ class NPCEntity : PathfinderMob, IAnimated {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
     constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
 
+    val goals get() = goalSelector
+
     val fakePlayer: ServerPlayer by lazy {
         //? if fabric {
         val player = net.fabricmc.fabric.api.entity.FakePlayer.get(level() as ServerLevel)
@@ -53,7 +55,7 @@ class NPCEntity : PathfinderMob, IAnimated {
     }
 
     override fun createNavigation(pLevel: Level) = super.createNavigation(pLevel)
-        .apply { nodeEvaluator.setCanOpenDoors(true); nodeEvaluator.setCanPassDoors(true) } //NPCPathNavigatorV2(this, pLevel)
+        .apply { nodeEvaluator.setCanOpenDoors(true); nodeEvaluator.setCanPassDoors(true) }
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         if (pHand == InteractionHand.MAIN_HAND && level().isClientSide && pPlayer.mainHandItem.item != ModItems.NPC_TOOL.get()) {

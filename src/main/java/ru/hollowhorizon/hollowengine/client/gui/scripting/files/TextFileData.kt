@@ -2,19 +2,13 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
 import imgui.ImGui
 import imgui.ImVec2
-import imgui.ImVec4
 import imgui.extension.texteditor.TextEditor
 import imgui.extension.texteditor.flag.TextEditorPaletteIndex
-import imgui.flag.ImGuiCol
-import imgui.flag.ImGuiMouseButton
-import imgui.flag.ImGuiStyleVar
-import imgui.flag.ImGuiWindowFlags
+import imgui.flag.*
 import imgui.type.ImBoolean
 import kotlinx.coroutines.Job
-import net.minecraft.client.Minecraft
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
-import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hc.client.imgui.Graphics.color
+import ru.hollowhorizon.hc.client.imgui.Graphics
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
@@ -22,12 +16,14 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.KotlinLanguage
 import ru.hollowhorizon.hollowengine.client.gui.scripting.SaveFilePacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.insertAtCursor
 import ru.hollowhorizon.hollowengine.client.keys.Key
+import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
 import ru.hollowhorizon.hollowengine.common.scripting.events.EventScript
 import ru.hollowhorizon.hollowengine.common.scripting.gui.GuiScript
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.max
 import kotlin.math.min
 
 var currentLine = 0
@@ -43,17 +39,26 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, open: ImBoolea
 
         tabSize = HollowEngine.config.ideConfig.tabSpace
         text = code
+        val palette = palette
         palette[TextEditorPaletteIndex.Background] = 0
-        palette[TextEditorPaletteIndex.CurrentLineEdge] = ImVec4(1f, 1f, 1f, 1f).color
+        palette[TextEditorPaletteIndex.CurrentLineEdge] = 0xFF2E2826.toInt()
+        palette[TextEditorPaletteIndex.CurrentLineFill] = 0x882E2826.toInt()
+        palette[TextEditorPaletteIndex.CurrentLineFillInactive] = 0x882E2826.toInt()
+        palette[TextEditorPaletteIndex.LineNumber] = 0xFF59504B.toInt()
+        palette[TextEditorPaletteIndex.Number] = 0xFFADAB29.toInt()
+        palette[TextEditorPaletteIndex.Keyword] = 0xFF6D8ECF.toInt()
+        palette[TextEditorPaletteIndex.String] = 0xFF73AB6A.toInt()
+        palette[TextEditorPaletteIndex.Comment] = 0xFF857E7A.toInt()
+        this.palette = palette
     }
+    var fileErrors = emptyList<ScriptError>()
 
     override fun draw() {
-        val isThatFile = project.currentFile == project.files.indexOf(this)
+        val isFileFocused = ImGui.isWindowFocused(ImGuiFocusedFlags.ChildWindows)
 
         ImGui.pushStyleColor(ImGuiCol.TextSelectedBg, 1f, 1f, 1f, 1f)
         ImGui.pushStyleColor(ImGuiCol.ChildBg, 0f, 0f, 0f, 0f)
 
-        project.currentFile = project.files.indexOf(this)
         val startPos = ImGui.getCursorScreenPos()
 
         ImGui.beginChild(
@@ -62,12 +67,13 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, open: ImBoolea
             false,
             ImGuiWindowFlags.HorizontalScrollbar or ImGuiWindowFlags.NoMove
         )
-        if (isThatFile && completionsList.isNotEmpty() && Key.ESCAPE.isReleased()) {
+        if (isFileFocused && completionsList.isNotEmpty() && Key.ESCAPE.isReleased()) {
             ImGui.setWindowFocus()
         }
         textEditor.render("Code Editor")
 
-        if(isThatFile) drawCompletions(textEditor, startPos)
+        if (isFileFocused) drawCompletions(textEditor, startPos)
+        if (fileErrors.isNotEmpty()) drawErrors(textEditor, fileErrors, startPos)
 
         ImGui.endChild()
 
@@ -97,7 +103,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, open: ImBoolea
                     else -> error("Unknown extension: $extension")
                 }
                 result.errors?.ifNotEmpty {
-                    project.fileErrors = this
+                    fileErrors = this
                 }
             }
             save()
@@ -112,39 +118,85 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, open: ImBoolea
     }
 }
 
+fun drawErrors(textEditor: TextEditor, fileErrors: List<ScriptError>, startPos: ImVec2) {
+    val mLine = textEditor.cursorPosition.mLine
+
+
+    fileErrors.forEach {
+        if(it.severity != ScriptError.Severity.ERROR && it.severity != ScriptError.Severity.FATAL) return@forEach
+        if(it.line > textEditor.totalLines) return@forEach
+
+        val line = textEditor.textLines[it.line-1]
+        val lineWidth = if (it.column < line.length) ImGui.calcTextSizeX(line.substring(0, it.column)) else 10f
+        val nextCharSize = if (it.column + 1 < line.length) ImGui.calcTextSizeX(
+            line.substring(
+                it.column,
+                it.column + 1
+            )
+        ) else lineWidth
+
+        val pos = ImVec2(
+            startPos.x + ImGui.calcTextSizeX(mLine.toString()) + lineWidth + 10,
+            startPos.y + (it.line) * ImGui.getFontSize() + 5
+        )
+
+        ImGui.getForegroundDrawList()
+            .addLine(pos, pos.clone() + ImVec2(nextCharSize, 0f), 0xFF0000FF.toInt(), 3f)
+
+        if (ImGui.isMouseHoveringRect(pos.clone() - ImVec2(0f, 30f), pos.clone() + ImVec2(nextCharSize, 4f))) {
+            ImGui.beginTooltip()
+            Graphics.textShadow(it.toString())
+            ImGui.endTooltip()
+        }
+    }
+}
+
 fun drawCompletions(textEditor: TextEditor, startPos: ImVec2) {
     val list = ArrayList(completionsList)
 
+    val windowWidth = ImGui.getWindowWidth()
     val line = textEditor.currentLineText
+    val sizeX = min(
+        (list.maxOfOrNull { it.textWidth } ?: 0f) + ImGui.getStyle().framePaddingX * 2 + ImGui.getStyle().itemSpacingX,
+        windowWidth
+    )
 
-    val maxX = (list.maxOfOrNull { ImGui.calcTextSize(it.displayText).x } ?: 0f) / 2
+    val mLine = textEditor.cursorPosition.mLine
+    val mColumn = textEditor.cursorPosition.mColumn
+    if (mColumn > line.length) return
+    val startText = line.substring(0, mColumn)
+    var charPos = startText.lastIndexOf('.') + 1
+    sequenceOf('(', '[', '{', ' ').forEach {
+        charPos = max(charPos, startText.lastIndexOf(it) + 1)
+    }
+    charPos = charPos.coerceAtLeast(0)
+
+    val lineWidth = ImGui.calcTextSizeX(startText.substring(0, charPos))
+
     val pos = ImVec2(
-        (startPos.x + ImGui.calcTextSize(
-            line.substring(0, textEditor.cursorPosition.mColumn.coerceAtMost(line.length))
-        ).x).coerceAtLeast(startPos.x),
+        (startPos.x + lineWidth + ImGui.calcTextSizeX(mLine.toString())).coerceAtLeast(windowWidth - sizeX)
+            .coerceAtLeast(startPos.x) + 10,
         startPos.y + (textEditor.cursorPosition.mLine + 1) * ImGui.getFontSize() + 5
     )
 
     ImGui.pushStyleColor(ImGuiCol.NavHighlight, 0)
-    ImGui.pushStyleColor(ImGuiCol.ChildBg, 0)
+    ImGui.pushStyleColor(ImGuiCol.Border, 0xFF4A4543.toInt())
+    ImGui.pushStyleColor(ImGuiCol.ChildBg, 0xFF302D2B.toInt())
     ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 10f)
     ImGui.pushStyleVar(ImGuiStyleVar.ChildBorderSize, 3f)
     if (list.isNotEmpty()) {
-        val sizeX =
-            list.maxOf { ImGui.calcTextSizeX(it.displayText + (if (it.tail == "Unit") "" else it.tail) + " ") } + ImGui.getFontSize() * 2
         ImGui.setCursorScreenPos(pos.x, pos.y)
         ImGui.beginChild(
             "##Completions",
             ImVec2(
                 min(
-                    ImGui.getContentRegionAvailX(),
+                    ImGui.getWindowWidth(),
                     sizeX
                 ),
                 (list.size.toFloat() * ImGui.getFontSize() + 25 + if (sizeX > ImGui.getContentRegionAvailX()) 10 else 0)
                     .coerceAtMost(ImGui.getFontSize() * 20f)
             ),
-            true,
-            ImGuiWindowFlags.HorizontalScrollbar
+            true
         )
 
         list.forEach { it.render(textEditor) }
@@ -163,27 +215,17 @@ fun drawCompletions(textEditor: TextEditor, startPos: ImVec2) {
             completionsList.clear()
         }
 
-        for (key in (GLFW.GLFW_KEY_SPACE..GLFW.GLFW_KEY_LAST).reversed()) {
-            if (key == GLFW.GLFW_KEY_LEFT_ALT) break
-            if (key == GLFW.GLFW_KEY_RIGHT_ALT) break
-            if (key == GLFW.GLFW_KEY_TAB) break
-            if (key == GLFW.GLFW_KEY_LEFT_SUPER) break
-            if (key == GLFW.GLFW_KEY_LEFT_SHIFT) break
-            if (key == GLFW.GLFW_KEY_RIGHT_SHIFT) break
-
-            if (GLFW.glfwGetKey(Minecraft.getInstance().window.window, key) == GLFW.GLFW_PRESS) {
-                completionsList.clear()
-            }
-        }
-        if (GLFW.glfwGetKey(Minecraft.getInstance().window.window, GLFW.GLFW_KEY_ESCAPE) == GLFW.GLFW_PRESS) {
-            completionsList.clear()
-        }
-        if (GLFW.glfwGetKey(Minecraft.getInstance().window.window, GLFW.GLFW_KEY_BACKSPACE) == GLFW.GLFW_PRESS) {
+        val keys = listOf(
+            Key.LEFT_ALT, Key.RIGHT_ALT, Key.TAB,
+            Key.LEFT_SUPER, Key.RIGHT_SUPER, Key.LEFT_ALT, Key.RIGHT_ALT,
+            Key.LEFT_SHIFT, Key.RIGHT_SHIFT, Key.LEFT_CONTROL, Key.RIGHT_CONTROL,
+        )
+        if ((Key.ESCAPE.isPressed() || Key.BACKSPACE.isPressed() || !keys.any { it.isPressed() }) && Key.entries.any { it.isPressed() }) {
             completionsList.clear()
         }
     }
     ImGui.popStyleVar(2)
-    ImGui.popStyleColor(2)
+    ImGui.popStyleColor(3)
 }
 
 object ActionManager {
