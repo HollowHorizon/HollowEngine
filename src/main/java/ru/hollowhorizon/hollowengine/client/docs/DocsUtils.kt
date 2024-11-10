@@ -9,8 +9,7 @@ import net.minecraft.Util
 import ru.hollowhorizon.hc.client.imgui.Graphics
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
-import ru.hollowhorizon.hollowengine.client.docs.TableType
-import ru.hollowhorizon.hollowengine.client.gui.scripting.KOTLIN_LANG
+import ru.hollowhorizon.hollowengine.client.gui.scripting.KotlinLanguage
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectory
 import kotlin.io.path.exists
@@ -213,7 +212,7 @@ object DocsUtils {
         ImGui.pushStyleColor(ImGuiCol.ScrollbarGrabHovered, 0f, 0f, 0f, 0f)
         ImGui.beginChild(
             "##code_block-$id",
-            ImGui.getContentRegionAvailX() * 0.9f / 2 - ImGui.getContentRegionAvailX() / 2, codeBlockSize.y+35f,
+            ImGui.getContentRegionAvailX() * 0.9f / 2 - ImGui.getContentRegionAvailX() / 2, codeBlockSize.y + 35f,
             true,
             ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize
         )
@@ -227,7 +226,7 @@ object DocsUtils {
 }
 
 val EDITOR = TextEditor().apply {
-    setLanguageDefinition(KOTLIN_LANG)
+    setLanguageDefinition(KotlinLanguage)
 
     tabSize = 2 // Будит 2 >:(
     text = ""

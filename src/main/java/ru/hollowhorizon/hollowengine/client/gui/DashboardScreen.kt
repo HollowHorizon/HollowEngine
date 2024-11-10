@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui
 
+import com.mojang.blaze3d.systems.RenderSystem
 import imgui.flag.ImGuiStyleVar
 import imgui.flag.ImGuiWindowFlags
 import imgui.internal.ImGui
@@ -9,11 +10,14 @@ import ru.hollowhorizon.hc.client.imgui.Graphics
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
+import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.post
+import ru.hollowhorizon.hc.common.network.request
 import ru.hollowhorizon.hollowengine.client.docs.DocsRenderer
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGui
+import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
+import ru.hollowhorizon.hollowengine.client.gui.scripting.RequestTreePacket
 
 object DashBoardScreen : ImGuiScreen() {
     val modTabs = ArrayList<Tab>()
@@ -54,7 +58,8 @@ object DashBoardScreen : ImGuiScreen() {
 
     fun imageButton(image: String, size: Float): Boolean {
         ImGui.pushID(image)
-        val isClicked = ImGui.imageButton("hollowengine:textures/gui/icons/$image.png".rl.toTexture().id.toLong(), size, size)
+        val isClicked =
+            ImGui.imageButton("hollowengine:textures/gui/icons/$image.png".rl.toTexture().id.toLong(), size, size)
         ImGui.pushStyleVar(ImGuiStyleVar.PopupBorderSize, 3f)
         if (ImGui.isItemHovered()) ImGui.setTooltip(
             //? if >1.20.1 {
@@ -78,6 +83,14 @@ object DashBoardScreen : ImGuiScreen() {
 
 @SubscribeEvent
 fun onAddTab(event: DashBoardScreen.TabEvent) {
-    event.register(DashBoardScreen.Tab("code_editor", IDEGui::open))
+    event.register(DashBoardScreen.Tab("code_editor") {
+        scopeSync {
+            val newTree = RequestTreePacket().request().tree
+            RenderSystem.recordRenderCall {
+                IDEGuiV2.fileTree = newTree
+                IDEGuiV2.open()
+            }
+        }
+    })
     event.register(DashBoardScreen.Tab("docs", DocsRenderer()::open))
 }

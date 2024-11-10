@@ -20,7 +20,7 @@ data class CompiledScript(
     val script: kotlin.script.experimental.api.CompiledScript?,
     val scriptFile: File?,
 ) {
-    var errors: List<String>? = null
+    var errors: List<ScriptError>? = null
 
     fun save(file: File) {
         if (script == null) return

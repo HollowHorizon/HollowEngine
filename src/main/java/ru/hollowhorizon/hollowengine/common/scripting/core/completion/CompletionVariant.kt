@@ -37,6 +37,8 @@ data class CompletionVariant(
 
         Graphics.apply {
             val pos = ImGui.getCursorPos()
+            val displayText = displayText + if(icon == Icon.CLASS) tail else ""
+
             val clicked = ImGui.selectable("##$displayText")
             ImGui.setCursorPos(pos)
             val fontSize = ImGui.getFontSize().toFloat()
@@ -45,7 +47,7 @@ data class CompletionVariant(
                 ImVec2(fontSize, fontSize), ImVec2(0f, 0f), ImVec2(1f, 1f), textColor.times(1.2f)
             )
             ImGui.sameLine()
-            val tailSize = ImGui.calcTextSizeX(if (tail == "Unit") "" else tail)
+            val tailSize = ImGui.calcTextSizeX(if (tail == "Unit" || icon == Icon.CLASS) "" else tail)
             val size = (ImGui.getContentRegionMaxX() - fontSize - tailSize)
             var display = displayText
             var isChanged = false
@@ -58,7 +60,7 @@ data class CompletionVariant(
                 display += "..."
             }
             textShadow(display)
-            if (tail != "Unit" && icon != Icon.PACKAGE) withColors(
+            if (tail != "Unit" && icon != Icon.PACKAGE && icon != Icon.CLASS) withColors(
                 ImGuiCol.Text to ImVec4(
                     0.6f * textColor.x,
                     0.6f * textColor.y,

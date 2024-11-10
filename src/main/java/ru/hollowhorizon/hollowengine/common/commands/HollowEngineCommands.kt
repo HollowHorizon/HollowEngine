@@ -15,13 +15,14 @@ import ru.hollowhorizon.hc.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.client.gui.npcs.dialogue.DialogueGui
-import ru.hollowhorizon.hollowengine.client.gui.scripting.roundTo
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.story.openGui
 import ru.hollowhorizon.hollowengine.common.scripting.story.startEvent
 import java.io.File
+import kotlin.math.pow
+import kotlin.math.roundToInt
 
 @SubscribeEvent
 fun onRegisterCommands(event: RegisterCommandsEvent) {
@@ -182,4 +183,9 @@ class ShowModelInfoPacket(val model: String) : HollowPacketV3<ShowModelInfoPacke
         }
     }
 
+}
+
+fun Double.roundTo(numFractionDigits: Int): Double {
+    val factor = 10.0.pow(numFractionDigits.toDouble())
+    return (this * factor).roundToInt() / factor
 }

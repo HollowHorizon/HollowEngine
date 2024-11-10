@@ -14,15 +14,10 @@ import ru.hollowhorizon.hc.client.utils.currentServer
 import ru.hollowhorizon.hc.client.utils.literal
 import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.nbt.ForTextComponent
-import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
-import ru.hollowhorizon.hc.common.network.RequestPacket
-import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.EpisodeFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.story.episode.Episode
 import java.io.ByteArrayInputStream
@@ -30,20 +25,13 @@ import java.io.ByteArrayInputStream
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
 class ToastPacket(val message: @Serializable(ForTextComponent::class) Component) : HollowPacketV3<ToastPacket> {
-    override fun handle(player: Player) {
-        player.sendToast(message)
-    }
-
+    override fun handle(player: Player) = player.sendToast(message)
 }
 
 fun Player.sendToast(message: Component) {
     if (this !is ServerPlayer) Minecraft.getInstance().toasts.addToast(
         SystemToast(
-            //? if >=1.21 {
-            /*SystemToast.SystemToastId.PERIODIC_NOTIFICATION,
-            *///?} else {
             SystemToast.SystemToastIds.PERIODIC_NOTIFICATION,
-            //?}
             "Уведомление".literal,
             message
         )
@@ -55,82 +43,51 @@ fun Player.sendToast(message: Component) {
 @Serializable
 class RequestFilePacket(val path: String) : HollowPacketV3<RequestFilePacket> {
     override fun handle(player: Player) {
-        if (player.hasPermissions(2)) {
-            if (path.startsWith("%data%:")) {
-                val resource = currentServer.resourceManager.getResource(path.substring(7).rl)
-                UpdateFilePacket(
-                    path,
-                    resource.get().open().readBytes(),
-                    when {
-                        path.endsWith(".vcn") -> FileType.NODE
-                        path.endsWith(".png") -> FileType.IMAGE
-                        else -> FileType.TEXT
-                    }
-                ).send(player as ServerPlayer)
-                return
-            }
-
-            val fileTypes = setOf(".kts", ".json", ".txt", ".mcfunction", ".md", ".vcn", ".png", ".episode")
-            if (fileTypes.any { path.endsWith(it) }) {
-                val file = path.fromReadablePath().readBytes()
-                UpdateFilePacket(
-                    path,
-                    file,
-                    when {
-                        path.endsWith(".vcn") -> FileType.NODE
-                        path.endsWith(".episode") -> FileType.EPISODE
-                        path.endsWith(".png") -> FileType.IMAGE
-                        else -> FileType.TEXT
-                    }
-                ).send(player as ServerPlayer)
-            } else {
-                (player as ServerPlayer).sendToast("Неподдерживаемый тип файла!".literal)
-            }
-        } else {
-            player.sendSystemMessage("You don't have permissions to open scripts!".mcText)
-        }
-    }
-}
-
-@HollowPacketV2
-@Serializable
-class RequestTreePacket(var tree: Tree) : RequestPacket<RequestTreePacket>() {
-    override fun retrieveValue(player: ServerPlayer) {
         if (!player.hasPermissions(2)) {
-            player.sendSystemMessage("You don't have permissions to open scripts!".mcText)
+            player.sendSystemMessage("У вас нет прав на чтение файлов!".literal)
             return
         }
 
-        val hollowEngineTree = IDEGui.tree(DirectoryManager.HOLLOW_ENGINE.toFile())
-        val modsTree = Tree("Моды", "mods")
-        if (HollowEngine.config.modsResources) modsTree.children.add(currentServer.resourceManager.toServerTree())
-
-        tree = Tree("Ресурсы", "").apply {
-            children += hollowEngineTree
-            if (HollowEngine.config.modsResources) children += modsTree
+        val extension = path.substringAfterLast('.')
+        if (extension !in PROJECT_FILE_TYPES) {
+            (player as ServerPlayer).sendToast("Неподдерживаемый тип файла!".literal)
+            return
         }
+
+        val file = path.fromReadablePath().readBytes()
+
+        UpdateFilePacket(
+            path,
+            file,
+            when (path) {
+                "png", "jpg", "jpeg" -> FileType.IMAGE
+                else -> FileType.TEXT
+            }
+        ).send(player as ServerPlayer)
+
     }
 }
+
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
 @Serializable
 class DeleteFilePacket(val path: String) : HollowPacketV3<DeleteFilePacket> {
     override fun handle(player: Player) {
-        if (player.hasPermissions(2)) {
-            val file = path.fromReadablePath()
-            if (file.exists()) {
-                if (file.isDirectory) FileUtils.deleteDirectory(file)
-                else file.delete()
-            }
-        } else {
-            player.sendSystemMessage("You don't have permissions to delete scripts!".mcText)
+        if (!player.hasPermissions(2)) {
+            player.sendSystemMessage("У вас нет прав на удаление файлов!".mcText)
+            return
         }
+        val file = path.fromReadablePath()
+        if (!file.exists()) return
+
+        if (file.isDirectory) FileUtils.deleteDirectory(file)
+        else file.delete()
     }
 }
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
 @Serializable
-class SaveFilePacket(val path: String, val bytes: ByteArray) : HollowPacketV3<SaveFilePacket> {
+class SaveFilePacket(val path: String, private val bytes: ByteArray) : HollowPacketV3<SaveFilePacket> {
     override fun handle(player: Player) {
         if (!player.hasPermissions(2)) {
             player.sendSystemMessage("You don't have permissions to save scripts!".literal)
@@ -138,59 +95,30 @@ class SaveFilePacket(val path: String, val bytes: ByteArray) : HollowPacketV3<Sa
         }
 
         val file = path.fromReadablePath()
-        if (file.exists()) {
-            file.writeBytes(bytes)
-            UpdateFilePacket(
-                path,
-                bytes,
-                FileType.TEXT
-            ).send(*player.server!!.playerList.players.filter { it != player }
-                .toTypedArray())
-        }
+        if (!file.exists()) return
+
+        file.writeBytes(bytes)
+        UpdateFilePacket(path, bytes, FileType.TEXT)
+            .send(*currentServer.playerList.players.filter { it != player }.toTypedArray())
     }
 }
 
 enum class FileType {
-    TEXT, NODE, IMAGE, EPISODE
+    TEXT, IMAGE
 }
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
-class UpdateFilePacket(val path: String, val bytes: ByteArray, val type: FileType) : HollowPacketV3<UpdateFilePacket> {
+class UpdateFilePacket(val path: String, private val bytes: ByteArray, val type: FileType) :
+    HollowPacketV3<UpdateFilePacket> {
     override fun handle(player: Player) {
-        IDEGui.files.removeIf { it.path == path }
-        when (type) {
-            FileType.TEXT -> {
-                IDEGui.files.add(
-                    TextFileData(path.substringAfterLast('/'), path, ImBoolean(true), String(bytes))
-                )
-            }
-
-            FileType.NODE -> {
-            }
-
-            FileType.EPISODE -> {
-                IDEGui.files.add(
-                    EpisodeFileData(path.substringAfterLast('/'), path, ImBoolean(true), Episode())
-                )
-            }
-
-            FileType.IMAGE -> {
-                val image = NativeImage.read(ByteArrayInputStream(bytes))
-                val texture = DynamicTexture(image)
-
-                IDEGui.files.add(
-                    ImageFileData(path.substringAfterLast('/'), path, ImBoolean(true), texture)
-                )
-            }
-        }
-        IDEGui.currentFile = path.substringAfterLast('/')
+        IDEGuiV2.openFile(path, bytes, type)
     }
 }
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
 @Serializable
-class RenameFilePacket(val path: String, val newName: String) : HollowPacketV3<RenameFilePacket> {
+class RenameFilePacket(val path: String, private val newName: String) : HollowPacketV3<RenameFilePacket> {
     override fun handle(player: Player) {
         if (player.hasPermissions(2)) {
             val file = path.fromReadablePath()

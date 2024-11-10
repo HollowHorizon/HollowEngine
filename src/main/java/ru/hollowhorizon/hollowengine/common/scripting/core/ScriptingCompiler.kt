@@ -7,13 +7,13 @@ import ru.hollowhorizon.hc.client.utils.colored
 import ru.hollowhorizon.hc.client.utils.currentServer
 import ru.hollowhorizon.hc.client.utils.literal
 import ru.hollowhorizon.hc.client.utils.plus
+import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.post
+import ru.hollowhorizon.hc.common.events.server.ServerEvent
 import ru.hollowhorizon.hollowengine.common.scripting.core.host.HollowEngineScriptingHost
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
-import java.io.PrintStream
 import java.util.jar.JarEntry
 import java.util.jar.JarInputStream
 import java.util.jar.JarOutputStream
@@ -99,22 +99,19 @@ object ScriptingCompiler {
         val event = ScriptErrorEvent(scriptFile, ErrorType.COMPILATION_ERROR, errors)
         event.post()
         if (!event.isCanceled) {
-            this.errors = errors.map(ScriptError::toString)
+            this.errors = errors
         }
     }
 
     fun logErrors(result: ResultWithDiagnostics<*>) {
         result.errors().forEach { error ->
             LOGGER.warn(error)
-            try {
+            if (isServerStarted) {
                 currentServer.playerList.players
                     .filter { it.hasPermissions(PlayerPermissions.GAMEMASTER) }
                     .forEach {
                         it.sendSystemMessage("Script Error: ".literal.colored(ChatFormatting.DARK_RED) + error.toString().literal)
                     }
-            } catch (e: Exception) {
-                //TODO Make there better check...
-                HollowCore.LOGGER.error("Server is not loaded yet")
             }
         }
         result.errors().mapNotNull { it.exception }.distinct().forEach {
@@ -182,4 +179,11 @@ object ScriptingCompiler {
                 ?: throw IllegalArgumentException("No Script-Hashcode manifest attribute")
         }
     }
+}
+
+var isServerStarted = false
+
+@SubscribeEvent
+fun onServerStart(event: ServerEvent.Starting) {
+    isServerStarted = true
 }

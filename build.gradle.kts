@@ -143,6 +143,9 @@ dependencies {
     dependency("team.0mods:imgui-lwjgl3:$imguiVersion")
     dependency("team.0mods:imgui-binding-natives:$imguiVersion")
 
+
+    dependency("dev.folomeev.kotgl:kotgl-matrix:0.0.1-beta")
+
     // OTHER
     implementation("org.ow2.asm:asm:9.7")
     implementation("org.ow2.asm:asm-tree:9.7")
