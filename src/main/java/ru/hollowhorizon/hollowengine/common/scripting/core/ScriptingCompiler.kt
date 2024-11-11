@@ -82,7 +82,7 @@ object ScriptingCompiler {
                 compiledJar?.let {
                     save(it)
                 }
-                ScriptCompiledEvent(scriptFile ?: error("Script file not found")).post()
+                scriptFile?.let { ScriptCompiledEvent(scriptFile).post() }
             }
         }
     }
@@ -104,16 +104,18 @@ object ScriptingCompiler {
     }
 
     fun logErrors(result: ResultWithDiagnostics<*>) {
-        result.errors().forEach { error ->
-            LOGGER.warn(error)
-            if (isServerStarted) {
-                currentServer.playerList.players
-                    .filter { it.hasPermissions(PlayerPermissions.GAMEMASTER) }
-                    .forEach {
-                        it.sendSystemMessage("Script Error: ".literal.colored(ChatFormatting.DARK_RED) + error.toString().literal)
-                    }
+        result.errors()
+            .filter { it.severity == ScriptError.Severity.ERROR || it.severity == ScriptError.Severity.FATAL }
+            .forEach { error ->
+                LOGGER.warn(error)
+                if (isServerStarted) {
+                    currentServer.playerList.players
+                        .filter { it.hasPermissions(PlayerPermissions.GAMEMASTER) }
+                        .forEach {
+                            it.sendSystemMessage("Script Error: ".literal.colored(ChatFormatting.DARK_RED) + error.toString().literal)
+                        }
+                }
             }
-        }
         result.errors().mapNotNull { it.exception }.distinct().forEach {
             LOGGER.error(it.stackTraceToString())
         }

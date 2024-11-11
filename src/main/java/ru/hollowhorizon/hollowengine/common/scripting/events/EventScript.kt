@@ -4,11 +4,13 @@ package ru.hollowhorizon.hollowengine.common.scripting.events
 import com.google.common.collect.HashMultimap
 import kotlinx.coroutines.runBlocking
 import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.common.coroutines.scopeAsync
 import ru.hollowhorizon.hc.common.events.*
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
 import sun.misc.Unsafe
+import java.io.File
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
@@ -21,22 +23,31 @@ import kotlin.script.experimental.api.valueOrThrow
 abstract class EventScript
 
 fun loadEvents() {
-    DirectoryManager.eventScripts.forEach { file ->
-        try {
-            runBlocking {
-                val jar = ScriptingCompiler.compileFile<EventScript>(file)
-
-                val result = jar.execute()
-                val script = result.valueOrThrow().returnValue.scriptInstance ?: error("Script instance is null")
-
-                script.subscribeEvents()
-            }
-        } catch (e: Exception) {
-            HollowCore.LOGGER.warn(e)
+    DirectoryManager.eventScripts.map { file ->
+        startEventScript(file)
+    }.forEach {
+        runBlocking {
+            it.await()
         }
     }
-
 }
+
+fun startEventScript(file: File) = scopeAsync {
+    try {
+        val jar = ScriptingCompiler.compileFile<EventScript>(file)
+
+        val result = jar.execute()
+        val script = result.valueOrThrow().returnValue.scriptInstance ?: error("Script instance is null")
+
+        EVENT_SCRIPTS[file]?.unsubscribeEvents()
+        script.subscribeEvents()
+        EVENT_SCRIPTS[file] = script
+    } catch (e: Exception) {
+        HollowCore.LOGGER.warn(e)
+    }
+}
+
+val EVENT_SCRIPTS = HashMap<File, Any>()
 
 private val EVENTS = HashMultimap.create<Any, EventListener<Event>>()
 

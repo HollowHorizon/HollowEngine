@@ -3,41 +3,54 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 import com.mojang.blaze3d.platform.NativeImage
 import imgui.ImGuiWindowClass
 import imgui.ImVec2
-import imgui.flag.ImGuiCol
-import imgui.flag.ImGuiCond
-import imgui.flag.ImGuiDir
-import imgui.flag.ImGuiStyleVar
-import imgui.flag.ImGuiWindowFlags
+import imgui.flag.*
 import imgui.internal.ImGui
 import imgui.internal.flag.ImGuiDockNodeFlags
 import imgui.type.ImBoolean
 import imgui.type.ImInt
+import imgui.type.ImString
+import kotlinx.coroutines.runBlocking
+import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.texture.DynamicTexture
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.imgui.Graphics
+import ru.hollowhorizon.hc.client.imgui.Graphics.image
 import ru.hollowhorizon.hc.client.imgui.remember
+import ru.hollowhorizon.hc.client.utils.literal
 import ru.hollowhorizon.hc.client.utils.mc
 import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.common.network.request
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.ImGuiScreen
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.completionsList
-import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
+import ru.hollowhorizon.hollowengine.client.keys.Key
 import java.io.ByteArrayInputStream
 
 object IDEGuiV2 : ImGuiScreen("code_editor") {
     var currentFile = ""
     var fileToRun = ""
 
+    val tabCount = ImInt(HollowEngine.config.ideConfig.tabSpace)
     val files = HashSet<FileData>()
     var fileTree = TreeNode.EMPTY
+
+    var modalAction = ModalAction.NONE
+    var modalFile = ""
+    val modalInput = ImString(100)
+
+    enum class ModalAction {
+        CREATE_FILE, CREATE_FOLDER, RENAME, NONE
+    }
 
     override fun Graphics.draw() {
         ImGui.pushStyleColor(ImGuiCol.WindowBg, 0xFF302D2B.toInt())
         ImGui.pushStyleColor(ImGuiCol.PopupBg, 0xFF302D2B.toInt())
         ImGui.pushStyleColor(ImGuiCol.MenuBarBg, 0)
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, 0xFF302D2B.toInt())
-        ImGui.pushStyleColor(ImGuiCol.Button, 0xFF302D2B.toInt())
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, 0xFF221F1E.toInt())
+        ImGui.pushStyleColor(ImGuiCol.Button, 0xFF221F1E.toInt())
         ImGui.pushStyleColor(ImGuiCol.TitleBgActive, 0xFF302D2B.toInt())
         ImGui.pushStyleColor(ImGuiCol.NavHighlight, 0xFF4A4543.toInt())
         ImGui.pushStyleColor(ImGuiCol.Border, 0xFF4A4543.toInt())
@@ -143,6 +156,8 @@ object IDEGuiV2 : ImGuiScreen("code_editor") {
         ImGui.popStyleVar(2)
         ImGui.popStyleColor(7)
 
+        drawModals()
+
         ImGui.popStyleVar(2)
         ImGui.popStyleColor(12)
     }
@@ -152,22 +167,51 @@ object IDEGuiV2 : ImGuiScreen("code_editor") {
         val iconSize = ImGui.getFontSize().toFloat()
         val old = ImGui.getCursorPosY()
         ImGui.setCursorPos(ImGui.getStyle().windowPadding)
-        Graphics.image("hollowengine:textures/gui/icons/code_editor.png".rl, iconSize, iconSize)
+        image("hollowengine:textures/gui/icons/code_editor.png".rl, iconSize, iconSize)
         ImGui.sameLine()
         ImGui.setCursorPosX(ImGui.getCursorPosX() + ImGui.getStyle().itemSpacingX + 4)
         ImGui.setCursorPosY(old)
 
-        fun nothing() = Graphics.textShadow("Тут пока ничего нет...")
-
         if (ImGui.beginMenu("Файл")) {
-            if(ImGui.menuItem("Импорт скрипта")) {}
-            if(ImGui.menuItem("Обновить файлы")) {}
-            if(ImGui.menuItem("Выход")) {}
+            image("hollowengine:textures/gui/icons/reload.png".rl, iconSize, iconSize)
+            ImGui.sameLine()
+            if (ImGui.menuItem("Синхронизировать все файлы")) {
+                updateTree()
+                files.forEach { RequestFilePacket(it.filePath).send() }
+            }
+            image("hollowengine:textures/gui/icons/reload_mc.png".rl, iconSize, iconSize)
+            ImGui.sameLine()
+            if (ImGui.menuItem("Перезагрузить ресурсы")) {
+                Minecraft.getInstance().reloadResourcePacks()
+            }
+            image("hollowengine:textures/gui/icons/close_all.png".rl, iconSize, iconSize)
+            ImGui.sameLine()
+            if (ImGui.menuItem("Закрыть все файлы")) files.clear()
+            image("hollowengine:textures/gui/icons/exit.png".rl, iconSize, iconSize)
+            ImGui.sameLine()
+            if (ImGui.menuItem("Выход")) onClose()
             ImGui.endMenu()
         }
-        if (ImGui.beginMenu("Правка")) ImGui.endMenu()
-        if (ImGui.beginMenu("Поиск")) ImGui.endMenu()
-        if (ImGui.beginMenu("Настройки")) ImGui.endMenu()
+        if (ImGui.beginMenu("Правка")) {
+            Graphics.textShadow("Тут пока пусто")
+            ImGui.endMenu()
+        }
+        if (ImGui.beginMenu("Поиск")) {
+            Graphics.textShadow("Тут пока пусто")
+            ImGui.endMenu()
+        }
+        if (ImGui.beginMenu("Настройки")) {
+            ImGui.pushItemWidth(110f)
+            if (ImGui.inputInt("Количество пробелов за таб", tabCount)) {
+                if (tabCount.get() > 9) tabCount.set(9)
+                if (tabCount.get() < 1) tabCount.set(1)
+                files.filterIsInstance<TextFileData>().forEach { it.textEditor.tabSize = tabCount.get() }
+                HollowEngine.config.ideConfig.tabSpace = tabCount.get()
+                HollowEngine.config.save()
+            }
+            ImGui.popItemWidth()
+            ImGui.endMenu()
+        }
 
         val size = 400f + (iconSize + ImGui.getStyle().itemSpacingX + ImGui.getStyle().framePaddingX * 2) * 3
         ImGui.dummy(ImGui.getContentRegionAvailX() - size, 0f)
@@ -176,16 +220,22 @@ object IDEGuiV2 : ImGuiScreen("code_editor") {
         Graphics.image("hollowengine:textures/gui/icons/file_kts.png".rl, iconSize, iconSize)
         ImGui.sameLine()
         ImGui.setCursorPosY(ImGui.getCursorPosY() - 4)
-        val preview = if(fileToRun.isNotEmpty()) fileToRun.substringAfterLast('/') else "Пусто"
+        val preview = if (fileToRun.isNotEmpty()) fileToRun.substringAfterLast('/') else "Пусто"
         Graphics.combo("##script_to_run", preview) {
-            files.forEach { menuItem(it.fileName) { fileToRun = it.filePath } }
+            files.filter { it.fileName.endsWith(".kts") }.forEach { menuItem(it.fileName) { fileToRun = it.filePath } }
         }
         ImGui.popItemWidth()
         ImGui.sameLine()
-        Graphics.imageButton("hollowengine:textures/gui/icons/play.png".rl, iconSize, iconSize) {}
+        Graphics.imageButton("hollowengine:textures/gui/icons/play.png".rl, iconSize, iconSize) {
+            if (fileToRun.isNotEmpty()) StartScriptPacket(fileToRun).send()
+            else Minecraft.getInstance().player?.sendToast("Выбранный скрипт не существует!".literal)
+        }
         Graphics.tooltipHover { textShadow("Запустить выбранный скрипт") }
         ImGui.sameLine()
-        Graphics.imageButton("hollowengine:textures/gui/icons/stop.png".rl, iconSize, iconSize) {}
+        Graphics.imageButton("hollowengine:textures/gui/icons/stop.png".rl, iconSize, iconSize) {
+            if (fileToRun.isNotEmpty()) StopScriptPacket(fileToRun).send()
+            else Minecraft.getInstance().player?.sendToast("Выбранный скрипт не существует!".literal)
+        }
         Graphics.tooltipHover { textShadow("Остановить выбранный скрипт") }
 
 
@@ -205,23 +255,130 @@ object IDEGuiV2 : ImGuiScreen("code_editor") {
     }
 
     fun drawFilePopup(popupName: String, filePath: String) = Graphics.popup(popupName) {
-        val items = listOf(
-            "Открыть" to { RequestFilePacket(filePath).send() },
-            "Переименовать" to { },
-            "Удалить" to { DeleteFilePacket(filePath).send() },
-        )
+        val fontSize = ImGui.getFontSize().toFloat()
 
-        items.forEach { menuItem(it.first) { it.second() } }
+        image("hollowengine:textures/gui/icons/file.png".rl, fontSize, fontSize)
+        ImGui.sameLine()
+        menuItem("Открыть") {
+            RequestFilePacket(filePath).send()
+            modalFile = filePath
+        }
+
+        image("hollowengine:textures/gui/icons/rename.png".rl, fontSize, fontSize)
+        ImGui.sameLine()
+        menuItem("Переименовать") {
+            RequestFilePacket(filePath).send()
+            modalAction = ModalAction.RENAME
+            modalFile = filePath
+        }
+
+        image("hollowengine:textures/gui/icons/remove.png".rl, fontSize, fontSize)
+        ImGui.sameLine()
+        menuItem("Удалить") {
+            DeleteFilePacket(filePath).send()
+            updateTree()
+        }
     }
 
     fun drawFolderPopup(popupName: String, filePath: String) = Graphics.popup(popupName) {
-        val items = listOf(
-            "Создать папку" to { },
-            "Создать файл" to { },
-            "Удалить папку" to { DeleteFilePacket(filePath).send() },
-        )
+        val fontSize = ImGui.getFontSize().toFloat()
 
-        items.forEach { menuItem(it.first) { it.second() } }
+        image("hollowengine:textures/gui/icons/add.png".rl, fontSize, fontSize)
+        ImGui.sameLine()
+        if (ImGui.beginMenu("Создать")) {
+            image("hollowengine:textures/gui/icons/create_folder.png".rl, fontSize, fontSize)
+            ImGui.sameLine()
+            menuItem("Папка") {
+                modalAction = ModalAction.CREATE_FOLDER
+                modalFile = filePath
+            }
+
+            image("hollowengine:textures/gui/icons/create_file.png".rl, fontSize, fontSize)
+            ImGui.sameLine()
+            menuItem("Файл") {
+                modalAction = ModalAction.CREATE_FILE
+                modalFile = filePath
+            }
+            ImGui.endMenu()
+        }
+
+        image("hollowengine:textures/gui/icons/rename.png".rl, fontSize, fontSize)
+        ImGui.sameLine()
+        menuItem("Переименовать") {
+            RequestFilePacket(filePath).send()
+            modalAction = ModalAction.RENAME
+            modalFile = filePath
+        }
+
+        image("hollowengine:textures/gui/icons/remove.png".rl, fontSize, fontSize)
+        ImGui.sameLine()
+        menuItem("Удалить") {
+            DeleteFilePacket(filePath).send()
+            updateTree()
+        }
+    }
+
+    private fun drawModals() {
+        val modalName = when (modalAction) {
+            ModalAction.CREATE_FILE -> "Создание файла"
+            ModalAction.CREATE_FOLDER -> "Создание папки"
+            ModalAction.RENAME -> "Переименование"
+            else -> ""
+        }
+
+        if (modalAction != ModalAction.NONE) ImGui.openPopup(modalName)
+
+        ImGui.pushStyleColor(ImGuiCol.TitleBgActive, 0xFF221F1E.toInt())
+
+        if (ImGui.beginPopupModal(modalName)) {
+            when (modalAction) {
+                ModalAction.CREATE_FILE, ModalAction.CREATE_FOLDER -> {
+                    val target = if (modalAction == ModalAction.CREATE_FILE) "файла" else "папки"
+                    Graphics.text("Введите имя $target для создания:")
+                    val textSize = ImGui.calcTextSizeX("Введите имя $target для создания:")
+                    ImGui.pushItemWidth(textSize + ImGui.getStyle().itemSpacingX)
+                    ImGui.inputText("##new_file", modalInput)
+                    ImGui.popItemWidth()
+                    if ((ImGui.button(
+                            "Подтвердить",
+                            textSize / 2f,
+                            ImGui.getFontSize().toFloat() + 8f
+                        ) || Key.ENTER.isPressed()) && modalFile.isNotEmpty()
+                    ) {
+                        CreateFilePacket(modalFile + "/" + modalInput.get()).send()
+                        modalInput.clear()
+                        modalAction = ModalAction.NONE
+                        updateTree()
+                    }
+                    ImGui.sameLine()
+                    if (ImGui.button("Отмена", textSize / 2f, ImGui.getFontSize().toFloat() + 8f)) {
+                        modalAction = ModalAction.NONE
+                    }
+                }
+
+                ModalAction.RENAME -> {
+                    Graphics.text("Введите имя файла для переименования:")
+                    ImGui.inputText("##rename_file", modalInput)
+                    if ((ImGui.button("Подтвердить") || Key.ENTER.isPressed()) && modalFile.isNotEmpty()) {
+                        RenameFilePacket(modalFile, modalInput.get()).send()
+                        modalInput.clear()
+                        modalAction = ModalAction.NONE
+                        updateTree()
+                    }
+                    ImGui.sameLine()
+                    if (ImGui.button("Отмена")) {
+                        modalAction = ModalAction.NONE
+                    }
+                }
+
+                else -> {
+                    modalAction = ModalAction.NONE
+                }
+            }
+            ImGui.endPopup()
+        }
+
+        ImGui.popStyleColor()
     }
 
     private fun drawActiveFiles(windowName: String, rightDockID: ImInt) {
@@ -230,18 +387,26 @@ object IDEGuiV2 : ImGuiScreen("code_editor") {
             ImGuiWindowFlags.NoCollapse or ImGuiWindowFlags.NoTitleBar
         )
         val dockId = ImGui.getID("FilesContext")
-        ImGui.dockSpace(dockId, 0f, 0f, ImGuiDockNodeFlags.NoCloseButton or ImGuiDockNodeFlags.NoWindowMenuButton or ImGuiDockNodeFlags.NoDockingOverMe)
+        ImGui.dockSpace(dockId, 0f, 0f, ImGuiDockNodeFlags.NoCloseButton or ImGuiDockNodeFlags.NoWindowMenuButton)
         files.removeIf { file ->
             ImGui.setNextWindowDockID(dockId, ImGuiCond.FirstUseEver)
             val wasOpened = file.isOpen.get()
             if (ImGui.begin(file.fileName, file.isOpen, ImGuiWindowFlags.NoCollapse)) {
+                val isFileFocused = ImGui.isWindowFocused(ImGuiFocusedFlags.ChildWindows)
                 file.draw()
+                if (isFileFocused && Key.LEFT_CONTROL.isPressed() && GLFW.glfwGetKey(
+                        mc.window.window,
+                        GLFW.GLFW_KEY_W
+                    ) == GLFW.GLFW_PRESS
+                ) {
+                    file.isOpen.set(false)
+                }
             }
             ImGui.end()
 
             wasOpened && !file.isOpen.get()
         }
-        if(files.isEmpty()) fileToRun = ""
+        if (files.isEmpty()) fileToRun = ""
         ImGui.end()
     }
 
@@ -260,12 +425,16 @@ object IDEGuiV2 : ImGuiScreen("code_editor") {
             }
         )
         currentFile = path
-        if(fileToRun == "") fileToRun = path
+        if (fileToRun == "" && path.endsWith(".kts")) fileToRun = path
     }
 
     override fun onClose() {
         super.onClose()
         files.clear()
+    }
+
+    private fun updateTree() = runBlocking {
+        fileTree = RequestTreePacket().request().tree
     }
 
     override fun shouldCloseOnEsc() = completionsList.isEmpty()

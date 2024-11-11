@@ -28,7 +28,7 @@ class TreeNode(val treeName: String, val treePath: String) {
 val CLIENT_RESOURCES =
     listOf("blockstates", "font", "lang", "shaders", "textures", "particles", "models", "animations", "geo")
 val SERVER_RESOURCES = listOf("recipe", "advancement", "loot_table", "tags", "worldgen")
-val PROJECT_FOLDERS = listOf("data", "npcs", "replays", "scripts")
+val PROJECT_FOLDERS = listOf("assets", "data", "npcs", "replays", "scripts")
 val PROJECT_FILE_TYPES = listOf(
     "kts", "json", "json", "nbt", "mcfunction",
     "png", "jpg",

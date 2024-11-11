@@ -1,11 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
-import com.mojang.blaze3d.platform.NativeImage
-import imgui.type.ImBoolean
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.components.toasts.SystemToast
-import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
@@ -16,11 +13,9 @@ import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hc.client.utils.nbt.ForTextComponent
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.story.episode.Episode
-import java.io.ByteArrayInputStream
+import ru.hollowhorizon.hollowengine.common.scripting.startScript
+import ru.hollowhorizon.hollowengine.common.scripting.stopScript
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
@@ -59,7 +54,7 @@ class RequestFilePacket(val path: String) : HollowPacketV3<RequestFilePacket> {
         UpdateFilePacket(
             path,
             file,
-            when (path) {
+            when (extension) {
                 "png", "jpg", "jpeg" -> FileType.IMAGE
                 else -> FileType.TEXT
             }
@@ -145,6 +140,47 @@ class CreateFilePacket(val path: String) : HollowPacketV3<CreateFilePacket> {
             }
         } else {
             player.sendSystemMessage("You don't have permissions to create scripts!".mcText)
+        }
+    }
+}
+
+@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@Serializable
+class StartScriptPacket(val path: String): HollowPacketV3<StartScriptPacket> {
+    override fun handle(player: Player) {
+        if (!player.hasPermissions(2)) {
+            player.sendSystemMessage("You don't have permissions to start scripts!".literal)
+            return
+        } else {
+            val file = path.fromReadablePath()
+
+            startScript(file)
+            CloseScreenPacket().send(player as ServerPlayer)
+        }
+    }
+}
+
+@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
+@Serializable
+class CloseScreenPacket: HollowPacketV3<CloseScreenPacket> {
+    override fun handle(player: Player) {
+        Minecraft.getInstance().setScreen(null)
+    }
+}
+
+@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@Serializable
+class StopScriptPacket(val path: String): HollowPacketV3<StopScriptPacket> {
+    override fun handle(player: Player) {
+        if (!player.hasPermissions(2)) {
+            player.sendSystemMessage("You don't have permissions to start scripts!".literal)
+            return
+        } else {
+            val file = path.fromReadablePath()
+
+            stopScript(file)
+
+            player.sendToast("Скрипт успешно остановлен.".literal)
         }
     }
 }

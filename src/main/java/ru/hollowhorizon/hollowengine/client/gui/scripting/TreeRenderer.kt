@@ -61,8 +61,12 @@ private fun drawIcon(isFolder: Boolean, treeName: String) {
     )
     val file = if (isFolder) {
         folders[treeName] ?: "folder"
-    } else when (treeName.substringAfterLast(".")) {
-        "kts" -> "file_kts"
+    } else when (treeName.substringAfter(".")) {
+        "story.kts", "event.kts", "gui.kts", "kts" -> "file_kts"
+        "gltf", "glb" -> "model"
+        "png", "jpg", "jpeg" -> "file_image"
+        "mp3", "ogg", "wav" -> "file_sound"
+        "bedrock.json", "efkefc", "efkpkg" -> "file_effect"
         else -> "file"
     }
     val location = "hollowengine:textures/gui/icons/$file.png".rl

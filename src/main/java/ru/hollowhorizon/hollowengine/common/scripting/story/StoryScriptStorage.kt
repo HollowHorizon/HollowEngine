@@ -18,7 +18,6 @@ import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.level.LevelEvent
 import ru.hollowhorizon.hc.common.events.server.ServerEvent
 import ru.hollowhorizon.hc.common.events.tick.TickEvent
-import ru.hollowhorizon.hollowengine.client.gui.DashBoardScreen.draw
 import ru.hollowhorizon.hollowengine.client.gui.ImGuiScreen
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
@@ -32,13 +31,13 @@ import kotlin.script.experimental.api.valueOrThrow
 
 data class StoryScript(val context: SuspendContext, val event: StoryEvent, val file: String)
 
-val ACTIVE_EVENTS: MutableSet<StoryScript> = hashSetOf()
+val STORY_EVENTS_SCRIPTS: MutableSet<StoryScript> = hashSetOf()
 
 @SubscribeEvent
 fun onStoryTick(event: TickEvent.Server) {
     if (!event.server.isRunning) return
 
-    ACTIVE_EVENTS.removeIf { script ->
+    STORY_EVENTS_SCRIPTS.removeIf { script ->
         script.context.resetLocks()
         try {
             var result = script.event.tick(script.context)
@@ -67,7 +66,7 @@ fun onStoryScriptLoad(event: ServerEvent.Starting) {
     scripts.forEach { (file, data) ->
         val script = file.fromReadablePath()
 
-        startEvent(script, data.tag)
+        startStoryEvent(script, data.tag)
     }
 }
 
@@ -84,14 +83,14 @@ fun onServerStop(event: ServerEvent.Stoping) = onStoryScriptSave(event.server)
 fun onStoryScriptSave(server: MinecraftServer) {
     val scripts = server[StoryScriptStorage::class.java].scripts
 
-    ACTIVE_EVENTS.forEach { script ->
+    STORY_EVENTS_SCRIPTS.forEach { script ->
         val file = script.file
         val tag = script.context.serialize()
         scripts[file] = StoryScriptStorage.TagWrapper(tag)
     }
 }
 
-fun startEvent(script: File, tag: CompoundTag? = null) {
+fun startStoryEvent(script: File, tag: CompoundTag? = null) {
     scopeAsync {
         val jar = ScriptingCompiler.compileFile<StoryEvent>(script)
 
@@ -100,14 +99,14 @@ fun startEvent(script: File, tag: CompoundTag? = null) {
             ?: error("Script instance is null")
 
         onMainThreadSync {
-            ACTIVE_EVENTS.add(StoryScript(SuspendContext().apply {
+            STORY_EVENTS_SCRIPTS.add(StoryScript(SuspendContext().apply {
                 if (tag != null) deserialize(tag)
             }, event, script.toReadablePath()))
         }
     }
 }
 
-fun openGui(script: File, tag: CompoundTag? = null) {
+fun startGuiScript(script: File) {
     scopeAsync {
         val jar = ScriptingCompiler.compileFile<GuiScript>(script)
 

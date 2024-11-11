@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.gui
 
 //? if >=1.20.1
 import com.mojang.blaze3d.Blaze3D
+import imgui.flag.ImGuiCol
 import imgui.internal.ImGui
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
@@ -32,6 +33,7 @@ abstract class ImGuiScreen(val saveFile: String = "") : Screen("".mcText) {
         renderBackground(guiGraphics)
         val alpha = (Blaze3D.getTime() - fadeTime).toFloat().coerceAtMost(1f)
         ImGui.getStyle().alpha = Interpolation.EXPO_OUT(alpha)
+        ImGui.pushStyleColor(ImGuiCol.ModalWindowDimBg, 0x88000000.toInt())
         ImGuiHandler.drawFrame {
             if (!isLoaded && saveFile.isNotEmpty()) {
                 isLoaded = true
@@ -42,6 +44,8 @@ abstract class ImGuiScreen(val saveFile: String = "") : Screen("".mcText) {
                 file.writeText(ImGui.saveIniSettingsToMemory())
             }
         }
+        ImGui.popStyleColor()
+
     }
 
     abstract fun Graphics.draw()
