@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core
 
+import kotlinx.coroutines.yield
 import net.minecraft.ChatFormatting
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.LOGGER
@@ -29,7 +30,7 @@ import kotlin.script.experimental.util.PropertiesCollection
 
 object ScriptingCompiler {
 
-    suspend inline fun <reified T : Any> compileText(text: String): CompiledScript {
+    suspend inline fun <reified T : Any> compileText(text: String, obfuscate: Boolean = true): CompiledScript {
         val hostConfiguration = HollowEngineScriptingHost()
         val compilationConfiguration = createCompilationConfiguration<T>(hostConfiguration)
 
@@ -37,11 +38,12 @@ object ScriptingCompiler {
         val result = compiler(StringScriptSource(text), compilationConfiguration)
 
         logErrors(result)
+        yield()
 
-        return processResult(result, "script.kts")
+        return processResult(result, "script.kts", obfuscate=obfuscate)
     }
 
-    suspend inline fun <reified T : Any> compileFile(script: File): CompiledScript {
+    suspend inline fun <reified T : Any> compileFile(script: File, obfuscate: Boolean = true): CompiledScript {
         val hostConfiguration = HollowEngineScriptingHost()
         val compilationConfiguration = createCompilationConfiguration<T>(hostConfiguration)
 
@@ -58,8 +60,9 @@ object ScriptingCompiler {
         val result = compiler(FileScriptSource(script), compilationConfiguration)
 
         logErrors(result)
+        yield()
 
-        return processResult(result, script.name, script, compiledJar)
+        return processResult(result, script.name, script, compiledJar, obfuscate)
     }
 
     suspend fun processResult(
@@ -67,13 +70,14 @@ object ScriptingCompiler {
         scriptName: String,
         scriptFile: File? = null,
         compiledJar: File? = null,
+        obfuscate: Boolean
     ): CompiledScript {
-        val hash = scriptFile?.readText()?.hashCode()?.toString() ?: ""
+        val hash = scriptFile?.readText()?.hashCode()?.toString() ?: "000000"
         val compiledScript = result.valueOrNull() as? KJvmCompiledScript
         return CompiledScript(
             scriptName,
             hash,
-            compiledScript?.obfuscate(scriptName, hash),
+            if(obfuscate && compiledScript != null) compiledScript.obfuscate(scriptName, hash) else compiledScript,
             scriptFile ?: File(scriptName)
         ).apply {
             if (result.isError()) {

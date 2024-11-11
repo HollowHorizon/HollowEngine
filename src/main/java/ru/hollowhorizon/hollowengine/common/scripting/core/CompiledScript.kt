@@ -84,5 +84,5 @@ suspend fun KJvmCompiledScript.obfuscate(name: String, hash: String): kotlin.scr
     val obf = script.loadScriptFromJar()
     obf.getClass(null) // инициализируем скрипт
     script.delete()
-    return obf ?: throw IllegalStateException("Script can't be loaded!")
+    return obf
 }

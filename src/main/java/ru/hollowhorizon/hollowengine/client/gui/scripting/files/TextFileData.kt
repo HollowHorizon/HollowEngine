@@ -7,9 +7,10 @@ import imgui.extension.texteditor.flag.TextEditorPaletteIndex
 import imgui.flag.*
 import imgui.type.ImBoolean
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.yield
 import net.minecraft.client.Minecraft
 import net.minecraft.world.phys.Vec3
-import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
+import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.imgui.Graphics
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
@@ -26,9 +27,13 @@ import ru.hollowhorizon.hollowengine.common.scripting.core.completion.Completion
 import ru.hollowhorizon.hollowengine.common.scripting.events.EventScript
 import ru.hollowhorizon.hollowengine.common.scripting.gui.GuiScript
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.max
 import kotlin.math.min
+
 
 var currentLine = 0
 var currentColumn = 0
@@ -76,7 +81,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, open: ImBoolea
         }
 
         textEditor.render("Code Editor")
-        if(oldScroll != -1f) {
+        if (oldScroll != -1f) {
             ImGui.setScrollY(oldScroll)
             oldScroll = -1f
         }
@@ -85,12 +90,13 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, open: ImBoolea
         if (fileErrors.isNotEmpty()) drawErrors(textEditor, fileErrors, startPos)
 
         if (textEditor.isTextChanged) {
-            textEditor.text = textEditor.text.substringBeforeLast("\n").replace("\t", " ".repeat(HollowEngine.config.ideConfig.tabSpace))
+            textEditor.text = textEditor.text.substringBeforeLast("\n")
+                .replace("\t", " ".repeat(HollowEngine.config.ideConfig.tabSpace))
             oldScroll = ImGui.getScrollY()
         }
 
         ImGui.endChild()
-        if(ImGui.isItemHovered() && ImGui.isMouseClicked(ImGuiMouseButton.Right)) ImGui.openPopup("CodeActions##$filePath")
+        if (ImGui.isItemHovered() && ImGui.isMouseClicked(ImGuiMouseButton.Right)) ImGui.openPopup("CodeActions##$filePath")
 
         if (ImGui.beginDragDropTarget()) {
             val payload = ImGui.acceptDragDropPayload<Any?>("TREE")
@@ -101,31 +107,12 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, open: ImBoolea
             ImGui.endDragDropTarget()
         }
 
-        if (textEditor.isTextChanged) {
-            code = textEditor.text.substringBeforeLast("\n")
-            if(fileName.substringAfterLast('.') == "kts") ActionManager.launchNewAction {
-                currentLine = textEditor.cursorPosition.mLine
-                currentColumn = textEditor.cursorPosition.mColumn
-                val extension = fileName.substringBeforeLast(".").substringAfterLast(".")
-                val result = when (extension) {
-                    "story" -> ScriptingCompiler.compileText<StoryEvent>(code)
-                    "event" -> ScriptingCompiler.compileText<EventScript>(code)
-                    "gui" -> ScriptingCompiler.compileText<GuiScript>(code)
-                    else -> error("Unknown extension: $extension")
-                }
-                result.errors?.ifNotEmpty {
-                    fileErrors = this
-                }
-            }
-            save()
-        }
-
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 10f, 10f)
-        if(ImGui.beginPopup("CodeActions##$filePath")) {
+        if (ImGui.beginPopup("CodeActions##$filePath")) {
             val iconSize = ImGui.getFontSize().toFloat()
             Graphics.image("hollowengine:textures/gui/icons/person.png".rl, iconSize, iconSize)
             ImGui.sameLine()
-            if(ImGui.menuItem("Вставить мои координаты")) {
+            if (ImGui.menuItem("Вставить мои координаты")) {
                 val loc = Minecraft.getInstance().player?.position() ?: Vec3.ZERO
                 textEditor.insertAtCursor("pos(${loc.x.roundTo(2)}, ${loc.y.roundTo(2)}, ${loc.z.roundTo(2)})")
                 ImGui.closeCurrentPopup()
@@ -133,13 +120,31 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, open: ImBoolea
 
             Graphics.image("hollowengine:textures/gui/icons/person_b.png".rl, iconSize, iconSize)
             ImGui.sameLine()
-            if(ImGui.menuItem("Вставить координаты взгляда")) {
+            if (ImGui.menuItem("Вставить координаты взгляда")) {
                 val loc = Minecraft.getInstance().player?.pick(10.0, 0f, false)?.location ?: Vec3.ZERO
                 textEditor.insertAtCursor("pos(${loc.x.roundTo(2)}, ${loc.y.roundTo(2)}, ${loc.z.roundTo(2)})")
                 ImGui.closeCurrentPopup()
             }
 
             ImGui.endPopup()
+        }
+
+        if (textEditor.isTextChanged) {
+            code = textEditor.text.substringBeforeLast("\n")
+            if (fileName.substringAfterLast('.') == "kts") ActionManager.launchNewAction {
+                currentLine = textEditor.cursorPosition.mLine
+                currentColumn = textEditor.cursorPosition.mColumn
+                val extension = fileName.substringBeforeLast(".").substringAfterLast(".")
+                val result = when (extension) {
+                    "story" -> ScriptingCompiler.compileText<StoryEvent>(code, false)
+                    "event" -> ScriptingCompiler.compileText<EventScript>(code, false)
+                    "gui" -> ScriptingCompiler.compileText<GuiScript>(code, false)
+                    else -> error("Unknown extension: $extension")
+                }
+                yield()
+                fileErrors = result.errors ?: emptyList()
+            }
+            save()
         }
         ImGui.popStyleVar()
 
@@ -150,6 +155,10 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, open: ImBoolea
         if (filePath.startsWith("%")) return
         SaveFilePacket(filePath, code.toByteArray()).send()
     }
+
+    override fun destroy() {
+        textEditor.destroy()
+    }
 }
 
 fun drawErrors(textEditor: TextEditor, fileErrors: List<ScriptError>, startPos: ImVec2) {
@@ -157,12 +166,12 @@ fun drawErrors(textEditor: TextEditor, fileErrors: List<ScriptError>, startPos: 
 
 
     fileErrors.forEach {
-        if(it.severity != ScriptError.Severity.ERROR && it.severity != ScriptError.Severity.FATAL) return@forEach
-        if(it.line > textEditor.totalLines) return@forEach
+        if (it.severity != ScriptError.Severity.ERROR && it.severity != ScriptError.Severity.FATAL) return@forEach
+        if (it.line > textEditor.totalLines) return@forEach
 
         val column = (it.column - 1).coerceAtLeast(0)
 
-        val line = textEditor.textLines[it.line-1]
+        val line = textEditor.textLines[(it.line - 1).coerceAtLeast(0)]
         val lineWidth = ImGui.calcTextSizeX(line.substring(0, column.coerceAtMost(line.length)))
         val nextCharSize = if (column + 1 <= line.length) ImGui.calcTextSizeX(
             line.substring(
@@ -176,8 +185,10 @@ fun drawErrors(textEditor: TextEditor, fileErrors: List<ScriptError>, startPos: 
             startPos.y + (it.line) * ImGui.getFontSize() - ImGui.getScrollY()
         )
 
-        drawZigZagLine(pos, pos.clone() + ImVec2(nextCharSize, 0f),
-            (nextCharSize / 3).toInt(), 5f, 0xFF0000FF.toInt(), 3f)
+        drawZigZagLine(
+            pos, pos.clone() + ImVec2(nextCharSize, 0f),
+            (nextCharSize / 3).toInt(), 5f, 0xFF0000FF.toInt(), 3f
+        )
 
         if (ImGui.isMouseHoveringRect(pos.clone() - ImVec2(0f, 30f), pos.clone() + ImVec2(nextCharSize, 4f))) {
             ImGui.beginTooltip()
@@ -220,7 +231,7 @@ fun drawCompletions(textEditor: TextEditor, startPos: ImVec2) {
         windowWidth
     )
 
-    val mLine = textEditor.cursorPosition.mLine
+    val totalLines = textEditor.totalLines
     val mColumn = textEditor.cursorPosition.mColumn
     if (mColumn > line.length) return
     val startText = line.substring(0, mColumn)
@@ -233,7 +244,8 @@ fun drawCompletions(textEditor: TextEditor, startPos: ImVec2) {
     val lineWidth = ImGui.calcTextSizeX(startText.substring(0, charPos))
 
     val pos = ImVec2(
-        (startPos.x + lineWidth + ImGui.calcTextSizeX(mLine.toString())).coerceAtLeast(windowWidth - sizeX)
+        (startPos.x + ImGui.calcTextSizeX("$totalLines  ") + lineWidth)
+            .coerceAtMost(startPos.x + windowWidth - sizeX)
             .coerceAtLeast(startPos.x) + 10,
         startPos.y + (textEditor.cursorPosition.mLine + 1) * ImGui.getFontSize() + 5 - ImGui.getScrollY()
     )
@@ -248,10 +260,7 @@ fun drawCompletions(textEditor: TextEditor, startPos: ImVec2) {
         ImGui.beginChild(
             "##Completions",
             ImVec2(
-                min(
-                    ImGui.getWindowWidth(),
-                    sizeX
-                ),
+                sizeX,
                 (list.size.toFloat() * ImGui.getFontSize() + 25 + if (sizeX > ImGui.getContentRegionAvailX()) 10 else 0)
                     .coerceAtMost(ImGui.getFontSize() * 20f)
             ),
@@ -289,16 +298,24 @@ fun drawCompletions(textEditor: TextEditor, startPos: ImVec2) {
 
 object ActionManager {
     private var currentJob: Job? = null
+    private val executor = Executors.newSingleThreadExecutor()
+    private var futureTask: Future<*>? = null
 
     fun launchNewAction(action: suspend () -> Unit) {
         currentJob?.cancel()
+        futureTask?.cancel(true)
 
         currentJob = scopeSync {
             try {
                 action()
-            } catch (e: CancellationException) {
-                // Обработка отмены корутины (если нужно)
+            } catch (_: CancellationException) {
+                HollowCore.LOGGER.info("Code analysis stopped.")
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
+
+    fun <T> future(action: () -> T): Future<T> = executor.submit(Callable { action() })
+        .also { futureTask = it }
 }

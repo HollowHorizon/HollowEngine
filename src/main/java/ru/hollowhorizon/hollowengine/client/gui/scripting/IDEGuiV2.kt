@@ -217,7 +217,7 @@ object IDEGuiV2 : ImGuiScreen("code_editor") {
         ImGui.dummy(ImGui.getContentRegionAvailX() - size, 0f)
         ImGui.pushItemWidth(400f)
         ImGui.setCursorPosY(ImGui.getCursorPosY() + 4)
-        Graphics.image("hollowengine:textures/gui/icons/file_kts.png".rl, iconSize, iconSize)
+        image("hollowengine:textures/gui/icons/file_kts.png".rl, iconSize, iconSize)
         ImGui.sameLine()
         ImGui.setCursorPosY(ImGui.getCursorPosY() - 4)
         val preview = if (fileToRun.isNotEmpty()) fileToRun.substringAfterLast('/') else "Пусто"
@@ -404,14 +404,20 @@ object IDEGuiV2 : ImGuiScreen("code_editor") {
             }
             ImGui.end()
 
-            wasOpened && !file.isOpen.get()
+            val remove = wasOpened && !file.isOpen.get()
+            if(remove) file.destroy()
+            remove
         }
         if (files.isEmpty()) fileToRun = ""
         ImGui.end()
     }
 
     fun openFile(path: String, bytes: ByteArray, type: FileType) {
-        files.removeIf { it.filePath == path }
+        files.removeIf {
+            val remove = it.filePath == path
+            if(remove) it.destroy()
+            remove
+        }
         files.add(
             when (type) {
                 FileType.IMAGE -> {

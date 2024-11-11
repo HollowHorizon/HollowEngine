@@ -219,7 +219,7 @@ class CompletionProvider(
     private fun addExpressionAtCaret() {
         caretPositionOffset = getOffsetFromLineAndChar(lineNumber, charNumber)
         val text = currentPsiFile!!.text
-        if (caretPositionOffset != 0) {
+        if (caretPositionOffset <= text.length) {
             val buffer = StringBuilder(text.substring(0, caretPositionOffset))
             buffer.append("IntellijIdeaRulezzz ")
             buffer.append(text.substring(caretPositionOffset))

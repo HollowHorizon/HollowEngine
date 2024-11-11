@@ -40,12 +40,19 @@ fun setupScripting() {
 }
 
 fun cleanup() {
+    val modsHashCode = ModList.mods.map { ModList.getFile(it) }.sumOf { it.hashCode() }
+    val hashFile = File("hollowcore/scripting_env.hash").apply { if (!parentFile.exists()) parentFile.mkdirs() }
+    if(hashFile.exists()) {
+        if(hashFile.readText().toInt() == modsHashCode) return
+    }
+    hashFile.writeText(modsHashCode.toString())
+
     File("hollowcore/embedded_mods").walk().forEach { it.delete() }
     deobfClasspath.forEach { it.delete() }
 }
 
 fun setupMods() {
-    if(isProduction) Remapper.remap(
+    if (isProduction) Remapper.remap(
         Remapper.DEOBFUSCATE_REMAPPER,
         ModList.mods
             .map { ModList.getFile(it) }

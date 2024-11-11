@@ -12,4 +12,5 @@ abstract class FileData(
     abstract fun draw()
 
     abstract fun save()
+    open fun destroy() {}
 }

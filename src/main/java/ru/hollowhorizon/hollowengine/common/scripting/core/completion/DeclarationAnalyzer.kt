@@ -1,10 +1,12 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ActionManager
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.completionsList
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.currentColumn
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.currentLine
 import ru.hollowhorizon.hollowengine.common.scripting.core.AfterCodeAnalysisEvent
+import java.util.concurrent.CancellationException
 
 private val COMPLETION_CHARS = ('a'..'z') + ('A'..'Z') + ('0'..'9') + '.'
 
@@ -15,14 +17,20 @@ fun onAnalysisEvent(event: AfterCodeAnalysisEvent) {
 
     if(char !in COMPLETION_CHARS) return
 
-    val provider = CompletionProvider(
-        event.sources.toMutableList(),
-        event.sources.firstOrNull()?.name ?: "",
-        currentLine, currentColumn
-    )
+    try {
+        val provider = CompletionProvider(
+            event.sources.toMutableList(),
+            event.sources.firstOrNull()?.name ?: "",
+            currentLine, currentColumn
+        )
 
-    val r = provider.getResult(event)
+        val r = ActionManager.future {
+            provider.getResult(event)
+        }.get()
 
-    completionsList.clear()
-    completionsList.addAll(r)
+        completionsList.clear()
+        completionsList.addAll(r)
+    } catch (_: Exception) {
+        // Если этого не делать, то память забьётся почти моментально :)
+    }
 }
