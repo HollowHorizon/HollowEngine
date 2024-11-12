@@ -3,14 +3,12 @@ package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 import imgui.ImGui
 import imgui.ImVec2
 import imgui.ImVec4
-import imgui.extension.texteditor.TextEditor
 import imgui.flag.ImGuiCol
-import net.minecraft.client.Minecraft
-import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.imgui.Graphics
 import ru.hollowhorizon.hc.client.utils.mc
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.completionsList
 import ru.hollowhorizon.hollowengine.client.gui.times
 import kotlin.math.max
@@ -23,7 +21,7 @@ data class CompletionVariant(
 ) {
     override fun toString() = displayText
 
-    fun render(editor: TextEditor) {
+    fun render(file: TextFileData) {
         ImGui.pushStyleColor(ImGuiCol.HeaderHovered, 0xFF4A4543.toInt())
         val textColor = when (icon) {
             Icon.METHOD -> ImVec4(0.878f, 0.568f, 0.098f, 1f)
@@ -73,6 +71,7 @@ data class CompletionVariant(
             }
 
             if (clicked) {
+                val editor = file.textEditor
                 val original = editor.currentLineText
 
                 val column = editor.cursorPosition.mColumn
@@ -91,6 +90,8 @@ data class CompletionVariant(
                 editor.textLines = lines
                 editor.setCursorPosition(editor.cursorPosition.mLine, charPos + text.length)
                 completionsList.clear()
+                file.code = file.textEditor.text.substringBeforeLast("\n")
+                file.save()
             }
         }
 

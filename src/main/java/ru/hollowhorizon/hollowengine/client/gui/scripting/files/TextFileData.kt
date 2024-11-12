@@ -39,7 +39,7 @@ var currentLine = 0
 var currentColumn = 0
 val completionsList = ArrayList<CompletionVariant>()
 
-class TextFileData(project: IDEGuiV2, name: String, path: String, open: ImBoolean, private var code: String) :
+class TextFileData(project: IDEGuiV2, name: String, path: String, open: ImBoolean, var code: String) :
     FileData(project, name, path, open) {
     val textEditor = TextEditor().apply {
         isImGuiChildIgnored = true
@@ -86,8 +86,8 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, open: ImBoolea
             oldScroll = -1f
         }
 
-        if (isFileFocused) drawCompletions(textEditor, startPos)
         if (fileErrors.isNotEmpty()) drawErrors(textEditor, fileErrors, startPos)
+        if (isFileFocused) drawCompletions(this, startPos)
 
         if (textEditor.isTextChanged) {
             textEditor.text = textEditor.text.substringBeforeLast("\n")
@@ -175,9 +175,9 @@ fun drawErrors(textEditor: TextEditor, fileErrors: List<ScriptError>, startPos: 
         val lineWidth = ImGui.calcTextSizeX(line.substring(0, column.coerceAtMost(line.length)))
         val nextCharSize = if (column + 1 <= line.length) ImGui.calcTextSizeX(
             line.substring(
-                column,
-                column + 1
-            )
+                column
+            ).substringBefore("(").substringBefore("{").substringBefore(".")
+                .substringBefore("[").substringBefore(")").substringBefore("}").substringBefore("]")
         ) else ImGui.getFontSize().toFloat()
 
         val pos = ImVec2(
@@ -221,7 +221,8 @@ fun drawZigZagLine(start: ImVec2, end: ImVec2, segments: Int, amplitude: Float, 
     drawList.addLine(ImVec2(x, y), ImVec2(end.x, end.y), color, thickness)
 }
 
-fun drawCompletions(textEditor: TextEditor, startPos: ImVec2) {
+fun drawCompletions(file: TextFileData, startPos: ImVec2) {
+    val textEditor = file.textEditor
     val list = ArrayList(completionsList)
 
     val windowWidth = ImGui.getWindowWidth()
@@ -267,7 +268,7 @@ fun drawCompletions(textEditor: TextEditor, startPos: ImVec2) {
             true
         )
 
-        list.forEach { it.render(textEditor) }
+        list.forEach { it.render(file) }
         ImGui.endChild()
 
 
