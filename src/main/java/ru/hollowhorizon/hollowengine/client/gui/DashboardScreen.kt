@@ -15,7 +15,6 @@ import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hc.common.network.request
-import ru.hollowhorizon.hollowengine.client.docs.DocsRenderer
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
 import ru.hollowhorizon.hollowengine.client.gui.scripting.RequestTreePacket
 
@@ -92,5 +91,4 @@ fun onAddTab(event: DashBoardScreen.TabEvent) {
             }
         }
     })
-    event.register(DashBoardScreen.Tab("docs", DocsRenderer()::open))
 }
