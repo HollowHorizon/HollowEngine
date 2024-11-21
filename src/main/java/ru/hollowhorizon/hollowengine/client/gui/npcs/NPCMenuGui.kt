@@ -4,8 +4,10 @@ import imgui.ImGui.*
 import imgui.flag.ImGuiCol
 import imgui.flag.ImGuiStyleVar
 import imgui.internal.ImGui
+import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.locale.Language
+import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.client.imgui.Graphics
 import ru.hollowhorizon.hc.client.models.internal.animations.PlayMode
 import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
@@ -13,6 +15,10 @@ import ru.hollowhorizon.hc.client.models.internal.manager.AnimationLayer
 import ru.hollowhorizon.hc.client.models.internal.manager.LayerMode
 import ru.hollowhorizon.hc.client.utils.*
 import ru.hollowhorizon.hc.client.utils.math.Interpolation
+import ru.hollowhorizon.hc.common.events.Event
+import ru.hollowhorizon.hc.common.events.post
+import ru.hollowhorizon.hc.common.network.HollowPacketV2
+import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.client.gui.ImGuiScreen
 import ru.hollowhorizon.hollowengine.client.gui.npcs.quests.QuestsGraphGui
 import ru.hollowhorizon.hollowengine.client.gui.npcs.trading.TradeMenuGui
@@ -79,16 +85,8 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
             if (drawButton(index, s)) {
                 when (index) {
                     0 -> {
+                        NpcTalkPacket(npc.id).send()
                         onClose()
-                        Minecraft.getInstance().player?.sendSystemMessage("[Ирис] Мне не о чем с тобой поговорить.".mcText)
-                        npc[AnimatedEntityCapability::class].layers.add(
-                            AnimationLayer(
-                                "yes",
-                                LayerMode.ADD,
-                                PlayMode.ONCE,
-                                1f
-                            )
-                        )
                     }
 
                     1 -> {
@@ -101,7 +99,7 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
 
                     3 -> {
                         onClose()
-                        Minecraft.getInstance().player?.sendSystemMessage("[Ирис] Мне Халва говорил не вступать в группу с какими-то незнакомыми дяденьками...".mcText)
+                        Minecraft.getInstance().player?.sendSystemMessage("[${npc.name}] Я не вступлю в твой гарем...".literal)
                         npc[AnimatedEntityCapability::class].layers.add(
                             AnimationLayer(
                                 "no",
@@ -110,6 +108,8 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
                                 1f
                             )
                         )
+
+                        Minecraft.getInstance().player?.hurt(npc.damageSources().generic(), 2f)
                     }
                 }
             }
@@ -241,3 +241,15 @@ class NPCMenuGui(val npc: NPCEntity) : ImGuiScreen() {
 
     class ButtonData(var size: Float)
 }
+
+@Serializable
+@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+class NpcTalkPacket(val npcId: Int) : HollowPacketV3<NpcTalkPacket> {
+    override fun handle(player: Player) {
+        val npc = player.level().getEntity(npcId) as? NPCEntity ?: return
+
+        PlayerTalkToNpcEvent(npc, player).post()
+    }
+}
+
+class PlayerTalkToNpcEvent(val npc: NPCEntity, val player: Player) : Event

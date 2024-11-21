@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
+import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.syncher.EntityDataAccessor
 import net.minecraft.network.syncher.EntityDataSerializers
@@ -9,6 +10,7 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.entity.*
+import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
 import net.minecraft.world.entity.item.ItemEntity
@@ -24,6 +26,7 @@ import ru.hollowhorizon.hollowengine.client.gui.npcs.NPCMenuGui
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
+import ru.hollowhorizon.hollowengine.common.npcs.navigation.HollowPathNavigation
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
 
@@ -45,6 +48,7 @@ class NPCEntity : PathfinderMob, IAnimated {
 
     init {
         setCanPickUpLoot(true)
+        attributes.getInstance(Attributes.FOLLOW_RANGE)?.baseValue = 128.0
     }
 
 
@@ -54,8 +58,7 @@ class NPCEntity : PathfinderMob, IAnimated {
         super.defineSynchedData()
     }
 
-    override fun createNavigation(pLevel: Level) = super.createNavigation(pLevel)
-        .apply { nodeEvaluator.setCanOpenDoors(true); nodeEvaluator.setCanPassDoors(true) }
+    override fun createNavigation(pLevel: Level) = HollowPathNavigation(pLevel, this)
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         if (pHand == InteractionHand.MAIN_HAND && level().isClientSide && pPlayer.mainHandItem.item != ModItems.NPC_TOOL.get()) {
@@ -124,6 +127,25 @@ class NPCEntity : PathfinderMob, IAnimated {
     override fun aiStep() {
         updateSwingTime()
         super.aiStep()
+    }
+
+    override fun tickLeash() {
+        super.tickLeash()
+
+        val player = level().players().minByOrNull { it.distanceTo(this) }?.position() ?: position()
+        val path = navigation.createPath(player.x, player.y, player.z, 0) ?: return
+
+        for (i in 0..<path.nodeCount) {
+            val node = path.getNode(i)
+            (level() as ServerLevel).sendParticles(
+                ParticleTypes.FLAME,
+                node.x + 0.5, node.y + 0.5, node.z + 0.5,
+                10, 0.0, 0.0, 0.0, 0.0
+            )
+        }
+
+        navigation.moveTo(path, 1.0)
+        //navigator.tick()
     }
 
     override fun removeWhenFarAway(dist: Double) = false

@@ -143,7 +143,7 @@ dependencies {
     dependency("team.0mods:imgui-lwjgl3:$imguiVersion")
     dependency("team.0mods:imgui-binding-natives:$imguiVersion")
 
-
+    dependency("com.extollit.gaming:hydrazine-path-engine:1.8.1", true)
     dependency("dev.folomeev.kotgl:kotgl-matrix:0.0.1-beta")
 
     // OTHER
@@ -153,8 +153,8 @@ dependencies {
     implementation("io.github.douira:glsl-transformer:2.0.1")
     dependency("ru.hollowhorizon:HollowEnginePlugin:$compilerPluginVersion", true)
 
-    kotlinCompilerPluginClasspath("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion")
     kotlinCompilerPluginClasspath("ru.hollowhorizon:HollowEnginePlugin:$compilerPluginVersion")
+    kotlinCompilerPluginClasspath("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion")
 }
 
 

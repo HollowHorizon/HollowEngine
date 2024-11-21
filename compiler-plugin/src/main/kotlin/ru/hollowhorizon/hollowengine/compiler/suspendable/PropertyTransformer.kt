@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.compiler.suspendable
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.jvm.functionByName
 import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
 import org.jetbrains.kotlin.ir.builders.irBlock
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irString
@@ -13,12 +14,18 @@ import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrValueSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.defaultType
+import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.constructors
+import org.jetbrains.kotlin.ir.util.getSimpleFunction
+import org.jetbrains.kotlin.ir.util.nestedClasses
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.CallableId
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import ru.hollowhorizon.hollowengine.compiler.identifiers.AsyncContext
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Ignore
 import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendContext
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
@@ -27,15 +34,30 @@ class PropertyTransformer(val function: IrFunction, val context: IrExpression) :
     class Property(val type: IrType, val name: Name, val symbol: IrValueSymbol)
 
     val controllers = ArrayList<IrVariable>()
-    private val async = pluginContext.referenceFunctions(
+    private val asyncFunction = pluginContext.referenceFunctions(
         CallableId(
             FqName("ru.hollowhorizon.hollowengine.compiler.suspendable"),
             Name.identifier("async")
         )
     ).single()
+    val dialogueFunction = pluginContext.referenceFunctions(
+        CallableId(
+            FqName("ru.hollowhorizon.hollowengine.common.npcs.dialogues"),
+            Name.identifier("dialogue")
+        )
+    )
+    @OptIn(UnsafeDuringIrConstructionAPI::class)
+    val choiceFunction = pluginContext.referenceClass(
+        ClassId(
+            FqName("ru.hollowhorizon.hollowengine.common.npcs.dialogues"),
+            Name.identifier("Dialogue")
+        )
+    )?.owner?.nestedClasses?.single { it.name == Name.identifier("Choices") }
+        ?.getSimpleFunction("invoke")
     private val symbols = arrayListOf<Property>()
     private val setter = pluginContext.referenceClass(SuspendContext)!!.functionByName("setProperty")
     private val getter = pluginContext.referenceClass(SuspendContext)!!.functionByName("getProperty")
+    private val asyncContextType = pluginContext.referenceClass(AsyncContext)!!.defaultType
 
     override fun visitVariable(declaration: IrVariable): IrStatement {
         if (!declaration.isIgnored()) {
@@ -44,14 +66,15 @@ class PropertyTransformer(val function: IrFunction, val context: IrExpression) :
                     function.symbol, function.startOffset, function.endOffset
                 )
 
-                if (initializer is IrCall && initializer.symbol == async) {
-                    initializer.transformChildrenVoid(this)
-                    (initializer.getValueArgument(0) as? IrFunctionExpression)?.function?.apply {
-                        transform(SuspendableTransformer(), null)
-                        returnType = pluginContext.irBuiltIns.anyType
+                if (initializer is IrCall) when(initializer.symbol) {
+                    asyncFunction -> {
+                        initializer.transformChildrenVoid(this)
+                        (initializer.getValueArgument(0) as? IrFunctionExpression)?.apply {
+                            type = pluginContext.irBuiltIns.functionN(1).typeWith(asyncContextType, pluginContext.irBuiltIns.anyNType)
+                        }
+                        controllers += declaration
+                        return builder.irBlock {}
                     }
-                    controllers += declaration
-                    return builder.irBlock {}
                 }
 
                 symbols += Property(declaration.type, declaration.name, declaration.symbol)

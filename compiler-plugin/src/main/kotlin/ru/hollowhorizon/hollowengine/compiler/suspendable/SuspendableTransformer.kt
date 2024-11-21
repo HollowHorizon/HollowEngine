@@ -22,37 +22,27 @@ import ru.hollowhorizon.hollowengine.compiler.identifiers.SuspendContext
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
-class SuspendableTransformer() : IrElementTransformerVoid() {
+class SuspendableTransformer : IrElementTransformerVoid() {
     @OptIn(UnsafeDuringIrConstructionAPI::class)
     val suspendGetter = pluginContext.referenceClass(SuspendContext)!!.getPropertyGetter("index")!!
     val getter = pluginContext.referenceClass(SuspendContext)!!.functionByName("getProperty")
 
     @OptIn(UnsafeDuringIrConstructionAPI::class)
     val asyncControllers = pluginContext.referenceClass(SuspendContext)!!.getPropertyGetter("asyncControllers")!!
-    val asyncContext = pluginContext.referenceClass(AsyncContext)!!
     val asyncController = pluginContext.referenceClass(AsyncController)!!
     val asyncTick = asyncController.functionByName("tick")
-
-    @OptIn(UnsafeDuringIrConstructionAPI::class)
-    val contextGetter = asyncContext.getPropertyGetter("context")!!
     val contains = pluginContext.referenceClass(ClassId(FqName("java.util"), Name.identifier("HashSet")))!!
         .functionByName("contains")
 
     override fun visitFunction(declaration: IrFunction): IrStatement {
-        val receiver = declaration.extensionReceiverParameter
-        if (!declaration.annotations.hasAnnotation(Suspendable.asSingleFqName()) && receiver?.type != asyncContext.defaultType) return super.visitFunction(
-            declaration
-        )
+        if (!declaration.isSuspendable()) return super.visitFunction(declaration)
         val builder = pluginContext.irBuiltIns.createIrBuilder(
             declaration.symbol,
             declaration.startOffset,
             declaration.endOffset,
         )
 
-        val suspendContext =
-            if (declaration.origin == IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA) builder.irCall(contextGetter)
-                .apply { dispatchReceiver = builder.irGet(receiver!!) }
-            else builder.irGet(declaration.valueParameters.last())
+        val suspendContext = declaration.suspendableContext
 
         val transformer = PropertyTransformer(declaration, suspendContext)
         declaration.transformChildrenVoid(transformer)
@@ -107,7 +97,7 @@ class SuspendableTransformer() : IrElementTransformerVoid() {
             statements.addAll(0, actions)
         }
 
-        return declaration
+        return super.visitFunction(declaration)
     }
 
 }

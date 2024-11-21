@@ -1,13 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.npcs.quests
 
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.Tag
-import ru.hollowhorizon.hc.HollowCore
-import ru.hollowhorizon.hc.client.utils.nbt.INBTSerializable
-import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
-import ru.hollowhorizon.hc.client.utils.nbt.deserialize
-import ru.hollowhorizon.hc.client.utils.nbt.serialize
+import ru.hollowhorizon.hc.client.utils.nbt.*
 
 class QuestGraph : INBTSerializable {
     val nodes = ArrayList<QuestNode>()

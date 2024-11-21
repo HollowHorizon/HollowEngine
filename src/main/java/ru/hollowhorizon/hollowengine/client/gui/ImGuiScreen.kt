@@ -7,6 +7,7 @@ import imgui.internal.ImGui
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.screens.Screen
+import ru.hollowhorizon.hc.api.HasImGuiInput
 import ru.hollowhorizon.hc.client.handlers.TickHandler
 import ru.hollowhorizon.hc.client.imgui.Graphics
 import ru.hollowhorizon.hc.client.imgui.ImGuiHandler
@@ -15,7 +16,7 @@ import ru.hollowhorizon.hc.client.utils.mcText
 import ru.hollowhorizon.hollowengine.client.keys.Key
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 
-abstract class ImGuiScreen(val saveFile: String = "") : Screen("".mcText) {
+abstract class ImGuiScreen(val saveFile: String = "") : Screen("".mcText), HasImGuiInput {
     val parent = Minecraft.getInstance().screen
     var isLoaded = false
 

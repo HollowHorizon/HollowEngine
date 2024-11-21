@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.npcs.quests
 import kotlinx.serialization.Serializable
 import net.minecraft.nbt.Tag
 import net.minecraft.world.entity.player.Player
+import net.minecraft.world.level.Level
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2
@@ -10,6 +11,7 @@ import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
+import java.util.UUID
 
 @HollowCapabilityV2(NPCEntity::class)
 class QuestsCapability : CapabilityInstance() {
@@ -19,6 +21,15 @@ class QuestsCapability : CapabilityInstance() {
         return player.hasPermissions(PlayerPermissions.GAMEMASTER)
     }
 }
+
+//@HollowCapabilityV2(Level::class)
+//class LevelQuestsCapability : CapabilityInstance() {
+//    var questGraph by syncableMap<UUID, QuestGraph>()
+//
+//    override fun canAcceptFromClient(player: Player, tag: Tag): Boolean {
+//        return player.hasPermissions(PlayerPermissions.GAMEMASTER)
+//    }
+//}
 
 @HollowCapabilityV2(Player::class)
 class AcceptedQuestsCapability : CapabilityInstance() {

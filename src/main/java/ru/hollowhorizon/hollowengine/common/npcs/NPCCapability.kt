@@ -28,8 +28,8 @@ class NPCCapability : CapabilityInstance() {
     var tradeContainer by container(TradeContainer(this))
 }
 
-class InventoryContainer(capability: CapabilityInstance): HollowContainer(capability, 36, intArrayOf())
-class TradeContainer(capability: CapabilityInstance) : HollowContainer(capability, 7, intArrayOf(6)) {
+class InventoryContainer(capability: CapabilityInstance): HollowContainer(capability, 36, { slot, stack -> true})
+class TradeContainer(capability: CapabilityInstance) : HollowContainer(capability, 7, { slot, stack -> slot == 6 }) {
     override fun canPlaceItem(slot: Int, stack: ItemStack): Boolean {
         val npcData = capability as NPCCapability
         if (npcData.currentTrade == -1 || slot > 5) return super.canPlaceItem(slot, stack)

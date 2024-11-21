@@ -34,6 +34,8 @@ object IDEGuiV2 : ImGuiScreen("code_editor") {
     var fileToRun = ""
 
     val tabCount = ImInt(HollowEngine.config.ideConfig.tabSpace)
+    val fontSize = ImInt(HollowEngine.config.ideConfig.fontSize)
+
     val files = HashSet<FileData>()
     var fileTree = TreeNode.EMPTY
 
@@ -207,6 +209,13 @@ object IDEGuiV2 : ImGuiScreen("code_editor") {
                 if (tabCount.get() < 1) tabCount.set(1)
                 files.filterIsInstance<TextFileData>().forEach { it.textEditor.tabSize = tabCount.get() }
                 HollowEngine.config.ideConfig.tabSpace = tabCount.get()
+                HollowEngine.config.save()
+            }
+            if (ImGui.inputInt("Размер текста", fontSize)) {
+                if (fontSize.get() > 100) fontSize.set(100)
+                if (fontSize.get() < 8) fontSize.set(8)
+                files.filterIsInstance<TextFileData>().forEach { it.fontSize = fontSize.get() }
+                HollowEngine.config.ideConfig.fontSize = fontSize.get()
                 HollowEngine.config.save()
             }
             ImGui.popItemWidth()

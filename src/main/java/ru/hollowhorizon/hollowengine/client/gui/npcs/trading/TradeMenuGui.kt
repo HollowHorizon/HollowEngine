@@ -47,9 +47,10 @@ class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : ImGuiScr
 
     override fun Graphics.draw() {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f)
-        window(
+        centredWindow(
             "Trade Menu",
-            imGuiWindowFlags = ImGuiWindowFlags.NoTitleBar or ImGuiWindowFlags.AlwaysAutoResize or ImGuiWindowFlags.NoBackground
+            args = ImGuiWindowFlags.NoTitleBar or ImGuiWindowFlags.AlwaysAutoResize or ImGuiWindowFlags.NoBackground or
+                    ImGuiWindowFlags.NoMove or ImGuiWindowFlags.NoResize
         ) {
             drawBackground()
 

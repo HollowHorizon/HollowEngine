@@ -12,6 +12,8 @@ val SuspendContext =
     ClassId(FqName("ru.hollowhorizon.hollowengine.compiler.suspendable"), Name.identifier("SuspendContext"))
 val AsyncContext =
     ClassId(FqName("ru.hollowhorizon.hollowengine.compiler.suspendable"), Name.identifier("AsyncContext"))
+val Dialogue =
+    ClassId(FqName("ru.hollowhorizon.hollowengine.common.npcs.dialogues"), Name.identifier("Dialogue"))
 val AsyncController =
     ClassId(FqName("ru.hollowhorizon.hollowengine.compiler.suspendable"), Name.identifier("AsyncController"))
 val SuspendLauncher =

@@ -8,3 +8,5 @@ accessible class com/mojang/blaze3d/platform/GlStateManager$TextureState
 
 accessible class net/minecraft/client/renderer/RenderStateShard$OutputStateShard
 accessible field net/minecraft/client/renderer/RenderStateShard PARTICLES_TARGET Lnet/minecraft/client/renderer/RenderStateShard$OutputStateShard;
+accessible field net/minecraft/world/level/pathfinder/PathFinder neighbors [Lnet/minecraft/world/level/pathfinder/Node;
+mutable field net/minecraft/world/level/pathfinder/PathFinder neighbors [Lnet/minecraft/world/level/pathfinder/Node;

@@ -6,6 +6,7 @@ import imgui.flag.ImGuiWindowFlags
 import imgui.internal.ImGui
 import net.minecraft.client.Minecraft
 import net.minecraft.locale.Language
+import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hc.client.imgui.Graphics
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.client.utils.rl

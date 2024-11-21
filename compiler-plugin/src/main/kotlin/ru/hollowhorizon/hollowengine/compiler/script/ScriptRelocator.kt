@@ -71,9 +71,6 @@ class ScriptRelocator() : IrElementTransformerVoid() {
                     if (declaration.parent == script && declaration.origin != IrDeclarationOrigin.INSTANCE_RECEIVER) {
                         declaration.parent = this@apply
                     }
-//                    if(declaration.origin == IrDeclarationOrigin.INSTANCE_RECEIVER) {
-//                        println(declaration)
-//                    }
                     return super.visitDeclaration(declaration)
                 }
 

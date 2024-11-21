@@ -45,5 +45,7 @@ class EngineConfig : HollowConfig() {
     @Serializable
     class IDEConfig {
         var tabSpace = 4
+        var fontSize = 30
+        var enableSound = false
     }
 }

@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui
 
+import com.mojang.blaze3d.systems.RenderSystem
 import imgui.extension.nodeditor.NodeEditorConfig
 import imgui.extension.nodeditor.NodeEditorContext
 import imgui.flag.ImGuiStyleVar
@@ -59,11 +60,7 @@ class NPCToolGui(val npc: NPCEntity) : ImGuiScreen() {
         val isClicked = ImGui.imageButton("hollowengine:textures/gui/icons/$image.png".rl.toTexture().id.toLong(), size, size)
         ImGui.pushStyleVar(ImGuiStyleVar.PopupBorderSize, 3f)
         if (ImGui.isItemHovered()) ImGui.setTooltip(
-            //? if >=1.20.1 {
             Language.getInstance().getOrDefault("npc_tool.$image", "No description available.")
-            //?} else {
-            /*Language.getInstance().getOrDefault("npc_tool.$image")
-            *///?}
         )
         ImGui.popStyleVar()
         return isClicked
@@ -78,19 +75,9 @@ val context = NodeEditorContext(config.ptr)
 @SubscribeEvent(100)
 fun registerNpcOptions(event: NpcOptionsEvent) {
     event.register(NpcOption("options") { NPCCreatorGui(event.npc, event.npc.id).open() })
-    event.register(NpcOption("behavior") {
-        Minecraft.getInstance().player?.sendToast("Временно отключено, используйте скрипты.".literal)
-        //NpcBehaviorGui().open()
-    })
-
-    event.register(NpcOption("pose_editor") {
-        Minecraft.getInstance().player?.sendToast("Отключено, будет реализовано в редакторе катсцен.".literal)
-    })
-    event.register(NpcOption("trades") {
-        TradeMenuGui(event.npc, true).open()
-    })
+    event.register(NpcOption("trades") { TradeMenuGui(event.npc, true).open() })
     event.register(NpcOption("quests") {
-        QuestsGraphGui(event.npc).open()
+        RenderSystem.recordRenderCall { QuestsGraphGui(event.npc).open() }
     })
 }
 

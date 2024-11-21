@@ -29,15 +29,12 @@ import kotlin.math.sqrt
 
 class QuestsGraphGui(val npc: NPCEntity, val editMode: Boolean = true) : ImGuiScreen() {
     val graph: QuestGraph = npc[QuestsCapability::class].questGraph
-    private val context = NodeEditorContext(NodeEditorConfig().apply {
-        settingsFile = "npc_quests.json"
-    }.ptr)
+    private val context: NodeEditorContext = NodeEditor.createEditor()
     private val titleBuffer = ImString(100)
     private val subtitleBuffer = ImString(250)
     var lastModalPopup = -1
 
     override fun Graphics.draw() {
-        ImGui.getStyle().setColor(ImGuiCol.ModalWindowDimBg, 0f, 0f, 0f, 0.45f)
         pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0f)
 
         val window = Minecraft.getInstance().window
@@ -283,7 +280,7 @@ class QuestsGraphGui(val npc: NPCEntity, val editMode: Boolean = true) : ImGuiSc
     }
 
     override fun onClose() {
-        super.onClose()
+        Minecraft.getInstance().setScreen(null)
         npc[QuestsCapability::class].questGraph = graph
     }
 }
