@@ -1,29 +1,20 @@
 package ru.hollowhorizon.hollowengine.common.npcs.navigation
 
-import net.minecraft.util.Mth
 import net.minecraft.world.entity.Mob
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.DoorBlock
 import net.minecraft.world.level.pathfinder.BlockPathTypes
-import net.minecraft.world.level.pathfinder.Node
 import net.minecraft.world.level.pathfinder.PathFinder
 import net.minecraft.world.phys.Vec3
 import kotlin.math.sqrt
-import kotlin.random.Random
 
-class HollowPathFinder(evaluator: HollowNodeEvaluator) : PathFinder(evaluator, 640) {
-    init {
-        neighbors = arrayOfNulls<Node>(72)
-    }
-}
-
-class HollowPathNavigation(level: Level, mob: Mob) : GroundPathNavigation(mob, level) {
+class NpcPathNavigation(level: Level, mob: Mob) : GroundPathNavigation(mob, level) {
     override fun createPathFinder(maxVisitedNodes: Int): PathFinder {
-        val evaluator = HollowNodeEvaluator()
+        val evaluator = NpcNodeEvaluator()
         nodeEvaluator = evaluator
-        return HollowPathFinder(evaluator)
+        return NpcPathFinder(evaluator)
     }
 
     override fun tick() {
