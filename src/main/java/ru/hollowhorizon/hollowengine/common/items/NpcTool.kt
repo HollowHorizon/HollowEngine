@@ -31,7 +31,6 @@ import ru.hollowhorizon.hollowengine.common.registry.ModTabs
 
 class NpcTool : Item(Properties().stacksTo(1)) {
     init {
-        tab(ModTabs.HOLLOW_ENGINE.get())
     }
 
     override fun interactLivingEntity(

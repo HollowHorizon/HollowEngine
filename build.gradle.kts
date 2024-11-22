@@ -110,7 +110,6 @@ dependencies {
 
     // KOTLIN //
     dependency("ru.hollowhorizon:HollowCore-$modPlatform-$minecraftVersion:$hollowcore:dev")
-    include("ru.hollowhorizon:HollowCore-$modPlatform-$minecraftVersion:$hollowcore")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
     dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
     dependency("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
@@ -123,7 +122,7 @@ dependencies {
     dependency("org.jetbrains.kotlin:kotlin-scripting-jvm:$kotlinVersion", true)
     dependency("org.jetbrains.kotlin:kotlin-scripting-jvm-host:$kotlinVersion", true)
     dependency("org.jetbrains.kotlin:kotlin-script-runtime:$kotlinVersion", true)
-    dependency("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion", true)
+    dependency("org.jetbrains.kotlin:kotlin-compiler-embeddable-mcfriendly:$kotlinVersion", true)
     dependency("org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:$kotlinVersion", true)
     dependency("org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:$kotlinVersion", true)
     dependency("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion", true)
@@ -376,7 +375,6 @@ fun DependencyHandlerScope.setupLoader(loader: String, version: String) {
                 else -> throw IllegalStateException("Unsupported $loader version $version!")
             }
             // Мне надоело каждый раз постоянно вырезать руками лишние jar из classpath
-            if (minecraftVersion != "1.19.2") implementation("ru.hollowhorizon:forgefixer:1.0.0")
         }
 
         "neoforge" -> {

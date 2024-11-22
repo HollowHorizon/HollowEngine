@@ -14,7 +14,7 @@ import ru.hollowhorizon.hollowengine.common.registry.ModTabs
 
 class StoryTellerDimItem : Item(Properties().stacksTo(1)) {
     init {
-        tab(ModTabs.HOLLOW_ENGINE.get())
+
     }
 
     override fun use(level: Level, player: Player, hand: InteractionHand): InteractionResultHolder<ItemStack> {

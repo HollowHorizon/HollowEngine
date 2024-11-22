@@ -1,8 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core
 
-import net.fabricmc.loader.api.FabricLoader
+//? if fabric {
+/*import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.loader.impl.FabricLoaderImpl
 import net.fabricmc.loader.impl.game.minecraft.MinecraftGameProvider
+*///?} else {
+import net.minecraftforge.fml.loading.FMLLoader
+import kotlin.io.path.absolutePathString
+//?}
 import ru.hollowhorizon.hc.client.utils.ModList
 import ru.hollowhorizon.hc.client.utils.isProduction
 import ru.hollowhorizon.hollowengine.common.scripting.core.remapper.Remapper
@@ -22,28 +27,27 @@ private fun forgeClasspath() = System.getProperty("java.class.path")
     .split(";").map(::File).toMutableSet()
 
 private fun setupSTDLib(files: Collection<File>) {
-    System.setProperty("kotlin.java.stdlib.jar", files.first { it.name.startsWith("kotlin-stdlib") }.absolutePath)
+    System.setProperty("kotlin.java.stdlib.jar", files.first { it.name.startsWith("HollowCore") }.absolutePath)
 }
-
-fun compilerJar() = deobfClasspath.first { it.name == "kotlin-compiler-embeddable-mcfriendly-2.0.0.jar" }
-
 
 fun setupScripting() {
     cleanup()
 
     //? if fabric
-    setupFabric()
+    /*setupFabric()*/
     //? if forge || neoforge
-    /*setupForge()*/
+    setupForge()
 
     setupMods()
+
+    setupSTDLib(deobfClasspath)
 }
 
 fun cleanup() {
     val modsHashCode = ModList.mods.map { ModList.getFile(it) }.sumOf { it.hashCode() }
     val hashFile = File("hollowcore/scripting_env.hash").apply { if (!parentFile.exists()) parentFile.mkdirs() }
-    if(hashFile.exists()) {
-        if(hashFile.readText().toInt() == modsHashCode) return
+    if (hashFile.exists()) {
+        if (hashFile.readText().toInt() == modsHashCode) return
     }
     hashFile.writeText(modsHashCode.toString())
 
@@ -62,7 +66,9 @@ fun setupMods() {
     )
 }
 
-fun setupFabric() {
+//? if fabric {
+
+/*fun setupFabric() {
     val gameProvider =
         (FabricLoader.getInstance() as FabricLoaderImpl).gameProvider as MinecraftGameProvider
     val libs: List<Path> = findField(gameProvider, "miscGameLibraries")
@@ -82,12 +88,22 @@ fun setupFabric() {
         scriptingClasspath.addAll((libs + gameJars + logJars + parentClassPath).map { it.toFile() })
     }
 }
+*///?}
 
+//? if forge {
 fun setupForge() {
     val classpath = forgeClasspath()
 
-    setupSTDLib(classpath)
+    val gameJars = FMLLoader.getLaunchHandler().minecraftPaths.minecraftPaths
+        .map { File(it.absolutePathString()) }.toTypedArray()
+
+    if (isProduction) {
+        Remapper.remap(Remapper.DEOBFUSCATE_REMAPPER, gameJars, deobfClassPath.toPath())
+    }
+
+    scriptingClasspath.addAll(classpath)
 }
+//?}
 
 
 private val unsafe by lazy {
@@ -103,3 +119,5 @@ fun <T> findField(lookup: Any, name: String): T {
     val offset = unsafe.objectFieldOffset(field)
     return unsafe.getObject(lookup, offset) as T
 }
+
+fun compilerJar() = deobfClasspath.first { it.name.startsWith("HollowEngine") }

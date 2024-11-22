@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core.configuration
 
+//? if forge
+import net.minecraftforge.fml.loading.FMLEnvironment
 import ru.hollowhorizon.hc.client.utils.isProduction
 import ru.hollowhorizon.hollowengine.common.scripting.core.Import
 import ru.hollowhorizon.hollowengine.common.scripting.core.deobfClasspath
@@ -29,13 +31,12 @@ open class HollowScriptConfiguration(body: Builder.() -> Unit = {}) : ScriptComp
 
 
         //? if forge || neoforge {
-        /*if (!FMLEnvironment.production) {
+        if (!FMLEnvironment.production) {
             updateClasspath(System.getProperty("java.class.path").split(";").map { File(it) }.toMutableSet())
             dependenciesFromCurrentContext(wholeClasspath = true)
             return@jvm
         }
-        System.setProperty("kotlin.java.stdlib.jar", jars.first { it.name == "kotlin-stdlib-2.0.0.jar" }.absolutePath)
-        *///?}
+        //?}
 
         updateClasspath(jars + filteredClasspath)
         if(!isProduction) dependenciesFromCurrentContext(wholeClasspath = true)

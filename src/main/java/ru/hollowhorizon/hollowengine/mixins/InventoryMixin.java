@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.mixins;
 
-import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.EffectRenderingInventoryScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
@@ -17,6 +17,8 @@ import ru.hollowhorizon.hollowengine.client.gui.QuestsListGui;
 
 @Mixin(InventoryScreen.class)
 public abstract class InventoryMixin extends EffectRenderingInventoryScreen<InventoryMenu> {
+    @Unique
+    private ImageTextButton hollowengine$button;
 
     public InventoryMixin(InventoryMenu $$0, Inventory $$1, Component $$2) {
         super($$0, $$1, $$2);
@@ -24,7 +26,7 @@ public abstract class InventoryMixin extends EffectRenderingInventoryScreen<Inve
 
     @Inject(method = "init", at = @At("TAIL"))
     private void onInit(CallbackInfo ci) {
-        this.addRenderableWidget(new ImageTextButton(
+        hollowengine$button = this.addRenderableWidget(new ImageTextButton(
                 this.leftPos + 131,
                 this.topPos + 58,
                 22, 24,
@@ -33,16 +35,10 @@ public abstract class InventoryMixin extends EffectRenderingInventoryScreen<Inve
                 () -> ForgeKotlinKt.open(new QuestsListGui())));
     }
 
-    @Inject(method = "method_19891", at = @At(value = "INVOKE",
-            //? if >=1.20.1 {
-            target = "Lnet/minecraft/client/gui/components/Button;setPosition(II)V"
-            //?} else {
-            /*target = "Lnet/minecraft/client/gui/components/ImageButton;setPosition(II)V"
-            *///?}
-    ))
-    private void onResize(Button button, CallbackInfo ci) {
+    @Inject(method = "render", at = @At(value = "TAIL"))
+    private void onResize(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         //? if >=1.20.1 {
-        button.setPosition(this.leftPos + 131, this.topPos + 58);
+        hollowengine$button.setPosition(this.leftPos + 131, this.topPos + 58);
         //?} else {
         /*hollowengine$questsButton.x = this.leftPos + 131;
         hollowengine$questsButton.y = this.topPos + 58;
