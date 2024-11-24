@@ -1,18 +1,25 @@
 name: build
-on: 
+on:
   push:
-    branches: [ disabled ]
+    branches: [ "1.20.1" ]
 
 jobs:
   build:
     strategy:
       matrix:
-        java: [21]
-        os: [ubuntu-20.04]
+        java: [ 21 ]
+        os: [ ubuntu-20.04 ]
     runs-on: ${{ matrix.os }}
+    if: |
+      !contains(github.event.head_commit.message, '[no ci]')
     steps:
       - name: checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+      - name: Get the mod version from gradle.properties
+        id: get_version
+        run: |
+          MOD_VERSION=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2)
+          echo "MOD_VERSION=$MOD_VERSION" >> $GITHUB_ENV
       - name: validate gradle wrapper
         uses: gradle/wrapper-validation-action@v1
       - name: setup jdk ${{ matrix.java }}
@@ -21,20 +28,27 @@ jobs:
           java-version: ${{ matrix.java }}
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
-      - name: build
-        run: ./gradlew build
+      - name: Release to GitHub
+        uses: gradle/gradle-build-action@v2
+        with:
+        arguments: chiseledBuildAndCollect
       - name: capture build artifacts
-        uses: actions/upload-artifact@v2
+        if: ${{ runner.os == 'Linux' && matrix.java == '21' }}
+        uses: actions/upload-artifact@v4
         with:
           name: Artifacts
-          path: build/libs/
-      - name: authomatic upload
-        uses: marvinpinto/action-automatic-releases@latest
-        with: 
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "lasted-1.19.2"
-          prerelease: false
-          title: "[AUTOMATIC BUILD 1.19.2]"
-          files: |
-            build/libs/*.jar
-            
+          path: |
+            merged/*.jar
+            !merged/*-dev.jar
+            !merged/*-sources.jar
+      - name: Create Release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        with:
+          name: "[HollowEngine 1.20.1 | Latest Release]"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: "latest-1.20.1"
+          removeArtifacts: true
+          allowUpdates: true
+          artifacts: "merged/*.jar"
+          artifactContentType: application/java-archive

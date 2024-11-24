@@ -10,10 +10,17 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(WorldOpenFlows.class)
 public class WorldOpenFlowsMixin {
-    @Redirect(
+    //? if fabric {
+    /*@Redirect(
             method = "doLoadLevel",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/storage/WorldData;worldGenSettingsLifecycle()Lcom/mojang/serialization/Lifecycle;")
+    )*/
+    //?} else {
+    @Redirect(
+            method = "doLoadLevel(Lnet/minecraft/client/gui/screens/Screen;Ljava/lang/String;ZZZ)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/storage/WorldData;worldGenSettingsLifecycle()Lcom/mojang/serialization/Lifecycle;")
     )
+    //?}
     private Lifecycle removeAdviceOnLoad(WorldData instance) {
         return Lifecycle.stable();
     }

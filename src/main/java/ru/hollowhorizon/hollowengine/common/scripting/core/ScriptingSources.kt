@@ -4,16 +4,19 @@ package ru.hollowhorizon.hollowengine.common.scripting.core
 /*import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.loader.impl.FabricLoaderImpl
 import net.fabricmc.loader.impl.game.minecraft.MinecraftGameProvider
+import java.nio.file.Path
 *///?} else {
 import net.minecraftforge.fml.loading.FMLLoader
+import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import kotlin.io.path.absolutePathString
+import ru.hollowhorizon.hollowengine.compiler.HollowEngineCompilerRegistrar
+import ru.hollowhorizon.hc.common.events.SubscribeEvent
 //?}
 import ru.hollowhorizon.hc.client.utils.ModList
 import ru.hollowhorizon.hc.client.utils.isProduction
 import ru.hollowhorizon.hollowengine.common.scripting.core.remapper.Remapper
 import sun.misc.Unsafe
 import java.io.File
-import java.nio.file.Path
 
 private val deobfClassPath: File = File("hollowcore/.classpath")
     .apply { if (!exists()) mkdirs() }
@@ -27,7 +30,7 @@ private fun forgeClasspath() = System.getProperty("java.class.path")
     .split(";").map(::File).toMutableSet()
 
 private fun setupSTDLib(files: Collection<File>) {
-    System.setProperty("kotlin.java.stdlib.jar", files.first { it.name.startsWith("HollowCore") }.absolutePath)
+    System.setProperty("kotlin.java.stdlib.jar", files.first { it.name.startsWith("kotlin-stdlib-jdk8") }.absolutePath)
 }
 
 fun setupScripting() {
@@ -51,17 +54,23 @@ fun cleanup() {
     }
     hashFile.writeText(modsHashCode.toString())
 
-    File("hollowcore/embedded_mods").walk().forEach { it.delete() }
+    File("hollowcore/embed_mods").walk().forEach { it.delete() }
     deobfClasspath.forEach { it.delete() }
 }
 
 fun setupMods() {
     if (isProduction) Remapper.remap(
         Remapper.DEOBFUSCATE_REMAPPER,
-        ModList.mods
+        //? if fabric {
+        /*ModList.mods
             .map { ModList.getFile(it) }
             .filter { it.name.endsWith(".jar") }
             .toTypedArray(),
+        *///?} else {
+        File("hollowcore/embed_mods").walk()
+            .filter { it.extension == "jar" }
+            .toList().toTypedArray(),
+        //?}
         deobfClassPath.toPath()
     )
 }
@@ -102,6 +111,8 @@ fun setupForge() {
     }
 
     scriptingClasspath.addAll(classpath)
+
+    collectModsJars()
 }
 //?}
 
@@ -120,4 +131,13 @@ fun <T> findField(lookup: Any, name: String): T {
     return unsafe.getObject(lookup, offset) as T
 }
 
-fun compilerJar() = deobfClasspath.first { it.name.startsWith("HollowEngine") }
+fun compilerJar() = deobfClasspath.first { it.name.startsWith("kotlin-compiler-embeddable") }
+
+//? if forge {
+@OptIn(ExperimentalCompilerApi::class)
+@SubscribeEvent
+fun onCompilerRegistry(event: ScriptingCompilerPluginEvent) {
+    // Forge, ну вот что с тобой не так... Почему на Fabric он сам находит плагин?!
+    if(isProduction) event.addExtension(HollowEngineCompilerRegistrar())
+}
+//?}
