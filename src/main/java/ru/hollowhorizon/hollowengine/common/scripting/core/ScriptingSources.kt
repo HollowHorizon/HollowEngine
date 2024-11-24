@@ -1,17 +1,17 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core
 
 //? if fabric {
-/*import net.fabricmc.loader.api.FabricLoader
+import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.loader.impl.FabricLoaderImpl
 import net.fabricmc.loader.impl.game.minecraft.MinecraftGameProvider
 import java.nio.file.Path
-*///?} else {
-import net.minecraftforge.fml.loading.FMLLoader
+//?} else {
+/*import net.minecraftforge.fml.loading.FMLLoader
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import kotlin.io.path.absolutePathString
 import ru.hollowhorizon.hollowengine.compiler.HollowEngineCompilerRegistrar
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
-//?}
+*///?}
 import ru.hollowhorizon.hc.client.utils.ModList
 import ru.hollowhorizon.hc.client.utils.isProduction
 import ru.hollowhorizon.hollowengine.common.scripting.core.remapper.Remapper
@@ -37,13 +37,13 @@ fun setupScripting() {
     cleanup()
 
     //? if fabric
-    /*setupFabric()*/
+    setupFabric()
     //? if forge || neoforge
-    setupForge()
+    /*setupForge()*/
 
     setupMods()
 
-    setupSTDLib(deobfClasspath)
+    setupSTDLib(if(isProduction) deobfClasspath else forgeClasspath())
 }
 
 fun cleanup() {
@@ -62,22 +62,22 @@ fun setupMods() {
     if (isProduction) Remapper.remap(
         Remapper.DEOBFUSCATE_REMAPPER,
         //? if fabric {
-        /*ModList.mods
+        ModList.mods
             .map { ModList.getFile(it) }
             .filter { it.name.endsWith(".jar") }
             .toTypedArray(),
-        *///?} else {
-        File("hollowcore/embed_mods").walk()
+        //?} else {
+        /*File("hollowcore/embed_mods").walk()
             .filter { it.extension == "jar" }
             .toList().toTypedArray(),
-        //?}
+        *///?}
         deobfClassPath.toPath()
     )
 }
 
 //? if fabric {
 
-/*fun setupFabric() {
+fun setupFabric() {
     val gameProvider =
         (FabricLoader.getInstance() as FabricLoaderImpl).gameProvider as MinecraftGameProvider
     val libs: List<Path> = findField(gameProvider, "miscGameLibraries")
@@ -97,10 +97,10 @@ fun setupMods() {
         scriptingClasspath.addAll((libs + gameJars + logJars + parentClassPath).map { it.toFile() })
     }
 }
-*///?}
+//?}
 
 //? if forge {
-fun setupForge() {
+/*fun setupForge() {
     val classpath = forgeClasspath()
 
     val gameJars = FMLLoader.getLaunchHandler().minecraftPaths.minecraftPaths
@@ -114,7 +114,7 @@ fun setupForge() {
 
     collectModsJars()
 }
-//?}
+*///?}
 
 
 private val unsafe by lazy {
@@ -134,10 +134,10 @@ fun <T> findField(lookup: Any, name: String): T {
 fun compilerJar() = deobfClasspath.first { it.name.startsWith("kotlin-compiler-embeddable") }
 
 //? if forge {
-@OptIn(ExperimentalCompilerApi::class)
+/*@OptIn(ExperimentalCompilerApi::class)
 @SubscribeEvent
 fun onCompilerRegistry(event: ScriptingCompilerPluginEvent) {
     // Forge, ну вот что с тобой не так... Почему на Fabric он сам находит плагин?!
     if(isProduction) event.addExtension(HollowEngineCompilerRegistrar())
 }
-//?}
+*///?}
