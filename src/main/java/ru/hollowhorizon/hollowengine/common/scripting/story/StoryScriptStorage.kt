@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.Level
+import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.imgui.Graphics
 import ru.hollowhorizon.hc.client.utils.currentServer
 import ru.hollowhorizon.hc.client.utils.get
@@ -28,6 +29,7 @@ import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendState
 import java.io.File
 import kotlin.script.experimental.api.valueOrThrow
+import kotlin.system.measureTimeMillis
 
 data class StoryScript(val context: SuspendContext, val event: StoryEvent, val file: String)
 
@@ -92,17 +94,20 @@ fun onStoryScriptSave(server: MinecraftServer) {
 
 fun startStoryEvent(script: File, tag: CompoundTag? = null) {
     scopeAsync {
-        val jar = ScriptingCompiler.compileFile<StoryEvent>(script)
+        val measureTime = measureTimeMillis {
+            val jar = ScriptingCompiler.compileFile<StoryEvent>(script)
 
-        val result = jar.execute()
-        val event = result.valueOrThrow().returnValue.scriptInstance as? StoryEvent
-            ?: error("Script instance is null")
+            val result = jar.execute()
+            val event = result.valueOrThrow().returnValue.scriptInstance as? StoryEvent
+                ?: error("Script instance is null")
 
-        onMainThreadSync {
-            STORY_EVENTS_SCRIPTS.add(StoryScript(SuspendContext().apply {
-                if (tag != null) deserialize(tag)
-            }, event, script.toReadablePath()))
+            onMainThreadSync {
+                STORY_EVENTS_SCRIPTS.add(StoryScript(SuspendContext().apply {
+                    if (tag != null) deserialize(tag)
+                }, event, script.toReadablePath()))
+            }
         }
+        HollowCore.LOGGER.info("Story script started in $measureTime ms.")
     }
 }
 
