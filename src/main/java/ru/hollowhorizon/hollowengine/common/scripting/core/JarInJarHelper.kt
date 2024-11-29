@@ -2,9 +2,9 @@ package ru.hollowhorizon.hollowengine.common.scripting.core
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import ru.hollowhorizon.hc.client.utils.ModList
+import ru.hollowhorizon.hc.client.utils.json.JsonFormat
 import java.io.File
 import java.nio.file.Files
 import java.util.jar.JarFile
@@ -26,7 +26,7 @@ private fun collectModJars(file: File) {
     if (!mod.exists()) Files.copy(file.toPath(), mod)
 
     val jar = JarFile(file)
-    val stream = Json.decodeFromStream<JarInJars>(
+    val stream = JsonFormat.decodeFromStream<JarInJars>(
         jar.getInputStream(
             jar.getEntry("META-INF/jarjar/metadata.json") ?: return
         )
@@ -49,6 +49,7 @@ class JarInJars(
         val identifier: Identifier,
         val version: Version,
         val path: String,
+        val isObfuscated: Boolean = true,
     ) {
         @Serializable
         data class Identifier(val group: String, val artifact: String)

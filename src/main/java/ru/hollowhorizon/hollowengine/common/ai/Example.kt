@@ -21,7 +21,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
 
-@SubscribeEvent
+//@SubscribeEvent
 fun onChatEvent(event: ServerChatEvent) {
 
     thread {
@@ -44,7 +44,7 @@ fun onChatEvent(event: ServerChatEvent) {
 
 object GenerativeAi {
     val PORT = "4050"
-    val MODEL = "Llama 3.2 1B Instruct"
+    val MODEL = "Mistral Instruct"
 
     private val jsonFormat = Json { ignoreUnknownKeys = true }
     private val messageHistory = mutableListOf<Response.Choice.Message>()
