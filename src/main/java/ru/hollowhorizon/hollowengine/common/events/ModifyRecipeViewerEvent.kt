@@ -34,23 +34,23 @@ open class ModifyRecipeViewerEvent: Event {
     class RegisterVanillaCategoryExtensions(val reg: IVanillaCategoryExtensionRegistration): ModifyRecipeViewerEvent()
 
     class RegisterRecipes(val reg: IRecipeRegistration): ModifyRecipeViewerEvent() {
-        fun addIngredientInfo(ingredient: ItemStack, vararg info: Component) {
+        fun addItemInfo(ingredient: ItemStack, vararg info: Component) {
             reg.addItemStackInfo(ingredient, *info)
         }
 
-        fun addIngredientInfo(ingredient: ItemStack, info: List<Component>) {
+        fun addItemInfo(ingredient: ItemStack, info: List<Component>) {
             reg.addItemStackInfo(ingredient, *info.toTypedArray())
         }
 
-        fun addIngredientInfo(ingredient: ItemStack, info: Component) {
+        fun addItemInfo(ingredient: ItemStack, info: Component) {
             reg.addItemStackInfo(ingredient, info)
         }
 
-        fun addIngredientInfo(ingredient: ItemStack, info: String) {
+        fun addItemInfo(ingredient: ItemStack, info: String) {
             reg.addItemStackInfo(ingredient, info.mcTranslate)
         }
 
-        fun addIngredientInfo(ingredient: ItemStack, info: Array<String>) {
+        fun addItemInfo(ingredient: ItemStack, info: Array<String>) {
             reg.addItemStackInfo(ingredient, *info.map { it.mcTranslate }.toTypedArray())
         }
     }
