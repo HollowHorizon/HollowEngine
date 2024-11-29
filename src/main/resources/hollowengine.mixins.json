@@ -11,6 +11,7 @@
     "RecipeManagerAccessor",
     "kool.DockNodeInvoker",
     "kool.DragAndDropContextAccessor",
+    "compact.RecipeManagerMixin",
     "scripting.BindingTraceContextAccessor",
     "scripting.CompilationContextMixin",
     "scripting.JvmCompilationUtilMixin",

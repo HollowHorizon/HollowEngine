@@ -57,6 +57,11 @@ dependencies {
 
     kotlinCompilerPluginClasspath("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin")
     kotlinCompilerPluginClasspath("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion")
+
+    val modPlatform = container.modPlatform
+    val jei = "15.20.0.105"
+    modCompileOnly("mezz.jei:jei-1.20.1-${modPlatform}-api:$jei")
+    modRuntimeOnly("mezz.jei:jei-1.20.1-${modPlatform}:$jei")
 }
 
 fun DependencyHandlerScope.setupScripting() {
