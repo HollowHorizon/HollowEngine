@@ -20,12 +20,13 @@ import net.minecraft.server.packs.metadata.MetadataSectionSerializer
 import net.minecraft.server.packs.repository.Pack
 import net.minecraft.server.packs.repository.PackSource
 import net.minecraft.server.packs.resources.IoSupplier
-import ru.hollowhorizon.hc.client.utils.asPack
+import ru.hollowhorizon.hc.common.utils.rl
 import ru.hollowhorizon.hc.common.utils.literal
 //?}
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
+import ru.hollowhorizon.hollowengine.common.structure.StructureBiomes
 import java.io.ByteArrayInputStream
 import java.io.FileNotFoundException
 import java.io.InputStream
@@ -58,6 +59,17 @@ object HollowEngineCorePack: PackResources {
 
     fun addCustomJSON(resourcePath: ResourceLocation, content: String) {
         resourceMap[resourcePath] = ofText(content)
+    }
+
+    fun addHasBiomeTag(resourcePath: ResourceLocation, vararg biomes: String) {
+        val tag = buildString {
+            append("{").append('"').append("replace").append('"').append(":false,")
+            append('"').append("values").append('"').append(":[")
+            biomes.forEachIndexed { i, it -> append('"').append(it).append('"').also { if (i != biomes.size - 1) append(",") } }
+            append("]}")
+        }
+
+        addCustomJSON("${resourcePath.namespace}:tags/worldgen/biome/has_structure/${resourcePath.path}.json".rl, tag)
     }
 
     override fun getRootResource(vararg elements: String?): IoSupplier<InputStream> = throw FileNotFoundException(elements.joinToString())
