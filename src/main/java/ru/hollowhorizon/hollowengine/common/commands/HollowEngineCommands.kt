@@ -49,10 +49,6 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                 CopyTextPacket(itemCommand).send(player)
             }
 
-            "dialogue" {
-                OpenScreenPacket().send(source.playerOrException)
-            }
-
             "model"(
                 arg("model", StringArgumentType.greedyString(), ::listModels),
             ) {
@@ -135,15 +131,6 @@ fun listModels(): Collection<String> {
         }
 
     return list
-}
-
-@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
-@Serializable
-class OpenScreenPacket : HollowPacketV3<OpenScreenPacket> {
-    override fun handle(player: Player) {
-        RenderSystem.recordRenderCall { DialogueGui.open() }
-    }
-
 }
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)

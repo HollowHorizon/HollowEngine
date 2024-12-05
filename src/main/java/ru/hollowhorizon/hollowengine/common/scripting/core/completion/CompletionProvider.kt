@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 import org.jetbrains.kotlin.com.intellij.openapi.editor.Document
 import org.jetbrains.kotlin.com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
+import org.jetbrains.kotlin.com.intellij.psi.PsiErrorElement
 import org.jetbrains.kotlin.com.intellij.psi.tree.TokenSet
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor
@@ -11,6 +12,7 @@ import org.jetbrains.kotlin.lexer.KtKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.psiUtil.startOffset
 import org.jetbrains.kotlin.renderer.ClassifierNamePolicy
 import org.jetbrains.kotlin.renderer.ParameterNameRenderingPolicy
 import org.jetbrains.kotlin.resolve.BindingContext
@@ -44,6 +46,7 @@ class CompletionProvider(
     private val expressionForScope: PsiElement?
         get() {
             var element = currentPsiFile!!.findElementAt(caretPositionOffset)
+            if(element == null) element = currentPsiFile!!.findElementAt(caretPositionOffset - 1)
             while (element !is KtExpression && element != null) {
                 element = element.parent
             }
@@ -70,7 +73,15 @@ class CompletionProvider(
             val bindingContext = analysisResult.bindingContext
             val moduleDescriptor = analysisResult.moduleDescriptor
 
+            ScriptColorizer.colorize(currentPsiFile!!, bindingContext)
+
             val element = expressionForScope as? KtElement ?: return emptyList()
+
+            var isDotExpr = false
+            if(element is KtDotQualifiedExpression && element.lastChild is PsiErrorElement && element.firstChild is KtElement) {
+                isDotExpr = true
+            }
+
             var descriptors: Collection<DeclarationDescriptor>? = null
             var isTipsManagerCompletion = true
             val resolutionFacade = KotlinResolutionFacade(event, containerProvider, moduleDescriptor)
@@ -101,7 +112,7 @@ class CompletionProvider(
             } else {
                 isTipsManagerCompletion = false
                 val resolutionScope: LexicalScope?
-                val parent = element.parent
+                val parent = if(isDotExpr) element else element.parent
                 if (parent is KtQualifiedExpression) {
                     val receiverExpression = parent.receiverExpression
 
@@ -137,8 +148,10 @@ class CompletionProvider(
                 } else {
                     element.text
                 }
-                prefix = prefix.substringBefore("IntellijIdeaRulezzz", prefix)
-                if (prefix.endsWith(".")) {
+
+                val offset = caretPositionOffset - element.startOffset
+                prefix = prefix.substring(0, offset.coerceIn(0, prefix.length))
+                if (prefix.endsWith(".") || isDotExpr) {
                     prefix = ""
                 }
 
@@ -220,12 +233,6 @@ class CompletionProvider(
         caretPositionOffset = getOffsetFromLineAndChar(lineNumber, charNumber)
         val text = currentPsiFile!!.text
         if (caretPositionOffset <= text.length) {
-            val buffer = StringBuilder(text.substring(0, caretPositionOffset))
-            buffer.append("IntellijIdeaRulezzz ")
-            buffer.append(text.substring(caretPositionOffset))
-            psiFiles.remove(currentPsiFile!!)
-            currentPsiFile = JetPsiFactoryUtil.createFile(currentProject, currentPsiFile!!.name, buffer.toString())
-            psiFiles.add(currentPsiFile!!)
             currentDocument = currentPsiFile!!.viewProvider.document
         }
     }

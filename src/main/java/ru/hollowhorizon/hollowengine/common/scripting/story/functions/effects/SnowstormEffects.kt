@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects
 
-import dev.folomeev.kotgl.matrix.vectors.vec3
 import kotlinx.serialization.Serializable
 import net.minecraft.commands.arguments.EntityArgument.players
 import net.minecraft.server.level.ServerPlayer
@@ -9,6 +8,7 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
+import org.joml.Vector3f
 import ru.hollowhorizon.hc.api.ParticlesProvider
 import ru.hollowhorizon.hc.client.molang.asMolang
 import ru.hollowhorizon.hc.client.particles.BedrockParticles
@@ -43,7 +43,7 @@ class SpawnParticlesPacket(
                 ParticleEffect.fromFile(
                     BedrockParticles.PARTICLES[location.rl] ?: error("Particle $location not found!")
                 ),
-                transform = Transform.create(vec3(pos.x.toFloat(), pos.y.toFloat(), pos.z.toFloat()))
+                transform = Transform.create(Vector3f(pos.x.toFloat(), pos.y.toFloat(), pos.z.toFloat()))
             )
         }
         if(entity is LivingEntity) {

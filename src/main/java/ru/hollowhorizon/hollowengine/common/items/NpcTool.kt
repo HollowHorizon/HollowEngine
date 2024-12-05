@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.items
 
+//? if <=1.19.2
+/*import ru.hollowhorizon.hc.client.utils.math.level*/
 import com.mojang.blaze3d.systems.RenderSystem
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
@@ -17,16 +19,9 @@ import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.get
-//? if <=1.19.2
-/*import ru.hollowhorizon.hc.client.utils.math.level*/
-import ru.hollowhorizon.hc.client.utils.open
-import ru.hollowhorizon.hc.common.handlers.tab
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
-import ru.hollowhorizon.hollowengine.client.gui.NPCCreatorGui
-import ru.hollowhorizon.hollowengine.client.gui.NPCToolGui
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
-import ru.hollowhorizon.hollowengine.common.registry.ModTabs
 
 
 class NpcTool : Item(Properties().stacksTo(1)) {
@@ -42,7 +37,7 @@ class NpcTool : Item(Properties().stacksTo(1)) {
         if (pUsedHand == InteractionHand.MAIN_HAND && pPlayer.level().isClientSide &&
             pInteractionTarget is NPCEntity && pPlayer.hasPermissions(2)
         ) {
-            NPCToolGui(pInteractionTarget).open()
+            TODO()
             return InteractionResult.SUCCESS
         }
 
@@ -82,7 +77,7 @@ class OpenEditorScreen(private val npcId: Int) : HollowPacketV3<OpenEditorScreen
         val level = Minecraft.getInstance().level ?: return
         val npc = level.getEntity(npcId) as? NPCEntity ?: NPCEntity(level)
         RenderSystem.recordRenderCall {
-            Minecraft.getInstance().setScreen(NPCCreatorGui(npc, npcId))
+            TODO()
         }
     }
 

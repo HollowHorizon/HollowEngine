@@ -19,7 +19,6 @@
     "InventoryMixin",
     "LevelRendererMixin",
     "LoadingOverlayMixin",
-    "PauseScreenMixin",
     "WorldOpenFlowsMixin"
   ],
   "server": [],

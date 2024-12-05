@@ -14,7 +14,6 @@ import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2
 import ru.hollowhorizon.hc.common.capabilities.containers.HollowContainer
 import ru.hollowhorizon.hc.common.capabilities.containers.container
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
-import ru.hollowhorizon.hollowengine.common.npcs.quests.QuestGraph
 
 @HollowCapabilityV2(NPCEntity::class)
 class NPCCapability : CapabilityInstance() {

@@ -19,7 +19,6 @@ import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.level.LevelEvent
 import ru.hollowhorizon.hc.common.events.server.ServerEvent
 import ru.hollowhorizon.hc.common.events.tick.TickEvent
-import ru.hollowhorizon.hollowengine.client.gui.ImGuiScreen
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
@@ -121,13 +120,7 @@ fun startGuiScript(script: File) {
 
         onMainThreadSync {
             RenderSystem.recordRenderCall {
-                Minecraft.getInstance().setScreen(object: ImGuiScreen() {
-                    override fun Graphics.draw() {
-                        event.apply {
-                            draw()
-                        }
-                    }
-                })
+TODO()
             }
         }
     }
