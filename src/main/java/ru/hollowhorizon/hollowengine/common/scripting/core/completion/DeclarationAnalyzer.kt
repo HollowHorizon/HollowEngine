@@ -23,9 +23,7 @@ fun onAnalysisEvent(event: AfterCodeAnalysisEvent) {
             currentLine, currentColumn
         )
 
-        val r = ActionManager.future {
-            provider.getResult(event)
-        }.get()
+        val r = provider.getResult(event)
 
         if (char !in COMPLETION_CHARS) return
 

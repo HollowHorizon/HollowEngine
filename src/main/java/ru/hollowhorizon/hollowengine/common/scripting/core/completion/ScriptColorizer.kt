@@ -27,7 +27,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ideColors
 
 object ScriptColorizer {
-    fun colorize(file: KtFile, bindingContext: BindingContext) {
+    fun colorize(file: KtFile, bindingContext: BindingContext, caretPositionOffset: Int) {
         if (!isKoolLoaded) return
         val textLines = mutableListOf<TextLine>()
         val currentLine = mutableListOf<Pair<String, TextAttributes>>()
@@ -96,7 +96,9 @@ private fun getElementColor(element: PsiElement, bindingContext: BindingContext)
         KtTokens.STRINGS.contains(token) || token == KtTokens.OPEN_QUOTE || token == KtTokens.CLOSING_QUOTE -> Color("6AAB73")
         element.isPropertyIdentifier() || expression?.hasProperty(bindingContext) == true -> Color("C77DBB")
         (expression as? KtReferenceExpression)?.getResolvedCall(bindingContext)
-            ?.resultingDescriptor?.extensionReceiverParameter != null -> Color("56A8F5")
+            ?.resultingDescriptor?.extensionReceiverParameter != null && token != KtTokens.LPAR && token != KtTokens.RPAR -> Color(
+            "56A8F5"
+        )
 
         element.isNameReference() -> Color("BCBEC4")
         element.isNumericLiteral() -> Color("2AACB8")

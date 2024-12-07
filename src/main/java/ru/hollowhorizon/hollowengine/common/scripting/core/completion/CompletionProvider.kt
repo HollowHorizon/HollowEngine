@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 import org.jetbrains.kotlin.com.intellij.openapi.editor.Document
 import org.jetbrains.kotlin.com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.com.intellij.psi.PsiErrorElement
+import org.jetbrains.kotlin.com.intellij.psi.PsiWhiteSpace
 import org.jetbrains.kotlin.com.intellij.psi.tree.TokenSet
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor
@@ -46,7 +46,7 @@ class CompletionProvider(
     private val expressionForScope: PsiElement?
         get() {
             var element = currentPsiFile!!.findElementAt(caretPositionOffset)
-            if(element == null) element = currentPsiFile!!.findElementAt(caretPositionOffset - 1)
+            if(element == null || element !is KtElement) element = currentPsiFile!!.findElementAt(caretPositionOffset - 1)
             while (element !is KtExpression && element != null) {
                 element = element.parent
             }
@@ -73,14 +73,10 @@ class CompletionProvider(
             val bindingContext = analysisResult.bindingContext
             val moduleDescriptor = analysisResult.moduleDescriptor
 
-            ScriptColorizer.colorize(currentPsiFile!!, bindingContext)
+            ScriptColorizer.colorize(currentPsiFile!!, bindingContext, caretPositionOffset)
 
             val element = expressionForScope as? KtElement ?: return emptyList()
 
-            var isDotExpr = false
-            if(element is KtDotQualifiedExpression && element.lastChild is PsiErrorElement && element.firstChild is KtElement) {
-                isDotExpr = true
-            }
 
             var descriptors: Collection<DeclarationDescriptor>? = null
             var isTipsManagerCompletion = true
@@ -112,7 +108,7 @@ class CompletionProvider(
             } else {
                 isTipsManagerCompletion = false
                 val resolutionScope: LexicalScope?
-                val parent = if(isDotExpr) element else element.parent
+                val parent = if(element is KtDotQualifiedExpression) element else element.parent
                 if (parent is KtQualifiedExpression) {
                     val receiverExpression = parent.receiverExpression
 
@@ -151,7 +147,7 @@ class CompletionProvider(
 
                 val offset = caretPositionOffset - element.startOffset
                 prefix = prefix.substring(0, offset.coerceIn(0, prefix.length))
-                if (prefix.endsWith(".") || isDotExpr) {
+                if (prefix.endsWith(".") || element is KtDotQualifiedExpression) {
                     prefix = ""
                 }
 

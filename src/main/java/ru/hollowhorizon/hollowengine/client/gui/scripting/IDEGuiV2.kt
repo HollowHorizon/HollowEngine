@@ -3,6 +3,9 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 import com.mojang.blaze3d.platform.NativeImage
 import de.fabmax.kool.Assets
 import de.fabmax.kool.editor.ui.UiColors
+import de.fabmax.kool.editor.ui.heightTitleBar
+import de.fabmax.kool.editor.ui.heightWindowTitleBar
+import de.fabmax.kool.editor.ui.scrollbarWidth
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
@@ -50,12 +53,17 @@ object IDEGuiV2 : KoolScreen({
         borderColor.set(UiColors.titleBg)
         dockingSurface.colors = ideColors
         dockingSurface.sizes = ideSizes
+        dockingPaneComposable = Composable {
+            resizeMargin.set(sizes.scrollbarWidth)
+            Column(Grow.Std, Grow.Std) {
+                modifier.margin(top = sizes.heightWindowTitleBar)
+                root()
+            }
+        }
 
         val projectDock = UiDockable("Проект", this).apply { setFloatingBounds(height = Dp(100f)) }
         val projectSurface = WindowSurface(projectDock, ideColors, ideSizes) {
-            Column(Grow.Std, Grow.Std) {
-                IDEGuiV2.fileTree()
-            }
+            IDEGuiV2.fileTree()
         }
 
         addDockableSurface(projectDock, projectSurface)
@@ -71,8 +79,12 @@ object IDEGuiV2 : KoolScreen({
         getLeafAtPath("0/0")?.dock(projectDock)
     }
 
-
     addNode(dock)
+    addPanelSurface(ideColors, ideSizes) {
+        modifier.alignY(AlignmentY.Top)
+            .width(Grow.Std)
+        IDETitleBar()
+    }
 
     IDEGuiV2.dock = dock
 }) {
@@ -101,6 +113,10 @@ object IDEGuiV2 : KoolScreen({
 
     enum class ModalAction {
         CREATE_FILE, CREATE_FOLDER, RENAME, NONE
+    }
+
+    override fun shouldCloseOnEsc(): Boolean {
+        return files.filterIsInstance<TextFileData>().all { it.modifier.completions.isEmpty() }
     }
 }
 
