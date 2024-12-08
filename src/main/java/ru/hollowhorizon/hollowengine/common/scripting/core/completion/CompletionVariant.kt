@@ -6,6 +6,7 @@ import de.fabmax.kool.input.*
 import de.fabmax.kool.math.clamp
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
+import de.fabmax.kool.util.TextCaretNavigation
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hollowengine.client.gui.scripting.createTexture
@@ -66,9 +67,10 @@ data class CompletionVariant(
 
     fun use(scriptTextArea: ScriptTextArea) {
         val modifier = scriptTextArea.modifier
-        val line = scriptTextArea.lineProvider[modifier.selectionStartLine].text
+        val lineIndex = modifier.selectionStartLine.coerceAtMost(scriptTextArea.lineProvider.lastIndex)
+        val line = scriptTextArea.lineProvider[lineIndex].text
         val startChar = modifier.selectionStartChar
-        val startWord = startOfWord(line, startChar)
+        val startWord = TextCaretNavigation.startOfWord(line, startChar)
         val editor = modifier.editorHandler ?: return
 
         var text = text
@@ -101,16 +103,5 @@ data class CompletionVariant(
         PACKAGE, CLASS, METHOD, VARIABLE, UNKNOWN
     }
 }
-
-fun startOfWord(text: String, caretPos: Int): Int {
-    var i = caretPos.clamp(0, text.lastIndex)
-    while (i > 0 && !text[i].isStartOfWord()) i--
-    if(i == -1) return 0
-    if (text[i].isStartOfWord()) i++
-    return i
-}
-
-private val START_CHARS = hashSetOf('.', ' ', '[', '{', '(', ']', '}', ')', ':', '!', '?')
-fun Char.isStartOfWord() = this in START_CHARS
 
 class OnCompletionsEvent(val fileName: String, val completions: List<CompletionVariant>) : Event

@@ -63,7 +63,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, val code: Stri
 
     override fun save() {
         if (filePath.startsWith("%")) return
-        SaveFilePacket(filePath, code.toByteArray()).send()
+        SaveFilePacket(filePath, lines.joinToString("\n") { it.filteredText() }.toByteArray()).send()
     }
 
     override fun UiScope.compose() {
@@ -84,6 +84,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, val code: Stri
                         lines.joinToString("\n") { it.filteredText() },
                         fileName
                     )
+                    save()
                 }
             }
 

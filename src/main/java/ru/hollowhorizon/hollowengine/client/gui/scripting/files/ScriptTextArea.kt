@@ -4,6 +4,7 @@ import de.fabmax.kool.editor.ui.backgroundMid
 import de.fabmax.kool.editor.ui.hoverBg
 import de.fabmax.kool.input.KeyEvent
 import de.fabmax.kool.input.KeyboardInput
+import de.fabmax.kool.input.LocalKeyCode
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
@@ -147,7 +148,7 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
         }
 
         super.onKeyEvent(keyEvent)
-        if (keyEvent.isCharTyped) modifier.onCharTyped(keyEvent)
+        if (keyEvent.isCharTyped || (keyEvent.isCtrlDown && keyEvent.localKeyCode == LocalKeyCode('v'))) modifier.onCharTyped(keyEvent)
 
     }
 
