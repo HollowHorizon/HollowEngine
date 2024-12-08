@@ -70,7 +70,14 @@ fun UiScope.ScriptTextArea(
                 uiNode.topPx + (modifier.selectionStartLine + 1) * font.lineHeight + sizes.gap.px
             ) {
                 modifier.padding(sizes.smallGap)
-                    .height(Grow(1f, max=Dp((sizes.normalText.lineHeight + sizes.smallGap.px * 2) * completions.size.coerceAtMost(10) + sizes.smallGap.px * 2)))
+                    .height(
+                        Grow(
+                            1f,
+                            max = Dp(
+                                (sizes.normalText.lineHeight + sizes.smallGap.px * 2) * completions.size.coerceAtMost(10) + sizes.smallGap.px * 2
+                            )
+                        )
+                    )
                     .width(Grow(1f, max = FitContent))
                     .background(RoundRectBackground(colors.backgroundMid, sizes.gap))
                     .border(RoundRectBorder(colors.hoverBg, sizes.gap, 3.dp))
@@ -142,6 +149,33 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
         super.onKeyEvent(keyEvent)
         if (keyEvent.isCharTyped) modifier.onCharTyped(keyEvent)
 
+    }
+
+    override fun setupTextLine(
+        scope: UiScope,
+        line: TextLine,
+        lineIndex: Int,
+        textAreaMod: TextAreaModifier,
+        lineProvider: TextLineProvider,
+    ): UiScope = scope.Row(Grow.Std, height = MsdfFont(HACK_FONT, 30f).lineHeight.dp) {
+        if(lineIndex == this@ScriptTextArea.modifier.selectionStartLine) {
+            modifier.backgroundColor(colors.hoverBg)
+        }
+
+        Box(MsdfFont(HACK_FONT, 30f).textDimensions(lineProvider.size.toString()).width.dp) {
+            Text((lineIndex + 1).toString()) {
+                modifier.font(MsdfFont(HACK_FONT, 30f)).align(AlignmentX.End, AlignmentY.Center)
+            }
+            modifier.margin(horizontal = sizes.gap*2)
+        }
+        Box(sizes.borderWidth, Grow.Std) {
+            modifier
+                .backgroundColor(colors.secondaryVariant)
+                .alignY(AlignmentY.Center)
+        }
+        super.setupTextLine(this, line, lineIndex, textAreaMod, lineProvider).apply {
+            modifier.alignY(AlignmentY.Center).margin(start = sizes.smallGap).alignY(AlignmentY.Top)
+        }
     }
 
     companion object {

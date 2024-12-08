@@ -1,47 +1,46 @@
+@file:OptIn(ExperimentalSerializationApi::class)
+
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import com.mojang.blaze3d.platform.NativeImage
 import de.fabmax.kool.Assets
-import de.fabmax.kool.editor.ui.UiColors
-import de.fabmax.kool.editor.ui.heightTitleBar
-import de.fabmax.kool.editor.ui.heightWindowTitleBar
-import de.fabmax.kool.editor.ui.scrollbarWidth
+import de.fabmax.kool.editor.ui.*
+import de.fabmax.kool.loadImage2d
+import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
-import de.fabmax.kool.pipeline.AsyncTextureLoader
 import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.MsdfFont.Companion.MSDF_TEX_PROPS
 import de.fabmax.kool.util.MsdfFontData
 import de.fabmax.kool.util.MsdfMeta
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
 import net.minecraft.client.renderer.texture.DynamicTexture
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.client.utils.json.JsonFormat
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.stream
+import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2.projectDock
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 
 val PT_SANS by lazy {
     val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/pt_sans.json".rl.stream)
-    val msdfMap = Texture2d(
-        props = MSDF_TEX_PROPS,
-        name = "MsdfFont:${fontInfo.name}",
-        loader = AsyncTextureLoader { Assets.loadTextureData("hollowengine:fonts/pt_sans.png", MSDF_TEX_PROPS) }
-    )
+    val msdfMap = Texture2d(MSDF_TEX_PROPS, "MsdfFont:${fontInfo.name}") {
+        Assets.loadImage2d("hollowengine:fonts/pt_sans.png", MSDF_TEX_PROPS).getOrThrow()
+    }
     MsdfFontData(msdfMap, fontInfo)
 }
+
 val HACK_FONT by lazy {
     val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/hack.json".rl.stream)
-    val msdfMap = Texture2d(
-        props = MSDF_TEX_PROPS,
-        name = "MsdfFont:${fontInfo.name}",
-        loader = AsyncTextureLoader { Assets.loadTextureData("hollowengine:fonts/hack.png", MSDF_TEX_PROPS) }
-    )
+    val msdfMap = Texture2d(MSDF_TEX_PROPS, "MsdfFont:${fontInfo.name}") {
+        Assets.loadImage2d("hollowengine:fonts/hack.png", MSDF_TEX_PROPS).getOrThrow()
+    }
     MsdfFontData(msdfMap, fontInfo)
 }
 
@@ -61,7 +60,7 @@ object IDEGuiV2 : KoolScreen({
             }
         }
 
-        val projectDock = UiDockable("Проект", this).apply { setFloatingBounds(height = Dp(100f)) }
+        projectDock = UiDockable("Проект", this).apply { setFloatingBounds(height = Dp(100f)) }
         val projectSurface = WindowSurface(projectDock, ideColors, ideSizes) {
             IDEGuiV2.fileTree()
         }
@@ -82,7 +81,15 @@ object IDEGuiV2 : KoolScreen({
     addNode(dock)
     addPanelSurface(ideColors, ideSizes) {
         modifier.alignY(AlignmentY.Top)
-            .width(Grow.Std)
+            .width(Grow.Std).height(sizes.heightWindowTitleBar)
+        modifier.background(
+            TitleBgRenderer(
+                colors.backgroundMid, Color.CYAN, fade = TitleBgRenderer.fadeProps(
+                    Vec2f(0f, 0f), 14f, 0.3f
+                )
+            )
+        )
+
         IDETitleBar()
     }
 
@@ -93,6 +100,9 @@ object IDEGuiV2 : KoolScreen({
 
     @JvmStatic
     lateinit var dock: Dock
+
+    @JvmStatic
+    lateinit var projectDock: UiDockable
 
     fun openFile(path: String, bytes: ByteArray, type: FileType) {
         val file = when (type) {

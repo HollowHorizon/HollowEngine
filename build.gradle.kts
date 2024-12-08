@@ -137,10 +137,10 @@ dependencies {
     dependency("com.akuleshov7:ktoml-core-jvm:0.5.1")
 
     // IMGUI //
-    dependency("de.fabmax.kool:kool-editor-desktop:0.16.0-SNAPSHOT")
-    dependency("de.fabmax.kool:kool-editor-model-desktop:0.16.0-SNAPSHOT")
-    dependency("de.fabmax.kool:kool-core-desktop:0.16.0-SNAPSHOT")
-    dependency("de.fabmax.kool:kool-physics-desktop:0.16.0-SNAPSHOT")
+    dependency("team.0mods:kool-core-desktop:0.16.0-SNAPSHOT")
+    dependency("team.0mods:kool-editor-desktop:0.16.0-SNAPSHOT")
+    dependency("team.0mods:kool-editor-model-desktop:0.16.0-SNAPSHOT")
+    dependency("team.0mods:kool-physics-desktop:0.16.0-SNAPSHOT")
     dependency("com.tianscar.imageio:imageio-apng:1.0.1")
 
     // OTHER

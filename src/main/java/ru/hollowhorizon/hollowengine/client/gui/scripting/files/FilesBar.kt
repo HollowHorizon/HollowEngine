@@ -2,104 +2,152 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
 import de.fabmax.kool.editor.ui.backgroundMid
 import de.fabmax.kool.editor.ui.hoverBg
-import de.fabmax.kool.editor.ui.lineHeight
 import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.Color
-import ru.hollowhorizon.hollowengine.client.gui.scripting.CLOSE
-import ru.hollowhorizon.hollowengine.client.gui.scripting.FILE
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
-import ru.hollowhorizon.hollowengine.client.gui.scripting.KOTLIN
 
 
-fun UiScope.FilesBar(window: UiDockable) {
-    window.dockedTo.use()?.let { dockNode ->
+fun UiScope.FileDockingTabsBar(
+    windowDockable: UiDockable,
+    isDragToUndock: Boolean = true,
+    onCloseAction: ((PointerEvent) -> Unit)? = null,
+    scopeName: String? = null,
+): Boolean {
+    val dockNode = windowDockable.dockedTo.use()
+    val nodeCount = dockNode?.dockedItems?.use()?.count { !it.isHidden } ?: 0
 
-        LazyList(
-            width = Grow.Std,
-            listOrientation = ListOrientation.Horizontal,
-            containerModifier = { it.backgroundColor(null) },
-            withHorizontalScrollbar = true,
-            withVerticalScrollbar = false,
-            hScrollbarModifier = { it.height(10.dp).margin(5.dp).alignY(AlignmentY.Top) }
-        ) {
-            modifier
-                .backgroundColor(colors.backgroundMid)
-                .padding(top = sizes.smallGap * 0.5f)
-                .margin(start = sizes.smallGap)
+    if (dockNode != null && nodeCount > 1) {
+        Row(width = Grow.Std, height = sizes.gap * 4f, scopeName = scopeName) {
+            modifier.backgroundColor(colors.backgroundMid.mulRgb(1.5f))
 
-            var hoverIndex by remember(-1)
+            dockNode.dockedItems.filter { !it.isHidden }.forEach { item ->
+                Box {
+                    modifier
+                        .margin(horizontal = sizes.smallGap)
+                        .alignY(AlignmentY.Bottom)
 
-            dockNode.dockedItems.forEachIndexed { index, panel ->
-                Row(height = Grow.Std) {
-                    modifier.onHover { hoverIndex = index }.onExit { hoverIndex = -1 }
-                        .onClick { dockNode.bringToTop(panel) }
-                        .background(RoundRectBackground(colors.hoverBg, sizes.smallGap))
-                        .margin(start = sizes.smallGap, end = sizes.smallGap, top = sizes.smallGap)
+                    Button(item.name) {
+                        // set a bit different button style: click feedback is disabled (doesn't work with the way
+                        // the tabs are switched)
+                        // also we use a custom background to get a more "tabbie" look
+                        val bgColor = if (isHovered) {
+                            colors.hoverBg
+                        } else {
+                            colors.background
+                        }
+                        modifier
+                            .background(RectBackground(bgColor))
+                            .isClickFeedback(false)
+                            .textAlignX(AlignmentX.Start)
+                            .onClick {
+                                if(it.pointer.isMiddleButtonReleased) {
+                                    onCloseAction?.invoke(it)
+                                } else if(it.isLeftClick) {
+                                    dockNode.bringToTop(item)
+                                }
+                            }
 
-                    if (hoverIndex == index) {
-                        modifier.background(RoundRectBackground(colors.hoverBg.withAlpha(0.75f), sizes.smallGap))
-                    }
+                        if (onCloseAction != null) {
+                            modifier
+                                .text(modifier.text + "     ")
+                                .padding(end = 0.dp)
 
-                    if (panel == window) {
-                        modifier.background(RoundRectBackground(colors.hoverBg.withAlpha(0.5f), sizes.smallGap))
-                    }
-
-                    val icon = when {
-                        panel.name.endsWith(".kts") -> KOTLIN
-                        else -> FILE
-                    }
-                    Box {
-                        modifier.alignY(AlignmentY.Center)
-                        Image(icon) {
-                            modifier.margin(horizontal = 10.dp).size(sizes.lineHeight, sizes.lineHeight)
-                                .imageSize(ImageSize.Stretch)
+                            CloseButton(
+                                buttonMod = {
+                                    it
+                                        .align(AlignmentX.End, AlignmentY.Center)
+                                        .margin(top = sizes.smallGap, end = sizes.smallGap)
+                                        .width(sizes.gap * 3f)
+                                        .height(sizes.gap * 3f)
+                                }
+                            ) { ev -> onCloseAction(ev) }
                         }
                     }
-                    Box(width = Grow.Std, height = Grow.Std) {
-                        modifier.alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap)
-                        Text(panel.name) {
-                            modifier.textColor(if (hoverIndex == index || panel == window) colors.primary else colors.secondary)
+
+                    if (item == windowDockable) {
+                        // active tab indicator
+                        Box(Grow.Std, sizes.borderWidth * 2f) {
+                            modifier
+                                .backgroundColor(if (surface.isFocused.use()) colors.primary else colors.primaryVariant)
+                                .alignY(AlignmentY.Bottom)
+                        }
+                        if (isDragToUndock) {
+                            with(windowDockable) {
+                                registerDragCallbacks(false)
+                            }
                         }
                     }
-                    drawCloseButton(panel)
                 }
             }
         }
+        return true
+    } else {
+        // add an empty row to avoid a hard layout change when the tab row changes visibility
+        Row { }
+        return false
     }
 }
 
-private fun UiScope.drawCloseButton(panel: Dockable) {
-    var isHovered by remember(false)
+fun UiScope.FileTitleBar(
+    windowDockable: UiDockable,
+    title: String = windowDockable.name,
+    focusedBackgroundColor: Color = colors.secondary,
+    unfocusedBackgroundColor: Color = colors.secondaryVariant,
+    focusedTextColor: Color = colors.onSecondary,
+    unfocusedTextColor: Color = colors.onSecondary,
+    isDraggable: Boolean = true,
+    isMinimizedToTitle: Boolean = false,
+    showTabsIfDocked: Boolean = true,
+    hideTitleWhenTabbed: Boolean = true,
+    onCloseAction: ((PointerEvent) -> Unit)? = null,
+    scopeName: String? = null,
+) {
+    val isTabbed = if (showTabsIfDocked) {
+        FileDockingTabsBar(windowDockable, onCloseAction = onCloseAction, scopeName = scopeName)
+    } else {
+        false
+    }
 
-    Box {
-        modifier.alignY(AlignmentY.Center).onEnter { isHovered = true }.onExit { isHovered = false }
-        if (isHovered) {
-            modifier.background(RoundRectBackground(colors.hoverBg.mulRgb(1.25f), sizes.smallGap))
+    if (!isTabbed || !hideTitleWhenTabbed) {
+        if(windowDockable.floatingWidth.value == FitContent || windowDockable.floatingHeight.value == FitContent) {
+            windowDockable.setFloatingBounds(
+                width = 450.dp,
+                height = 200.dp
+            )
         }
+        Row(Grow.Std, height = sizes.gap * 4f, scopeName = scopeName) {
+            val color = if (surface.isFocused.use()) focusedBackgroundColor else unfocusedBackgroundColor
+            val cornerR = if (windowDockable.isDocked.use()) 0f else sizes.gap.px
+            modifier
+                .padding(horizontal = sizes.gap)
+                .background(TitleBarBackground(color, cornerR, isMinimizedToTitle))
 
-        Image(CLOSE) {
-            modifier.margin(3.dp).size(sizes.lineHeight, sizes.lineHeight)
-                .imageSize(ImageSize.Stretch)
-                .onClick {
-                    val file = IDEGuiV2.files.find { it.dockable == panel } ?: return@onClick
-
-                    IDEGuiV2.dock.removeDockableSurface(file.surface)
-                    IDEGuiV2.files.remove(file)
-
-                    if (IDEGuiV2.files.isEmpty()) {
-                        IDEGuiV2.dock.createNodeLayout(
-                            listOf(
-                                "0:row",
-                                "0/0:leaf",
-                                "0/1:leaf"
-                            )
-                        )
-                    }
+            if (isDraggable) {
+                with(windowDockable) {
+                    registerDragCallbacks()
                 }
+            }
 
-            if (isHovered) modifier.tint(Color.LIGHT_RED)
+            Text(title) {
+                modifier
+                    .width(Grow.Std)
+                    .margin(horizontal = sizes.gap, vertical = sizes.smallGap * 0.5f)
+                    .textColor(if (surface.isFocused.use()) focusedTextColor else unfocusedTextColor)
+                    .alignY(AlignmentY.Center)
+            }
+
+            onCloseAction?.let {
+                CloseButton(buttonMod = {
+                    it
+                        .align(AlignmentX.End, AlignmentY.Center)
+                        .margin(top = sizes.smallGap, end = sizes.smallGap)
+                        .width(sizes.gap * 3f)
+                        .height(sizes.gap * 3f)
+                }) { ev -> it(ev) }
+            }
         }
+    } else {
+        // add an empty row to avoid a hard layout change when the title bar changes visibility
+        Row { }
     }
 }

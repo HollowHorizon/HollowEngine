@@ -5,6 +5,7 @@ import de.fabmax.kool.modules.ui2.TextAttributes
 import de.fabmax.kool.modules.ui2.TextLine
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
+import de.fabmax.kool.util.TextCaretNavigation
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiErrorElement
@@ -80,13 +81,6 @@ object ScriptColorizer {
     }
 }
 
-private val KEYWORDS = hashSetOf(
-    "fun", "val", "var", "if", "else", "while", "for", "return",
-    "class", "object", "interface", "package", "import", "when",
-    "null", "true", "false", "in", "is", "as", "do", "try",
-    "catch", "finally", "where", "break", "continue"
-)
-
 private fun getElementColor(element: PsiElement, bindingContext: BindingContext): Color {
     val expression = element.parentsWithSelf.firstIsInstanceOrNull<KtExpression>()
 
@@ -99,6 +93,8 @@ private fun getElementColor(element: PsiElement, bindingContext: BindingContext)
             ?.resultingDescriptor?.extensionReceiverParameter != null && token != KtTokens.LPAR && token != KtTokens.RPAR -> Color(
             "56A8F5"
         )
+        (expression as? KtReferenceExpression)?.getResolvedCall(bindingContext)
+            ?.call?.callElement is KtAnnotationEntry || element.node.elementType == KtTokens.AT -> Color("B3AE60")
 
         element.isNameReference() -> Color("BCBEC4")
         element.isNumericLiteral() -> Color("2AACB8")

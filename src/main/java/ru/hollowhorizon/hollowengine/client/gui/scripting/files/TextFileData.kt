@@ -70,7 +70,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, val code: Stri
         ScriptTextArea(
             ListTextLineProvider(lines),
             width = Grow.Std,
-            height = MsdfFont(HACK_FONT, 30f).lineHeight.dp * lines.size + sizes.lineHeight,
+            height = Grow.Std //MsdfFont(HACK_FONT, 30f).lineHeight.dp * lines.size.coerceAtMost(39) + sizes.lineHeight,
         ) {
             this@TextFileData.modifier = modifier
             installDefaultSelectionHandler()
