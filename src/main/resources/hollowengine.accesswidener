@@ -10,5 +10,3 @@ accessible class net/minecraft/client/renderer/RenderStateShard$OutputStateShard
 accessible field net/minecraft/client/renderer/RenderStateShard PARTICLES_TARGET Lnet/minecraft/client/renderer/RenderStateShard$OutputStateShard;
 accessible field net/minecraft/world/level/pathfinder/PathFinder neighbors [Lnet/minecraft/world/level/pathfinder/Node;
 mutable field net/minecraft/world/level/pathfinder/PathFinder neighbors [Lnet/minecraft/world/level/pathfinder/Node;
-
-accessible method de/fabmax/kool/modules/ui2/TextAreaNode setText (Lde/fabmax/kool/modules/ui2/TextLineProvider;)V
