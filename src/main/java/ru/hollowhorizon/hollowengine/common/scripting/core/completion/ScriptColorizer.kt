@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.psi.stubs.elements.KtNameReferenceExpressionElementT
 import org.jetbrains.kotlin.psi.stubs.elements.KtPropertyElementType
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.calls.util.getResolvedCall
+import org.jetbrains.kotlin.resolve.descriptorUtil.varargParameterPosition
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 import ru.hollowhorizon.hc.client.kool.isKoolLoaded
 import ru.hollowhorizon.hc.common.events.Event
@@ -37,27 +38,28 @@ object ScriptColorizer {
             override fun visitElement(element: PsiElement) {
                 super.visitElement(element)
 
-                if (element is KtValueArgument) {
-                    // Если в качестве параметра передаётся не примитивный тип, то подсказка к нему не нужна
-                    if (element.children.any { it is KtCallExpression }) return
-
-                    val callExpression = element.parent.parent as KtCallExpression
-                    val call = callExpression.getResolvedCall(bindingContext)
-                    if (call != null) {
-                        val parameter = call.valueArguments.entries
-                            .firstOrNull { (_, args) -> args.arguments.contains(element) }
-                            ?.key?.name?.asString()
-
-                        if (parameter != null) currentLine.add(
-                            "$parameter: " to TextAttributes(
-                                MsdfFont(HACK_FONT, 25f),
-                                Color.WHITE,
-                                ideColors.backgroundMid
-                            )
-                        )
-
-                    }
-                }
+                // TODO: Нужно что-то сделать с этими параметрами, потому что при их удалении слетает к чертам каретка
+//                if (element is KtValueArgument) {
+//                    // Если в качестве параметра передаётся не примитивный тип, то подсказка к нему не нужна
+//                    if (element.children.any { it is KtCallExpression }) return
+//
+//                    val callExpression = element.parent.parent as KtCallExpression
+//                    val call = callExpression.getResolvedCall(bindingContext)
+//                    if (call != null && call.resultingDescriptor.varargParameterPosition() == -1) {
+//                        val parameter = call.valueArguments.entries
+//                            .firstOrNull { (_, args) -> args.arguments.contains(element) }
+//                            ?.key?.name?.asString()
+//
+//                        if (parameter != null) currentLine.add(
+//                            "$parameter: " to TextAttributes(
+//                                MsdfFont(HACK_FONT, 25f),
+//                                Color.WHITE,
+//                                ideColors.backgroundMid
+//                            )
+//                        )
+//
+//                    }
+//                }
 
                 if (!element.allChildren.isEmpty || element.text.isEmpty()) return
 

@@ -1,3 +1,20 @@
 hollowengine:
   gui:
     menu: HollowEngine меню
+    ide:
+      .: Встроенная среда разработки
+      file: Файл
+      edit: Правка
+      search: Поиск
+      settings: Настройки
+
+  commands:
+    copy: "§6[§bHollow Engine§6] §7Значение: %s скопировано."
+    tags: "§6[§bHollow Engine§6] §7Теги предмета: "
+
+key:
+  categories:
+    hollowengine:
+      keys: "HollowEngine: Клавиши"
+  hollowengine:
+    menu: Главное меню HollowEngine

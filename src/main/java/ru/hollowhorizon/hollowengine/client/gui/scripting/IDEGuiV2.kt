@@ -56,6 +56,7 @@ object IDEGuiV2 : KoolScreen({
             resizeMargin.set(sizes.scrollbarWidth)
             Column(Grow.Std, Grow.Std) {
                 modifier.margin(top = sizes.heightWindowTitleBar)
+                divider(horizontalMargin = 0.dp, color = UiColors.titleBg)
                 root()
             }
         }

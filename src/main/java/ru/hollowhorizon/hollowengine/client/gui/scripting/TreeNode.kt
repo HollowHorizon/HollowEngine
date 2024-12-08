@@ -19,6 +19,7 @@ import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.RequestPacket
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import java.io.File
@@ -70,7 +71,6 @@ class TreeNode(val treeName: String, val treePath: String) : Composable {
     }
 
     override fun UiScope.compose() {
-        var hoveredIndex by remember(-1)
 
         modifier.margin(sizes.smallGap)
 
@@ -78,9 +78,28 @@ class TreeNode(val treeName: String, val treePath: String) : Composable {
             containerModifier = { it.backgroundColor(null) },
             vScrollbarModifier = { it.width(10.dp).margin(5.dp) }
         ) {
+            val editFilePopup by remember { mutableStateOf(EditPopup("Введите название файла: ", false)) }
+            editFilePopup()
+            val editFolderPopup by remember { mutableStateOf(EditPopup("Введите название папки: ", false)) }
+            editFolderPopup()
+            val deleteFilePopup by remember { mutableStateOf(WarningModalPopup("Вы действительно хотите удалить этот файл?")) }
+            deleteFilePopup()
+            val renamePopup by remember { mutableStateOf(EditPopup("Введите название нового файла: ", true)) }
+            renamePopup()
+
+            val itemPopupMenu = remember { ItemPopupMenu<TreeNode?>("scene-item-popup") }
+            itemPopupMenu()
+            var hoveredIndex by remember(-1)
+
             itemsIndexed(walk()) { i, item ->
                 sceneObjectItem(item, i == hoveredIndex).apply {
                     modifier.onEnter { hoveredIndex = i }.onExit { hoveredIndex = -1 }
+                        .onClick {
+                            if (it.pointer.isRightButtonClicked) {
+                                itemPopupMenu.hide()
+                                itemPopupMenu.show(it.screenPosition, makeMenu(item, editFilePopup, editFolderPopup, renamePopup, deleteFilePopup), item)
+                            }
+                        }
                 }
             }
         }

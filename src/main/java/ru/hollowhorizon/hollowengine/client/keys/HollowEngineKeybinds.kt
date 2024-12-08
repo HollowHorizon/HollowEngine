@@ -9,7 +9,7 @@ import ru.hollowhorizon.hc.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.DashBoardScreen
 
-val HOLLOW_ENGINE_KEY = KeyMapping("key.hollowengine_menu", GLFW.GLFW_KEY_F12, "key.hollowengine")
+val HOLLOW_ENGINE_KEY = KeyMapping("key.hollowengine.menu", GLFW.GLFW_KEY_F12, "key.hollowengine")
 
 @SubscribeEvent
 fun onRegisterKeys(event: RegisterKeyBindingsEvent) {

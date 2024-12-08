@@ -148,7 +148,7 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
         }
 
         super.onKeyEvent(keyEvent)
-        if (keyEvent.isCharTyped || (keyEvent.isCtrlDown && keyEvent.localKeyCode == LocalKeyCode('v'))) modifier.onCharTyped(keyEvent)
+        if (keyEvent.isCharTyped || keyEvent.keyCode == KeyboardInput.KEY_BACKSPACE || (keyEvent.isCtrlDown && keyEvent.localKeyCode == LocalKeyCode('v'))) modifier.onCharTyped(keyEvent)
 
     }
 
