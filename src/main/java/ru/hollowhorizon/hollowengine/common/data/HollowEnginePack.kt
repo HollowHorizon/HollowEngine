@@ -62,15 +62,86 @@ object HollowEngineCorePack: PackResources {
     }
 
     fun addHasBiomeTag(resourcePath: ResourceLocation, vararg biomes: String) {
-        val tag = buildString {
-            append("{").append('"').append("replace").append('"').append(":false,")
-            append('"').append("values").append('"').append(":[")
-            biomes.forEachIndexed { i, it -> append('"').append(it).append('"').also { if (i != biomes.size - 1) append(",") } }
+        addCustomJSON("${resourcePath.namespace}:tags/worldgen/biome/has_structure/${resourcePath.path}.json".rl, biomes.noReplaceTagBuild)
+    }
+
+    fun addCatsSpawnAsBlackTag(vararg biomes: String) {
+        addCustomJSON("tags/worldgen/structure/cats_spawn_as_black.json".rl, biomes.noReplaceTagBuild)
+    }
+
+    fun addCatsSpawnInTag(vararg biomes: String) {
+        addCustomJSON("tags/worldgen/structure/cats_spawn_in.json".rl, biomes.noReplaceTagBuild)
+    }
+
+    fun addDolphinLocatedTag(vararg biomes: String) {
+        addCustomJSON("tags/worldgen/structure/dolphin_located.json".rl, biomes.noReplaceTagBuild)
+    }
+
+    fun addEyeOfEnderLocatedTag(vararg biomes: String) {
+        addCustomJSON("tags/worldgen/structure/eye_of_ender_located.json".rl, biomes.noReplaceTagBuild)
+    }
+
+    fun addMineshaftTag(vararg biomes: String) {
+        addCustomJSON("tags/worldgen/structure/mineshaft.json".rl, biomes.noReplaceTagBuild)
+    }
+
+    fun addOceanRuinTag(vararg biomes: String) {
+        addCustomJSON("tags/worldgen/structure/ocean_ruin.json".rl, biomes.noReplaceTagBuild)
+    }
+
+    fun addOnOceanExplorerMapsTag(vararg biomes: String) {
+        addCustomJSON("tags/worldgen/structure/on_ocean_explorer_maps.json".rl, biomes.noReplaceTagBuild)
+    }
+
+    fun addOnTreasureMapsTag(vararg biomes: String) {
+        addCustomJSON("tags/worldgen/structure/on_treasure_maps.json".rl, biomes.noReplaceTagBuild)
+    }
+
+    fun addOnWoodlandExplorerMapsTag(vararg biomes: String) {
+        addCustomJSON("tags/worldgen/structure/on_woodland_explorer_maps.json".rl, biomes.noReplaceTagBuild)
+    }
+
+    fun addRuinedPortalTag(vararg biomes: String) {
+        addCustomJSON("tags/worldgen/structure/ruined_portal.json".rl, biomes.noReplaceTagBuild)
+    }
+
+    fun addShipwreckTag(vararg biomes: String) {
+        addCustomJSON("tags/worldgen/structure/shipwreck.json".rl, biomes.noReplaceTagBuild)
+    }
+
+    fun addVillageTag(vararg biomes: String) {
+        addCustomJSON("tags/worldgen/structure/village.json".rl, biomes.noReplaceTagBuild)
+    }
+
+    fun addProcessorList(resourcePath: ResourceLocation, vararg processors: String) {
+        val processorBuilder = buildString {
+            append("{").append('"').append("processors").append('"').append(":[")
+            processors.forEachIndexed { i, it -> append('"').append(it).append('"').also { if (i != processors.size - 1) append(",") } }
             append("]}")
         }
 
-        addCustomJSON("${resourcePath.namespace}:tags/worldgen/biome/has_structure/${resourcePath.path}.json".rl, tag)
+        addCustomJSON("${resourcePath.namespace}:worldgen/processor_list/${resourcePath.path}.json".rl, processorBuilder)
     }
+
+    fun addStructure(resourcePath: ResourceLocation, structure: String) {
+        addCustomJSON("${resourcePath.namespace}:worldgen/structure/${resourcePath.path}.json".rl, structure)
+    }
+
+    fun addStructureSet(resourcePath: ResourceLocation, sets: String) {
+        addCustomJSON("${resourcePath.namespace}:worldgen/structure_set/${resourcePath.path}.json".rl, sets)
+    }
+
+    fun addTemplatePool(resourcePath: ResourceLocation, pool: String) {
+        addCustomJSON("${resourcePath.namespace}:worldgen/template_pool/${resourcePath.path}.json".rl, pool)
+    }
+
+    private val Array<out String>.noReplaceTagBuild: String
+        get() = buildString {
+            append("{").append('"').append("replace").append('"').append(":false,")
+            append('"').append("values").append('"').append(":[")
+            forEachIndexed { i, it -> append('"').append(it).append('"').also { if (i != size - 1) append(",") } }
+            append("]}")
+        }
 
     override fun getRootResource(vararg elements: String?): IoSupplier<InputStream> = throw FileNotFoundException(elements.joinToString())
 
