@@ -42,7 +42,7 @@ class DashBoardScreen : KoolScreen({
             modifier.alignX(AlignmentX.Center).font(MsdfFont(MONOCRAFT_DATA, 30f)).margin(10.dp)
         }
 
-        Grid {
+        Column {
             modifier.margin(10.dp)
 
             modTabs.forEach { tab ->
