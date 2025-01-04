@@ -41,4 +41,8 @@ stonecutter {
 val modName: String by settings
 rootProject.name = modName
 
-include("forgefixer")
+includeBuild("docs") {
+    dependencySubstitution {
+        substitute(module("ru.hollowhorizon:docs-jvm")).using(project(":"))
+    }
+}

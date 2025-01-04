@@ -37,7 +37,7 @@ repositories {
 }
 
 dependencies {
-    install("ru.hollowhorizon:HollowCore-${container.modPlatform}-${container.minecraftVersion}:$hollowcore:dev")
+    install("ru.hollowhorizon:HollowCore-${container.modPlatform}-${container.minecraftVersion}:$hollowcore:dev", includeInJar = false)
 
     setupScripting()
 
@@ -49,6 +49,8 @@ dependencies {
     install("com.tianscar.imageio:imageio-apng:1.0.1", false)
 
     install("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin", true)
+
+    install("ru.hollowhorizon:docs-jvm:1.0")
 
     kotlinCompilerPluginClasspath("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin")
     kotlinCompilerPluginClasspath("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion")
