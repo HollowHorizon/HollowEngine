@@ -21,6 +21,7 @@ val container = ModContainer(
     modId = modId, modName = modName, license = license, modVersion = modVersion,
 )
 
+val koolVersion: String by rootProject.properties
 val kotlinVersion: String by properties
 val imguiVersion: String by rootProject
 
@@ -45,7 +46,7 @@ dependencies {
     install("com.akuleshov7:ktoml-core-jvm:0.5.1", false)
 
     // GRAPHICS //
-    install("team.0mods:kool-core-desktop:0.16.0-SNAPSHOT", false)
+    install("de.fabmax.kool:kool-core:$koolVersion", false)
     install("com.tianscar.imageio:imageio-apng:1.0.1", false)
 
     install("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin", true)

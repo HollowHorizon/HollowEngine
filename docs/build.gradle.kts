@@ -8,7 +8,6 @@ plugins {
 
 repositories {
     mavenCentral()
-    maven("https://oss.sonatype.org/content/repositories/snapshots")
     maven("https://maven.0mods.team/releases")
 }
 
@@ -37,7 +36,7 @@ kotlin {
     }
 
     sourceSets {
-        val koolVersion = "0.16.0-SNAPSHOT"
+        val koolVersion = "0.16.0-0mods-SNAPSHOT"
         val lwjglVersion = "3.3.3"
         val physxJniVersion = "2.4.0"
 
