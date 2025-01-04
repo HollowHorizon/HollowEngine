@@ -1,10 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
-import de.fabmax.kool.editor.ui.backgroundMid
-import de.fabmax.kool.editor.ui.hoverBg
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.Color
+import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
+import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 
 
 fun UiScope.FileDockingTabsBar(
@@ -40,9 +40,9 @@ fun UiScope.FileDockingTabsBar(
                             .isClickFeedback(false)
                             .textAlignX(AlignmentX.Start)
                             .onClick {
-                                if(it.pointer.isMiddleButtonReleased) {
+                                if (it.pointer.isMiddleButtonReleased) {
                                     onCloseAction?.invoke(it)
-                                } else if(it.isLeftClick) {
+                                } else if (it.isLeftClick) {
                                     dockNode.bringToTop(item)
                                 }
                             }
@@ -109,7 +109,7 @@ fun UiScope.FileTitleBar(
     }
 
     if (!isTabbed || !hideTitleWhenTabbed) {
-        if(windowDockable.floatingWidth.value == FitContent || windowDockable.floatingHeight.value == FitContent) {
+        if (windowDockable.floatingWidth.value == FitContent || windowDockable.floatingHeight.value == FitContent) {
             windowDockable.setFloatingBounds(
                 width = 450.dp,
                 height = 200.dp

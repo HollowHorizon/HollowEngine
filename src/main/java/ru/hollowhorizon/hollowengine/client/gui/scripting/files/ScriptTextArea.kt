@@ -1,22 +1,32 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
-import de.fabmax.kool.editor.ui.backgroundMid
-import de.fabmax.kool.editor.ui.hoverBg
 import de.fabmax.kool.input.KeyEvent
 import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.LocalKeyCode
+import de.fabmax.kool.input.PointerInput
+import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.scene.TriangulatedLineMesh
+import de.fabmax.kool.scene.addTriangulatedLineMesh
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
+import de.fabmax.kool.util.TextCaretNavigation
+import net.minecraft.client.Minecraft
+import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
+import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
+import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
 
 class ScriptTextAreaModifier(surface: UiSurface) : TextAreaModifier(surface) {
     val completions by property(mutableListOf<CompletionVariant>())
+    val errors by property(mutableListOf<ScriptError>())
     var completionIndex by property(-1)
     var setCompletionIndex: (Int) -> Unit by property { {} }
     var onCharTyped: (KeyEvent) -> Unit by property { {} }
 }
+
+var errorMessage = ""
 
 interface ScriptTextAreaScope : TextAreaScope {
     override val modifier: ScriptTextAreaModifier
@@ -102,6 +112,39 @@ fun UiScope.ScriptTextArea(
                 }
             }
         }
+
+        val pos = Minecraft.getInstance().mouseHandler
+        if (errorMessage.isNotEmpty()) {
+            surface.triggerUpdate()
+            Popup(pos.xpos().toFloat(), pos.ypos().toFloat()) {
+                modifier.background(UiRenderer { node ->
+                    node.apply {
+                        getUiPrimitives(UiSurface.LAYER_BACKGROUND)
+                            .localRoundRect(0f, 0f, widthPx, heightPx, heightPx * 0.5f, colors.background)
+                        getUiPrimitives(UiSurface.LAYER_BACKGROUND)
+                            .localRoundRectBorder(
+                                0f,
+                                0f,
+                                widthPx,
+                                heightPx,
+                                heightPx * 0.5f,
+                                sizes.borderWidth.px,
+                                colors.hoverBg
+                            )
+                    }
+                })
+
+                Text(errorMessage) {
+                    modifier.margin(sizes.smallGap)
+                }
+            }
+        }
+
+        errorMessage = ""
+        val primitives = surface.getUiPrimitives(modifier.zLayer)
+        primitives.children.filterIsInstance<TriangulatedLineMesh>().forEach {
+            primitives.removeNode(it)
+        }
     }
 }
 
@@ -148,7 +191,10 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
         }
 
         super.onKeyEvent(keyEvent)
-        if (keyEvent.isCharTyped || keyEvent.keyCode == KeyboardInput.KEY_BACKSPACE || (keyEvent.isCtrlDown && keyEvent.localKeyCode == LocalKeyCode('v'))) modifier.onCharTyped(keyEvent)
+        if (keyEvent.isCharTyped || keyEvent.keyCode == KeyboardInput.KEY_BACKSPACE || (keyEvent.isCtrlDown && keyEvent.localKeyCode == LocalKeyCode(
+                'v'
+            ))
+        ) modifier.onCharTyped(keyEvent)
 
     }
 
@@ -158,25 +204,74 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
         lineIndex: Int,
         textAreaMod: TextAreaModifier,
         lineProvider: TextLineProvider,
-    ): UiScope = scope.Row(Grow.Std, height = MsdfFont(HACK_FONT, 30f).lineHeight.dp) {
-        if(lineIndex == this@ScriptTextArea.modifier.selectionStartLine) {
-            modifier.backgroundColor(colors.hoverBg)
+    ): UiScope {
+        val errors = this@ScriptTextArea.modifier.errors
+        val font = MsdfFont(HACK_FONT, 30f)
+
+        val row = scope.Row(Grow.Std, height = font.lineHeight.dp) {
+            if (lineIndex == this@ScriptTextArea.modifier.selectionStartLine) {
+                modifier.backgroundColor(colors.hoverBg)
+            }
+            val width = font.textDimensions(lineProvider.size.toString()).width.dp
+
+
+            errors.find { it.line - 1 == lineIndex }?.let { error ->
+                val text = line.text
+                val column = error.column - 1
+                val startPos = if (text.isEmpty()) 0f else font.textDimensions(
+                    text.substring(
+                        0,
+                        column.coerceAtMost(text.lastIndex)
+                    )
+                ).width
+                val endPos = if (text.isEmpty()) 0f else font.textDimensions(
+                    text.substring(
+                        0, TextCaretNavigation.endOfWord(
+                            line.text,
+                            column
+                        ).coerceAtMost(text.lastIndex)
+                    )
+                ).width
+
+                if (error.severity.ordinal > 2) getUiPrimitives().addTriangulatedLineMesh {
+                    this.width = 3f
+                    this.color = Color.RED
+
+                    val leftPos =
+                        uiNode.leftPx + width.value + sizes.gap.value * 4 + sizes.borderWidth.value + sizes.smallGap.value
+                    for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).toInt()).step(5)) {
+                        val offset = if (i % 2 == 0) 5 else -5
+                        addLine(
+                            Vec3f(i + 0f, uiNode.bottomPx + offset, 0f),
+                            Vec3f(i + 5f, uiNode.bottomPx - offset, 0f)
+                        )
+                    }
+
+                    val mouse = PointerInput.primaryPointer
+
+                    if (mouse.x in leftPos + startPos..leftPos + endPos && mouse.y in uiNode.topPx..uiNode.bottomPx) {
+                        errorMessage = error.message
+                    }
+                }
+            }
+
+            Box(width) {
+                Text((lineIndex + 1).toString()) {
+                    modifier.font(font).align(AlignmentX.End, AlignmentY.Center)
+                }
+                modifier.margin(horizontal = sizes.gap * 2)
+            }
+            Box(sizes.borderWidth, Grow.Std) {
+                modifier
+                    .backgroundColor(colors.secondaryVariant)
+                    .alignY(AlignmentY.Center)
+            }
+            super.setupTextLine(this, line, lineIndex, textAreaMod, lineProvider).apply {
+                modifier.alignY(AlignmentY.Center).margin(start = sizes.smallGap).alignY(AlignmentY.Top)
+            }
         }
 
-        Box(MsdfFont(HACK_FONT, 30f).textDimensions(lineProvider.size.toString()).width.dp) {
-            Text((lineIndex + 1).toString()) {
-                modifier.font(MsdfFont(HACK_FONT, 30f)).align(AlignmentX.End, AlignmentY.Center)
-            }
-            modifier.margin(horizontal = sizes.gap*2)
-        }
-        Box(sizes.borderWidth, Grow.Std) {
-            modifier
-                .backgroundColor(colors.secondaryVariant)
-                .alignY(AlignmentY.Center)
-        }
-        super.setupTextLine(this, line, lineIndex, textAreaMod, lineProvider).apply {
-            modifier.alignY(AlignmentY.Center).margin(start = sizes.smallGap).alignY(AlignmentY.Top)
-        }
+        return row
     }
 
     companion object {

@@ -1,14 +1,14 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.popup
 
 import de.fabmax.kool.Assets
-import de.fabmax.kool.editor.ui.backgroundMid
-import de.fabmax.kool.editor.ui.hoverBg
-import de.fabmax.kool.editor.ui.menuDivider
 import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.util.Color
+import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
+import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
+import ru.hollowhorizon.hollowengine.client.gui.kool.menuDivider
 
 class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = true) :
     AutoPopup(hideOnOutsideClick = hideOnOutsideClick, scopeName = scopeName) {

@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 
-import de.fabmax.kool.editor.ui.hoverBg
-import de.fabmax.kool.editor.ui.lineHeight
 import de.fabmax.kool.input.*
 import de.fabmax.kool.math.clamp
 import de.fabmax.kool.modules.ui2.*
@@ -9,6 +7,8 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.TextCaretNavigation
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.events.Event
+import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
+import ru.hollowhorizon.hollowengine.client.gui.kool.lineHeight
 import ru.hollowhorizon.hollowengine.client.gui.scripting.createTexture
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ScriptTextArea
 

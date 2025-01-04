@@ -4,7 +4,6 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import com.mojang.blaze3d.platform.NativeImage
 import de.fabmax.kool.Assets
-import de.fabmax.kool.editor.ui.*
 import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
@@ -19,10 +18,12 @@ import de.fabmax.kool.util.MsdfMeta
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
 import net.minecraft.client.renderer.texture.DynamicTexture
+import ru.hollowhorizon.hc.client.kool.KoolManager
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.client.utils.json.JsonFormat
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.stream
+import ru.hollowhorizon.hollowengine.client.gui.kool.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2.projectDock
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
@@ -96,8 +97,17 @@ object IDEGuiV2 : KoolScreen({
 
     IDEGuiV2.dock = dock
 }) {
+    var isFirst = true
     val files = arrayListOf<FileData>()
     var fileTree = TreeNode.EMPTY
+
+    override fun init() {
+        super.init()
+        if (scene !in KoolManager.context.scenes) {
+            KoolManager.context.addScene(scene)
+        }
+        isFirst = false
+    }
 
     @JvmStatic
     lateinit var dock: Dock

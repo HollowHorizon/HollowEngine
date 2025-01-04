@@ -1,18 +1,20 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 
-import de.fabmax.kool.editor.ui.backgroundMid
+import de.fabmax.kool.KoolSystem
 import de.fabmax.kool.modules.ui2.TextAttributes
 import de.fabmax.kool.modules.ui2.TextLine
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
-import de.fabmax.kool.util.TextCaretNavigation
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiErrorElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiRecursiveElementWalkingVisitor
 import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.lexer.KtTokens
-import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.KtAnnotationEntry
+import org.jetbrains.kotlin.psi.KtExpression
+import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtReferenceExpression
 import org.jetbrains.kotlin.psi.psiUtil.allChildren
 import org.jetbrains.kotlin.psi.psiUtil.parents
 import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
@@ -20,17 +22,14 @@ import org.jetbrains.kotlin.psi.stubs.elements.KtNameReferenceExpressionElementT
 import org.jetbrains.kotlin.psi.stubs.elements.KtPropertyElementType
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.calls.util.getResolvedCall
-import org.jetbrains.kotlin.resolve.descriptorUtil.varargParameterPosition
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
-import ru.hollowhorizon.hc.client.kool.isKoolLoaded
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
-import ru.hollowhorizon.hollowengine.client.gui.scripting.ideColors
 
 object ScriptColorizer {
     fun colorize(file: KtFile, bindingContext: BindingContext, caretPositionOffset: Int) {
-        if (!isKoolLoaded) return
+        if (!KoolSystem.isInitialized) return
         val textLines = mutableListOf<TextLine>()
         val currentLine = mutableListOf<Pair<String, TextAttributes>>()
 
@@ -39,27 +38,27 @@ object ScriptColorizer {
                 super.visitElement(element)
 
                 // TODO: Нужно что-то сделать с этими параметрами, потому что при их удалении слетает к чертам каретка
-//                if (element is KtValueArgument) {
-//                    // Если в качестве параметра передаётся не примитивный тип, то подсказка к нему не нужна
-//                    if (element.children.any { it is KtCallExpression }) return
-//
-//                    val callExpression = element.parent.parent as KtCallExpression
-//                    val call = callExpression.getResolvedCall(bindingContext)
-//                    if (call != null && call.resultingDescriptor.varargParameterPosition() == -1) {
-//                        val parameter = call.valueArguments.entries
-//                            .firstOrNull { (_, args) -> args.arguments.contains(element) }
-//                            ?.key?.name?.asString()
-//
-//                        if (parameter != null) currentLine.add(
-//                            "$parameter: " to TextAttributes(
-//                                MsdfFont(HACK_FONT, 25f),
-//                                Color.WHITE,
-//                                ideColors.backgroundMid
-//                            )
-//                        )
-//
-//                    }
-//                }
+/*                if (element is KtValueArgument) {
+                    // Если в качестве параметра передаётся не примитивный тип, то подсказка к нему не нужна
+                    if (element.children.any { it is KtCallExpression }) return
+
+                    val callExpression = element.parent.parent as KtCallExpression
+                    val call = callExpression.getResolvedCall(bindingContext)
+                    if (call != null && call.resultingDescriptor.varargParameterPosition() == -1) {
+                        val parameter = call.valueArguments.entries
+                            .firstOrNull { (_, args) -> args.arguments.contains(element) }
+                            ?.key?.name?.asString()
+
+                        if (parameter != null) currentLine.add(
+                            "$parameter: " to TextAttributes(
+                                MsdfFont(HACK_FONT, 25f),
+                                Color.WHITE,
+                                ideColors.backgroundMid
+                            )
+                        )
+
+                    }
+                }*/
 
                 if (!element.allChildren.isEmpty || element.text.isEmpty()) return
 
@@ -95,6 +94,7 @@ private fun getElementColor(element: PsiElement, bindingContext: BindingContext)
             ?.resultingDescriptor?.extensionReceiverParameter != null && token != KtTokens.LPAR && token != KtTokens.RPAR -> Color(
             "56A8F5"
         )
+
         (expression as? KtReferenceExpression)?.getResolvedCall(bindingContext)
             ?.call?.callElement is KtAnnotationEntry || element.node.elementType == KtTokens.AT -> Color("B3AE60")
 

@@ -1,15 +1,13 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
-import de.fabmax.kool.Assets
-import de.fabmax.kool.editor.ui.TitleBgRenderer
-import de.fabmax.kool.editor.ui.backgroundMid
-import de.fabmax.kool.editor.ui.heightTitleBar
-import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hc.client.kool.Image
+import ru.hollowhorizon.hollowengine.client.gui.kool.TitleBgRenderer
+import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
+import ru.hollowhorizon.hollowengine.client.gui.kool.heightTitleBar
+import ru.hollowhorizon.hollowengine.client.utils.lang
 
 object IDETitleBar : Composable {
     var currentItemIndex = 0
@@ -28,18 +26,18 @@ object IDETitleBar : Composable {
 
             Image("hollowengine:textures/gui/icons/code_editor.png") {
                 modifier.size(sizes.heightTitleBar - sizes.smallGap * 2, sizes.heightTitleBar - sizes.smallGap * 2)
-                    .margin(end=sizes.gap).alignY(AlignmentY.Center)
+                    .margin(end = sizes.gap).alignY(AlignmentY.Center)
             }
 
-            menuItem("File") {
+            menuItem("hollowengine.gui.ide.file".lang) {
                 menuItem("Закрыть")
             }
             divider(verticalMargin = 0.dp)
-            menuItem("Edit")
+            menuItem("hollowengine.gui.ide.edit".lang)
             divider(verticalMargin = 0.dp)
-            menuItem("Search")
+            menuItem("hollowengine.gui.ide.search".lang)
             divider(verticalMargin = 0.dp)
-            menuItem("Settings")
+            menuItem("hollowengine.gui.ide.settings".lang)
 
             Box {
                 modifier.width(Grow.Std)
@@ -51,16 +49,16 @@ object IDETitleBar : Composable {
                     .items(IDEGuiV2.files.map { it.fileName })
                     .height(sizes.heightTitleBar)
                     .width(250.dp)
-                    .margin(end=sizes.gap).align(AlignmentX.End, AlignmentY.Center)
+                    .margin(end = sizes.gap).align(AlignmentX.End, AlignmentY.Center)
             }
             Image("hollowengine:textures/gui/icons/play.png") {
                 modifier.size(sizes.heightTitleBar - sizes.smallGap * 2, sizes.heightTitleBar - sizes.smallGap * 2)
-                    .margin(end=sizes.gap).alignY(AlignmentY.Center)
+                    .margin(end = sizes.gap).alignY(AlignmentY.Center)
                 var isHovered by remember { mutableStateOf(false) }
 
                 modifier
                     .onEnter { isHovered = true }.onExit { isHovered = false }
-                    .onClick { if(IDEGuiV2.files.isNotEmpty()) StartScriptPacket(IDEGuiV2.files[currentItemIndex].filePath).send() }
+                    .onClick { if (IDEGuiV2.files.isNotEmpty()) StartScriptPacket(IDEGuiV2.files[currentItemIndex].filePath).send() }
 
                 if (isHovered) {
                     val color = Color("FFFFFF33")

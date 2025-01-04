@@ -1,11 +1,11 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
-import de.fabmax.kool.editor.ui.backgroundMid
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hc.common.network.request
+import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 
@@ -14,15 +14,15 @@ fun makeMenu(
     editFilePopup: ItemPopupMenu<TreeNode>,
     editFolderPopup: ItemPopupMenu<TreeNode>,
     renameFilePopup: ItemPopupMenu<TreeNode>,
-    deleteFilePopup: ItemPopupMenu<TreeNode>
+    deleteFilePopup: ItemPopupMenu<TreeNode>,
 ) = SubMenuItem<TreeNode?> {
     if (item.isFolder) {
         subMenu("Создать", "hollowengine:textures/gui/icons/add.png") {
             item("Папка", "hollowengine:textures/gui/icons/create_folder.png") {
-                editFolderPopup.show(Vec2f(0f, 0f), SubMenuItem {  }, item)
+                editFolderPopup.show(Vec2f(0f, 0f), SubMenuItem { }, item)
             }
             item("Скрипт", "hollowengine:textures/gui/icons/create_file.png") {
-                editFilePopup.show(Vec2f(0f, 0f), SubMenuItem {  }, item)
+                editFilePopup.show(Vec2f(0f, 0f), SubMenuItem { }, item)
             }
         }
         divider()
@@ -34,10 +34,10 @@ fun makeMenu(
     }
 
     item("Переименовать", "hollowengine:textures/gui/icons/rename.png") {
-        renameFilePopup.show(Vec2f(0f, 0f), SubMenuItem {  }, item)
+        renameFilePopup.show(Vec2f(0f, 0f), SubMenuItem { }, item)
     }
     item("Удалить", "hollowengine:textures/gui/icons/remove.png") {
-        deleteFilePopup.show(Vec2f(0f, 0f), SubMenuItem {  }, item)
+        deleteFilePopup.show(Vec2f(0f, 0f), SubMenuItem { }, item)
     }
 }
 
@@ -66,8 +66,8 @@ fun EditPopup(label: String, renamePopup: Boolean): ItemPopupMenu<TreeNode> {
                 modifier.margin(sizes.smallGap)
                     .onClick {
                         popup.item?.let { item ->
-                            if(!renamePopup) {
-                                CreateFilePacket(item.treePath+"/"+text.substringBefore('.')+".story.kts").send()
+                            if (!renamePopup) {
+                                CreateFilePacket(item.treePath + "/" + text.substringBefore('.') + ".story.kts").send()
                             } else {
                                 RenameFilePacket(item.treePath, text).send()
                             }

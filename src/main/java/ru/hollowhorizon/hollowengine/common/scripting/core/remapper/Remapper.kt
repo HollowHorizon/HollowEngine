@@ -21,7 +21,7 @@ object Remapper {
         /*"mappings-1.19.2.tiny",
         *///?} elif forge && >=1.20.1 {
         /*"mappings-1.20.1.tsrg"
-        *///?} else
+        *///?} else {
         /*"mappings-1.19.2.tsrg"*/
         //?}
     )

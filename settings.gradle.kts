@@ -1,4 +1,4 @@
-import dev.kikugie.stonecutter.StonecutterSettings
+import dev.kikugie.stonecutter.data.tree.TreeBuilder
 
 pluginManagement {
     repositories {
@@ -15,7 +15,6 @@ pluginManagement {
     }
 
     val kotlinVersion: String by settings
-
     plugins {
         kotlin("jvm") version kotlinVersion
         kotlin("plugin.serialization") version kotlinVersion
@@ -23,23 +22,23 @@ pluginManagement {
 }
 
 plugins {
-    id("dev.kikugie.stonecutter") version "0.5-alpha.4"
+    id("dev.kikugie.stonecutter") version "0.6-alpha.1"
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
 
-extensions.configure<StonecutterSettings> {
+stonecutter {
     kotlinController = true
     centralScript = "build.gradle.kts"
     shared {
         fun mc(version: String, vararg loaders: String) {
             for (it in loaders) vers("$version-$it", version)
         }
-
         mc("1.20.1", "fabric", "forge")
     }
     create(rootProject)
 }
 
-rootProject.name = "HollowEngine"
+val modName: String by settings
+rootProject.name = modName
 
-include("compiler-plugin")
+include("forgefixer")

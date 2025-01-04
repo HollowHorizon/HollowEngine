@@ -1,18 +1,17 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
-import de.fabmax.kool.editor.ui.lineHeight
+import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.launchOnMainThread
 import kotlinx.coroutines.*
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
-import ru.hollowhorizon.hc.HollowCore
-import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
 import ru.hollowhorizon.hollowengine.client.gui.scripting.SaveFilePacket
+import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.OnColorizedEvent
@@ -26,23 +25,21 @@ var currentColumn = 0
 
 class TextFileData(project: IDEGuiV2, name: String, path: String, val code: String) :
     FileData(project, name, path) {
-    val lines = mutableStateListOf(*code.lines().map {
+    private val lines = mutableStateListOf(*code.lines().map {
         TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 30f), Color.WHITE)))
     }.toTypedArray())
     val editor = DefaultTextEditorHandler(lines)
 
-    var isChanged = false
+    private var isChanged = false
     private val updateLines = mutableListOf<TextLine>()
     private val updateCompletions = mutableListOf<CompletionVariant>()
-
+    private val updateErrors = mutableListOf<ScriptError>()
     lateinit var modifier: ScriptTextAreaModifier
 
     init {
         EventBus.register(::colorizeText)
         EventBus.register(::onCompletion)
-        ActionManager.launchNewAction {
-            ScriptingCompiler.compileText<StoryEvent>(code, fileName)
-        }
+        ActionManager.launchNewAction { compileText() }
     }
 
     fun colorizeText(event: OnColorizedEvent) = launchOnMainThread {
@@ -80,10 +77,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, val code: Stri
                 currentLine = modifier.selectionStartLine
                 currentColumn = modifier.selectionStartChar
                 ActionManager.launchNewAction {
-                    ScriptingCompiler.compileText<StoryEvent>(
-                        lines.joinToString("\n") { it.filteredText() },
-                        fileName
-                    )
+                    compileText()
                     save()
                 }
             }
@@ -101,10 +95,26 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, val code: Stri
                         modifier.completions.addAll(this)
                         clear()
                     }
+
+                    updateErrors.ifNotEmpty {
+                        modifier.errors.clear()
+                        modifier.errors.addAll(this)
+                        clear()
+                    }
+
                     isChanged = false
                 }
             }
         }
+    }
+
+    private suspend fun compileText() {
+        val script = ScriptingCompiler.compileText<StoryEvent>(
+            lines.joinToString("\n") { it.filteredText() },
+            fileName
+        )
+        updateErrors.clear()
+        updateErrors.addAll(script.errors ?: emptyList())
     }
 
     override fun close() {

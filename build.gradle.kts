@@ -1,385 +1,72 @@
-import groovy.lang.Closure
-import net.fabricmc.loom.api.remapping.RemapperExtension
-import net.fabricmc.loom.api.remapping.RemapperParameters
-import net.fabricmc.loom.extension.LoomGradleExtensionImpl
-import net.fabricmc.loom.extension.RemapperExtensionHolder
-import net.fabricmc.tinyremapper.TinyRemapper
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import java.util.*
-
 plugins {
     java
     `maven-publish`
-    id("architectury-plugin") version "3.4-SNAPSHOT"
-    id("dev.architectury.loom") version "1.7-SNAPSHOT"
-    id("me.fallenbreath.yamlang") version "1.3.1"
+    id("architectury-plugin")
+    id("dev.architectury.loom")
+    id("me.fallenbreath.yamlang")
     kotlin("jvm")
     kotlin("plugin.serialization")
 }
 
-val userConfig = Properties()
-val cfg = rootProject.file("user.properties")
-val hasConfig = cfg.exists()
-if (hasConfig) userConfig.load(cfg.inputStream())
+val compiler_plugin: String by properties
+val hollowcore: String by properties
+val modId: String by properties
+val modName: String by properties
+val modVersion: String by properties
+val license: String by properties
 
-val hollowcore = fromProperties("hollowcore")
-val kotlinVersion = fromProperties("kotlinVersion")
-val compilerPluginVersion = fromProperties("compiler_plugin")
-val modId = fromProperties("mod_id")
-val javaVersion = fromProperties("java_version")
-val minecraftVersion = stonecutter.current.project.substringBeforeLast('-')
-val modPlatform = stonecutter.current.project.substringAfterLast('-')
-val license = fromProperties("license")
-val modName = fromProperties("mod_name")
-val modVersion = minecraftVersion + "-" + fromProperties("mod_version")
+val container = ModContainer(
+    minecraftVersion = stonecutter.current.project.substringBeforeLast('-'),
+    modPlatform = stonecutter.current.project.substringAfterLast('-'),
+    modId = modId, modName = modName, license = license, modVersion = modVersion,
+)
+
+val kotlinVersion: String by properties
 val imguiVersion: String by rootProject
 
-loom {
-    silentMojangMappingsLicense()
-    if (modPlatform == "neoforge") (this as LoomGradleExtensionImpl).generateSrgTiny = false
-    val awFile = rootProject.file("src/main/resources/$modId.accesswidener")
-    if (awFile.exists()) accessWidenerPath = awFile
+group = properties["mod_group"].toString()
+version = modVersion
+base.archivesName = "$modName-${container.modPlatform}-${container.minecraftVersion}"
 
-    mixin.useLegacyMixinAp = true
-    mixin.add(sourceSets.main.get(), "$modId.refmap.json")
-
-    when (modPlatform) {
-        "forge" -> forge {
-            convertAccessWideners = true
-            mixinConfig("$modId.mixins.json")
-            (this@loom as LoomGradleExtensionImpl).remapperExtensions.add(ForgeFixer)
-        }
-
-        "neoforge" -> neoForge {
-        }
-    }
-
-    runConfigs.all {
-        programArgs("--username=HollowHorizon")
-        runDir("../../run")
-    }
-}
-
-architectury {
-    minecraft = minecraftVersion
-    platformSetupLoomIde()
-    if (modPlatform == "neoforge") (loom as LoomGradleExtensionImpl).generateSrgTiny = false
-    common(modPlatform)
-    when (modPlatform) {
-        "fabric" -> fabric()
-        "forge" -> forge()
-        "neoforge" -> neoForge()
-    }
-}
-
-base {
-    archivesName = "$modName-$modPlatform-$modVersion"
-}
+setupEnviroment(container, kotlinVersion, "TheHollowHorizon", includeKotlin = true)
 
 repositories {
-    mavenCentral()
-    mavenLocal()
-    maven("https://repo.spongepowered.org/repository/maven-public/")
-    maven("https://maven.0mods.team/releases")
-    maven("https://oss.sonatype.org/content/repositories/snapshots/")
-    maven("https://maven.parchmentmc.org")
-    maven("https://maven.blamejared.com")
-    maven("https://maven.shedaniel.me/")
-    maven("https://maven.architectury.dev/")
-    maven("https://maven.terraformersmc.com/releases/")
-    maven("https://maven.0mods.team/")
     maven("https://jitpack.io")
-    maven("https://maven.neoforged.net/releases")
-    maven("https://maven.fabricmc.net/")
-    maven("https://maven.cleanroommc.com")
-    maven("https://thedarkcolour.github.io/KotlinForForge/")
-    flatDir { dirs(rootDir.resolve("libs")) }
-}
 
-configurations.configureEach {
-    resolutionStrategy {
-        force("net.sf.jopt-simple:jopt-simple:5.0.4")
-        force("org.ow2.asm:asm-commons:9.5")
-    }
+    flatDir { dirs(rootProject.file("libs")) }
 }
 
 dependencies {
-    setupLoader(modPlatform, minecraftVersion)
+    install("ru.hollowhorizon:HollowCore-${container.modPlatform}-${container.minecraftVersion}:$hollowcore:dev")
 
-    compileOnly("org.spongepowered:mixin:0.8.7")
-
-    // KOTLIN //
-    dependency("ru.hollowhorizon:HollowCore-$modPlatform-$minecraftVersion:$hollowcore:dev")
-    dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
-    dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
-    dependency("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
-    dependency("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
-    dependency("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.3")
-    dependency("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-    dependency("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-
-    // SCRIPTING //
-    dependency("org.jetbrains.kotlin:kotlin-scripting-jvm:$kotlinVersion", true)
-    dependency("org.jetbrains.kotlin:kotlin-scripting-jvm-host:$kotlinVersion", true)
-    dependency("org.jetbrains.kotlin:kotlin-script-runtime:$kotlinVersion", true)
-    dependency("org.jetbrains.kotlin:kotlin-compiler-embeddable-mcfriendly:$kotlinVersion", true)
-    dependency("org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:$kotlinVersion", true)
-    dependency("org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:$kotlinVersion", true)
-    dependency("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion", true)
-    dependency("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.4.0", true)
-    dependency("org.jetbrains.kotlin:kotlin-scripting-common:$kotlinVersion", true)
-
-    dependency("net.fabricmc:tiny-remapper:0.10.4", true)
-    dependency("net.fabricmc:mapping-io:0.6.1", true)
-    dependency("gnu.trove:trove:1.0.2", true)
+    setupScripting()
 
     // CONFIG //
-    dependency("com.akuleshov7:ktoml-core-jvm:0.5.1")
+    install("com.akuleshov7:ktoml-core-jvm:0.5.1", false)
 
-    // IMGUI //
-    dependency("team.0mods:kool-core-desktop:0.16.0-SNAPSHOT")
-    dependency("team.0mods:kool-editor-desktop:0.16.0-SNAPSHOT")
-    dependency("team.0mods:kool-editor-model-desktop:0.16.0-SNAPSHOT")
-    dependency("team.0mods:kool-physics-desktop:0.16.0-SNAPSHOT")
-    dependency("com.tianscar.imageio:imageio-apng:1.0.1")
+    // GRAPHICS //
+    install("team.0mods:kool-core-desktop:0.16.0-SNAPSHOT", false)
+    install("com.tianscar.imageio:imageio-apng:1.0.1", false)
 
-    // OTHER
-    implementation("org.ow2.asm:asm:9.7")
-    implementation("org.ow2.asm:asm-tree:9.7")
-    implementation("org.anarres:jcpp:1.4.14")
-    implementation("io.github.douira:glsl-transformer:2.0.1")
-    dependency("ru.hollowhorizon:HollowEnginePlugin:$compilerPluginVersion", true)
+    install("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin", true)
 
-    kotlinCompilerPluginClasspath("ru.hollowhorizon:HollowEnginePlugin:$compilerPluginVersion")
+    kotlinCompilerPluginClasspath("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin")
     kotlinCompilerPluginClasspath("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion")
 }
 
-
-afterEvaluate {
-    stonecutter {
-        val platform = loom.platform.get().id()
-        stonecutter.const("fabric", platform == "fabric")
-        stonecutter.const("forge", platform == "forge")
-        stonecutter.const("neoforge", platform == "neoforge")
-    }
-}
-
-
-val buildAndCollect = tasks.register<Copy>("buildAndCollect") {
-    group = "build"
-    from(
-        tasks.remapJar.get().archiveFile,
-        tasks.remapSourcesJar.get().archiveFile
-    )
-    into(rootProject.layout.buildDirectory.file("../merged"))
-    dependsOn("build")
-}
-
-if (stonecutter.current.isActive) {
-    rootProject.tasks.register("buildActive") {
-        group = "project"
-        dependsOn(buildAndCollect)
-    }
-
-    rootProject.tasks.register("runActive") {
-        group = "project"
-        dependsOn(tasks.named("runClient"))
-    }
-}
-
-stonecutter {
-    val j21 = eval(minecraftVersion, ">=1.20.5")
-    java {
-        withSourcesJar()
-        sourceCompatibility = if (j21) JavaVersion.VERSION_21 else JavaVersion.VERSION_17
-        targetCompatibility = if (j21) JavaVersion.VERSION_21 else JavaVersion.VERSION_17
-
-        toolchain {
-            languageVersion = JavaLanguageVersion.of(if (j21) 21 else 17)
-        }
-    }
-
-    kotlin {
-        jvmToolchain(if (j21) 21 else 17)
-    }
-
-    arrayOf("gltf", "glb", "bin", "ttf", "so", "dll", "dylib", "ser", "efkefc", "obj", "mtl")
-        .forEach { stonecutter.exclude("*.$it") }
-}
-
-tasks.processResources {
-    from(project.sourceSets.main.get().resources)
-    when (modPlatform) {
-        "forge" -> exclude("fabric.mod.json", "META-INF/neoforge.mods.toml")
-        "neoforge" -> exclude("fabric.mod.json", "META-INF/mods.toml")
-        "fabric" -> exclude("META-INF/neoforge.mods.toml", "META-INF/mods.toml")
-    }
-
-    filesMatching(
-        listOf(
-            "META-INF/mods.toml",
-            "fabric.mod.json",
-            "META-INF/neoforge.mods.toml",
-            "$modId.mixins.json"
-        )
-    ) {
-        expand(
-            mapOf(
-                "mod_version" to modVersion,
-                "mod_id" to modId,
-                "mod_name" to modName,
-                "license" to license,
-                "mc_version" to minecraftVersion
-            )
-        )
-    }
-}
-
-fun secretProperty(name: String) = providers.environmentVariable(name).orElse(userConfig.getProperty(name)).get()
-
-
-yamlang {
-    targetSourceSets.set(mutableListOf(sourceSets["main"]))
-    inputDir.set("assets/${modId}/lang")
-}
-
-if (hasConfig) publishing {
-    publications {
-        create<MavenPublication>(modName) {
-            groupId = "ru.hollowhorizon"
-            artifactId = "$modName-$modPlatform-$minecraftVersion"
-            version = fromProperties("mod_version")
-
-            from(components["java"])
-        }
-    }
-
-    repositories {
-        maven("https://maven.0mods.team/releases/") {
-            credentials {
-                username = secretProperty("MAVEN_USER")
-                password = secretProperty("MAVEN_PASSWORD")
-            }
-        }
-    }
-}
-
-fun DependencyHandlerScope.includes(vararg libraries: String) {
-    for (library in libraries) {
-        "include"(library)
-    }
-}
-
-fun fromProperties(id: String) = rootProject.properties[id].toString()
-
-
-class KClosure<T : Any?>(val function: T.() -> Unit) : Closure<T>(null, null) {
-    fun doCall(it: T): T {
-        function(it)
-        return it
-    }
-}
-
-fun <T : Any> closure(function: T.() -> Unit): Closure<T> {
-    return KClosure(function)
-}
-
-object ForgeFixer : RemapperExtensionHolder(object : RemapperParameters {}) {
-    override fun getRemapperExtensionClass(): Property<Class<out RemapperExtension<*>>> {
-        throw UnsupportedOperationException("How did you call this method?")
-    }
-
-    override fun apply(
-        tinyRemapperBuilder: TinyRemapper.Builder,
-        sourceNamespace: String,
-        targetNamespace: String,
-        objectFactory: ObjectFactory,
-    ) {
-        // For some strange reason there are errors with source name mapping, but that doesn't stop me from compiling the jar, does it?
-        tinyRemapperBuilder.ignoreConflicts(true)
-    }
-}
-
-fun DependencyHandlerScope.dependency(path: String, addToJar: Boolean = false) {
-    val dependency = implementation(path) {
-        exclude("org.jetbrains.kotlin")
-        exclude("org.ow2.asm")
-        exclude("org.lwjgl")
-    }
-    if(addToJar) include(dependency)
-
-    dependency.takeIf { modPlatform == "forge" || modPlatform == "neoforge" }?.let {
-        "forgeRuntimeLibrary"(it)
-    }
-}
-
-fun DependencyHandlerScope.minecraft(version: String) = "minecraft"("com.mojang:minecraft:$version")
-
-@Suppress("UnstableApiUsage")
-fun setupMappings(version: String): Dependency = loom.layered {
-    officialMojangMappings()
-    val mappingsVer = when (version) {
-        "1.21" -> "2024.07.28"
-        "1.20.1" -> "2023.09.03"
-        "1.19.2" -> "2022.11.27"
-        else -> throw IllegalStateException("Unknown mappings for version $version!")
-    }
-    parchment("org.parchmentmc.data:parchment-$version:$mappingsVer")
-}
-
-fun DependencyHandlerScope.setupLoader(loader: String, version: String) {
-    minecraft(version)
-    "mappings"(setupMappings(version))
-
-    when (loader) {
-        "fabric" -> {
-            when (version) {
-                "1.21" -> {
-                    modImplementation("net.fabricmc:fabric-loader:0.15.11")
-                    modImplementation("net.fabricmc.fabric-api:fabric-api:0.101.2+$version")
-                    compileOnly("mods:sodium:0.6.0")
-                    compileOnly("mods:iris:1.8.0")
-                }
-
-                "1.20.1" -> {
-                    "modImplementation"("net.fabricmc:fabric-loader:0.15.11")
-                    "modImplementation"("net.fabricmc.fabric-api:fabric-api:0.92.2+$version")
-                    modImplementation("mods:sodium:0.5.11")
-                    modImplementation("mods:iris:1.7.2")
-                }
-
-                "1.19.2" -> {
-                    "modImplementation"("net.fabricmc:fabric-loader:0.15.11")
-                    "modImplementation"("net.fabricmc.fabric-api:fabric-api:0.77.0+$version")
-                    "modImplementation"("mods:sodium:0.4.4")
-                    "modImplementation"("mods:iris:1.6.11")
-                    dependency("org.joml:joml:1.10.8")
-                }
-
-                else -> throw IllegalStateException("Unsupported $loader version $version!")
-            }
-            dependency("io.github.classgraph:classgraph:4.8.173")
-        }
-
-        "forge" -> {
-            when (version) {
-                "1.21" -> "forge"("net.minecraftforge:forge:$version-51.0.8")
-                "1.20.1" -> "forge"("net.minecraftforge:forge:$version-47.3.6")
-                "1.19.2" -> {
-                    dependency("org.joml:joml:1.10.8")
-                    "forge"("net.minecraftforge:forge:$version-43.4.2")
-                }
-
-                else -> throw IllegalStateException("Unsupported $loader version $version!")
-            }
-            // Мне надоело каждый раз постоянно вырезать руками лишние jar из classpath
-        }
-
-        "neoforge" -> {
-            when (version) {
-                "1.21" -> "neoForge"("net.neoforged:neoforge:21.0.14-beta")
-                else -> throw IllegalStateException("Unsupported $loader version $version!")
-            }
-        }
-    }
+fun DependencyHandlerScope.setupScripting() {
+    install("org.jetbrains.kotlin:kotlin-scripting-jvm:$kotlinVersion", true)
+    install("org.jetbrains.kotlin:kotlin-scripting-jvm-host:$kotlinVersion", true)
+    install("org.jetbrains.kotlin:kotlin-script-runtime:$kotlinVersion", true)
+    install("org.jetbrains.kotlin:kotlin-compiler-embeddable-mcfriendly:$kotlinVersion", true)
+    install("org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:$kotlinVersion", true)
+    install("org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:$kotlinVersion", true)
+    install("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion", true)
+    install("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.4.0", true)
+    install("org.jetbrains.kotlin:kotlin-scripting-common:$kotlinVersion", true)
+    install("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.4.0", true)
+    install("org.jetbrains.kotlin:kotlin-scripting-common:$kotlinVersion", true)
+    install("net.fabricmc:tiny-remapper:0.10.4", true)
+    install("net.fabricmc:mapping-io:0.6.1", true)
+    install("gnu.trove:trove:1.0.2", true)
 }
