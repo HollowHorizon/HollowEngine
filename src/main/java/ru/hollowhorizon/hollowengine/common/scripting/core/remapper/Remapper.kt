@@ -6,6 +6,7 @@ import net.fabricmc.mappingio.tree.MemoryMappingTree
 import net.fabricmc.tinyremapper.*
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.LOGGER
+import ru.hollowhorizon.hollowengine.HollowEngine
 import java.io.*
 import java.nio.file.Path
 import kotlin.io.path.exists
@@ -46,7 +47,7 @@ object Remapper {
 
     private fun loadMappings(name: String, tsrg: Boolean = name.endsWith(".tsrg")) = MemoryMappingTree().apply {
         MappingReader.read(
-            InputStreamReader(HollowCore::class.java.getResourceAsStream("/$name")
+            InputStreamReader(HollowEngine::class.java.getResourceAsStream("/$name")
                 ?: throw FileNotFoundException("$name not found!")
             ),
             if (tsrg) MappingFormat.TSRG_FILE else MappingFormat.TINY_2_FILE,
