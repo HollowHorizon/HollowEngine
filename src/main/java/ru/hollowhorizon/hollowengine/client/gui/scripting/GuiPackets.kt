@@ -107,7 +107,7 @@ enum class FileType {
 class UpdateFilePacket(val path: String, private val bytes: ByteArray, val type: FileType) :
     HollowPacketV3<UpdateFilePacket> {
     override fun handle(player: Player) {
-    IDEGuiV2.openFile(path, bytes, type)
+        IDEGuiV2.openFile(path, bytes, type)
     }
 }
 
@@ -164,7 +164,7 @@ class StartScriptPacket(val path: String): HollowPacketV3<StartScriptPacket> {
 @Serializable
 class CloseScreenPacket: HollowPacketV3<CloseScreenPacket> {
     override fun handle(player: Player) {
-        Minecraft.getInstance().setScreen(null)
+        Minecraft.getInstance().screen?.onClose()
     }
 }
 

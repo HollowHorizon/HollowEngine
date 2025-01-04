@@ -5,19 +5,18 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 import com.mojang.blaze3d.platform.NativeImage
 import de.fabmax.kool.Assets
 import de.fabmax.kool.loadImage2d
-import de.fabmax.kool.math.Vec2f
+import de.fabmax.kool.math.*
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.pipeline.Texture2d
-import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.MsdfFont
+import de.fabmax.kool.scene.Transform
+import de.fabmax.kool.util.*
 import de.fabmax.kool.util.MsdfFont.Companion.MSDF_TEX_PROPS
-import de.fabmax.kool.util.MsdfFontData
-import de.fabmax.kool.util.MsdfMeta
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
 import net.minecraft.client.renderer.texture.DynamicTexture
+import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hc.client.kool.KoolManager
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.client.utils.json.JsonFormat
@@ -130,10 +129,6 @@ object IDEGuiV2 : KoolScreen({
 
         dock.addDockableSurface(file.dockable, file.surface)
         dock.getLeafAtPath("0/1")?.dock(file.dockable)
-    }
-
-    enum class ModalAction {
-        CREATE_FILE, CREATE_FOLDER, RENAME, NONE
     }
 
     override fun shouldCloseOnEsc(): Boolean {
