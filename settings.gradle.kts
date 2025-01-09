@@ -43,6 +43,6 @@ rootProject.name = modName
 
 includeBuild("docs") {
     dependencySubstitution {
-        substitute(module("ru.hollowhorizon:docs-jvm")).using(project(":"))
+        substitute(module("ru.hollowhorizon:hollowengine-docs-jvm")).using(project(":"))
     }
 }

@@ -5,19 +5,19 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 import com.mojang.blaze3d.platform.NativeImage
 import de.fabmax.kool.Assets
 import de.fabmax.kool.loadImage2d
-import de.fabmax.kool.math.*
+import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.pipeline.Texture2d
-import de.fabmax.kool.scene.Transform
-import de.fabmax.kool.util.*
+import de.fabmax.kool.util.Color
+import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.MsdfFont.Companion.MSDF_TEX_PROPS
+import de.fabmax.kool.util.MsdfFontData
+import de.fabmax.kool.util.MsdfMeta
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
 import net.minecraft.client.renderer.texture.DynamicTexture
-import net.minecraft.world.entity.LivingEntity
-import ru.hollowhorizon.hc.client.kool.KoolManager
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.client.utils.json.JsonFormat
 import ru.hollowhorizon.hc.client.utils.rl
@@ -96,17 +96,9 @@ object IDEGuiV2 : KoolScreen({
 
     IDEGuiV2.dock = dock
 }) {
-    var isFirst = true
     val files = arrayListOf<FileData>()
     var fileTree = TreeNode.EMPTY
 
-    override fun init() {
-        super.init()
-        if (scene !in KoolManager.context.scenes) {
-            KoolManager.context.addScene(scene)
-        }
-        isFirst = false
-    }
 
     @JvmStatic
     lateinit var dock: Dock

@@ -6,6 +6,7 @@ plugins {
     kotlin("multiplatform") version "2.0.0"
 }
 
+
 repositories {
     mavenCentral()
     maven("https://maven.0mods.team/releases")
@@ -15,6 +16,7 @@ kotlin {
     // kotlin multiplatform (jvm + js) setup:
     jvm {
         version = "1.0"
+        group = "ru.hollowhorizon"
     }
     jvmToolchain(17)
 

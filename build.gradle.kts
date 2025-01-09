@@ -51,7 +51,7 @@ dependencies {
 
     install("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin", true)
 
-    install("ru.hollowhorizon:docs-jvm:1.0")
+    install("ru.hollowhorizon:hollowengine-docs-jvm:1.0")
 
     kotlinCompilerPluginClasspath("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin")
     kotlinCompilerPluginClasspath("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion")
