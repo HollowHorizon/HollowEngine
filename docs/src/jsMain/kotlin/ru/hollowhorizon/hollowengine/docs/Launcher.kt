@@ -8,6 +8,5 @@ fun main() = KoolApplication(
         canvasName = "HollowEngine Docs"
     )
 ) {
-    println("Test")
     launchDocs(ctx)
 }

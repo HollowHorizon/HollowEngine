@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.gui
 import com.mojang.blaze3d.systems.RenderSystem
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.Scene
+import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import net.minecraft.client.gui.screens.Screen
 import ru.hollowhorizon.hc.client.imgui.Component
@@ -43,11 +44,11 @@ class DashBoardScreen : KoolScreen({
         }
 
         Column {
-            modifier.margin(10.dp)
+            modifier.margin(10.dp).alignX(AlignmentX.Center)
 
             modTabs.forEach { tab ->
                 Button(tab.name) {
-                    modifier.onClick { tab.onClick() }.font(MsdfFont(MONOCRAFT_DATA, 30f))
+                    modifier.onClick { tab.onClick() }.font(MsdfFont(MONOCRAFT_DATA, 30f)).margin(10.dp)
                 }
             }
         }
