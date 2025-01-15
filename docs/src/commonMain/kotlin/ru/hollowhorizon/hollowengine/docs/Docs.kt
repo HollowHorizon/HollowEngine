@@ -1,13 +1,11 @@
 package ru.hollowhorizon.hollowengine.docs
 
-import de.fabmax.kool.*
+import de.fabmax.kool.KoolContext
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
-import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.*
-import de.fabmax.kool.util.MsdfFont.Companion.MSDF_TEX_PROPS
 
 fun launchDocs(ctx: KoolContext) {
     ctx.scenes += Docs()
@@ -60,7 +58,15 @@ class Docs : Scene() {
                     tree()
                 }
 
+                val pageDock = UiDockable("Page", this).apply { setFloatingBounds(height = Dp(100f)) }
+                val pageSurface = WindowSurface(pageDock, ideColors, ideSizes) {
+                    Text("Тут ничего нет") {
+                        modifier.align(AlignmentX.Center, AlignmentY.Center)
+                    }
+                }
+
                 addDockableSurface(projectDock, projectSurface)
+                addDockableSurface(pageDock, pageSurface)
 
                 createNodeLayout(
                     listOf(
@@ -71,6 +77,7 @@ class Docs : Scene() {
                 )
 
                 getLeafAtPath("0/0")?.dock(projectDock)
+                getLeafAtPath("0/1")?.dock(pageDock)
             }
             addNode(dock)
         }
@@ -88,7 +95,7 @@ private object UiColors {
 }
 
 
-val Sizes.lineHeight: Dp get() = baseSize * (2f/3f)
+val Sizes.lineHeight: Dp get() = baseSize * (2f / 3f)
 val Sizes.baseSize: Dp get() = largeGap * 2f
 val Sizes.lineHeightLarge: Dp get() = baseSize * 0.9f
 val Sizes.heightTitleBar: Dp get() = lineHeightLarge
