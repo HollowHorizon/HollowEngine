@@ -4,11 +4,8 @@ import com.mojang.blaze3d.systems.RenderSystem
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.MsdfFont
-import net.minecraft.client.gui.screens.Screen
-import ru.hollowhorizon.hc.client.kool.KoolManager
 import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT_DATA
 import ru.hollowhorizon.hc.client.kool.KoolScreen
-import ru.hollowhorizon.hc.client.utils.literal
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hc.common.events.Event
@@ -17,8 +14,7 @@ import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hc.common.network.request
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
 import ru.hollowhorizon.hollowengine.client.gui.scripting.RequestTreePacket
-import ru.hollowhorizon.hollowengine.docs.closeDocs
-import ru.hollowhorizon.hollowengine.docs.launchDocs
+import ru.hollowhorizon.hollowengine.docs.DOCS_GENERATOR
 
 fun interface KoolGui {
     fun Scene.setup()
@@ -73,7 +69,6 @@ fun onAddTab(event: DashBoardScreen.TabEvent) {
     })
 }
 
-object DocsScreen : Screen("".literal) {
-    override fun added() = launchDocs(KoolManager.context)
-    override fun removed() = closeDocs(KoolManager.context)
-}
+object DocsScreen : KoolScreen({
+    DOCS_GENERATOR()
+})
