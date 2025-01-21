@@ -6,28 +6,17 @@ import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.*
+import ru.hollowhorizon.hollowengine.docs.pages.PageRegistry
 
 fun launchDocs(ctx: KoolContext) {
-    ctx.scenes += Docs()
+    ctx.scenes += Docs
 }
 
 fun closeDocs(ctx: KoolContext) {
-    ctx.scenes -= Docs()
+    ctx.scenes -= Docs
 }
 
-val tree = DocsNode("HollowEngine", "hollowengine").apply {
-    children += DocsNode("НПС", "hollowengine/npcs").apply {
-        depth = 1
-        children += DocsNode("Создание", "hollowengine/npcs/creation").apply { depth = 2; isFolder = false }
-        children += DocsNode("Действия", "hollowengine/npcs/actions").apply { depth = 2; isFolder = false }
-    }
-    children += DocsNode("Графика", "hollowengine/graphics").apply {
-        depth = 1
-        children += DocsNode("Эффекты", "hollowengine/graphics/effects").apply { depth = 2; isFolder = false }
-    }
-}
-
-class Docs : Scene() {
+object Docs : Scene() {
     init {
         setupUiScene()
 
@@ -53,15 +42,21 @@ class Docs : Scene() {
                     root()
                 }
 
+                val root = DocsNode("HollowEngine", "hollowengine")
+                PageRegistry.loadPages(root)
+
                 val projectDock = UiDockable("Проект", this).apply { setFloatingBounds(height = Dp(100f)) }
                 val projectSurface = WindowSurface(projectDock, ideColors, ideSizes) {
-                    tree()
+                    root()
                 }
 
                 val pageDock = UiDockable("Page", this).apply { setFloatingBounds(height = Dp(100f)) }
                 val pageSurface = WindowSurface(pageDock, ideColors, ideSizes) {
-                    Text("Тут ничего нет") {
-                        modifier.align(AlignmentX.Center, AlignmentY.Center)
+                    logI { (PageRegistry.currentPage == null).toString() }
+                    PageRegistry.currentPage?.apply { compose() } ?: run {
+                        Text("Open any page.") {
+                            modifier.align(AlignmentX.Center, AlignmentY.Center)
+                        }
                     }
                 }
 
@@ -78,6 +73,8 @@ class Docs : Scene() {
 
                 getLeafAtPath("0/0")?.dock(projectDock)
                 getLeafAtPath("0/1")?.dock(pageDock)
+
+                PageRegistry.setPage = { pageSurface.triggerUpdate() }
             }
             addNode(dock)
         }

@@ -3,14 +3,16 @@ package ru.hollowhorizon.hollowengine.docs
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_RIGHT
-import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.logI
+import ru.hollowhorizon.hollowengine.docs.pages.DocPage
+import ru.hollowhorizon.hollowengine.docs.pages.PageRegistry
 
 class DocsNode(val treeName: String, val treePath: String) : Composable {
-    var isFolder = true
+    val isFolder: Boolean get() = children.isNotEmpty()
     var depth = 0
     val children: MutableList<DocsNode> = ArrayList()
     val isExpanded = mutableStateOf(false)
+    var page: DocPage? = null
 
     fun walk(): MutableList<DocsNode> {
         val list = mutableListOf(this)
@@ -49,7 +51,7 @@ class DocsNode(val treeName: String, val treePath: String) : Composable {
                 sceneObjectItem(item, i == hoveredIndex).apply {
                     modifier.onEnter { hoveredIndex = i }.onExit { hoveredIndex = -1 }
                         .onClick {
-
+                            PageRegistry.currentPage = item.page
                         }
                 }
             }
@@ -63,8 +65,6 @@ class DocsNode(val treeName: String, val treePath: String) : Composable {
                 if (evt.pointer.isLeftButtonClicked && evt.pointer.leftButtonRepeatedClickCount == 2) {
                     if (item.isFolder) {
                         item.toggleExpanded()
-                    } else {
-
                     }
                 }
             }

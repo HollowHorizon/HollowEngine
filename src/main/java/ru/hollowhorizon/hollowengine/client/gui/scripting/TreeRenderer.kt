@@ -21,8 +21,16 @@ fun makeMenu(
             item("Папка", "hollowengine:textures/gui/icons/create_folder.png") {
                 editFolderPopup.show(Vec2f(0f, 0f), SubMenuItem { }, item)
             }
-            item("Скрипт", "hollowengine:textures/gui/icons/create_file.png") {
-                editFilePopup.show(Vec2f(0f, 0f), SubMenuItem { }, item)
+            subMenu("Скрипт", "hollowengine:textures/gui/icons/create_file.png") {
+                item("Сюжетное событие", "hollowengine:textures/gui/icons/file_kts.png") {
+                    editFilePopup.show(Vec2f(0f, 0f), SubMenuItem { }, item)
+                }
+                item("Интерфейс", "hollowengine:textures/gui/icons/file_kts.png") {
+                    editFilePopup.show(Vec2f(0f, 0f), SubMenuItem { }, item)
+                }
+                item("Обработчик событий", "hollowengine:textures/gui/icons/file_kts.png") {
+                    editFilePopup.show(Vec2f(0f, 0f), SubMenuItem { }, item)
+                }
             }
         }
         divider()
