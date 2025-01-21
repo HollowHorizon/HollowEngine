@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.gui
 
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hc.client.imgui.Graphics
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.defaultImports
@@ -12,7 +11,6 @@ import kotlin.script.experimental.api.defaultImports
 abstract class GuiScript {
     val storage = CompoundTag()
 
-    abstract fun Graphics.draw()
 }
 
 class GuiScriptConfiguration : HollowScriptConfiguration({

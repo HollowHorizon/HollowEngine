@@ -2,12 +2,10 @@ package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import com.mojang.blaze3d.systems.RenderSystem
 import kotlinx.serialization.Serializable
-import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hc.HollowCore
-import ru.hollowhorizon.hc.client.imgui.Graphics
 import ru.hollowhorizon.hc.client.utils.currentServer
 import ru.hollowhorizon.hc.client.utils.get
 import ru.hollowhorizon.hc.client.utils.nbt.ForCompoundNBT
@@ -120,7 +118,7 @@ fun startGuiScript(script: File) {
 
         onMainThreadSync {
             RenderSystem.recordRenderCall {
-TODO()
+                TODO()
             }
         }
     }

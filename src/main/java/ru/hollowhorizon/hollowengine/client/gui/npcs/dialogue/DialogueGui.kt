@@ -2,16 +2,12 @@ package ru.hollowhorizon.hollowengine.client.gui.npcs.dialogue
 
 import de.fabmax.kool.scene.Scene
 import net.minecraft.client.Minecraft
-import ru.hollowhorizon.hc.client.imgui.Graphics
 import ru.hollowhorizon.hc.client.models.internal.Transform
 import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.get
-import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.client.gui.KoolGui
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.model
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.transform
-import kotlin.math.min
 
 object DialogueGui : KoolGui {
     private var scale = 1f

@@ -2,11 +2,11 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     java
-    kotlin("jvm")
-    kotlin("plugin.serialization")
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
 }
 
-val kotlinVersion: String by rootProject
+val kotlinVersion = "2.1.10-RC2"
 version = "1.5a"
 
 base {

@@ -19,19 +19,9 @@ import ru.hollowhorizon.hc.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import java.io.InputStream
 
-//? if >=1.20.1 {
-object HollowEnginePack : PathPackResources(
-    //? if >=1.21 {
-    /*PackLocationInfo("HollowEngine Generated Resources", "HollowEngine Resources".mcText, PackSource.BUILT_IN, Optional.empty()),
-    DirectoryManager.HOLLOW_ENGINE
-    *///?} else {
-    "HollowEngine Folder Resources",
-    DirectoryManager.HOLLOW_ENGINE,
-    true
-    //?}
-) {
-    private val packMetadata = Util.make(JsonObject()) { json ->
-        json.add("pack", JsonObject().apply {
+object HollowEnginePack : PathPackResources("HollowEngine Folder Resources", DirectoryManager.HOLLOW_ENGINE, true) {
+    private val packMetadata: String = JsonObject().apply {
+        add("pack", JsonObject().apply {
             addProperty("description", "HollowEngine Folder Resources")
             addProperty("pack_format", 9)
         })
@@ -44,26 +34,6 @@ object HollowEnginePack : PathPackResources(
         }
     }
 }
-//?} else {
-/*import net.minecraft.server.packs.FolderPackResources
-import java.io.FileNotFoundException
-
-object HollowEnginePack : FolderPackResources(DirectoryManager.HOLLOW_ENGINE.toFile()) {
-    private val packMetadata = Util.make(JsonObject()) { json ->
-        json.add("pack", JsonObject().apply {
-            addProperty("description", "HollowEngine Folder Resources")
-            addProperty("pack_format", 9)
-        })
-    }.toString()
-
-    override fun getRootResource(fileName: String): InputStream {
-        return when (fileName) {
-            PACK_META -> packMetadata.byteInputStream()
-            else -> super.getRootResource(fileName) ?: throw FileNotFoundException("$fileName not found")
-        }
-    }
-}
-*///?}
 
 @SubscribeEvent
 fun addPackListeners(event: RegisterResourcePacksEvent) {

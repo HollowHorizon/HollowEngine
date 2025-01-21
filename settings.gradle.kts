@@ -46,3 +46,8 @@ includeBuild("docs") {
         substitute(module("ru.hollowhorizon:hollowengine-docs-jvm")).using(project(":"))
     }
 }
+//includeBuild("compiler-plugin") {
+//    dependencySubstitution {
+//        substitute(module("ru.hollowhorizon:HollowEnginePlugin")).using(project(":"))
+//    }
+//}

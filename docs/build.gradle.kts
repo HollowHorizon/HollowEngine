@@ -3,8 +3,9 @@ import org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalDistributionDsl
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
 plugins {
-    kotlin("multiplatform") version "2.1.0"
-    kotlin("plugin.serialization") version "2.1.0"
+    val kotlinVersion = "2.1.10-RC2"
+    kotlin("multiplatform") version kotlinVersion
+    kotlin("plugin.serialization") version kotlinVersion
 }
 
 
@@ -39,7 +40,7 @@ kotlin {
     }
 
     sourceSets {
-        val koolVersion = "0.16.0-0mods-SNAPSHOT"
+        val koolVersion = "0.17.0-0mods-SNAPSHOT"
         val lwjglVersion = "3.3.3"
         val physxJniVersion = "2.4.0"
 
