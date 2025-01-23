@@ -101,9 +101,9 @@ object ActionManager {
 
     fun launch(action: suspend () -> Unit) {
         currentJob?.cancel()
-        currentJob = scope.launch {
+        currentJob = scope.launch debounce@ {
             delay(300)
-            if(!isActive) return@launch
+            if(!isActive) return@debounce
 
             action()
         }
