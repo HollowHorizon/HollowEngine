@@ -27,7 +27,7 @@ fun onAnalysisEvent(event: AfterCodeAnalysisEvent) {
 
         if (char !in COMPLETION_CHARS) return
 
-        OnCompletionsEvent(event.sources.first().name, r).post()
+        OnCompletionsEvent(event.sources.first().name, r, event.sources.first().text.hashCode()).post()
     } catch (_: Exception) {
         // Если этого не делать, то память забьётся почти моментально :)
     }

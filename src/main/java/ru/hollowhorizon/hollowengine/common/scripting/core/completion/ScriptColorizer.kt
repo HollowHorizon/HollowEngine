@@ -78,7 +78,7 @@ object ScriptColorizer {
 
         if (currentLine.isNotEmpty()) textLines.add(TextLine(currentLine))
 
-        OnColorizedEvent(file.name, textLines).post()
+        OnColorizedEvent(file.name, textLines, file.text.hashCode()).post()
     }
 }
 
@@ -126,4 +126,4 @@ private fun PsiElement.isNumericLiteral(): Boolean {
     return this.node.elementType.index in (KtTokens.INTEGER_LITERAL.index..KtTokens.FLOAT_LITERAL.index)
 }
 
-class OnColorizedEvent(val fileName: String, val text: List<TextLine>) : Event
+class OnColorizedEvent(val fileName: String, val text: List<TextLine>, val hashCode: Int) : Event

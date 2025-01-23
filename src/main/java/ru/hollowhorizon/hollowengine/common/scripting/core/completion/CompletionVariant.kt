@@ -104,4 +104,4 @@ data class CompletionVariant(
     }
 }
 
-class OnCompletionsEvent(val fileName: String, val completions: List<CompletionVariant>) : Event
+class OnCompletionsEvent(val fileName: String, val completions: List<CompletionVariant>, val hashCode: Int) : Event
