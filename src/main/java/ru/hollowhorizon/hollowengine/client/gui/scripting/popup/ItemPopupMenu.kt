@@ -9,6 +9,7 @@ import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.kool.menuDivider
+import ru.hollowhorizon.hollowengine.client.utils.lang
 
 class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = true) :
     AutoPopup(hideOnOutsideClick = hideOnOutsideClick, scopeName = scopeName) {
@@ -72,7 +73,7 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                             }
 
                             iconBox(withIcons, item.icon)
-                            Text(item.label) {
+                            Text(item.label.lang) {
                                 modifier
                                     .width(Grow.MinFit)
                                     .alignY(AlignmentY.Center)
@@ -98,7 +99,7 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                             }
 
                             item.icon?.let { iconBox(withIcons, it) }
-                            Text(item.label ?: "Sub menu") {
+                            Text(item.label?.lang ?: "Sub menu") {
                                 modifier
                                     .width(Grow.MinFit)
                                     .alignY(AlignmentY.Center)

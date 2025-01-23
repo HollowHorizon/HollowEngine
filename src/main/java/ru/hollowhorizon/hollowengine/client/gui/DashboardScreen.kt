@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.MsdfFont
+import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT_DATA
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.client.utils.open

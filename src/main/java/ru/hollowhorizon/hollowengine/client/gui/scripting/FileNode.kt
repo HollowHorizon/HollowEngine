@@ -19,7 +19,6 @@ import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.RequestPacket
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.kool.lineHeight
-import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import java.io.File
@@ -40,34 +39,30 @@ val KOTLIN by lazy { createTexture("hollowengine:textures/gui/icons/file_kts.png
 val CLOSE by lazy { createTexture("hollowengine:textures/gui/icons/close.png".rl, 16, 16) }
 
 @Serializable
-class TreeNode(val treeName: String, val treePath: String) : Composable {
-    var isFolder = true
+class FileNode(val treeName: String, val treePath: String) : Composable {
+    val isFolder get() = children.isNotEmpty()
     var depth = 0
-    val children: MutableList<TreeNode> = ArrayList()
+    val children: MutableList<FileNode> = ArrayList()
 
     @Transient
     val isExpanded = mutableStateOf(false)
 
-    fun walk(): MutableList<TreeNode> {
+    fun walk(): MutableList<FileNode> {
         val list = mutableListOf(this)
         if (isExpanded.value) list.addAll(children.flatMap { it.walk() })
         return list
     }
 
     fun toggleExpanded() {
-        if (isFolder) {
+        if (children.isNotEmpty()) {
             isExpanded.set(!isExpanded.value)
         }
     }
 
     fun sort() {
         children.sortBy { it.treeName }
-        children.sortByDescending { it.isFolder }
+        children.sortBy { it.children.isEmpty() }
         children.forEach { it.sort() }
-    }
-
-    companion object {
-        val EMPTY = TreeNode("", "")
     }
 
     override fun UiScope.compose() {
@@ -78,17 +73,8 @@ class TreeNode(val treeName: String, val treePath: String) : Composable {
             containerModifier = { it.backgroundColor(null) },
             vScrollbarModifier = { it.width(10.dp).margin(5.dp) }
         ) {
-            val editFilePopup by remember { mutableStateOf(EditPopup("Введите название файла: ", false)) }
-            editFilePopup()
-            val editFolderPopup by remember { mutableStateOf(EditPopup("Введите название папки: ", false)) }
-            editFolderPopup()
-            val deleteFilePopup by remember { mutableStateOf(WarningModalPopup("Вы действительно хотите удалить этот файл?")) }
-            deleteFilePopup()
-            val renamePopup by remember { mutableStateOf(EditPopup("Введите название нового файла: ", true)) }
-            renamePopup()
-
-            val itemPopupMenu = remember { ItemPopupMenu<TreeNode?>("scene-item-popup") }
-            itemPopupMenu()
+            val filePopup = remember(::FilePopup)
+            filePopup()
             var hoveredIndex by remember(-1)
 
             itemsIndexed(walk()) { i, item ->
@@ -96,8 +82,7 @@ class TreeNode(val treeName: String, val treePath: String) : Composable {
                     modifier.onEnter { hoveredIndex = i }.onExit { hoveredIndex = -1 }
                         .onClick {
                             if (it.pointer.isRightButtonClicked) {
-                                itemPopupMenu.hide()
-                                itemPopupMenu.show(it.screenPosition, makeMenu(item, editFilePopup, editFolderPopup, renamePopup, deleteFilePopup), item)
+                                filePopup.show(item, it.screenPosition)
                             }
                         }
                 }
@@ -106,11 +91,11 @@ class TreeNode(val treeName: String, val treePath: String) : Composable {
 
     }
 
-    private fun UiScope.sceneObjectItem(item: TreeNode, isHovered: Boolean) {
+    private fun UiScope.sceneObjectItem(item: FileNode, isHovered: Boolean) {
         modifier
             .onClick { evt ->
                 if (evt.pointer.isLeftButtonClicked && evt.pointer.leftButtonRepeatedClickCount == 2) {
-                    if (item.isFolder) {
+                    if (item.children.isNotEmpty()) {
                         item.toggleExpanded()
                     } else {
                         val file = IDEGuiV2.files.find { it.filePath == item.treePath }
@@ -130,19 +115,17 @@ class TreeNode(val treeName: String, val treePath: String) : Composable {
         sceneObjectLabel(item, isHovered)
     }
 
-    private fun UiScope.sceneObjectLabel(item: TreeNode, isHovered: Boolean) =
+    private fun UiScope.sceneObjectLabel(item: FileNode, isHovered: Boolean) =
         Row(width = Grow.Std) {
-            // tree-depth based indentation
             if (item.depth > 0) {
                 Box(width = 35.dp * item.depth) {}
             }
 
-            // expand / collapse arrow
             Box {
                 modifier
                     .size(sizes.lineHeight * 0.8f, sizes.lineHeight)
                     .alignY(AlignmentY.Center)
-                if (item.isFolder) {
+                if (item.children.isNotEmpty()) {
                     Arrow(isHoverable = false) {
                         modifier
                             .rotation(if (item.isExpanded.use()) ROTATION_DOWN else ROTATION_RIGHT)
@@ -156,8 +139,8 @@ class TreeNode(val treeName: String, val treePath: String) : Composable {
             val fgColor = if (isHovered) colors.primary else colors.secondary
 
             val icon = when {
-                item.isFolder && item.isExpanded.value -> FOLDER_OPEN
-                item.isFolder && !item.isExpanded.value -> FOLDER
+                item.children.isNotEmpty() && item.isExpanded.value -> FOLDER_OPEN
+                item.children.isNotEmpty() && !item.isExpanded.value -> FOLDER
                 item.treeName.endsWith(".kts") -> KOTLIN
                 else -> FILE
             }
@@ -178,44 +161,30 @@ class TreeNode(val treeName: String, val treePath: String) : Composable {
                 }
             }
         }
-}
 
-val CLIENT_RESOURCES =
-    listOf("blockstates", "font", "lang", "shaders", "textures", "particles", "models", "animations", "geo")
-val SERVER_RESOURCES = listOf("recipe", "advancement", "loot_table", "tags", "worldgen")
-val PROJECT_FOLDERS = listOf("assets", "data", "npcs", "replays", "scripts")
-val PROJECT_FILE_TYPES = listOf(
-    "kts", "json", "json", "nbt", "mcfunction",
-    "png", "jpg",
-    "gltf", "glb",
-    "fsh", "vsh", "mp3"
-)
+    companion object {
+        val EMPTY = FileNode("", "")
+    }
+}
 
 @HollowPacketV2
 @Serializable
-class RequestTreePacket(var tree: TreeNode = TreeNode.EMPTY) : RequestPacket<RequestTreePacket>() {
+class RequestTreePacket(var tree: FileNode = FileNode.EMPTY) : RequestPacket<RequestTreePacket>() {
     override fun retrieveValue(player: ServerPlayer) {
         if (!player.hasPermissions(2)) {
             player.sendSystemMessage("You don't have permissions to open scripts!".literal)
             return
         }
 
-        tree = projectTree(DirectoryManager.HOLLOW_ENGINE.toFile()) {
-            val folder = it.toReadablePath().substringBefore("/")
-            val extension = it.name.substringAfterLast(".")
-            val isFolder = !it.isFile
-
-            folder in PROJECT_FOLDERS && (isFolder || extension in PROJECT_FILE_TYPES)
-        }
+        tree = projectTree(DirectoryManager.HOLLOW_ENGINE.toFile())
     }
 
-    private fun projectTree(file: File, depth: Int = 0, predicate: (File) -> Boolean): TreeNode {
-        val tree = TreeNode(file.name, file.toReadablePath())
+    private fun projectTree(file: File, depth: Int = 0, predicate: (File) -> Boolean = { true }): FileNode {
+        val tree = FileNode(file.name, file.toReadablePath())
         tree.depth = depth
-        tree.isFolder = file.isDirectory
         file.listFiles()
             ?.filter { predicate(it) }
-            ?.forEach { tree.children.add(projectTree(it, depth + 1, predicate)) }
+            ?.forEach { tree.children += (projectTree(it, depth + 1, predicate)) }
         tree.sort()
         return tree
     }

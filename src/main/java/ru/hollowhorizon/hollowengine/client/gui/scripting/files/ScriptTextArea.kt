@@ -229,7 +229,7 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
                         0, TextCaretNavigation.endOfWord(
                             line.text,
                             column
-                        ).coerceAtMost(text.lastIndex)
+                        ).coerceAtMost(text.lastIndex)+1
                     )
                 ).width
 

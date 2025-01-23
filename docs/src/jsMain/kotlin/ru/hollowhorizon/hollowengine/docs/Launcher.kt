@@ -9,7 +9,7 @@ fun main() = KoolApplication(
         canvasName = "HollowEngine Docs"
     )
 ) {
-    scene {
+    ctx.scenes += scene {
         DOCS_GENERATOR()
     }
 }

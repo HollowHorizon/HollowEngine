@@ -19,8 +19,10 @@ import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.utils.get
+import ru.hollowhorizon.hc.client.utils.literal
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 
 
@@ -37,7 +39,8 @@ class NpcTool : Item(Properties().stacksTo(1)) {
         if (pUsedHand == InteractionHand.MAIN_HAND && pPlayer.level().isClientSide &&
             pInteractionTarget is NPCEntity && pPlayer.hasPermissions(2)
         ) {
-            TODO()
+            pPlayer.sendToast("Инструмент пока отключен.".literal)
+            //TODO()
             return InteractionResult.SUCCESS
         }
 
@@ -45,6 +48,9 @@ class NpcTool : Item(Properties().stacksTo(1)) {
     }
 
     override fun use(pLevel: Level, pPlayer: Player, pUsedHand: InteractionHand): InteractionResultHolder<ItemStack> {
+        pPlayer.sendToast("Инструмент пока отключен.".literal)
+
+        return super.use(pLevel, pPlayer, pUsedHand)
         if (!pLevel.isClientSide && pUsedHand == InteractionHand.MAIN_HAND) {
             val start: Vec3 = pPlayer.eyePosition
             val addition: Vec3 = pPlayer.lookAngle.multiply(Vec3(25.0, 25.0, 25.0))

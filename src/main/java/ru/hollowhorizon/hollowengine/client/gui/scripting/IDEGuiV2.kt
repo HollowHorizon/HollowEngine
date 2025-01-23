@@ -97,7 +97,7 @@ object IDEGuiV2 : KoolScreen({
     IDEGuiV2.dock = dock
 }) {
     val files = arrayListOf<FileData>()
-    var fileTree = TreeNode.EMPTY
+    var fileTree = FileNode.EMPTY
 
 
     @JvmStatic

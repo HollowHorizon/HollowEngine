@@ -44,10 +44,6 @@ class RequestFilePacket(val path: String) : HollowPacketV3<RequestFilePacket> {
         }
 
         val extension = path.substringAfterLast('.')
-        if (extension !in PROJECT_FILE_TYPES) {
-            (player as ServerPlayer).sendToast("Неподдерживаемый тип файла!".literal)
-            return
-        }
 
         val file = path.fromReadablePath().readBytes()
 
@@ -139,7 +135,7 @@ class CreateFilePacket(val path: String) : HollowPacketV3<CreateFilePacket> {
                 else file.createNewFile()
             }
         } else {
-            player.sendSystemMessage("You don't have permissions to create scripts!".mcText)
+            player.sendSystemMessage("You don't have permissions to create scripts!".literal)
         }
     }
 }

@@ -8,6 +8,12 @@ hollowengine:
       search: Поиск
       settings: Настройки
 
+      popups:
+        create_folder: "Введите название папки:"
+        create_file: "Введите название файла:"
+        rename: "Введите новое название:"
+        delete: "Вы уверены, что хотите удалить?"
+
   commands:
     copy: "§6[§bHollow Engine§6] §7Значение: %s скопировано."
     tags: "§6[§bHollow Engine§6] §7Теги предмета: "

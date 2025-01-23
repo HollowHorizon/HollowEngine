@@ -1,5 +1,8 @@
 package ru.hollowhorizon.hollowengine.docs.pages
 
+import de.fabmax.kool.KoolSystem
+import de.fabmax.kool.modules.ui2.UiScope
+import de.fabmax.kool.pipeline.backend.gl.GlApi
 import de.fabmax.kool.util.logI
 import ru.hollowhorizon.hollowengine.docs.DocsNode
 
