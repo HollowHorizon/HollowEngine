@@ -4,8 +4,11 @@ import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.Composable
 import de.fabmax.kool.modules.ui2.UiScope
 import de.fabmax.kool.modules.ui2.remember
+import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
+import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
 
 class FilePopup : Composable {
     private lateinit var filePopup: ItemPopupMenu<FileNode>
@@ -63,6 +66,27 @@ class FilePopup : Composable {
                 item("Открыть", "hollowengine:textures/gui/icons/file_kts.png") {
                     RequestFilePacket(node.treePath).send()
                 }
+            }
+            divider()
+            item("Копировать", "") {
+
+            }
+            item("Вырезать", "") {
+
+            }
+            item("Вставить", "") {
+
+            }
+            divider()
+            if(Minecraft.getInstance().isLocalServer) item("Открыть в проводнике", "hollowengine:textures/gui/icons/explorer.png") {
+                DesktopUtil.openInExplorer(node.treePath.fromReadablePath())
+            }
+            divider()
+            subMenu("Git", "") {
+                item("Commit", "") {}
+                item("Add", "") {}
+                item("Push", "") {}
+                item("Fetch", "") {}
             }
             divider()
             item("Переименовать", "hollowengine:textures/gui/icons/rename.png") {
