@@ -9,6 +9,7 @@
     "DimensionTypeMixin",
     "FeatureUtilsMixin",
     "RecipeManagerAccessor",
+    "kool.DragAndDropContextAccessor",
     "scripting.BindingTraceContextAccessor",
     "scripting.CompilationContextMixin",
     "scripting.KotlinCoreEnvironmentMixin",

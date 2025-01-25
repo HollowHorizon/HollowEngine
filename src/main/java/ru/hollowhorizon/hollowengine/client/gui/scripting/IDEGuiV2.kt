@@ -4,6 +4,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import com.mojang.blaze3d.platform.NativeImage
 import de.fabmax.kool.Assets
+import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
@@ -25,8 +26,10 @@ import ru.hollowhorizon.hc.client.utils.stream
 import ru.hollowhorizon.hollowengine.client.gui.kool.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2.projectDock
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileTitleBar
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
+import ru.hollowhorizon.hollowengine.client.kool.dragItem
 
 val PT_SANS by lazy {
     val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/pt_sans.json".rl.stream)
@@ -53,7 +56,6 @@ object IDEGuiV2 : KoolScreen({
         dockingSurface.colors = ideColors
         dockingSurface.sizes = ideSizes
         dockingPaneComposable = Composable {
-            resizeMargin.set(sizes.scrollbarWidth)
             Column(Grow.Std, Grow.Std) {
                 modifier.margin(top = sizes.heightWindowTitleBar)
                 divider(horizontalMargin = 0.dp, color = UiColors.titleBg)
@@ -63,7 +65,10 @@ object IDEGuiV2 : KoolScreen({
 
         projectDock = UiDockable("Проект", this).apply { setFloatingBounds(height = Dp(100f)) }
         val projectSurface = WindowSurface(projectDock, ideColors, ideSizes) {
-            IDEGuiV2.fileTree()
+            Column(Grow.Std, Grow.Std) {
+                FileTitleBar(projectDock)
+                IDEGuiV2.fileTree()
+            }
         }
 
         addDockableSurface(projectDock, projectSurface)
@@ -93,12 +98,57 @@ object IDEGuiV2 : KoolScreen({
 
         IDETitleBar()
     }
+    addPanelSurface(ideColors, ideSizes) {
+        IDEGuiV2.dndContext.dragItem()?.let {
+
+            Popup(PointerInput.primaryPointer.x.toFloat(), PointerInput.primaryPointer.y.toFloat()) {
+                modifier.background(UiRenderer { node ->
+                    node.apply {
+                        getUiPrimitives(UiSurface.LAYER_BACKGROUND)
+                            .localRoundRect(0f, 0f, widthPx, heightPx, heightPx * 0.5f, colors.backgroundMid)
+                        colors.primary.let {
+                            getUiPrimitives(UiSurface.LAYER_BACKGROUND)
+                                .localRoundRectBorder(0f, 0f, widthPx, heightPx, heightPx * 0.5f, sizes.borderWidth.px, it)
+                        }
+                    }
+                }).padding(sizes.smallGap)
+
+                Row {
+                    val icon = when {
+                        it.children.isNotEmpty() && it.isExpanded.value -> FOLDER_OPEN
+                        it.children.isNotEmpty() && !it.isExpanded.value -> FOLDER
+                        it.treeName.endsWith(".kts") -> KOTLIN
+                        else -> FILE
+                    }
+
+                    Box {
+                        modifier.alignY(AlignmentY.Center)
+                        Image(icon) {
+                            modifier.margin(horizontal = 10.dp).size(sizes.lineHeight, sizes.lineHeight)
+                                .imageSize(ImageSize.Stretch)
+                        }
+                    }
+
+                    Box {
+                        modifier.size(Grow.Std, Grow.Std)
+                        Text(it.treeName) {
+                            modifier
+                                .alignY(AlignmentY.Center)
+                                .textColor(colors.primary)
+                        }
+                    }
+                }
+            }
+        }
+        surface.triggerUpdate()
+    }
 
     IDEGuiV2.dock = dock
 }) {
     val files = arrayListOf<FileData>()
     var fileTree = FileNode.EMPTY
 
+    val dndContext = DragAndDropContext<FileNode>()
 
     @JvmStatic
     lateinit var dock: Dock

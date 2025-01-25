@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
+import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_RIGHT
@@ -7,6 +8,7 @@ import de.fabmax.kool.pipeline.Texture
 import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.pipeline.backend.gl.GlTexture
 import de.fabmax.kool.pipeline.backend.gl.LoadedTextureGl
+import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.resources.ResourceLocation
@@ -19,6 +21,7 @@ import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.RequestPacket
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.kool.lineHeight
+import ru.hollowhorizon.hollowengine.client.kool.DndHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import java.io.File
@@ -112,7 +115,46 @@ class FileNode(val treeName: String, val treePath: String) : Composable {
             modifier.background(RoundRectBackground(colors.hoverBg, sizes.smallGap))
         }
 
+        sceneObjectDndHandler(item)
         sceneObjectLabel(item, isHovered)
+    }
+
+    private fun UiScope.sceneObjectDndHandler(item: FileNode) {
+        val dndHandler = rememberItemDndHandler(item)
+
+        if (dndHandler.isHovered.use()) {
+            modifier.background(RoundRectBackground(colors.hoverBg, sizes.smallGap))
+        }
+
+        modifier.installDragAndDropHandler(IDEGuiV2.dndContext, dndHandler) { item }
+    }
+
+    private fun UiScope.rememberItemDndHandler(treeItem: FileNode): FileHandler {
+        val handler = remember { FileHandler(treeItem, uiNode) }
+        IDEGuiV2.dndContext.registerHandler(handler)
+        return handler
+    }
+
+    private class FileHandler(val node: FileNode, uiNode: UiNode) : DndHandler(uiNode) {
+        val insertPos = mutableStateOf(0)
+
+        override fun onMatchingHover(
+            dragItem: FileNode,
+            dragPointer: PointerEvent,
+            source: DragAndDropHandler<FileNode>?,
+            isHovered: Boolean,
+        ) {
+            super.onMatchingHover(dragItem, dragPointer, source, isHovered)
+
+            val h = dropTarget.heightPx
+            val hoverPtrPos = dropTarget.toLocal(dragPointer.screenPosition)
+
+            when {
+                hoverPtrPos.y < h * 0.25f -> insertPos.set(-1)
+                hoverPtrPos.y > h * 0.75f -> insertPos.set(1)
+                else -> insertPos.set(0)
+            }
+        }
     }
 
     private fun UiScope.sceneObjectLabel(item: FileNode, isHovered: Boolean) =
