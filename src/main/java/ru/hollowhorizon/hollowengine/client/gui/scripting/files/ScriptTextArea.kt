@@ -1,9 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
-import de.fabmax.kool.input.KeyEvent
-import de.fabmax.kool.input.KeyboardInput
-import de.fabmax.kool.input.LocalKeyCode
-import de.fabmax.kool.input.PointerInput
+import de.fabmax.kool.input.*
+import de.fabmax.kool.input.KeyboardInput.KEY_EV_CHAR_TYPED
+import de.fabmax.kool.input.KeyboardInput.KEY_EV_DOWN
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.TriangulatedLineMesh
@@ -148,6 +147,11 @@ fun UiScope.ScriptTextArea(
     }
 }
 
+internal val bracketPairs = mapOf(
+    '(' to ')', '[' to ']', '{' to '}',
+    '<' to '>', '"' to '"', '\'' to '\''
+)
+
 class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent, surface), ScriptTextAreaScope {
     override val modifier: ScriptTextAreaModifier = ScriptTextAreaModifier(surface)
 
@@ -189,13 +193,34 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
                 else -> {}
             }
         }
+        val startChar =
+            if (modifier.selectionStartLine > -1 && lineProvider[modifier.selectionStartLine].text.isNotEmpty() && modifier.selectionStartChar > 0) lineProvider[modifier.selectionStartLine].text[modifier.selectionStartChar - 1] else null
+        val nextChar =
+            if (modifier.selectionStartLine > -1 && modifier.selectionStartChar <= lineProvider[modifier.selectionStartLine].text.lastIndex) lineProvider[modifier.selectionStartLine].text[modifier.selectionStartChar] else null
 
         super.onKeyEvent(keyEvent)
-        if (keyEvent.isCharTyped || keyEvent.keyCode == KeyboardInput.KEY_BACKSPACE || (keyEvent.isCtrlDown && keyEvent.localKeyCode == LocalKeyCode(
-                'v'
-            ))
-        ) modifier.onCharTyped(keyEvent)
 
+        if (keyEvent.isCharTyped) {
+            bracketPairs[keyEvent.localKeyCode.code.toChar()]?.let {
+                val ev = KeyEvent(UniversalKeyCode(it.code), LocalKeyCode(it.code), KEY_EV_CHAR_TYPED, 0, it)
+                super.onKeyEvent(ev)
+                modifier.setCaretPos(modifier.selectionStartLine, modifier.selectionStartChar - 1)
+            }
+        }
+        if (keyEvent.keyCode == KeyboardInput.KEY_BACKSPACE && startChar != null) {
+            bracketPairs[startChar]?.let {
+                if(nextChar != it) return@let
+                super.onKeyEvent(KeyEvent(KeyboardInput.KEY_DEL, KeyboardInput.KEY_DEL, KEY_EV_DOWN, 0, it))
+            }
+        }
+
+        if (keyEvent.isCharTyped ||
+            keyEvent.keyCode == KeyboardInput.KEY_BACKSPACE ||
+            keyEvent.keyCode == KeyboardInput.KEY_DEL ||
+            (keyEvent.isCtrlDown && keyEvent.localKeyCode.code.toChar() in setOf('x', 'v'))
+        ) {
+            modifier.onCharTyped(keyEvent)
+        }
     }
 
     override fun setupTextLine(
@@ -229,7 +254,7 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
                         0, TextCaretNavigation.endOfWord(
                             line.text,
                             column
-                        ).coerceAtMost(text.lastIndex)+1
+                        ).coerceAtMost(text.lastIndex) + 1
                     )
                 ).width
 
@@ -261,6 +286,7 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
                 }
                 modifier.margin(horizontal = sizes.gap * 2)
             }
+
             Box(sizes.borderWidth, Grow.Std) {
                 modifier
                     .backgroundColor(colors.secondaryVariant)

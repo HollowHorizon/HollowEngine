@@ -24,7 +24,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, private val co
     private val lines = mutableStateListOf(*code.lines().map {
         TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 30f), Color.WHITE)))
     }.toTypedArray())
-    private val editor = DefaultTextEditorHandler(lines)
+    private val editor = ScriptTextEditorHandler(lines)
 
     private var textHash = code.hashCode()
     lateinit var modifier: ScriptTextAreaModifier

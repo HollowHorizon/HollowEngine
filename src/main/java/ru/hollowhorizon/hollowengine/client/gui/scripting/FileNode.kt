@@ -43,7 +43,7 @@ val CLOSE by lazy { createTexture("hollowengine:textures/gui/icons/close.png".rl
 
 @Serializable
 class FileNode(val treeName: String, val treePath: String) : Composable {
-    val isFolder get() = children.isNotEmpty()
+    var isFolder = false
     var depth = 0
     val children: MutableList<FileNode> = ArrayList()
 
@@ -57,21 +57,18 @@ class FileNode(val treeName: String, val treePath: String) : Composable {
     }
 
     fun toggleExpanded() {
-        if (children.isNotEmpty()) {
+        if (isFolder) {
             isExpanded.set(!isExpanded.value)
         }
     }
 
     fun sort() {
         children.sortBy { it.treeName }
-        children.sortBy { it.children.isEmpty() }
+        children.sortBy { !it.isFolder }
         children.forEach { it.sort() }
     }
 
     override fun UiScope.compose() {
-
-        modifier.margin(sizes.smallGap)
-
         LazyList(
             containerModifier = { it.backgroundColor(null) },
             vScrollbarModifier = { it.width(10.dp).margin(5.dp) }
@@ -98,7 +95,7 @@ class FileNode(val treeName: String, val treePath: String) : Composable {
         modifier
             .onClick { evt ->
                 if (evt.pointer.isLeftButtonClicked && evt.pointer.leftButtonRepeatedClickCount == 2) {
-                    if (item.children.isNotEmpty()) {
+                    if (item.isFolder) {
                         item.toggleExpanded()
                     } else {
                         val file = IDEGuiV2.files.find { it.filePath == item.treePath }
@@ -167,7 +164,7 @@ class FileNode(val treeName: String, val treePath: String) : Composable {
                 modifier
                     .size(sizes.lineHeight * 0.8f, sizes.lineHeight)
                     .alignY(AlignmentY.Center)
-                if (item.children.isNotEmpty()) {
+                if (item.isFolder) {
                     Arrow(isHoverable = false) {
                         modifier
                             .rotation(if (item.isExpanded.use()) ROTATION_DOWN else ROTATION_RIGHT)
@@ -181,8 +178,8 @@ class FileNode(val treeName: String, val treePath: String) : Composable {
             val fgColor = if (isHovered) colors.primary else colors.secondary
 
             val icon = when {
-                item.children.isNotEmpty() && item.isExpanded.value -> FOLDER_OPEN
-                item.children.isNotEmpty() && !item.isExpanded.value -> FOLDER
+                item.isFolder && item.isExpanded.value -> FOLDER_OPEN
+                item.isFolder && !item.isExpanded.value -> FOLDER
                 item.treeName.endsWith(".kts") -> KOTLIN
                 else -> FILE
             }
@@ -223,6 +220,7 @@ class RequestTreePacket(var tree: FileNode = FileNode.EMPTY) : RequestPacket<Req
 
     private fun projectTree(file: File, depth: Int = 0, predicate: (File) -> Boolean = { true }): FileNode {
         val tree = FileNode(file.name, file.toReadablePath())
+        tree.isFolder = !file.isFile
         tree.depth = depth
         file.listFiles()
             ?.filter { predicate(it) }
