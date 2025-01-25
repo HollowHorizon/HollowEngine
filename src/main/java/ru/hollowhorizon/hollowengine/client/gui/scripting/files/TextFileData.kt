@@ -85,7 +85,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, private val co
     }
 
     private suspend fun compileText(text: String) {
-        val script = ScriptingCompiler.compileText<StoryEvent>(text, fileName)
+        val script = ScriptingCompiler.compileText<StoryEvent>(text, fileName, logErrors = false)
         script.errors?.ifNotEmpty(::onErrorsEvent) ?: run { modifier.errors.clear() }
     }
 

@@ -30,20 +30,20 @@ import kotlin.script.experimental.util.PropertiesCollection
 
 object ScriptingCompiler {
 
-    suspend inline fun <reified T : Any> compileText(text: String, name: String = "script", obfuscate: Boolean = true): CompiledScript {
+    suspend inline fun <reified T : Any> compileText(text: String, name: String = "script", logErrors: Boolean = true, obfuscate: Boolean = true): CompiledScript {
         val hostConfiguration = HollowEngineScriptingHost()
         val compilationConfiguration = createCompilationConfiguration<T>(hostConfiguration)
 
         val compiler = JvmScriptCompiler(hostConfiguration)
         val result = compiler(StringScriptSource(text, name), compilationConfiguration)
 
-        logErrors(result)
+        if(logErrors) logErrors(result)
         yield()
 
         return processResult(result, name, obfuscate=obfuscate)
     }
 
-    suspend inline fun <reified T : Any> compileFile(script: File, obfuscate: Boolean = true): CompiledScript {
+    suspend inline fun <reified T : Any> compileFile(script: File, logErrors: Boolean = true, obfuscate: Boolean = true): CompiledScript {
         val hostConfiguration = HollowEngineScriptingHost()
         val compilationConfiguration = createCompilationConfiguration<T>(hostConfiguration)
 
@@ -59,7 +59,7 @@ object ScriptingCompiler {
         val compiler = JvmScriptCompiler(hostConfiguration)
         val result = compiler(FileScriptSource(script), compilationConfiguration)
 
-        logErrors(result)
+        if(logErrors) logErrors(result)
         yield()
 
         return processResult(result, script.name, script, compiledJar, obfuscate)
