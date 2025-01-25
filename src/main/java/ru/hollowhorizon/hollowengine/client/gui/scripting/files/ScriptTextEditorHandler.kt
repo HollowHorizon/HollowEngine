@@ -9,6 +9,60 @@ import de.fabmax.kool.util.MsdfFont
 
 class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateListOf()) : TextEditorHandler {
     var editAttribs: TextAttributes? = null
+    private val undoStack = ArrayDeque<UndoableAction>()
+    private val redoStack = ArrayDeque<UndoableAction>()
+
+    private data class UndoableAction(
+        val startLine: Int,
+        val numOldLines: Int,
+        val oldLines: List<TextLine>,
+        val newLines: List<TextLine>
+    )
+
+
+    fun undo() {
+        if (undoStack.isEmpty()) return
+        val action = undoStack.removeLast()
+        performUndo(action)
+        redoStack.addLast(action)
+    }
+
+    fun redo() {
+        if (redoStack.isEmpty()) return
+        val action = redoStack.removeLast()
+        performRedo(action)
+        undoStack.addLast(action)
+    }
+
+    private fun performUndo(action: UndoableAction) {
+        val start = action.startLine
+        // Remove new lines
+        if (text.size >= start + action.newLines.size) {
+            repeat(action.newLines.size) {
+                if (text.size > start) text.removeAt(start)
+            }
+        } else {
+            val numToRemove = text.size - start
+            repeat(numToRemove) { if (text.size > start) text.removeAt(start) }
+        }
+        // Insert old lines
+        text.addAll(start, action.oldLines)
+    }
+
+    private fun performRedo(action: UndoableAction) {
+        val start = action.startLine
+        // Remove old lines
+        if (text.size >= start + action.numOldLines) {
+            repeat(action.numOldLines) {
+                if (text.size > start) text.removeAt(start)
+            }
+        } else {
+            val numToRemove = text.size - start
+            repeat(numToRemove) { if (text.size > start) text.removeAt(start) }
+        }
+        // Insert new lines
+        text.addAll(start, action.newLines)
+    }
 
     override fun insertText(line: Int, caret: Int, insertion: String, textAreaScope: TextAreaScope): Vec2i {
         return replaceText(line, line, caret, caret, insertion, textAreaScope)
@@ -55,6 +109,13 @@ class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateList
     }
 
     private fun insertLines(insertLines: List<TextLine>, insertFrom: Int, insertTo: Int) {
+        val oldLines = if (text.isNotEmpty() && insertFrom <= text.lastIndex) {
+            val to = insertTo.coerceAtMost(text.lastIndex)
+            text.subList(insertFrom, to + 1).toList()
+        } else {
+            emptyList()
+        }
+        
         val linesBefore = mutableListOf<TextLine>()
         val linesAfter = mutableListOf<TextLine>()
         if (insertFrom > 0) {
@@ -68,6 +129,9 @@ class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateList
         text += linesBefore
         text += insertLines
         text += linesAfter
+
+        undoStack.addLast(UndoableAction(insertFrom, oldLines.size, oldLines, insertLines))
+        redoStack.clear()
     }
 
     private fun String.toLines(attributes: TextAttributes): List<TextLine> {

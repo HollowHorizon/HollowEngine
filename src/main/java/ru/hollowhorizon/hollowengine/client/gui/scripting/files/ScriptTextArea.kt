@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
+import de.fabmax.kool.Clipboard
 import de.fabmax.kool.input.*
 import de.fabmax.kool.input.KeyboardInput.KEY_EV_CHAR_TYPED
 import de.fabmax.kool.input.KeyboardInput.KEY_EV_DOWN
@@ -197,6 +198,14 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
             if (modifier.selectionStartLine > -1 && lineProvider[modifier.selectionStartLine].text.isNotEmpty() && modifier.selectionStartChar > 0) lineProvider[modifier.selectionStartLine].text[modifier.selectionStartChar - 1] else null
         val nextChar =
             if (modifier.selectionStartLine > -1 && modifier.selectionStartChar <= lineProvider[modifier.selectionStartLine].text.lastIndex) lineProvider[modifier.selectionStartLine].text[modifier.selectionStartChar] else null
+
+        val selectionHandler = modifier.editorHandler as? ScriptTextEditorHandler
+        if (keyEvent.isCtrlDown && keyEvent.localKeyCode == LocalKeyCode('z') && selectionHandler != null) {
+            if(keyEvent.isShiftDown) selectionHandler.redo()
+            else selectionHandler.undo()
+            modifier.onCharTyped(keyEvent)
+            return
+        }
 
         super.onKeyEvent(keyEvent)
 
