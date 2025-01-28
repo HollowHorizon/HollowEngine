@@ -1,6 +1,6 @@
-package ru.hollowhorizon.hollowengine.client.gui.scripting.files
+package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text
 
-import de.fabmax.kool.Clipboard
+import com.facebook.ktfmt.format.Formatter
 import de.fabmax.kool.input.*
 import de.fabmax.kool.input.KeyboardInput.KEY_EV_CHAR_TYPED
 import de.fabmax.kool.input.KeyboardInput.KEY_EV_DOWN
@@ -11,10 +11,15 @@ import de.fabmax.kool.scene.addTriangulatedLineMesh
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.TextCaretNavigation
+import de.fabmax.kool.util.logW
 import net.minecraft.client.Minecraft
+import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.currentLine
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys.ScriptAreaKeyEvent
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys.toEngine
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
 
@@ -160,65 +165,24 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
     lateinit var completionsList: LazyListState
 
     override fun onKeyEvent(keyEvent: KeyEvent) {
-        val completions = modifier.completions
+        val event = keyEvent.toEngine(this)
+        EventBus.post(event)
+        if(event.isCanceled) return
 
-        if (completions.isNotEmpty() && keyEvent.isPressed) {
-            when (keyEvent.keyCode) {
-                KeyboardInput.KEY_ENTER, KeyboardInput.KEY_TAB -> {
-                    if (modifier.completionIndex == -1) return
-                    modifier.completions[modifier.completionIndex].use(this)
-                    return
-                }
-
-                KeyboardInput.KEY_CURSOR_UP -> {
-                    if (modifier.completionIndex > 0) {
-                        completionsList.scrollToItem.set(modifier.completionIndex - 1)
-                        modifier.setCompletionIndex(modifier.completionIndex - 1)
-                    }
-                    return
-                }
-
-                KeyboardInput.KEY_CURSOR_DOWN -> {
-                    if (modifier.completionIndex < completions.size - 1) {
-                        completionsList.scrollToItem.set(modifier.completionIndex + 1)
-                        modifier.setCompletionIndex(modifier.completionIndex + 1)
-                    }
-                    return
-                }
-
-                KeyboardInput.KEY_ESC -> {
-                    modifier.completions.clear()
-                    return
-                }
-
-                else -> {}
-            }
-        }
-        val startChar =
-            if (modifier.selectionStartLine > -1 && lineProvider[modifier.selectionStartLine].text.isNotEmpty() && modifier.selectionStartChar > 0) lineProvider[modifier.selectionStartLine].text[modifier.selectionStartChar - 1] else null
-        val nextChar =
-            if (modifier.selectionStartLine > -1 && modifier.selectionStartChar <= lineProvider[modifier.selectionStartLine].text.lastIndex) lineProvider[modifier.selectionStartLine].text[modifier.selectionStartChar] else null
-
-        val selectionHandler = modifier.editorHandler as? ScriptTextEditorHandler
-        if (keyEvent.isCtrlDown && keyEvent.localKeyCode == LocalKeyCode('z') && selectionHandler != null) {
-            if(keyEvent.isShiftDown) selectionHandler.redo()
-            else selectionHandler.undo()
-            modifier.onCharTyped(keyEvent)
-            return
-        }
+        val startChar = modifier.getCharBeforeSelection()
+        val nextChar = modifier.getCharAfterSelection()
 
         super.onKeyEvent(keyEvent)
 
         if (keyEvent.isCharTyped) {
             bracketPairs[keyEvent.localKeyCode.code.toChar()]?.let {
-                val ev = KeyEvent(UniversalKeyCode(it.code), LocalKeyCode(it.code), KEY_EV_CHAR_TYPED, 0, it)
-                super.onKeyEvent(ev)
+                super.onKeyEvent(it.type())
                 modifier.setCaretPos(modifier.selectionStartLine, modifier.selectionStartChar - 1)
             }
         }
         if (keyEvent.keyCode == KeyboardInput.KEY_BACKSPACE && startChar != null) {
             bracketPairs[startChar]?.let {
-                if(nextChar != it) return@let
+                if (nextChar != it) return@let
                 super.onKeyEvent(KeyEvent(KeyboardInput.KEY_DEL, KeyboardInput.KEY_DEL, KEY_EV_DOWN, 0, it))
             }
         }
@@ -226,11 +190,14 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
         if (keyEvent.isCharTyped ||
             keyEvent.keyCode == KeyboardInput.KEY_BACKSPACE ||
             keyEvent.keyCode == KeyboardInput.KEY_DEL ||
+            keyEvent.keyCode == KeyboardInput.KEY_ENTER ||
             (keyEvent.isCtrlDown && keyEvent.localKeyCode.code.toChar() in setOf('x', 'v'))
         ) {
             modifier.onCharTyped(keyEvent)
         }
     }
+
+    fun Char.type() = KeyEvent(UniversalKeyCode(code), LocalKeyCode(code), KEY_EV_CHAR_TYPED, 0, this)
 
     override fun setupTextLine(
         scope: UiScope,

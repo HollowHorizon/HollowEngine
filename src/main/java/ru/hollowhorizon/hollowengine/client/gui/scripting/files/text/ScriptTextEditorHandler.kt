@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.client.gui.scripting.files
+package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text
 
 import de.fabmax.kool.math.MutableVec2i
 import de.fabmax.kool.math.Vec2i
@@ -8,33 +8,36 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 
 class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateListOf()) : TextEditorHandler {
-    var editAttribs: TextAttributes? = null
     private val undoStack = ArrayDeque<UndoableAction>()
     private val redoStack = ArrayDeque<UndoableAction>()
 
     private data class UndoableAction(
         val startLine: Int,
+        val caretLine: Int,
+        val startChar: Int,
+        val caretChar: Int,
+
         val numOldLines: Int,
         val oldLines: List<TextLine>,
-        val newLines: List<TextLine>
+        val newLines: List<TextLine>,
     )
 
 
-    fun undo() {
+    fun undo(onSelectionChanged: ((Int, Int, Int, Int) -> Unit)?) {
         if (undoStack.isEmpty()) return
         val action = undoStack.removeLast()
-        performUndo(action)
+        performUndo(action, onSelectionChanged)
         redoStack.addLast(action)
     }
 
-    fun redo() {
+    fun redo(onSelectionChanged: ((Int, Int, Int, Int) -> Unit)?) {
         if (redoStack.isEmpty()) return
         val action = redoStack.removeLast()
-        performRedo(action)
+        performRedo(action, onSelectionChanged)
         undoStack.addLast(action)
     }
 
-    private fun performUndo(action: UndoableAction) {
+    private fun performUndo(action: UndoableAction, onSelectionChanged: ((Int, Int, Int, Int) -> Unit)?) {
         val start = action.startLine
         // Remove new lines
         if (text.size >= start + action.newLines.size) {
@@ -47,9 +50,10 @@ class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateList
         }
         // Insert old lines
         text.addAll(start, action.oldLines)
+        onSelectionChanged?.let { it(action.startLine, action.caretLine, action.startChar, action.caretChar) }
     }
 
-    private fun performRedo(action: UndoableAction) {
+    private fun performRedo(action: UndoableAction, onSelectionChanged: ((Int, Int, Int, Int) -> Unit)?) {
         val start = action.startLine
         // Remove old lines
         if (text.size >= start + action.numOldLines) {
@@ -62,10 +66,15 @@ class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateList
         }
         // Insert new lines
         text.addAll(start, action.newLines)
+        onSelectionChanged?.let { it(action.startLine, action.caretLine, action.startChar, action.caretChar) }
     }
 
     override fun insertText(line: Int, caret: Int, insertion: String, textAreaScope: TextAreaScope): Vec2i {
         return replaceText(line, line, caret, caret, insertion, textAreaScope)
+    }
+
+    fun replaceAll(text: String, textAreaScope: TextAreaScope) {
+        replaceText(0, this.text.lastIndex, 0, this.text.last().text.length.coerceAtLeast(0), text, textAreaScope)
     }
 
     override fun replaceText(
@@ -85,11 +94,8 @@ class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateList
         val escapeQuotes = before.text.lastOrNull() == '"' && after.text.firstOrNull() == '"'
 
         val caretPos = MutableVec2i()
-        val attr = editAttribs ?: before.lastAttribs() ?: after.firstAttribs() ?: TextAttributes(
-            MsdfFont.DEFAULT_FONT,
-            Color.GRAY
-        )
-        if(escapeQuotes) replacement = replacement.replace("\\", "\\\\").replace("\"", "\\\"")
+        val attr = before.lastAttribs() ?: after.firstAttribs() ?: TextAttributes(MsdfFont.DEFAULT_FONT, Color.GRAY)
+        if (escapeQuotes) replacement = replacement.replace("\\", "\\\\").replace("\"", "\\\"")
         val replaceLines = replacement.toLines(attr)
 
         caretPos.y = selectionStartLine + replaceLines.lastIndex
@@ -104,18 +110,24 @@ class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateList
             ) + (replaceLines.last() + after)
         }
 
-        insertLines(insertion, selectionStartLine, selectionEndLine)
+        insertLines(insertion, selectionStartLine, selectionEndLine, selectionStartChar, selectionEndChar)
         return caretPos
     }
 
-    private fun insertLines(insertLines: List<TextLine>, insertFrom: Int, insertTo: Int) {
+    private fun insertLines(
+        insertLines: List<TextLine>,
+        insertFrom: Int,
+        insertTo: Int,
+        selectionStartChar: Int,
+        selectionEndChar: Int,
+    ) {
         val oldLines = if (text.isNotEmpty() && insertFrom <= text.lastIndex) {
             val to = insertTo.coerceAtMost(text.lastIndex)
             text.subList(insertFrom, to + 1).toList()
         } else {
             emptyList()
         }
-        
+
         val linesBefore = mutableListOf<TextLine>()
         val linesAfter = mutableListOf<TextLine>()
         if (insertFrom > 0) {
@@ -130,7 +142,17 @@ class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateList
         text += insertLines
         text += linesAfter
 
-        undoStack.addLast(UndoableAction(insertFrom, oldLines.size, oldLines, insertLines))
+        undoStack.addLast(
+            UndoableAction(
+                insertFrom,
+                insertTo,
+                selectionStartChar,
+                selectionEndChar,
+                oldLines.size,
+                oldLines,
+                insertLines
+            )
+        )
         redoStack.clear()
     }
 
@@ -150,7 +172,7 @@ class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateList
         return TextLine(sanitize(spans + other.spans))
     }
 
-    fun TextLine.firstAttribs(): TextAttributes? {
+    private fun TextLine.firstAttribs(): TextAttributes? {
         return if (spans.isNotEmpty()) {
             spans.first().second
         } else {
@@ -158,7 +180,7 @@ class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateList
         }
     }
 
-    fun TextLine.lastAttribs(): TextAttributes? {
+    private fun TextLine.lastAttribs(): TextAttributes? {
         return if (spans.isNotEmpty()) {
             spans.last().second
         } else {
@@ -166,7 +188,7 @@ class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateList
         }
     }
 
-    fun TextLine.before(charIndex: Int): TextLine {
+    private fun TextLine.before(charIndex: Int): TextLine {
         val newSpans = mutableListOf<Pair<String, TextAttributes>>()
         var i = 0
         var spanI = 0
@@ -179,7 +201,7 @@ class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateList
         return TextLine(sanitize(newSpans))
     }
 
-    fun TextLine.after(charIndex: Int): TextLine {
+    private fun TextLine.after(charIndex: Int): TextLine {
         val newSpans = mutableListOf<Pair<String, TextAttributes>>()
         var i = 0
         var spanI = 0

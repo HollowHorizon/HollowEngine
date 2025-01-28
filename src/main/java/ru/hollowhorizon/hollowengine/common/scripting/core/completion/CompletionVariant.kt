@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 
 import de.fabmax.kool.input.*
-import de.fabmax.kool.math.clamp
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.TextCaretNavigation
@@ -10,7 +9,7 @@ import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.kool.lineHeight
 import ru.hollowhorizon.hollowengine.client.gui.scripting.createTexture
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ScriptTextArea
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextArea
 
 val COMPLETE_CLASS by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_class.png".rl, 16, 16) }
 val COMPLETE_METHOD by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_method.png".rl, 16, 16) }

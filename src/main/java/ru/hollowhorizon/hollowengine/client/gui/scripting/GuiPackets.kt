@@ -16,11 +16,61 @@ import ru.hollowhorizon.hc.common.network.HollowPacketV3
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.startScript
 import ru.hollowhorizon.hollowengine.common.scripting.stopScript
+import java.io.File
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
 class ToastPacket(val message: @Serializable(ForTextComponent::class) Component) : HollowPacketV3<ToastPacket> {
     override fun handle(player: Player) = player.sendToast(message)
+}
+
+@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@Serializable
+class CopyFilePacket(val source: String, val dest: String, val deleteSource: Boolean = false) :
+    HollowPacketV3<CreateFilePacket> {
+    override fun handle(player: Player) {
+        if (!player.hasPermissions(2)) {
+            player.sendSystemMessage("У вас нет прав на перемещение файлов!".literal)
+            return
+        }
+
+        val sourceFile = source.fromReadablePath()
+        val destFile = dest.fromReadablePath()
+        copyWithUniqueName(sourceFile, destFile)
+        if (deleteSource) {
+            if (sourceFile.isDirectory) sourceFile.deleteRecursively()
+            else sourceFile.delete()
+        }
+    }
+
+    private fun copyWithUniqueName(source: File, targetDirectory: File) {
+        require(source.exists()) { "Source file not exists!" }
+        require(targetDirectory.isDirectory) { "Target directory is not folder!" }
+
+        val (nameWithoutExtension, extension) = source.nameWithoutExtension to source.extension
+        var target = File(targetDirectory, source.name)
+        var counter = 1
+        val ext = if (extension.isNotEmpty()) ".$extension" else ""
+
+        // Генерация уникального имени
+        while (target.exists()) {
+            target = File(
+                targetDirectory, if (source.isFile) {
+                    "$nameWithoutExtension (${counter++})$ext"
+                } else {
+                    "${source.name} (${counter++})"
+                }
+            )
+        }
+
+        if (source.isFile) {
+            // Копирование файла
+            source.copyTo(target)
+        } else {
+            // Копирование папки рекурсивно
+            source.copyRecursively(target)
+        }
+    }
 }
 
 fun Player.sendToast(message: Component) {
@@ -142,7 +192,7 @@ class CreateFilePacket(val path: String) : HollowPacketV3<CreateFilePacket> {
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
 @Serializable
-class StartScriptPacket(val path: String): HollowPacketV3<StartScriptPacket> {
+class StartScriptPacket(val path: String) : HollowPacketV3<StartScriptPacket> {
     override fun handle(player: Player) {
         if (!player.hasPermissions(2)) {
             player.sendSystemMessage("You don't have permissions to start scripts!".literal)
@@ -158,7 +208,7 @@ class StartScriptPacket(val path: String): HollowPacketV3<StartScriptPacket> {
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
 @Serializable
-class CloseScreenPacket: HollowPacketV3<CloseScreenPacket> {
+class CloseScreenPacket : HollowPacketV3<CloseScreenPacket> {
     override fun handle(player: Player) {
         Minecraft.getInstance().screen?.onClose()
     }
@@ -166,7 +216,7 @@ class CloseScreenPacket: HollowPacketV3<CloseScreenPacket> {
 
 @HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
 @Serializable
-class StopScriptPacket(val path: String): HollowPacketV3<StopScriptPacket> {
+class StopScriptPacket(val path: String) : HollowPacketV3<StopScriptPacket> {
     override fun handle(player: Player) {
         if (!player.hasPermissions(2)) {
             player.sendSystemMessage("You don't have permissions to start scripts!".literal)

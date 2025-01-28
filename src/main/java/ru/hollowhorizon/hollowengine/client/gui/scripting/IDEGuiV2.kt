@@ -30,6 +30,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileTitleBar
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.kool.dragItem
+import ru.hollowhorizon.hollowengine.client.utils.lang
 
 val PT_SANS by lazy {
     val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/pt_sans.json".rl.stream)
@@ -63,7 +64,7 @@ object IDEGuiV2 : KoolScreen({
             }
         }
 
-        projectDock = UiDockable("Проект", this).apply { setFloatingBounds(height = Dp(100f)) }
+        projectDock = UiDockable("hollowengine.gui.ide.project_tree".lang, this).apply { setFloatingBounds(height = Dp(100f)) }
         val projectSurface = WindowSurface(projectDock, ideColors, ideSizes) {
             Column(Grow.Std, Grow.Std) {
                 FileTitleBar(projectDock)

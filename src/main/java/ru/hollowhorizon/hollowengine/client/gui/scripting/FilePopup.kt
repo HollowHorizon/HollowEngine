@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
+import de.fabmax.kool.Clipboard
+import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.Composable
 import de.fabmax.kool.modules.ui2.UiScope
@@ -7,6 +9,7 @@ import de.fabmax.kool.modules.ui2.remember
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
 
@@ -18,6 +21,8 @@ class FilePopup : Composable {
     private lateinit var renamePopup: ItemPopupMenu<FileNode>
     private lateinit var deletePopup: ItemPopupMenu<FileNode>
 
+    private var copySource = ""
+    private var deleteOriginal = false
     private var fileExtension = ".kts"
 
     override fun UiScope.compose() {
@@ -43,58 +48,75 @@ class FilePopup : Composable {
         filePopup.hide()
         filePopup.show(position, SubMenuItem {
             if (node.isFolder) {
-                subMenu("Создать", "hollowengine:textures/gui/icons/add.png") {
-                    item("Папка", "hollowengine:textures/gui/icons/create_folder.png") {
+                subMenu(ACTIONS("create"), "hollowengine:textures/gui/icons/add.png") {
+                    item(ACTIONS("create.folder"), "hollowengine:textures/gui/icons/create_folder.png") {
                         createFolderPopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                     }
-                    subMenu("Скрипт", "hollowengine:textures/gui/icons/create_file.png") {
-                        item("Сюжетное событие", "hollowengine:textures/gui/icons/file_kts.png") {
+                    subMenu(ACTIONS("create.script"), "hollowengine:textures/gui/icons/create_file.png") {
+                        item(ACTIONS("create.script.story"), "hollowengine:textures/gui/icons/file_kts.png") {
                             fileExtension = ".story.kts"
                             createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                         }
-                        item("Интерфейс", "hollowengine:textures/gui/icons/file_kts.png") {
-                            fileExtension = ".gui.kts"
+                        item(ACTIONS("create.script.kool"), "hollowengine:textures/gui/icons/file_kts.png") {
+                            fileExtension = ".kool.kts"
                             createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                         }
-                        item("Обработчик событий", "hollowengine:textures/gui/icons/file_kts.png") {
+                        item(ACTIONS("create.script.event"), "hollowengine:textures/gui/icons/file_kts.png") {
                             fileExtension = ".event.kts"
                             createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                         }
                     }
                 }
             } else {
-                item("Открыть", "hollowengine:textures/gui/icons/file_kts.png") {
+                item(ACTIONS("open"), "hollowengine:textures/gui/icons/file_kts.png") {
                     RequestFilePacket(node.treePath).send()
                 }
             }
             divider()
-            item("Копировать", "") {
-
+            item(ACTIONS("copy"), "hollowengine:textures/gui/icons/copy.png") {
+                copySource = it.treePath
+                deleteOriginal = false
             }
-            item("Вырезать", "") {
-
+            item(ACTIONS("cut"), "hollowengine:textures/gui/icons/cut.png") {
+                copySource = it.treePath
+                deleteOriginal = true
             }
-            item("Вставить", "") {
+            item(ACTIONS("paste"), "hollowengine:textures/gui/icons/paste.png") {
+                if(!it.isFolder) return@item
 
+                val target = it.treePath
+
+                if(copySource.isNotEmpty()) CopyFilePacket(copySource, target, deleteOriginal).send()
+                if(deleteOriginal) copySource = ""
+
+                // Немного халтурный способ обновления папки - закрыть и открыть
+                it.toggleExpanded()
+                it.toggleExpanded()
             }
             divider()
-            if(Minecraft.getInstance().isLocalServer) item("Открыть в проводнике", "hollowengine:textures/gui/icons/explorer.png") {
+            if(node.treePath.startsWith("assets/")) item(ACTIONS("copy_as_path"), "hollowengine:textures/gui/icons/copy.png") {
+                Clipboard.copyToClipboard(node.treePath.substringAfter("assets/").replaceFirst('/', ':'))
+            }
+            if(Minecraft.getInstance().isLocalServer) item(ACTIONS("open_in_explorer"), "hollowengine:textures/gui/icons/explorer.png") {
                 DesktopUtil.openInExplorer(node.treePath.fromReadablePath())
             }
             divider()
-            subMenu("Git", "") {
-                item("Commit", "") {}
-                item("Add", "") {}
-                item("Push", "") {}
-                item("Fetch", "") {}
-            }
+            subMenu(ACTIONS("github"), "hollowengine:textures/gui/icons/github.png") {}
             divider()
-            item("Переименовать", "hollowengine:textures/gui/icons/rename.png") {
+            item(ACTIONS("rename"), "hollowengine:textures/gui/icons/rename.png") {
                 renamePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
+                // Немного халтурный способ обновления папки - закрыть и открыть
+                it.toggleExpanded()
+                it.toggleExpanded()
             }
-            item("Удалить", "hollowengine:textures/gui/icons/remove.png") {
+            item(ACTIONS("delete"), "hollowengine:textures/gui/icons/remove.png") {
                 deletePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
+                // Немного халтурный способ обновления папки - закрыть и открыть
             }
         }, node)
+    }
+
+    companion object {
+        val ACTIONS: (String) -> String = { "hollowengine.gui.ide.actions.${it}".lang }
     }
 }

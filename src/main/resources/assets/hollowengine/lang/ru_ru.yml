@@ -7,6 +7,7 @@ hollowengine:
       edit: Правка
       search: Поиск
       settings: Настройки
+      project_tree: Проект
 
       popups:
         create_folder: "Введите название папки:"
@@ -14,13 +15,34 @@ hollowengine:
         rename: "Введите новое название:"
         delete: "Вы уверены, что хотите удалить?"
 
+      actions:
+        create:
+          .: Создать
+          script:
+            .: Скрипт
+            story: Сюжетное событие
+            event: Обработчик событий (WIP)
+            kool: Сцена Kool (WIP)
+          folder: Папка
+        open: Открыть
+        copy: Копировать
+        cut: Вырезать
+        paste: Вставить
+        copy_as_path: Копировать как ResourceLocation
+        open_in_explorer: Открыть в проводнике
+        github:
+          .: GitHub (WIP)
+        rename: Переименовать
+        delete: Удалить
+
+
   commands:
     copy: "§6[§bHollow Engine§6] §7Значение: %s скопировано."
     tags: "§6[§bHollow Engine§6] §7Теги предмета: "
+    model_animations: "§6[§bHollow Engine§6] Анимации модели %s:"
+    model_textures: "§6[§bHollow Engine§6] Текстуры модели %s:"
 
 key:
-  categories:
-    hollowengine:
-      keys: "HollowEngine: Клавиши"
   hollowengine:
+    .: "HollowEngine: Клавиши"
     menu: Главное меню HollowEngine

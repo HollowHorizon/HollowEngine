@@ -1,20 +1,15 @@
 package ru.hollowhorizon.hollowengine.client.gui
 
-import com.mojang.blaze3d.systems.RenderSystem
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.MsdfFont
-import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT_DATA
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.client.utils.open
-import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.post
-import ru.hollowhorizon.hc.common.network.request
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
-import ru.hollowhorizon.hollowengine.client.gui.scripting.RequestTreePacket
 import ru.hollowhorizon.hollowengine.docs.DOCS_GENERATOR
 
 fun interface KoolGui {
@@ -57,13 +52,7 @@ class DashBoardScreen : KoolScreen({
 @SubscribeEvent
 fun onAddTab(event: DashBoardScreen.TabEvent) {
     event.register(DashBoardScreen.Tab("code_editor") {
-        scopeSync {
-            val newTree = RequestTreePacket().request().tree
-            RenderSystem.recordRenderCall {
-                IDEGuiV2.fileTree = newTree
-                IDEGuiV2.open()
-            }
-        }
+        IDEGuiV2.open()
     })
     event.register(DashBoardScreen.Tab("docs") {
         DocsScreen.open()

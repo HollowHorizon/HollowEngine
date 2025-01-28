@@ -24,6 +24,8 @@ fun EditPopup(label: String, hint: String, onClick: (FileNode, String) -> Unit) 
         }
         ConfirmWidget(this@apply) {
             onClick(it, text)
+            it.parent?.toggleExpanded()
+            it.parent?.toggleExpanded()
         }
     }
 }
@@ -34,10 +36,14 @@ fun WarningModalPopup(label: String, onClick: (FileNode) -> Unit) = ItemPopupMen
             .background(RoundRectBackground(colors.backgroundMid, sizes.gap))
             .border(RoundRectBorder(colors.primaryVariant, sizes.gap, sizes.borderWidth))
             .padding(sizes.gap)
-        Text(label) {
+        Text(label.lang) {
             modifier.margin(sizes.smallGap)
         }
-        ConfirmWidget(this@apply, onClick)
+        ConfirmWidget(this@apply) {
+            onClick(it)
+            it.parent?.toggleExpanded()
+            it.parent?.toggleExpanded()
+        }
     }
 }
 

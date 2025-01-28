@@ -1,0 +1,47 @@
+hollowengine:
+  gui:
+    menu: HollowEngine Menu
+    ide:
+      .: Integrated Development Environment
+      file: File
+      edit: Edit
+      search: Search
+      settings: Settings
+      project_tree: Project
+
+      popups:
+        create_folder: "Enter folder name:"
+        create_file: "Enter file name:"
+        rename: "Enter new name:"
+        delete: "Are you sure you want to delete this?"
+
+      actions:
+        create:
+          .: Create
+          script:
+            .: Script
+            story: Story event
+            event: Event handler
+            kool: Kool scene
+          folder: Folder
+        open: Open
+        copy: Copy
+        cut: Cut
+        paste: Paste
+        open_in_explorer: Open in Explorer
+        github:
+          .: GitHub
+        rename: Rename
+        delete: Delete
+
+
+  commands:
+    copy: "§6[§bHollow Engine§6] §7Value: %s has been copied."
+    tags: "§6[§bHollow Engine§6] §7Item tags: "
+    model_animations: "§6[§bHollow Engine§6] Animations for model %s:"
+    model_textures: "§6[§bHollow Engine§6] Textures for model %s:"
+
+key:
+  hollowengine:
+    .: "HollowEngine: Keys"
+    menu: HollowEngine Main Menu

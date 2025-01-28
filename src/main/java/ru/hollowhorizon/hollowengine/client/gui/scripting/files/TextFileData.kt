@@ -10,6 +10,9 @@ import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
 import ru.hollowhorizon.hollowengine.client.gui.scripting.SaveFilePacket
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextArea
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextAreaModifier
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextEditorHandler
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.OnColorizedEvent
@@ -40,6 +43,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, private val co
 
         lines.clear()
         lines.addAll(event.text)
+        surface.triggerUpdate()
     }
 
     fun onCompletionsEvent(event: OnCompletionsEvent) = launchOnMainThread {
@@ -47,11 +51,15 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, private val co
 
         modifier.completions.clear()
         modifier.completions.addAll(event.completions)
+        surface.triggerUpdate()
+
     }
 
     fun onErrorsEvent(errors: List<ScriptError>) {
         modifier.errors.clear()
         modifier.errors.addAll(errors)
+        surface.triggerUpdate()
+
     }
 
     override fun save() {

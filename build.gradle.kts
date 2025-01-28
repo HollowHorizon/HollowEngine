@@ -48,6 +48,7 @@ dependencies {
     // GRAPHICS //
     install("de.fabmax.kool:kool-core:$koolVersion", false)
     install("com.tianscar.imageio:imageio-apng:1.0.1", false)
+    install("com.facebook:ktfmt:0.54")
 
     install("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin", true)
 

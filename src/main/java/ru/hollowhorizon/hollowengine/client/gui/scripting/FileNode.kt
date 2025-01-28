@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
-import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_RIGHT
@@ -8,7 +7,7 @@ import de.fabmax.kool.pipeline.Texture
 import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.pipeline.backend.gl.GlTexture
 import de.fabmax.kool.pipeline.backend.gl.LoadedTextureGl
-import de.fabmax.kool.util.Color
+import de.fabmax.kool.util.launchOnMainThread
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.resources.ResourceLocation
@@ -17,14 +16,14 @@ import ru.hollowhorizon.hc.client.kool.MCGlApi
 import ru.hollowhorizon.hc.client.utils.literal
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.toTexture
+import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hc.common.network.HollowPacketV2
 import ru.hollowhorizon.hc.common.network.RequestPacket
+import ru.hollowhorizon.hc.common.network.request
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.kool.lineHeight
 import ru.hollowhorizon.hollowengine.client.kool.DndHandler
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
-import java.io.File
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 
 fun createTexture(location: ResourceLocation, width: Int, height: Int) = Texture2d().apply {
     gpuTexture =
@@ -49,6 +48,8 @@ class FileNode(val treeName: String, val treePath: String) : Composable {
 
     @Transient
     val isExpanded = mutableStateOf(false)
+    @Transient
+    var parent: FileNode? = null
 
     fun walk(): MutableList<FileNode> {
         val list = mutableListOf(this)
@@ -57,12 +58,38 @@ class FileNode(val treeName: String, val treePath: String) : Composable {
     }
 
     fun toggleExpanded() {
-        if (isFolder) {
-            isExpanded.set(!isExpanded.value)
+        if (!isFolder) return
+
+        // При закрытии папки удаляем из памяти её содержимое, чтобы при открытии оно обновилось
+        if (isExpanded.value) this.children.clear()
+        else {
+            // Запрашиваем у сервера содержимое папки (оно придёт с задержкой)
+            scopeSync {
+                val result = RequestFolderPacket(this@FileNode.treePath).request()
+
+                // Добавляем новые элементы *перед* отрисовкой
+                // Чтобы не получить ConcurrentModificationException
+                launchOnMainThread {
+                    this@FileNode.children.addAll(result.children.map { child ->
+                        FileNode(
+                            child.name,
+                            if (this@FileNode.treePath.isEmpty()) child.name else this@FileNode.treePath + "/" + child.name
+                        ).apply {
+                            parent = this@FileNode
+                            depth = this@FileNode.depth + 1
+                            isFolder = child.isFolder
+                        }
+                    })
+                    this@FileNode.sort()
+                }
+            }
         }
+
+        // Открываем / Закрываем папку
+        isExpanded.set(!isExpanded.value)
     }
 
-    fun sort() {
+    private fun sort() {
         children.sortBy { it.treeName }
         children.sortBy { !it.isFolder }
         children.forEach { it.sort() }
@@ -202,30 +229,28 @@ class FileNode(val treeName: String, val treePath: String) : Composable {
         }
 
     companion object {
-        val EMPTY = FileNode("", "")
+        val EMPTY = FileNode("HollowEngine", "").apply { isFolder = true }
     }
 }
 
 @HollowPacketV2
 @Serializable
-class RequestTreePacket(var tree: FileNode = FileNode.EMPTY) : RequestPacket<RequestTreePacket>() {
+class RequestFolderPacket(private var folder: String) : RequestPacket<RequestFolderPacket>() {
+    val children = mutableListOf<Child>()
+
     override fun retrieveValue(player: ServerPlayer) {
         if (!player.hasPermissions(2)) {
             player.sendSystemMessage("You don't have permissions to open scripts!".literal)
             return
         }
 
-        tree = projectTree(DirectoryManager.HOLLOW_ENGINE.toFile())
+        val file = folder.fromReadablePath()
+
+        file.listFiles()?.forEach {
+            children.add(Child(it.name, it.isDirectory))
+        }
     }
 
-    private fun projectTree(file: File, depth: Int = 0, predicate: (File) -> Boolean = { true }): FileNode {
-        val tree = FileNode(file.name, file.toReadablePath())
-        tree.isFolder = !file.isFile
-        tree.depth = depth
-        file.listFiles()
-            ?.filter { predicate(it) }
-            ?.forEach { tree.children += (projectTree(it, depth + 1, predicate)) }
-        tree.sort()
-        return tree
-    }
+    @Serializable
+    class Child(val name: String, val isFolder: Boolean)
 }
