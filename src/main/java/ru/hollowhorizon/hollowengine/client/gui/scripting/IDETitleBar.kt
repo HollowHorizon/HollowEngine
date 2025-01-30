@@ -24,11 +24,6 @@ object IDETitleBar : Composable {
             )
             modifier.margin(vertical = sizes.smallGap)
 
-            Image("hollowengine:textures/gui/icons/code_editor.png") {
-                modifier.size(sizes.heightTitleBar - sizes.smallGap * 2, sizes.heightTitleBar - sizes.smallGap * 2)
-                    .margin(end = sizes.gap).alignY(AlignmentY.Center)
-            }
-
             menuItem("hollowengine.gui.ide.file".lang) {
                 menuItem("Закрыть")
             }

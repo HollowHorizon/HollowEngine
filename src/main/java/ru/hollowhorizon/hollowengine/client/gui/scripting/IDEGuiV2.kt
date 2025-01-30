@@ -29,6 +29,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileTitleBar
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.ToolBar
 import ru.hollowhorizon.hollowengine.client.kool.dragItem
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
@@ -64,11 +65,34 @@ object IDEGuiV2 : KoolScreen({
             }
         }
 
-        projectDock = UiDockable("hollowengine.gui.ide.project_tree".lang, this).apply { setFloatingBounds(height = Dp(100f)) }
+        projectDock =
+            UiDockable("hollowengine.gui.ide.project_tree".lang, this).apply { setFloatingBounds(height = Dp(100f)) }
         val projectSurface = WindowSurface(projectDock, ideColors, ideSizes) {
-            Column(Grow.Std, Grow.Std) {
-                FileTitleBar(projectDock)
-                IDEGuiV2.fileTree()
+            val block: UiScope.() -> Unit = {
+                Column(Grow.Std, Grow.Std) {
+                    FileTitleBar(projectDock)
+                    IDEGuiV2.fileTree()
+                }
+            }
+
+            val dockNode = projectDock.dockedTo.use()
+            if (dockNode != null) {
+                val isPanelBarLeft = dockNode.boundsLeftDp.value.px < 1f
+                        || dockNode.boundsRightDp.value.px < dockNode.dock.root.boundsRightDp.value.px * 0.99f
+
+                Row(Grow.Std, Grow.Std) {
+                    if (isPanelBarLeft) {
+                        ToolBar(dockNode)
+                        Box(width = sizes.borderWidth, height = Grow.Std) { modifier.backgroundColor(UiColors.titleBg) }
+                        block()
+                    } else {
+                        block()
+                        Box(width = sizes.borderWidth, height = Grow.Std) { modifier.backgroundColor(UiColors.titleBg) }
+                        ToolBar(dockNode)
+                    }
+                }
+            } else {
+                block()
             }
         }
 
@@ -109,7 +133,15 @@ object IDEGuiV2 : KoolScreen({
                             .localRoundRect(0f, 0f, widthPx, heightPx, heightPx * 0.5f, colors.backgroundMid)
                         colors.primary.let {
                             getUiPrimitives(UiSurface.LAYER_BACKGROUND)
-                                .localRoundRectBorder(0f, 0f, widthPx, heightPx, heightPx * 0.5f, sizes.borderWidth.px, it)
+                                .localRoundRectBorder(
+                                    0f,
+                                    0f,
+                                    widthPx,
+                                    heightPx,
+                                    heightPx * 0.5f,
+                                    sizes.borderWidth.px,
+                                    it
+                                )
                         }
                     }
                 }).padding(sizes.smallGap)
