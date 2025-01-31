@@ -13,16 +13,11 @@ object IDETitleBar : Composable {
     var currentItemIndex = 0
 
     override fun UiScope.compose() {
-        Row(width = Grow.Std, height = sizes.heightTitleBar - sizes.smallGap) {
-            modifier.backgroundColor(colors.backgroundMid).padding(sizes.smallGap)
+        Row(width = Grow.Std, height = 40.dp) {
+            modifier.padding(sizes.gap)
             modifier.background(
-                TitleBgRenderer(
-                    colors.backgroundMid,
-                    Color.LIGHT_BLUE,
-                    fade = TitleBgRenderer.fadeProps(Vec2f(0f, 0f), 100f, 1f)
-                )
+                RectGradientBackground(Color.DARK_RED, colors.background, 0.dp, 20.dp, 400.dp, 400.dp)
             )
-            modifier.margin(vertical = sizes.smallGap)
 
             menuItem("hollowengine.gui.ide.file".lang) {
                 menuItem("Закрыть")
@@ -41,19 +36,18 @@ object IDETitleBar : Composable {
             ComboBox {
                 modifier.selectedIndex(currentItemIndex)
                     .onItemSelected { currentItemIndex = it }
-                    .items(IDEGuiV2.files.map { it.fileName })
-                    .height(sizes.heightTitleBar)
-                    .width(250.dp)
+                    .items(IDEGuiV2.files.map { it.key })
+                    .height(30.dp)
                     .margin(end = sizes.gap).align(AlignmentX.End, AlignmentY.Center)
             }
             Image("hollowengine:textures/gui/icons/play.png") {
-                modifier.size(sizes.heightTitleBar - sizes.smallGap * 2, sizes.heightTitleBar - sizes.smallGap * 2)
+                modifier.size(40.dp - sizes.smallGap * 2, 40.dp - sizes.smallGap * 2)
                     .margin(end = sizes.gap).alignY(AlignmentY.Center)
                 var isHovered by remember { mutableStateOf(false) }
 
                 modifier
                     .onEnter { isHovered = true }.onExit { isHovered = false }
-                    .onClick { if (IDEGuiV2.files.isNotEmpty()) StartScriptPacket(IDEGuiV2.files[currentItemIndex].filePath).send() }
+                    .onClick { if (IDEGuiV2.files.isNotEmpty()) StartScriptPacket(IDEGuiV2.files.map { it.key }[currentItemIndex]).send() }
 
                 if (isHovered) {
                     val color = Color("FFFFFF33")

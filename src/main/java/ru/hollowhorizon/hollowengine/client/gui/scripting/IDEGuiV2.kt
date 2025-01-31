@@ -2,14 +2,13 @@
 
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
-import com.mojang.blaze3d.platform.NativeImage
 import de.fabmax.kool.Assets
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
-import de.fabmax.kool.modules.ui2.docking.UiDockable
+import de.fabmax.kool.modules.ui2.docking.DockLayout
 import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
@@ -18,20 +17,18 @@ import de.fabmax.kool.util.MsdfFontData
 import de.fabmax.kool.util.MsdfMeta
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
-import net.minecraft.client.renderer.texture.DynamicTexture
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.client.utils.json.JsonFormat
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.stream
 import ru.hollowhorizon.hollowengine.client.gui.kool.*
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2.projectDock
+import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileTitleBar
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.ToolBar
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.FileTreePanel
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.FilesPanel
 import ru.hollowhorizon.hollowengine.client.kool.dragItem
-import ru.hollowhorizon.hollowengine.client.utils.lang
 
 val PT_SANS by lazy {
     val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/pt_sans.json".rl.stream)
@@ -59,71 +56,37 @@ object IDEGuiV2 : KoolScreen({
         dockingSurface.sizes = ideSizes
         dockingPaneComposable = Composable {
             Column(Grow.Std, Grow.Std) {
-                modifier.margin(top = sizes.heightWindowTitleBar)
-                divider(horizontalMargin = 0.dp, color = UiColors.titleBg)
+                modifier.margin(top = 40.dp)
+                Box(width = Grow.Std, height = sizes.borderWidth) { modifier.backgroundColor(UiColors.titleBg) }
+                divider(horizontalMargin = 0.dp, color = colors.backgroundMid)
                 root()
             }
         }
 
-        projectDock =
-            UiDockable("hollowengine.gui.ide.project_tree".lang, this).apply { setFloatingBounds(height = Dp(100f)) }
-        val projectSurface = WindowSurface(projectDock, ideColors, ideSizes) {
-            val block: UiScope.() -> Unit = {
-                Column(Grow.Std, Grow.Std) {
-                    FileTitleBar(projectDock)
-                    IDEGuiV2.fileTree()
-                }
+        val projectDock = FileTreePanel(this)
+        val filesDock = FilesPanel("Откройте любой файл.", this)
+
+        LayoutLoader.loadIdeLayout(this) { name ->
+            if (name.startsWith("path.")) {
+                RequestFilePacket(name.substringAfter("path.")).send()
+                return@loadIdeLayout null
             }
 
-            val dockNode = projectDock.dockedTo.use()
-            if (dockNode != null) {
-                val isPanelBarLeft = dockNode.boundsLeftDp.value.px < 1f
-                        || dockNode.boundsRightDp.value.px < dockNode.dock.root.boundsRightDp.value.px * 0.99f
+            when (name) {
+                projectDock.name -> projectDock.dockable
+                filesDock.name -> filesDock.dockable
 
-                Row(Grow.Std, Grow.Std) {
-                    if (isPanelBarLeft) {
-                        ToolBar(dockNode)
-                        Box(width = sizes.borderWidth, height = Grow.Std) { modifier.backgroundColor(UiColors.titleBg) }
-                        block()
-                    } else {
-                        block()
-                        Box(width = sizes.borderWidth, height = Grow.Std) { modifier.backgroundColor(UiColors.titleBg) }
-                        ToolBar(dockNode)
-                    }
-                }
-            } else {
-                block()
+                else -> null
             }
         }
-
-        addDockableSurface(projectDock, projectSurface)
-
-        createNodeLayout(
-            listOf(
-                "0:row",
-                "0/0:leaf",
-                "0/1:leaf"
-            )
-        )
-
-        getLeafAtPath("0/0")?.dock(projectDock)
     }
 
     addNode(dock)
     addPanelSurface(ideColors, ideSizes) {
-        modifier.alignY(AlignmentY.Top)
-            .width(Grow.Std).height(sizes.heightWindowTitleBar)
-        modifier.background(
-            TitleBgRenderer(
-                colors.backgroundMid, Color.CYAN, fade = TitleBgRenderer.fadeProps(
-                    Vec2f(0f, 0f), 14f, 0.3f
-                )
-            )
-        )
+        modifier.alignY(AlignmentY.Top).size(Grow.Std, 40.dp)
 
         IDETitleBar()
-    }
-    addPanelSurface(ideColors, ideSizes) {
+
         IDEGuiV2.dndContext.dragItem()?.let {
 
             Popup(PointerInput.primaryPointer.x.toFloat(), PointerInput.primaryPointer.y.toFloat()) {
@@ -178,7 +141,7 @@ object IDEGuiV2 : KoolScreen({
 
     IDEGuiV2.dock = dock
 }) {
-    val files = arrayListOf<FileData>()
+    val files = HashMap<String, FileData>()
     var fileTree = FileNode.EMPTY
 
     val dndContext = DragAndDropContext<FileNode>()
@@ -186,34 +149,50 @@ object IDEGuiV2 : KoolScreen({
     @JvmStatic
     lateinit var dock: Dock
 
-    @JvmStatic
-    lateinit var projectDock: UiDockable
-
     fun openFile(path: String, bytes: ByteArray, type: FileType) {
-        val file = when (type) {
-            FileType.TEXT -> TextFileData(this, path.substringAfterLast('/'), path, String(bytes))
-            FileType.IMAGE -> ImageFileData(
-                this,
-                path.substringAfterLast('/'),
-                path,
-                DynamicTexture(NativeImage.read(bytes))
-            )
+        // Get or Create file
+        val file = files.getOrPut(path) {
+            val localFile = when (type) {
+                FileType.TEXT -> TextFileData(this, path.substringAfterLast('/'), path, String(bytes))
+                FileType.IMAGE -> ImageFileData(
+                    this,
+                    path.substringAfterLast('/'),
+                    path,
+                    bytes
+                )
+            }
+            dock.addDockableSurface(localFile.dockable, localFile.surface)
+            val fileLeaf = dock.getLeafAtPath("0/1") ?: dock.getLeafAtPath("0")
+            fileLeaf?.dock(localFile.dockable)
+            localFile
         }
 
-        files.add(file)
+        // Update File
+        when (type) {
+            FileType.IMAGE -> (file as ImageFileData).apply {
+                image = bytes
+                surface.triggerUpdate()
+            }
 
-        dock.addDockableSurface(file.dockable, file.surface)
-        dock.getLeafAtPath("0/1")?.dock(file.dockable)
+            FileType.TEXT -> (file as TextFileData).apply {
+                setText(String(bytes))
+            }
+        }
     }
 
     override fun shouldCloseOnEsc(): Boolean {
-        return files.filterIsInstance<TextFileData>().all { it.modifier.completions.isEmpty() }
+        return files.values.filterIsInstance<TextFileData>().all { it.modifier.completions.isEmpty() }
+    }
+
+    override fun onClose() {
+        super.onClose()
+        DockLayout.saveLayout(dock, LayoutLoader.IDE_LAYOUT)
     }
 }
 
 val ideColors = Colors.darkColors(
-    background = Color("232933ff"),
-    backgroundVariant = Color("161a20ff"),
+    background = Color("232933DD"),
+    backgroundVariant = Color("161a2088"),
     onBackground = Color("dbe6ffff"),
     secondary = Color("7786a5ff"),
     secondaryVariant = Color("4d566bff"),

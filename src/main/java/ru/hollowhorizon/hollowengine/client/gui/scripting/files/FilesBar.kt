@@ -18,7 +18,7 @@ fun UiScope.FileDockingTabsBar(
 
     if (dockNode != null && nodeCount > 1) {
         Row(width = Grow.Std, height = sizes.gap * 4f, scopeName = scopeName) {
-            modifier.backgroundColor(colors.backgroundMid.mulRgb(1.5f))
+            modifier.backgroundColor(colors.background)
 
             dockNode.dockedItems.filter { !it.isHidden }.forEach { item ->
                 Box {
@@ -33,10 +33,10 @@ fun UiScope.FileDockingTabsBar(
                         val bgColor = if (isHovered) {
                             colors.hoverBg
                         } else {
-                            colors.background
+                            colors.backgroundMid
                         }
                         modifier
-                            .background(RectBackground(bgColor))
+                            .backgroundColor(bgColor)
                             .isClickFeedback(false)
                             .textAlignX(AlignmentX.Start)
                             .onClick {

@@ -28,6 +28,7 @@ hollowengine:
         copy: Copy
         cut: Cut
         paste: Paste
+        copy_as_path: Copy as ResourceLocation
         open_in_explorer: Open in Explorer
         github:
           .: GitHub

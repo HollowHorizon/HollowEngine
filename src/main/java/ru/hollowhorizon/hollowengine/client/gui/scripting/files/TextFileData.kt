@@ -7,6 +7,7 @@ import de.fabmax.kool.util.launchOnMainThread
 import kotlinx.coroutines.*
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import ru.hollowhorizon.hc.common.events.EventBus
+import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
 import ru.hollowhorizon.hollowengine.client.gui.scripting.SaveFilePacket
@@ -22,7 +23,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
 var currentLine = 0
 var currentColumn = 0
 
-class TextFileData(project: IDEGuiV2, name: String, path: String, private val code: String) :
+class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) :
     FileData(project, name, path) {
     private val lines = mutableStateListOf(*code.lines().map {
         TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 30f), Color.WHITE)))
@@ -36,6 +37,14 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, private val co
         EventBus.register(::onColorizedEvent)
         EventBus.register(::onCompletionsEvent)
         ActionManager.launch { compileText(code) }
+    }
+
+    fun setText(text: String) {
+        lines.clear()
+        lines.addAll(mutableStateListOf(*text.lines().map {
+            TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 30f), Color.WHITE)))
+        }.toTypedArray()))
+        surface.triggerUpdate()
     }
 
     fun onColorizedEvent(event: OnColorizedEvent) = launchOnMainThread {
@@ -68,6 +77,8 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, private val co
     }
 
     override fun UiScope.compose() {
+        modifier.backgroundColor(colors.backgroundMid)
+
         ScriptTextArea(
             ListTextLineProvider(lines),
             width = Grow.Std,

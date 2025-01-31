@@ -125,7 +125,7 @@ class FileNode(val treeName: String, val treePath: String) : Composable {
                     if (item.isFolder) {
                         item.toggleExpanded()
                     } else {
-                        val file = IDEGuiV2.files.find { it.filePath == item.treePath }
+                        val file = IDEGuiV2.files[item.treePath]
 
                         if (file == null) RequestFilePacket(item.treePath).send()
                         else IDEGuiV2.dock.getLeafAtPath("0/1")?.bringToTop(file.dockable)

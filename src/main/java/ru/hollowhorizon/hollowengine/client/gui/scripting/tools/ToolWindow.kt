@@ -16,8 +16,8 @@ val Sizes.panelBarWidth: Dp get() = baseSize - borderWidth
 
 fun UiScope.ToolBar(dockNode: DockNodeLeaf) = Column(width = sizes.panelBarWidth, height = Grow.Std) {
     modifier
-        .backgroundColor(colors.backgroundMid)
-        .padding(top = sizes.smallGap * 0.5f)
+        .backgroundColor(colors.background)
+        .padding(sizes.smallGap * 0.5f)
     dockNode.dockedItems.forEach { panel ->
         panelButton(panel, dockNode)
     }
