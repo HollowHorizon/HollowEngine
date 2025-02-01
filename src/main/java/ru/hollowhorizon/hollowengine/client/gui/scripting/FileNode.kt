@@ -8,6 +8,7 @@ import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.pipeline.backend.gl.GlTexture
 import de.fabmax.kool.pipeline.backend.gl.LoadedTextureGl
 import de.fabmax.kool.util.launchOnMainThread
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.resources.ResourceLocation
@@ -41,7 +42,7 @@ val KOTLIN by lazy { createTexture("hollowengine:textures/gui/icons/file_kts.png
 val CLOSE by lazy { createTexture("hollowengine:textures/gui/icons/close.png".rl, 16, 16) }
 
 @Serializable
-class FileNode(val treeName: String, val treePath: String) : Composable {
+open class FileNode(val treeName: String, val treePath: String) : Composable {
     var isFolder = false
     var depth = 0
     val children: MutableList<FileNode> = ArrayList()
@@ -57,7 +58,7 @@ class FileNode(val treeName: String, val treePath: String) : Composable {
         return list
     }
 
-    fun toggleExpanded() {
+    open fun toggleExpanded() {
         if (!isFolder) return
 
         // При закрытии папки удаляем из памяти её содержимое, чтобы при открытии оно обновилось
@@ -118,7 +119,7 @@ class FileNode(val treeName: String, val treePath: String) : Composable {
 
     }
 
-    private fun UiScope.sceneObjectItem(item: FileNode, isHovered: Boolean) {
+    protected open fun UiScope.sceneObjectItem(item: FileNode, isHovered: Boolean) {
         modifier
             .onClick { evt ->
                 if (evt.pointer.isLeftButtonClicked && evt.pointer.leftButtonRepeatedClickCount == 2) {
@@ -143,7 +144,7 @@ class FileNode(val treeName: String, val treePath: String) : Composable {
         sceneObjectLabel(item, isHovered)
     }
 
-    private fun UiScope.sceneObjectDndHandler(item: FileNode) {
+    protected fun UiScope.sceneObjectDndHandler(item: FileNode) {
         val dndHandler = rememberItemDndHandler(item)
 
         if (dndHandler.isHovered.use()) {
@@ -181,7 +182,7 @@ class FileNode(val treeName: String, val treePath: String) : Composable {
         }
     }
 
-    private fun UiScope.sceneObjectLabel(item: FileNode, isHovered: Boolean) =
+    protected open fun UiScope.sceneObjectLabel(item: FileNode, isHovered: Boolean) =
         Row(width = Grow.Std) {
             if (item.depth > 0) {
                 Box(width = 35.dp * item.depth) {}

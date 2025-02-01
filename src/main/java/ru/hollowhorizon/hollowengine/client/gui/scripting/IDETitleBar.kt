@@ -7,6 +7,7 @@ import ru.hollowhorizon.hc.client.kool.Image
 import ru.hollowhorizon.hollowengine.client.gui.kool.TitleBgRenderer
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.heightTitleBar
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
 object IDETitleBar : Composable {
@@ -33,26 +34,28 @@ object IDETitleBar : Composable {
                 modifier.width(Grow.Std)
             }
 
-            ComboBox {
-                modifier.selectedIndex(currentItemIndex)
-                    .onItemSelected { currentItemIndex = it }
-                    .items(IDEGuiV2.files.map { it.key })
-                    .height(30.dp)
-                    .margin(end = sizes.gap).align(AlignmentX.End, AlignmentY.Center)
-            }
-            Image("hollowengine:textures/gui/icons/play.png") {
-                modifier.size(40.dp - sizes.smallGap * 2, 40.dp - sizes.smallGap * 2)
-                    .margin(end = sizes.gap).alignY(AlignmentY.Center)
-                var isHovered by remember { mutableStateOf(false) }
+            if(IDEGuiV2.files.any { it.value is TextFileData }) {
+                ComboBox {
+                    modifier.selectedIndex(currentItemIndex)
+                        .onItemSelected { currentItemIndex = it }
+                        .items(IDEGuiV2.files.map { it.key.substringAfterLast('/') })
+                        .height(30.dp)
+                        .margin(end = sizes.gap).align(AlignmentX.End, AlignmentY.Center)
+                }
+                Image("hollowengine:textures/gui/icons/play.png") {
+                    modifier.size(40.dp - sizes.smallGap * 2, 40.dp - sizes.smallGap * 2)
+                        .margin(end = sizes.gap).alignY(AlignmentY.Center)
+                    var isHovered by remember { mutableStateOf(false) }
 
-                modifier
-                    .onEnter { isHovered = true }.onExit { isHovered = false }
-                    .onClick { if (IDEGuiV2.files.isNotEmpty()) StartScriptPacket(IDEGuiV2.files.map { it.key }[currentItemIndex]).send() }
+                    modifier
+                        .onEnter { isHovered = true }.onExit { isHovered = false }
+                        .onClick { if (IDEGuiV2.files.isNotEmpty()) StartScriptPacket(IDEGuiV2.files.map { it.key }[currentItemIndex]).send() }
 
-                if (isHovered) {
-                    val color = Color("FFFFFF33")
-                    modifier.background(RoundRectBackground(color, sizes.smallGap))
-                        .tint(color)
+                    if (isHovered) {
+                        val color = Color("FFFFFF33")
+                        modifier.background(RoundRectBackground(color, sizes.smallGap))
+                            .tint(color)
+                    }
                 }
             }
         }

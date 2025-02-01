@@ -5,6 +5,7 @@ import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
+import ru.hollowhorizon.hollowengine.client.utils.lang
 
 
 fun UiScope.FileDockingTabsBar(
@@ -26,7 +27,9 @@ fun UiScope.FileDockingTabsBar(
                         .margin(horizontal = sizes.smallGap)
                         .alignY(AlignmentY.Bottom)
 
-                    Button(item.name) {
+                    val itemName = if(item.name.startsWith("path.")) item.name.substringAfterLast('/').lang else item.name
+
+                    Button(itemName) {
                         // set a bit different button style: click feedback is disabled (doesn't work with the way
                         // the tabs are switched)
                         // also we use a custom background to get a more "tabbie" look
@@ -128,7 +131,9 @@ fun UiScope.FileTitleBar(
                 }
             }
 
-            Text(title) {
+            val itemName = if(title.startsWith("path.")) title.substringAfterLast('/').lang else title.lang
+
+            Text(itemName) {
                 modifier
                     .width(Grow.Std)
                     .margin(horizontal = sizes.gap, vertical = sizes.smallGap * 0.5f)

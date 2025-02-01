@@ -9,6 +9,7 @@ import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.DockLayout
+import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
@@ -21,14 +22,19 @@ import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.client.utils.json.JsonFormat
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.stream
+import ru.hollowhorizon.hollowengine.client.gui.docs.DocsNode
 import ru.hollowhorizon.hollowengine.client.gui.kool.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.DocFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DocsTreePanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.FileTreePanel
-import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.FilesPanel
 import ru.hollowhorizon.hollowengine.client.kool.dragItem
+import ru.hollowhorizon.hollowengine.docs.pages.WelcomePage
+import java.awt.Panel
 
 val PT_SANS by lazy {
     val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/pt_sans.json".rl.stream)
@@ -64,7 +70,9 @@ object IDEGuiV2 : KoolScreen({
         }
 
         val projectDock = FileTreePanel(this)
-        val filesDock = FilesPanel("Откройте любой файл.", this)
+        val docsDock = DocsTreePanel(this)
+        panels[projectDock.dockable] = projectDock
+        panels[docsDock.dockable] = docsDock
 
         LayoutLoader.loadIdeLayout(this) { name ->
             if (name.startsWith("path.")) {
@@ -74,8 +82,7 @@ object IDEGuiV2 : KoolScreen({
 
             when (name) {
                 projectDock.name -> projectDock.dockable
-                filesDock.name -> filesDock.dockable
-
+                docsDock.name -> docsDock.dockable
                 else -> null
             }
         }
@@ -180,6 +187,16 @@ object IDEGuiV2 : KoolScreen({
         }
     }
 
+    fun openDocFile(node: FileNode) {
+        files.getOrPut(node.treePath) {
+            val localFile = DocFileData(node.treeName, node.treePath, WelcomePage)
+            dock.addDockableSurface(localFile.dockable, localFile.surface)
+            val fileLeaf = dock.getLeafAtPath("0/1") ?: dock.getLeafAtPath("0")
+            fileLeaf?.dock(localFile.dockable)
+            localFile
+        }
+    }
+
     override fun shouldCloseOnEsc(): Boolean {
         return files.values.filterIsInstance<TextFileData>().all { it.modifier.completions.isEmpty() }
     }
@@ -190,8 +207,9 @@ object IDEGuiV2 : KoolScreen({
     }
 }
 
+val panels = HashMap<Dockable, DockPanel>()
 val ideColors = Colors.darkColors(
-    background = Color("232933DD"),
+    background = Color("232933EE"),
     backgroundVariant = Color("161a2088"),
     onBackground = Color("dbe6ffff"),
     secondary = Color("7786a5ff"),

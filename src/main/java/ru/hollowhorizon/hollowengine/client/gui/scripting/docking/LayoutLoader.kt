@@ -19,6 +19,9 @@ object LayoutLoader {
                 )
             )
 
+            layoutLoader("hollowengine.gui.ide.docs")?.let {
+                dock.getLeafAtPath("0/0")?.dock(it)
+            }
             layoutLoader("hollowengine.gui.ide.project_tree")?.let {
                 dock.getLeafAtPath("0/0")?.dock(it)
             }

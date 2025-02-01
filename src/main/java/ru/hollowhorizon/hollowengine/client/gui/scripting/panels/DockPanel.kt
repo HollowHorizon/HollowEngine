@@ -4,6 +4,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import ru.hollowhorizon.hollowengine.client.gui.kool.UiColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileTitleBar
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ideColors
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ideSizes
@@ -18,13 +19,13 @@ abstract class DockPanel(val name: String, dock: Dock) : Composable {
 
             Row(Grow.Std, Grow.Std) {
                 if (isPanelBarLeft) {
-                    ToolBar(it)
+                    ToolBar(this@DockPanel)
                     Box(width = sizes.borderWidth, height = Grow.Std) { modifier.backgroundColor(UiColors.titleBg) }
                     panelContent()
                 } else {
                     panelContent()
                     Box(width = sizes.borderWidth, height = Grow.Std) { modifier.backgroundColor(UiColors.titleBg) }
-                    ToolBar(it)
+                    ToolBar(this@DockPanel)
                 }
             }
         } ?: run {
@@ -32,9 +33,11 @@ abstract class DockPanel(val name: String, dock: Dock) : Composable {
         }
     }
 
+    abstract val icon: String
+
     private fun UiScope.panelContent() {
         Column(Grow.Std, Grow.Std) {
-            FileTitleBar(dockable)
+            FileTitleBar(dockable, showTabsIfDocked=false)
             this@DockPanel()
         }
     }

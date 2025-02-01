@@ -8,6 +8,7 @@ hollowengine:
       search: Search
       settings: Settings
       project_tree: Project
+      docs: Documentation
 
       popups:
         create_folder: "Enter folder name:"

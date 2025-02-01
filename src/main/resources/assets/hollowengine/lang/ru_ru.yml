@@ -8,6 +8,7 @@ hollowengine:
       search: Поиск
       settings: Настройки
       project_tree: Проект
+      docs: Документация
 
       popups:
         create_folder: "Введите название папки:"
