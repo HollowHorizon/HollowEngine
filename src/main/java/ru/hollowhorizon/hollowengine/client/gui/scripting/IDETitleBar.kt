@@ -17,7 +17,7 @@ object IDETitleBar : Composable {
         Row(width = Grow.Std, height = 40.dp) {
             modifier.padding(sizes.gap)
             modifier.background(
-                RectGradientBackground(Color.DARK_RED, colors.background, 0.dp, 20.dp, 400.dp, 400.dp)
+                RectGradientBackground(colors.background.mulRgb(2f), colors.background, 0.dp, 20.dp, 500.dp, 500.dp)
             )
 
             menuItem("hollowengine.gui.ide.file".lang) {

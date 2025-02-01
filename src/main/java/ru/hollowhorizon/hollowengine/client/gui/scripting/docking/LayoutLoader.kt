@@ -2,7 +2,9 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.docking
 
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.DockLayout
+import de.fabmax.kool.modules.ui2.docking.DockNode
 import de.fabmax.kool.modules.ui2.docking.Dockable
+import ru.hollowhorizon.hollowengine.mixins.kool.DockNodeInvoker
 
 object LayoutLoader {
     val IDE_LAYOUT = "hollowengine.ide.layout"
@@ -31,3 +33,5 @@ object LayoutLoader {
         }
     }
 }
+
+fun DockNode.insertItem(item: Dockable, slot: DockNode.SlotPosition) = (this as DockNodeInvoker).callInsertItem(item, slot)

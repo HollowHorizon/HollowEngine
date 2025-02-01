@@ -4,10 +4,8 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_RIGHT
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
-import ru.hollowhorizon.hollowengine.client.gui.kool.lineHeight
 import ru.hollowhorizon.hollowengine.client.gui.scripting.FileNode
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
-import ru.hollowhorizon.hollowengine.client.gui.scripting.RequestFilePacket
 
 class DocsNode(name: String, path: String) : FileNode(name, path) {
     companion object {
@@ -15,7 +13,7 @@ class DocsNode(name: String, path: String) : FileNode(name, path) {
     }
 
     override fun toggleExpanded() {
-        if(!isFolder) return
+        if (!isFolder) return
 
         // Открываем / Закрываем папку
         isExpanded.set(!isExpanded.value)
@@ -43,10 +41,10 @@ class DocsNode(name: String, path: String) : FileNode(name, path) {
     }
 
     override fun UiScope.sceneObjectLabel(item: FileNode, isHovered: Boolean): RowScope = Row(width = Grow.Std) {
-        modifier.margin(vertical=10.dp)
+        modifier.margin(vertical = 10.dp)
         if (item.depth > 0) {
             var depth = item.depth
-            if(!item.isFolder) depth += 1
+            if (!item.isFolder) depth += 1
             Box(width = SPACING * depth) {}
         }
 
@@ -55,7 +53,7 @@ class DocsNode(name: String, path: String) : FileNode(name, path) {
         Box {
             modifier
                 .alignY(AlignmentY.Center)
-                .margin(end=7.dp)
+                .margin(end = 7.dp)
 
             if (item.isFolder) {
                 Arrow(isHoverable = false) {

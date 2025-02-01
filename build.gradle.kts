@@ -39,6 +39,7 @@ repositories {
 
 dependencies {
     install("ru.hollowhorizon:HollowCore-${container.modPlatform}-${container.minecraftVersion}:$hollowcore:dev", includeInJar = false)
+    include("ru.hollowhorizon:HollowCore-${container.modPlatform}-${container.minecraftVersion}:$hollowcore")
 
     setupScripting()
 
@@ -62,7 +63,7 @@ fun DependencyHandlerScope.setupScripting() {
     install("org.jetbrains.kotlin:kotlin-scripting-jvm:$kotlinVersion", true)
     install("org.jetbrains.kotlin:kotlin-scripting-jvm-host:$kotlinVersion", true)
     install("org.jetbrains.kotlin:kotlin-script-runtime:$kotlinVersion", true)
-    install("org.jetbrains.kotlin:kotlin-compiler-embeddable-mcfriendly:2.1.0-Beta2", true) // I Hate forge modules system...
+    install("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion", true) // I Hate forge modules system...
     install("org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:$kotlinVersion", true)
     install("org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:$kotlinVersion", true)
     install("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion", true)

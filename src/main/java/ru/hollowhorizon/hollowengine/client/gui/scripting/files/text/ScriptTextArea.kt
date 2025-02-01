@@ -191,7 +191,7 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
             keyEvent.keyCode == KeyboardInput.KEY_BACKSPACE ||
             keyEvent.keyCode == KeyboardInput.KEY_DEL ||
             keyEvent.keyCode == KeyboardInput.KEY_ENTER ||
-            (keyEvent.isCtrlDown && keyEvent.localKeyCode.code.toChar() in setOf('x', 'v'))
+            (keyEvent.isCtrlDown && keyEvent.localKeyCode in setOf('x', 'v').map(::LocalKeyCode))
         ) {
             modifier.onCharTyped(keyEvent)
         }

@@ -60,5 +60,15 @@ object WelcomePage : Composable {
                 .width(Grow(0.9f))
                 .isWrapText(true)
         }
+
+        Box {
+            modifier.size(Grow.Std, sizes.smallGap)
+                .backgroundColor(Color.WHITE)
+                .margin(sizes.gap)
+        }
+
+        Text("Примечание: документация всё ещё в разработке. Других статей здесь пока нет.") {
+            modifier.isWrapText(true).width(Grow.Std).margin(sizes.gap)
+        }
     }
 }

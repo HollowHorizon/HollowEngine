@@ -9,6 +9,7 @@
     "DimensionTypeMixin",
     "FeatureUtilsMixin",
     "RecipeManagerAccessor",
+    "kool.DockNodeInvoker",
     "kool.DragAndDropContextAccessor",
     "scripting.BindingTraceContextAccessor",
     "scripting.CompilationContextMixin",

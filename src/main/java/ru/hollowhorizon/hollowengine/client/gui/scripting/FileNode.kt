@@ -180,6 +180,20 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
                 else -> insertPos.set(0)
             }
         }
+
+        override fun onDragEnd(
+            dragItem: FileNode,
+            dragPointer: PointerEvent,
+            source: DragAndDropHandler<FileNode>?,
+            target: DragAndDropHandler<FileNode>?,
+            success: Boolean
+        ) {
+            super.onDragEnd(dragItem, dragPointer, source, target, success)
+            (target as? FileHandler)?.node?.let { node ->
+                if(!node.isFolder) return@let
+                CopyFilePacket(dragItem.treePath, node.treePath, true).send()
+            }
+        }
     }
 
     protected open fun UiScope.sceneObjectLabel(item: FileNode, isHovered: Boolean) =

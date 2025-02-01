@@ -7,6 +7,7 @@ import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterKeyBindingsEvent
 import ru.hollowhorizon.hc.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.client.gui.DashBoardScreen
+import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
 
 val HOLLOW_ENGINE_KEY = KeyMapping("key.hollowengine.menu", GLFW.GLFW_KEY_F12, "key.hollowengine")
 
@@ -18,6 +19,6 @@ fun onRegisterKeys(event: RegisterKeyBindingsEvent) {
 @SubscribeEvent
 fun onTick(event: TickEvent.Client) {
     if (HOLLOW_ENGINE_KEY.isDown) {
-        DashBoardScreen().open()
+        IDEGuiV2.open()
     }
 }

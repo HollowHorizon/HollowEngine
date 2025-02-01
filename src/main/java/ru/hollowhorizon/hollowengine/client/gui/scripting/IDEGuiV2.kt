@@ -5,10 +5,10 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 import de.fabmax.kool.Assets
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.loadImage2d
-import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.DockLayout
+import de.fabmax.kool.modules.ui2.docking.DockNode
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.util.Color
@@ -22,9 +22,11 @@ import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.client.utils.json.JsonFormat
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.stream
-import ru.hollowhorizon.hollowengine.client.gui.docs.DocsNode
-import ru.hollowhorizon.hollowengine.client.gui.kool.*
+import ru.hollowhorizon.hollowengine.client.gui.kool.UiColors
+import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
+import ru.hollowhorizon.hollowengine.client.gui.kool.lineHeight
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
+import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.insertItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.DocFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
@@ -34,7 +36,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DocsTreePanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.FileTreePanel
 import ru.hollowhorizon.hollowengine.client.kool.dragItem
 import ru.hollowhorizon.hollowengine.docs.pages.WelcomePage
-import java.awt.Panel
 
 val PT_SANS by lazy {
     val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/pt_sans.json".rl.stream)
@@ -169,8 +170,9 @@ object IDEGuiV2 : KoolScreen({
                 )
             }
             dock.addDockableSurface(localFile.dockable, localFile.surface)
-            val fileLeaf = dock.getLeafAtPath("0/1") ?: dock.getLeafAtPath("0")
-            fileLeaf?.dock(localFile.dockable)
+            val fileLeaf = dock.getLeafAtPath("0/1")
+            if (fileLeaf != null) fileLeaf.dock(localFile.dockable)
+            else dock.getLeafAtPath("0")?.insertItem(localFile.dockable, DockNode.SlotPosition.Right)
             localFile
         }
 
@@ -191,8 +193,9 @@ object IDEGuiV2 : KoolScreen({
         files.getOrPut(node.treePath) {
             val localFile = DocFileData(node.treeName, node.treePath, WelcomePage)
             dock.addDockableSurface(localFile.dockable, localFile.surface)
-            val fileLeaf = dock.getLeafAtPath("0/1") ?: dock.getLeafAtPath("0")
-            fileLeaf?.dock(localFile.dockable)
+            val fileLeaf = dock.getLeafAtPath("0/1")
+            if (fileLeaf != null) fileLeaf.dock(localFile.dockable)
+            else dock.getLeafAtPath("0")?.insertItem(localFile.dockable, DockNode.SlotPosition.Right)
             localFile
         }
     }

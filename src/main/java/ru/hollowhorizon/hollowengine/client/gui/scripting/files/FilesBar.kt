@@ -5,6 +5,7 @@ import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
+import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
 
@@ -27,7 +28,7 @@ fun UiScope.FileDockingTabsBar(
                         .margin(horizontal = sizes.smallGap)
                         .alignY(AlignmentY.Bottom)
 
-                    val itemName = if(item.name.startsWith("path.")) item.name.substringAfterLast('/').lang else item.name
+                    val itemName = IDEGuiV2.files.values.find { it.dockable == item }?.fileName ?: item.name.lang
 
                     Button(itemName) {
                         // set a bit different button style: click feedback is disabled (doesn't work with the way
@@ -123,15 +124,19 @@ fun UiScope.FileTitleBar(
             val cornerR = if (windowDockable.isDocked.use()) 0f else sizes.gap.px
             modifier
                 .padding(horizontal = sizes.gap)
-                .background(TitleBarBackground(color, cornerR, isMinimizedToTitle))
-
+                .background(RoundRectGradientBackground(cornerR.dp, color.mulRgb(0.5f), color, 0.dp, 20.dp, 500.dp, 500.dp))
+                .onClick {
+                    if (it.pointer.isMiddleButtonReleased) {
+                        onCloseAction?.invoke(it)
+                    }
+                }
             if (isDraggable) {
                 with(windowDockable) {
                     registerDragCallbacks()
                 }
             }
 
-            val itemName = if(title.startsWith("path.")) title.substringAfterLast('/').lang else title.lang
+            val itemName = IDEGuiV2.files.values.find { it.dockable == windowDockable }?.fileName ?: windowDockable.name.lang
 
             Text(itemName) {
                 modifier
