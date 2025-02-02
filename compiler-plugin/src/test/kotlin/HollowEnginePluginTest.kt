@@ -200,14 +200,15 @@ class PluginTester {
             println("Hello")
             var data = 1
             println(data)
+            println(hello)
             
             val async = async {
                 await(data>10)
                 println("Data is more than 10!")
             }
-            
+
             async.start()
-            
+
             data = 50
             async.join()
             println(message = "aaa")
@@ -288,6 +289,8 @@ private fun ResultWithDiagnostics<*>.errors() = reports.map {
     compilationConfiguration = Configuration::class
 )
 abstract class StoryEvent {
+    val hello = "world"
+
     abstract fun tick(context: SuspendContext): Any?
 }
 

@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.compiler.script
 
-import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
@@ -13,15 +12,13 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
+import org.jetbrains.kotlin.ir.expressions.IrValueAccessExpression
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
 import org.jetbrains.kotlin.ir.types.getClass
-import org.jetbrains.kotlin.ir.util.constructors
-import org.jetbrains.kotlin.ir.util.functions
-import org.jetbrains.kotlin.ir.util.overrides
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.Name
@@ -29,7 +26,7 @@ import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 import ru.hollowhorizon.hollowengine.compiler.suspendable.isIgnored
 
-class ScriptRelocator() : IrElementTransformerVoid() {
+class ScriptRelocator : IrElementTransformerVoid() {
     private var setters = HashMap<IrFunction, IrVariable>()
     private var getters = HashMap<IrFunction, IrVariable>()
 
@@ -37,26 +34,25 @@ class ScriptRelocator() : IrElementTransformerVoid() {
     lateinit var function: IrFunction
 
     @OptIn(UnsafeDuringIrConstructionAPI::class)
-    override fun visitScript(script: IrScript): IrStatement {
-        if(!script.name.asStringStripSpecialMarkers().endsWith(".story.kts")) return super.visitScript(script)
+    override fun visitClass(declaration: IrClass): IrStatement {
+        if (declaration.origin != IrDeclarationOrigin.SCRIPT_CLASS) return super.visitClass(declaration)
+        val fileName = (declaration.parent as? IrFile)?.name ?: return super.visitClass(declaration)
+        if (!fileName.endsWith(".story.kts")) return super.visitClass(declaration)
+
+        val builder = pluginContext.irBuiltIns
+            .createIrBuilder(declaration.symbol, declaration.startOffset, declaration.endOffset)
+
+        val storyEvent = declaration.superClass ?: error("StoryEvent class not found!")
+        val original = storyEvent.getSimpleFunction("tick")!!
+
         hasScript = true
-        val builder = pluginContext.irBuiltIns.createIrBuilder(
-            script.symbol,
-            script.startOffset,
-            script.endOffset
-        )
-
-        val storyEvent = script.baseClass!!.getClass()!!
-        val original = storyEvent.functions.first { it.name.asString() == "tick" }
-
-        val functions = mutableListOf<IrFunction>()
 
         this.function = pluginContext.irFactory.createSimpleFunction(
-            script.startOffset, script.endOffset, script.origin,
-            Name.identifier("tick"), DescriptorVisibilities.PUBLIC,
+            declaration.startOffset, declaration.endOffset, IrDeclarationOrigin.DEFINED,
+            Name.identifier("tick"), original.owner.visibility,
             isInline = false,
             isExpect = false,
-            returnType = script.resultProperty?.owner?.getter?.returnType ?: pluginContext.irBuiltIns.unitType,
+            returnType = pluginContext.irBuiltIns.anyNType,
             modality = Modality.FINAL,
             symbol = IrSimpleFunctionSymbolImpl(),
             isTailrec = false,
@@ -66,44 +62,48 @@ class ScriptRelocator() : IrElementTransformerVoid() {
         ).apply {
             annotations += builder.irCall(pluginContext.referenceClass(Suspendable)!!.constructors.first())
 
-            script.transformChildrenVoid(object : IrElementTransformerVoid() {
-                override fun visitDeclaration(declaration: IrDeclarationBase): IrStatement {
-                    if (declaration.parent == script && declaration.origin != IrDeclarationOrigin.INSTANCE_RECEIVER) {
-                        declaration.parent = this@apply
-                    }
-                    return super.visitDeclaration(declaration)
-                }
-
-                override fun visitFunction(declaration: IrFunction): IrStatement {
-                    if (declaration.parent == script && declaration.origin == IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA) {
-                        declaration.parent = this@apply
-                    }
-                    return super.visitFunction(declaration)
-                }
-            })
-            parent = script
-            overrides(original)
+            parent = declaration
+            createDispatchReceiverParameter()
+            overriddenSymbols = listOf(original)
 
             body = builder.irBlockBody {
-                script.statements.forEach {
-                    if(it is IrFunction) functions += it
-                    else +it
+                declaration.declarations.removeIf {
+                    when (it) {
+                        is IrAnonymousInitializer -> {
+                            it.body.statements.forEach { stmt ->
+                                +stmt
+                            }
+                            return@removeIf true
+                        }
+
+                        is IrProperty -> {
+                            +it
+                            return@removeIf true
+                        }
+                    }
+                    return@removeIf false
                 }
             }
-            script.statements.clear()
         }
-        script.statements += functions
-        script.statements += function
 
-        return super.visitScript(script)
+        declaration.declarations.add(function)
+
+        return super.visitClass(declaration)
     }
 
     override fun visitProperty(declaration: IrProperty): IrStatement {
         if (!declaration.isIgnored() && hasScript) {
             declaration.backingField?.let { field ->
                 return super.visitVariable(IrVariableImpl(
-                    declaration.startOffset, declaration.endOffset, IrDeclarationOrigin.DEFINED,
-                    IrVariableSymbolImpl(), field.name, field.type, isVar = true, isConst = false, isLateinit = false
+                    declaration.startOffset,
+                    declaration.endOffset,
+                    IrDeclarationOrigin.DEFINED,
+                    IrVariableSymbolImpl(),
+                    field.name,
+                    field.type,
+                    isVar = true,
+                    isConst = false,
+                    isLateinit = false
                 ).apply {
                     initializer = field.initializer?.expression
                     parent = function
@@ -122,6 +122,13 @@ class ScriptRelocator() : IrElementTransformerVoid() {
             expression.startOffset,
             expression.endOffset
         )
+        if(hasScript) {
+            (expression.dispatchReceiver as? IrValueAccessExpression)?.origin?.let {
+                if (it == IrStatementOrigin.IMPLICIT_ARGUMENT) {
+                    expression.dispatchReceiver = builder.irGet(function.dispatchReceiverParameter!!)
+                }
+            }
+        }
 
         var result: IrExpression = expression
 

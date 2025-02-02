@@ -37,5 +37,5 @@ fun stopScript(file: File) {
 @OptIn(ExperimentalCompilerApi::class)
 @SubscribeEvent
 fun compilerPlugins(event: ScriptingCompilerPluginEvent) {
-    event.addExtension(HollowEngineCompilerRegistrar())
+    //event.addExtension(HollowEngineCompilerRegistrar())
 }
