@@ -1,17 +1,21 @@
 package ru.hollowhorizon.hollowengine.compiler.suspendable.transformers
 
-import org.jetbrains.kotlin.ir.backend.js.utils.typeArguments
 import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.util.constructors
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendCallTransformer
 import ru.hollowhorizon.hollowengine.compiler.suspendable.irIfThenElse
 import ru.hollowhorizon.hollowengine.compiler.suspendable.isSuspendable
+
+// На этой версии как-то странно работает typeArguments, пишет что его нет.
+val IrFunctionAccessExpression.typeArgumentsFix: List<IrType?>
+    get() = List(typeArgumentsCount) { getTypeArgument(it) }
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
 fun SuspendCallTransformer.transformCall(call: IrCall, shouldReplace: Boolean = false): IrExpression? {
@@ -46,7 +50,7 @@ fun SuspendCallTransformer.transformCall(call: IrCall, shouldReplace: Boolean = 
                     }
                     val temp = irTemporary(irCall(call.symbol).apply {
                         call.valueArguments.forEachIndexed(::putValueArgument)
-                        call.typeArguments.forEachIndexed(::putTypeArgument)
+                        call.typeArgumentsFix.forEachIndexed(::putTypeArgument)
                         dispatchReceiver = call.dispatchReceiver
                         extensionReceiver = call.extensionReceiver
                         putValueArgument(owner.valueParameters.size - 1, irCall(getter).apply {

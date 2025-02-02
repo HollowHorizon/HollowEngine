@@ -16,7 +16,7 @@ dependencies {
     implementation("net.fabricmc:tiny-remapper:0.10.4")
     implementation("dev.architectury:architectury-loom:1.9-SNAPSHOT")
     implementation("dev.kikugie:stonecutter:0.6-alpha.1")
-    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.20")
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.20-Beta2")
     implementation("me.fallenbreath.yamlang:me.fallenbreath.yamlang.gradle.plugin:1.3.1")
 }
 

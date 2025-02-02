@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import com.mojang.blaze3d.systems.RenderSystem
+import de.fabmax.kool.util.logE
 import kotlinx.serialization.Serializable
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
@@ -25,6 +26,7 @@ import ru.hollowhorizon.hollowengine.compiler.suspendable.ResumeState
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendState
 import java.io.File
+import kotlin.script.experimental.api.isError
 import kotlin.script.experimental.api.valueOrThrow
 import kotlin.system.measureTimeMillis
 
@@ -95,6 +97,9 @@ fun startStoryEvent(script: File, tag: CompoundTag? = null) {
             val jar = ScriptingCompiler.compileFile<StoryEvent>(script)
 
             val result = jar.execute()
+            result.reports.filter { it.isError() }.forEach {
+                logE { it.render(withStackTrace = true) }
+            }
             val event = result.valueOrThrow().returnValue.scriptInstance as? StoryEvent
                 ?: error("Script instance is null")
 

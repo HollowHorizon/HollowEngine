@@ -73,8 +73,8 @@ fun Project.setupEnviroment(
             install("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion", includeKotlin)
             install("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion", includeKotlin)
             install("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion", includeKotlin)
-            install("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.3", includeKotlin)
-            install("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3", includeKotlin)
+            install("org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.0", includeKotlin)
+            install("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0", includeKotlin)
             install("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0", includeKotlin)
             install("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1", includeKotlin)
 
