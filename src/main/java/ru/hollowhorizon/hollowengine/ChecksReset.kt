@@ -13,6 +13,6 @@ object ChecksReset {
         val defined = Class.forName("jdk.internal.module.Checks").getDeclaredField("RESERVED")
 
         // Если Kotlin можно называть свои пакеты `native`, то почему мне нельзя?
-        Unsafe.getUnsafe().putObject(Unsafe.getUnsafe().staticFieldBase(Class.forName("jdk.internal.module.Checks").getDeclaredField("RESERVED")), Unsafe.getUnsafe().staticFieldOffset(Class.forName("jdk.internal.module.Checks").getDeclaredField("RESERVED")), setOf<String>())
+        unsafe.putObject(unsafe.staticFieldBase(defined), unsafe.staticFieldOffset(defined), setOf<String>())
     }
 }
