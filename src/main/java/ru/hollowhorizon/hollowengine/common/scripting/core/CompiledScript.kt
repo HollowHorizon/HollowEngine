@@ -5,7 +5,6 @@ import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.isProduction
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler.saveScriptToJar
-import ru.hollowhorizon.hollowengine.common.scripting.core.remapper.Remapper
 import java.io.File
 import kotlin.script.experimental.api.EvaluationResult
 import kotlin.script.experimental.api.ResultWithDiagnostics
@@ -63,26 +62,4 @@ data class CompiledScript(
 
         return result
     }
-}
-
-suspend fun KJvmCompiledScript.obfuscate(name: String, hash: String): kotlin.script.experimental.api.CompiledScript {
-    if (!isProduction) return this
-
-    val source = File("hollowcore/$name.jar")
-    saveScriptToJar(source, hash)
-
-    Remapper.remap(
-        Remapper.OBFUSCATE_REMAPPER,
-        arrayOf(source),
-        File("hollowcore/.classpath/").toPath(),
-        *deobfClasspath.map { it.toPath() }.toTypedArray()
-    )
-
-    source.delete()
-    val script = File("hollowcore/.classpath/$name.jar")
-
-    val obf = script.loadScriptFromJar()
-    obf.getClass(null) // инициализируем скрипт
-    script.delete()
-    return obf
 }

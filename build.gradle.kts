@@ -69,7 +69,5 @@ fun DependencyHandlerScope.setupScripting() {
     install("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion", true)
     install("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.4.0", true)
     install("org.jetbrains.kotlin:kotlin-scripting-common:$kotlinVersion", true)
-    install("net.fabricmc:tiny-remapper:0.10.4", true)
-    install("net.fabricmc:mapping-io:0.6.1", true)
     install("gnu.trove:trove:1.0.2", true)
 }

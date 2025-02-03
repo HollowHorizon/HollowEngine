@@ -14,7 +14,8 @@ import ru.hollowhorizon.hc.common.events.SubscribeEvent
 *///?}
 import ru.hollowhorizon.hc.client.utils.ModList
 import ru.hollowhorizon.hc.client.utils.isProduction
-import ru.hollowhorizon.hollowengine.common.scripting.core.remapper.Remapper
+import ru.hollowhorizon.hollowengine.common.scripting.core.mappings.MAPPINGS
+import ru.hollowhorizon.hollowengine.common.scripting.core.mappings.remapJars
 import sun.misc.Unsafe
 import java.io.File
 
@@ -61,19 +62,20 @@ fun cleanup() {
 }
 
 fun setupMods() {
-    if (isProduction) Remapper.remap(
-        Remapper.DEOBFUSCATE_REMAPPER,
+    if (isProduction) remapJars(
+        MAPPINGS,
         //? if fabric {
         ModList.mods
             .map { ModList.getFile(it) }
-            .filter { it.name.endsWith(".jar") }
-            .toTypedArray(),
+            .filter { it.name.endsWith(".jar") },
         //?} else {
         /*File("hollowcore/embed_mods").walk()
             .filter { it.extension == "jar" }
-            .toList().toTypedArray(),
+            .toList(),
         *///?}
-        deobfClassPath.toPath()
+        deobfClassPath,
+        from = "intermediary",
+        to = "named"
     )
 }
 
@@ -88,10 +90,12 @@ fun setupFabric() {
     val parentClassPath: Collection<Path> = findField(gameProvider, "validParentClassPath")
 
     if (isProduction) {
-        Remapper.remap(
-            Remapper.DEOBFUSCATE_REMAPPER,
-            gameJars.map { it.toFile() }.toTypedArray(),
-            deobfClassPath.toPath()
+        remapJars(
+            MAPPINGS,
+            gameJars.map { it.toFile() },
+            deobfClassPath,
+            from = "intermediary",
+            to = "named"
         )
 
         scriptingClasspath.addAll((libs + logJars + parentClassPath).map { it.toFile() })
@@ -106,10 +110,13 @@ fun setupFabric() {
     val classpath = forgeClasspath()
 
     val gameJars = FMLLoader.getLaunchHandler().minecraftPaths.minecraftPaths
-        .map { File(it.absolutePathString()) }.toTypedArray()
+        .map { File(it.absolutePathString()) }
 
     if (isProduction) {
-        Remapper.remap(Remapper.DEOBFUSCATE_REMAPPER, gameJars, deobfClassPath.toPath())
+        remapJars(MAPPINGS, gameJars, deobfClassPath,
+        from = "intermediary",
+        to = "named"
+        )
     }
 
     scriptingClasspath.addAll(classpath)

@@ -30,7 +30,7 @@ import kotlin.script.experimental.util.PropertiesCollection
 
 object ScriptingCompiler {
 
-    suspend inline fun <reified T : Any> compileText(text: String, name: String = "script", logErrors: Boolean = true, obfuscate: Boolean = true): CompiledScript {
+    suspend inline fun <reified T : Any> compileText(text: String, name: String = "script", logErrors: Boolean = true): CompiledScript {
         val hostConfiguration = HollowEngineScriptingHost()
         val compilationConfiguration = createCompilationConfiguration<T>(hostConfiguration)
 
@@ -40,10 +40,10 @@ object ScriptingCompiler {
         if(logErrors) logErrors(result)
         yield()
 
-        return processResult(result, name, obfuscate=obfuscate)
+        return processResult(result, name)
     }
 
-    suspend inline fun <reified T : Any> compileFile(script: File, logErrors: Boolean = true, obfuscate: Boolean = true): CompiledScript {
+    suspend inline fun <reified T : Any> compileFile(script: File, logErrors: Boolean = true): CompiledScript {
         val hostConfiguration = HollowEngineScriptingHost()
         val compilationConfiguration = createCompilationConfiguration<T>(hostConfiguration)
 
@@ -62,22 +62,21 @@ object ScriptingCompiler {
         if(logErrors) logErrors(result)
         yield()
 
-        return processResult(result, script.name, script, compiledJar, obfuscate)
+        return processResult(result, script.name, script, compiledJar)
     }
 
-    suspend fun processResult(
+    fun processResult(
         result: ResultWithDiagnostics<*>,
         scriptName: String,
         scriptFile: File? = null,
-        compiledJar: File? = null,
-        obfuscate: Boolean
+        compiledJar: File? = null
     ): CompiledScript {
         val hash = scriptFile?.readText()?.hashCode()?.toString() ?: "000000"
         val compiledScript = result.valueOrNull() as? KJvmCompiledScript
         return CompiledScript(
             scriptName,
             hash,
-            if(obfuscate && compiledScript != null) compiledScript.obfuscate(scriptName, hash) else compiledScript,
+            compiledScript,
             scriptFile ?: File(scriptName)
         ).apply {
             if (result.isError()) {
