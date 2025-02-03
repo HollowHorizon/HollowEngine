@@ -5,6 +5,9 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.launchOnMainThread
 import kotlinx.coroutines.*
+import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
+import org.jetbrains.kotlin.config.LanguageVersionSettings
+import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
@@ -15,13 +18,14 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextA
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextAreaModifier
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextEditorHandler
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
-import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
+import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionProvider
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.OnColorizedEvent
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.OnCompletionsEvent
-import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
+import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptParser
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
+import kotlin.script.experimental.api.isError
 
 var currentLine = 0
 var currentColumn = 0
@@ -106,9 +110,30 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
         }
     }
 
-    private suspend fun compileText(text: String) {
-        val script = ScriptingCompiler.compileText<StoryEvent>(text, fileName, logErrors = false, obfuscate = false)
-        script.errors?.ifNotEmpty(::onErrorsEvent) ?: run { modifier.errors.clear() }
+    private fun compileText(text: String) {
+        val script = ScriptParser.parse(text, fileName)
+
+        val files = mutableListOf(script)
+        val completionProvider = CompletionProvider(files, fileName, currentLine, currentColumn)
+
+        val (result, completions) = completionProvider.getResult(ScriptParser.env)
+        onCompletionsEvent(OnCompletionsEvent(fileName, completions, text.hashCode()))
+
+        val reporter = AnalyzerWithCompilerReport(ScriptParser.messageCollector, ScriptParser.env.configuration.languageVersionSettings, false)
+        reporter.analyzeAndReport(files) { result }
+        ScriptParser.messageCollector.diagnostics
+            .filter { it.isError() }
+            .map {
+                ScriptError(
+                    ScriptError.Severity.entries[it.severity.ordinal],
+                    it.message,
+                    it.sourcePath ?: "",
+                    it.location?.start?.line ?: 0,
+                    it.location?.start?.col ?: 0,
+                    it.exception
+                )
+            }.apply { onErrorsEvent(this) }
+        ScriptParser.messageCollector.clear()
     }
 
     override fun close() {

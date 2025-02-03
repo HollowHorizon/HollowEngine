@@ -1,9 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 
+import org.jetbrains.kotlin.analyzer.AnalysisResult
+import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
+import org.jetbrains.kotlin.cli.jvm.compiler.messageCollector
 import org.jetbrains.kotlin.com.intellij.openapi.editor.Document
 import org.jetbrains.kotlin.com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.com.intellij.psi.PsiWhiteSpace
 import org.jetbrains.kotlin.com.intellij.psi.tree.TokenSet
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor
@@ -23,7 +25,6 @@ import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.asFlexibleType
 import org.jetbrains.kotlin.types.isFlexible
-import ru.hollowhorizon.hollowengine.common.scripting.core.AfterCodeAnalysisEvent
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.codeInsight.ReferenceVariantsHelper
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.resolve.getResolutionScope
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.util.IdeDescriptorRenderersScripting
@@ -46,7 +47,8 @@ class CompletionProvider(
     private val expressionForScope: PsiElement?
         get() {
             var element = currentPsiFile!!.findElementAt(caretPositionOffset)
-            if(element == null || element !is KtElement) element = currentPsiFile!!.findElementAt(caretPositionOffset - 1)
+            if (element == null || element !is KtElement) element =
+                currentPsiFile!!.findElementAt(caretPositionOffset - 1)
             while (element !is KtExpression && element != null) {
                 element = element.parent
             }
@@ -62,11 +64,11 @@ class CompletionProvider(
     }
 
     @Synchronized
-    fun getResult(event: AfterCodeAnalysisEvent): List<CompletionVariant> {
+    fun getResult(env: KotlinCoreEnvironment): Pair<AnalysisResult, List<CompletionVariant>> {
         try {
             addExpressionAtCaret()
 
-            val resolveResult = ResolveUtils.analyzeFileForJvm(event, psiFiles, currentProject)
+            val resolveResult = ResolveUtils.analyzeFileForJvm(env, psiFiles, currentProject)
 
             val analysisResult = resolveResult.first
             val containerProvider = resolveResult.second
@@ -75,12 +77,12 @@ class CompletionProvider(
 
             ScriptColorizer.colorize(currentPsiFile!!, bindingContext, caretPositionOffset)
 
-            val element = expressionForScope as? KtElement ?: return emptyList()
+            val element = expressionForScope as? KtElement ?: return analysisResult to emptyList()
 
 
             var descriptors: Collection<DeclarationDescriptor>? = null
             var isTipsManagerCompletion = true
-            val resolutionFacade = KotlinResolutionFacade(event, containerProvider, moduleDescriptor)
+            val resolutionFacade = KotlinResolutionFacade(env.project, containerProvider, moduleDescriptor)
             val inDescriptor: DeclarationDescriptor =
                 element.getResolutionScope(bindingContext, resolutionFacade).ownerDescriptor
 
@@ -108,7 +110,7 @@ class CompletionProvider(
             } else {
                 isTipsManagerCompletion = false
                 val resolutionScope: LexicalScope?
-                val parent = if(element is KtDotQualifiedExpression) element else element.parent
+                val parent = if (element is KtDotQualifiedExpression) element else element.parent
                 if (parent is KtQualifiedExpression) {
                     val receiverExpression = parent.receiverExpression
 
@@ -130,7 +132,7 @@ class CompletionProvider(
                             MemberScope.ALL_NAME_FILTER
                         )
                     } else {
-                        return emptyList()
+                        return analysisResult to emptyList()
                     }
                 }
             }
@@ -200,7 +202,7 @@ class CompletionProvider(
                 result.addAll(keywordsCompletionVariants(KtTokens.SOFT_KEYWORDS, prefix))
             }
 
-            return result.sortedBy { it.icon.ordinal }
+            return analysisResult to result.sortedBy { it.icon.ordinal }
         } catch (e: Throwable) {
             throw IllegalStateException(e)
         }

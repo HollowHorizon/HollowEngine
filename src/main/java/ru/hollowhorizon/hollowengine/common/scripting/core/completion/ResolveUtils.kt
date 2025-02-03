@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 
 import org.jetbrains.kotlin.analyzer.AnalysisResult
 import org.jetbrains.kotlin.cli.jvm.compiler.CliBindingTrace
+import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.compiler.TopDownAnalyzerFacadeForJVM
 import org.jetbrains.kotlin.com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.container.ComponentProvider
@@ -17,8 +18,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.core.AfterCodeAnalysisEven
 
 object ResolveUtils {
     @Synchronized
-    fun analyzeFileForJvm(event: AfterCodeAnalysisEvent, files: List<KtFile>, project: Project): Pair<AnalysisResult, ComponentProvider> {
-        val environment = event.context.environment
+    fun analyzeFileForJvm(environment: KotlinCoreEnvironment, files: List<KtFile>, project: Project): Pair<AnalysisResult, ComponentProvider> {
         val trace = CliBindingTrace(project)
         val configuration = environment.configuration
 

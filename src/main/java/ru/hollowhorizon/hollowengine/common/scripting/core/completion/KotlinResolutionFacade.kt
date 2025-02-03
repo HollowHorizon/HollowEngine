@@ -17,7 +17,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.core.completion.resolve.Re
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.resolve.lazy.BodyResolveMode
 
 
-class KotlinResolutionFacade(private val event: AfterCodeAnalysisEvent, private val provider: ComponentProvider?, override val moduleDescriptor: ModuleDescriptor) :
+class KotlinResolutionFacade(override val project: Project, private val provider: ComponentProvider?, override val moduleDescriptor: ModuleDescriptor) :
     ResolutionFacade {
 
     @FrontendInternals
@@ -49,9 +49,6 @@ class KotlinResolutionFacade(private val event: AfterCodeAnalysisEvent, private 
     override fun getResolverForProject(): ResolverForProject<out ModuleInfo> {
         TODO("Not yet implemented")
     }
-
-    override val project: Project
-        get() = event.context.environment.project
 
     override fun analyze(element: KtElement, bodyResolveMode: BodyResolveMode): BindingContext {
         throw UnsupportedOperationException()

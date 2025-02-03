@@ -39,7 +39,7 @@ open class HollowScriptConfiguration(body: Builder.() -> Unit = {}) : ScriptComp
         *///?}
 
         updateClasspath(jars + filteredClasspath)
-        if(!isProduction) dependenciesFromCurrentContext(wholeClasspath = true)
+        if(true || !isProduction) dependenciesFromCurrentContext(wholeClasspath = true)
     }
 
     defaultImports(Import::class)
