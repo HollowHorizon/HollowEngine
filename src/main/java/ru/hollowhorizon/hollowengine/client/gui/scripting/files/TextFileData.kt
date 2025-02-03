@@ -19,6 +19,9 @@ import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.OnColorizedEvent
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.OnCompletionsEvent
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 
 var currentLine = 0
 var currentColumn = 0
@@ -104,7 +107,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
     }
 
     private suspend fun compileText(text: String) {
-        val script = ScriptingCompiler.compileText<StoryEvent>(text, fileName, logErrors = false)
+        val script = ScriptingCompiler.compileText<StoryEvent>(text, fileName, logErrors = false, obfuscate = false)
         script.errors?.ifNotEmpty(::onErrorsEvent) ?: run { modifier.errors.clear() }
     }
 
@@ -115,18 +118,28 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
 }
 
 object ActionManager {
+    private val executor = Executors.newSingleThreadExecutor()
     private var currentJob: Job? = null
+    private var futureTask: Future<*>? = null
     private val scope = CoroutineScope(Dispatchers.Default)
 
     fun launch(action: suspend () -> Unit) {
         currentJob?.cancel()
-        currentJob = scope.launch debounce@ {
+        futureTask?.cancel(true)
+        currentJob = scope.launch debounce@{
             delay(300)
-            if(!isActive) return@debounce
+            if (!isActive) return@debounce
 
-            action()
+            try {
+                action()
+            } catch (e: Exception) {
+                // Ignore
+            }
         }
     }
+
+    fun <T> future(action: () -> T): Future<*>? = executor.submit(Callable { action() })
+        .also { futureTask = it }
 }
 
 private fun TextAreaScope.installSelectionHandler(onChange: (startLine: Int, caretLine: Int, startChar: Int, caretChar: Int) -> Unit) {
