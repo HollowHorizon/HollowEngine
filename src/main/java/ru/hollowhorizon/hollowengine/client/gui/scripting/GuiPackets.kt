@@ -36,6 +36,7 @@ class CopyFilePacket(val source: String, val dest: String, val deleteSource: Boo
 
         val sourceFile = source.fromReadablePath()
         val destFile = dest.fromReadablePath()
+        if(sourceFile == destFile) return
         copyWithUniqueName(sourceFile, destFile)
         if (deleteSource) {
             if (sourceFile.isDirectory) sourceFile.deleteRecursively()
