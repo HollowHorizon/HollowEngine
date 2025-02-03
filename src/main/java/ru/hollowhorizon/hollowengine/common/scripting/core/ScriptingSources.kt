@@ -26,7 +26,7 @@ val scriptingClasspath = mutableListOf<File>()
 val deobfClasspath get() = deobfClassPath.walk().toList()
 
 
-private fun forgeClasspath() = System.getProperty("java.class.path")
+fun forgeClasspath() = System.getProperty("java.class.path")
     .split(";").map(::File).toMutableSet()
 
 private fun setupSTDLib(files: Collection<File>) {
@@ -34,14 +34,16 @@ private fun setupSTDLib(files: Collection<File>) {
 }
 
 fun setupScripting() {
-    cleanup()
+    if(isProduction) {
+        cleanup()
 
-    //? if fabric
-    setupFabric()
-    //? if forge || neoforge
-    /*setupForge()*/
+        //? if fabric
+        setupFabric()
+        //? if forge || neoforge
+        /*setupForge()*/
 
-    setupMods()
+        setupMods()
+    }
 
     setupSTDLib(if(isProduction) deobfClasspath else forgeClasspath())
 }

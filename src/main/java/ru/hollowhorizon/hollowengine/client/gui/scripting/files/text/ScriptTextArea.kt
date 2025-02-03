@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text
 
-import com.facebook.ktfmt.format.Formatter
 import de.fabmax.kool.input.*
 import de.fabmax.kool.input.KeyboardInput.KEY_EV_CHAR_TYPED
 import de.fabmax.kool.input.KeyboardInput.KEY_EV_DOWN
@@ -11,14 +10,12 @@ import de.fabmax.kool.scene.addTriangulatedLineMesh
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.TextCaretNavigation
-import de.fabmax.kool.util.logW
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.currentLine
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys.ScriptAreaKeyEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys.toEngine
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
@@ -167,7 +164,7 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
     override fun onKeyEvent(keyEvent: KeyEvent) {
         val event = keyEvent.toEngine(this)
         EventBus.post(event)
-        if(event.isCanceled) return
+        if (event.isCanceled) return
 
         val startChar = modifier.getCharBeforeSelection()
         val nextChar = modifier.getCharAfterSelection()
