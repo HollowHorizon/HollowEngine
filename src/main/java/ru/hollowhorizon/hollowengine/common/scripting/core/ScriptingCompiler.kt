@@ -11,6 +11,8 @@ import ru.hollowhorizon.hc.client.utils.plus
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hc.common.events.server.ServerEvent
+import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
+import ru.hollowhorizon.hollowengine.client.gui.overlay.UpdateStatusPacket
 import ru.hollowhorizon.hollowengine.common.scripting.core.host.HollowEngineScriptingHost
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import java.io.File
@@ -56,10 +58,15 @@ object ScriptingCompiler {
             hashcode
         )
 
+        UpdateStatusPacket(script.name, CompilationStatus.Status.PARSE).sendToOperators()
+
         val compiler = JvmScriptCompiler(hostConfiguration)
         val result = compiler(FileScriptSource(script), compilationConfiguration)
 
         if(logErrors) logErrors(result)
+
+        UpdateStatusPacket(script.name, null).sendToOperators()
+
         yield()
 
         return processResult(result, script.name, script, compiledJar)

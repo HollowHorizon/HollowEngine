@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.events
 
 
 import com.google.common.collect.HashMultimap
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.common.coroutines.scopeAsync
@@ -25,9 +26,9 @@ abstract class EventScript
 fun loadEvents() {
     DirectoryManager.eventScripts.map { file ->
         startEventScript(file)
-    }.forEach {
+    }.toList().let {
         runBlocking {
-            it.await()
+            it.awaitAll()
         }
     }
 }

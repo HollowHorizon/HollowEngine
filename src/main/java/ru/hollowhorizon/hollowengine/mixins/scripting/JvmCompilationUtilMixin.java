@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.mixins.scripting;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import kotlin.text.StringsKt;
 import org.jetbrains.kotlin.backend.common.output.OutputFile;
 import org.jetbrains.kotlin.codegen.state.GenerationState;
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.JvmCompilationUtilKt;
@@ -12,6 +13,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ru.hollowhorizon.hc.client.utils.ForgeKotlinKt;
+import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus;
+import ru.hollowhorizon.hollowengine.client.gui.overlay.UpdateStatusPacket;
 import ru.hollowhorizon.hollowengine.common.scripting.core.mappings.Remapping;
 
 import java.util.Map;
@@ -37,6 +40,7 @@ public class JvmCompilationUtilMixin {
     @Redirect(method = "makeCompiledModule", at = @At(value = "INVOKE", target = "Lorg/jetbrains/kotlin/backend/common/output/OutputFile;asByteArray()[B"))
     private static byte[] makeCompiledModule(OutputFile instance) {
         if (!instance.getRelativePath().endsWith(".class") || !ForgeKotlinKt.isProduction()) return instance.asByteArray();
+        new UpdateStatusPacket(StringsKt.substringAfterLast(instance.getRelativePath(), '/', instance.getRelativePath()), CompilationStatus.Status.OBFUSCATION).sendToOperators();
         return Remapping.remapClass(instance.asByteArray(), hollowEngine$classpath::get);
     }
 }

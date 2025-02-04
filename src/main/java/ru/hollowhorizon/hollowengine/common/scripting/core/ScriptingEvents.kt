@@ -6,6 +6,9 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.SharedScriptCompilationContext
 import ru.hollowhorizon.hc.common.events.Cancelable
 import ru.hollowhorizon.hc.common.events.Event
+import ru.hollowhorizon.hc.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
+import ru.hollowhorizon.hollowengine.client.gui.overlay.UpdateStatusPacket
 import java.io.File
 import kotlin.script.experimental.api.SourceCode
 
@@ -30,3 +33,8 @@ class AfterCodeAnalysisEvent(
     val script: SourceCode,
     val sources: List<KtFile>
 ): Event
+
+@SubscribeEvent
+fun onCodeParsed(event: AfterCodeAnalysisEvent) {
+    UpdateStatusPacket(event.sources.first().name, CompilationStatus.Status.PARSE).sendToOperators()
+}

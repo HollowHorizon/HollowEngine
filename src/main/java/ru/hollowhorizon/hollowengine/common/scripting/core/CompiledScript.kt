@@ -4,6 +4,8 @@ import kotlinx.coroutines.runBlocking
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.utils.isProduction
 import ru.hollowhorizon.hc.common.events.post
+import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
+import ru.hollowhorizon.hollowengine.client.gui.overlay.UpdateStatusPacket
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler.saveScriptToJar
 import java.io.File
 import kotlin.script.experimental.api.EvaluationResult
@@ -37,10 +39,11 @@ data class CompiledScript(
             )
         }
 
+        UpdateStatusPacket(scriptName, CompilationStatus.Status.EXECUTE).sendToOperators()
+
         val evalConfig = ScriptEvaluationConfiguration { body() }
         val evaluator = BasicJvmScriptEvaluator()
         val result = evaluator(script, evalConfig)
-
 
         if (result is ResultWithDiagnostics.Success) ScriptStartedEvent(scriptFile)
         else if (result is ResultWithDiagnostics.Failure) {
@@ -59,6 +62,8 @@ data class CompiledScript(
 
             ScriptErrorEvent(scriptFile, ErrorType.RUNTIME_ERROR, errors).post()
         }
+
+        UpdateStatusPacket(scriptName, null).sendToOperators()
 
         return result
     }

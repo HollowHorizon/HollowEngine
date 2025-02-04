@@ -36,6 +36,12 @@ hollowengine:
         rename: Переименовать
         delete: Удалить
 
+  hud:
+    compilation:
+      parsing: Парсинг скрипта %s.
+      compiling: Компиляция скрипта %s.
+      obfuscating: Обфускация скрипта %s.
+      executing: Запуск скрипта %s.
 
   commands:
     copy: "§6[§bHollow Engine§6] §7Значение: %s скопировано."
