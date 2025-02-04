@@ -1,4 +1,4 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     java
@@ -7,7 +7,8 @@ plugins {
 }
 
 val kotlinVersion: String by project
-version = "1.5a"
+version = "1.5"
+group = "ru.hollowhorizon"
 
 base {
     archivesName = "HollowEnginePlugin"
@@ -52,11 +53,6 @@ java {
     }
 }
 
-tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "17"
+kotlin {
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_17)
 }
-//tasks {
-//    test {
-//        useJUnitPlatform()
-//    }
-//}
