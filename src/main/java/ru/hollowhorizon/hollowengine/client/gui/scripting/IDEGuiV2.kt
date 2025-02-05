@@ -161,7 +161,11 @@ object IDEGuiV2 : KoolScreen({
         // Get or Create file
         val file = files.getOrPut(path) {
             val localFile = when (type) {
-                FileType.TEXT -> TextFileData(this, path.substringAfterLast('/'), path, String(bytes))
+                FileType.TEXT -> {
+                    var text = String(bytes)
+                    if(text.isEmpty()) text = "\n"
+                    TextFileData(this, path.substringAfterLast('/'), path, text)
+                }
                 FileType.IMAGE -> ImageFileData(
                     this,
                     path.substringAfterLast('/'),

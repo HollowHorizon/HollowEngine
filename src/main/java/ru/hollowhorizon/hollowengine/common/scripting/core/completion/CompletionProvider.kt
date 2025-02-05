@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 
 import org.jetbrains.kotlin.analyzer.AnalysisResult
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
-import org.jetbrains.kotlin.cli.jvm.compiler.messageCollector
 import org.jetbrains.kotlin.com.intellij.openapi.editor.Document
 import org.jetbrains.kotlin.com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
@@ -75,7 +74,7 @@ class CompletionProvider(
             val bindingContext = analysisResult.bindingContext
             val moduleDescriptor = analysisResult.moduleDescriptor
 
-            ScriptColorizer.colorize(currentPsiFile!!, bindingContext, caretPositionOffset)
+            ScriptColorizer.colorize(currentPsiFile!!, bindingContext)
 
             val element = expressionForScope as? KtElement ?: return analysisResult to emptyList()
 

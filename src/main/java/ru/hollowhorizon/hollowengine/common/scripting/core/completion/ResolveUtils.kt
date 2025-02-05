@@ -14,7 +14,6 @@ import org.jetbrains.kotlin.resolve.TopDownAnalysisMode
 import org.jetbrains.kotlin.resolve.calls.smartcasts.DataFlowInfo
 import org.jetbrains.kotlin.resolve.extensions.AnalysisHandlerExtension
 import org.jetbrains.kotlin.resolve.lazy.declarations.FileBasedDeclarationProviderFactory
-import ru.hollowhorizon.hollowengine.common.scripting.core.AfterCodeAnalysisEvent
 
 object ResolveUtils {
     @Synchronized

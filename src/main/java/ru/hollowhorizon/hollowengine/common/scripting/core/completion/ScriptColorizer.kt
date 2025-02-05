@@ -26,10 +26,11 @@ import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
+import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptParser
 
 object ScriptColorizer {
-    fun colorize(file: KtFile, bindingContext: BindingContext, caretPositionOffset: Int) {
-        if (!KoolSystem.isInitialized) return
+    fun colorize(file: KtFile, bindingContext: BindingContext): List<TextLine> {
+        if (!KoolSystem.isInitialized) return emptyList()
         val textLines = mutableListOf<TextLine>()
         val currentLine = mutableListOf<Pair<String, TextAttributes>>()
 
@@ -79,6 +80,14 @@ object ScriptColorizer {
         if (currentLine.isNotEmpty()) textLines.add(TextLine(currentLine))
 
         OnColorizedEvent(file.name, textLines, file.text.hashCode()).post()
+
+        return textLines
+    }
+
+    fun parse(file: String, text: String): List<TextLine> {
+        val script = ScriptParser.parse(text, file)
+        val (result) = ResolveUtils.analyzeFileForJvm(ScriptParser.env, listOf(script), ScriptParser.env.project)
+        return colorize(script, result.bindingContext)
     }
 }
 
