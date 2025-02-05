@@ -52,4 +52,3 @@ jobs:
           allowUpdates: true
           artifacts: "merged/*.jar"
           artifactContentType: application/java-archive
-          body: "**Важно:** Для работы мода на (Neo)Forge необходимо отключить параметр `earlyWindowControl = false` в `config/fml.toml`. Без этого у вас будет чёрный экран."
