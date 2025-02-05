@@ -96,6 +96,7 @@ private fun getElementColor(element: PsiElement, bindingContext: BindingContext)
 
     val token = element.node.elementType
     return when {
+        KtTokens.COMMENTS.contains(token) -> Color.LIGHT_GRAY
         KtTokens.KEYWORDS.contains(token) || KtTokens.SOFT_KEYWORDS.contains(token) -> Color("CF8E6D")
         KtTokens.STRINGS.contains(token) || token == KtTokens.OPEN_QUOTE || token == KtTokens.CLOSING_QUOTE -> Color("6AAB73")
         element.isPropertyIdentifier() || expression?.hasProperty(bindingContext) == true -> Color("C77DBB")

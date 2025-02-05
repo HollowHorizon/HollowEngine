@@ -11,17 +11,16 @@ import de.fabmax.kool.modules.ui2.docking.DockLayout
 import de.fabmax.kool.modules.ui2.docking.DockNode
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.pipeline.Texture2d
-import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.MsdfFont
+import de.fabmax.kool.util.*
 import de.fabmax.kool.util.MsdfFont.Companion.MSDF_TEX_PROPS
-import de.fabmax.kool.util.MsdfFontData
-import de.fabmax.kool.util.MsdfMeta
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
+import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.client.utils.json.JsonFormat
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.stream
+import ru.hollowhorizon.hollowengine.client.gui.docs.DocsNode
 import ru.hollowhorizon.hollowengine.client.gui.kool.UiColors
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.lineHeight
@@ -194,8 +193,9 @@ object IDEGuiV2 : KoolScreen({
     }
 
     fun openDocFile(node: FileNode) {
+        val page = (node as? DocsNode)?.page ?: return
         files.getOrPut(node.treePath) {
-            val localFile = DocFileData(node.treeName, node.treePath, WelcomePage)
+            val localFile = DocFileData(node.treeName, node.treePath, page)
             dock.addDockableSurface(localFile.dockable, localFile.surface)
             val fileLeaf = dock.getLeafAtPath("0/1")
             if (fileLeaf != null) fileLeaf.dock(localFile.dockable)

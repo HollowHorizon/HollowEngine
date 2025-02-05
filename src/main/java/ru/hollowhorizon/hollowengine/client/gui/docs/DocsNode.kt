@@ -7,7 +7,7 @@ import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.scripting.FileNode
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
 
-class DocsNode(name: String, path: String) : FileNode(name, path) {
+class DocsNode(name: String, path: String, val page: Composable? = null) : FileNode(name, path) {
     companion object {
         val SPACING = Dp(25f)
     }

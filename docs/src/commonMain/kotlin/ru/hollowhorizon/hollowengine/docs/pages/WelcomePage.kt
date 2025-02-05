@@ -39,11 +39,7 @@ object WelcomePage : Composable {
             }
         }
 
-        Box {
-            modifier.size(Grow.Std, sizes.smallGap)
-                .backgroundColor(Color.WHITE)
-                .margin(sizes.gap)
-        }
+        Divider()
 
         Text("Данная документация расскажет о базовом функционале движка HollowEngine.") {
             modifier.alignX(AlignmentX.Center)
@@ -51,9 +47,9 @@ object WelcomePage : Composable {
                 .width(Grow(0.9f))
                 .isWrapText(true)
         }
-        Box {
-            modifier.size(Grow.Std, sizes.gap)
-        }
+
+        Box { modifier.size(Grow.Std, sizes.gap) }
+
         Text("Рекомендуется перед началом работы с модом ознакомиться с базовым синтаксисом Kotlin и основными концепциями программирования в принципе.") {
             modifier.alignX(AlignmentX.Center)
                 .textAlignX(AlignmentX.Center)
@@ -61,14 +57,18 @@ object WelcomePage : Composable {
                 .isWrapText(true)
         }
 
-        Box {
-            modifier.size(Grow.Std, sizes.smallGap)
-                .backgroundColor(Color.WHITE)
-                .margin(sizes.gap)
-        }
+        Divider()
 
         Text("Примечание: документация всё ещё в разработке. Других статей здесь пока нет.") {
             modifier.isWrapText(true).width(Grow.Std).margin(sizes.gap)
         }
+    }
+}
+
+fun UiScope.Divider() {
+    Box {
+        modifier.size(Grow.Std, sizes.smallGap)
+            .backgroundColor(Color.WHITE)
+            .margin(sizes.gap)
     }
 }
