@@ -61,7 +61,7 @@ class NPCEntity : PathfinderMob, IAnimated {
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
         if (pHand == InteractionHand.MAIN_HAND && level().isClientSide && pPlayer.mainHandItem.item != ModItems.NPC_TOOL.get()) {
-            TODO()
+            //NPCMenuGui(this).open()
             return InteractionResult.SUCCESS
         }
 

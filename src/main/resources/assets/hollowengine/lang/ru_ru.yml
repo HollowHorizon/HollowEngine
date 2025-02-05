@@ -49,6 +49,12 @@ hollowengine:
     model_animations: "§6[§bHollow Engine§6] Анимации модели %s:"
     model_textures: "§6[§bHollow Engine§6] Текстуры модели %s:"
 
+  npc:
+    talk: Говорить
+    trade: Торговать
+    quests: Задания
+    invite: Пригласить в команду
+
 key:
   hollowengine:
     .: "HollowEngine: Клавиши"

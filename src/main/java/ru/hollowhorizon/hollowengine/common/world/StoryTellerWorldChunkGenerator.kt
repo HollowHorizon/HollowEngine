@@ -21,6 +21,9 @@ import java.util.concurrent.CompletableFuture
 import com.mojang.serialization.MapCodec
 import java.util.concurrent.Executor
 import com.mojang.serialization.Codec
+import net.minecraft.core.RegistryAccess
+import net.minecraft.world.level.chunk.ChunkGeneratorStructureState
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager
 
 class StoryTellerWorldChunkGenerator(biomeSource: BiomeSource) : ChunkGenerator(biomeSource) {
 //?} else {
@@ -98,6 +101,16 @@ class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSo
     }
 
     override fun addDebugScreenInfo(pInfo: MutableList<String>, pRandom: RandomState, pPos: BlockPos) {}
+
+    override fun createStructures(
+        registryAccess: RegistryAccess,
+        structureState: ChunkGeneratorStructureState,
+        structureManager: StructureManager,
+        chunk: ChunkAccess,
+        structureTemplateManager: StructureTemplateManager
+    ) {
+        // Структуры в этом измерении не нужны
+    }
 
     companion object {
         //? if >=1.21 {

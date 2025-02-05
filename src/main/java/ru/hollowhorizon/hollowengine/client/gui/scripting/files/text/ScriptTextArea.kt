@@ -264,6 +264,7 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
                 modifier
                     .backgroundColor(colors.secondaryVariant)
                     .alignY(AlignmentY.Center)
+                    .margin(horizontal = sizes.gap)
             }
             super.setupTextLine(this, line, lineIndex, textAreaMod, lineProvider).apply {
                 modifier.alignY(AlignmentY.Center).margin(start = sizes.smallGap).alignY(AlignmentY.Top)
