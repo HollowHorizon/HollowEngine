@@ -16,6 +16,7 @@ import org.objectweb.asm.commons.MethodRemapper
 import org.objectweb.asm.commons.Remapper
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.scripting.core.deobfClasspath
+import ru.hollowhorizon.hollowengine.common.scripting.core.mappings.metadata.KotlinMetadataRemappingClassVisitor
 import java.io.File
 import java.util.jar.JarEntry
 import java.util.jar.JarFile
@@ -292,7 +293,8 @@ fun remapClass(
 
     val reader = ClassReader(input)
     val writer = ClassWriter(reader, 0)
-    reader.accept(LambdaAwareRemapper(writer, remapper), 0)
+    val kotlinMetadataRemapper = KotlinMetadataRemappingClassVisitor(remapper, writer)
+    reader.accept(LambdaAwareRemapper(kotlinMetadataRemapper, remapper), 0)
     return writer.toByteArray()
 }
 
@@ -358,7 +360,8 @@ private fun remapJar(
             classes.forEach { entry ->
                 val reader = ClassReader(jar.getInputStream(entry).readBytes())
                 val writer = ClassWriter(reader, 0)
-                reader.accept(LambdaAwareRemapper(writer, remapper), 0)
+                val kotlinMetadataRemapper = KotlinMetadataRemappingClassVisitor(remapper, writer)
+                reader.accept(LambdaAwareRemapper(kotlinMetadataRemapper, remapper), 0)
 
                 write("${remapper.map(reader.className)}.class", writer.toByteArray())
             }
@@ -397,7 +400,8 @@ fun ByteArray.remap(remapper: Remapper): ByteArray {
     val reader = ClassReader(this)
 
     val writer = ClassWriter(reader, 0)
-    reader.accept(LambdaAwareRemapper(writer, remapper), 0)
+    val kotlinMetadataRemapper = KotlinMetadataRemappingClassVisitor(remapper, writer)
+    reader.accept(LambdaAwareRemapper(kotlinMetadataRemapper, remapper), 0)
 
     return writer.toByteArray()
 }
