@@ -140,7 +140,7 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
             modifier.background(RoundRectBackground(colors.hoverBg, sizes.smallGap))
         }
 
-        sceneObjectDndHandler(item)
+        //sceneObjectDndHandler(item)
         sceneObjectLabel(item, isHovered)
     }
 
