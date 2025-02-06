@@ -36,6 +36,35 @@ hollowengine:
         rename: Переименовать
         delete: Удалить
 
+    docs:
+      welcome: Добро пожаловать
+      credits: Авторы
+      scripting:
+        .: Скриптинг
+        story_events:
+          .: Сюжетные события
+          npcs:
+            .: Персонажи
+            creation: Создание
+            options: Настройка
+            actions: Действия
+            animations: Анимации
+            quests: Задания
+            trading: Торговля
+          scene:
+            .: Сцена
+            world: Мир
+            dialogues: Диалоги
+            camera: Камера
+            transitions: Переходы
+            particles: Частицы
+            shaders: Пост-процессинг
+          players:
+            .: Игроки
+          utils:
+            .: Разное
+
+
   hud:
     compilation:
       parsing: Парсинг скрипта %s.

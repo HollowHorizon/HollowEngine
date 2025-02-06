@@ -75,11 +75,6 @@ object IDEGuiV2 : KoolScreen({
         panels[docsDock.dockable] = docsDock
 
         LayoutLoader.loadIdeLayout(this) { name ->
-            if (name.startsWith("path.")) {
-                RequestFilePacket(name.substringAfter("path.")).send()
-                return@loadIdeLayout null
-            }
-
             when (name) {
                 projectDock.name -> projectDock.dockable
                 docsDock.name -> docsDock.dockable
@@ -212,6 +207,8 @@ object IDEGuiV2 : KoolScreen({
         super.onClose()
         DockLayout.saveLayout(dock, LayoutLoader.IDE_LAYOUT)
     }
+
+    override fun isPauseScreen() = false
 }
 
 val panels = HashMap<Dockable, DockPanel>()

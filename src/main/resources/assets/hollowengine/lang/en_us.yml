@@ -35,7 +35,40 @@ hollowengine:
           .: GitHub
         rename: Rename
         delete: Delete
+    docs:
+      welcome: Welcome
+      credits: Credits
+      scripting:
+        .: Scripting
+        story_events:
+          .: Story Events
+          npcs:
+            .: NPCs
+            creation: Creation
+            options: Configuration
+            actions: Actions
+            animations: Animations
+            quests: Quests
+            trading: Trading
+          scene:
+            .: Scene
+            world: World
+            dialogues: Dialogues
+            camera: Camera
+            transitions: Transitions
+            particles: Particles
+            shaders: Post-processing
+          players:
+            .: Players
+          utils:
+            .: Miscellaneous
 
+  hud:
+    compilation:
+      parsing: "Parsing script: %s."
+      compiling: "Compiling script: %s."
+      obfuscating: "Obfuscating script %s."
+      executing: "Running script %s."
 
   commands:
     copy: "§6[§bHollow Engine§6] §7Value: %s has been copied."

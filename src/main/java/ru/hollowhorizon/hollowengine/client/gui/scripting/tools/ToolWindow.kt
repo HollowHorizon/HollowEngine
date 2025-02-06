@@ -21,7 +21,7 @@ fun UiScope.ToolBar(panel: DockPanel) = Column(width = sizes.panelBarWidth, heig
         .backgroundColor(colors.background)
         .padding(sizes.smallGap)
     val dockNode = panel.dockable.dockedTo.use() ?: return@Column
-    dockNode.dockedItems.forEach { dockable ->
+    dockNode.dockedItems.sortedBy { (panels[it]?.name ?: "") }.forEach { dockable ->
         panelButton(dockable, dockNode, panels[dockable]?.icon ?: return@forEach)
     }
 }

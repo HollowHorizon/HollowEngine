@@ -11,7 +11,7 @@ abstract class FileData(
     val fileName: String,
     val filePath: String,
 ) : Composable {
-    val dockable = UiDockable("path.$filePath", IDEGuiV2.dock)
+    val dockable = UiDockable(filePath, IDEGuiV2.dock)
     val surface: UiSurface = WindowSurface(dockable, ideColors, ideSizes) {
         Column(Grow.Std, Grow.Std) {
             FileTitleBar(dockable, onCloseAction = {
