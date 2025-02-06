@@ -190,7 +190,7 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
         ) {
             super.onDragEnd(dragItem, dragPointer, source, target, success)
             (target as? FileHandler)?.node?.let { node ->
-                if(!node.isFolder) return@let
+                if(!node.isFolder || dragItem.treePath == node.treePath) return@let
                 CopyFilePacket(dragItem.treePath, node.treePath, true).send()
             }
         }
