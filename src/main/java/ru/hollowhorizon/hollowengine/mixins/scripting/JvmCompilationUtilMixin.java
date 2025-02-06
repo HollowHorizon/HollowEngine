@@ -40,7 +40,8 @@ public class JvmCompilationUtilMixin {
     @Redirect(method = "makeCompiledModule", at = @At(value = "INVOKE", target = "Lorg/jetbrains/kotlin/backend/common/output/OutputFile;asByteArray()[B"))
     private static byte[] makeCompiledModule(OutputFile instance) {
         if (!instance.getRelativePath().endsWith(".class") || !ForgeKotlinKt.isProduction()) return instance.asByteArray();
-        new UpdateStatusPacket(StringsKt.substringAfterLast(instance.getRelativePath(), '/', instance.getRelativePath()), CompilationStatus.Status.OBFUSCATION).sendToOperators();
+        var source = instance.getSourceFiles().getFirst().getName();
+        new UpdateStatusPacket(source, CompilationStatus.Status.OBFUSCATION).sendToOperators();
         return Remapping.remapClass(instance.asByteArray(), hollowEngine$classpath::get);
     }
 }

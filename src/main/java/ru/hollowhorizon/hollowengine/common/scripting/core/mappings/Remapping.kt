@@ -17,6 +17,8 @@ import org.objectweb.asm.commons.Remapper
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.scripting.core.deobfClasspath
 import ru.hollowhorizon.hollowengine.common.scripting.core.mappings.metadata.KotlinMetadataRemappingClassVisitor
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.npc
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.pos
 import java.io.File
 import java.util.jar.JarEntry
 import java.util.jar.JarFile

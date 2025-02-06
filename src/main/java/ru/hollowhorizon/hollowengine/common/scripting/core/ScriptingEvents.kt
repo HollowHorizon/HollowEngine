@@ -36,5 +36,5 @@ class AfterCodeAnalysisEvent(
 
 @SubscribeEvent
 fun onCodeParsed(event: AfterCodeAnalysisEvent) {
-    UpdateStatusPacket(event.sources.first().name, CompilationStatus.Status.PARSE).sendToOperators()
+    UpdateStatusPacket(event.sources.first().name, CompilationStatus.Status.COMPILATION).sendToOperators()
 }
