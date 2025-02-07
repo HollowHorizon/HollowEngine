@@ -1,21 +1,28 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 
-import de.fabmax.kool.input.*
+import de.fabmax.kool.Assets
+import de.fabmax.kool.input.KeyEvent
+import de.fabmax.kool.input.KeyboardInput
+import de.fabmax.kool.input.LocalKeyCode
+import de.fabmax.kool.input.UniversalKeyCode
+import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.TextCaretNavigation
-import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
-import ru.hollowhorizon.hollowengine.client.gui.kool.lineHeight
-import ru.hollowhorizon.hollowengine.client.gui.scripting.createTexture
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextArea
 
-val COMPLETE_CLASS by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_class.png".rl, 16, 16) }
-val COMPLETE_METHOD by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_method.png".rl, 16, 16) }
-val COMPLETE_PACKAGE by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_package.png".rl, 16, 16) }
-val COMPLETE_UNKNOWN by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_unknown.png".rl, 16, 16) }
-val COMPLETE_VARIABLE by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_variable.png".rl, 16, 16) }
+fun createTexture(path: String) = Texture2d {
+    Assets.loadImage2d(path).getOrThrow()
+}
+
+val COMPLETE_CLASS by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_class.png") }
+val COMPLETE_METHOD by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_method.png") }
+val COMPLETE_PACKAGE by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_package.png") }
+val COMPLETE_UNKNOWN by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_unknown.png") }
+val COMPLETE_VARIABLE by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_variable.png") }
 
 data class CompletionVariant(
     val text: String,
@@ -29,12 +36,17 @@ data class CompletionVariant(
         Row(Grow.Std) {
             var isHovered by remember { mutableStateOf(false) }
 
-            modifier.margin(sizes.smallGap)
+            modifier.margin(sizes.smallGap * 0.25f)
                 .onEnter { isHovered = true }.onExit { isHovered = false }
                 .onClick { use(textArea) }
 
             if (isHovered || isFocused) {
-                modifier.background(RoundRectBackground(if(isHovered) colors.hoverBg.mulRgb(1.5f) else colors.hoverBg, sizes.gap))
+                modifier.background(
+                    RoundRectBackground(
+                        if (isHovered) colors.hoverBg.mulRgb(1.5f) else colors.hoverBg,
+                        sizes.smallGap
+                    )
+                )
             }
 
             Image {
@@ -46,7 +58,7 @@ data class CompletionVariant(
                         Icon.CLASS -> COMPLETE_CLASS
                         Icon.UNKNOWN -> COMPLETE_UNKNOWN
                     }
-                ).alignY(AlignmentY.Center).size(sizes.lineHeight, sizes.lineHeight).margin(horizontal = sizes.smallGap)
+                ).alignY(AlignmentY.Center).size(sizes.gap, sizes.gap).margin(horizontal = sizes.smallGap)
             }
             Text(displayText) {
                 modifier.align(AlignmentX.Start, AlignmentY.Center).margin(horizontal = sizes.smallGap)
@@ -74,7 +86,7 @@ data class CompletionVariant(
 
         var text = text
         var offset = 0
-        if(text.endsWith("(")) {
+        if (text.endsWith("(")) {
             text = "$text)"
             offset = 1
         }
@@ -97,7 +109,14 @@ data class CompletionVariant(
         modifier.setCompletionIndex(0)
 
         // Trigger code analysis
-        modifier.onCharTyped(KeyEvent(UniversalKeyCode(0, null), LocalKeyCode(0, null), KeyboardInput.KEY_EV_CHAR_TYPED, 0))
+        modifier.onCharTyped(
+            KeyEvent(
+                UniversalKeyCode(0, null),
+                LocalKeyCode(0, null),
+                KeyboardInput.KEY_EV_CHAR_TYPED,
+                0
+            )
+        )
     }
 
     enum class Icon {

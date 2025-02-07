@@ -4,7 +4,9 @@ import de.fabmax.kool.Assets
 import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.pipeline.SamplerSettings
 import de.fabmax.kool.pipeline.Texture2d
+import de.fabmax.kool.pipeline.TextureProps
 import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
@@ -56,7 +58,6 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                         Row(width = Grow.Std) {
                             var isHovered by remember(false)
                             modifier
-                                .padding(vertical = sizes.smallGap * 0.5f)
                                 .onEnter {
                                     isHovered = true
                                     subMenu = null
@@ -86,7 +87,6 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                         Row(width = Grow.Std) {
                             var isHovered by remember(false)
                             modifier
-                                .padding(vertical = sizes.smallGap * 0.5f)
                                 .onEnter {
                                     isHovered = true
                                     subMenu = item
@@ -148,12 +148,12 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                         .alignY(AlignmentY.Center)
                         .iconImage(remember {
                             Texture2d {
-                                Assets.loadImage2d(icon).getOrThrow()
+                                Assets.loadImage2d(icon, TextureProps(defaultSamplerSettings= SamplerSettings().nearest())).getOrThrow()
                             }
-                        }, 30.dp)
+                        }, sizes.gap)
                 }
             } else {
-                Box(30.dp, 30.dp) { modifier.margin(start = sizes.smallGap) }
+                Box(sizes.gap, sizes.gap) { modifier.margin(start = sizes.smallGap) }
             }
         }
     }

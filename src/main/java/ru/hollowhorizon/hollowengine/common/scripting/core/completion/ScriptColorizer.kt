@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtReferenceExpression
+import org.jetbrains.kotlin.psi.KtValueArgumentName
 import org.jetbrains.kotlin.psi.psiUtil.allChildren
 import org.jetbrains.kotlin.psi.psiUtil.parents
 import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
@@ -67,7 +68,7 @@ object ScriptColorizer {
 
                 val lines = element.text.split("\n")
                 lines.forEachIndexed { index, line ->
-                    currentLine.add(line to TextAttributes(MsdfFont(HACK_FONT, 30f), attributes))
+                    currentLine.add(line to TextAttributes(MsdfFont(HACK_FONT, 10f), attributes))
                     // Если это конец строки, добавляем в `textLines`
                     if (index != lines.size - 1) {
                         textLines.add(TextLine(currentLine.toList()))
@@ -107,6 +108,8 @@ private fun getElementColor(element: PsiElement, bindingContext: BindingContext)
 
         (expression as? KtReferenceExpression)?.getResolvedCall(bindingContext)
             ?.call?.callElement is KtAnnotationEntry || element.node.elementType == KtTokens.AT -> Color("B3AE60")
+
+        expression?.parent is KtValueArgumentName -> Color("57AAF7")
 
         element.isNameReference() -> Color("BCBEC4")
         element.isNumericLiteral() -> Color("2AACB8")

@@ -75,14 +75,14 @@ fun UiScope.ScriptTextArea(
         block(scriptScope)
         val completions = textArea.modifier.completions
         if (completions.isNotEmpty()) {
-            val font = MsdfFont(HACK_FONT, 30f)
+            val font = MsdfFont(HACK_FONT, 10f)
             val width = lineProvider[currentLine].charIndexToPx(modifier.selectionCaretChar.coerceAtLeast(0))
 
             Popup(
                 uiNode.leftPx + width + uiNode.paddingStartPx,
                 uiNode.topPx + (modifier.selectionStartLine + 1) * font.lineHeight + sizes.gap.px
             ) {
-                modifier.padding(sizes.smallGap)
+                modifier.padding(sizes.smallGap*0.5f)
                     .height(
                         Grow(
                             1f,
@@ -92,19 +92,19 @@ fun UiScope.ScriptTextArea(
                         )
                     )
                     .width(Grow(1f, max = FitContent))
-                    .background(RoundRectBackground(colors.backgroundMid, sizes.gap))
-                    .border(RoundRectBorder(colors.hoverBg, sizes.gap, 3.dp))
+                    .background(RoundRectBackground(colors.backgroundMid, sizes.smallGap))
+                    .border(RoundRectBorder(colors.primaryVariant, sizes.smallGap, sizes.borderWidth))
                     .zLayer(UiSurface.LAYER_POPUP)
 
                 LazyList(
                     withVerticalScrollbar = true,
-                    withHorizontalScrollbar = true,
+                    withHorizontalScrollbar = false,
                     isScrollableHorizontal = true,
                     vScrollbarModifier = {
-                        it.width(10.dp).margin(5.dp).zLayer(UiSurface.LAYER_POPUP + UiSurface.LAYER_FLOATING)
+                        it.width(sizes.smallGap).margin(sizes.smallGap*0.5f).zLayer(UiSurface.LAYER_POPUP + UiSurface.LAYER_FLOATING)
                     },
                     hScrollbarModifier = {
-                        it.height(10.dp).margin(5.dp).zLayer(UiSurface.LAYER_POPUP + UiSurface.LAYER_FLOATING)
+                        it.height(sizes.smallGap).margin(sizes.smallGap*0.5f).zLayer(UiSurface.LAYER_POPUP + UiSurface.LAYER_FLOATING)
                     },
                 ) {
                     textArea.completionsList = (this as LazyListNode).state
@@ -122,22 +122,24 @@ fun UiScope.ScriptTextArea(
                 modifier.background(UiRenderer { node ->
                     node.apply {
                         getUiPrimitives(UiSurface.LAYER_BACKGROUND)
-                            .localRoundRect(0f, 0f, widthPx, heightPx, heightPx * 0.5f, colors.background)
+                            .localRoundRect(0f, 0f, widthPx, heightPx, sizes.smallGap.px, colors.background)
                         getUiPrimitives(UiSurface.LAYER_BACKGROUND)
                             .localRoundRectBorder(
                                 0f,
                                 0f,
                                 widthPx,
                                 heightPx,
-                                heightPx * 0.5f,
+                                sizes.smallGap.px,
                                 sizes.borderWidth.px,
-                                colors.hoverBg
+                                colors.primaryVariant
                             )
                     }
                 })
 
+                modifier.width(Grow(1f, max=FitContent))
+
                 Text(errorMessage) {
-                    modifier.margin(sizes.smallGap)
+                    modifier.margin(sizes.smallGap).isWrapText(true).width(Grow.Std)
                 }
             }
         }
@@ -204,7 +206,7 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
         lineProvider: TextLineProvider,
     ): UiScope {
         val errors = this@ScriptTextArea.modifier.errors
-        val font = MsdfFont(HACK_FONT, 30f)
+        val font = MsdfFont(HACK_FONT, 10f)
 
         val row = scope.Row(Grow.Std, height = font.lineHeight.dp) {
             if (lineIndex == this@ScriptTextArea.modifier.selectionStartLine) {
@@ -221,7 +223,7 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
                         0,
                         column.coerceAtMost(text.lastIndex)
                     )
-                ).width
+                ).width.dp.px
                 val endPos = if (text.isEmpty()) 0f else font.textDimensions(
                     text.substring(
                         0, TextCaretNavigation.endOfWord(
@@ -229,14 +231,13 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
                             column
                         ).coerceAtMost(text.lastIndex) + 1
                     )
-                ).width
+                ).width.dp.px
 
                 if (error.severity.ordinal > 2) getUiPrimitives().addTriangulatedLineMesh {
                     this.width = 3f
                     this.color = Color.RED
 
-                    val leftPos =
-                        uiNode.leftPx + width.value + sizes.gap.value * 4 + sizes.borderWidth.value + sizes.smallGap.value
+                    val leftPos = uiNode.leftPx + width.px + sizes.smallGap.px * 3f + sizes.borderWidth.px
                     for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).toInt()).step(5)) {
                         val offset = if (i % 2 == 0) 5 else -5
                         addLine(
@@ -257,14 +258,14 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
                 Text((lineIndex + 1).toString()) {
                     modifier.font(font).align(AlignmentX.End, AlignmentY.Center)
                 }
-                modifier.margin(horizontal = sizes.gap * 2)
+                modifier.margin(horizontal = sizes.smallGap)
             }
 
             Box(sizes.borderWidth, Grow.Std) {
                 modifier
                     .backgroundColor(colors.secondaryVariant)
                     .alignY(AlignmentY.Center)
-                    .margin(horizontal = sizes.gap)
+                    .margin(horizontal = sizes.smallGap)
             }
             super.setupTextLine(this, line, lineIndex, textAreaMod, lineProvider).apply {
                 modifier.alignY(AlignmentY.Center).margin(start = sizes.smallGap).alignY(AlignmentY.Top)

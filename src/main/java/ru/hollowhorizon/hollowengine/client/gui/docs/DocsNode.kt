@@ -11,10 +11,6 @@ import ru.hollowhorizon.hollowengine.client.utils.lang
 class DocsNode(name: String, path: String, val page: Composable? = null) : FileNode(name, path) {
     constructor(path: String, page: Composable? = null) : this("hollowengine.gui.docs.${path.replace('/', '.')}".lang, path, page)
 
-    companion object {
-        val SPACING = Dp(25f)
-    }
-
     override fun toggleExpanded() {
         if (!isFolder) return
 
@@ -33,8 +29,6 @@ class DocsNode(name: String, path: String, val page: Composable? = null) : FileN
                     }
                 }
             }
-            .margin(horizontal = sizes.smallGap)
-            .padding(horizontal = sizes.smallGap)
 
         if (isHovered) {
             modifier.background(RoundRectBackground(colors.hoverBg, sizes.smallGap))
@@ -44,11 +38,8 @@ class DocsNode(name: String, path: String, val page: Composable? = null) : FileN
     }
 
     override fun UiScope.sceneObjectLabel(item: FileNode, isHovered: Boolean): RowScope = Row(width = Grow.Std) {
-        modifier.margin(vertical = 10.dp)
         if (item.depth > 0) {
-            var depth = item.depth
-            if (!item.isFolder) depth += 1
-            Box(width = SPACING * depth) {}
+            Box(width = sizes.gap * item.depth) {}
         }
 
         val fgColor = if (isHovered) colors.primary else colors.secondary
@@ -56,7 +47,9 @@ class DocsNode(name: String, path: String, val page: Composable? = null) : FileN
         Box {
             modifier
                 .alignY(AlignmentY.Center)
-                .margin(end = 7.dp)
+                .padding(sizes.smallGap)
+                .margin(horizontal = sizes.smallGap)
+                .size(sizes.gap, sizes.gap)
 
             if (item.isFolder) {
                 Arrow(isHoverable = false) {
@@ -64,17 +57,15 @@ class DocsNode(name: String, path: String, val page: Composable? = null) : FileN
                         .rotation(if (item.isExpanded.use()) ROTATION_DOWN else ROTATION_RIGHT)
                         .align(AlignmentX.Center, AlignmentY.Center)
                         .onClick { item.toggleExpanded() }
-                        .size(SPACING, SPACING)
+                        .size(sizes.gap, sizes.gap)
                 }
             }
         }
 
-        val largerFont = remember { sizes.normalText.derive(40f) }
-
         Box(width = Grow.Std, height = Grow.Std) {
             Text(item.treeName) {
                 modifier
-                    .font(largerFont)
+                    .font(sizes.normalText)
                     .alignY(AlignmentY.Center)
                     .textColor(fgColor)
             }

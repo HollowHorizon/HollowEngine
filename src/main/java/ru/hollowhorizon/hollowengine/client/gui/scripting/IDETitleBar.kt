@@ -4,9 +4,7 @@ import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hc.client.kool.Image
-import ru.hollowhorizon.hollowengine.client.gui.kool.TitleBgRenderer
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
-import ru.hollowhorizon.hollowengine.client.gui.kool.heightTitleBar
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
@@ -14,8 +12,8 @@ object IDETitleBar : Composable {
     var currentItemIndex = 0
 
     override fun UiScope.compose() {
-        Row(width = Grow.Std, height = 40.dp) {
-            modifier.padding(sizes.gap)
+        Row(width = Grow.Std, height = 10.dp) {
+            modifier.padding(horizontal = sizes.smallGap*0.5f)
             modifier.background(
                 RectGradientBackground(colors.background.mulRgb(2f), colors.background, 0.dp, 20.dp, 500.dp, 500.dp)
             )
@@ -23,28 +21,30 @@ object IDETitleBar : Composable {
             menuItem("hollowengine.gui.ide.file".lang) {
                 menuItem("Закрыть")
             }
-            divider(verticalMargin = 0.dp)
+            Divider()
             menuItem("hollowengine.gui.ide.edit".lang)
-            divider(verticalMargin = 0.dp)
+            Divider()
             menuItem("hollowengine.gui.ide.search".lang)
-            divider(verticalMargin = 0.dp)
+            Divider()
             menuItem("hollowengine.gui.ide.settings".lang)
 
             Box {
                 modifier.width(Grow.Std)
             }
 
-            if(IDEGuiV2.files.any { it.value is TextFileData }) {
+            if (IDEGuiV2.files.any { it.value is TextFileData }) {
                 ComboBox {
                     modifier.selectedIndex(currentItemIndex)
                         .onItemSelected { currentItemIndex = it }
                         .items(IDEGuiV2.files.map { it.key.substringAfterLast('/') })
-                        .height(30.dp)
-                        .margin(end = sizes.gap).align(AlignmentX.End, AlignmentY.Center)
+                        .size(FitContent, sizes.gap)
+                        .align(AlignmentX.End, AlignmentY.Center)
                 }
+                Divider()
                 Image("hollowengine:textures/gui/icons/play.png") {
-                    modifier.size(40.dp - sizes.smallGap * 2, 40.dp - sizes.smallGap * 2)
-                        .margin(end = sizes.gap).alignY(AlignmentY.Center)
+                    modifier.size(sizes.gap, sizes.gap)
+                        .padding(sizes.smallGap * 0.25f)
+                        .alignY(AlignmentY.Center)
                     var isHovered by remember { mutableStateOf(false) }
 
                     modifier
@@ -53,8 +53,7 @@ object IDETitleBar : Composable {
 
                     if (isHovered) {
                         val color = Color("FFFFFF33")
-                        modifier.background(RoundRectBackground(color, sizes.smallGap))
-                            .tint(color)
+                        modifier.background(RoundRectBackground(color, sizes.smallGap * 0.5f))
                     }
                 }
             }
@@ -72,7 +71,6 @@ object IDETitleBar : Composable {
             modifier.align(AlignmentX.Center, AlignmentY.Center)
                 .onEnter { isHovered = true }.onExit { isHovered = false }
                 .onClick { popup.show(Vec2f(node.leftPx, node.bottomPx)) }
-                .margin(horizontal = sizes.smallGap)
 
             popup.popupContent = Composable {
                 Column(FitContent, FitContent) {
@@ -92,5 +90,13 @@ object IDETitleBar : Composable {
             popup()
         }
 
+    }
+
+    private fun UiScope.Divider() {
+        Box {
+            modifier.size(sizes.borderWidth*.5f, Grow.Std)
+                .margin(horizontal = sizes.smallGap * 0.5f, vertical = sizes.smallGap * 0.25f)
+                .backgroundColor(Color.WHITE)
+        }
     }
 }

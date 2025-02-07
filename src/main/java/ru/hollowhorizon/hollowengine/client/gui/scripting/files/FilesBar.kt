@@ -6,6 +6,8 @@ import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.TabRenderer
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverListener
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
 
@@ -14,72 +16,73 @@ fun UiScope.FileDockingTabsBar(
     isDragToUndock: Boolean = true,
     onCloseAction: ((PointerEvent) -> Unit)? = null,
     scopeName: String? = null,
+    focusedBackgroundColor: Color = colors.secondary,
+    unfocusedBackgroundColor: Color = colors.secondaryVariant,
 ): Boolean {
     val dockNode = windowDockable.dockedTo.use()
     val nodeCount = dockNode?.dockedItems?.use()?.count { !it.isHidden } ?: 0
 
     if (dockNode != null && nodeCount > 1) {
-        Row(width = Grow.Std, height = sizes.gap * 4f, scopeName = scopeName) {
-            modifier.backgroundColor(colors.background)
+        val color = if (surface.isFocused.use()) focusedBackgroundColor else unfocusedBackgroundColor
+
+        Row(width = Grow.Std, height = 12.dp, scopeName = scopeName) {
+            modifier.background(
+                RoundRectGradientBackground(
+                    sizes.smallGap, color.mulRgb(0.5f), color,
+                    0.dp, 5.dp, 100.dp, 100.dp
+                )
+            )
 
             dockNode.dockedItems.filter { !it.isHidden }.forEach { item ->
-                Box {
+                Row {
+                    val isHovered by hoverListener()
+                    val bgColor = if (isHovered) colors.hoverBg
+                    else colors.backgroundMid
+
                     modifier
-                        .margin(horizontal = sizes.smallGap)
+                        .margin(horizontal = sizes.smallGap*0.5f)
+                        .padding(sizes.smallGap * 0.5f)
                         .alignY(AlignmentY.Bottom)
+                        .background(
+                            TabRenderer(
+                                bgColor,
+                                when {
+                                    item == windowDockable -> colors.primaryVariant
+                                    isHovered -> colors.primary
+                                    else -> bgColor
+                                }
+                            )
+                        )
+                        .onClick {
+                            if (it.pointer.isMiddleButtonReleased) {
+                                onCloseAction?.invoke(it)
+                            } else if (it.isLeftClick) {
+                                dockNode.bringToTop(item)
+                            }
+                        }
 
                     val itemName = IDEGuiV2.files.values.find { it.dockable == item }?.fileName ?: item.name.lang
 
-                    Button(itemName) {
-                        // set a bit different button style: click feedback is disabled (doesn't work with the way
-                        // the tabs are switched)
-                        // also we use a custom background to get a more "tabbie" look
-                        val bgColor = if (isHovered) {
-                            colors.hoverBg
-                        } else {
-                            colors.backgroundMid
-                        }
-                        modifier
-                            .backgroundColor(bgColor)
-                            .isClickFeedback(false)
-                            .textAlignX(AlignmentX.Start)
-                            .onClick {
-                                if (it.pointer.isMiddleButtonReleased) {
-                                    onCloseAction?.invoke(it)
-                                } else if (it.isLeftClick) {
-                                    dockNode.bringToTop(item)
-                                }
-                            }
-
-                        if (onCloseAction != null) {
-                            modifier
-                                .text(modifier.text + "     ")
-                                .padding(end = 0.dp)
-
-                            CloseButton(
-                                buttonMod = {
-                                    it
-                                        .align(AlignmentX.End, AlignmentY.Center)
-                                        .margin(top = sizes.smallGap, end = sizes.smallGap)
-                                        .width(sizes.gap * 3f)
-                                        .height(sizes.gap * 3f)
-                                }
-                            ) { ev -> onCloseAction(ev) }
-                        }
+                    Text(itemName) {
+                        modifier.textAlign(AlignmentX.Start, AlignmentY.Center)
+                            .font(sizes.normalText.derive(8f))
+                            .height(10.dp)
                     }
 
-                    if (item == windowDockable) {
-                        // active tab indicator
-                        Box(Grow.Std, sizes.borderWidth * 2f) {
-                            modifier
-                                .backgroundColor(if (surface.isFocused.use()) colors.primary else colors.primaryVariant)
-                                .alignY(AlignmentY.Bottom)
+                    if (isDragToUndock) {
+                        with(windowDockable) {
+                            registerDragCallbacks(false)
                         }
-                        if (isDragToUndock) {
-                            with(windowDockable) {
-                                registerDragCallbacks(false)
+                    }
+                    if (onCloseAction != null) {
+                        CloseButton(
+                            buttonMod = {
+                                it
+                                    .margin(0f.dp)
+                                    .align(AlignmentX.End, AlignmentY.Center)
+                                    .size(sizes.gap, sizes.gap)
                             }
-                        }
+                        ) { ev -> onCloseAction(ev) }
                     }
                 }
             }
@@ -107,7 +110,8 @@ fun UiScope.FileTitleBar(
     scopeName: String? = null,
 ) {
     val isTabbed = if (showTabsIfDocked) {
-        FileDockingTabsBar(windowDockable, onCloseAction = onCloseAction, scopeName = scopeName)
+        FileDockingTabsBar(windowDockable, onCloseAction = onCloseAction, scopeName = scopeName,
+            focusedBackgroundColor = focusedBackgroundColor, unfocusedBackgroundColor = unfocusedBackgroundColor)
     } else {
         false
     }
@@ -119,12 +123,17 @@ fun UiScope.FileTitleBar(
                 height = 200.dp
             )
         }
-        Row(Grow.Std, height = sizes.gap * 4f, scopeName = scopeName) {
+        Row(Grow.Std, height = 12.dp, scopeName = scopeName) {
             val color = if (surface.isFocused.use()) focusedBackgroundColor else unfocusedBackgroundColor
-            val cornerR = if (windowDockable.isDocked.use()) 0f else sizes.gap.px
+            val cornerR = if (windowDockable.isDocked.use()) 0f else sizes.smallGap.px * 0.5f
             modifier
                 .padding(horizontal = sizes.gap)
-                .background(RoundRectGradientBackground(cornerR.dp, color.mulRgb(0.5f), color, 0.dp, 20.dp, 500.dp, 500.dp))
+                .background(
+                    RoundRectGradientBackground(
+                        cornerR.dp, color.mulRgb(0.5f), color,
+                        0.dp, 5.dp, 100.dp, 100.dp
+                    )
+                )
                 .onClick {
                     if (it.pointer.isMiddleButtonReleased) {
                         onCloseAction?.invoke(it)
@@ -136,14 +145,16 @@ fun UiScope.FileTitleBar(
                 }
             }
 
-            val itemName = IDEGuiV2.files.values.find { it.dockable == windowDockable }?.fileName ?: windowDockable.name.lang
+            val itemName =
+                IDEGuiV2.files.values.find { it.dockable == windowDockable }?.fileName ?: windowDockable.name.lang
 
             Text(itemName) {
                 modifier
                     .width(Grow.Std)
                     .margin(horizontal = sizes.gap, vertical = sizes.smallGap * 0.5f)
                     .textColor(if (surface.isFocused.use()) focusedTextColor else unfocusedTextColor)
-                    .alignY(AlignmentY.Center)
+                    .align(AlignmentX.Center, AlignmentY.Center)
+                    .textAlign(AlignmentX.Center, AlignmentY.Center)
             }
 
             onCloseAction?.let {
@@ -151,8 +162,8 @@ fun UiScope.FileTitleBar(
                     it
                         .align(AlignmentX.End, AlignmentY.Center)
                         .margin(top = sizes.smallGap, end = sizes.smallGap)
-                        .width(sizes.gap * 3f)
-                        .height(sizes.gap * 3f)
+                        .width(sizes.gap)
+                        .height(sizes.gap)
                 }) { ev -> it(ev) }
             }
         }

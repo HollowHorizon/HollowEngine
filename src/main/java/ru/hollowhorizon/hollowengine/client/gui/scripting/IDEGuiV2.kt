@@ -62,7 +62,7 @@ object IDEGuiV2 : KoolScreen({
         dockingSurface.sizes = ideSizes
         dockingPaneComposable = Composable {
             Column(Grow.Std, Grow.Std) {
-                modifier.margin(top = 40.dp)
+                modifier.margin(top = 10.dp)
                 Box(width = Grow.Std, height = sizes.borderWidth) { modifier.backgroundColor(UiColors.titleBg) }
                 divider(horizontalMargin = 0.dp, color = colors.backgroundMid)
                 root()
@@ -85,7 +85,7 @@ object IDEGuiV2 : KoolScreen({
 
     addNode(dock)
     addPanelSurface(ideColors, ideSizes) {
-        modifier.alignY(AlignmentY.Top).size(Grow.Std, 40.dp)
+        modifier.alignY(AlignmentY.Top).size(Grow.Std, 10.dp)
 
         IDETitleBar()
 
@@ -112,18 +112,16 @@ object IDEGuiV2 : KoolScreen({
                 }).padding(sizes.smallGap)
 
                 Row {
-                    val icon = when {
-                        it.children.isNotEmpty() && it.isExpanded.value -> FOLDER_OPEN
-                        it.children.isNotEmpty() && !it.isExpanded.value -> FOLDER
-                        it.treeName.endsWith(".kts") -> KOTLIN
-                        else -> FILE
-                    }
+                    it.apply {
+                        val icon = getIcon(this)
 
-                    Box {
-                        modifier.alignY(AlignmentY.Center)
-                        Image(icon) {
-                            modifier.margin(horizontal = 10.dp).size(sizes.lineHeight, sizes.lineHeight)
-                                .imageSize(ImageSize.Stretch)
+
+                        Box {
+                            modifier.alignY(AlignmentY.Center)
+                            Image(icon) {
+                                modifier.alignY(AlignmentY.Center).size(sizes.lineHeight, sizes.lineHeight)
+                                    .imageSize(ImageSize.Stretch)
+                            }
                         }
                     }
 
@@ -185,6 +183,7 @@ object IDEGuiV2 : KoolScreen({
                 setText(String(bytes))
             }
         }
+
     }
 
     fun openDocFile(node: FileNode) {
@@ -220,4 +219,4 @@ val ideColors = Colors.darkColors(
     secondaryVariant = Color("4d566bff"),
     onSecondary = Color.WHITE
 )
-val ideSizes = Sizes.medium.copy(normalText = MsdfFont(PT_SANS, 30f))
+val ideSizes = Sizes.small.copy(normalText = MsdfFont(PT_SANS, 10f))

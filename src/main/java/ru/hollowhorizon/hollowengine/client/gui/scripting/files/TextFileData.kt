@@ -33,7 +33,7 @@ var currentColumn = 0
 class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) :
     FileData(project, name, path) {
     private val lines = mutableStateListOf(*code.lines().map {
-        TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 30f), Color.WHITE)))
+        TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 10f), Color.WHITE)))
     }.toTypedArray())
     private val editor = ScriptTextEditorHandler(lines)
 
@@ -49,7 +49,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
     fun setText(text: String) {
         lines.clear()
         lines.addAll(mutableStateListOf(*text.lines().map {
-            TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 30f), Color.WHITE)))
+            TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 10f), Color.WHITE)))
         }.toTypedArray()))
         surface.triggerUpdate()
     }
@@ -89,14 +89,16 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
         ScriptTextArea(
             ListTextLineProvider(lines),
             width = Grow.Std,
-            height = Grow.Std
+            height = Grow.Std,
+            vScrollbarModifier = { it.width(sizes.smallGap) },
+            hScrollbarModifier = { it.height(sizes.smallGap) },
         ) {
             this@TextFileData.modifier = modifier
             installSelectionHandler { startLine, caretLine, startChar, caretChar ->
                 modifier.completions.clear()
             }
 
-            modifier.padding(sizes.smallGap).editorHandler(editor)
+            modifier.editorHandler(editor)
             modifier.onCharTyped = {
                 currentLine = modifier.selectionStartLine
                 currentColumn = modifier.selectionStartChar

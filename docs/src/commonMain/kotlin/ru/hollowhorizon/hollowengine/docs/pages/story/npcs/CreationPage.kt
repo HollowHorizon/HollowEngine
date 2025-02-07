@@ -72,17 +72,19 @@ object CreationPage : Composable {
         }
 
         Column {
-            modifier.padding(sizes.largeGap)
+            modifier.padding(sizes.smallGap)
                 .background(RoundRectBackground(colors.backgroundMid.mulRgb(0.5f), sizes.gap))
                 .border(RoundRectBorder(Color.WHITE, sizes.gap, sizes.borderWidth))
                 .alignX(AlignmentX.Center)
                 .width(Grow(0.95f))
 
             val textHeight = creationTemplate
-                .sumOf { it.spans.maxOf { it.second.font.textDimensions(it.first).height.toDouble() } }
+                .sumOf { it.spans.maxOf { it.second.font.textDimensions(it.first).height.toDouble() } } + sizes.gap.px
             TextArea(
                 ListTextLineProvider(creationTemplate),
-                height = textHeight.toFloat().dp
+                height = Dp.fromPx(textHeight.toFloat()),
+                vScrollbarModifier = { it.width(sizes.smallGap) },
+                hScrollbarModifier = {it.height(sizes.smallGap)},
             ) {
                 modifier.lineEndPadding(0f.dp)
             }
