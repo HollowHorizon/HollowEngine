@@ -83,7 +83,7 @@ object CreationPage : Composable {
             TextArea(
                 ListTextLineProvider(creationTemplate),
                 height = Dp.fromPx(textHeight.toFloat()),
-                vScrollbarModifier = { it.width(sizes.smallGap) },
+                withVerticalScrollbar = false,
                 hScrollbarModifier = {it.height(sizes.smallGap)},
             ) {
                 modifier.lineEndPadding(0f.dp)

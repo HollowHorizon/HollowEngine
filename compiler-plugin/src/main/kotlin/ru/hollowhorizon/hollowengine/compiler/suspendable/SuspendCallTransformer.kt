@@ -2,17 +2,22 @@ package ru.hollowhorizon.hollowengine.compiler.suspendable
 
 import org.jetbrains.kotlin.backend.common.lower.irThrow
 import org.jetbrains.kotlin.backend.jvm.functionByName
+import org.jetbrains.kotlin.backend.wasm.ir2wasm.LocationType
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irElseBranch
 import org.jetbrains.kotlin.ir.builders.irString
+import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrBranchImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrWhenImpl
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.util.fileEntry
 import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.getPropertyGetter
 import org.jetbrains.kotlin.ir.util.statements
@@ -86,15 +91,12 @@ class SuspendCallTransformer(
 }
 
 fun IrBuilderWithScope.throwIllegalStateException(message: String): IrExpression {
-    // Находим конструктор IllegalStateException(String)
     val exceptionClass = context.irBuiltIns.illegalArgumentExceptionSymbol
 
-    // Создаем выражение для вызова конструктора
     val exceptionConstructorCall = irCall(exceptionClass).apply {
         putValueArgument(0, irString(message))
     }
 
-    // Создаем выражение для выброса исключения
     return irThrow(exceptionConstructorCall)
 }
 

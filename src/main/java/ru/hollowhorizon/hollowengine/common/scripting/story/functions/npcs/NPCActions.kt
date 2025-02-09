@@ -11,6 +11,7 @@ import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ClipContext
 import net.minecraft.world.phys.Vec3
+import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hc.client.utils.literal
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
@@ -94,7 +95,7 @@ fun NPCEntity.dropItem(item: ItemStack) {
 fun wait(time: Int) {
     var ticks = time
     while (ticks > 0) {
-        ticks-- // Циклы выполняются по-тиково, не чаще 1 итерации в тик
+        ticks--
     }
 }
 

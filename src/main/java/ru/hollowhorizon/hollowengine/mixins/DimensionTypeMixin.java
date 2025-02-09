@@ -14,7 +14,7 @@ import java.nio.file.Path;
 
 @Mixin(DimensionType.class)
 public class DimensionTypeMixin {
-    @Inject(method = "getStorageFolder", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "getStorageFolder", at = @At(value = "RETURN"), cancellable = true)
     private static void onGetWorldFolder(ResourceKey<Level> pDimensionKey, Path pLevelFolder, CallbackInfoReturnable<Path> cir) {
         if (pDimensionKey.location().equals(ModDimensions.INSTANCE.getSTORYTELLER_DIMENSION().location())) {
             cir.setReturnValue(DirectoryManager.INSTANCE.getHOLLOW_ENGINE().resolve("storyteller_dimension"));
