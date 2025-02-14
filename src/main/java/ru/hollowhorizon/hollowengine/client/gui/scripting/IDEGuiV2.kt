@@ -34,7 +34,10 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DocsTreePanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.FileTreePanel
 import ru.hollowhorizon.hollowengine.client.kool.dragItem
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.docs.pages.WelcomePage
+
+import com.akuleshov7.ktoml.Toml
 
 val PT_SANS by lazy {
     val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/pt_sans.json".rl.stream)
@@ -54,6 +57,7 @@ val HACK_FONT by lazy {
 
 object IDEGuiV2 : KoolScreen({
     setupUiScene()
+    load()
 
     val dock = Dock().apply {
         borderWidth.set(Dp.fromPx(1f))
@@ -211,7 +215,8 @@ object IDEGuiV2 : KoolScreen({
 }
 
 val panels = HashMap<Dockable, DockPanel>()
-val ideColors = Colors.darkColors(
+
+var ideColors = Colors.darkColors(
     background = Color("232933EE"),
     backgroundVariant = Color("161a2088"),
     onBackground = Color("dbe6ffff"),
@@ -219,4 +224,16 @@ val ideColors = Colors.darkColors(
     secondaryVariant = Color("4d566bff"),
     onSecondary = Color.WHITE
 )
+
+fun load() {
+    val configFile = DirectoryManager.HOLLOW_ENGINE.resolve("IdeStile.toml").toFile()
+
+    if(!configFile.exists()) {
+        configFile.writeText(Toml.encodeToString(ColorsSerializer, ideColors))
+    } else {
+        ideColors = Toml.decodeFromString(ColorsSerializer, configFile.readText())
+    }
+}
+
+
 val ideSizes = Sizes.small.copy(normalText = MsdfFont(PT_SANS, 10f))
