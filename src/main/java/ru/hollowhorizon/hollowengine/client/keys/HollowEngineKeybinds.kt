@@ -22,7 +22,8 @@ fun onRegisterKeys(event: RegisterKeyBindingsEvent) {
 @SubscribeEvent
 fun onTick(event: TickEvent.Client) {
     if (HOLLOW_ENGINE_KEY.isDown) {
-        IDEGuiV2.open()
+        val IDE = IDEGuiV2()
+        IDE.open()
     }
     if(MODEL_VIEWER.isDown) GltfViewer().open()
 }

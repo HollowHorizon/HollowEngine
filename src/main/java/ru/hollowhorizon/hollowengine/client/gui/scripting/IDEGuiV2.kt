@@ -55,9 +55,8 @@ val HACK_FONT by lazy {
     MsdfFontData(msdfMap, fontInfo)
 }
 
-object IDEGuiV2 : KoolScreen({
+class IDEGuiV2 : KoolScreen({
     setupUiScene()
-    load()
 
     val dock = Dock().apply {
         borderWidth.set(Dp.fromPx(1f))
@@ -93,7 +92,7 @@ object IDEGuiV2 : KoolScreen({
 
         IDETitleBar()
 
-        IDEGuiV2.dndContext.dragItem()?.let {
+        IDEStorage.dndContext.dragItem()?.let {
 
             Popup(PointerInput.primaryPointer.x.toFloat(), PointerInput.primaryPointer.y.toFloat()) {
                 modifier.background(UiRenderer { node ->
@@ -143,75 +142,24 @@ object IDEGuiV2 : KoolScreen({
         surface.triggerUpdate()
     }
 
-    IDEGuiV2.dock = dock
+    IDEStorage.dock = dock
 }) {
-    val files = HashMap<String, FileData>()
-    var fileTree = FileNode.EMPTY
 
-    val dndContext = DragAndDropContext<FileNode>()
-
-    @JvmStatic
-    lateinit var dock: Dock
-
-    fun openFile(path: String, bytes: ByteArray, type: FileType) {
-        // Get or Create file
-        val file = files.getOrPut(path) {
-            val localFile = when (type) {
-                FileType.TEXT -> {
-                    var text = String(bytes)
-                    if(text.isEmpty()) text = "\n"
-                    TextFileData(this, path.substringAfterLast('/'), path, text)
-                }
-                FileType.IMAGE -> ImageFileData(
-                    this,
-                    path.substringAfterLast('/'),
-                    path,
-                    bytes
-                )
-            }
-            dock.addDockableSurface(localFile.dockable, localFile.surface)
-            val fileLeaf = dock.getLeafAtPath("0/1")
-            if (fileLeaf != null) fileLeaf.dock(localFile.dockable)
-            else dock.getLeafAtPath("0")?.insertItem(localFile.dockable, DockNode.SlotPosition.Right)
-            localFile
-        }
-
-        // Update File
-        when (type) {
-            FileType.IMAGE -> (file as ImageFileData).apply {
-                image = bytes
-                surface.triggerUpdate()
-            }
-
-            FileType.TEXT -> (file as TextFileData).apply {
-                setText(String(bytes))
-            }
-        }
-
-    }
-
-    fun openDocFile(node: FileNode) {
-        val page = (node as? DocsNode)?.page ?: return
-        files.getOrPut(node.treePath) {
-            val localFile = DocFileData(node.treeName, node.treePath, page)
-            dock.addDockableSurface(localFile.dockable, localFile.surface)
-            val fileLeaf = dock.getLeafAtPath("0/1")
-            if (fileLeaf != null) fileLeaf.dock(localFile.dockable)
-            else dock.getLeafAtPath("0")?.insertItem(localFile.dockable, DockNode.SlotPosition.Right)
-            localFile
-        }
+    init {
+        load()
     }
 
     override fun shouldCloseOnEsc(): Boolean {
-        return files.values.filterIsInstance<TextFileData>().all { it.modifier.completions.isEmpty() }
+        return IDEStorage.files.values.filterIsInstance<TextFileData>().all { it.modifier.completions.isEmpty() }
     }
 
     override fun onClose() {
         super.onClose()
-        DockLayout.saveLayout(dock, LayoutLoader.IDE_LAYOUT)
+        DockLayout.saveLayout(IDEStorage.dock, LayoutLoader.IDE_LAYOUT)
     }
 
     override fun isPauseScreen() = false
+
 }
 
 val panels = HashMap<Dockable, DockPanel>()
@@ -234,6 +182,5 @@ fun load() {
         ideColors = Toml.decodeFromString(ColorsSerializer, configFile.readText())
     }
 }
-
 
 val ideSizes = Sizes.small.copy(normalText = MsdfFont(PT_SANS, 10f))

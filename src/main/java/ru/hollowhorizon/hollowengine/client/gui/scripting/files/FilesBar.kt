@@ -11,6 +11,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.TabRenderer
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverListener
 import ru.hollowhorizon.hollowengine.client.utils.lang
+import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEStorage
 
 
 fun UiScope.FileDockingTabsBar(
@@ -63,7 +64,7 @@ fun UiScope.FileDockingTabsBar(
                             }
                         }
 
-                    val itemName = IDEGuiV2.files.values.find { it.dockable == item }?.fileName ?: item.name.lang
+                    val itemName = IDEStorage.files.values.find { it.dockable == item }?.fileName ?: item.name.lang
 
                     Text(itemName) {
                         modifier.textAlign(AlignmentX.Start, AlignmentY.Center)
@@ -148,7 +149,7 @@ fun UiScope.FileTitleBar(
             }
 
             val itemName =
-                IDEGuiV2.files.values.find { it.dockable == windowDockable }?.fileName ?: windowDockable.name.lang
+                IDEStorage.files.values.find { it.dockable == windowDockable }?.fileName ?: windowDockable.name.lang
 
             Text(itemName) {
                 modifier

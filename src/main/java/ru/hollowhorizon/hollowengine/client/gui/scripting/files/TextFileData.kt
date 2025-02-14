@@ -14,7 +14,7 @@ import org.jetbrains.kotlin.resolve.BindingContext
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
+import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEStorage
 import ru.hollowhorizon.hollowengine.client.gui.scripting.SaveFilePacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextArea
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextAreaModifier
@@ -32,7 +32,7 @@ import kotlin.script.experimental.api.isError
 var currentLine = 0
 var currentColumn = 0
 
-class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) :
+class TextFileData(project: IDEStorage, name: String, path: String, code: String) :
     FileData(project, name, path) {
     private val lines = mutableStateListOf(*code.lines().map {
         TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 10f), Color.WHITE)))

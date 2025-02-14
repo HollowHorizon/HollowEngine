@@ -48,17 +48,3 @@ class DashBoardScreen : KoolScreen({
         }
     }
 }
-
-@SubscribeEvent
-fun onAddTab(event: DashBoardScreen.TabEvent) {
-    event.register(DashBoardScreen.Tab("code_editor") {
-        IDEGuiV2.open()
-    })
-    event.register(DashBoardScreen.Tab("docs") {
-        DocsScreen.open()
-    })
-}
-
-object DocsScreen : KoolScreen({
-    DOCS_GENERATOR()
-})

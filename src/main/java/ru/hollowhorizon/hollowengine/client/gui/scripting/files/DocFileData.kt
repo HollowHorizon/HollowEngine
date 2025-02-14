@@ -3,9 +3,10 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 import de.fabmax.kool.modules.ui2.*
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
+import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEStorage
 
 class DocFileData(fileName: String, filePath: String, val content: Composable) :
-    FileData(IDEGuiV2, fileName, filePath) {
+    FileData(IDEStorage, fileName, filePath) {
     override fun save() {}
 
     override fun UiScope.compose() {

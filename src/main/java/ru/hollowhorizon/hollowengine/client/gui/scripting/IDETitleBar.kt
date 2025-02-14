@@ -32,11 +32,11 @@ object IDETitleBar : Composable {
                 modifier.width(Grow.Std)
             }
 
-            if (IDEGuiV2.files.any { it.value is TextFileData }) {
+            if (IDEStorage.files.any { it.value is TextFileData }) {
                 ComboBox {
                     modifier.selectedIndex(currentItemIndex)
                         .onItemSelected { currentItemIndex = it }
-                        .items(IDEGuiV2.files.map { it.key.substringAfterLast('/') })
+                        .items(IDEStorage.files.map { it.key.substringAfterLast('/') })
                         .size(FitContent, sizes.gap)
                         .align(AlignmentX.End, AlignmentY.Center)
                 }
@@ -49,7 +49,7 @@ object IDETitleBar : Composable {
 
                     modifier
                         .onEnter { isHovered = true }.onExit { isHovered = false }
-                        .onClick { if (IDEGuiV2.files.isNotEmpty()) StartScriptPacket(IDEGuiV2.files.map { it.key }[currentItemIndex]).send() }
+                        .onClick { if (IDEStorage.files.isNotEmpty()) StartScriptPacket(IDEStorage.files.map { it.key }[currentItemIndex]).send() }
 
                     if (isHovered) {
                         val color = Color("FFFFFF33")
