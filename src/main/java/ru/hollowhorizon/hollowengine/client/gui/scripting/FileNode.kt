@@ -106,10 +106,10 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
                     if (item.isFolder) {
                         item.toggleExpanded()
                     } else {
-                        val file = IDEGuiV2.files[item.treePath]
+                        val file = IDEStorage.files[item.treePath]
 
                         if (file == null) RequestFilePacket(item.treePath).send()
-                        else IDEGuiV2.dock.getLeafAtPath("0/1")?.bringToTop(file.dockable)
+                        else IDEStorage.dock.getLeafAtPath("0/1")?.bringToTop(file.dockable)
                     }
                 }
             }
@@ -129,12 +129,12 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
             modifier.background(RoundRectBackground(colors.hoverBg, sizes.smallGap))
         }
 
-        modifier.installDragAndDropHandler(IDEGuiV2.dndContext, dndHandler) { item }
+        modifier.installDragAndDropHandler(IDEStorage.dndContext, dndHandler) { item }
     }
 
     private fun UiScope.rememberItemDndHandler(treeItem: FileNode): FileHandler {
         val handler = remember { FileHandler(treeItem, uiNode) }
-        IDEGuiV2.dndContext.registerHandler(handler)
+        IDEStorage.dndContext.registerHandler(handler)
         return handler
     }
 

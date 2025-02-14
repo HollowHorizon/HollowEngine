@@ -6,6 +6,7 @@ import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_RIGHT
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.scripting.FileNode
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
+import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEStorage
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
 class DocsNode(name: String, path: String, val page: Composable? = null) : FileNode(name, path) {
@@ -25,7 +26,7 @@ class DocsNode(name: String, path: String, val page: Composable? = null) : FileN
                     if (item.isFolder && evt.pointer.leftButtonRepeatedClickCount == 2) {
                         item.toggleExpanded()
                     } else {
-                        IDEGuiV2.openDocFile(item)
+                        IDEStorage.openDocFile(item)
                     }
                 }
             }

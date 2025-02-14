@@ -154,7 +154,7 @@ enum class FileType {
 class UpdateFilePacket(val path: String, private val bytes: ByteArray, val type: FileType) :
     HollowPacketV3<UpdateFilePacket> {
     override fun handle(player: Player) {
-        IDEGuiV2.openFile(path, bytes, type)
+        IDEStorage.openFile(path, bytes, type)
     }
 }
 
