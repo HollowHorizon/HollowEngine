@@ -1,15 +1,26 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import com.mojang.blaze3d.systems.RenderSystem
+import de.fabmax.kool.modules.ui2.setupUiScene
+import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.logE
 import kotlinx.serialization.Serializable
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.Screen
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.Level
+import org.jetbrains.kotlin.fir.scopes.impl.overrides
 import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.api.HudHideable
+import ru.hollowhorizon.hc.client.kool.KoolManager
+import ru.hollowhorizon.hc.client.kool.KoolScreen
+import ru.hollowhorizon.hc.client.kool.ScreenScene
 import ru.hollowhorizon.hc.client.utils.currentServer
 import ru.hollowhorizon.hc.client.utils.get
+import ru.hollowhorizon.hc.client.utils.literal
 import ru.hollowhorizon.hc.client.utils.nbt.ForCompoundNBT
+import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2
 import ru.hollowhorizon.hc.common.coroutines.onMainThreadSync
@@ -18,14 +29,17 @@ import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.level.LevelEvent
 import ru.hollowhorizon.hc.common.events.server.ServerEvent
 import ru.hollowhorizon.hc.common.events.tick.TickEvent
+import ru.hollowhorizon.hollowengine.client.gui.KoolGui
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
-import ru.hollowhorizon.hollowengine.common.scripting.gui.GuiScript
+import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolEvent
+import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolGuiScripts
 import ru.hollowhorizon.hollowengine.compiler.suspendable.ResumeState
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendState
 import java.io.File
+import java.lang.StringBuilder
 import kotlin.script.experimental.api.isError
 import kotlin.script.experimental.api.valueOrThrow
 import kotlin.system.measureTimeMillis
@@ -115,15 +129,18 @@ fun startStoryEvent(script: File, tag: CompoundTag? = null) {
 
 fun startGuiScript(script: File) {
     scopeAsync {
-        val jar = ScriptingCompiler.compileFile<GuiScript>(script)
+        val jar = ScriptingCompiler.compileFile<KoolEvent>(script)
 
         val result = jar.execute()
-        val event = result.valueOrThrow().returnValue.scriptInstance as? GuiScript
+        val event = result.valueOrThrow().returnValue.scriptInstance as? KoolEvent
             ?: error("Script instance is null")
 
         onMainThreadSync {
             RenderSystem.recordRenderCall {
-                TODO()
+                val screenMinecraft = Minecraft.getInstance()
+
+                val gui = KoolGuiScripts(event)
+                gui.open()
             }
         }
     }

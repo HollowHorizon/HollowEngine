@@ -26,7 +26,11 @@ object IDETitleBar : Composable {
             Divider()
             menuItem("hollowengine.gui.ide.search".lang)
             Divider()
-            menuItem("hollowengine.gui.ide.settings".lang)
+            menuItem("hollowengine.gui.ide.settings".lang) {
+                menuItem("hollowengine.gui.ide.settings.theme".lang, {
+                    
+                })
+            }
 
             Box {
                 modifier.width(Grow.Std)

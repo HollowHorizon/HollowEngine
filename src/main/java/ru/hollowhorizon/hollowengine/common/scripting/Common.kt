@@ -18,7 +18,7 @@ fun startScript(file: File) {
 
     when (extension) {
         "story" -> startStoryEvent(file)
-        "gui" -> startGuiScript(file)
+        "kool" -> startGuiScript(file)
         "event" -> {
             runBlocking { startEventScript(file).await() }
         }
