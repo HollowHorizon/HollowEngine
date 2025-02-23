@@ -10,7 +10,6 @@ import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationComponentRegistrar
 import org.junit.Test
 import ru.hollowhorizon.hollowengine.compiler.HollowEngineCompilerRegistrar
-import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
 import java.io.File
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.*
@@ -36,9 +35,12 @@ class PluginTester {
         val result = compile(
             SourceFile.kotlin(
                 "main.kt", """
+                    import ru.hollowhorizon.hollowengine.scripting.Suspendable
+                    @Suspendable
                     fun main() {
                         println(debug())
                     }
+                    @Suspendable
                     fun debug() = "Hello, World!"
                 """.trimIndent()
             )
@@ -52,35 +54,33 @@ class PluginTester {
             SourceFile.kotlin(
                 "main.kt", """
                     import ru.hollowhorizon.hollowengine.scripting.Suspendable
-                    import ru.hollowhorizon.hollowengine.compiler.suspendable.*
 
                     @Suspendable
                     fun debug(time: Int): String {
                         println(time)
                         var data = 2
-                        await(time > 5)
                         val dataConst = 1
                         while(time<5) {
-                            data++
+                            val hollow = data++
                             var aaa = 0
                             aaa+=10
                             println(time+aaa)                            
                             do {
                                 println("aaa")
+                                if(data > 10) break
+                                if(data > 30) continue
                             } while(time > 3)
                             while (time < 4) println("AAAA: "+data)
                         }
                         println(time+2)
                         return "Hello, World!"+time
                     }
+                    @Suspendable
+                    fun example() {
+                        debug(10)
+                    }
 
                     fun main() {
-                        val launcher = SuspendLauncher { 
-                            //debug(10)
-                        }
-                        
-                        launcher.tick()
-                        if(launcher.isEnd) println(launcher.result)
                     }
                 """.trimIndent()
             )
@@ -100,8 +100,6 @@ class PluginTester {
             SourceFile.kotlin(
                 "main.kt", """
                     import ru.hollowhorizon.hollowengine.scripting.Suspendable
-                    import ru.hollowhorizon.hollowengine.scripting.Ignore
-                    import ru.hollowhorizon.hollowengine.compiler.suspendable.*
 
                     @Suspendable
                     fun test(time: Int): Int {
@@ -130,10 +128,6 @@ class PluginTester {
                     }
 
                     fun main() {
-                        val launcher = SuspendLauncher {}
-                        
-                        launcher.tick()
-                        if(launcher.isEnd) println(launcher.result)
                     }
                 """.trimIndent()
             )
@@ -151,31 +145,22 @@ class PluginTester {
             SourceFile.kotlin(
                 "main.kt", """
                     import ru.hollowhorizon.hollowengine.scripting.*
-                    import ru.hollowhorizon.hollowengine.compiler.suspendable.*
-
+                    
                     @Suspendable
                     fun debug(time: Int): Int {
                         println("Hmm")
                         val test = 1
-                        val r = async { 
+                        val r = @Suspendable {
+                            println("Hello world")
                             // Тут могут быть вызваны suspendable функции
                             time + test
                         }
-                        println("1")
-                        r.start()
-                        println("2")
-                        r.join()
-                        println("3")
-                        r.stop()
+                        println(r())
                         return 0
                     }
                     
 
                     fun main() {
-                        val launcher = SuspendLauncher {}
-                        
-                        launcher.tick()
-                        if(launcher.isEnd) println(launcher.result)
                     }
                 """.trimIndent()
             )
@@ -224,7 +209,6 @@ class PluginTester {
 
         val r = runBlocking { BasicJvmScriptEvaluator().invoke(result.valueOrThrow(), ScriptEvaluationConfiguration()) }
 
-        (r.valueOrThrow().returnValue.scriptInstance as StoryEvent).tick(SuspendContext())
 
         println(r)
     }
@@ -291,7 +275,7 @@ private fun ResultWithDiagnostics<*>.errors() = reports.map {
 abstract class StoryEvent {
     val hello = "world"
 
-    abstract fun tick(context: SuspendContext): Any?
+    abstract fun tick(): Any?
 }
 
 class Configuration : ScriptCompilationConfiguration({

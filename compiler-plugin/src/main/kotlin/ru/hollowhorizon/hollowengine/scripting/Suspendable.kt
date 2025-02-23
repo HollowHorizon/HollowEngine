@@ -4,7 +4,6 @@ package ru.hollowhorizon.hollowengine.scripting
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Suspendable
 
-
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class United
@@ -16,3 +15,5 @@ annotation class United
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD, AnnotationTarget.LOCAL_VARIABLE)
 annotation class Ignore
+
+object SuspendState

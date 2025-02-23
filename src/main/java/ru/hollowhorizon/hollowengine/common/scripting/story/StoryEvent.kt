@@ -16,7 +16,7 @@ abstract class StoryEvent {
     val server = currentServer
     val MinecraftServer.players get() = playerList.players
 
-    abstract fun tick(context: SuspendContext): Any?
+    abstract fun tick(): Any?
 }
 
 class StoryConfiguration : HollowScriptConfiguration({

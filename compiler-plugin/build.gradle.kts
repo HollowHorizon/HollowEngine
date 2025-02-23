@@ -41,6 +41,9 @@ dependencies {
     testImplementation(kotlin("test-junit"))
     testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable")
     testImplementation("dev.zacsweers.kctfork:core:0.6.0-alpha01")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.0")
+
 }
 
 java {

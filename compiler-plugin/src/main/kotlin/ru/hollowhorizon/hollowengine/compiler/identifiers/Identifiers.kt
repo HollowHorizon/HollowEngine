@@ -4,6 +4,8 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 
+val Serializable = ClassId(FqName("kotlinx.serialization"), Name.identifier("Serializable"))
+
 val Suspendable = ClassId(FqName("ru.hollowhorizon.hollowengine.scripting"), Name.identifier("Suspendable"))
 val United = ClassId(FqName("ru.hollowhorizon.hollowengine.scripting"), Name.identifier("United"))
 val Ignore = ClassId(FqName("ru.hollowhorizon.hollowengine.scripting"), Name.identifier("Ignore"))
@@ -19,6 +21,6 @@ val AsyncController =
 val SuspendLauncher =
     ClassId(FqName("ru.hollowhorizon.hollowengine.compiler.suspendable"), Name.identifier("SuspendLauncher"))
 val SuspendState =
-    ClassId(FqName("ru.hollowhorizon.hollowengine.compiler.suspendable"), Name.identifier("SuspendState"))
+    ClassId(FqName("ru.hollowhorizon.hollowengine.scripting"), Name.identifier("SuspendState"))
 val ResumeState = ClassId(FqName("ru.hollowhorizon.hollowengine.compiler.suspendable"), Name.identifier("ResumeState"))
 val ArrayList = ClassId(FqName("java.util"), Name.identifier("ArrayList"))
