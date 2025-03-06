@@ -12,7 +12,6 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.decodeStructure
 import kotlinx.serialization.encoding.encodeStructure
-import kotlinx.serialization.serializer
 import kotlinx.serialization.builtins.serializer
 
 object ColorSerializer : KSerializer<Color> {
@@ -22,7 +21,7 @@ object ColorSerializer : KSerializer<Color> {
 }
 
 object ColorsSerializer : KSerializer<Colors> {
-    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("Colors") {
+    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("ideColors") {
         element("primary", ColorSerializer.descriptor)
         element("primary_variant", ColorSerializer.descriptor)
         element("secondary", ColorSerializer.descriptor)
