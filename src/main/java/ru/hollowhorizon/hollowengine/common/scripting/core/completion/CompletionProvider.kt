@@ -74,8 +74,6 @@ class CompletionProvider(
             val bindingContext = analysisResult.bindingContext
             val moduleDescriptor = analysisResult.moduleDescriptor
 
-            ScriptColorizer.colorize(currentPsiFile!!, bindingContext)
-
             val element = expressionForScope as? KtElement ?: return analysisResult to emptyList()
 
 

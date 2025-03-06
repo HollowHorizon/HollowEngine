@@ -107,16 +107,6 @@ data class CompletionVariant(
         )
         modifier.completions.clear()
         modifier.setCompletionIndex(0)
-
-        // Trigger code analysis
-        modifier.onCharTyped(
-            KeyEvent(
-                UniversalKeyCode(0, null),
-                LocalKeyCode(0, null),
-                KeyboardInput.KEY_EV_CHAR_TYPED,
-                0
-            )
-        )
     }
 
     enum class Icon {

@@ -6,9 +6,11 @@ import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.launchOnMainThread
 import kotlinx.coroutines.*
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
-import org.jetbrains.kotlin.config.LanguageVersionSettings
+import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.config.languageVersionSettings
-import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
+import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.resolve.BindingContext
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
@@ -19,8 +21,8 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextA
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextEditorHandler
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionProvider
-import ru.hollowhorizon.hollowengine.common.scripting.core.completion.OnColorizedEvent
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.OnCompletionsEvent
+import ru.hollowhorizon.hollowengine.common.scripting.core.completion.ScriptColorizer
 import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptParser
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
@@ -38,10 +40,12 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
     private val editor = ScriptTextEditorHandler(lines)
 
     private var textHash = code.hashCode()
+    private var bindingContext = BindingContext.EMPTY
+
+    lateinit var file: KtFile
     lateinit var modifier: ScriptTextAreaModifier
 
     init {
-        EventBus.register(::onColorizedEvent)
         EventBus.register(::onCompletionsEvent)
         ActionManager.launch { compileText(code) }
     }
@@ -51,14 +55,6 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
         lines.addAll(mutableStateListOf(*text.lines().map {
             TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 10f), Color.WHITE)))
         }.toTypedArray()))
-        surface.triggerUpdate()
-    }
-
-    fun onColorizedEvent(event: OnColorizedEvent) = launchOnMainThread {
-        if (event.fileName != fileName || event.hashCode != textHash) return@launchOnMainThread
-
-        lines.clear()
-        lines.addAll(event.text)
         surface.triggerUpdate()
     }
 
@@ -96,33 +92,48 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
             this@TextFileData.modifier = modifier
             installSelectionHandler { startLine, caretLine, startChar, caretChar ->
                 modifier.completions.clear()
-            }
 
-            modifier.editorHandler(editor)
-            modifier.onCharTyped = {
                 currentLine = modifier.selectionStartLine
                 currentColumn = modifier.selectionStartChar
                 val text = lines.joinToString("\n") { it.text }
-                textHash = text.hashCode()
-                ActionManager.launch {
-                    compileText(text)
-                    save()
+                val newHash = text.hashCode()
+                if (textHash != newHash) {
+                    textHash = newHash
+                    ActionManager.launch {
+                        compileText(text)
+                        save()
+                    }
+                } else {
+                    colorizeText()
                 }
             }
+
+            modifier.editorHandler(editor)
         }
     }
 
-    private fun compileText(text: String) {
-        val script = ScriptParser.parse(text, fileName)
+    private suspend fun compileText(text: String) {
+        file = ScriptParser.parse(text, fileName)
 
-        val files = mutableListOf(script)
+        colorizeText()
+
+        val files = mutableListOf(file)
         val completionProvider = CompletionProvider(files, fileName, currentLine, currentColumn)
 
         val (result, completions) = completionProvider.getResult(ScriptParser.env)
+        bindingContext = result.bindingContext
+        yield()
+
         onCompletionsEvent(OnCompletionsEvent(fileName, completions, text.hashCode()))
 
-        val reporter = AnalyzerWithCompilerReport(ScriptParser.messageCollector, ScriptParser.env.configuration.languageVersionSettings, false)
-        reporter.analyzeAndReport(files) { result }
+        AnalyzerWithCompilerReport(
+            ScriptParser.messageCollector,
+            ScriptParser.env.configuration.languageVersionSettings,
+            false
+        ).analyzeAndReport(files) { result }
+        yield()
+
+        colorizeText()
         ScriptParser.messageCollector.diagnostics
             .filter { it.isError() }
             .map {
@@ -138,8 +149,32 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
         ScriptParser.messageCollector.clear()
     }
 
+    private fun colorizeText() {
+        val newLines = ScriptColorizer.colorize(file, bindingContext, expressionAtCaret)
+
+        lines.clear()
+        lines.addAll(newLines)
+        surface.triggerUpdate()
+    }
+
+    private fun getOffsetFromLineAndChar(line: Int, charNumber: Int): Int {
+        if (line >= file.viewProvider.document.lineCount) return -1
+        val lineStart = file.viewProvider.document.getLineStartOffset(line)
+        return lineStart + charNumber
+    }
+
+    private val expressionAtCaret: PsiElement?
+        get() {
+            if (modifier.selectionStartChar != modifier.selectionCaretChar || modifier.selectionStartLine != modifier.selectionCaretLine) return null
+            val caretPositionOffset = getOffsetFromLineAndChar(modifier.selectionCaretLine, modifier.selectionCaretChar)
+            if (caretPositionOffset == -1) return null
+            var element = file.findElementAt(caretPositionOffset)
+            if (element == null || element !is KtElement) element =
+                file.findElementAt(caretPositionOffset - 1)
+            return element
+        }
+
     override fun close() {
-        EventBus.unregister(::onColorizedEvent)
         EventBus.unregister(::onCompletionsEvent)
     }
 }
