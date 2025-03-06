@@ -8,36 +8,29 @@ import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.DockLayout
-import de.fabmax.kool.modules.ui2.docking.DockNode
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.util.*
 import de.fabmax.kool.util.MsdfFont.Companion.MSDF_TEX_PROPS
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
-import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.client.utils.json.JsonFormat
 import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.client.utils.stream
-import ru.hollowhorizon.hollowengine.client.gui.docs.DocsNode
 import ru.hollowhorizon.hollowengine.client.gui.kool.UiColors
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.lineHeight
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
-import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.insertItem
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.DocFileData
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DocsTreePanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.FileTreePanel
 import ru.hollowhorizon.hollowengine.client.kool.dragItem
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
-import ru.hollowhorizon.hollowengine.docs.pages.WelcomePage
-
 import com.akuleshov7.ktoml.Toml
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 
 val PT_SANS by lazy {
     val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/pt_sans.json".rl.stream)
@@ -173,13 +166,17 @@ var ideColors = Colors.darkColors(
     onSecondary = Color.WHITE
 )
 
+var syntaxHighlight = SyntaxHighlight // нужен для загрузки в toml находится в сереализаторе
+
 fun load() {
-    val configFile = DirectoryManager.HOLLOW_ENGINE.resolve("IdeStile.toml").toFile()
+    val configFile = DirectoryManager.HOLLOW_ENGINE.resolve("IdeStyle.toml").toFile()
 
     if(!configFile.exists()) {
-        configFile.writeText(Toml.encodeToString(ColorsSerializer, ideColors))
+        val ideStyle = IdeStyle(ideColors, syntaxHighlight)
+        configFile.writeText(Toml.encodeToString(ideStyle))
     } else {
-        ideColors = Toml.decodeFromString(ColorsSerializer, configFile.readText())
+        val ideStyle = Toml.decodeFromString<IdeStyle>(configFile.readText())
+        ideColors = ideStyle.ideColors
     }
 }
 
