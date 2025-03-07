@@ -23,7 +23,7 @@ import net.minecraft.util.Mth.sin
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import kotlin.math.PI
 
-class GltfViewer : KoolScreen({}) {
+class GltfViewer : KoolScreen() {
     init {
         scene.apply {
             launchOnMainThread {

@@ -8,5 +8,5 @@ data class IdeStyle(
     @Serializable(with = ColorsSerializer::class)
     val ideColors: Colors,
     @Serializable(with = SyntaxHighlightSerializer::class)
-    val SyntaxHighlight: SyntaxHighlight
+    val syntaxHighlight: SyntaxHighlight
 )

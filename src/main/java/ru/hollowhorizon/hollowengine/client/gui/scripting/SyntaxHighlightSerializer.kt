@@ -1,13 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
+
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.encoding.CompositeDecoder
-import kotlinx.serialization.encoding.decodeStructure
-import kotlinx.serialization.encoding.encodeStructure
+import kotlinx.serialization.encoding.*
 
 object SyntaxHighlight {
     var COMMENT = Color("B0B0B0FF")
