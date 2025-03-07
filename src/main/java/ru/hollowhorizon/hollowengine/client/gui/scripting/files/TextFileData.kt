@@ -90,7 +90,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
             hScrollbarModifier = { it.height(sizes.smallGap) },
         ) {
             this@TextFileData.modifier = modifier
-            installSelectionHandler { startLine, caretLine, startChar, caretChar ->
+            installSelectionHandler(lines) { startLine, caretLine, startChar, caretChar ->
                 modifier.completions.clear()
 
                 currentLine = modifier.selectionStartLine
@@ -114,8 +114,6 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
 
     private suspend fun compileText(text: String) {
         file = ScriptParser.parse(text, fileName)
-
-        colorizeText()
 
         val files = mutableListOf(file)
         val completionProvider = CompletionProvider(files, fileName, currentLine, currentColumn)
@@ -150,7 +148,13 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
     }
 
     private fun colorizeText() {
+        if (textHash == 0) return
+
         val newLines = ScriptColorizer.colorize(file, bindingContext, expressionAtCaret)
+
+        val text = newLines.joinToString("\n") { it.text }
+
+        if (text.hashCode() != textHash) return
 
         lines.clear()
         lines.addAll(newLines)
@@ -166,6 +170,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
     private val expressionAtCaret: PsiElement?
         get() {
             if (modifier.selectionStartChar != modifier.selectionCaretChar || modifier.selectionStartLine != modifier.selectionCaretLine) return null
+            if (modifier.selectionStartLine == -1) return null
             val caretPositionOffset = getOffsetFromLineAndChar(modifier.selectionCaretLine, modifier.selectionCaretChar)
             if (caretPositionOffset == -1) return null
             var element = file.findElementAt(caretPositionOffset)
@@ -204,13 +209,23 @@ object ActionManager {
         .also { futureTask = it }
 }
 
-private fun TextAreaScope.installSelectionHandler(onChange: (startLine: Int, caretLine: Int, startChar: Int, caretChar: Int) -> Unit) {
+private fun TextAreaScope.installSelectionHandler(
+    lines: MutableStateList<TextLine>,
+    onChange: (startLine: Int, caretLine: Int, startChar: Int, caretChar: Int) -> Unit,
+) {
     val selStartLine = remember(-1)
     val selCaretLine = remember(-1)
     val selStartChar = remember(0)
     val selCaretChar = remember(0)
 
-    modifier.onSelectionChanged = { startLine, caretLine, startChar, caretChar ->
+    modifier.onSelectionChanged = handler@{ startLine, caretLine, startChar, caretChar ->
+        if (startLine >= lines.size) return@handler
+        if (caretLine >= lines.size) return@handler
+        val start = lines[startLine]
+        if (startChar > start.length) return@handler
+        val caret = lines[caretLine]
+        if (caretChar > caret.length) return@handler
+
         selStartLine.set(startLine)
         selCaretLine.set(caretLine)
         selStartChar.set(startChar)

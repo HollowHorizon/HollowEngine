@@ -40,6 +40,7 @@ object ScriptColorizer {
                 super.visitElement(element)
 
                 // TODO: Нужно что-то сделать с этими параметрами, потому что при их удалении слетает к чертам каретка
+
                 /*                if (element is KtValueArgument) {
                                     // Если в качестве параметра передаётся не примитивный тип, то подсказка к нему не нужна
                                     if (element.children.any { it is KtCallExpression }) return
@@ -165,6 +166,7 @@ private fun getElementColor(element: PsiElement, bindingContext: BindingContext)
         else -> SyntaxHighlight.DEFAULT
     }
 }
+
 object SyntaxHighlight {
     val COMMENT = Color.LIGHT_GRAY
     val KEYWORD = Color("CF8E6D")

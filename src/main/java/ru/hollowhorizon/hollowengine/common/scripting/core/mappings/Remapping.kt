@@ -264,8 +264,8 @@ val MAPPINGS = (
         //? if fabric {
         HollowEngine::class.java.getResourceAsStream("/mappings-1.20.1.tiny")
         //?} elif forge {
-        /*HollowEngine::class.java.getResourceAsStream("/mappings-1.20.1.tsrg")*/
-        //?}
+        /*HollowEngine::class.java.getResourceAsStream("/mappings-1.20.1.tsrg")
+        *///?}
             ?: error("Mappings not found")
         ).use(MappingsLoader::loadMappings)
 

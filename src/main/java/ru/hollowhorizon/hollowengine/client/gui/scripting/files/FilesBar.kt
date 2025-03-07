@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
+import de.fabmax.kool.input.PointerInput
+import de.fabmax.kool.math.MutableVec4f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.Color
@@ -139,7 +141,7 @@ fun UiScope.FileTitleBar(
                         onCloseAction?.invoke(it)
                     }
                 }
-            if (isDraggable) {
+            if (isDraggable && !PointerInput.primaryPointer.isMiddleButtonDown && !PointerInput.primaryPointer.isRightButtonDown) {
                 with(windowDockable) {
                     registerDragCallbacks()
                 }
