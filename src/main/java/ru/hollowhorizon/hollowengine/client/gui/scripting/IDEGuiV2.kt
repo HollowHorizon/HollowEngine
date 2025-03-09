@@ -15,8 +15,8 @@ import de.fabmax.kool.util.MsdfFont.Companion.MSDF_TEX_PROPS
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
 import ru.hollowhorizon.hc.client.kool.KoolScreen
-import ru.hollowhorizon.hc.client.utils.json.JsonFormat
-import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.common.utils.json.JsonFormat
+import ru.hollowhorizon.hc.common.utils.rl
 import ru.hollowhorizon.hc.client.utils.stream
 import ru.hollowhorizon.hollowengine.client.gui.kool.UiColors
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
@@ -181,4 +181,4 @@ fun load() {
     }
 }
 
-val ideSizes = Sizes.small.copy(normalText = MsdfFont(PT_SANS, 10f))
+val ideSizes = Sizes.medium.copy(normalText = MsdfFont(PT_SANS, 30f))

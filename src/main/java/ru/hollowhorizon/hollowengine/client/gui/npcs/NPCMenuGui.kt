@@ -13,8 +13,8 @@ import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT_DATA
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.post
-import ru.hollowhorizon.hc.common.network.HollowPacketV2
-import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hc.common.network.HollowPacketHandler
+import ru.hollowhorizon.hc.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 
@@ -110,8 +110,8 @@ class NPCMenuGui(val npc: NPCEntity) : KoolScreen() {
 }
 
 @Serializable
-@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
-class NpcTalkPacket(val npcId: Int) : HollowPacketV3<NpcTalkPacket> {
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
+class NpcTalkPacket(val npcId: Int) : HollowPacket<NpcTalkPacket> {
     override fun handle(player: Player) {
         val npc = player.level().getEntity(npcId) as? NPCEntity ?: return
 

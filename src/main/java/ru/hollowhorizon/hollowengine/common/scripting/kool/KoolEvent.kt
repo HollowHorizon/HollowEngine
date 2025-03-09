@@ -1,10 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.kool
 
 import de.fabmax.kool.scene.Scene
-import net.minecraft.server.MinecraftServer
-import ru.hollowhorizon.hc.client.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
-import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.defaultImports
 
@@ -13,7 +10,7 @@ import kotlin.script.experimental.api.defaultImports
     fileExtension = "kool.kts",
     compilationConfiguration = KoolConfiguration::class
 )
-abstract class KoolEvent: Scene() {
+abstract class KoolEvent : Scene() {
     init {
         clearColor = null
         clearDepth = false

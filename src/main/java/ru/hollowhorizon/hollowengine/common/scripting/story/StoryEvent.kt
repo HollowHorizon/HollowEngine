@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import net.minecraft.server.MinecraftServer
-import ru.hollowhorizon.hc.client.utils.currentServer
+import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
 import kotlin.script.experimental.annotations.KotlinScript

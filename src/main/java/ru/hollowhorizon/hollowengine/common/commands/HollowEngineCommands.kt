@@ -13,8 +13,9 @@ import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.onRegisterCommands
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterCommandsEvent
-import ru.hollowhorizon.hc.common.network.HollowPacketV2
-import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hc.common.network.HollowPacketHandler
+import ru.hollowhorizon.hc.common.network.HollowPacket
+import ru.hollowhorizon.hc.common.utils.*
 import ru.hollowhorizon.hollowengine.client.gui.npcs.dialogue.DialogueGui
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -133,9 +134,9 @@ fun listModels(): Collection<String> {
     return list
 }
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
-class CopyTextPacket(val text: String) : HollowPacketV3<CopyTextPacket> {
+class CopyTextPacket(val text: String) : HollowPacket<CopyTextPacket> {
     override fun handle(player: Player) {
         player.sendSystemMessage(
             "hollowengine.commands.copy".mcTranslate(text.literal)
@@ -146,9 +147,9 @@ class CopyTextPacket(val text: String) : HollowPacketV3<CopyTextPacket> {
     }
 }
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
-class ShowModelInfoPacket(val model: String) : HollowPacketV3<ShowModelInfoPacket> {
+class ShowModelInfoPacket(val model: String) : HollowPacket<ShowModelInfoPacket> {
     override fun handle(player: Player) {
         val location = model.rl
 

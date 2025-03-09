@@ -10,15 +10,15 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
 import org.joml.Vector3f
 import ru.hollowhorizon.hc.api.ParticlesProvider
-import ru.hollowhorizon.hc.client.molang.asMolang
 import ru.hollowhorizon.hc.client.particles.BedrockParticles
 import ru.hollowhorizon.hc.client.particles.ParticleEffect
 import ru.hollowhorizon.hc.client.particles.Transform
-import ru.hollowhorizon.hc.client.utils.nbt.ForEntity
-import ru.hollowhorizon.hc.client.utils.nbt.ForVec3
-import ru.hollowhorizon.hc.client.utils.rl
-import ru.hollowhorizon.hc.common.network.HollowPacketV2
-import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hc.common.utils.nbt.ForEntity
+import ru.hollowhorizon.hc.common.utils.nbt.ForVec3
+import ru.hollowhorizon.hc.common.utils.rl
+import ru.hollowhorizon.hc.common.network.HollowPacketHandler
+import ru.hollowhorizon.hc.common.network.HollowPacket
+import ru.hollowhorizon.hc.common.objects.molang.asMolang
 
 fun Level.bedrockParticles(pos: Vec3, location: String) {
     SpawnParticlesPacket(location, pos).send(*players().map { it as ServerPlayer }.toTypedArray())
@@ -29,12 +29,12 @@ fun LivingEntity.bedrockParticles(location: String) {
 }
 
 @Serializable
-@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 class SpawnParticlesPacket(
     val location: String,
     val pos: @Serializable(ForVec3::class) Vec3? = null,
     val entity: @Serializable(ForEntity::class) Entity? = null,
-) : HollowPacketV3<SpawnParticlesPacket> {
+) : HollowPacket<SpawnParticlesPacket> {
     override fun handle(player: Player) {
         val renderer = player.level() as ParticlesProvider
 

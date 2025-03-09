@@ -6,11 +6,11 @@ import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.client.models.internal.Transform
 import ru.hollowhorizon.hc.client.models.internal.animations.AnimationType
 import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hc.client.utils.colored
-import ru.hollowhorizon.hc.client.utils.get
-import ru.hollowhorizon.hc.client.utils.mcText
-import ru.hollowhorizon.hc.common.network.HollowPacketV2
-import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hc.common.utils.colored
+import ru.hollowhorizon.hc.common.utils.get
+import ru.hollowhorizon.hc.common.utils.mcText
+import ru.hollowhorizon.hc.common.network.HollowPacket
+import ru.hollowhorizon.hc.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
@@ -22,7 +22,7 @@ class NPCCreatorGui(val npc: NPCEntity, private val npcId: Int) : KoolGui {
     }
 }
 
-@HollowPacketV2
+@HollowPacketHandler
 @Serializable
 class NPCCreatorPacket(
     private val id: Int,
@@ -39,7 +39,7 @@ class NPCCreatorPacket(
     private val tX: Float, private val tY: Float, private val tZ: Float,
     private val rX: Float, private val rY: Float, private val rZ: Float,
     private val sX: Float, private val sY: Float, private val sZ: Float,
-) : HollowPacketV3<NPCCreatorPacket> {
+) : HollowPacket<NPCCreatorPacket> {
     override fun handle(player: Player) {
         if (!player.hasPermissions(2)) {
             player.sendSystemMessage("У вас не достаточно прав для этого действия!".mcText)

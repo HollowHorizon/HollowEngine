@@ -10,11 +10,11 @@ import de.fabmax.kool.util.launchOnMainThread
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.server.level.ServerPlayer
-import ru.hollowhorizon.hc.client.utils.literal
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
-import ru.hollowhorizon.hc.common.network.HollowPacketV2
+import ru.hollowhorizon.hc.common.network.HollowPacketHandler
 import ru.hollowhorizon.hc.common.network.RequestPacket
 import ru.hollowhorizon.hc.common.network.request
+import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.kool.DndHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -236,10 +236,11 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
                 if (item.isExpanded.value) type + "_open"
                 else type
             }
+
             else -> {
                 val type = item.treeName.substringAfterLast('.')
 
-                when(type) {
+                when (type) {
                     "kts", "kt" -> "file_kts"
                     "png", "jpg", "jpeg", "gif" -> "file_image"
                     "ogg", "mp3", "wav" -> "file_sound"
@@ -260,7 +261,7 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
     }
 }
 
-@HollowPacketV2
+@HollowPacketHandler
 @Serializable
 class RequestFolderPacket(private var folder: String) : RequestPacket<RequestFolderPacket>() {
     val children = mutableListOf<Child>()

@@ -12,8 +12,8 @@ import kotlin.io.path.absolutePathString
 import ru.hollowhorizon.hollowengine.compiler.HollowEngineCompilerRegistrar
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 *///?}
-import ru.hollowhorizon.hc.client.utils.ModList
-import ru.hollowhorizon.hc.client.utils.isProduction
+import ru.hollowhorizon.hc.common.utils.ModList
+import ru.hollowhorizon.hc.common.utils.isProduction
 import ru.hollowhorizon.hollowengine.common.scripting.core.mappings.MAPPINGS
 import ru.hollowhorizon.hollowengine.common.scripting.core.mappings.remapJars
 import sun.misc.Unsafe
