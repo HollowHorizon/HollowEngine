@@ -4,10 +4,10 @@ import kotlinx.coroutines.yield
 import net.minecraft.ChatFormatting
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.LOGGER
-import ru.hollowhorizon.hc.client.utils.colored
-import ru.hollowhorizon.hc.client.utils.currentServer
-import ru.hollowhorizon.hc.client.utils.literal
-import ru.hollowhorizon.hc.client.utils.plus
+import ru.hollowhorizon.hc.common.utils.colored
+import ru.hollowhorizon.hc.common.utils.currentServer
+import ru.hollowhorizon.hc.common.utils.literal
+import ru.hollowhorizon.hc.common.utils.plus
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hc.common.events.server.ServerEvent

@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.core.configuration
 
 //? if forge
 /*import net.minecraftforge.fml.loading.FMLEnvironment*/
-import ru.hollowhorizon.hc.client.utils.isProduction
+import ru.hollowhorizon.hc.common.utils.isProduction
 import ru.hollowhorizon.hollowengine.common.scripting.core.Import
 import ru.hollowhorizon.hollowengine.common.scripting.core.deobfClasspath
 import ru.hollowhorizon.hollowengine.common.scripting.core.scriptingClasspath

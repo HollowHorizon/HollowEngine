@@ -12,8 +12,8 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ClipContext
 import net.minecraft.world.phys.Vec3
 import org.lwjgl.opengl.GL33
-import ru.hollowhorizon.hc.client.utils.literal
-import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.common.utils.literal
+import ru.hollowhorizon.hc.common.utils.rl
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.scripting.Ignore
 import ru.hollowhorizon.hollowengine.scripting.Suspendable

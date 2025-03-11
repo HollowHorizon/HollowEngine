@@ -16,10 +16,10 @@ import ru.hollowhorizon.hc.api.HudHideable
 import ru.hollowhorizon.hc.client.kool.KoolManager
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.client.kool.ScreenScene
-import ru.hollowhorizon.hc.client.utils.currentServer
-import ru.hollowhorizon.hc.client.utils.get
-import ru.hollowhorizon.hc.client.utils.literal
-import ru.hollowhorizon.hc.client.utils.nbt.ForCompoundNBT
+import ru.hollowhorizon.hc.common.utils.currentServer
+import ru.hollowhorizon.hc.common.utils.get
+import ru.hollowhorizon.hc.common.utils.literal
+import ru.hollowhorizon.hc.common.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2

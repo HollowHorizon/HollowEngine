@@ -15,21 +15,21 @@ import de.fabmax.kool.util.MsdfFont.Companion.MSDF_TEX_PROPS
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
 import ru.hollowhorizon.hc.client.kool.KoolScreen
-import ru.hollowhorizon.hc.client.utils.json.JsonFormat
-import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.common.utils.json.JsonFormat
+import ru.hollowhorizon.hc.common.utils.rl
 import ru.hollowhorizon.hc.client.utils.stream
 import ru.hollowhorizon.hollowengine.client.gui.kool.UiColors
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.lineHeight
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
-import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.CraftEditorPanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DocsTreePanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.FileTreePanel
 import ru.hollowhorizon.hollowengine.client.kool.dragItem
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import com.akuleshov7.ktoml.Toml
+import de.fabmax.kool.scene.Scene
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 
@@ -49,101 +49,100 @@ val HACK_FONT by lazy {
     MsdfFontData(msdfMap, fontInfo)
 }
 
-class IDEGuiV2 : KoolScreen({
-    setupUiScene()
+class IDEGuiV2 : KoolScreen() {
 
-    val dock = Dock().apply {
-        borderWidth.set(Dp.fromPx(1f))
-        borderColor.set(UiColors.titleBg)
-        dockingSurface.colors = ideColors
-        dockingSurface.sizes = ideSizes
-        dockingPaneComposable = Composable {
-            Column(Grow.Std, Grow.Std) {
-                modifier.margin(top = 10.dp)
-                Box(width = Grow.Std, height = sizes.borderWidth) { modifier.backgroundColor(UiColors.titleBg) }
-                divider(horizontalMargin = 0.dp, color = colors.backgroundMid)
-                root()
-            }
-        }
-
-        val projectDock = FileTreePanel(this)
-        val docsDock = DocsTreePanel(this)
-        val craftEditor = CraftEditorPanel(this)
-        panels[projectDock.dockable] = projectDock
-        panels[docsDock.dockable] = docsDock
-        panels[craftEditor.dockable] = craftEditor
-
-        LayoutLoader.loadIdeLayout(this) { name ->
-            when (name) {
-                projectDock.name -> projectDock.dockable
-                docsDock.name -> docsDock.dockable
-                craftEditor.name -> craftEditor.dockable
-                else -> null
-            }
-        }
+    init {
+        load()
     }
 
-    addNode(dock)
-    addPanelSurface(ideColors, ideSizes) {
-        modifier.alignY(AlignmentY.Top).size(Grow.Std, 10.dp)
+    override fun Scene.setup() {
+        setupUiScene()
 
-        IDETitleBar()
+        val dock = Dock().apply {
+            borderWidth.set(Dp.fromPx(1f))
+            borderColor.set(UiColors.titleBg)
+            dockingSurface.colors = ideColors
+            dockingSurface.sizes = ideSizes
+            dockingPaneComposable = Composable {
+                Column(Grow.Std, Grow.Std) {
+                    modifier.margin(top = 10.dp)
+                    Box(width = Grow.Std, height = sizes.borderWidth) { modifier.backgroundColor(UiColors.titleBg) }
+                    divider(horizontalMargin = 0.dp, color = colors.backgroundMid)
+                    root()
+                }
+            }
 
-        IDEStorage.dndContext.dragItem()?.let {
+            val projectDock = FileTreePanel(this)
+            val docsDock = DocsTreePanel(this)
+            panels[projectDock.dockable] = projectDock
+            panels[docsDock.dockable] = docsDock
 
-            Popup(PointerInput.primaryPointer.x.toFloat(), PointerInput.primaryPointer.y.toFloat()) {
-                modifier.background(UiRenderer { node ->
-                    node.apply {
-                        getUiPrimitives(UiSurface.LAYER_BACKGROUND)
-                            .localRoundRect(0f, 0f, widthPx, heightPx, heightPx * 0.5f, colors.backgroundMid)
-                        colors.primary.let {
+            LayoutLoader.loadIdeLayout(this) { name ->
+                when (name) {
+                    projectDock.name -> projectDock.dockable
+                    docsDock.name -> docsDock.dockable
+                    else -> null
+                }
+            }
+        }
+
+        addNode(dock)
+        addPanelSurface(ideColors, ideSizes) {
+            modifier.alignY(AlignmentY.Top).size(Grow.Std, 10.dp)
+
+            IDETitleBar(scene)() // TODO WTF, переделай
+
+            IDEStorage.dndContext.dragItem()?.let {
+
+                Popup(PointerInput.primaryPointer.x.toFloat(), PointerInput.primaryPointer.y.toFloat()) {
+                    modifier.background(UiRenderer { node ->
+                        node.apply {
                             getUiPrimitives(UiSurface.LAYER_BACKGROUND)
-                                .localRoundRectBorder(
-                                    0f,
-                                    0f,
-                                    widthPx,
-                                    heightPx,
-                                    heightPx * 0.5f,
-                                    sizes.borderWidth.px,
-                                    it
-                                )
-                        }
-                    }
-                }).padding(sizes.smallGap)
-
-                Row {
-                    it.apply {
-                        val icon = getIcon(this)
-
-
-                        Box {
-                            modifier.alignY(AlignmentY.Center)
-                            Image(icon) {
-                                modifier.alignY(AlignmentY.Center).size(sizes.lineHeight, sizes.lineHeight)
-                                    .imageSize(ImageSize.Stretch)
+                                .localRoundRect(0f, 0f, widthPx, heightPx, heightPx * 0.5f, colors.backgroundMid)
+                            colors.primary.let {
+                                getUiPrimitives(UiSurface.LAYER_BACKGROUND)
+                                    .localRoundRectBorder(
+                                        0f,
+                                        0f,
+                                        widthPx,
+                                        heightPx,
+                                        heightPx * 0.5f,
+                                        sizes.borderWidth.px,
+                                        it
+                                    )
                             }
                         }
-                    }
+                    }).padding(sizes.smallGap)
 
-                    Box {
-                        modifier.size(Grow.Std, Grow.Std)
-                        Text(it.treeName) {
-                            modifier
-                                .alignY(AlignmentY.Center)
-                                .textColor(colors.primary)
+                    Row {
+                        it.apply {
+                            val icon = getIcon(this)
+
+
+                            Box {
+                                modifier.alignY(AlignmentY.Center)
+                                Image(icon) {
+                                    modifier.alignY(AlignmentY.Center).size(sizes.lineHeight, sizes.lineHeight)
+                                        .imageSize(ImageSize.Stretch)
+                                }
+                            }
+                        }
+
+                        Box {
+                            modifier.size(Grow.Std, Grow.Std)
+                            Text(it.treeName) {
+                                modifier
+                                    .alignY(AlignmentY.Center)
+                                    .textColor(colors.primary)
+                            }
                         }
                     }
                 }
             }
+            surface.triggerUpdate()
         }
-        surface.triggerUpdate()
-    }
 
-    IDEStorage.dock = dock
-}) {
-
-    init {
-        load()
+        IDEStorage.dock = dock
     }
 
     override fun shouldCloseOnEsc(): Boolean {
@@ -170,13 +169,11 @@ var ideColors = Colors.darkColors(
     onSecondary = Color.WHITE
 )
 
-var syntaxHighlight = SyntaxHighlight // нужен для загрузки в toml находится в сереализаторе
-
 fun load() {
-    val configFile = DirectoryManager.HOLLOW_ENGINE.resolve("IdeStyle.toml").toFile()
+    val configFile = DirectoryManager.HOLLOW_ENGINE.resolve("ide_style.toml").toFile()
 
     if(!configFile.exists()) {
-        val ideStyle = IdeStyle(ideColors, syntaxHighlight)
+        val ideStyle = IdeStyle(ideColors, SyntaxHighlight)
         configFile.writeText(Toml.encodeToString(ideStyle))
     } else {
         val ideStyle = Toml.decodeFromString<IdeStyle>(configFile.readText())
@@ -184,4 +181,4 @@ fun load() {
     }
 }
 
-val ideSizes = Sizes.small.copy(normalText = MsdfFont(PT_SANS, 10f))
+val ideSizes = Sizes.medium.copy(normalText = MsdfFont(PT_SANS, 30f))

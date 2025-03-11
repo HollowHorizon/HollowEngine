@@ -9,9 +9,9 @@ import net.minecraft.client.gui.components.Button.CreateNarration
 import net.minecraft.client.gui.components.Button.OnPress
 import net.minecraft.client.gui.components.Tooltip
 import ru.hollowhorizon.hc.client.utils.GuiAnimator
-import ru.hollowhorizon.hc.client.utils.literal
 import ru.hollowhorizon.hc.client.utils.math.Interpolation
-import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.common.utils.literal
+import ru.hollowhorizon.hc.common.utils.rl
 
 class ScaleableButton(
     x: Int,

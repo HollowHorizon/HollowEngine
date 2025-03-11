@@ -25,7 +25,6 @@ class ScriptTextAreaModifier(surface: UiSurface) : TextAreaModifier(surface) {
     val errors by property(mutableListOf<ScriptError>())
     var completionIndex by property(-1)
     var setCompletionIndex: (Int) -> Unit by property { {} }
-    var onCharTyped: (KeyEvent) -> Unit by property { {} }
 }
 
 var errorMessage = ""
@@ -184,15 +183,6 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
                 if (nextChar != it) return@let
                 super.onKeyEvent(KeyEvent(KeyboardInput.KEY_DEL, KeyboardInput.KEY_DEL, KEY_EV_DOWN, 0, it))
             }
-        }
-
-        if (keyEvent.isCharTyped ||
-            keyEvent.keyCode == KeyboardInput.KEY_BACKSPACE ||
-            keyEvent.keyCode == KeyboardInput.KEY_DEL ||
-            keyEvent.keyCode == KeyboardInput.KEY_ENTER ||
-            (keyEvent.isCtrlDown && keyEvent.localKeyCode in setOf('x', 'v').map(::LocalKeyCode))
-        ) {
-            modifier.onCharTyped(keyEvent)
         }
     }
 

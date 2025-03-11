@@ -6,13 +6,13 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hc.client.utils.nbt.ForItemStack
-import ru.hollowhorizon.hc.client.utils.nbt.ForResourceLocation
-import ru.hollowhorizon.hc.client.utils.rl
 import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
 import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2
 import ru.hollowhorizon.hc.common.capabilities.containers.HollowContainer
 import ru.hollowhorizon.hc.common.capabilities.containers.container
+import ru.hollowhorizon.hc.common.utils.nbt.ForItemStack
+import ru.hollowhorizon.hc.common.utils.nbt.ForResourceLocation
+import ru.hollowhorizon.hc.common.utils.rl
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 
 @HollowCapabilityV2(NPCEntity::class)
@@ -27,7 +27,7 @@ class NPCCapability : CapabilityInstance() {
     var tradeContainer by container(TradeContainer(this))
 }
 
-class InventoryContainer(capability: CapabilityInstance): HollowContainer(capability, 36, { slot, stack -> true})
+class InventoryContainer(capability: CapabilityInstance) : HollowContainer(capability, 36, { slot, stack -> true })
 class TradeContainer(capability: CapabilityInstance) : HollowContainer(capability, 7, { slot, stack -> slot == 6 }) {
     override fun canPlaceItem(slot: Int, stack: ItemStack): Boolean {
         val npcData = capability as NPCCapability

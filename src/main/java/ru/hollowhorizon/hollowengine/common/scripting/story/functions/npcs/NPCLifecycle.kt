@@ -6,9 +6,9 @@ import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hc.client.models.internal.Transform
 import ru.hollowhorizon.hc.client.models.internal.animations.AnimationType
 import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hc.client.utils.currentServer
-import ru.hollowhorizon.hc.client.utils.get
-import ru.hollowhorizon.hc.client.utils.literal
+import ru.hollowhorizon.hc.common.utils.currentServer
+import ru.hollowhorizon.hc.common.utils.get
+import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 
 fun npc(

@@ -4,7 +4,7 @@ import ru.hollowhorizon.hc.client.models.internal.animations.PlayMode
 import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.internal.manager.AnimationLayer
 import ru.hollowhorizon.hc.client.models.internal.manager.LayerMode
-import ru.hollowhorizon.hc.client.utils.get
+import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
 import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
 import ru.hollowhorizon.hc.common.network.sendTrackingEntity

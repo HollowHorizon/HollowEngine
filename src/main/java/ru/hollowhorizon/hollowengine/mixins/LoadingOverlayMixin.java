@@ -20,7 +20,8 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import ru.hollowhorizon.hc.client.utils.ForgeKotlinKt;
+import ru.hollowhorizon.hc.client.utils.ForgeKotlinClientKt;
+import ru.hollowhorizon.hc.common.utils.ForgeKotlinKt;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -52,7 +53,7 @@ public abstract class LoadingOverlayMixin {
     @Inject(method = "registerTextures", at =@At("TAIL"))
     private static void onRegisterTextures(Minecraft minecraft, CallbackInfo ci) {
         try {
-            minecraft.getTextureManager().register(HOLLOWENGINE_LOGO_LOCATION, new DynamicTexture(NativeImage.read(ForgeKotlinKt.getStream(HOLLOWENGINE_LOGO_LOCATION))));
+            minecraft.getTextureManager().register(HOLLOWENGINE_LOGO_LOCATION, new DynamicTexture(NativeImage.read(ForgeKotlinClientKt.getStream(HOLLOWENGINE_LOGO_LOCATION))));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

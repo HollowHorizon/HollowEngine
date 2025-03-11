@@ -12,12 +12,12 @@ import ru.hollowhorizon.hc.client.audio.Wave
 import ru.hollowhorizon.hc.client.audio.formats.Mp3Format
 import ru.hollowhorizon.hc.client.audio.formats.OggFormat
 import ru.hollowhorizon.hc.client.audio.formats.WavFormat
-import ru.hollowhorizon.hc.client.utils.nbt.ForResourceLocation
-import ru.hollowhorizon.hc.client.utils.nbt.ForVec3
-import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.common.utils.nbt.ForResourceLocation
+import ru.hollowhorizon.hc.common.utils.nbt.ForVec3
+import ru.hollowhorizon.hc.common.utils.rl
 import ru.hollowhorizon.hc.client.utils.stream
-import ru.hollowhorizon.hc.common.network.HollowPacketV2
-import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hc.common.network.HollowPacketHandler
+import ru.hollowhorizon.hc.common.network.HollowPacket
 
 
 infix fun Level.playSound(location: String) = playSound(location, 1f, 1f)
@@ -46,7 +46,7 @@ fun Player.playSound(
 
 val SOUNDS = HashMap<ResourceLocation, Wave>()
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
 class SoundEffectPacket(
     private val location: @Serializable(ForResourceLocation::class) ResourceLocation,
@@ -55,7 +55,7 @@ class SoundEffectPacket(
     private val position: @Serializable(ForVec3::class) Vec3?,
     private val velocity: @Serializable(ForVec3::class) Vec3?,
     private val relative: Boolean,
-) : HollowPacketV3<SoundEffectPacket> {
+) : HollowPacket<SoundEffectPacket> {
     override fun handle(player: Player) {
         val wave = SOUNDS.getOrPut(location) {
             val ext = location.path.substringAfterLast(".")

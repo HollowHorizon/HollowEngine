@@ -3,8 +3,8 @@ package ru.hollowhorizon.hollowengine.common.scripting.core
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.decodeFromStream
-import ru.hollowhorizon.hc.client.utils.ModList
-import ru.hollowhorizon.hc.client.utils.json.JsonFormat
+import ru.hollowhorizon.hc.common.utils.ModList
+import ru.hollowhorizon.hc.common.utils.json.JsonFormat
 import java.io.File
 import java.nio.file.Files
 import java.util.jar.JarFile

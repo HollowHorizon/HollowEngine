@@ -12,23 +12,26 @@ import net.minecraft.world.InteractionResultHolder
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.entity.projectile.ProjectileUtil
+import net.minecraft.world.item.CreativeModeTab
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hc.client.utils.get
-import ru.hollowhorizon.hc.client.utils.literal
+import ru.hollowhorizon.hc.common.utils.get
+import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hc.client.utils.open
-import ru.hollowhorizon.hc.common.network.HollowPacketV2
-import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hc.common.network.HollowPacketHandler
+import ru.hollowhorizon.hc.common.network.HollowPacket
+import ru.hollowhorizon.hc.common.objects.items.CreativeTab
 import ru.hollowhorizon.hollowengine.client.gui.NPCToolGui
 import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.registry.ModTabs
 
 
-class NpcTool : Item(Properties().stacksTo(1)) {
+class NpcTool : Item(Properties().stacksTo(1)), CreativeTab {
     override fun interactLivingEntity(
         pStack: ItemStack,
         pPlayer: Player,
@@ -72,11 +75,13 @@ class NpcTool : Item(Properties().stacksTo(1)) {
 
         return super.use(pLevel, pPlayer, pUsedHand)
     }
+
+    override fun tab() = ModTabs.HOLLOW_ENGINE
 }
 
-@HollowPacketV2
+@HollowPacketHandler
 @Serializable
-class OpenEditorScreen(private val npcId: Int) : HollowPacketV3<OpenEditorScreen> {
+class OpenEditorScreen(private val npcId: Int) : HollowPacket<OpenEditorScreen> {
     override fun handle(player: Player) {
         val level = Minecraft.getInstance().level ?: return
         val npc = level.getEntity(npcId) as? NPCEntity ?: NPCEntity(level)

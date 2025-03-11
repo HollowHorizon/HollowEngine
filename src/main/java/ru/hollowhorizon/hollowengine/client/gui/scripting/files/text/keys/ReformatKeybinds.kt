@@ -20,8 +20,6 @@ fun onReformat(event: ScriptAreaKeyEvent) {
         if (original == new) return
         editorHandler?.replaceAll(new, event.area)
         event.area.modifier.onSelectionChanged?.let { it(-1, -1, 0, 0) }
-
-        event.area.modifier.onCharTyped(event.toKool())
         event.isCanceled = true
     } catch (ex: Exception) {
         event.area.logW { ex.stackTraceToString() }

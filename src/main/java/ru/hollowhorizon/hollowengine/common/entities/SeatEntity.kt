@@ -14,7 +14,7 @@ import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
 
 class SeatEntity(entityType: EntityType<SeatEntity>, pLevel: Level) : Entity(entityType, pLevel) {
-    constructor(level: Level) : this(ModEntities.SEAT.get(), level)
+    constructor(level: Level) : this(ModEntities.SEAT, level)
 
     constructor(level: Level, pos: Vec3, dir: Direction) : this(level) {
         this.setPos(pos.x, pos.y, pos.z)

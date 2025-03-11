@@ -13,7 +13,6 @@ fun onUndoRedo(event: ScriptAreaKeyEvent) {
     if (event.isReleased && event.isCtrlDown && event.localKeyCode == UNDO_KEY && selectionHandler != null) {
         if (event.isShiftDown) selectionHandler.redo(modifier.onSelectionChanged)
         else selectionHandler.undo(modifier.onSelectionChanged)
-        modifier.onCharTyped(event.toKool())
         return
     }
 }
