@@ -58,7 +58,7 @@ object IDEStorage {
 
     }
 
-    fun openDocFile(node: FileNode) {
+    fun openDocFile(node: FileNode) { // TODO переделать открытие, на открытие панели
         val page = (node as? DocsNode)?.page ?: return
         files.getOrPut(node.treePath) {
             val localFile = DocFileData(node.treeName, node.treePath, page)

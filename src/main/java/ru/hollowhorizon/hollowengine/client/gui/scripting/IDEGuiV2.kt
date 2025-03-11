@@ -32,6 +32,7 @@ import com.akuleshov7.ktoml.Toml
 import de.fabmax.kool.scene.Scene
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.CraftEditorPanel
 
 val PT_SANS by lazy {
     val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/pt_sans.json".rl.stream)
@@ -74,13 +75,16 @@ class IDEGuiV2 : KoolScreen() {
 
             val projectDock = FileTreePanel(this)
             val docsDock = DocsTreePanel(this)
+            val craftDock = CraftEditorPanel(this)
             panels[projectDock.dockable] = projectDock
             panels[docsDock.dockable] = docsDock
+            panels[craftDock.dockable] = craftDock
 
             LayoutLoader.loadIdeLayout(this) { name ->
                 when (name) {
                     projectDock.name -> projectDock.dockable
                     docsDock.name -> docsDock.dockable
+                    craftDock.name -> craftDock.dockable
                     else -> null
                 }
             }
@@ -181,4 +185,4 @@ fun load() {
     }
 }
 
-val ideSizes = Sizes.medium.copy(normalText = MsdfFont(PT_SANS, 30f))
+val ideSizes = Sizes.small.copy(normalText = MsdfFont(PT_SANS, 10f))
