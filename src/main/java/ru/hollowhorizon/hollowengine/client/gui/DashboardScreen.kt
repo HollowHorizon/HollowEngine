@@ -5,12 +5,8 @@ import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT_DATA
 import ru.hollowhorizon.hc.client.kool.KoolScreen
-import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.events.Event
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.post
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
-import ru.hollowhorizon.hollowengine.docs.DOCS_GENERATOR
 
 fun interface KoolGui {
     fun Scene.setup()

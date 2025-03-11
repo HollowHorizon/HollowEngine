@@ -3,10 +3,6 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.theme
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.MsdfFont
-import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT_DATA
-import ru.hollowhorizon.hollowengine.client.gui.scripting.ideColors
-import ru.hollowhorizon.hollowengine.client.gui.scripting.ideSizes
 import kotlin.math.roundToInt
 
 object ThemeEditor : Composable {
@@ -15,15 +11,15 @@ object ThemeEditor : Composable {
     lateinit var onRemove: () -> Unit
 
     private val colorEntries = listOf(
-        ColorEntry("Primary", ideColors.primary),
-        ColorEntry("Primary variant", ideColors.primaryVariant),
-        ColorEntry("Secondary", ideColors.secondary),
-        ColorEntry("Secondary variant", ideColors.secondaryVariant),
-        ColorEntry("Background", ideColors.background),
-        ColorEntry("Background variant", ideColors.backgroundVariant),
-        ColorEntry("On primary", ideColors.onPrimary),
-        ColorEntry("On secondary", ideColors.onSecondary),
-        ColorEntry("On background", ideColors.onBackground)
+        ColorEntry("Primary", IdeTheme.colors.primary),
+        ColorEntry("Primary variant", IdeTheme.colors.primaryVariant),
+        ColorEntry("Secondary", IdeTheme.colors.secondary),
+        ColorEntry("Secondary variant", IdeTheme.colors.secondaryVariant),
+        ColorEntry("Background", IdeTheme.colors.background),
+        ColorEntry("Background variant", IdeTheme.colors.backgroundVariant),
+        ColorEntry("On primary", IdeTheme.colors.onPrimary),
+        ColorEntry("On secondary", IdeTheme.colors.onSecondary),
+        ColorEntry("On background", IdeTheme.colors.onBackground)
     )
     private val selectedColor = mutableStateOf(0)
 
@@ -41,7 +37,7 @@ object ThemeEditor : Composable {
     )
 
     override fun UiScope.compose() {
-        ideColors = makeColors()
+        IdeTheme.colors = makeColors()
         val entry = colorEntries[selectedColor.use()]
 
         Column(Grow.Std, Grow.Std) {
@@ -119,25 +115,25 @@ object ThemeEditor : Composable {
                 modifier
                     .margin(start = sizes.largeGap)
                     .alignY(AlignmentY.Center)
-                Text(name) {  }
+                Text(name) { }
                 Row {
                     Text("#${color.toHexString()}") {
-                        modifier.font(ideSizes.normalText)
+                        modifier.font(IdeTheme.sizes.normalText)
                     }
                     Text("HSVA:") {
-                        modifier.font(ideSizes.normalText)
+                        modifier.font(IdeTheme.sizes.normalText)
                     }
                     Text("${hue.value.roundToInt()}") {
-                        modifier.font(ideSizes.normalText).textAlignX(AlignmentX.End)
+                        modifier.font(IdeTheme.sizes.normalText).textAlignX(AlignmentX.End)
                     }
                     Text("${(sat.value * 100f).roundToInt()}") {
-                        modifier.font(ideSizes.normalText).textAlignX(AlignmentX.End)
+                        modifier.font(IdeTheme.sizes.normalText).textAlignX(AlignmentX.End)
                     }
                     Text("${(value.value * 100f).roundToInt()}") {
-                        modifier.font(ideSizes.normalText).textAlignX(AlignmentX.End)
+                        modifier.font(IdeTheme.sizes.normalText).textAlignX(AlignmentX.End)
                     }
                     Text("${(alpha.value * 100f).roundToInt()}") {
-                        modifier.font(ideSizes.normalText).textAlignX(AlignmentX.End)
+                        modifier.font(IdeTheme.sizes.normalText).textAlignX(AlignmentX.End)
                     }
                 }
             }

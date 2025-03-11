@@ -26,7 +26,7 @@ import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
-import ru.hollowhorizon.hollowengine.client.gui.scripting.ideColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptParser
 
 object ScriptColorizer {
@@ -68,12 +68,12 @@ object ScriptColorizer {
                 val primary = getElementColor(element, bindingContext)
 
                 val background = if (element.shouldHighlight(bindingContext, expressionAtCaret)) {
-                    ideColors.background.mix(primary, 0.35f)
+                    IdeTheme.colors.background.mix(primary, 0.35f)
                 } else null
 
                 val lines = element.text.split("\n")
                 lines.forEachIndexed { index, line ->
-                    currentLine.add(line to TextAttributes(MsdfFont(HACK_FONT, 10f), primary, background))
+                    currentLine.add(line to TextAttributes(MsdfFont(HACK_FONT, 18f), primary, background))
                     // Если это конец строки, добавляем в `textLines`
                     if (index != lines.size - 1) {
                         textLines.add(TextLine(currentLine.toList()))

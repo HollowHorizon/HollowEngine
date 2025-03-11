@@ -4,15 +4,15 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import ru.hollowhorizon.hollowengine.client.gui.kool.UiColors
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
+import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.Layout
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileTitleBar
-import ru.hollowhorizon.hollowengine.client.gui.scripting.ideColors
-import ru.hollowhorizon.hollowengine.client.gui.scripting.ideSizes
+import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.ToolBar
 
-abstract class DockPanel(val name: String, dock: Dock) : Composable {
-    val dockable = UiDockable(name, dock)
-    val surface: UiSurface = WindowSurface(dockable, ideColors, ideSizes) {
+abstract class DockPanel(final override val name: String, dock: Dock) : Layout, Composable {
+    final override val dockable = UiDockable(name, dock)
+    val surface: UiSurface = WindowSurface(dockable, IdeTheme.colors, IdeTheme.sizes) {
+        modifier.border(null)
         dockable.dockedTo.use()?.let {
             val isPanelBarLeft = it.boundsLeftDp.value.px < 1f
                     || it.boundsRightDp.value.px < it.dock.root.boundsRightDp.value.px * 0.99f
@@ -33,11 +33,9 @@ abstract class DockPanel(val name: String, dock: Dock) : Composable {
         }
     }
 
-    abstract val icon: String
-
     private fun UiScope.panelContent() {
         Column(Grow.Std, Grow.Std) {
-            FileTitleBar(dockable, showTabsIfDocked=false)
+            FileTitleBar(dockable, showTabsIfDocked = false)
             this@DockPanel()
         }
     }
