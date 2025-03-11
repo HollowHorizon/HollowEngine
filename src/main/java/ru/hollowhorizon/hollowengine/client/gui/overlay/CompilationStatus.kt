@@ -9,7 +9,7 @@ import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hc.common.coroutines.isServerLoaded
 import ru.hollowhorizon.hc.common.network.HollowPacketHandler
 import ru.hollowhorizon.hc.common.network.HollowPacket
-import ru.hollowhorizon.hollowengine.client.gui.scripting.ideSizes
+import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 
@@ -23,7 +23,7 @@ object CompilationStatus {
 
         val sizes = Sizes.medium
 
-        surface = addPanelSurface(sizes = ideSizes) {
+        surface = addPanelSurface(IdeTheme.colors, IdeTheme.sizes) {
             modifier.align(AlignmentX.End, AlignmentY.Bottom)
                 .border(RectBorder(Color.WHITE, sizes.borderWidth))
                 .background(RectBackground(Color("00000066")))

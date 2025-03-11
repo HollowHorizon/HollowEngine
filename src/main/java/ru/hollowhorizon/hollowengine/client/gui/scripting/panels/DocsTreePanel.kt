@@ -20,7 +20,7 @@ class DocsTreePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.docs", dock) {
     }
 
     val docsTree = DocsNode("HollowEngine", "").apply {
-        initPages()
+        //initPages()
 
         isFolder = true
         children += DocsNode("welcome", WelcomePage)

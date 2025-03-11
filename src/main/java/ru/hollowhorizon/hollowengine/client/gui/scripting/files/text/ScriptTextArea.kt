@@ -196,11 +196,11 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
         lineProvider: TextLineProvider,
     ): UiScope {
         val errors = this@ScriptTextArea.modifier.errors
-        val font = MsdfFont(HACK_FONT, 10f)
+        val font = MsdfFont(HACK_FONT, 18f)
 
-        val row = scope.Row(Grow.Std, height = font.lineHeight.dp) {
+        val row = scope.Row(Grow.Std) {
             if (lineIndex == this@ScriptTextArea.modifier.selectionStartLine) {
-                modifier.backgroundColor(colors.hoverBg)
+                modifier.backgroundColor(Color("3C3C4AFF"))
             }
             val width = font.textDimensions(lineProvider.size.toString()).width.dp
 
@@ -253,7 +253,7 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
 
             Box(sizes.borderWidth, Grow.Std) {
                 modifier
-                    .backgroundColor(colors.secondaryVariant)
+                    .backgroundColor(Color("3C3C4AFF"))
                     .alignY(AlignmentY.Center)
                     .margin(horizontal = sizes.smallGap)
             }

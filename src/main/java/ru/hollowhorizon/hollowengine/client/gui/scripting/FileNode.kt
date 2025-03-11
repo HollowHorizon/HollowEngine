@@ -1,21 +1,21 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
-import de.fabmax.kool.Assets
-import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_RIGHT
-import de.fabmax.kool.pipeline.Texture2d
+import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.launchOnMainThread
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.server.level.ServerPlayer
+import ru.hollowhorizon.hc.client.kool.minecraft.Image
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hc.common.network.HollowPacketHandler
 import ru.hollowhorizon.hc.common.network.RequestPacket
 import ru.hollowhorizon.hc.common.network.request
 import ru.hollowhorizon.hc.common.utils.literal
-import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
+import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.kool.DndHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 
@@ -76,6 +76,7 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
     }
 
     override fun UiScope.compose() {
+        modifier.margin(sizes.smallGap)
         LazyList(
             containerModifier = { it.backgroundColor(null) },
             vScrollbarModifier = { it.width(sizes.smallGap) },
@@ -105,17 +106,12 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
                 if (evt.pointer.isLeftButtonClicked && evt.pointer.leftButtonRepeatedClickCount == 2) {
                     if (item.isFolder) {
                         item.toggleExpanded()
-                    } else {
-                        val file = IDEStorage.files[item.treePath]
-
-                        if (file == null) RequestFilePacket(item.treePath).send()
-                        else IDEStorage.dock.getLeafAtPath("0/1")?.bringToTop(file.dockable)
                     }
                 }
             }
 
         if (isHovered) {
-            modifier.background(RoundRectBackground(colors.hoverBg, sizes.smallGap))
+            modifier.background(RoundRectBackground(IdeTheme.hoveredColors.background, sizes.smallGap))
         }
 
         //sceneObjectDndHandler(item)
@@ -126,15 +122,15 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
         val dndHandler = rememberItemDndHandler(item)
 
         if (dndHandler.isHovered.use()) {
-            modifier.background(RoundRectBackground(colors.hoverBg, sizes.smallGap))
+            modifier.background(RoundRectBackground(IdeTheme.hoveredColors.background, sizes.gap))
         }
 
-        modifier.installDragAndDropHandler(IDEStorage.dndContext, dndHandler) { item }
+        modifier.installDragAndDropHandler(IdeContent.dndContext, dndHandler) { item }
     }
 
     private fun UiScope.rememberItemDndHandler(treeItem: FileNode): FileHandler {
         val handler = remember { FileHandler(treeItem, uiNode) }
-        IDEStorage.dndContext.registerHandler(handler)
+        IdeContent.dndContext.registerHandler(handler)
         return handler
     }
 
@@ -178,13 +174,12 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
         Row(width = Grow.Std) {
             modifier.padding(start = sizes.smallGap)
             if (item.depth > 0) {
-                Box(width = sizes.gap * item.depth) {}
+                Box(width = (14.dp + sizes.smallGap * 2) * item.depth + if(!item.isFolder) 14.dp+ sizes.smallGap * 2 else 0.dp) {}
             }
 
             Box {
                 modifier.alignY(AlignmentY.Center)
                     .padding(sizes.smallGap)
-                    .size(sizes.gap, sizes.gap)
 
                 if (item.isFolder) {
                     Arrow(isHoverable = false) {
@@ -192,19 +187,19 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
                             .rotation(if (item.isExpanded.use()) ROTATION_DOWN else ROTATION_RIGHT)
                             .align(AlignmentX.Center, AlignmentY.Center)
                             .onClick { item.toggleExpanded() }
-                            .size(sizes.gap, sizes.gap)
+                            .size(14.dp, 14.dp)
                     }
                 }
             }
 
-            val fgColor = if (isHovered) colors.primary else colors.secondary
+            val fgColor = if (isHovered) Color("C4CBDAFF") else Color("9099ACFF")
 
-            val icon = getIcon(item)
+            val icon = IconHelper.forPath(item.treePath, item.isFolder, item.isExpanded.use())
 
             Box {
                 modifier.alignY(AlignmentY.Center)
                 Image(icon) {
-                    modifier.margin(horizontal = sizes.smallGap).size(sizes.gap, sizes.gap)
+                    modifier.margin(horizontal = sizes.smallGap).size(24.dp, 24.dp)
                         .imageSize(ImageSize.Stretch)
                 }
             }
@@ -217,44 +212,6 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
                 }
             }
         }
-
-    fun UiScope.getIcon(item: FileNode): Texture2d {
-        val path = item.treePath
-        val baseDir = "hollowengine:textures/gui/icons"
-
-        val fileName = when {
-            item.isFolder -> {
-                val type = when {
-                    path.startsWith("assets") -> "folder_assets"
-                    path.startsWith("data") -> "folder_data"
-                    path.startsWith("scripts") -> "folder_scripts"
-                    path.startsWith("npcs") -> "folder_npcs"
-                    path.startsWith("camera") -> "folder_camera"
-                    else -> "folder"
-                }
-
-                if (item.isExpanded.value) type + "_open"
-                else type
-            }
-
-            else -> {
-                val type = item.treeName.substringAfterLast('.')
-
-                when (type) {
-                    "kts", "kt" -> "file_kts"
-                    "png", "jpg", "jpeg", "gif" -> "file_image"
-                    "ogg", "mp3", "wav" -> "file_sound"
-                    else -> "file"
-                }
-            }
-        } + ".png"
-
-        return remember {
-            Texture2d {
-                Assets.loadImage2d("$baseDir/$fileName").getOrThrow()
-            }
-        }
-    }
 
     companion object {
         val EMPTY = FileNode("HollowEngine", "").apply { isFolder = true }
