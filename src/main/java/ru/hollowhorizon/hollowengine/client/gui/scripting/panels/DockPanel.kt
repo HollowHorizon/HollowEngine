@@ -4,7 +4,6 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import ru.hollowhorizon.hollowengine.client.gui.kool.UiColors
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileTitleBar
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ideColors
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ideSizes

@@ -23,6 +23,7 @@ import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.lineHeight
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.CraftEditorPanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DocsTreePanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.FileTreePanel
@@ -67,13 +68,16 @@ class IDEGuiV2 : KoolScreen({
 
         val projectDock = FileTreePanel(this)
         val docsDock = DocsTreePanel(this)
+        val craftEditor = CraftEditorPanel(this)
         panels[projectDock.dockable] = projectDock
         panels[docsDock.dockable] = docsDock
+        panels[craftEditor.dockable] = craftEditor
 
         LayoutLoader.loadIdeLayout(this) { name ->
             when (name) {
                 projectDock.name -> projectDock.dockable
                 docsDock.name -> docsDock.dockable
+                craftEditor.name -> craftEditor.dockable
                 else -> null
             }
         }
