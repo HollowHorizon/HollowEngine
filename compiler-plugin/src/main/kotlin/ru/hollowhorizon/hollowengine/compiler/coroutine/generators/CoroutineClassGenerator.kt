@@ -30,12 +30,31 @@ import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
 class CoroutineClassGenerator : IrElementTransformerVoid() {
-    val functionToClass = HashMap<IrFunction, Pair<IrClass, SerializerInfo>>()
+    val functionToClass = HashMap<IrFunction, CoroutineInfo>()
     var anonymousIndex = 0
 
     override fun visitFunction(declaration: IrFunction): IrStatement {
         if (declaration.isSuspendable()) {
-            functionToClass[declaration] = generate(declaration)
+            if(declaration.origin == IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA) {
+                val baseInfo = functionToClass[declaration.parent as IrFunction]?.copy(isLambda = true) ?: error("Function not found!")
+                baseInfo.coroutine.addFunction {
+                    updateFrom(declaration)
+                    returnType = pluginContext.irBuiltIns.anyNType
+                    name = Name.identifier("Anonymous\$${anonymousIndex++}\$tick")
+                }.apply {
+                    declaration.valueParameters.forEach { value ->
+                        addValueParameter(value.name, value.type)
+                    }
+                    declaration.typeParameters.forEach { value ->
+                        addTypeParameter(value.name.asString(), value.defaultType, value.variance)
+                    }
+                    extensionReceiverParameter = declaration.extensionReceiverParameter
+                    dispatchReceiverParameter = baseInfo.coroutine.thisReceiver
+                }
+                functionToClass[declaration] = baseInfo
+            } else {
+                functionToClass[declaration] = generate(declaration)
+            }
         }
         return super.visitFunction(declaration)
     }
@@ -47,7 +66,7 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
     }
 
 
-    fun generate(function: IrFunction): Pair<IrClass, SerializerInfo> {
+    fun generate(function: IrFunction): CoroutineInfo {
         function.apply {
             val coroutine = pluginContext.irFactory.createClass(
                 startOffset, endOffset, IrDeclarationOrigin.DEFINED,
@@ -111,16 +130,18 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
             val encoder = serializer.createSerializer(coroutine.defaultType)
             val decoder = serializer.createDeserializer(coroutine.defaultType)
             coroutine.addChild(serializer)
-            return coroutine to SerializerInfo(serializer, property, descriptor.function, encoder, decoder)
+            return CoroutineInfo(coroutine, serializer, property, descriptor.function, encoder, decoder, false)
         }
     }
 
-    class SerializerInfo(
+    data class CoroutineInfo(
+        val coroutine: IrClass,
         val serializer: IrClass,
         val descriptor: IrProperty,
         val lambda: IrFunction,
         val encoder: IrFunction,
         val decoder: IrFunction,
+        val isLambda : Boolean
     )
 
     private fun IrClass.createDescriptor(): Pair<IrProperty, IrFunctionExpression> {

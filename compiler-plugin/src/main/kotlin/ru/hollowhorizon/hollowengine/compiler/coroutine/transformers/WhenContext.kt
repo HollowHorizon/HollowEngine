@@ -5,14 +5,12 @@ import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
-import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.defaultType
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineClassGenerator
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.IrNothing
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
@@ -22,9 +20,10 @@ class WhenContext(
     val stateVar: IrVariable,
     private val whenStatement: IrWhen,
     var nextBranch: Int = 0,
-    val functionToClass: HashMap<IrFunction, Pair<IrClass, CoroutineClassGenerator.SerializerInfo>>,
+    val functionToClass: HashMap<IrFunction, CoroutineClassGenerator.CoroutineInfo>,
     val self: IrFunction,
 ) {
+    var anonymousIndex = 0
     var innerCallId = 0
 
     init {

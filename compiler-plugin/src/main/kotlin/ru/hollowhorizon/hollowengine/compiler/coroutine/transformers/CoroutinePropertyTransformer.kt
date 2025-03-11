@@ -29,15 +29,19 @@ import org.jetbrains.kotlin.utils.findIsInstanceAnd
 import org.jetbrains.kotlinx.serialization.compiler.backend.ir.BaseIrGenerator
 import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationPluginContext
 import ru.hollowhorizon.hollowengine.compiler.coroutine.NonSerializableProperty
-import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineClassGenerator.SerializerInfo
+import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineClassGenerator.CoroutineInfo
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.*
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 
 class CoroutinePropertyTransformer(
-    val functionToClass: Map<IrFunction, Pair<IrClass, SerializerInfo>>,
+    val functionToClass: HashMap<IrFunction, CoroutineInfo>,
 ) : IrElementTransformerVoid() {
     val serializationContext = SerializationPluginContext(pluginContext, null)
+    var anonymousIndex = 0
 
     private val elementType = pluginContext.referenceClass(
         ClassId.topLevel(FqName("kotlinx.serialization.descriptors.ClassSerialDescriptorBuilder"))
@@ -49,9 +53,10 @@ class CoroutinePropertyTransformer(
     @OptIn(UnsafeDuringIrConstructionAPI::class)
     override fun visitFunction(function: IrFunction): IrStatement {
         if (!function.isSuspendable()) return super.visitFunction(function)
-        val suspendableCalls = functionToClass.values.associate { it.first.defaultType to it.first }
+        val suspendableCalls = functionToClass.values.associate { it.coroutine.defaultType to it.coroutine }
 
-        functionToClass[function]?.let { (coroutine, serializer) ->
+        functionToClass[function]?.let { serializer ->
+            val coroutine = serializer.coroutine
             val generator = object : BaseIrGenerator(coroutine, serializationContext) {}
             val serializableFields = ArrayList<IrField>()
             val nonSerializableFields = ArrayList<IrField>()
@@ -120,6 +125,8 @@ class CoroutinePropertyTransformer(
             }
 
             function.transformChildrenVoid(localsCollector)
+
+            localsCollector.localVariables.clear() //! Пока отключил, нужно убрать из локальных те, что есть в лямбдах
 
             val localVariables = HashSet(localsCollector.localVariables.keys)
 
@@ -227,7 +234,13 @@ class CoroutinePropertyTransformer(
                 generator
             )
 
-            coroutine.declarations.findIsInstanceAnd<IrFunction> { it.name == Name.identifier("tick") }?.apply {
+            val name = if(function.origin == IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA) {
+                Name.identifier("Anonymous\$${anonymousIndex++}\$tick")
+            } else {
+                Name.identifier("tick")
+            }
+
+            coroutine.declarations.findIsInstanceAnd<IrFunction> { it.name == name }?.apply {
                 val oldParams =
                     function.valueParameters.mapIndexed { index, par -> par.symbol to valueParameters[index] }
                         .toMap()
@@ -262,7 +275,7 @@ class CoroutinePropertyTransformer(
 
     private fun transformSerializableFields(
         coroutineReceiver: IrExpression,
-        coroutineSerializer: SerializerInfo,
+        coroutineSerializer: CoroutineInfo,
         serializable: List<IrField>, nonSerializable: List<IrField>,
         generator: BaseIrGenerator,
     ) {
@@ -273,12 +286,12 @@ class CoroutinePropertyTransformer(
     @OptIn(UnsafeDuringIrConstructionAPI::class)
     private fun fillDecoders(
         coroutineReceiver: IrExpression,
-        coroutineSerializer: SerializerInfo,
+        coroutineSerializer: CoroutineInfo,
         serializable: List<IrField>,
         nonSerializable: List<IrField>,
         generator: BaseIrGenerator,
     ) {
-        val suspendableCalls = functionToClass.values.associate { it.first.defaultType to it.first }
+        val suspendableCalls = functionToClass.values.associate { it.coroutine.defaultType to it.coroutine }
 
         coroutineSerializer.decoder.apply {
             body = builder().irBlockBody {
@@ -389,12 +402,12 @@ class CoroutinePropertyTransformer(
     @OptIn(UnsafeDuringIrConstructionAPI::class)
     private fun fillEncoders(
         coroutineReceiver: IrExpression,
-        coroutineSerializer: SerializerInfo,
+        coroutineSerializer: CoroutineInfo,
         serializable: List<IrField>,
         nonSerializable: List<IrField>,
         generator: BaseIrGenerator,
     ) {
-        val suspendableCalls = functionToClass.values.associate { it.first.defaultType to it.first }
+        val suspendableCalls = functionToClass.values.associate { it.coroutine.defaultType to it.coroutine }
         coroutineSerializer.encoder.apply {
             body = builder().irBlockBody {
                 val encoder = irTemporary(irCall(EBeginStructure).apply {
@@ -526,7 +539,7 @@ class CoroutinePropertyTransformer(
 
     @OptIn(UnsafeDuringIrConstructionAPI::class)
     private fun appendFieldToLambda(
-        coroutineSerializer: SerializerInfo,
+        coroutineSerializer: CoroutineInfo,
         field: IrField,
         variableSerializer: IrExpression? = null,
         isOptional: Boolean
@@ -702,8 +715,12 @@ private fun IrClass.createLambda(expression: IrExpression): IrExpression {
             IrStatementOrigin.LAMBDA
         )
     }
-    error("Lambda not created!")
 }
 
-inline fun <T : IrDeclaration> T.builder(body: DeclarationIrBuilder.(T) -> Unit = {}) =
-    pluginContext.irBuiltIns.createIrBuilder(symbol, startOffset, endOffset).apply { body(this@builder) }
+@OptIn(ExperimentalContracts::class)
+inline fun <T : IrDeclaration> T.builder(body: DeclarationIrBuilder.(T) -> Unit = {}): DeclarationIrBuilder {
+    contract {
+        callsInPlace(body, InvocationKind.EXACTLY_ONCE)
+    }
+    return pluginContext.irBuiltIns.createIrBuilder(symbol, startOffset, endOffset).apply { body(this@builder) }
+}

@@ -62,4 +62,27 @@ class PropertiesTests {
         val instance = coroutine.getConstructor().newInstance()
         coroutine.getDeclaredMethod("tick").invoke(instance)
     }
+
+    @Test
+    fun `Lambda expressions`() {
+        val result = compile(
+            SourceFile.kotlin(
+                "main.kt", """
+                import ru.hollowhorizon.hollowengine.scripting.Suspendable                    
+                @Suspendable
+                fun main() {
+                    val a = 1
+                    val b = @Suspendable { a + 1 }
+                    println(b())
+                }
+            """.trimIndent()
+            )
+        )
+        
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
+
+        val coroutine = result.classLoader.loadClass("main\$SerializableCoroutine")
+        val instance = coroutine.getConstructor().newInstance()
+        coroutine.getDeclaredMethod("tick").invoke(instance)
+    }
 }

@@ -30,11 +30,8 @@ fun WhenContext.transformCall(call: IrCall): IrExpression {
 
     if (call.isSuspendable() && call.type != pluginContext.irBuiltIns.unitType) {
         val owner = call.symbol.owner
-        val packageName = owner.getPackageFragment().packageFqName
-        val className = ClassId(packageName,
-            Name.identifier(owner.name.asString().replaceFirstChar { it.uppercase() } + "SerializableCoroutine"))
-        val coroutine = functionToClass[owner]?.first?.symbol ?: pluginContext.referenceClass(className)
-        ?: error("Class ${className.asSingleFqName().render()} not found!")
+        val coroutineInfo = functionToClass[owner] ?: return call
+        val coroutine = coroutineInfo.coroutine.symbol
 
         val coroutineId = innerCallId++
 

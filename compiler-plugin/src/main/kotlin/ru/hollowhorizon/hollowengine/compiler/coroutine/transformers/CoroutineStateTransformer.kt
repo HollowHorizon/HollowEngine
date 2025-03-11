@@ -6,7 +6,6 @@ import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irElseBranch
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irWhen
-import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
@@ -21,7 +20,7 @@ import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.throwIllegalStateException
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
-class CoroutineFunctionTransformer(private val functionToClass: HashMap<IrFunction, Pair<IrClass, CoroutineClassGenerator.SerializerInfo>>) : IrElementTransformerVoid() {
+class CoroutineFunctionTransformer(private val functionToClass: HashMap<IrFunction, CoroutineClassGenerator.CoroutineInfo>) : IrElementTransformerVoid() {
     override fun visitFunction(declaration: IrFunction): IrStatement {
         if (declaration.isSuspendable()) {
             val builder = declaration.builder()
