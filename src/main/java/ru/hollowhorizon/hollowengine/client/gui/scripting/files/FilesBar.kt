@@ -4,10 +4,7 @@ import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.Color
-import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
-import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.TabRenderer
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverListener
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
@@ -15,7 +12,7 @@ import ru.hollowhorizon.hollowengine.client.utils.lang
 fun UiScope.FileDockingTabsBar(
     windowDockable: UiDockable,
     isDragToUndock: Boolean = true,
-    onCloseAction: ((PointerEvent) -> Unit)? = null
+    onCloseAction: ((PointerEvent) -> Unit)? = null,
 ): Boolean {
     val dockNode = windowDockable.dockedTo.use()
     val nodeCount = dockNode?.dockedItems?.use()?.count { !it.isHidden } ?: 0
@@ -23,19 +20,14 @@ fun UiScope.FileDockingTabsBar(
     if (dockNode != null && nodeCount > 1) {
 
         Row(width = Grow.Std) {
-            modifier
-                .background(RoundRectBackground(colors.background, sizes.smallGap))
 
             dockNode.dockedItems.filter { !it.isHidden }.forEach { item ->
                 Row {
                     val isHovered by hoverListener()
 
                     modifier
-                        .margin(sizes.smallGap)
-                        .padding(sizes.smallGap)
+                        .margin(horizontal = sizes.smallGap)
                         .alignY(AlignmentY.Bottom)
-                        .background(RoundRectBackground(colors.background, sizes.smallGap))
-                        .border(RoundRectBorder(Color("3C3C4AFF"), sizes.smallGap, sizes.borderWidth))
                         .onClick {
                             if (it.pointer.isMiddleButtonReleased) {
                                 onCloseAction?.invoke(it)
@@ -44,16 +36,21 @@ fun UiScope.FileDockingTabsBar(
                             }
                         }
 
-                    if(isHovered) {
+                    if (isHovered) {
                         modifier
                             .background(RoundRectBackground(colors.background.mulRgb(1.5f), sizes.smallGap))
                             .border(RoundRectBorder(Color("3C3C4AFF").mulRgb(1.5f), sizes.smallGap, sizes.borderWidth))
+                    } else {
+                        modifier
+                            .background(RoundRectBackground(colors.background, sizes.smallGap))
+                            .border(RoundRectBorder(Color("3C3C4AFF"), sizes.smallGap, sizes.borderWidth))
                     }
 
                     val itemName = IdeContent.files.values.find { it.dockable == item }?.fileName ?: item.name.lang
 
                     Text(itemName) {
                         modifier.textAlign(AlignmentX.Start, AlignmentY.Center)
+                            .margin(horizontal = sizes.gap, vertical = sizes.smallGap * 0.5f)
                             .font(sizes.normalText)
                     }
 
@@ -85,7 +82,7 @@ fun UiScope.FileTitleBar(
     windowDockable: UiDockable,
     isDraggable: Boolean = true,
     showTabsIfDocked: Boolean = true,
-    onCloseAction: ((PointerEvent) -> Unit)? = null
+    onCloseAction: ((PointerEvent) -> Unit)? = null,
 ) {
     val isTabbed = if (showTabsIfDocked) {
         FileDockingTabsBar(windowDockable, onCloseAction = onCloseAction)

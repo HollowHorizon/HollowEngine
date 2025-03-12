@@ -54,8 +54,8 @@ class ScriptingEnvironmentScreen : KoolScreen() {
         }
 
         dock.apply {
-            borderWidth.set(Dp.fromPx(1f))
-            borderColor.set(Color(0f, 0f, 0f, 0f))
+            borderWidth.set(IdeTheme.sizes.borderWidth)
+            borderColor.set(Color("3C3C4AFF"))
             dockingSurface.sizes = IdeTheme.sizes
             dockingSurface.colors = IdeTheme.colors
             dockingPaneComposable = Composable {

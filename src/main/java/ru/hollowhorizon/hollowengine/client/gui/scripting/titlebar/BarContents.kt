@@ -10,7 +10,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 @SubscribeEvent
 fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
     Image("hollowengine:textures/gui/icons/logo.png") {
-        modifier.size(24.dp, 24.dp).alignY(AlignmentY.Center).margin(horizontal=sizes.smallGap)
+        modifier.size(24.dp, 24.dp).alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap)
     }
     TextButton("File")
     TextButton("Edit")
@@ -21,7 +21,7 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
 fun UiScope.TextButton(text: String, onClick: () -> Unit = {}) {
     Box {
         var isHovered by remember { mutableStateOf(false) }
-        modifier.padding(horizontal=sizes.smallGap).onEnter { isHovered = true }.onExit { isHovered = false }
+        modifier.padding(horizontal = sizes.smallGap).onEnter { isHovered = true }.onExit { isHovered = false }
         if (isHovered) modifier.background(RoundRectBackground(IdeTheme.hoveredColors.background, sizes.smallGap))
 
         Text(text) {
@@ -32,19 +32,34 @@ fun UiScope.TextButton(text: String, onClick: () -> Unit = {}) {
 
 @SubscribeEvent
 fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
-    if(IdeContent.files.isEmpty()) return@append
+    if (IdeContent.files.isEmpty()) return@append
 
-    ComboBox {
-        modifier.colors(
-            textBackgroundColor = colors.background.mulRgb(1.3f),
-            expanderColor = colors.background.mulRgb(1.5f),
-            expanderArrowColor = Color.WHITE
-        )
-        modifier.padding(0.dp).width(115.dp)
+    ComboBox.apply {
+        comboBox("Пусто", IdeContent.files.values.map { file ->
+            Composable {
+                Row {
+                    Box {
+                        modifier.alignY(AlignmentY.Center)
+                        Image(file.icon) {
+                            modifier.margin(end = sizes.smallGap).size(24.dp, 24.dp)
+                                .imageSize(ImageSize.Stretch)
+                        }
+                    }
+
+                    Box {
+                        Text(file.fileName) {
+                            modifier
+                                .alignY(AlignmentY.Center)
+                                .textColor(colors.onBackground)
+                        }
+                    }
+                }
+            }
+        })
     }
 
     Image("hollowengine:textures/gui/icons/play.png") {
-        modifier.size(24.dp, 24.dp).alignY(AlignmentY.Center).margin(horizontal=sizes.smallGap)
+        modifier.size(24.dp, 24.dp).alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap)
     }
 }
 

@@ -19,13 +19,13 @@ abstract class DockPanel(final override val name: String, dock: Dock) : Layout, 
 
             Row(Grow.Std, Grow.Std) {
                 if (isPanelBarLeft) {
-                    ToolBar(this@DockPanel)
+                    ToolBar(this@DockPanel, true)
                     Box(width = sizes.borderWidth, height = Grow.Std) { modifier.backgroundColor(UiColors.titleBg) }
                     panelContent()
                 } else {
                     panelContent()
                     Box(width = sizes.borderWidth, height = Grow.Std) { modifier.backgroundColor(UiColors.titleBg) }
-                    ToolBar(this@DockPanel)
+                    ToolBar(this@DockPanel, false)
                 }
             }
         } ?: run {

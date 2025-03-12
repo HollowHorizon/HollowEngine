@@ -89,6 +89,7 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
             vScrollbarModifier = { it.width(sizes.smallGap) },
             hScrollbarModifier = { it.height(sizes.smallGap) },
         ) {
+            modifier.margin(vertical=sizes.smallGap)
             this@TextFileData.modifier = modifier
             installSelectionHandler(lines) { startLine, caretLine, startChar, caretChar ->
                 modifier.completions.clear()

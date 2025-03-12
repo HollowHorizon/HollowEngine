@@ -11,7 +11,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
-fun UiScope.ToolBar(panel: DockPanel) = Column(height = Grow.Std) {
+fun UiScope.ToolBar(panel: DockPanel, isLeft: Boolean) = Column(height = Grow.Std) {
     modifier.backgroundColor(colors.background)
     val dockNode = panel.dockable.dockedTo.use() ?: return@Column
     dockNode.dockedItems.sortedBy { it.name }.forEach { dockable ->
@@ -19,13 +19,14 @@ fun UiScope.ToolBar(panel: DockPanel) = Column(height = Grow.Std) {
             dockable,
             dockNode,
             LayoutLoader.LAYOUTS[dockable.name]?.icon
-                ?: error("Panel ${dockable.name} not registered via LoadLayoutEvent!")
+                ?: error("Panel ${dockable.name} not registered via LoadLayoutEvent!"),
+            isLeft
         )
     }
 }
 
-fun UiScope.panelButton(panel: Dockable, dockNode: DockNodeLeaf, icon: String) {
-    iconButton(icon, panel, panel.name, panel == dockNode.dockItemOnTop) {
+fun UiScope.panelButton(panel: Dockable, dockNode: DockNodeLeaf, icon: String, isLeft: Boolean) {
+    iconButton(icon, panel, panel.name, panel == dockNode.dockItemOnTop, isLeft=isLeft) {
         if(panel != dockNode.dockItemOnTop) animators[panel]?.start()
         dockNode.bringToTop(panel)
     }
@@ -38,12 +39,10 @@ fun UiScope.iconButton(
     panel: Dockable,
     tooltip: String? = null,
     toggleState: Boolean = false,
-    tint: Color = colors.onBackground,
-    margin: Dp = sizes.smallGap,
     width: Dimension = FitContent,
     height: Dimension = FitContent,
-    padding: Dp = sizes.smallGap,
     boxBlock: (UiScope.() -> Unit)? = null,
+    isLeft: Boolean,
     onClick: (PointerEvent) -> Unit,
 ) = Box(width, height) {
     val float = animators.getOrPut(panel) { AnimatedFloat(1f) }
@@ -53,6 +52,8 @@ fun UiScope.iconButton(
         Box(sizes.borderWidth * 2, Grow(0.5f * anim)) {
             modifier.background(RoundRectBackground(colors.onBackground, sizes.smallGap * 0.5f))
                 .alignY(AlignmentY.Center)
+
+            if(!isLeft) modifier.alignX(AlignmentX.End)
         }
     }
 
@@ -67,7 +68,7 @@ fun UiScope.iconButton(
             .margin(sizes.smallGap)
             .padding(sizes.smallGap)
 
-        if (isHovered) modifier.background(
+        if (isHovered && !toggleState) modifier.background(
             RoundRectBackground(
                 IdeTheme.hoveredColors.background,
                 sizes.smallGap

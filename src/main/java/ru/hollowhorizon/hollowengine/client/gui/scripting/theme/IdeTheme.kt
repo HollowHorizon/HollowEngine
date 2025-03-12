@@ -34,6 +34,8 @@ object IdeTheme {
     var colors = Colors.darkColors(
         background = Color("24272EFF"),
         backgroundVariant = Color("1F2228FF"),
+        secondaryVariant = Color("3C3C4AFF"),
+        secondary = Color("4C4C5AFF")
     )
     val hoveredColors = Colors.darkColors(
         background = Color("31343DFF")
