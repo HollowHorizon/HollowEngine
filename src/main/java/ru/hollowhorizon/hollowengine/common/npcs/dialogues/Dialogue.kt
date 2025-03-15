@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.common.npcs.dialogues
 
 import kotlinx.serialization.Serializable
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hc.client.utils.nbt.ForCompoundNBT
+import ru.hollowhorizon.hc.common.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.await

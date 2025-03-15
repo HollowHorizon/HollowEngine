@@ -5,11 +5,11 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.client.kool.ScreenScene
-import ru.hollowhorizon.hc.client.utils.currentServer
+import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hc.common.coroutines.isServerLoaded
-import ru.hollowhorizon.hc.common.network.HollowPacketV2
-import ru.hollowhorizon.hc.common.network.HollowPacketV3
-import ru.hollowhorizon.hollowengine.client.gui.scripting.ideSizes
+import ru.hollowhorizon.hc.common.network.HollowPacketHandler
+import ru.hollowhorizon.hc.common.network.HollowPacket
+import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 
@@ -23,7 +23,7 @@ object CompilationStatus {
 
         val sizes = Sizes.medium
 
-        surface = addPanelSurface(sizes = ideSizes) {
+        surface = addPanelSurface(IdeTheme.colors, IdeTheme.sizes) {
             modifier.align(AlignmentX.End, AlignmentY.Bottom)
                 .border(RectBorder(Color.WHITE, sizes.borderWidth))
                 .background(RectBackground(Color("00000066")))
@@ -61,10 +61,10 @@ object CompilationStatus {
     }
 }
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
 class UpdateStatusPacket(val file: String, private val status: CompilationStatus.Status?) :
-    HollowPacketV3<UpdateStatusPacket> {
+    HollowPacket<UpdateStatusPacket> {
     override fun handle(player: Player) {
         if (status != null) CompilationStatus.updateStatus(file, status)
         else CompilationStatus.clearStatus(file)

@@ -2,18 +2,16 @@ package ru.hollowhorizon.hollowengine.common.registry
 
 import net.minecraft.world.item.CreativeModeTab
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hc.client.utils.mcTranslate
-import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.common.utils.rl
+import ru.hollowhorizon.hc.common.utils.mcTranslate
 import ru.hollowhorizon.hc.common.registry.HollowRegistry
-import ru.hollowhorizon.hc.common.registry.RegistryObject
+import ru.hollowhorizon.hollowengine.HollowEngine
 
-object ModTabs : HollowRegistry() {
+object ModTabs : HollowRegistry(HollowEngine.MODID) {
     //? if >=1.20.1 {
-    val HOLLOW_ENGINE: RegistryObject<CreativeModeTab> by register("hollowcore:creative_tab".rl) {
-        CreativeModeTab
-            .builder(CreativeModeTab.Row.TOP, 9)
-            .title("itemGroup.hollowengine".mcTranslate)
-            .icon { ItemStack(ModItems.STORYTELLER_DIM_TELEPORTER.get()) }.build()
+    val HOLLOW_ENGINE: CreativeModeTab by creativeTab("creative_tab") {
+        icon { ModItems.STORYTELLER_DIM_TELEPORTER.defaultInstance }
+        title("itemGroup.hollowengine".mcTranslate)
     }
     //?} else {
     /*val HOLLOW_ENGINE = RegistryObject<CreativeModeTab> {

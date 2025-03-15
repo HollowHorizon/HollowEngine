@@ -6,7 +6,9 @@ hollowengine:
       file: File
       edit: Edit
       search: Search
-      settings: Settings
+      settings:
+        .: Settings
+        theme: Theme
       project_tree: Project
       docs: Documentation
 

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui
 
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT_DATA
@@ -11,38 +12,40 @@ import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.kool.Grid
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 
-class NPCToolGui(val npc: NPCEntity) : KoolScreen({
-    val options = HashSet<NpcOption>()
-    NpcOptionsEvent(options::add, npc).post()
+class NPCToolGui(val npc: NPCEntity) : KoolScreen() {
+    override fun Scene.setup() {
+        val options = HashSet<NpcOption>()
+        NpcOptionsEvent(options::add, npc).post()
 
-    setupUiScene()
+        setupUiScene()
 
-    val sizes = Sizes.medium
+        val sizes = Sizes.medium
 
-    addPanelSurface(sizes = sizes.copy(normalText = MsdfFont(MONOCRAFT_DATA, 30f))) {
-        modifier.background(null).size(Grow.Std, Grow.Std)
-            .margin(sizes.largeGap)
+        addPanelSurface(sizes = sizes.copy(normalText = MsdfFont(MONOCRAFT_DATA, 30f))) {
+            modifier.background(null).size(Grow.Std, Grow.Std)
+                .margin(sizes.largeGap)
 
-        Column {
-            modifier
-                .size(Grow(0.85f), Grow(0.85f))
-                .align(AlignmentX.Center, AlignmentY.Center)
-                .border(RectBorder(Color.WHITE, sizes.borderWidth))
-                .background(RectBackground(Color("00000066")))
-                .padding(sizes.gap)
+            Column {
+                modifier
+                    .size(Grow(0.85f), Grow(0.85f))
+                    .align(AlignmentX.Center, AlignmentY.Center)
+                    .border(RectBorder(Color.WHITE, sizes.borderWidth))
+                    .background(RectBackground(Color("00000066")))
+                    .padding(sizes.gap)
 
-            Text("Меню персонажа") {
-                modifier.align(AlignmentX.Center).textAlignX(AlignmentX.Center)
-            }
+                Text("Меню персонажа") {
+                    modifier.align(AlignmentX.Center).textAlignX(AlignmentX.Center)
+                }
 
-            divider()
+                divider()
 
-            Grid {
-                //modifier.size(Grow.Std, Grow(0.85f))
+                Grid {
+                    //modifier.size(Grow.Std, Grow(0.85f))
+                }
             }
         }
     }
-})
+}
 
 @SubscribeEvent(100)
 fun registerNpcOptions(event: NpcOptionsEvent) {

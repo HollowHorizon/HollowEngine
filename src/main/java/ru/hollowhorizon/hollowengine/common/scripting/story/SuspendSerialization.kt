@@ -3,11 +3,11 @@ package ru.hollowhorizon.hollowengine.common.scripting.story
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hc.HollowCore
-import ru.hollowhorizon.hc.client.utils.JavaHacks
-import ru.hollowhorizon.hc.client.utils.currentServer
-import ru.hollowhorizon.hc.client.utils.nbt.NBTFormat
-import ru.hollowhorizon.hc.client.utils.nbt.deserializeNoInline
-import ru.hollowhorizon.hc.client.utils.nbt.serializeNoInline
+import ru.hollowhorizon.hc.common.utils.JavaHacks
+import ru.hollowhorizon.hc.common.utils.currentServer
+import ru.hollowhorizon.hc.common.utils.nbt.NBTFormat
+import ru.hollowhorizon.hc.common.utils.nbt.deserializeNoInline
+import ru.hollowhorizon.hc.common.utils.nbt.serializeNoInline
 import ru.hollowhorizon.hollowengine.compiler.suspendable.AsyncContext
 import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
 

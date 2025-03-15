@@ -7,9 +7,9 @@ import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.pipeline.TextureProps
 import de.fabmax.kool.util.toBuffer
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
+import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 
-class ImageFileData(project: IDEGuiV2, name: String, path: String, var image: ByteArray) :
+class ImageFileData(project: IdeContent, name: String, path: String, var image: ByteArray) :
     FileData(project, name, path) {
 
 

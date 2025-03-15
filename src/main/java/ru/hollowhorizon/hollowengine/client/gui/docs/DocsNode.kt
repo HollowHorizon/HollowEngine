@@ -5,11 +5,15 @@ import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_RIGHT
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.scripting.FileNode
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
+import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
 class DocsNode(name: String, path: String, val page: Composable? = null) : FileNode(name, path) {
-    constructor(path: String, page: Composable? = null) : this("hollowengine.gui.docs.${path.replace('/', '.')}".lang, path, page)
+    constructor(path: String, page: Composable? = null) : this(
+        "hollowengine.gui.docs.${path.replace('/', '.')}".lang,
+        path,
+        page
+    )
 
     override fun toggleExpanded() {
         if (!isFolder) return
@@ -19,13 +23,12 @@ class DocsNode(name: String, path: String, val page: Composable? = null) : FileN
     }
 
     override fun UiScope.sceneObjectItem(item: FileNode, isHovered: Boolean) {
-        modifier
-            .onClick { evt ->
+        modifier.onClick { evt ->
                 if (evt.pointer.isLeftButtonClicked) {
                     if (item.isFolder && evt.pointer.leftButtonRepeatedClickCount == 2) {
                         item.toggleExpanded()
                     } else {
-                        IDEGuiV2.openDocFile(item)
+                        IdeContent.openDocFile(item)
                     }
                 }
             }
@@ -45,18 +48,13 @@ class DocsNode(name: String, path: String, val page: Composable? = null) : FileN
         val fgColor = if (isHovered) colors.primary else colors.secondary
 
         Box {
-            modifier
-                .alignY(AlignmentY.Center)
-                .padding(sizes.smallGap)
-                .margin(horizontal = sizes.smallGap)
+            modifier.alignY(AlignmentY.Center).padding(sizes.smallGap).margin(horizontal = sizes.smallGap)
                 .size(sizes.gap, sizes.gap)
 
             if (item.isFolder) {
                 Arrow(isHoverable = false) {
-                    modifier
-                        .rotation(if (item.isExpanded.use()) ROTATION_DOWN else ROTATION_RIGHT)
-                        .align(AlignmentX.Center, AlignmentY.Center)
-                        .onClick { item.toggleExpanded() }
+                    modifier.rotation(if (item.isExpanded.use()) ROTATION_DOWN else ROTATION_RIGHT)
+                        .align(AlignmentX.Center, AlignmentY.Center).onClick { item.toggleExpanded() }
                         .size(sizes.gap, sizes.gap)
                 }
             }
@@ -64,10 +62,7 @@ class DocsNode(name: String, path: String, val page: Composable? = null) : FileN
 
         Box(width = Grow.Std, height = Grow.Std) {
             Text(item.treeName) {
-                modifier
-                    .font(sizes.normalText)
-                    .alignY(AlignmentY.Center)
-                    .textColor(fgColor)
+                modifier.font(sizes.normalText).alignY(AlignmentY.Center).textColor(fgColor)
             }
         }
     }

@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.functions
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import ru.hollowhorizon.hc.client.utils.literal
+import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hc.common.events.EventListener

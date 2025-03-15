@@ -7,27 +7,26 @@ import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import org.apache.commons.io.FileUtils
-import ru.hollowhorizon.hc.client.utils.currentServer
-import ru.hollowhorizon.hc.client.utils.literal
-import ru.hollowhorizon.hc.client.utils.mcText
-import ru.hollowhorizon.hc.client.utils.nbt.ForTextComponent
-import ru.hollowhorizon.hc.common.network.HollowPacketV2
-import ru.hollowhorizon.hc.common.network.HollowPacketV3
+import ru.hollowhorizon.hc.common.network.HollowPacket
+import ru.hollowhorizon.hc.common.network.HollowPacketHandler
+import ru.hollowhorizon.hc.common.utils.currentServer
+import ru.hollowhorizon.hc.common.utils.literal
+import ru.hollowhorizon.hc.common.utils.nbt.ForTextComponent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.startScript
 import ru.hollowhorizon.hollowengine.common.scripting.stopScript
 import java.io.File
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
-class ToastPacket(val message: @Serializable(ForTextComponent::class) Component) : HollowPacketV3<ToastPacket> {
+class ToastPacket(val message: @Serializable(ForTextComponent::class) Component) : HollowPacket<ToastPacket> {
     override fun handle(player: Player) = player.sendToast(message)
 }
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 @Serializable
 class CopyFilePacket(val source: String, val dest: String, val deleteSource: Boolean = false) :
-    HollowPacketV3<CreateFilePacket> {
+    HollowPacket<CreateFilePacket> {
     override fun handle(player: Player) {
         if (!player.hasPermissions(2)) {
             player.sendSystemMessage("У вас нет прав на перемещение файлов!".literal)
@@ -36,7 +35,7 @@ class CopyFilePacket(val source: String, val dest: String, val deleteSource: Boo
 
         val sourceFile = source.fromReadablePath()
         val destFile = dest.fromReadablePath()
-        if(sourceFile == destFile) return
+        if (sourceFile == destFile) return
         copyWithUniqueName(sourceFile, destFile)
         if (deleteSource) {
             if (sourceFile.isDirectory) sourceFile.deleteRecursively()
@@ -85,9 +84,9 @@ fun Player.sendToast(message: Component) {
     else ToastPacket(message).send(this)
 }
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 @Serializable
-class RequestFilePacket(val path: String) : HollowPacketV3<RequestFilePacket> {
+class RequestFilePacket(val path: String) : HollowPacket<RequestFilePacket> {
     override fun handle(player: Player) {
         if (!player.hasPermissions(2)) {
             player.sendSystemMessage("У вас нет прав на чтение файлов!".literal)
@@ -111,12 +110,12 @@ class RequestFilePacket(val path: String) : HollowPacketV3<RequestFilePacket> {
 }
 
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 @Serializable
-class DeleteFilePacket(val path: String) : HollowPacketV3<DeleteFilePacket> {
+class DeleteFilePacket(val path: String) : HollowPacket<DeleteFilePacket> {
     override fun handle(player: Player) {
         if (!player.hasPermissions(2)) {
-            player.sendSystemMessage("У вас нет прав на удаление файлов!".mcText)
+            player.sendSystemMessage("У вас нет прав на удаление файлов!".literal)
             return
         }
         val file = path.fromReadablePath()
@@ -127,9 +126,9 @@ class DeleteFilePacket(val path: String) : HollowPacketV3<DeleteFilePacket> {
     }
 }
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 @Serializable
-class SaveFilePacket(val path: String, private val bytes: ByteArray) : HollowPacketV3<SaveFilePacket> {
+class SaveFilePacket(val path: String, private val bytes: ByteArray) : HollowPacket<SaveFilePacket> {
     override fun handle(player: Player) {
         if (!player.hasPermissions(2)) {
             player.sendSystemMessage("You don't have permissions to save scripts!".literal)
@@ -149,18 +148,18 @@ enum class FileType {
     TEXT, IMAGE
 }
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
 class UpdateFilePacket(val path: String, private val bytes: ByteArray, val type: FileType) :
-    HollowPacketV3<UpdateFilePacket> {
+    HollowPacket<UpdateFilePacket> {
     override fun handle(player: Player) {
-        IDEGuiV2.openFile(path, bytes, type)
+        IdeContent.openFile(path, bytes, type)
     }
 }
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 @Serializable
-class RenameFilePacket(val path: String, private val newName: String) : HollowPacketV3<RenameFilePacket> {
+class RenameFilePacket(val path: String, private val newName: String) : HollowPacket<RenameFilePacket> {
     override fun handle(player: Player) {
         if (player.hasPermissions(2)) {
             val file = path.fromReadablePath()
@@ -168,14 +167,14 @@ class RenameFilePacket(val path: String, private val newName: String) : HollowPa
                 file.renameTo(file.parentFile.resolve(newName))
             }
         } else {
-            player.sendSystemMessage("You don't have permissions to delete scripts!".mcText)
+            player.sendSystemMessage("You don't have permissions to delete scripts!".literal)
         }
     }
 }
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 @Serializable
-class CreateFilePacket(val path: String) : HollowPacketV3<CreateFilePacket> {
+class CreateFilePacket(val path: String) : HollowPacket<CreateFilePacket> {
     override fun handle(player: Player) {
         if (player.hasPermissions(2)) {
             val file = (if (path.startsWith('/')) path.substring(1) else path).fromReadablePath()
@@ -191,9 +190,9 @@ class CreateFilePacket(val path: String) : HollowPacketV3<CreateFilePacket> {
     }
 }
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 @Serializable
-class StartScriptPacket(val path: String) : HollowPacketV3<StartScriptPacket> {
+class StartScriptPacket(val path: String) : HollowPacket<StartScriptPacket> {
     override fun handle(player: Player) {
         if (!player.hasPermissions(2)) {
             player.sendSystemMessage("You don't have permissions to start scripts!".literal)
@@ -207,17 +206,17 @@ class StartScriptPacket(val path: String) : HollowPacketV3<StartScriptPacket> {
     }
 }
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_CLIENT)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
-class CloseScreenPacket : HollowPacketV3<CloseScreenPacket> {
+class CloseScreenPacket : HollowPacket<CloseScreenPacket> {
     override fun handle(player: Player) {
         Minecraft.getInstance().screen?.onClose()
     }
 }
 
-@HollowPacketV2(HollowPacketV2.Direction.TO_SERVER)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 @Serializable
-class StopScriptPacket(val path: String) : HollowPacketV3<StopScriptPacket> {
+class StopScriptPacket(val path: String) : HollowPacket<StopScriptPacket> {
     override fun handle(player: Player) {
         if (!player.hasPermissions(2)) {
             player.sendSystemMessage("You don't have permissions to start scripts!".literal)

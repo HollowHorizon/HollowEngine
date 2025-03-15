@@ -105,6 +105,9 @@ fun UiScope.ScriptTextArea(
                     hScrollbarModifier = {
                         it.height(sizes.smallGap).margin(sizes.smallGap*0.5f).zLayer(UiSurface.LAYER_POPUP + UiSurface.LAYER_FLOATING)
                     },
+                    scrollPaneModifier = {
+                        it.allowOverscrollY = false
+                    }
                 ) {
                     textArea.completionsList = (this as LazyListNode).state
                     itemsIndexed(completions) { index, completion ->
@@ -196,12 +199,10 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
         lineProvider: TextLineProvider,
     ): UiScope {
         val errors = this@ScriptTextArea.modifier.errors
-        val font = MsdfFont(HACK_FONT, 10f)
+        val font = MsdfFont(HACK_FONT, 18f)
 
-        val row = scope.Row(Grow.Std, height = font.lineHeight.dp) {
-            if (lineIndex == this@ScriptTextArea.modifier.selectionStartLine) {
-                modifier.backgroundColor(colors.hoverBg)
-            }
+        val row = scope.Row(Grow.Std) {
+
             val width = font.textDimensions(lineProvider.size.toString()).width.dp
 
 
@@ -245,20 +246,24 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
             }
 
             Box(width) {
+                modifier.margin(horizontal = sizes.smallGap)
+
                 Text((lineIndex + 1).toString()) {
                     modifier.font(font).align(AlignmentX.End, AlignmentY.Center)
                 }
-                modifier.margin(horizontal = sizes.smallGap)
             }
 
             Box(sizes.borderWidth, Grow.Std) {
                 modifier
-                    .backgroundColor(colors.secondaryVariant)
+                    .backgroundColor(Color("3C3C4AFF"))
                     .alignY(AlignmentY.Center)
-                    .margin(horizontal = sizes.smallGap)
             }
             super.setupTextLine(this, line, lineIndex, textAreaMod, lineProvider).apply {
-                modifier.alignY(AlignmentY.Center).margin(start = sizes.smallGap).alignY(AlignmentY.Top)
+                modifier.alignY(AlignmentY.Center).margin(start = sizes.smallGap*0.5f).alignY(AlignmentY.Top)
+                modifier.padding(sizes.smallGap*0.5f)
+                if (lineIndex == this@ScriptTextArea.modifier.selectionStartLine) {
+                    modifier.border(RoundRectBorder(Color("3C3C4AFF"), sizes.smallGap, sizes.borderWidth))
+                }
             }
         }
 

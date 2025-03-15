@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import ru.hollowhorizon.hc.client.utils.ForgeKotlinKt;
+import ru.hollowhorizon.hc.common.utils.ForgeKotlinKt;
 import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus;
 import ru.hollowhorizon.hollowengine.client.gui.overlay.UpdateStatusPacket;
 import ru.hollowhorizon.hollowengine.common.scripting.core.mappings.Remapping;

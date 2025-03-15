@@ -35,6 +35,8 @@ object ScriptParser {
                 ScriptDefinition.FromConfigurations(host, createCompilationConfiguration<EventScript>(host), null)
             )
         }
+
+
         env = context.environment
     }
 

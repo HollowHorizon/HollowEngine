@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.com.intellij.lang.ASTNode
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiErrorElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiRecursiveElementWalkingVisitor
+import org.jetbrains.kotlin.com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -26,7 +27,7 @@ import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
-import ru.hollowhorizon.hollowengine.client.gui.scripting.ideColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptParser
 
 object ScriptColorizer {
@@ -68,12 +69,12 @@ object ScriptColorizer {
                 val primary = getElementColor(element, bindingContext)
 
                 val background = if (element.shouldHighlight(bindingContext, expressionAtCaret)) {
-                    ideColors.background.mix(primary, 0.35f)
+                    IdeTheme.colors.background.mix(primary, 0.35f)
                 } else null
 
                 val lines = element.text.split("\n")
                 lines.forEachIndexed { index, line ->
-                    currentLine.add(line to TextAttributes(MsdfFont(HACK_FONT, 10f), primary, background))
+                    currentLine.add(line to TextAttributes(MsdfFont(HACK_FONT, 18f), primary, background))
                     // Если это конец строки, добавляем в `textLines`
                     if (index != lines.size - 1) {
                         textLines.add(TextLine(currentLine.toList()))
@@ -118,8 +119,7 @@ private fun PsiElement.shouldHighlight(bindingContext: BindingContext, other: Ps
     val otherType = other.node.elementType
     when (otherType) {
         in KtTokens.WHITE_SPACE_OR_COMMENT_BIT_SET -> return false
-        KtTokens.LPAR -> return this == other || (other.parent as? KtValueArgumentList)?.rightParenthesis == this
-        KtTokens.RPAR -> return this == other || (other.parent as? KtValueArgumentList)?.leftParenthesis == this
+        KtTokens.LPAR, KtTokens.RPAR, KtTokens.LBRACE, KtTokens.RBRACE, KtTokens.LBRACKET, KtTokens.RBRACKET -> return this == other || isOtherParenthesis(other)
         KtTokens.CLOSING_QUOTE, KtTokens.OPEN_QUOTE -> return this in other.parent.node
         else -> {
             if (this == other) return true
@@ -141,6 +141,26 @@ private fun PsiElement.shouldHighlight(bindingContext: BindingContext, other: Ps
             return descriptor1 != null && descriptor1 == descriptor2 && node.elementType == other.node.elementType
         }
     }
+}
+
+private fun PsiElement.isOtherParenthesis(other: PsiElement): Boolean {
+    val matchingPairs = mapOf(
+        KtTokens.LPAR to KtTokens.RPAR,
+        KtTokens.LBRACE to KtTokens.RBRACE,
+        KtTokens.LBRACKET to KtTokens.RBRACKET
+    )
+
+    val thisType = this.node.elementType
+    val otherType = other.node.elementType
+
+    if (matchingPairs[thisType] != otherType && matchingPairs[otherType] != thisType) {
+        return false
+    }
+
+    val commonParent = PsiTreeUtil.findCommonParent(this, other) ?: return false
+
+    return commonParent.firstChild == this && commonParent.lastChild == other ||
+            commonParent.firstChild == other && commonParent.lastChild == this
 }
 
 private fun getElementColor(element: PsiElement, bindingContext: BindingContext): Color {

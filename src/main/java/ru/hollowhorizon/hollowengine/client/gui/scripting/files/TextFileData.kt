@@ -14,7 +14,7 @@ import org.jetbrains.kotlin.resolve.BindingContext
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
+import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.SaveFilePacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextArea
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextAreaModifier
@@ -32,10 +32,10 @@ import kotlin.script.experimental.api.isError
 var currentLine = 0
 var currentColumn = 0
 
-class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) :
+class TextFileData(project: IdeContent, name: String, path: String, code: String) :
     FileData(project, name, path) {
     private val lines = mutableStateListOf(*code.lines().map {
-        TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 10f), Color.WHITE)))
+        TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 18f), Color.WHITE)))
     }.toTypedArray())
     private val editor = ScriptTextEditorHandler(lines)
 
@@ -53,7 +53,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
     fun setText(text: String) {
         lines.clear()
         lines.addAll(mutableStateListOf(*text.lines().map {
-            TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 10f), Color.WHITE)))
+            TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 18f), Color.WHITE)))
         }.toTypedArray()))
         surface.triggerUpdate()
     }
@@ -80,7 +80,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
     }
 
     override fun UiScope.compose() {
-        modifier.backgroundColor(colors.backgroundMid)
+        modifier.backgroundColor(colors.backgroundVariant)
 
         ScriptTextArea(
             ListTextLineProvider(lines),
@@ -89,6 +89,7 @@ class TextFileData(project: IDEGuiV2, name: String, path: String, code: String) 
             vScrollbarModifier = { it.width(sizes.smallGap) },
             hScrollbarModifier = { it.height(sizes.smallGap) },
         ) {
+            modifier.margin(vertical=sizes.smallGap)
             this@TextFileData.modifier = modifier
             installSelectionHandler(lines) { startLine, caretLine, startChar, caretChar ->
                 modifier.completions.clear()

@@ -18,10 +18,8 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hc.client.models.internal.manager.IAnimated
-import ru.hollowhorizon.hc.client.utils.get
-import ru.hollowhorizon.hc.client.utils.literal
-import ru.hollowhorizon.hc.client.utils.open
-import ru.hollowhorizon.hollowengine.client.gui.npcs.NPCMenuGui
+import ru.hollowhorizon.hc.common.utils.get
+import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
@@ -30,7 +28,7 @@ import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
 
 class NPCEntity : PathfinderMob, IAnimated {
-    constructor(level: Level) : super(ModEntities.NPC_ENTITY.get(), level)
+    constructor(level: Level) : super(ModEntities.NPC_ENTITY, level)
     constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
 
     val goals get() = goalSelector
@@ -60,7 +58,7 @@ class NPCEntity : PathfinderMob, IAnimated {
     override fun createNavigation(pLevel: Level) = NpcPathNavigation(pLevel, this)
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
-        if (pHand == InteractionHand.MAIN_HAND && level().isClientSide && pPlayer.mainHandItem.item != ModItems.NPC_TOOL.get()) {
+        if (pHand == InteractionHand.MAIN_HAND && level().isClientSide && pPlayer.mainHandItem.item != ModItems.NPC_TOOL) {
             //NPCMenuGui(this).open()
             return InteractionResult.SUCCESS
         }

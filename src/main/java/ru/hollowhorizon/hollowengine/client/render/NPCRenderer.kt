@@ -11,7 +11,7 @@ import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.entity.EntityRendererProvider
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hc.client.render.entity.GLTFEntityRenderer
-import ru.hollowhorizon.hc.client.utils.get
+import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterEntityRenderersEvent
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
@@ -76,5 +76,5 @@ class NPCRenderer(context: EntityRendererProvider.Context) : GLTFEntityRenderer<
 
 @SubscribeEvent
 fun registerEntityRenderer(context: RegisterEntityRenderersEvent) {
-    context.registerEntity(ModEntities.NPC_ENTITY.get(), ::NPCRenderer)
+    context.registerEntity(ModEntities.NPC_ENTITY, ::NPCRenderer)
 }

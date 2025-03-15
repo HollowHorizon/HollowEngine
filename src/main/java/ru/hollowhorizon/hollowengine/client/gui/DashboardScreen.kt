@@ -5,41 +5,39 @@ import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT_DATA
 import ru.hollowhorizon.hc.client.kool.KoolScreen
-import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.events.Event
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.post
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IDEGuiV2
-import ru.hollowhorizon.hollowengine.docs.DOCS_GENERATOR
 
 fun interface KoolGui {
     fun Scene.setup()
 }
 
-class DashBoardScreen : KoolScreen({
-    val modTabs = ArrayList<Tab>()
-    TabEvent(modTabs::add).post()
+class DashBoardScreen : KoolScreen() {
 
-    setupUiScene()
+    override fun Scene.setup() {
+        val modTabs = ArrayList<Tab>()
+        TabEvent(modTabs::add).post()
 
-    addPanelSurface {
-        modifier.align(AlignmentX.Center, AlignmentY.Center).border(RectBorder(colors.primaryVariant, 3.dp))
+        setupUiScene()
 
-        Text("HollowEngine Меню") {
-            modifier.alignX(AlignmentX.Center).font(MsdfFont(MONOCRAFT_DATA, 30f)).margin(10.dp)
-        }
+        addPanelSurface {
+            modifier.align(AlignmentX.Center, AlignmentY.Center).border(RectBorder(colors.primaryVariant, 3.dp))
 
-        Column {
-            modifier.margin(10.dp).alignX(AlignmentX.Center)
+            Text("HollowEngine Меню") {
+                modifier.alignX(AlignmentX.Center).font(MsdfFont(MONOCRAFT_DATA, 30f)).margin(10.dp)
+            }
 
-            modTabs.forEach { tab ->
-                Button(tab.name) {
-                    modifier.onClick { tab.onClick() }.font(MsdfFont(MONOCRAFT_DATA, 30f)).margin(10.dp)
+            Column {
+                modifier.margin(10.dp).alignX(AlignmentX.Center)
+
+                modTabs.forEach { tab ->
+                    Button(tab.name) {
+                        modifier.onClick { tab.onClick() }.font(MsdfFont(MONOCRAFT_DATA, 30f)).margin(10.dp)
+                    }
                 }
             }
         }
     }
-}) {
 
     class Tab(val name: String, val onClick: () -> Unit)
     class TabEvent(private val generator: (Tab) -> Unit) : Event {
@@ -48,17 +46,3 @@ class DashBoardScreen : KoolScreen({
         }
     }
 }
-
-@SubscribeEvent
-fun onAddTab(event: DashBoardScreen.TabEvent) {
-    event.register(DashBoardScreen.Tab("code_editor") {
-        IDEGuiV2.open()
-    })
-    event.register(DashBoardScreen.Tab("docs") {
-        DocsScreen.open()
-    })
-}
-
-object DocsScreen : KoolScreen({
-    DOCS_GENERATOR()
-})
