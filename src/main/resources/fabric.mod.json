@@ -14,7 +14,11 @@
   "license": "${license}",
   "icon": "hollowcore.png",
   "environment": "*",
-  "entrypoints": {},
+  "entrypoints": {
+    "jei_mod_plugin": [
+      "ru.hollowhorizon.hollowengine.common.compact.HEJEIPlugin"
+    ]
+  },
   "accessWidener": "${mod_id}.accesswidener",
   "mixins": [
     "${mod_id}.mixins.json"
