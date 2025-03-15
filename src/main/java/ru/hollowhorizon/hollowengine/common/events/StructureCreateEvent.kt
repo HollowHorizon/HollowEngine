@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.events
 
-import ru.hollowhorizon.hc.client.utils.rl
+import ru.hollowhorizon.hc.common.utils.rl
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hollowengine.common.structure.PoolBuilder
 import ru.hollowhorizon.hollowengine.common.structure.StructureBuilder

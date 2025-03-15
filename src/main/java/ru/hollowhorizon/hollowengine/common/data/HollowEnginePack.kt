@@ -6,15 +6,7 @@ import net.minecraft.Util
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.packs.PackResources
 import net.minecraft.server.packs.PackType
-//? if >=1.21 {
 
-/*import net.minecraft.server.packs.PackLocationInfo
-import net.minecraft.server.packs.repository.PackSource
-import ru.hollowhorizon.hc.client.utils.mcText
-import java.util.*
-
-*///?}
-//? if >=1.20.1 {
 import net.minecraft.server.packs.PathPackResources
 import net.minecraft.server.packs.metadata.MetadataSectionSerializer
 import net.minecraft.server.packs.repository.Pack
@@ -22,7 +14,6 @@ import net.minecraft.server.packs.repository.PackSource
 import net.minecraft.server.packs.resources.IoSupplier
 import ru.hollowhorizon.hc.common.utils.rl
 import ru.hollowhorizon.hc.common.utils.literal
-//?}
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -181,27 +172,6 @@ object HollowEngineCorePack: PackResources {
         packId(), packId().literal, true, { this }, PackType.SERVER_DATA, Pack.Position.TOP, PackSource.BUILT_IN
     )
 }
-
-//?} else {
-/*import net.minecraft.server.packs.FolderPackResources
-import java.io.FileNotFoundException
-
-object HollowEnginePack : FolderPackResources(DirectoryManager.HOLLOW_ENGINE.toFile()) {
-    private val packMetadata = Util.make(JsonObject()) { json ->
-        json.add("pack", JsonObject().apply {
-            addProperty("description", "HollowEngine Folder Resources")
-            addProperty("pack_format", 9)
-        })
-    }.toString()
-
-    override fun getRootResource(fileName: String): InputStream {
-        return when (fileName) {
-            PACK_META -> packMetadata.byteInputStream()
-            else -> super.getRootResource(fileName) ?: throw FileNotFoundException("$fileName not found")
-        }
-    }
-}
-*///?}
 
 @SubscribeEvent
 fun addPackListeners(event: RegisterResourcePacksEvent) {

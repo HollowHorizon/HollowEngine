@@ -10,8 +10,8 @@ import net.minecraft.network.chat.Component
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hc.LOGGER
-import ru.hollowhorizon.hc.client.utils.JavaHacks
-import ru.hollowhorizon.hc.client.utils.mcTranslate
+import ru.hollowhorizon.hc.common.utils.JavaHacks
+import ru.hollowhorizon.hc.common.utils.mcTranslate
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hollowengine.common.compact.util.hide
 import ru.hollowhorizon.hollowengine.common.compact.util.hideWithin

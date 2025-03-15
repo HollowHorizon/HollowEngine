@@ -34,6 +34,7 @@ setupEnviroment(container, kotlinVersion, "TheHollowHorizon", includeKotlin = tr
 
 repositories {
     maven("https://jitpack.io")
+    maven("https://maven.blamejared.com/")
 
     flatDir { dirs(rootProject.file("libs")) }
 }
