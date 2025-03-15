@@ -2,7 +2,9 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar
 
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 import kotlin.math.min
 
 object ComboBox {
@@ -14,24 +16,24 @@ object ComboBox {
             var hoveredIndex by remember(-1)
 
             modifier
-                .zLayer(UiSurface.LAYER_POPUP)
+                .zLayer(UiSurface.LAYER_POPUP + UiSurface.LAYER_FLOATING)
                 .background(RoundRectBackground(colors.background, sizes.smallGap))
-                .border(RoundRectBorder(colors.backgroundVariant, sizes.smallGap, sizes.borderWidth))
+                .border(RoundRectBorder(Color("3C3C4AFF"), sizes.smallGap, sizes.borderWidth))
                 .padding(sizes.smallGap)
-                .height((Dp.fromPx(sizes.normalText.lineHeight) + sizes.smallGap) * min(7, items.size) + sizes.gap)
+                .height((24.dp + sizes.smallGap * 2) * min(7, items.size) + sizes.gap)
 
             LazyList(
                 withHorizontalScrollbar = false,
                 isScrollableHorizontal = false,
+                containerModifier = { it.background(null).margin(sizes.smallGap) },
                 vScrollbarModifier = { it.zLayer(UiSurface.LAYER_POPUP + UiSurface.LAYER_FLOATING) }
             ) {
                 itemsIndexed(items) { i, item ->
                     Box {
-                        items[i]()
-
                         modifier
+                            .padding(sizes.smallGap * 0.5f)
+                            .margin(sizes.smallGap * 0.5f)
                             .width(Grow.Std)
-                            .padding(horizontal = sizes.gap, vertical = sizes.smallGap * 0.5f)
                             .onEnter { hoveredIndex = i }
                             .onExit { hoveredIndex = -1 }
                             .onClick {
@@ -47,21 +49,24 @@ object ComboBox {
                             // make some space for the scrollbar
                             modifier.margin(end = sizes.gap)
                         }
+
+                        item()
                     }
                 }
             }
         }
 
         Row {
-            var isHovered by remember { mutableStateOf(false) }
-            modifier.padding(horizontal=sizes.smallGap).onEnter { isHovered = true }.onExit { isHovered = false }
+            modifier.padding(horizontal = sizes.smallGap)
                 .alignY(AlignmentY.Center)
-            if (isHovered) modifier.background(RoundRectBackground(IdeTheme.hoveredColors.background, sizes.smallGap))
+            modifier.background(RoundRectBackground(hoverColors(color=colors.background, hoverColor=IdeTheme.hoveredColors.background), sizes.smallGap))
 
-            if(itemIndex == -1) {
+            if (popupMenu.isVisible.use()) modifier.background(RoundRectBackground(IdeTheme.hoveredColors.background, sizes.smallGap))
+
+            if (itemIndex == -1) {
                 Text(preview) {
                     modifier.alignY(AlignmentY.Center)
-                    modifier.margin(end=sizes.smallGap)
+                        .margin(end = sizes.smallGap)
                 }
             } else {
                 items[itemIndex]()
@@ -73,11 +78,13 @@ object ComboBox {
 
             Box {
                 modifier.margin(horizontal = sizes.smallGap)
-                    .alignY(AlignmentY.Center).padding(sizes.smallGap*0.5f)
+                    .align(AlignmentX.End, AlignmentY.Center)
+                    .padding(sizes.smallGap * 0.5f)
 
                 Arrow {
                     modifier.rotation(90f)
-                        .align(AlignmentX.End, AlignmentY.Center)
+                        .colors(arrowColor = colors.onBackground)
+                        .alignY(AlignmentY.Center)
                         .size(18f.dp, 18f.dp)
                 }
             }

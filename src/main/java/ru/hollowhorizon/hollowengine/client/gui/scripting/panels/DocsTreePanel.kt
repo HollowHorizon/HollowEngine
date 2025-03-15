@@ -13,7 +13,7 @@ import ru.hollowhorizon.hollowengine.docs.pages.story.npcs.CreationPage
 import ru.hollowhorizon.hollowengine.docs.pages.story.npcs.NpcsPage
 
 class DocsTreePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.docs", dock) {
-    override val icon = "hollowengine:textures/gui/icons/docs.png"
+    override val icon = "hollowengine:textures/gui/icons/docs.svg"
 
     override fun UiScope.compose() {
         docsTree()

@@ -16,27 +16,17 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.loadLayouts
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.TitleBarCreationEvent
-import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.leftBarContents
-import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.rightBarContents
-
-fun main() = KoolApplication(KoolConfigJvm(defaultAssetLoader = MCAssetLoader, windowSize = Vec2i(720, 480))) {
-    EventBus.register(::leftBarContents)
-    EventBus.register(::rightBarContents)
-    EventBus.register(::loadLayouts)
-    val gui = ScriptingEnvironmentScreen()
-    gui.load()
-    gui.scene.isVisible = true
-    ctx.addScene(gui.scene)
-}
 
 class ScriptingEnvironmentScreen : KoolScreen() {
     val dock = Dock()
+    var overlay: UiScope.() -> Unit = {}
 
     override fun Scene.setup() {
-        setupUiScene(clearColor = ClearColorFill(Color.BLACK))
+        setupUiScene()
 
         var titleBarHeight = 0f
 
+        addNode(dock)
         addPanelSurface(sizes = IdeTheme.sizes, colors = IdeTheme.colors) {
             modifier.size(Grow.Std, FitContent)
 
@@ -53,6 +43,10 @@ class ScriptingEnvironmentScreen : KoolScreen() {
             modifier.onPositioned {
                 titleBarHeight = it.bottomPx
             }
+
+            overlay()
+
+            surface.triggerUpdate()
         }
 
         dock.apply {
@@ -70,8 +64,10 @@ class ScriptingEnvironmentScreen : KoolScreen() {
             }
         }
         LayoutLoader.loadIdeLayout(dock)
-        addNode(dock)
     }
 
-    fun load() = init()
+    override fun onClose() {
+        super.onClose()
+        IdeContent.files.clear()
+    }
 }

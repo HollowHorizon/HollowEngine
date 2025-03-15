@@ -4,9 +4,10 @@ import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.DockNodeLeaf
 import de.fabmax.kool.modules.ui2.docking.Dockable
-import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hc.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.Layout
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
+import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader.layoutOrder
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.utils.lang
@@ -14,28 +15,29 @@ import ru.hollowhorizon.hollowengine.client.utils.lang
 fun UiScope.ToolBar(panel: DockPanel, isLeft: Boolean) = Column(height = Grow.Std) {
     modifier.backgroundColor(colors.background)
     val dockNode = panel.dockable.dockedTo.use() ?: return@Column
-    dockNode.dockedItems.sortedBy { it.name }.forEach { dockable ->
+    dockNode.dockedItems.sortedBy { layoutOrder.indexOf(it.name) }.forEach { dockable ->
         panelButton(
             dockable,
             dockNode,
-            LayoutLoader.LAYOUTS[dockable.name]?.icon
+            LayoutLoader.LAYOUTS[dockable.name]
                 ?: error("Panel ${dockable.name} not registered via LoadLayoutEvent!"),
             isLeft
         )
     }
 }
 
-fun UiScope.panelButton(panel: Dockable, dockNode: DockNodeLeaf, icon: String, isLeft: Boolean) {
-    iconButton(icon, panel, panel.name, panel == dockNode.dockItemOnTop, isLeft=isLeft) {
-        if(panel != dockNode.dockItemOnTop) animators[panel]?.start()
+fun UiScope.panelButton(panel: Dockable, dockNode: DockNodeLeaf, layout: Layout, isLeft: Boolean) {
+    iconButton(layout, panel, panel.name, panel == dockNode.dockItemOnTop, isLeft = isLeft) {
+        if (panel != dockNode.dockItemOnTop) animators[panel]?.start()
         dockNode.bringToTop(panel)
+        layout.isOpened = panel == dockNode.dockItemOnTop || !layout.isOpened
     }
 }
 
 private val animators = mutableMapOf<Dockable, AnimatedFloat>()
 
 fun UiScope.iconButton(
-    icon: String,
+    layout: Layout,
     panel: Dockable,
     tooltip: String? = null,
     toggleState: Boolean = false,
@@ -53,7 +55,7 @@ fun UiScope.iconButton(
             modifier.background(RoundRectBackground(colors.onBackground, sizes.smallGap * 0.5f))
                 .alignY(AlignmentY.Center)
 
-            if(!isLeft) modifier.alignX(AlignmentX.End)
+            if (!isLeft) modifier.alignX(AlignmentX.End)
         }
     }
 
@@ -63,19 +65,17 @@ fun UiScope.iconButton(
 
 
     Box {
-        var isHovered by remember(false)
-        modifier.onEnter { isHovered = true }.onExit { isHovered = false }
+        val color =
+            hoverColors(color = colors.background, hoverColor = IdeTheme.hoveredColors.background)
+        if (toggleState) color.set(IdeTheme.hoveredColors.background)
+
+        modifier
             .margin(sizes.smallGap)
             .padding(sizes.smallGap)
 
-        if (isHovered && !toggleState) modifier.background(
-            RoundRectBackground(
-                IdeTheme.hoveredColors.background,
-                sizes.smallGap
-            )
-        )
+        modifier.background(RoundRectBackground(color, sizes.smallGap))
 
-        Image(icon) {
+        Image(layout.icon) {
             modifier.align(AlignmentX.Center, AlignmentY.Center)
                 .size(28.dp, 28.dp)
         }

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
 import de.fabmax.kool.input.PointerInput
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.Color
@@ -23,7 +24,7 @@ fun UiScope.FileDockingTabsBar(
 
             dockNode.dockedItems.filter { !it.isHidden }.forEach { item ->
                 Row {
-                    val isHovered by hoverListener()
+                    val (isHovered, anim) = hoverListener { !dockNode.isOnTop(item) }
 
                     modifier
                         .margin(horizontal = sizes.smallGap)
@@ -36,15 +37,15 @@ fun UiScope.FileDockingTabsBar(
                             }
                         }
 
-                    if (isHovered) {
-                        modifier
-                            .background(RoundRectBackground(colors.background.mulRgb(1.5f), sizes.smallGap))
-                            .border(RoundRectBorder(Color("3C3C4AFF").mulRgb(1.5f), sizes.smallGap, sizes.borderWidth))
-                    } else {
-                        modifier
-                            .background(RoundRectBackground(colors.background, sizes.smallGap))
-                            .border(RoundRectBorder(Color("3C3C4AFF"), sizes.smallGap, sizes.borderWidth))
-                    }
+                    var factor = Easing.quadRev(anim.progressAndUse())
+                    if (!isHovered.use() && !dockNode.isOnTop(item)) factor = 1f - factor
+                    val bgColor = colors.background.mix(Color("394450FF"), factor)
+                    val borderColor = Color("3C3C4AFF").mix(Color("586D84FF"), factor)
+
+                    modifier
+                        .background(RoundRectBackground(bgColor, sizes.smallGap))
+                        .border(RoundRectBorder(borderColor, sizes.smallGap, sizes.borderWidth))
+
 
                     val itemName = IdeContent.files.values.find { it.dockable == item }?.fileName ?: item.name.lang
 
@@ -60,7 +61,7 @@ fun UiScope.FileDockingTabsBar(
                         }
                     }
                     if (onCloseAction != null) {
-                        CloseButton(
+                        CloseButton(background = bgColor, backgroundHover = bgColor, foreground = colors.onBackground,
                             buttonMod = {
                                 it.align(AlignmentX.End, AlignmentY.Center)
                                     .margin(end = sizes.smallGap)
@@ -98,15 +99,25 @@ fun UiScope.FileTitleBar(
             )
         }
         Row(Grow.Std) {
+            val (isHovered, anim) = hoverListener { !surface.isFocused.use() }
+
             modifier
-                .background(RoundRectBackground(colors.background, sizes.smallGap))
-                .border(RoundRectBorder(Color("3C3C4AFF"), sizes.smallGap, sizes.borderWidth))
                 .margin(sizes.smallGap, sizes.smallGap, 0.dp, sizes.smallGap)
                 .onClick {
                     if (it.pointer.isMiddleButtonReleased) {
                         onCloseAction?.invoke(it)
                     }
                 }
+
+            var factor = Easing.quadRev(anim.progressAndUse())
+            if (!isHovered.use() && !surface.isFocused.use()) factor = 1f - factor
+            val bgColor = colors.background.mix(Color("394450FF"), factor)
+            val borderColor = Color("3C3C4AFF").mix(Color("586D84FF"), factor)
+
+            modifier
+                .background(RoundRectBackground(bgColor, sizes.smallGap))
+                .border(RoundRectBorder(borderColor, sizes.smallGap, sizes.borderWidth))
+
             if (isDraggable && !PointerInput.primaryPointer.isMiddleButtonDown && !PointerInput.primaryPointer.isRightButtonDown) {
                 with(windowDockable) {
                     registerDragCallbacks()
@@ -125,7 +136,7 @@ fun UiScope.FileTitleBar(
             }
 
             onCloseAction?.let {
-                CloseButton(buttonMod = {
+                CloseButton(background = bgColor, backgroundHover = bgColor, foreground = colors.onBackground, buttonMod = {
                     it
                         .align(AlignmentX.End, AlignmentY.Center)
                         .padding(sizes.smallGap)

@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text
 
-import de.fabmax.kool.modules.ui2.TextAreaModifier
-import de.fabmax.kool.modules.ui2.TextLineProvider
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextAreaModifier
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextLineProvider
 
-fun TextAreaModifier.getCharBeforeSelection(): Char? {
+fun ScriptTextAreaModifier.getCharBeforeSelection(): Char? {
     val handler = editorHandler as? ScriptTextEditorHandler ?: return null
     val textProvider = handler.text
     if (textProvider.size == 0) return null
@@ -24,7 +24,8 @@ fun TextAreaModifier.getCharBeforeSelection(): Char? {
         else -> null
     }
 }
-fun TextAreaModifier.getCharAfterSelection(): Char? {
+
+fun ScriptTextAreaModifier.getCharAfterSelection(): Char? {
     val handler = editorHandler as? ScriptTextEditorHandler ?: return null
     val textProvider = handler.text
     if (textProvider.size == 0) return null
@@ -46,7 +47,7 @@ fun TextAreaModifier.getCharAfterSelection(): Char? {
     }
 }
 
-private fun TextAreaModifier.getOrderedSelection(): Pair<Pair<Int, Int>, Pair<Int, Int>>? {
+private fun ScriptTextAreaModifier.getOrderedSelection(): Pair<Pair<Int, Int>, Pair<Int, Int>>? {
     val textProvider = (editorHandler as? ScriptTextEditorHandler)?.text ?: return null
 
     // Проверка валидности позиций
@@ -72,6 +73,7 @@ private fun TextAreaModifier.getOrderedSelection(): Pair<Pair<Int, Int>, Pair<In
         }
     }
 }
+
 fun TextLineProvider.fullText(): String {
     return (0 until size).joinToString("\n") { index ->
         this[index].text

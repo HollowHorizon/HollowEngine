@@ -5,7 +5,7 @@ import de.fabmax.kool.input.KeyEvent
 import de.fabmax.kool.input.KeyboardInput
 import ru.hollowhorizon.hc.common.events.Cancelable
 import ru.hollowhorizon.hc.common.events.Event
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextArea
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextAreaNode
 
 class ScriptAreaKeyEvent(
     val keyCode: KeyCode,
@@ -13,7 +13,7 @@ class ScriptAreaKeyEvent(
     val event: Int,
     val modifiers: Int,
     val typedChar: Char,
-    val area: ScriptTextArea,
+    val area: TextAreaNode,
 ) : Event, Cancelable {
     override var isCanceled = false
     val isPressed: Boolean get() = (event and KeyboardInput.KEY_EV_DOWN) != 0
@@ -28,4 +28,4 @@ class ScriptAreaKeyEvent(
 }
 
 fun ScriptAreaKeyEvent.toKool() = KeyEvent(keyCode, localKeyCode, event, modifiers, typedChar)
-fun KeyEvent.toEngine(area: ScriptTextArea) = ScriptAreaKeyEvent(keyCode, localKeyCode, event, modifiers, typedChar, area)
+fun KeyEvent.toEngine(area: TextAreaNode) = ScriptAreaKeyEvent(keyCode, localKeyCode, event, modifiers, typedChar, area)

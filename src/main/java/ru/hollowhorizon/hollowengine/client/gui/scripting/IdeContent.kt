@@ -70,4 +70,17 @@ object IdeContent {
             localFile
         }
     }
+
+    fun openFile(node: FileData) {
+        val screen = Minecraft.getInstance().screen as? ScriptingEnvironmentScreen ?: return
+        val dock = screen.dock
+
+        files.getOrPut(node.filePath) {
+            dock.addDockableSurface(node.dockable, node.surface)
+            val fileLeaf = dock.getLeafAtPath("0/1")
+            if (fileLeaf != null) fileLeaf.dock(node.dockable)
+            else dock.getLeafAtPath("0")?.insertItem(node.dockable, DockNode.SlotPosition.Right)
+            node
+        }
+    }
 }

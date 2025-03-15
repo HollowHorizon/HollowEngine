@@ -11,6 +11,7 @@ hollowengine:
         theme: Тема
       project_tree: Проект
       docs: Документация
+      recipes: Редактор рецептов
 
       popups:
         create_folder: "Введите название папки:"

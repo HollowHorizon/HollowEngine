@@ -12,13 +12,12 @@ import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.BindingContext
 import ru.hollowhorizon.hc.common.events.EventBus
-import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.SaveFilePacket
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextArea
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextAreaModifier
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextEditorHandler
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ListTextLineProvider
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionProvider
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.OnCompletionsEvent
@@ -89,7 +88,7 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
             vScrollbarModifier = { it.width(sizes.smallGap) },
             hScrollbarModifier = { it.height(sizes.smallGap) },
         ) {
-            modifier.margin(vertical=sizes.smallGap)
+            modifier.margin(vertical = sizes.smallGap)
             this@TextFileData.modifier = modifier
             installSelectionHandler(lines) { startLine, caretLine, startChar, caretChar ->
                 modifier.completions.clear()
@@ -105,7 +104,7 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
                         save()
                     }
                 } else {
-                    colorizeText()
+                    if (::file.isInitialized) colorizeText()
                 }
             }
 
@@ -210,7 +209,7 @@ object ActionManager {
         .also { futureTask = it }
 }
 
-private fun TextAreaScope.installSelectionHandler(
+private fun ScriptTextAreaScope.installSelectionHandler(
     lines: MutableStateList<TextLine>,
     onChange: (startLine: Int, caretLine: Int, startChar: Int, caretChar: Int) -> Unit,
 ) {

@@ -6,6 +6,8 @@ import de.fabmax.kool.math.clamp
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextAreaScope
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextEditorHandler
 
 class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateListOf()) : TextEditorHandler {
     private val undoStack = ArrayDeque<UndoableAction>()
@@ -69,11 +71,11 @@ class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateList
         onSelectionChanged?.let { it(action.startLine, action.caretLine, action.startChar, action.caretChar) }
     }
 
-    override fun insertText(line: Int, caret: Int, insertion: String, textAreaScope: TextAreaScope): Vec2i {
+    override fun insertText(line: Int, caret: Int, insertion: String, textAreaScope: ScriptTextAreaScope): Vec2i {
         return replaceText(line, line, caret, caret, insertion, textAreaScope)
     }
 
-    fun replaceAll(text: String, textAreaScope: TextAreaScope) {
+    fun replaceAll(text: String, textAreaScope: ScriptTextAreaScope) {
         replaceText(0, this.text.lastIndex, 0, this.text.last().text.length.coerceAtLeast(0), text, textAreaScope)
     }
 
@@ -83,11 +85,14 @@ class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateList
         selectionStartChar: Int,
         selectionEndChar: Int,
         input: String,
-        textAreaScope: TextAreaScope,
+        textAreaScope: ScriptTextAreaScope,
     ): Vec2i {
         var replacement = input
         val startLine = this[selectionStartLine] ?: return Vec2i(selectionEndChar, selectionEndLine)
         val endLine = this[selectionEndLine] ?: return Vec2i(selectionEndChar, selectionEndLine)
+
+        if(selectionStartChar > startLine.length) return Vec2i(selectionEndChar, selectionEndLine)
+
         val before = startLine.before(selectionStartChar)
         val after = endLine.after(selectionEndChar)
 
