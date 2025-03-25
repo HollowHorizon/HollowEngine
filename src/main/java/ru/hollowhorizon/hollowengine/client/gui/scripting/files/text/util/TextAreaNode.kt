@@ -142,8 +142,8 @@ fun UiScope.ScriptTextArea(
     textArea.listState = state
     textArea.modifier
         .size(width, height)
-        .onWheelX { state.scrollDpX(it.pointer.deltaScrollX.toFloat() * -20f) }
-        .onWheelY { state.scrollDpY(it.pointer.deltaScrollY.toFloat() * -50f) }
+        .onWheelX { state.scrollDpX(it.pointer.delta.x * -20f) }
+        .onWheelY { state.scrollDpY(it.pointer.delta.y * -50f) }
 
     var completionIndex: Int by textArea.remember(0)
     var completionX: Float by textArea.remember(0f)
@@ -188,7 +188,7 @@ fun UiScope.ScriptTextArea(
                         .border(null)
                         .zLayer(UiSurface.LAYER_POPUP)
 
-                    LazyList(
+                    LazyColumn(
                         withVerticalScrollbar = true,
                         withHorizontalScrollbar = false,
                         isScrollableHorizontal = true,
@@ -388,7 +388,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
             val mouse = PointerInput.primaryPointer
 
-            if (mouse.x in leftPos + startPos..leftPos + endPos && mouse.y in uiNode.topPx..uiNode.bottomPx) {
+            if (mouse.pos.x in leftPos + startPos..leftPos + endPos && mouse.pos.y in uiNode.topPx..uiNode.bottomPx) {
                 errorMessage = error.message
             }
         }

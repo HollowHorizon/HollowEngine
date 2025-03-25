@@ -144,8 +144,8 @@ class TooltipState(val delay: Double = 1.0) : MutableStateValue<Boolean>(false),
         if (Time.gameTime - enterTime > delay) {
             val maxX = popupNode?.let { it.surface.viewport.rightPx - it.widthPx - 20f } ?: 1e9f
             val maxY = popupNode?.let { it.surface.viewport.bottomPx - it.heightPx - 20f } ?: 1e9f
-            pointerX.set(ev.pointer.x.toFloat().coerceIn(0f, maxX))
-            pointerY.set(ev.pointer.y.toFloat().coerceIn(0f, maxY))
+            pointerX.set(ev.pointer.pos.x.coerceIn(0f, maxX))
+            pointerY.set(ev.pointer.pos.y.coerceIn(0f, maxY))
             set(true)
         }
     }
