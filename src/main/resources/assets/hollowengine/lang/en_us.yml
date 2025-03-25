@@ -11,6 +11,7 @@ hollowengine:
         theme: Theme
       project_tree: Project
       docs: Documentation
+      recipes: Recipe Editor
 
       popups:
         create_folder: "Enter folder name:"

@@ -10,10 +10,14 @@ import ru.hollowhorizon.hollowengine.mixins.kool.DockNodeInvoker
 object LayoutLoader {
     val IDE_LAYOUT = "hollowengine.ide.layout"
 
-    val LAYOUTS = LinkedHashMap<String, Layout>()
+    val layoutOrder = LinkedHashSet<String>()
+    val LAYOUTS = HashMap<String, Layout>()
 
     fun loadIdeLayout(dock: Dock) {
-        LoadLayoutEvent(LAYOUTS::put, dock).post()
+        LoadLayoutEvent({ name, layout ->
+            LAYOUTS[name] = layout
+            layoutOrder.add(name)
+        }, dock).post()
         val layoutLoader: (String) -> Dockable? = { name ->
             LAYOUTS[name]?.dockable
         }
@@ -30,6 +34,9 @@ object LayoutLoader {
                 dock.getLeafAtPath("0")?.dock(it)
             }
             layoutLoader("hollowengine.gui.ide.files")?.let {
+                dock.getLeafAtPath("0")?.dock(it)
+            }
+            layoutLoader("hollowengine.gui.ide.recipes")?.let {
                 dock.getLeafAtPath("0")?.dock(it)
             }
         }

@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_RIGHT
@@ -7,6 +8,7 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.launchOnMainThread
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import net.minecraft.client.Minecraft
 import net.minecraft.server.level.ServerPlayer
 import ru.hollowhorizon.hc.client.kool.minecraft.Image
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
@@ -16,6 +18,8 @@ import ru.hollowhorizon.hc.common.network.request
 import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverListener
 import ru.hollowhorizon.hollowengine.client.kool.DndHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 
@@ -84,38 +88,43 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
         ) {
             val filePopup = remember(::FilePopup)
             filePopup()
-            var hoveredIndex by remember(-1)
 
             itemsIndexed(walk()) { i, item ->
-                sceneObjectItem(item, i == hoveredIndex).apply {
-                    modifier.onEnter { hoveredIndex = i }.onExit { hoveredIndex = -1 }
-                        .onClick {
-                            if (it.pointer.isRightButtonClicked) {
-                                filePopup.show(item, it.screenPosition)
-                            }
-                        }
+                sceneObjectItem(item)
+
+                modifier.onClick {
+                    if (it.pointer.isRightButtonClicked) {
+                        filePopup.show(item, it.screenPosition)
+                    }
                 }
             }
         }
 
     }
 
-    protected open fun UiScope.sceneObjectItem(item: FileNode, isHovered: Boolean) {
+    protected open fun UiScope.sceneObjectItem(item: FileNode) {
         modifier
             .onClick { evt ->
                 if (evt.pointer.isLeftButtonClicked && evt.pointer.leftButtonRepeatedClickCount == 2) {
                     if (item.isFolder) {
                         item.toggleExpanded()
+                    } else {
+                        val screen = Minecraft.getInstance().screen as? ScriptingEnvironmentScreen ?: return@onClick
+                        val file = IdeContent.files[item.treePath]
+
+                        if (file == null) RequestFilePacket(item.treePath).send()
+                        else screen.dock.getLeafAtPath("0/1")?.bringToTop(file.dockable)
                     }
                 }
             }
 
-        if (isHovered) {
-            modifier.background(RoundRectBackground(IdeTheme.hoveredColors.background, sizes.smallGap))
-        }
+        val (bgColor, fgColor) = hoverColors(0.5f,
+            listOf(colors.background, Color("9099ACFF")),
+            listOf(IdeTheme.hoveredColors.background, Color("C4CBDAFF"))
+        )
 
-        //sceneObjectDndHandler(item)
-        sceneObjectLabel(item, isHovered)
+        modifier.background(RoundRectBackground(bgColor, sizes.smallGap))
+        sceneObjectLabel(item, fgColor)
     }
 
     protected fun UiScope.sceneObjectDndHandler(item: FileNode) {
@@ -170,11 +179,11 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
         }
     }
 
-    protected open fun UiScope.sceneObjectLabel(item: FileNode, isHovered: Boolean) =
+    protected open fun UiScope.sceneObjectLabel(item: FileNode, fgColor: Color) =
         Row(width = Grow.Std) {
             modifier.padding(start = sizes.smallGap)
             if (item.depth > 0) {
-                Box(width = (14.dp + sizes.smallGap * 2) * item.depth + if(!item.isFolder) 14.dp+ sizes.smallGap * 2 else 0.dp) {}
+                Box(width = (14.dp + sizes.smallGap * 2) * item.depth + if (!item.isFolder) 14.dp + sizes.smallGap * 2 else 0.dp) {}
             }
 
             Box {
@@ -191,8 +200,6 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
                     }
                 }
             }
-
-            val fgColor = if (isHovered) Color("C4CBDAFF") else Color("9099ACFF")
 
             val icon = IconHelper.forPath(item.treePath, item.isFolder, item.isExpanded.use())
 

@@ -1,30 +1,46 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.tools
 
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
-import kotlin.math.max
-import kotlin.math.min
+import de.fabmax.kool.util.MutableColor
 
-fun UiScope.hoverListener() = remember(false).apply {
-    modifier.onEnter { set(true) }.onEnter { set(false) }
+fun UiScope.hoverListener(
+    duration: Float = 0.5f,
+    condition: () -> Boolean = { true },
+): Pair<MutableStateValue<Boolean>, AnimatedFloat> {
+    val anim = remember { AnimatedFloat(duration) }
+
+    return remember(false).apply {
+        modifier
+            .onEnter { set(true); if (condition()) anim.start() }
+            .onExit { set(false); if (condition()) anim.start() }
+
+    } to anim
 }
 
-class TabRenderer(private val bgColor: Color, private val primary: Color) : UiRenderer<UiNode> {
-    override fun renderUi(node: UiNode) {
-        node.apply {
-            val lt = max(leftPx, clipLeftPx)
-            val rt = min(rightPx, clipRightPx)
-            val tp = max(topPx, clipTopPx)
-            val bt = min(bottomPx, clipBottomPx)
+fun UiScope.hoverColors(
+    duration: Float = 0.5f,
+    color: Color,
+    hoverColor: Color,
+    condition: () -> Boolean = { true },
+): MutableColor {
+    val (isHovered, anim) = hoverListener(duration, condition)
 
-            val width = rt - lt
-            val height = bt - tp
+    var factor = Easing.quadRev(anim.progressAndUse())
+    if (!isHovered.use()) factor = 1f - factor
+    return color.mix(hoverColor, factor)
+}
 
-            node.getUiPrimitives(UiSurface.LAYER_BACKGROUND).apply {
-                rect(lt, tp, width, height * 0.9f, clipBoundsPx, bgColor)
-                rect(lt, tp+ height * 0.9f, width, height * 0.1f, clipBoundsPx, primary)
-            }
-        }
-    }
+fun UiScope.hoverColors(
+    duration: Float = 0.5f,
+    colors: List<Color>,
+    hoverColors: List<Color>,
+    condition: () -> Boolean = { true },
+): List<MutableColor> {
+    val (isHovered, anim) = hoverListener(duration, condition)
 
+    var factor = Easing.quadRev(anim.progressAndUse())
+    if (!isHovered.use()) factor = 1f - factor
+    return colors.mapIndexed { i, color -> color.mix(hoverColors[i], factor) }
 }

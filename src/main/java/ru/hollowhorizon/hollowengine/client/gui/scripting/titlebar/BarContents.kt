@@ -6,6 +6,7 @@ import ru.hollowhorizon.hc.client.kool.minecraft.Image
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 
 @SubscribeEvent
 fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
@@ -20,9 +21,9 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
 
 fun UiScope.TextButton(text: String, onClick: () -> Unit = {}) {
     Box {
-        var isHovered by remember { mutableStateOf(false) }
-        modifier.padding(horizontal = sizes.smallGap).onEnter { isHovered = true }.onExit { isHovered = false }
-        if (isHovered) modifier.background(RoundRectBackground(IdeTheme.hoveredColors.background, sizes.smallGap))
+
+        modifier.padding(horizontal = sizes.smallGap)
+        modifier.background(RoundRectBackground(hoverColors(color=colors.background, hoverColor=IdeTheme.hoveredColors.background), sizes.smallGap))
 
         Text(text) {
             modifier.alignY(AlignmentY.Center)
@@ -35,7 +36,7 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
     if (IdeContent.files.isEmpty()) return@append
 
     ComboBox.apply {
-        comboBox("Пусто", IdeContent.files.values.map { file ->
+        comboBox("Empty", IdeContent.files.values.map { file ->
             Composable {
                 Row {
                     Box {
