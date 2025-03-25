@@ -2,9 +2,9 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
 import de.fabmax.kool.Assets
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.pipeline.MipMapping
 import de.fabmax.kool.pipeline.SamplerSettings
 import de.fabmax.kool.pipeline.Texture2d
-import de.fabmax.kool.pipeline.TextureProps
 import de.fabmax.kool.util.toBuffer
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
@@ -21,9 +21,8 @@ class ImageFileData(project: IdeContent, name: String, path: String, var image: 
         modifier.backgroundColor(colors.backgroundMid)
 
         Image(remember {
-            val settings = TextureProps(defaultSamplerSettings = SamplerSettings().nearest())
-            Texture2d(settings) {
-                Assets.loadImageFromBuffer(image.toBuffer(), "image/png", settings)
+            Texture2d(mipMapping = MipMapping.Off, samplerSettings = SamplerSettings().nearest()) {
+                Assets.loadImageFromBuffer(image.toBuffer(), "image/png", )
             }
         }) {
             modifier.imageSize(ImageSize.FitContent)

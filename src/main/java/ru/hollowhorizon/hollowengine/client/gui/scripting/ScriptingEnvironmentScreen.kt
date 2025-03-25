@@ -5,6 +5,7 @@ import de.fabmax.kool.KoolConfigJvm
 import de.fabmax.kool.math.Vec2i
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
+import de.fabmax.kool.pipeline.ClearColorFill
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hc.client.kool.KoolScreen
@@ -32,12 +33,13 @@ class ScriptingEnvironmentScreen : KoolScreen() {
     val dock = Dock()
 
     override fun Scene.setup() {
-        setupUiScene(clearColor = Color.BLACK)
+        setupUiScene(clearColor = ClearColorFill(Color.BLACK))
 
         var titleBarHeight = 0f
 
         addPanelSurface(sizes = IdeTheme.sizes, colors = IdeTheme.colors) {
-            modifier.width(Grow.Std)
+            modifier.size(Grow.Std, FitContent)
+
             Row(width = Grow.Std) {
                 modifier.margin(sizes.smallGap)
 

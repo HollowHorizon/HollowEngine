@@ -51,8 +51,8 @@ fun UiScope.ScriptTextArea(
     textArea.listState = state
     textArea.modifier
         .size(width, height)
-        .onWheelX { state.scrollDpX(it.pointer.deltaScrollX.toFloat() * -20f) }
-        .onWheelY { state.scrollDpY(it.pointer.deltaScrollY.toFloat() * -50f) }
+        .onWheelX { state.scrollDpX(it.pointer.delta.x * -20f) }
+        .onWheelY { state.scrollDpY(it.pointer.delta.y * -50f) }
 
     var completionIndex: Int by textArea.remember(0)
     textArea.modifier.completionIndex = completionIndex
@@ -239,7 +239,7 @@ class ScriptTextArea(parent: UiNode?, surface: UiSurface) : TextAreaNode(parent,
 
                     val mouse = PointerInput.primaryPointer
 
-                    if (mouse.x in leftPos + startPos..leftPos + endPos && mouse.y in uiNode.topPx..uiNode.bottomPx) {
+                    if (mouse.pos.x in leftPos + startPos..leftPos + endPos && mouse.pos.y in uiNode.topPx..uiNode.bottomPx) {
                         errorMessage = error.message
                     }
                 }

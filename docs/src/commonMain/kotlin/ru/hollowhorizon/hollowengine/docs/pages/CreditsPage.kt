@@ -21,7 +21,19 @@ object CreditsPage: Composable {
                 .isWrapText(true)
         }
 
-        HollowHorizon()
+        val items = listOf("HollowHorizon", "Bendy659", "AlgorithmLX", "Some one who I don't Know", "Nobody :(")
+
+        LazyRow {
+            items(items) { name ->
+                Box {
+                    modifier.margin(sizes.gap)
+
+                    User(name)
+                }
+            }
+        }
+
+        Title("HollowHorizon")
 
         Divider()
 
@@ -34,27 +46,28 @@ object CreditsPage: Composable {
         }
     }
 
-    private fun UiScope.HollowHorizon() {
-        Text("HollowHorizon") {
+    private fun UiScope.User(name: String, color: Color = Color("FCBA03FF")) {
+        Text(name) {
             val font = remember {
                 MsdfFont(
                     sizePts = 50f,
                     weight = 0.2f,
                     cutoff = 0.1f,
-                    glowColor = Color("FCBA03FF")
+                    glowColor = color
                 )
             }
 
             modifier
                 .alignX(AlignmentX.Center)
                 .textAlignX(AlignmentX.Center)
-                .width(Grow(0.9f))
                 .font(font)
         }
+    }
 
+    private fun UiScope.Title(name: String) {
         Image(remember {
             Texture2d {
-                Assets.loadImage2d("hollowengine:docs/titles/hollowhorizon.png").getOrThrow()
+                Assets.loadImage2d("hollowengine:docs/titles/${name.lowercase()}.png").getOrThrow()
             }
         }) {
             val shader = BlurImageShader()

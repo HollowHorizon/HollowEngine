@@ -50,7 +50,6 @@ dependencies {
 
     // GRAPHICS //
     install("de.fabmax.kool:kool-core:$koolVersion", false)
-    install("com.tianscar.imageio:imageio-apng:1.0.1", false)
     install("com.facebook:ktfmt:0.54")
 
     install("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin", true)
@@ -63,7 +62,7 @@ dependencies {
     val modPlatform = container.modPlatform
     val jei = "15.20.0.105"
     modCompileOnly("mezz.jei:jei-1.20.1-${modPlatform}-api:$jei")
-    modRuntimeOnly("mezz.jei:jei-1.20.1-${modPlatform}:$jei")
+    //modRuntimeOnly("mezz.jei:jei-1.20.1-${modPlatform}:$jei")
 }
 
 fun DependencyHandlerScope.setupScripting() {

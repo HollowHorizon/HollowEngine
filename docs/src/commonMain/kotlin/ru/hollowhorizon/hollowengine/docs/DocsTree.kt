@@ -41,7 +41,7 @@ class DocsNode(val treeName: String, val treePath: String) : Composable {
 
         modifier.margin(sizes.smallGap)
 
-        LazyList(
+        LazyColumn(
             containerModifier = { it.backgroundColor(null) },
             vScrollbarModifier = { it.width(10.dp).margin(5.dp) }
         ) {

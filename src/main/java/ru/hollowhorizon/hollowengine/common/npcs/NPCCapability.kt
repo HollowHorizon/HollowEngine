@@ -7,7 +7,7 @@ import kotlinx.serialization.UseSerializers
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
-import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2
+import ru.hollowhorizon.hc.common.capabilities.HollowCapability
 import ru.hollowhorizon.hc.common.capabilities.containers.HollowContainer
 import ru.hollowhorizon.hc.common.capabilities.containers.container
 import ru.hollowhorizon.hc.common.utils.nbt.ForItemStack
@@ -15,7 +15,7 @@ import ru.hollowhorizon.hc.common.utils.nbt.ForResourceLocation
 import ru.hollowhorizon.hc.common.utils.rl
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 
-@HollowCapabilityV2(NPCEntity::class)
+@HollowCapability(NPCEntity::class)
 class NPCCapability : CapabilityInstance() {
     var hitboxMode by syncable(HitboxMode.PULLING)
     var icon by syncable(NpcIcon.EMPTY)

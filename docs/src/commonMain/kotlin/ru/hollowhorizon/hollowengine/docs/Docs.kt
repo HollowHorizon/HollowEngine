@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.docs
 
+import de.fabmax.kool.pipeline.ClearColorFill
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
@@ -28,7 +29,7 @@ val DOCS_GENERATOR: Scene.() -> Unit = {
             dockingSurface.colors = ideColors
             dockingSurface.sizes = ideSizes
             dockingPaneComposable = Composable {
-                clearColor = Color.BLACK
+                clearColor = ClearColorFill(Color.BLACK)
                 root()
             }
 

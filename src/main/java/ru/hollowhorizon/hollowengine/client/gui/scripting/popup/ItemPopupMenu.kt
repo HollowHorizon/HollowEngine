@@ -4,9 +4,9 @@ import de.fabmax.kool.Assets
 import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.pipeline.MipMapping
 import de.fabmax.kool.pipeline.SamplerSettings
 import de.fabmax.kool.pipeline.Texture2d
-import de.fabmax.kool.pipeline.TextureProps
 import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
@@ -147,8 +147,8 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                         .margin(start = sizes.smallGap)
                         .alignY(AlignmentY.Center)
                         .iconImage(remember {
-                            Texture2d {
-                                Assets.loadImage2d(icon, TextureProps(defaultSamplerSettings= SamplerSettings().nearest())).getOrThrow()
+                            Texture2d(samplerSettings = SamplerSettings().nearest(), mipMapping = MipMapping.Off) {
+                                Assets.loadImage2d(icon).getOrThrow()
                             }
                         }, sizes.gap)
                 }

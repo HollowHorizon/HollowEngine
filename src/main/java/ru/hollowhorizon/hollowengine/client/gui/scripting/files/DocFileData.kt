@@ -13,9 +13,9 @@ class DocFileData(fileName: String, filePath: String, val content: Composable) :
         val state = rememberListState()
         Box {
             modifier.size(Grow.Std, Grow.Std).onWheelX {
-                    state.scrollDpX(it.pointer.deltaScrollX.toFloat() * -20f)
+                    state.scrollDpX(it.pointer.delta.x * -20f)
                 }.onWheelY {
-                    state.scrollDpY(it.pointer.deltaScrollY.toFloat() * -50f)
+                    state.scrollDpY(it.pointer.delta.y * -50f)
                 }
 
             ScrollPane(state) {

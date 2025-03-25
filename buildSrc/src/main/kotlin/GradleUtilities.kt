@@ -302,6 +302,9 @@ private fun setupArchitectutyLoom(
 
         runConfigs.all {
             if (environment == "client") programArgs("--username=$userName")
+            val javaVendor = System.getProperty("java.vendor")
+            project.logger.info("Java vendor: $javaVendor")
+            if(javaVendor.contains("JetBrains")) programArgs("-XX:+AllowEnhancedClassRedefinition")
             property("sodium.checks.issue2561", "false")
             runDir("../../run")
         }

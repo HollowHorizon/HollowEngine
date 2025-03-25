@@ -22,7 +22,7 @@ import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hc.common.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
-import ru.hollowhorizon.hc.common.capabilities.HollowCapabilityV2
+import ru.hollowhorizon.hc.common.capabilities.HollowCapability
 import ru.hollowhorizon.hc.common.coroutines.onMainThreadSync
 import ru.hollowhorizon.hc.common.coroutines.scopeAsync
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
@@ -66,7 +66,7 @@ fun onStoryTick(event: TickEvent.Server) {
     }
 }
 
-@HollowCapabilityV2(MinecraftServer::class)
+@HollowCapability(MinecraftServer::class)
 class StoryScriptStorage : CapabilityInstance() {
     var scripts by syncableMap<String, TagWrapper>()
 

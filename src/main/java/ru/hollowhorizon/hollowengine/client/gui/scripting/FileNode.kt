@@ -77,7 +77,7 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
 
     override fun UiScope.compose() {
         modifier.margin(sizes.smallGap)
-        LazyList(
+        LazyColumn(
             containerModifier = { it.backgroundColor(null) },
             vScrollbarModifier = { it.width(sizes.smallGap) },
             withHorizontalScrollbar = true

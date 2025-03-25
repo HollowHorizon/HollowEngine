@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.kool
 
+import de.fabmax.kool.pipeline.ClearColorDontCare
+import de.fabmax.kool.pipeline.ClearDepthDontCare
 import de.fabmax.kool.scene.Scene
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
 import kotlin.script.experimental.annotations.KotlinScript
@@ -12,8 +14,8 @@ import kotlin.script.experimental.api.defaultImports
 )
 abstract class KoolEvent : Scene() {
     init {
-        clearColor = null
-        clearDepth = false
+        clearColor = ClearColorDontCare
+        clearDepth = ClearDepthDontCare
     }
 }
 

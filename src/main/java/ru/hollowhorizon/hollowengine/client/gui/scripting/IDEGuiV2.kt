@@ -4,8 +4,8 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import de.fabmax.kool.Assets
 import de.fabmax.kool.loadImage2d
-import de.fabmax.kool.pipeline.Texture2d
-import de.fabmax.kool.util.MsdfFont.Companion.MSDF_TEX_PROPS
+import de.fabmax.kool.pipeline.*
+import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFontData
 import de.fabmax.kool.util.MsdfMeta
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -17,8 +17,9 @@ import ru.hollowhorizon.hc.common.utils.rl
 
 val HACK_FONT by lazy {
     val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/hack.json".rl.stream)
-    val msdfMap = Texture2d(MSDF_TEX_PROPS, "MsdfFont:${fontInfo.name}") {
-        Assets.loadImage2d("hollowengine:fonts/hack.png", MSDF_TEX_PROPS).getOrThrow()
+    val msdfMap = Texture2d(TexFormat.RGBA, MipMapping.Off, SamplerSettings(), "MsdfFont:${fontInfo.name}") {
+        Assets.loadImage2d("hollowengine:fonts/hack.png")
+            .getOrDefault(SingleColorTexture.getColorTextureData(Color.BLACK))
     }
     MsdfFontData(msdfMap, fontInfo)
 }

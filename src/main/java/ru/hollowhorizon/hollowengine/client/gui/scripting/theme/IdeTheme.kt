@@ -5,10 +5,9 @@ import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.modules.ui2.Colors
 import de.fabmax.kool.modules.ui2.Dp
 import de.fabmax.kool.modules.ui2.Sizes
-import de.fabmax.kool.pipeline.Texture2d
+import de.fabmax.kool.pipeline.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
-import de.fabmax.kool.util.MsdfFont.Companion.MSDF_TEX_PROPS
 import de.fabmax.kool.util.MsdfFontData
 import de.fabmax.kool.util.MsdfMeta
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -21,8 +20,9 @@ object IdeTheme {
     @OptIn(ExperimentalSerializationApi::class)
     private val font by lazy {
         val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/pt_sans.json".rl.stream)
-        val msdfMap = Texture2d(MSDF_TEX_PROPS, "MsdfFont:${fontInfo.name}") {
-            Assets.loadImage2d("hollowengine:fonts/pt_sans.png", MSDF_TEX_PROPS).getOrThrow()
+        val msdfMap = Texture2d(TexFormat.RGBA, mipMapping = MipMapping.Off, samplerSettings = SamplerSettings(), "MsdfFont:${fontInfo.name}") {
+            Assets.loadImage2d("hollowengine:fonts/pt_sans.png")
+                .getOrDefault(SingleColorTexture.getColorTextureData(Color.BLACK))
         }
         MsdfFontData(msdfMap, fontInfo)
     }
