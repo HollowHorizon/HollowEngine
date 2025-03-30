@@ -23,7 +23,7 @@ import org.jetbrains.kotlinx.serialization.compiler.resolve.SerializationRuntime
 import org.jetbrains.kotlinx.serialization.compiler.resolve.SerializersClassIds
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
-fun IrType.isSerializable(generator: BaseIrGenerator, context: SerializationBaseContext): Boolean {
+fun IrType.isSerializable(generator: BaseIrGenerator, context: SerializationBaseContext = generator.compilerContext): Boolean {
     if (isFunctionTypeOrSubtype()) return false
     generator.findTypeSerializerOrContextUnchecked(context, this) ?: return false
 
@@ -38,7 +38,7 @@ fun IrType.isSerializable(generator: BaseIrGenerator, context: SerializationBase
 fun IrSimpleType.makeSerializer(
     builder: IrBuilderWithScope,
     generator: BaseIrGenerator,
-    context: SerializationPluginContext,
+    context: SerializationPluginContext = generator.compilerContext,
 ): IrExpression? {
     val serializer = generator.findTypeSerializerOrContextUnchecked(context, this) ?: error("Invalid serializer")
     builder.apply {

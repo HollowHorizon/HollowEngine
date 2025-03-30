@@ -5,15 +5,13 @@ import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
-import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.defaultType
-import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineClassGenerator
+import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineGenerator
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.IrNothing
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
@@ -22,8 +20,7 @@ class WhenContext(
     val stateVar: IrVariable,
     private val whenStatement: IrWhen,
     var nextBranch: Int = 0,
-    val functionToClass: HashMap<IrFunction, Pair<IrClass, CoroutineClassGenerator.SerializerInfo>>,
-    val self: IrFunction,
+    val functionToClass: HashMap<IrFunction, CoroutineGenerator>,
 ) {
     var innerCallId = 0
 
@@ -36,7 +33,7 @@ class WhenContext(
         (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.add(call)
     }
 
-    fun removeLastStmt() = (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.removeLast()
+    fun removeLastStmt(): IrStatement = (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.removeLast()
     fun isBranchEmpty() = (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.isEmpty()
 
     fun nextBranch(skipInc: Boolean = false) {

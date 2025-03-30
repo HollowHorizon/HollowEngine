@@ -33,7 +33,7 @@ fun WhenContext.transformCall(call: IrCall): IrExpression {
         val packageName = owner.getPackageFragment().packageFqName
         val className = ClassId(packageName,
             Name.identifier(owner.name.asString().replaceFirstChar { it.uppercase() } + "SerializableCoroutine"))
-        val coroutine = functionToClass[owner]?.first?.symbol ?: pluginContext.referenceClass(className)
+        val coroutine = functionToClass[owner]?.coroutine?.symbol ?: pluginContext.referenceClass(className)
         ?: error("Class ${className.asSingleFqName().render()} not found!")
 
         val coroutineId = innerCallId++

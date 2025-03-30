@@ -3,11 +3,17 @@
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import junit.framework.TestCase.assertEquals
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.json.Json
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
+import org.jetbrains.kotlin.utils.addToStdlib.UnsafeCastFunction
+import org.jetbrains.kotlin.utils.addToStdlib.cast
 import org.junit.Test
 
 
+@Suppress("UNCHECKED_CAST")
 class PropertiesTests {
+    @OptIn(UnsafeCastFunction::class)
     @Test
     fun `Local properties migration to coroutine`() {
         val result = compile(
@@ -16,10 +22,10 @@ class PropertiesTests {
                     import ru.hollowhorizon.hollowengine.scripting.Suspendable                    
                     
                     @Suspendable
-                    fun main() {
-                        val a = 3
+                    fun String.main(name: Int) {
+                        val a = name
                         val b = "Hello"
-                        val c = b+", user"
+                        val c = b + ", user: " + this
                         val system = System.out
                         var printer: (String) -> Unit = { system.println(it) }
                         printer(c)
@@ -33,9 +39,14 @@ class PropertiesTests {
 
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
 
-        val coroutine = result.classLoader.loadClass("MainSerializableCoroutine")
-        val instance = coroutine.getConstructor().newInstance()
-        coroutine.getDeclaredMethod("tick").invoke(instance)
+        val coroutine = result.classLoader.loadClass("main\$SerializableCoroutine")
+        val instance = coroutine.getConstructor().newInstance() as String.(Int) -> Any?
+        "Халва".instance(10)
+        val serializer = coroutine.getDeclaredField("<serializer>").get(instance) as KSerializer<Any>
+
+        val json = Json.encodeToString(serializer, instance as Any)
+        println(json)
+        //coroutine.getDeclaredMethod("invoke", String::class.java).invoke(instance, "Халва")
     }
 
     @Test
@@ -71,9 +82,9 @@ class PropertiesTests {
                 import ru.hollowhorizon.hollowengine.scripting.Suspendable                    
                 @Suspendable
                 fun main() {
-                    val a = 1
-                    val b = @Suspendable { a + 1 }
-                    println(b())
+                    var a = 1
+                    val b = @Suspendable { a++ }
+                    println(b() + b())
                 }
             """.trimIndent()
             )
@@ -82,7 +93,7 @@ class PropertiesTests {
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
 
         val coroutine = result.classLoader.loadClass("main\$SerializableCoroutine")
-        val instance = coroutine.getConstructor().newInstance()
-        coroutine.getDeclaredMethod("tick").invoke(instance)
+        val instance = coroutine.getConstructor().newInstance() as Function0<Any?>
+        println(instance())
     }
 }

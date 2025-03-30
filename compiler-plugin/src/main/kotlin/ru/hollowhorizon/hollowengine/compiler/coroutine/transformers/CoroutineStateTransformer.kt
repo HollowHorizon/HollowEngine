@@ -6,27 +6,23 @@ import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.builders.irElseBranch
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irWhen
-import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
-import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
-import org.jetbrains.kotlin.ir.expressions.impl.IrWhenImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.name.Name
-import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineClassGenerator
+import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineGenerator
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.transformBody
+import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.throwIllegalStateException
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
-class CoroutineFunctionTransformer(private val functionToClass: HashMap<IrFunction, Pair<IrClass, CoroutineClassGenerator.SerializerInfo>>) : IrElementTransformerVoid() {
+class CoroutineStateTransformer(private val functionToClass: HashMap<IrFunction, CoroutineGenerator>) : IrElementTransformerVoid() {
     override fun visitFunction(declaration: IrFunction): IrStatement {
-        if (declaration.isSuspendable()) {
-            val builder = declaration.builder()
-            IrWhenImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, pluginContext.irBuiltIns.unitType, IrStatementOrigin.WHEN, mutableListOf())
-            val whenStatement = builder.irWhen(pluginContext.irBuiltIns.unitType, mutableListOf())
+        if (declaration.isSuspendable()) declaration.builder {
+            val whenStatement = irWhen(pluginContext.irBuiltIns.unitType, mutableListOf())
             val stateVar = IrVariableImpl(
                 UNDEFINED_OFFSET,
                 UNDEFINED_OFFSET,
@@ -38,13 +34,13 @@ class CoroutineFunctionTransformer(private val functionToClass: HashMap<IrFuncti
                 isConst = false,
                 isLateinit = false
             )
-            stateVar.initializer = builder.irInt(0)
+            stateVar.initializer = irInt(0)
             stateVar.parent = declaration
-            val context = WhenContext(builder, stateVar, whenStatement, 0, functionToClass, declaration)
+            val context = WhenContext(this, stateVar, whenStatement, 0, functionToClass)
             declaration.body?.let { context.transformBody(it) }
-            whenStatement.branches += builder.run { irElseBranch(throwIllegalStateException("Invalid index!")) }
+            whenStatement.branches += irElseBranch(throwIllegalStateException("Invalid index!"))
 
-            declaration.body = builder.irBlockBody {
+            declaration.body = irBlockBody {
                 +stateVar
                 +whenStatement
             }
