@@ -49,7 +49,7 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
             functionToClass[declaration] = generator
 
             stack.push(generator)
-            generator.updateFunction.transformChildrenVoid()
+            generator.invokeFunction.transformChildrenVoid()
             stack.pop()
 
             declaration.body = declaration.builder().irBlockBody {}
@@ -57,13 +57,13 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
         return super.visitFunction(declaration)
     }
 
-    private fun IrFunction.createName(postfix: String = "\$SerializableCoroutine"): String = if (name.isAnonymous) {
+    private fun IrFunction.createName(): String = if (name.isAnonymous) {
         val function = parent as IrFunction
         val index = anonymousIndexes.getOrPut(function) { 0 }
         anonymousIndexes[function] = index + 1
-        function.createName("") + "\$Anonymous$index$postfix"
+        "Lambda\$$index"
     } else {
-        name.identifier + postfix
+        name.identifier + "\$SerializableCoroutine"
     }
 
     private fun generate(function: IrFunction): CoroutineGenerator {
@@ -102,10 +102,24 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
             coroutine.superTypes += coroutineLambda
 
             // Создаём функцию действия корутины с параметрами исходной функции
-            val updateFunction = coroutine.addFunction {
-                updateFrom(function)
-                returnType = pluginContext.irBuiltIns.anyNType
+            val invokeFunction = function.deepCopyWithSymbols(coroutine).apply {
+                this.transformChildrenVoid(object: IrElementTransformerVoid() {
+                    override fun visitFunction(declaration: IrFunction): IrStatement {
+                        declaration.attributeOwnerId = declaration
+                        return super.visitFunction(declaration)
+                    }
+                })
                 name = Name.identifier("invoke")
+                dispatchReceiverParameter = coroutine.thisReceiver
+                returnType = pluginContext.irBuiltIns.anyNType
+                (this as IrSimpleFunction).overriddenSymbols += coroutineLambda.classOrFail.getSimpleFunction("invoke")!!
+            }
+            coroutine.addChild(invokeFunction)
+
+            val restoreFunction = coroutine.addFunction {
+                updateFrom(function)
+                returnType = pluginContext.irBuiltIns.unitType
+                name = Name.identifier("restoreState")
             }.apply {
                 function.valueParameters.forEach { value ->
                     addValueParameter(value.name, value.type)
@@ -115,8 +129,6 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
                 }
                 extensionReceiverParameter = function.extensionReceiverParameter
                 dispatchReceiverParameter = coroutine.thisReceiver
-                fillFunction(this, function)
-                overriddenSymbols += coroutineLambda.classOrFail.getSimpleFunction("invoke")!!
             }
 
             // Создаём вложенный класс-сериализатор корутины
@@ -158,33 +170,14 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
             }
             val (property, descriptor) = serializer.createDescriptor()
 
-            val coroutineGenerator = CoroutineGenerator(coroutine, serializer, property, descriptor, updateFunction)
+            val coroutineGenerator = CoroutineGenerator(coroutine, serializer, property, descriptor, invokeFunction, restoreFunction)
             coroutine.addChild(serializer)
             return coroutineGenerator
         }
     }
 
     private fun fillFunction(coroutine: IrFunction, function: IrFunction) {
-        val oldParams =
-            function.valueParameters.mapIndexed { index, par -> par.symbol to coroutine.valueParameters[index] }
-                .toMap()
-
-        function.body?.transformChildrenVoid(object : IrElementTransformerVoid() {
-            override fun visitGetValue(expression: IrGetValue): IrExpression {
-                oldParams[expression.symbol]?.let {
-                    return coroutine.builder().irGet(it)
-                }
-                return super.visitGetValue(expression)
-            }
-
-            override fun visitReturn(expression: IrReturn): IrExpression {
-                if (expression.returnTargetSymbol == function.symbol) {
-                    expression.returnTargetSymbol = coroutine.symbol
-                }
-                return super.visitReturn(expression)
-            }
-        })
-        coroutine.body = function.body
+        //coroutine.body = function.deepCopyWithSymbols(coroutine.parent)
     }
 
     // Создание описания структуры при сериализации

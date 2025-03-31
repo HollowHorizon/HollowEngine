@@ -13,15 +13,17 @@ import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.name.Name
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineGenerator
+import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.properties.CoroutineTransformer
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.transformBody
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.throwIllegalStateException
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
-class CoroutineStateTransformer(private val functionToClass: HashMap<IrFunction, CoroutineGenerator>) : IrElementTransformerVoid() {
+class CoroutineStateTransformer(private val functionToClass: HashMap<IrFunction, CoroutineGenerator>) : CoroutineTransformer() {
     override fun visitFunction(declaration: IrFunction): IrStatement {
-        if (declaration.isSuspendable()) declaration.builder {
+        if(declaration.origin == IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA) return super.visitFunction(declaration)
+        declaration.builder {
             val whenStatement = irWhen(pluginContext.irBuiltIns.unitType, mutableListOf())
             val stateVar = IrVariableImpl(
                 UNDEFINED_OFFSET,
@@ -45,6 +47,6 @@ class CoroutineStateTransformer(private val functionToClass: HashMap<IrFunction,
                 +whenStatement
             }
         }
-        return super.visitFunction(declaration)
+        return declaration
     }
 }

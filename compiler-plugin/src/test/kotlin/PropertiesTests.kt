@@ -79,11 +79,15 @@ class PropertiesTests {
         val result = compile(
             SourceFile.kotlin(
                 "main.kt", """
-                import ru.hollowhorizon.hollowengine.scripting.Suspendable                    
+                import ru.hollowhorizon.hollowengine.scripting.Suspendable
+                @Suspendable
+                fun example() = 0
                 @Suspendable
                 fun main() {
                     var a = 1
-                    val b = @Suspendable { a++ }
+                    var b = @Suspendable { a-- }
+                    example()
+                    b = @Suspendable { a++ }
                     println(b() + b())
                 }
             """.trimIndent()

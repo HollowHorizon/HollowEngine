@@ -8,6 +8,8 @@ import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.expressions.impl.IrBranchImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.IrType
@@ -42,7 +44,8 @@ class WhenContext(
         }
 
         whenStatement.branches += with(builder) {
-            IrBranchWatchable(-1, -1, IrCallWatchable(
+            IrBranchImpl(-1, -1, IrCallImpl(
+                startOffset = -1, endOffset = -1,
                 symbol = pluginContext.irBuiltIns.eqeqSymbol,
                 type = pluginContext.irBuiltIns.booleanType,
                 origin = IrStatementOrigin.EQEQ

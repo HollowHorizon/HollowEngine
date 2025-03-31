@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
+import org.jetbrains.kotlin.ir.expressions.IrMemberAccessExpression
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
 import org.jetbrains.kotlin.ir.types.defaultType
@@ -25,7 +26,7 @@ import ru.hollowhorizon.hollowengine.compiler.pluginContext
 val suspendObject = pluginContext.referenceClass(SuspendState)!!
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
-fun WhenContext.transformCall(call: IrCall): IrExpression {
+fun WhenContext.transformCall(call: IrFunctionAccessExpression): IrExpression {
     transformParameters(call)
 
     if (call.isSuspendable() && call.type != pluginContext.irBuiltIns.unitType) {
@@ -52,7 +53,7 @@ fun WhenContext.transformCall(call: IrCall): IrExpression {
 
         append(coroutineVar)
         append(builder.irBlock {
-            val temp = irTemporary(irCall(coroutine.functionByName("tick")).apply {
+            val temp = irTemporary(irCall(coroutine.functionByName("invoke")).apply {
                 dispatchReceiver = irGet(coroutineVar)
                 call.valueArguments.forEachIndexed(::putValueArgument)
                 call.typeArguments.forEachIndexed(::putTypeArgument)

@@ -52,7 +52,7 @@ fun WhenContext.transformExpression(statement: IrExpression): IrExpression {
         is IrFunctionExpression -> {
             statement
         }
-        is IrCall -> transformCall(statement)
+        is IrFunctionAccessExpression -> transformCall(statement)
         is IrGetValue -> transformGet(statement)
         is IrSetValue -> transformSet(statement)
         is IrLoop -> transformLoop(statement)
@@ -73,15 +73,20 @@ fun WhenContext.transformExpression(statement: IrExpression): IrExpression {
             IrNothing
         }
         is IrWhen -> transformWhen(statement)
-        is IrConst -> statement
+        is IrConst, is IrGetField -> statement
         is IrTypeOperatorCall -> transformTypeOperator(statement)
         is IrReturn -> transformReturn(statement)
+        is IrThrow -> transformThrow(statement)
         is IrNothing -> IrNothing
         else -> error("Unknown expression type ${statement.javaClass.name}!")
     }
 }
 
 fun WhenContext.transformReturn(statement: IrReturn): IrExpression {
+    return builder.irReturn(transformExpression(statement.value))
+}
+
+fun WhenContext.transformThrow(statement: IrThrow): IrExpression {
     return builder.irReturn(transformExpression(statement.value))
 }
 
