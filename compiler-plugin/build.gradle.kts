@@ -43,7 +43,7 @@ dependencies {
     testImplementation("dev.zacsweers.kctfork:core:0.6.0-alpha01")
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.0")
-
+    testImplementation("org.benf:cfr:0.152")
 }
 
 java {

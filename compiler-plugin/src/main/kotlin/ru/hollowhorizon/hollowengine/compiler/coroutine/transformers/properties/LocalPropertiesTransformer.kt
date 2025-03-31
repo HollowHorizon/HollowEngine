@@ -1,24 +1,33 @@
+@file:OptIn(UnsafeDuringIrConstructionAPI::class)
+
 package ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.properties
 
 import org.jetbrains.kotlin.ir.IrStatement
-import org.jetbrains.kotlin.ir.builders.*
+import org.jetbrains.kotlin.ir.builders.irCall
+import org.jetbrains.kotlin.ir.builders.irGet
+import org.jetbrains.kotlin.ir.builders.irSetField
 import org.jetbrains.kotlin.ir.declarations.IrField
+import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
+import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.statements
+import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineGenerator
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.receiver
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.IrNothing
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
+import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 
-class RestorablePropertyTransformer(
-    private val replaces: MutableMap<IrVariableSymbol, Pair<IrValueParameter, IrField>> = hashMapOf(),
+
+class LocalPropertiesTransformer(
+    val locals: MutableMap<IrVariableSymbol, Int> = hashMapOf(),
 ) : CoroutineTransformer() {
     private var currentBranch: Int = 0
-    var filter: MutableMap<IrVariableSymbol, Int> = mutableMapOf()
 
-    fun visitStateBranch(index: Int, branch: IrBranch): IrBranch {
+    private fun visitStateBranch(index: Int, branch: IrBranch): IrBranch {
         currentBranch = index
         return super.visitBranch(branch)
     }
@@ -33,35 +42,19 @@ class RestorablePropertyTransformer(
     }
 
     override fun visitVariable(declaration: IrVariable): IrStatement {
-        if(declaration.symbol in filter) return super.visitVariable(declaration)
-
-        val field = coroutine.addField(declaration.name, declaration.type)
-        declaration.initializer?.let {
-            coroutine.addRestorableField(field, currentBranch, it)
+        if(declaration.parent == coroutine.invokeFunction) {
+            locals[declaration.symbol] = currentBranch
         }
-        replaces[declaration.symbol] = coroutine.receiver to field
-        declaration.builder {
-            val initializer = declaration.initializer ?: return IrNothing
-            return super.visitSetField(irSetField(irGet(coroutine.receiver), field, initializer))
-        }
+        return super.visitVariable(declaration)
     }
 
     override fun visitGetValue(expression: IrGetValue): IrExpression {
-        replaces[expression.symbol]?.let { (receiver, field) ->
-            field.builder {
-                return super.visitGetField(irGetField(irGet(receiver), field))
-            }
-        }
+        if(locals[expression.symbol] != currentBranch) locals.remove(expression.symbol)
         return super.visitGetValue(expression)
     }
 
     override fun visitSetValue(expression: IrSetValue): IrExpression {
-        replaces[expression.symbol]?.let { (receiver, field) ->
-            coroutine.addRestorableField(field, currentBranch, expression.value)
-            field.builder {
-                return super.visitSetField(irSetField(irGet(receiver), field, expression.value))
-            }
-        }
+        if(locals[expression.symbol] != currentBranch) locals.remove(expression.symbol)
         return super.visitSetValue(expression)
     }
 }

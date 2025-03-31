@@ -19,7 +19,11 @@ class SerializablePropertiesTransformer(
     private val replaces: MutableMap<IrVariableSymbol, Pair<IrValueParameter, IrField>> = hashMapOf(),
 ) : CoroutineTransformer() {
 
+    var filter: MutableMap<IrVariableSymbol, Int> = mutableMapOf()
+
     override fun visitVariable(declaration: IrVariable): IrStatement {
+        if(declaration.symbol in filter) return super.visitVariable(declaration)
+
         if (declaration.type.isSerializable(coroutine.generator)) {
             val field = coroutine.addField(declaration.name, declaration.type)
             coroutine.addSerializableField(field)

@@ -18,10 +18,7 @@ import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationPluginContext
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.*
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.CoroutineStateTransformer
-import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.properties.CoroutineTransformer
-import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.properties.LambdaPropertiesTransformer
-import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.properties.RestorablePropertyTransformer
-import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.properties.SerializablePropertiesTransformer
+import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.properties.*
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
 import ru.hollowhorizon.hollowengine.compiler.script.ScriptRelocator
 
@@ -44,6 +41,8 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
         val lambdaTransformer = LambdaPropertiesTransformer(HashMap(generator.functionToClass))
         val restorableTransformer = RestorablePropertyTransformer()
 
+        val localsTransformer = LocalPropertiesTransformer()
+
         val coroutines = generator.functionToClass.values
         val filter = coroutines.associateBy { it.coroutine }
         coroutines.filter { !it.coroutine.isInner }.forEach { info ->
@@ -60,7 +59,10 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
 
             lambdaTransformer.use(info)
             stateTransformer.use(info)
+            localsTransformer.use(info)
+            propertyTransformer.filter = localsTransformer.locals
             propertyTransformer.use(info)
+            restorableTransformer.filter = localsTransformer.locals
             restorableTransformer.use(info) { info ->
                 info.createSerializer()
 
@@ -88,21 +90,7 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
                         })
                     }
                 }
-
-                info.coroutine.declarations.sortBy {
-                    when (it) {
-                        is IrField -> 0
-                        is IrFunction -> 1
-                        is IrClass -> 2
-                        else -> 3
-                    }
-                }
             }
-        }
-
-        moduleFragment.files.forEach {
-            println("File ${it.name}:")
-            println(it.dumpKotlinLike(KotlinLikeDumpOptions(normalizeNames = true)))
         }
     }
 
