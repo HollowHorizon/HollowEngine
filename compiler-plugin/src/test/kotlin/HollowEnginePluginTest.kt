@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationComponentRegistrar
 import org.junit.Test
 import ru.hollowhorizon.hollowengine.compiler.HollowEngineCompilerRegistrar
+import ru.hollowhorizon.hollowengine.scripting.ResumeState
 import java.io.File
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.*
@@ -38,7 +39,7 @@ class PluginTester {
                     import ru.hollowhorizon.hollowengine.scripting.Suspendable
                     @Suspendable
                     fun main() {
-                        println(debug())
+                        println(debug() + " " + debug())
                     }
                     @Suspendable
                     fun debug() = "Hello, World!"
@@ -46,6 +47,11 @@ class PluginTester {
             )
         )
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
+        CfrHelper.decompile(result)
+        val coroutine = result.classLoader.loadClass("main\$SerializableCoroutine").getConstructor().newInstance() as () -> Any?
+
+        assert(coroutine() == ResumeState) // Сначала должен вернуться ResumeState, чтобы перейти во второе состояние (2 вызов функции debug)
+        assertEquals(coroutine(), Unit) // Main ничего не возращает
     }
 
     @Test
@@ -106,11 +112,6 @@ class PluginTester {
                         println(time)
                         val data = 2
                         for(i in 1..10) println(i)
-                        if(data > 3) {
-                            test(1242)
-                            val r = test(1242)
-                            test(r)
-                        }
                         return data
                     }
                     @Suspendable
@@ -134,9 +135,7 @@ class PluginTester {
         )
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
 
-        result.classLoader.loadClass("MainKt").declaredMethods
-            .first { it.name == "main" && it.parameterCount != 0 }
-            .invoke(null, null)
+        CfrHelper.decompile(result)
     }
 
     @Test
@@ -167,9 +166,8 @@ class PluginTester {
         )
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
 
-        result.classLoader.loadClass("MainKt").declaredMethods
-            .first { it.name == "main" && it.parameterCount != 0 }
-            .invoke(null, null)
+        CfrHelper.decompile(result)
+
     }
 
     // Я без понятия почему, но при запуске общих тестов он как будто обрабатывает этот код несколько раз

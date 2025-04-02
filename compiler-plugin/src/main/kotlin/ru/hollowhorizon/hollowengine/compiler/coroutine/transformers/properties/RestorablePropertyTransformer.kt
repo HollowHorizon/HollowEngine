@@ -7,10 +7,12 @@ import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
+import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.statements
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.receiver
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.IrNothing
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
+import ru.hollowhorizon.hollowengine.compiler.identifiers.Ignore
 
 class RestorablePropertyTransformer(
     private val replaces: MutableMap<IrVariableSymbol, Pair<IrValueParameter, IrField>> = hashMapOf(),
@@ -29,20 +31,29 @@ class RestorablePropertyTransformer(
                 visitStateBranch(index, irBranch)
             }
         }
-        return expression
+        return super.visitWhen(expression)
     }
 
     override fun visitVariable(declaration: IrVariable): IrStatement {
         if(declaration.symbol in filter) return super.visitVariable(declaration)
+        val isIgnored = declaration.annotations.hasAnnotation(Ignore)
 
         val field = coroutine.addField(declaration.name, declaration.type)
         declaration.initializer?.let {
-            coroutine.addRestorableField(field, currentBranch, it)
+            if(isIgnored) {
+                field.initializer = field.builder().irExprBody(it)
+            } else {
+                coroutine.addRestorableField(field, currentBranch, it)
+            }
         }
         replaces[declaration.symbol] = coroutine.receiver to field
         declaration.builder {
-            val initializer = declaration.initializer ?: return IrNothing
-            return super.visitSetField(irSetField(irGet(coroutine.receiver), field, initializer))
+            if(isIgnored) {
+                return irBlock {}
+            } else {
+                val initializer = declaration.initializer ?: return IrNothing
+                return super.visitSetField(irSetField(irGet(coroutine.receiver), field, initializer))
+            }
         }
     }
 

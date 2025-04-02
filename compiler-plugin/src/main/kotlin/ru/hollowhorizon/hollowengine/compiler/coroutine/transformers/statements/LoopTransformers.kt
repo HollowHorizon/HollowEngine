@@ -22,7 +22,7 @@ fun WhenContext.transformLoop(loop: IrLoop): IrExpression {
     val breakContinue = loops.getOrPut(loop) { BreakContinue(this) }
     loop.condition = transformExpression(loop.condition)
 
-    if(!isBranchEmpty()) nextBranch()
+    if(!isBranchEmpty()) nextBranch(resume = true)
     val elseBranch = builder.run { irSet(stateVar, irInt(nextBranch)) }
 
     val currentBranch = nextBranch - 1
@@ -33,7 +33,7 @@ fun WhenContext.transformLoop(loop: IrLoop): IrExpression {
             append(transformExpression(it))
         }
         append(builder.run { irSet(stateVar, irInt(currentBranch+1)) })
-        nextBranch(true)
+        nextBranch(true, resume = true)
     }
 
     append(
@@ -46,14 +46,14 @@ fun WhenContext.transformLoop(loop: IrLoop): IrExpression {
         }
     )
     breakContinue.continueIndex.value = if(isDoWhile) currentBranch else nextBranch
-    nextBranch(true)
+    nextBranch(true, resume = true)
 
     if (!isDoWhile) {
         loop.body?.let {
             append(transformExpression(it))
         }
         append(builder.run { irSet(stateVar, irInt(currentBranch)) })
-        nextBranch(true)
+        nextBranch(true, resume = true)
     }
 
     breakContinue.breakIndex.value = nextBranch-1

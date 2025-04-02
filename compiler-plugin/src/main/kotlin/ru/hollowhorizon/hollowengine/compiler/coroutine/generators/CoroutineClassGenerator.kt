@@ -33,6 +33,7 @@ import org.jetbrains.kotlinx.serialization.compiler.backend.ir.addDefaultConstru
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.KSerializer
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.SerialDescriptor
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.serialBuilder
+import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.sFunctionN
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
@@ -80,23 +81,9 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
             val constructor = coroutine.addConstructor {
                 isPrimary = true
             }
-            stack.peek()?.let { outer ->
-                coroutine.isInner = true
-                constructor.addValueParameter(
-                    Name.identifier("this$0"),
-                    coroutine.defaultType,
-                    IrDeclarationOrigin.FIELD_FOR_OUTER_THIS
-                ).kind = IrParameterKind.DispatchReceiver
-                outer.coroutine.addChild(coroutine)
-                coroutine.parent = outer.coroutine
-            } ?: run {
-                coroutine.parent = file
-                file.addChild(coroutine)
-            }
-            coroutine.addDefaultConstructorBodyIfAbsent(pluginContext)
 
             // Реализуем интерфейс для лямбд
-            val coroutineLambda = pluginContext.irBuiltIns.functionN(
+            val coroutineLambda = sFunctionN(
                 function.allParametersCount
             ).typeWith(function.parameters.map { it.type } + pluginContext.irBuiltIns.anyNType)
             coroutine.superTypes += coroutineLambda
@@ -116,6 +103,23 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
             }
             coroutine.addChild(invokeFunction)
 
+            stack.peek()?.let { outer ->
+                coroutine.isInner = true
+                constructor.addValueParameter(
+                    Name.identifier("this$0"),
+                    coroutine.defaultType,
+                    IrDeclarationOrigin.FIELD_FOR_OUTER_THIS
+                ).kind = IrParameterKind.DispatchReceiver
+                outer.coroutine.addChild(coroutine)
+                coroutine.parent = outer.coroutine
+                coroutine.transformChildrenVoid(OuterPropertyTransformer(outer, coroutine))
+            } ?: run {
+                coroutine.parent = file
+                file.addChild(coroutine)
+            }
+            coroutine.addDefaultConstructorBodyIfAbsent(pluginContext)
+
+
             val restoreFunction = coroutine.addFunction {
                 updateFrom(function)
                 returnType = pluginContext.irBuiltIns.unitType
@@ -129,6 +133,7 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
                 }
                 extensionReceiverParameter = function.extensionReceiverParameter
                 dispatchReceiverParameter = coroutine.thisReceiver
+                this.overriddenSymbols += coroutineLambda.classOrFail.getSimpleFunction("restoreState")!!
             }
 
             // Создаём вложенный класс-сериализатор корутины

@@ -22,7 +22,6 @@ import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
 class CoroutineStateTransformer(private val functionToClass: HashMap<IrFunction, CoroutineGenerator>) : CoroutineTransformer() {
     override fun visitFunction(declaration: IrFunction): IrStatement {
-        if(declaration.origin == IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA) return super.visitFunction(declaration)
         declaration.builder {
             val whenStatement = irWhen(pluginContext.irBuiltIns.unitType, mutableListOf())
             val stateVar = IrVariableImpl(
@@ -47,6 +46,6 @@ class CoroutineStateTransformer(private val functionToClass: HashMap<IrFunction,
                 +whenStatement
             }
         }
-        return declaration
+        return super.visitFunction(declaration)
     }
 }

@@ -11,7 +11,6 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.fromSymbolOwner
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
-import org.jetbrains.kotlin.ir.util.KotlinLikeDumpOptions
 import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
 import org.jetbrains.kotlin.ir.util.dumpKotlinLike
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
@@ -37,7 +36,7 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
         moduleFragment.transform(generator, null)
 
         val stateTransformer = CoroutineStateTransformer(generator.functionToClass)
-        val propertyTransformer = SerializablePropertiesTransformer()
+        val serializableTransformer = SerializablePropertiesTransformer()
         val lambdaTransformer = LambdaPropertiesTransformer(HashMap(generator.functionToClass))
         val restorableTransformer = RestorablePropertyTransformer()
 
@@ -46,7 +45,6 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
         val coroutines = generator.functionToClass.values
         val filter = coroutines.associateBy { it.coroutine }
         coroutines.filter { !it.coroutine.isInner }.forEach { info ->
-
             fun CoroutineTransformer.use(info: CoroutineGenerator, action: (CoroutineGenerator) -> Unit = {}) {
                 coroutine = info
                 info.invokeFunction.transform(this, null)
@@ -60,37 +58,40 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
             lambdaTransformer.use(info)
             stateTransformer.use(info)
             localsTransformer.use(info)
-            propertyTransformer.filter = localsTransformer.locals
-            propertyTransformer.use(info)
+            serializableTransformer.filter = localsTransformer.locals
+            serializableTransformer.use(info)
             restorableTransformer.filter = localsTransformer.locals
-            restorableTransformer.use(info) { info ->
-                info.createSerializer()
+            restorableTransformer.use(info)
+        }
+        coroutines.forEach { info ->
+            info.createSerializer()
 
-                val fields = groupRestorableFields(info.branchMap)
+            val fields = groupRestorableFields(info.branchMap)
 
-                info.restoreFunction.body = info.restoreFunction.builder().irBlockBody {
-                    fields.forEach { (range, values) ->
-                        val stateIndex = irGetField(irGet(info.receiver), info.stateIndex)
-                        val condition = if (range.second < 0) irGreaterThan(stateIndex, irInt(range.first)) else {
-                            irAnd(
-                                irGreaterThan(stateIndex, irInt(range.first)),
-                                irLessEqualThan(stateIndex, irInt(range.second))
+            info.restoreFunction.body = info.restoreFunction.builder().irBlockBody {
+                fields.forEach { (range, values) ->
+                    val stateIndex = irGetField(irGet(info.receiver), info.stateIndex)
+                    val condition = if (range.second < 0) irGreaterThan(stateIndex, irInt(range.first)) else {
+                        irAnd(
+                            irGreaterThan(stateIndex, irInt(range.first)),
+                            irLessEqualThan(stateIndex, irInt(range.second))
+                        )
+                    }
+
+                    +irIfThen(pluginContext.irBuiltIns.unitType, condition, irBlock {
+                        values.forEach { (field, expression) ->
+
+                            +irSetField(
+                                irGet(info.receiver),
+                                field,
+                                expression.deepCopyWithSymbols(info.restoreFunction)
                             )
                         }
-
-                        +irIfThen(pluginContext.irBuiltIns.unitType, condition, irBlock {
-                            values.forEach { (field, expression) ->
-
-                                +irSetField(
-                                    irGet(info.receiver),
-                                    field,
-                                    expression.deepCopyWithSymbols(info.restoreFunction)
-                                )
-                            }
-                        })
-                    }
+                    })
                 }
             }
+
+            println(info.coroutine.dumpKotlinLike())
         }
     }
 
@@ -127,6 +128,16 @@ fun irAnd(first: IrExpression, second: IrExpression) = IrCallImpl.fromSymbolOwne
     first.endOffset,
     pluginContext.irBuiltIns.booleanType,
     pluginContext.irBuiltIns.andandSymbol
+).apply {
+    putValueArgument(0, first)
+    putValueArgument(1, second)
+}
+
+fun irOr(first: IrExpression, second: IrExpression) = IrCallImpl.fromSymbolOwner(
+    first.startOffset,
+    first.endOffset,
+    pluginContext.irBuiltIns.booleanType,
+    pluginContext.irBuiltIns.ororSymbol
 ).apply {
     putValueArgument(0, first)
     putValueArgument(1, second)

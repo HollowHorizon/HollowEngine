@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineGenerator
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.IrNothing
+import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.resumeObject
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
 class WhenContext(
@@ -27,7 +28,19 @@ class WhenContext(
     var innerCallId = 0
 
     init {
-        nextBranch(true)
+        whenStatement.branches += with(builder) {
+            IrBranchImpl(-1, -1, IrCallImpl(
+                startOffset = -1, endOffset = -1,
+                symbol = pluginContext.irBuiltIns.eqeqSymbol,
+                type = pluginContext.irBuiltIns.booleanType,
+                origin = IrStatementOrigin.EQEQ
+            ).apply {
+                JvmHacks.initializeTargetShapeFromSymbol(this)
+                JvmHacks.initializeEmptyTypeArguments(this)
+                arguments[0] = irGet(stateVar)
+                arguments[1] = irInt(nextBranch++)
+            }, irBlock {})
+        }
     }
 
     fun append(call: IrStatement) {
@@ -35,12 +48,20 @@ class WhenContext(
         (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.add(call)
     }
 
-    fun removeLastStmt(): IrStatement = (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.removeLast()
-    fun isBranchEmpty() = (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.isEmpty()
+    fun removeLastStmt(): IrStatement =
+        (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.removeLast()
 
-    fun nextBranch(skipInc: Boolean = false) {
+    fun isBranchEmpty() =
+        nextBranch == 0 || (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.isEmpty()
+
+    fun nextBranch(skipInc: Boolean = false, resume: Boolean = false) {
+        if (isBranchEmpty()) return
+
         if (!skipInc) {
             append(builder.run { irSet(stateVar, irInt(nextBranch)) })
+        }
+        if (resume) {
+            append(builder.run { irReturn(irGetObject(resumeObject)) })
         }
 
         whenStatement.branches += with(builder) {
