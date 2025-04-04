@@ -38,7 +38,8 @@ dependencies {
 
     implementation("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
 
-    testImplementation(kotlin("test-junit"))
+    testImplementation(kotlin("test"))
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.0")
     testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable")
     testImplementation("dev.zacsweers.kctfork:core:0.6.0-alpha01")
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
@@ -54,6 +55,11 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
     }
+}
+
+tasks.test {
+    useJUnitPlatform()
+    maxParallelForks = 3
 }
 
 kotlin {

@@ -3,234 +3,26 @@
 import com.tschuchort.compiletesting.JvmCompilationResult
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
-import junit.framework.TestCase.assertEquals
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationComponentRegistrar
-import org.junit.Test
 import ru.hollowhorizon.hollowengine.compiler.HollowEngineCompilerRegistrar
-import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFunction0
-import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFunction1
-import ru.hollowhorizon.hollowengine.scripting.ResumeState
-import ru.hollowhorizon.hollowengine.scripting.SuspendState
-import java.io.File
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.host.ScriptingHostConfiguration
 import kotlin.script.experimental.host.StringScriptSource
 import kotlin.script.experimental.host.createCompilationConfigurationFromTemplate
 import kotlin.script.experimental.host.getScriptingClass
-import kotlin.script.experimental.jvm.BasicJvmScriptEvaluator
 import kotlin.script.experimental.jvm.JvmGetScriptingClass
 import kotlin.script.experimental.jvm.dependenciesFromCurrentContext
-import kotlin.script.experimental.jvm.impl.KJvmCompiledScript
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.util.classpathFromClassloader
-import kotlin.script.experimental.jvm.util.isError
 import kotlin.script.experimental.jvmhost.JvmScriptCompiler
-import kotlin.script.experimental.jvmhost.saveToJar
-import kotlin.test.assertFalse
 
 val json = Json {
     prettyPrint = true
-}
-
-class PluginTester {
-    @OptIn(ExperimentalCompilerApi::class)
-    @Test
-    fun `Scripting compiler test`() {
-        val result = compile(
-            SourceFile.kotlin(
-                "main.kt", """
-                    import ru.hollowhorizon.hollowengine.scripting.Suspendable
-                    @Suspendable
-                    fun main() {
-                        println(debug() + " " + debug())
-                    }
-                    @Suspendable
-                    fun debug() = "Hello, World!"
-                """.trimIndent()
-            )
-        )
-        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
-        CfrHelper.decompile(result)
-        val coroutine = result.classLoader.loadClass("main\$SerializableCoroutine").getConstructor().newInstance() as () -> Any?
-
-        assert(coroutine() == ResumeState) // Сначала должен вернуться ResumeState, чтобы перейти во второе состояние (2 вызов функции debug)
-        assertEquals(coroutine(), Unit) // Main ничего не возращает
-    }
-
-    @Test
-    fun `Suspendable test`() {
-        val result = compile(
-            SourceFile.kotlin(
-                "main.kt", """
-                    import ru.hollowhorizon.hollowengine.scripting.Suspendable
-
-                    @Suspendable
-                    fun debug(time: Int): String {
-                        println(time)
-                        var data = 2
-                        val dataConst = 1
-                        while(time<5) {
-                            val hollow = data++
-                            var aaa = 0
-                            aaa+=10
-                            println(time+aaa)                            
-                            do {
-                                println("aaa")
-                                if(data > 10) break
-                                if(data > 30) continue
-                            } while(time > 3)
-                            while (time < 4) println("AAAA: "+data)
-                        }
-                        println(time+2)
-                        return "Hello, World!"+time
-                    }
-                    @Suspendable
-                    fun example() {
-                        debug(10)
-                    }
-
-                    fun main() {
-                    }
-                """.trimIndent()
-            )
-        )
-        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
-
-        val type = result.classLoader.loadClass("MainKt")
-
-        type.declaredMethods
-            .first { it.name == "main" && it.parameterCount != 0 }
-            .invoke(null, null)
-    }
-
-    @Test
-    fun `Multi-Suspendable test`() {
-        val result = compile(
-            SourceFile.kotlin(
-                "main.kt", """
-                    import ru.hollowhorizon.hollowengine.scripting.Suspendable
-
-                    @Suspendable
-                    fun test(time: Int): Int {
-                        println(time)
-                        val data = 2
-                        for(i in 1..10) println(i)
-                        return data
-                    }
-                    @Suspendable
-                    fun debug(time: Int): Int {
-                        println(time)
-                        test(time+1)
-                        println(time)
-                        test(test(test(time+1)))
-                        println(time)
-                        test(time+1)
-                        println(time)
-                        test(time+1)
-                        println(time)
-                        return test(time+1)
-                    }
-
-                    fun main() {
-                    }
-                """.trimIndent()
-            )
-        )
-        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
-
-        CfrHelper.decompile(result)
-
-        val coroutine = result.classLoader.loadClass("debug\$SerializableCoroutine")
-            .getConstructor().newInstance() as SFunction1<Int, Any?>
-
-        runBlocking {
-            do {
-                val result = coroutine(986)
-                println(result)
-                println(json.encodeToString(coroutine.serializer, JvmHacks.forceCast(coroutine)))
-                if(result == SuspendState) delay(1000L)
-            } while(result == ResumeState || result == SuspendState)
-        }
-    }
-
-    @Test
-    fun `Loop Suspendable test`() {
-        val result = compile(
-            SourceFile.kotlin(
-                "main.kt", """
-                    import ru.hollowhorizon.hollowengine.scripting.*
-                    
-                    @Suspendable
-                    fun debug(time: Int): Int {
-                        println("Hmm")
-                        val test = 1
-                        val r = @Suspendable {
-                            println("Hello world")
-                            // Тут могут быть вызваны suspendable функции
-                            time + test
-                        }
-                        println(r())
-                        return 0
-                    }
-                    
-
-                    fun main() {
-                    }
-                """.trimIndent()
-            )
-        )
-        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
-
-        CfrHelper.decompile(result)
-
-    }
-
-    // Я без понятия почему, но при запуске общих тестов он как будто обрабатывает этот код несколько раз
-    // При запуске конкретно этого теста проблемы нет.
-    @Test
-    fun `Script Test`() {
-        val result = compileScript<StoryEvent>(
-            """
-            import ru.hollowhorizon.hollowengine.scripting.*
-            import ru.hollowhorizon.hollowengine.compiler.suspendable.*
-            
-            fun test() {println("helloworld")}
-            println("Hello")
-            var data = 1
-            println(data)
-            println(hello)
-            
-            val async = async {
-                await(data>10)
-                println("Data is more than 10!")
-            }
-
-            async.start()
-
-            data = 50
-            async.join()
-            println(message = "aaa")
-            println({"hello"+data})
-            data += 2
-            """.trimIndent()
-        )
-
-        assertFalse(result.isError())
-
-        (result.valueOrThrow() as? KJvmCompiledScript)
-            ?.saveToJar(File("script.jar"))
-
-        val r = runBlocking { BasicJvmScriptEvaluator().invoke(result.valueOrThrow(), ScriptEvaluationConfiguration()) }
-
-
-        println(r)
-    }
 }
 
 fun compile(

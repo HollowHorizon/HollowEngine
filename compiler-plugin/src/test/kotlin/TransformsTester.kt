@@ -1,26 +1,31 @@
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
-import junit.framework.TestCase.assertEquals
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
-import org.junit.Test
+import org.junit.jupiter.api.DynamicNode
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.TestFactory
 import java.io.File
+import kotlin.test.assertEquals
 
 class TransformsTester {
+
     @OptIn(ExperimentalCompilerApi::class)
-    @Test
-    fun test() {
-        File("src/test/transforms/").walk()
+    @TestFactory
+    fun dynamicFileTests(): List<DynamicNode> {
+        val filePaths = File("src/test/transforms/").walk()
             .filter { it.isFile && it.name.endsWith(".kt") }
             .map { SourceFile.kotlin(it.name, it.readText()) to it.name }
-            .forEach { (file, name) ->
+
+        return filePaths.map { (file, name) ->
+            DynamicTest.dynamicTest("Test for file: $name") {
                 val result = compile(file)
 
-                if(result.exitCode != KotlinCompilation.ExitCode.OK) {
+                if (result.exitCode != KotlinCompilation.ExitCode.OK) {
                     CfrHelper.decompile(result)
                 }
-                assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
 
-                println("Тест [$name] прошёл.")
+                assertEquals(result.exitCode, KotlinCompilation.ExitCode.OK)
             }
+        }.toList()
     }
 }
