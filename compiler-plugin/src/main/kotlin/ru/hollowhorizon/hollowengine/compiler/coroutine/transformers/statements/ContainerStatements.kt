@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.util.statements
+import org.jetbrains.kotlin.ir.util.transformInPlace
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.WhenContext
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
@@ -49,6 +50,12 @@ fun WhenContext.transformDeclaration(statement: IrDeclaration): IrDeclaration {
 fun WhenContext.transformExpression(statement: IrExpression): IrExpression {
     return when (statement) {
         is IrContainerExpression -> transformContainer(statement)
+        is IrStringConcatenation -> {
+            statement.arguments.transformInPlace {
+                transformExpression(it)
+            }
+            statement
+        }
         is IrFunctionExpression -> {
             statement
         }

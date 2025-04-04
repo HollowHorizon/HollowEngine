@@ -70,21 +70,21 @@ private fun WhenContext.transformSFunctionCall(
     nextBranch(resume = true)
     val invokeResult = createVariable("invoke", owner, coroutineId, pluginContext.irBuiltIns.anyNType)
     append(invokeResult)
+    invokeResult.initializer = builder.irCall(owner.parentAsClass.getSimpleFunction("invoke")!!).apply {
+        setupCall(call)
+    }
+    append(builder.run {
+        irIfThen(
+            irOr(
+                irEqeqeq(irGet(invokeResult), irGetObject(suspendObject)),
+                irEqeqeq(irGet(invokeResult), irGetObject(resumeObject))
+            ),
+            irReturn(irGet(invokeResult))
+        )
+    })
 
     val coroutineResult = createVariable("result", owner, coroutineId, call.type).apply {
-        initializer = builder.irBlock {
-            invokeResult.initializer = irCall(owner.parentAsClass.getSimpleFunction("invoke")!!).apply {
-                setupCall(call)
-            }
-            +irIfThen(
-                irOr(
-                    irEqeqeq(irGet(invokeResult), irGetObject(suspendObject)),
-                    irEqeqeq(irGet(invokeResult), irGetObject(resumeObject))
-                ),
-                irReturn(irGet(invokeResult))
-            )
-            irGet(invokeResult)
-        }
+        initializer = builder.irGet(invokeResult)
     }
     append(coroutineResult)
     return builder.irGet(coroutineResult)
