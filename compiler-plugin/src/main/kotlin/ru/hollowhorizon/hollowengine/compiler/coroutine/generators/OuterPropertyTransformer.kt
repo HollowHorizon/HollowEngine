@@ -17,7 +17,7 @@ import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
 
 class OuterPropertyTransformer(outer: CoroutineGenerator, val coroutine: IrClass): IrElementTransformerVoid() {
     val declarations = outer.invokeFunction.parameters.associateBy { it.symbol }
-    private val fields = hashMapOf<IrValueSymbol, IrField>()
+    val fields = hashMapOf<IrValueSymbol, IrField>()
 
     override fun visitGetValue(expression: IrGetValue): IrExpression {
         declarations[expression.symbol]?.let {

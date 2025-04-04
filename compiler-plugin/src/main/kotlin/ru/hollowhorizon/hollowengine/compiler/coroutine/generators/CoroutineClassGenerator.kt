@@ -14,26 +14,23 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.builders.declarations.*
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.IrFunctionExpression
+import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
-import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
-import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionExpressionImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionReferenceImpl
+import org.jetbrains.kotlin.ir.expressions.IrSetValue
 import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionReferenceImplWithShape
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.symbols.impl.IrClassSymbolImpl
-import org.jetbrains.kotlin.ir.types.classOrFail
-import org.jetbrains.kotlin.ir.types.defaultType
-import org.jetbrains.kotlin.ir.types.typeWith
+import org.jetbrains.kotlin.ir.symbols.impl.IrValueParameterSymbolImpl
+import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.renderer.render
+import org.jetbrains.kotlin.types.checker.SimpleClassicTypeSystemContext.getArguments
 import org.jetbrains.kotlinx.serialization.compiler.backend.ir.addDefaultConstructorBodyIfAbsent
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.KSerializer
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.SerialDescriptor
@@ -41,14 +38,8 @@ import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.serialBuilde
 import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.sFunctionN
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
+import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
-import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
-import kotlin.collections.emptyList
-import kotlin.collections.forEach
-import kotlin.collections.getOrPut
-import kotlin.collections.map
-import kotlin.collections.plus
 import kotlin.collections.set
 
 class CoroutineClassGenerator : IrElementTransformerVoid() {
@@ -81,6 +72,39 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
     }
 
     private fun generate(function: IrFunction): CoroutineGenerator {
+        function.parameters = function.parameters.map {
+            if (!it.hasAnnotation(Suspendable) && !it.type.hasAnnotation(Suspendable)) return@map it
+
+            val type = it.type.classOrFail.owner
+            if (type.packageFqName != FqName("kotlin") || !type.name.asString().startsWith("Function")) return@map it
+
+            pluginContext.irFactory.createValueParameter(
+                it.startOffset, it.endOffset,
+                it.origin, it.kind, it.name,
+                sFunctionN(type.typeParameters.size - 1).typeWith((it.type as IrSimpleType).arguments.map { it.typeOrFail }),
+                it.isAssignable, IrValueParameterSymbolImpl(), it.varargElementType,
+                it.isCrossinline, it.isNoinline, it.isHidden
+            ).apply {
+                parent = function
+                val parameter = this
+                function.transformChildrenVoid(object: IrElementTransformerVoid() {
+                    override fun visitGetValue(expression: IrGetValue): IrExpression {
+                        if(expression.symbol == it.symbol) {
+                            return builder().irGet(parameter)
+                        }
+                        return super.visitGetValue(expression)
+                    }
+
+                    override fun visitSetValue(expression: IrSetValue): IrExpression {
+                        if(expression.symbol == it.symbol) {
+                            return builder().irSet(parameter, expression.value)
+                        }
+                        return super.visitSetValue(expression)
+                    }
+                })
+            }
+        }
+
         function.apply {
             // Создаём новую корутину
             val coroutine = pluginContext.irFactory.createClass(
@@ -125,7 +149,9 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
                 ).kind = IrParameterKind.DispatchReceiver
                 outer.coroutine.addChild(coroutine)
                 coroutine.parent = outer.coroutine
-                coroutine.transformChildrenVoid(OuterPropertyTransformer(outer, coroutine))
+                val transformer = OuterPropertyTransformer(outer, coroutine)
+                coroutine.transformChildrenVoid(transformer)
+                transformer.fields // TODO: Эти переменные надо заполнять перед вызовом корутины
             } ?: run {
                 coroutine.parent = file
                 file.addChild(coroutine)

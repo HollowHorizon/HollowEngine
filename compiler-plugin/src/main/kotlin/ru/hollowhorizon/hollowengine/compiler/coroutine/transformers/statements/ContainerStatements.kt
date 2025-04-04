@@ -73,7 +73,7 @@ fun WhenContext.transformExpression(statement: IrExpression): IrExpression {
             IrNothing
         }
         is IrWhen -> transformWhen(statement)
-        is IrConst, is IrGetField -> statement
+        is IrConst, is IrGetField, is IrGetObjectValue -> statement
         is IrTypeOperatorCall -> transformTypeOperator(statement)
         is IrReturn -> transformReturn(statement)
         is IrThrow -> transformThrow(statement)
