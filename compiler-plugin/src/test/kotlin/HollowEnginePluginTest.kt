@@ -4,13 +4,18 @@ import com.tschuchort.compiletesting.JvmCompilationResult
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import junit.framework.TestCase.assertEquals
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationComponentRegistrar
 import org.junit.Test
 import ru.hollowhorizon.hollowengine.compiler.HollowEngineCompilerRegistrar
+import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFunction0
+import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFunction1
 import ru.hollowhorizon.hollowengine.scripting.ResumeState
+import ru.hollowhorizon.hollowengine.scripting.SuspendState
 import java.io.File
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.*
@@ -28,6 +33,10 @@ import kotlin.script.experimental.jvm.util.isError
 import kotlin.script.experimental.jvmhost.JvmScriptCompiler
 import kotlin.script.experimental.jvmhost.saveToJar
 import kotlin.test.assertFalse
+
+val json = Json {
+    prettyPrint = true
+}
 
 class PluginTester {
     @OptIn(ExperimentalCompilerApi::class)
@@ -136,6 +145,18 @@ class PluginTester {
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
 
         CfrHelper.decompile(result)
+
+        val coroutine = result.classLoader.loadClass("debug\$SerializableCoroutine")
+            .getConstructor().newInstance() as SFunction1<Int, Any?>
+
+        runBlocking {
+            do {
+                val result = coroutine(986)
+                println(result)
+                println(json.encodeToString(coroutine.serializer, JvmHacks.forceCast(coroutine)))
+                if(result == SuspendState) delay(1000L)
+            } while(result == ResumeState || result == SuspendState)
+        }
     }
 
     @Test

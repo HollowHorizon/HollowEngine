@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.allParametersCount
 import org.jetbrains.kotlin.ir.util.packageFqName
 import org.jetbrains.kotlin.ir.util.primaryConstructor
+import org.jetbrains.kotlin.ir.util.statements
 import org.jetbrains.kotlin.name.FqName
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineGenerator
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.receiver
@@ -27,6 +28,22 @@ class LambdaPropertiesTransformer(
     private val functionToClass: Map<IrFunction, CoroutineGenerator>,
 ) : CoroutineTransformer() {
     private val replaces: MutableMap<IrVariableSymbol, Pair<IrValueParameter, IrField>> = hashMapOf()
+
+    private var currentBranch: Int = 0
+
+    fun visitStateBranch(index: Int, branch: IrBranch): IrBranch {
+        currentBranch = index
+        return super.visitBranch(branch)
+    }
+
+    override fun visitWhen(expression: IrWhen): IrExpression {
+        if (coroutine.invokeFunction.body?.statements?.get(1) == expression) {
+            expression.branches.forEachIndexed { index, irBranch ->
+                visitStateBranch(index, irBranch)
+            }
+        }
+        return super.visitWhen(expression)
+    }
 
     override fun visitFunctionExpression(expression: IrFunctionExpression): IrExpression {
         if (expression.function.isSuspendable()) {
@@ -50,6 +67,12 @@ class LambdaPropertiesTransformer(
                     ).typeWith(it.function.parameters.map { it.type } + pluginContext.irBuiltIns.anyNType)
                 )
                 field.initializer = field.builder().irExprBody(visitFunctionExpression(it))
+                coroutine.addSerializableField(field)
+                coroutine.addRestorableField(field, currentBranch, field.builder().run {
+                    irCall(field.type.classOrFail.functionByName("restoreState")).apply {
+                        dispatchReceiver = irGetField(irGet(coroutine.receiver), field)
+                    }
+                })
                 replaces[declaration.symbol] = coroutine.receiver to field
                 return declaration.builder().irBlock { }
             }

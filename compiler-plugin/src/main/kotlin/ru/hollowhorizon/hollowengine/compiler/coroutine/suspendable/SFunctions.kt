@@ -1,14 +1,17 @@
 package ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable
 
+import kotlinx.serialization.KSerializer
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 import ru.hollowhorizon.hollowengine.scripting.Suspendable
 
+val SFUNCTION_PACKAGE = FqName("ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable")
+
 fun sFunctionN(n: Int) = pluginContext.referenceClass(
     ClassId(
-        FqName("ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable"),
+        SFUNCTION_PACKAGE,
         Name.identifier("SFunction$n")
     )
 )!!
@@ -19,6 +22,7 @@ interface SFunction0<out R> : Function<R> {
     @Suspendable
     operator fun invoke(): R
     fun restoreState()
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 1 argument. */
@@ -27,6 +31,7 @@ interface SFunction1<in P1, out R> : Function<R> {
     @Suspendable
     operator fun invoke(p1: P1): R
     fun restoreState(p1: P1)
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 2 arguments. */
@@ -35,6 +40,7 @@ interface SFunction2<in P1, in P2, out R> : Function<R> {
     @Suspendable
     operator fun invoke(p1: P1, p2: P2): R
     fun restoreState(p1: P1, p2: P2)
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 3 arguments. */
@@ -43,6 +49,7 @@ interface SFunction3<in P1, in P2, in P3, out R> : Function<R> {
     @Suspendable
     operator fun invoke(p1: P1, p2: P2, p3: P3): R
     fun restoreState(p1: P1, p2: P2, p3: P3)
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 4 arguments. */
@@ -51,6 +58,7 @@ interface SFunction4<in P1, in P2, in P3, in P4, out R> : Function<R> {
     @Suspendable
     operator fun invoke(p1: P1, p2: P2, p3: P3, p4: P4): R
     fun restoreState(p1: P1, p2: P2, p3: P3, p4: P4)
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 5 arguments. */
@@ -59,7 +67,7 @@ interface SFunction5<in P1, in P2, in P3, in P4, in P5, out R> : Function<R> {
     @Suspendable
     operator fun invoke(p1: P1, p2: P2, p3: P3, p4: P4, p5: P5): R
     fun restoreState(p1: P1, p2: P2, p3: P3, p4: P4, p5: P5)
-
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 6 arguments. */
@@ -68,7 +76,7 @@ interface SFunction6<in P1, in P2, in P3, in P4, in P5, in P6, out R> : Function
     @Suspendable
     operator fun invoke(p1: P1, p2: P2, p3: P3, p4: P4, p5: P5, p6: P6): R
     fun restoreState(p1: P1, p2: P2, p3: P3, p4: P4, p5: P5, p6: P6)
-
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 7 arguments. */
@@ -77,7 +85,7 @@ interface SFunction7<in P1, in P2, in P3, in P4, in P5, in P6, in P7, out R> : F
     @Suspendable
     operator fun invoke(p1: P1, p2: P2, p3: P3, p4: P4, p5: P5, p6: P6, p7: P7): R
     fun restoreState(p1: P1, p2: P2, p3: P3, p4: P4, p5: P5, p6: P6, p7: P7)
-
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 8 arguments. */
@@ -86,7 +94,7 @@ interface SFunction8<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, out
     @Suspendable
     operator fun invoke(p1: P1, p2: P2, p3: P3, p4: P4, p5: P5, p6: P6, p7: P7, p8: P8): R
     fun restoreState(p1: P1, p2: P2, p3: P3, p4: P4, p5: P5, p6: P6, p7: P7, p8: P8)
-
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 9 arguments. */
@@ -95,7 +103,7 @@ interface SFunction9<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, in 
     @Suspendable
     operator fun invoke(p1: P1, p2: P2, p3: P3, p4: P4, p5: P5, p6: P6, p7: P7, p8: P8, p9: P9): R
     fun restoreState(p1: P1, p2: P2, p3: P3, p4: P4, p5: P5, p6: P6, p7: P7, p8: P8, p9: P9)
-
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 10 arguments. */
@@ -104,7 +112,7 @@ interface SFunction10<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, in
     @Suspendable
     operator fun invoke(p1: P1, p2: P2, p3: P3, p4: P4, p5: P5, p6: P6, p7: P7, p8: P8, p9: P9, p10: P10): R
     fun restoreState(p1: P1, p2: P2, p3: P3, p4: P4, p5: P5, p6: P6, p7: P7, p8: P8, p9: P9, p10: P10)
-
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 11 arguments. */
@@ -114,7 +122,7 @@ interface SFunction11<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, in
     @Suspendable
     operator fun invoke(p1: P1, p2: P2, p3: P3, p4: P4, p5: P5, p6: P6, p7: P7, p8: P8, p9: P9, p10: P10, p11: P11): R
     fun restoreState(p1: P1, p2: P2, p3: P3, p4: P4, p5: P5, p6: P6, p7: P7, p8: P8, p9: P9, p10: P10, p11: P11)
-
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 12 arguments. */
@@ -151,7 +159,7 @@ interface SFunction12<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, in
         p11: P11,
         p12: P12,
     )
-
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 13 arguments. */
@@ -190,6 +198,7 @@ interface SFunction13<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, in
         p12: P12,
         p13: P13,
     )
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 14 arguments. */
@@ -230,6 +239,7 @@ interface SFunction14<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, in
         p13: P13,
         p14: P14,
     )
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 15 arguments. */
@@ -272,6 +282,7 @@ interface SFunction15<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, in
         p14: P14,
         p15: P15,
     )
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 16 arguments. */
@@ -316,6 +327,7 @@ interface SFunction16<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, in
         p15: P15,
         p16: P16,
     )
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 17 arguments. */
@@ -362,6 +374,7 @@ interface SFunction17<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, in
         p16: P16,
         p17: P17,
     )
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 18 arguments. */
@@ -410,6 +423,7 @@ interface SFunction18<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, in
         p17: P17,
         p18: P18,
     )
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 19 arguments. */
@@ -460,6 +474,7 @@ interface SFunction19<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, in
         p18: P18,
         p19: P19,
     )
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 20 arguments. */
@@ -512,6 +527,7 @@ interface SFunction20<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, in
         p19: P19,
         p20: P20,
     )
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 21 arguments. */
@@ -566,6 +582,7 @@ interface SFunction21<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, in
         p20: P20,
         p21: P21,
     )
+    val serializer: KSerializer<*>
 }
 
 /** A function that takes 22 arguments. */
@@ -622,4 +639,5 @@ interface SFunction22<in P1, in P2, in P3, in P4, in P5, in P6, in P7, in P8, in
         p21: P21,
         p22: P22,
     )
+    val serializer: KSerializer<*>
 }

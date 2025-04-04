@@ -14,8 +14,13 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.builders.declarations.*
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.expressions.IrFunctionExpression
+import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
+import org.jetbrains.kotlin.ir.expressions.IrGetValue
+import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionExpressionImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionReferenceImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionReferenceImplWithShape
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.symbols.impl.IrClassSymbolImpl
 import org.jetbrains.kotlin.ir.types.classOrFail
@@ -37,6 +42,14 @@ import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.sFunctionN
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
+import kotlin.collections.emptyList
+import kotlin.collections.forEach
+import kotlin.collections.getOrPut
+import kotlin.collections.map
+import kotlin.collections.plus
+import kotlin.collections.set
 
 class CoroutineClassGenerator : IrElementTransformerVoid() {
     val functionToClass = HashMap<IrFunction, CoroutineGenerator>()
@@ -90,7 +103,7 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
 
             // Создаём функцию действия корутины с параметрами исходной функции
             val invokeFunction = function.deepCopyWithSymbols(coroutine).apply {
-                this.transformChildrenVoid(object: IrElementTransformerVoid() {
+                this.transformChildrenVoid(object : IrElementTransformerVoid() {
                     override fun visitFunction(declaration: IrFunction): IrStatement {
                         declaration.attributeOwnerId = declaration
                         return super.visitFunction(declaration)
@@ -125,13 +138,12 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
                 returnType = pluginContext.irBuiltIns.unitType
                 name = Name.identifier("restoreState")
             }.apply {
-                function.valueParameters.forEach { value ->
-                    addValueParameter(value.name, value.type)
+                invokeFunction.parameters.forEach { v ->
+                    parameters += v
                 }
-                function.typeParameters.forEach { value ->
-                    addTypeParameter(value.name.asString(), value.defaultType, value.variance)
+                invokeFunction.typeParameters.forEach { value ->
+                    typeParameters += value
                 }
-                extensionReceiverParameter = function.extensionReceiverParameter
                 dispatchReceiverParameter = coroutine.thisReceiver
                 this.overriddenSymbols += coroutineLambda.classOrFail.getSimpleFunction("restoreState")!!
             }
@@ -161,21 +173,32 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
                 )!!.typeWith(coroutine.defaultType)
             }
 
-            // Добавляем экземпляр вложенного класса в корутину
-            coroutine.addField {
-                name = Name.special("<serializer>")
-                type = serializer.defaultType
-                isFinal = true
+            coroutine.addProperty {
+                name = Name.identifier("serializer")
             }.apply {
-                initializer = builder().run {
-                    irExprBody(irCall(serializer.primaryConstructor!!.symbol).apply {
-                        dispatchReceiver = irGet(coroutine.thisReceiver!!)
-                    })
+                addGetter {
+                    returnType = pluginContext.referenceClass(
+                        ClassId(
+                            FqName("kotlinx.serialization"),
+                            Name.identifier("KSerializer")
+                        )
+                    )!!.typeWith()
+                }.apply {
+                    this.dispatchReceiverParameter = coroutine.thisReceiver
+                    body = builder().run {
+                        irExprBody(irCall(serializer.primaryConstructor!!.symbol).apply {
+                            dispatchReceiver = irGet(coroutine.thisReceiver!!)
+                        })
+                    }
                 }
+                val prop = coroutineLambda.classOrFail.owner.properties
+                    .first { it.name == Name.identifier("serializer") }
+                this.overriddenSymbols += prop.symbol
             }
-            val (property, descriptor) = serializer.createDescriptor()
+            val (property, descriptor) = serializer.createDescriptor(coroutine)
 
-            val coroutineGenerator = CoroutineGenerator(coroutine, serializer, property, descriptor, invokeFunction, restoreFunction)
+            val coroutineGenerator =
+                CoroutineGenerator(coroutine, serializer, property, descriptor, invokeFunction, restoreFunction)
             coroutine.addChild(serializer)
             return coroutineGenerator
         }
@@ -186,8 +209,8 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
     }
 
     // Создание описания структуры при сериализации
-    private fun IrClass.createDescriptor(): Pair<IrProperty, IrFunctionExpression> {
-        val irLambda = createLambda()
+    private fun IrClass.createDescriptor(coroutine: IrClass): Pair<IrProperty, IrFunctionReference> {
+        val irLambda = createLambda(coroutine)
         val property = addProperty {
             name = Name.identifier("descriptor")
         }.apply {
@@ -228,7 +251,7 @@ val csdbClass = pluginContext.referenceClass(
 ) ?: error("ClassSerialDescriptorBuilder not found")
 
 // Создание лямбды для ClassSerialDescriptorBuilder
-private fun IrClass.createLambda(): IrFunctionExpression {
+private fun IrClass.createLambda(coroutine: IrClass): IrFunctionReference {
     val irBuiltIns = pluginContext.irBuiltIns
     val irFactory = pluginContext.irFactory
     val receiverType = csdbClass.defaultType
@@ -237,25 +260,26 @@ private fun IrClass.createLambda(): IrFunctionExpression {
 
     builder {
         // Создаём анонимную функцию
-        val lambdaFunction = irFactory.buildFun {
-            name = SpecialNames.ANONYMOUS
+        val lambdaFunction = addFunction {
+            name = Name.identifier("makeDescriptor")
             returnType = irBuiltIns.unitType
             visibility = DescriptorVisibilities.LOCAL
             origin = IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA
         }.apply {
-            parent = this@createLambda
-
+            dispatchReceiverParameter = this@createLambda.thisReceiver!!
             extensionReceiverParameter = createExtensionReceiver(receiverType)
             this.body = irBlockBody {}
         }
 
         // Заворачиваем функцию в IrFunctionExpression (лямбду)
-        return IrFunctionExpressionImpl(
+        return IrFunctionReferenceImplWithShape(
             startOffset, endOffset,
             lambdaType,
-            lambdaFunction,
-            IrStatementOrigin.LAMBDA
-        )
+            lambdaFunction.symbol,
+            0, 2,
+            0, true, true
+        ).apply {
+            dispatchReceiver = irGet(this@createLambda.thisReceiver!!)
+        }
     }
-    error("Lambda not created!")
 }

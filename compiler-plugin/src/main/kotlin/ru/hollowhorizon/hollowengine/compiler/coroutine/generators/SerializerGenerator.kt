@@ -2,6 +2,7 @@
 
 package ru.hollowhorizon.hollowengine.compiler.coroutine.generators
 
+import org.jetbrains.kotlin.backend.common.lower.irNot
 import org.jetbrains.kotlin.backend.jvm.functionByName
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.builders.declarations.addFunction
@@ -11,16 +12,21 @@ import org.jetbrains.kotlin.ir.expressions.IrBlockBody
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.IrSimpleType
+import org.jetbrains.kotlin.ir.types.classOrFail
+import org.jetbrains.kotlin.ir.types.classifierOrNull
 import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.util.defaultType
-import org.jetbrains.kotlin.ir.util.fields
+import org.jetbrains.kotlin.ir.util.functions
+import org.jetbrains.kotlin.ir.util.getPropertyGetter
 import org.jetbrains.kotlin.ir.util.properties
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlinx.serialization.compiler.backend.ir.BaseIrGenerator
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.*
+import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFUNCTION_PACKAGE
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
+import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 import ru.hollowhorizon.hollowengine.compiler.serializationContext
 
@@ -55,14 +61,22 @@ fun CoroutineGenerator.createSerializer(
             }, "encoder", origin = IrDeclarationOrigin.DEFINED)
 
             values.forEachIndexed { index, field ->
-                val variableSerializer = (field.type as IrSimpleType).makeSerializer(
-                    field.builder(),
-                    serializerGenerator
-                ) ?: error("${field.name} not serializable")
+                val variableSerializer = if(field.type.isSuspendable()) {
+                    field.builder().run {
+                        irCall(field.type.classOrFail.getPropertyGetter("serializer")!!).apply {
+                            dispatchReceiver = irGetField(coroutine.builder().irGet(coroutine.thisReceiver!!), field)
+                        }
+                    }
+                } else {
+                    (field.type as IrSimpleType).makeSerializer(
+                        field.builder(),
+                        serializerGenerator
+                    ) ?: error("${field.name} not serializable")
+                }
 
-                serializerDescriptor.function.appendField(serializerGenerator, field, variableSerializer)
+                serializerDescriptor.reflectionTarget?.owner?.appendField(field, variableSerializer)
 
-                +irCall(encodeSerializableElement).apply {
+                +irIfThen(pluginContext.irBuiltIns.unitType, irNot(irEqualsNull(irGetField(irGet(coroutine.thisReceiver!!), field))), irCall(encodeSerializableElement).apply {
                     dispatchReceiver = irGet(vEncoder)
 
                     putValueArgument(0, irCall(descriptorProperty.getter!!).apply {
@@ -71,7 +85,7 @@ fun CoroutineGenerator.createSerializer(
                     putValueArgument(1, irInt(index))
                     putValueArgument(2, variableSerializer)
                     putValueArgument(3, irGetField(irGet(coroutine.thisReceiver!!), field))
-                }
+                })
             }
 
             +irCall(EEndStructure).apply {
@@ -109,10 +123,18 @@ fun CoroutineGenerator.createSerializer(
                         })
                     })
                     val serializableBranches = values.mapIndexed { elementIndex, field ->
-                        val variableSerializer = (field.type as IrSimpleType).makeSerializer(
-                            field.builder(),
-                            serializerGenerator
-                        )
+                        val variableSerializer = if(field.type.isSuspendable()) {
+                            field.builder().run {
+                                irCall(field.type.classOrFail.getPropertyGetter("serializer")!!).apply {
+                                    dispatchReceiver = irGetField(irGet(coroutine.thisReceiver!!), field)
+                                }
+                            }
+                        } else {
+                            (field.type as IrSimpleType).makeSerializer(
+                                field.builder(),
+                                serializerGenerator
+                            ) ?: error("${field.name} not serializable")
+                        }
                         irBranch(
                             irEquals(irGet(indexVariable), irInt(elementIndex)),
                             irSetField(irGet(coroutine.thisReceiver!!), field, irCall(decodeSerializableElement).apply {
@@ -154,7 +176,6 @@ fun CoroutineGenerator.createSerializer(
 }
 
 private fun IrFunction.appendField(
-    serializerGenerator: BaseIrGenerator,
     field: IrField,
     variableSerializer: IrExpression,
     isOptional: Boolean = true,

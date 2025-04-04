@@ -2,7 +2,11 @@ package ru.hollowhorizon.hollowengine.compiler.coroutine.serializers
 
 import org.jetbrains.kotlin.backend.jvm.functionByName
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
+import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithName
+import org.jetbrains.kotlin.ir.declarations.IrPackageFragment
 import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.IrSimpleType
@@ -11,6 +15,7 @@ import org.jetbrains.kotlin.ir.types.classifierOrNull
 import org.jetbrains.kotlin.ir.types.typeOrNull
 import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.isFunctionTypeOrSubtype
+import org.jetbrains.kotlin.ir.util.superClass
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
@@ -21,6 +26,7 @@ import org.jetbrains.kotlinx.serialization.compiler.backend.ir.findTypeSerialize
 import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationPluginContext
 import org.jetbrains.kotlinx.serialization.compiler.resolve.SerializationRuntimeClassIds
 import org.jetbrains.kotlinx.serialization.compiler.resolve.SerializersClassIds
+import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFUNCTION_PACKAGE
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
 fun IrType.isSerializable(generator: BaseIrGenerator, context: SerializationBaseContext = generator.compilerContext): Boolean {
@@ -40,7 +46,8 @@ fun IrSimpleType.makeSerializer(
     generator: BaseIrGenerator,
     context: SerializationPluginContext = generator.compilerContext,
 ): IrExpression? {
-    val serializer = generator.findTypeSerializerOrContextUnchecked(context, this) ?: error("Invalid serializer")
+    val serializer = generator.findTypeSerializerOrContextUnchecked(context, this)
+        ?: error("Invalid serializer")
     builder.apply {
         generator.apply {
             return serializerInstance(
@@ -53,6 +60,14 @@ fun IrSimpleType.makeSerializer(
             }
         }
     }
+}
+
+@OptIn(UnsafeDuringIrConstructionAPI::class)
+fun IrClassifierSymbol.isClassWithNamePrefix(prefix: String, packageFqName: FqName): Boolean {
+    val declaration = owner as IrDeclarationWithName
+
+    return declaration.name.asString().startsWith(prefix) && (declaration.parent as? IrPackageFragment)?.packageFqName == packageFqName ||
+            (declaration as? IrClass)?.superClass?.symbol?.isClassWithNamePrefix(prefix, packageFqName) == true
 }
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)

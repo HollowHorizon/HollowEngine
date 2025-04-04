@@ -8,4 +8,8 @@ public class JvmHacks {
     public static void initializeEmptyTypeArguments(IrCall call) {
         call.initializeEmptyTypeArguments$ir_tree(call.getTypeArgumentsCount());
     }
+
+    public static <R, K> K forceCast(R original) {
+        return (K) original;
+    }
 }

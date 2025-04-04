@@ -10,17 +10,16 @@ import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
-import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.name.Name
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineGenerator
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.properties.CoroutineTransformer
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.transformBody
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
-import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.throwIllegalStateException
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
-class CoroutineStateTransformer(private val functionToClass: HashMap<IrFunction, CoroutineGenerator>) : CoroutineTransformer() {
+class CoroutineStateTransformer(private val functionToClass: HashMap<IrFunction, CoroutineGenerator>) :
+    CoroutineTransformer() {
     override fun visitFunction(declaration: IrFunction): IrStatement {
         declaration.builder {
             val whenStatement = irWhen(pluginContext.irBuiltIns.unitType, mutableListOf())
@@ -37,7 +36,7 @@ class CoroutineStateTransformer(private val functionToClass: HashMap<IrFunction,
             )
             stateVar.initializer = irInt(0)
             stateVar.parent = declaration
-            val context = WhenContext(this, stateVar, whenStatement, 0, functionToClass)
+            val context = WhenContext(coroutine, this, stateVar, whenStatement, 0, functionToClass)
             declaration.body?.let { context.transformBody(it) }
             whenStatement.branches += irElseBranch(throwIllegalStateException("Invalid index!"))
 

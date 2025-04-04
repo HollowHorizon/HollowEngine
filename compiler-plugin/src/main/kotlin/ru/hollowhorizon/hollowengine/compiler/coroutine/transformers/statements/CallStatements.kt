@@ -2,33 +2,33 @@ package ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements
 
 import org.jetbrains.kotlin.backend.common.lower.irIfThen
 import org.jetbrains.kotlin.backend.jvm.functionByName
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classOrFail
 import org.jetbrains.kotlin.ir.types.defaultType
-import org.jetbrains.kotlin.ir.util.constructors
-import org.jetbrains.kotlin.ir.util.getPackageFragment
-import org.jetbrains.kotlin.ir.util.getSimpleFunction
-import org.jetbrains.kotlin.ir.util.parentAsClass
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.renderer.render
+import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.receiver
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.iterators.*
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.WhenContext
+import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 import ru.hollowhorizon.hollowengine.compiler.identifiers.*
 import ru.hollowhorizon.hollowengine.compiler.irOr
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
-import kotlin.contracts.ExperimentalContracts
 
 val suspendObject = pluginContext.referenceClass(SuspendState)!!
 val resumeObject = pluginContext.referenceClass(ResumeState)!!
@@ -52,7 +52,7 @@ fun WhenContext.transformCall(call: IrFunctionAccessExpression): IrExpression {
         val coroutineId = innerCallId++
         val owner = call.symbol.owner
 
-        if (owner.parentAsClass.name.asString().startsWith("SFunction")) {
+        if (owner.parentClassOrNull?.name?.asString()?.startsWith("SFunction") == true) {
             return transformSFunctionCall(call, owner, coroutineId)
         }
 
@@ -62,7 +62,11 @@ fun WhenContext.transformCall(call: IrFunctionAccessExpression): IrExpression {
     return call
 }
 
-private fun WhenContext.transformSFunctionCall(call: IrFunctionAccessExpression, owner: IrFunction, coroutineId: Int): IrExpression {
+private fun WhenContext.transformSFunctionCall(
+    call: IrFunctionAccessExpression,
+    owner: IrFunction,
+    coroutineId: Int,
+): IrExpression {
     nextBranch(resume = true)
     val invokeResult = createVariable("invoke", owner, coroutineId, pluginContext.irBuiltIns.anyNType)
     append(invokeResult)
@@ -87,37 +91,53 @@ private fun WhenContext.transformSFunctionCall(call: IrFunctionAccessExpression,
 }
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
-private fun WhenContext.transformSuspendableCall(call: IrFunctionAccessExpression, owner: IrFunction, coroutineId: Int): IrExpression {
-    val className = ClassId(owner.getPackageFragment().packageFqName, Name.identifier("${owner.name.asString().capitalize()}\$SerializableCoroutine"))
+private fun WhenContext.transformSuspendableCall(
+    call: IrFunctionAccessExpression,
+    owner: IrFunction,
+    coroutineId: Int,
+): IrExpression {
+    val className = ClassId(
+        owner.getPackageFragment().packageFqName,
+        Name.identifier("${owner.name.asString().capitalize()}\$SerializableCoroutine")
+    )
     val coroutine = functionToClass[owner]?.coroutine?.symbol ?: pluginContext.referenceClass(className)
     ?: error("Class ${className.asSingleFqName().render()} not found!")
 
-    val coroutineVar = createVariable("coroutine", owner, coroutineId, coroutine.defaultType).apply {
+    val coroutineVar = createField("coroutine", owner, coroutineId, coroutine.defaultType).apply {
         annotations += builder.irCall(Restorable.constructor())
         annotations += builder.irCall(Ignore.constructor())
-        initializer = builder.irCallConstructor(coroutine.constructors.first(), emptyList())
+        initializer = builder.run {
+            irExprBody(irCallConstructor(coroutine.constructors.first(), emptyList()))
+        }
     }
+    generator.addSerializableField(coroutineVar)
+    generator.addRestorableField(coroutineVar, nextBranch-1, builder.run {
+        irCall(coroutineVar.type.classOrFail.functionByName("restoreState")).apply {
+            setupCall(call)
+            dispatchReceiver = irGetField(irGet(generator.receiver), coroutineVar)
+        }
+    })
     nextBranch(resume = true)
-    append(coroutineVar)
+    generator.coroutine.addChild(coroutineVar)
 
     val invokeResult = createVariable("invoke", owner, coroutineId, pluginContext.irBuiltIns.anyNType)
+    invokeResult.initializer = invokeResult.builder().irCall(coroutine.functionByName("invoke")).apply {
+        setupCall(call)
+        dispatchReceiver = builder.irGetField(builder.irGet(generator.receiver), coroutineVar)
+    }
     append(invokeResult)
+    append(builder.run {
+        irIfThen(
+            irOr(
+                irEqeqeq(irGet(invokeResult), irGetObject(suspendObject)),
+                irEqeqeq(irGet(invokeResult), irGetObject(resumeObject))
+            ),
+            irReturn(irGet(invokeResult))
+        )
+    })
 
     val coroutineResult = createVariable("result", owner, coroutineId, call.type).apply {
-        initializer = builder.irBlock {
-            invokeResult.initializer = irCall(coroutine.functionByName("invoke")).apply {
-                dispatchReceiver = irGet(coroutineVar)
-                setupCall(call)
-            }
-            +irIfThen(
-                irOr(
-                    irEqeqeq(irGet(invokeResult), irGetObject(suspendObject)),
-                    irEqeqeq(irGet(invokeResult), irGetObject(resumeObject))
-                ),
-                irReturn(irGet(invokeResult))
-            )
-            irGet(invokeResult)
-        }
+        initializer = builder.irGet(invokeResult)
     }
     append(coroutineResult)
     return builder.irGet(coroutineResult)
@@ -131,9 +151,19 @@ private fun IrFunctionAccessExpression.setupCall(call: IrFunctionAccessExpressio
 }
 
 private fun WhenContext.createVariable(prefix: String, owner: IrFunction, coroutineId: Int, type: IrType) =
-    IrVariableImpl(-1, -1, IrDeclarationOrigin.DEFINED, IrVariableSymbolImpl(),
+    IrVariableImpl(
+        -1, -1, IrDeclarationOrigin.DEFINED, IrVariableSymbolImpl(),
         Name.identifier("$prefix$${owner.name.asString()}\$$coroutineId"), type, false, false, false
     ).apply { parent = builder.parent }
+
+private fun WhenContext.createField(prefix: String, owner: IrFunction, coroutineId: Int, type: IrType) =
+    pluginContext.irFactory.createField(
+        -1, -1, IrDeclarationOrigin.DEFINED,
+        Name.identifier("$prefix$${owner.name.asString()}\$$coroutineId"), DescriptorVisibilities.PRIVATE,
+        IrFieldSymbolImpl(), type, false, false, false
+    ).apply {
+        parent = builder.parent
+    }
 
 fun WhenContext.transformParameters(statement: IrFunctionAccessExpression) {
     statement.dispatchReceiver = statement.dispatchReceiver?.let(::transformExpression)

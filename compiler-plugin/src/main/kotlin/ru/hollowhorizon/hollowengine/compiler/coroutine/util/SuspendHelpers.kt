@@ -13,7 +13,13 @@ import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classOrFail
+import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.util.hasAnnotation
+import org.jetbrains.kotlin.ir.util.superTypes
+import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.isClassWithNamePrefix
+import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFUNCTION_PACKAGE
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 import kotlin.contracts.ExperimentalContracts
@@ -21,6 +27,11 @@ import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
 fun IrFunction.isSuspendable() = annotations.hasAnnotation(Suspendable)
+fun IrType.isSuspendable(): Boolean {
+    val type = classOrNull ?: return false
+
+    return type.isClassWithNamePrefix("SFunction", SFUNCTION_PACKAGE) || type.superTypes().any { it.isSuspendable() }
+}
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
 fun IrFunctionAccessExpression.isSuspendable() = symbol.owner.isSuspendable()
@@ -31,6 +42,7 @@ fun IrBuilderWithScope.throwIllegalStateException(message: String) =
     })
 
 
+@OptIn(ExperimentalContracts::class)
 inline fun <T : IrDeclaration> T.builder(body: DeclarationIrBuilder.(T) -> Unit = {}): DeclarationIrBuilder {
     contract {
         callsInPlace(body, InvocationKind.EXACTLY_ONCE)

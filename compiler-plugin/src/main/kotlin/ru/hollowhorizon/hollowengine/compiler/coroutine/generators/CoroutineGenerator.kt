@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.ir.builders.declarations.addField
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionExpression
+import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlinx.serialization.compiler.backend.ir.BaseIrGenerator
@@ -15,7 +16,7 @@ class CoroutineGenerator(
     val coroutine: IrClass,
     val serializer: IrClass,
     val descriptorProperty: IrProperty,
-    val serializerDescriptor: IrFunctionExpression,
+    val serializerDescriptor: IrFunctionReference,
     val invokeFunction: IrFunction,
     val restoreFunction: IrSimpleFunction,
 ) {

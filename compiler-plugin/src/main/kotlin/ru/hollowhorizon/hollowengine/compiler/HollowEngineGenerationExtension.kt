@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
 import org.jetbrains.kotlin.ir.util.dumpKotlinLike
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
+import org.jetbrains.kotlin.types.checker.SimpleClassicTypeSystemContext.isUnit
 import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationPluginContext
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.*
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.CoroutineStateTransformer
@@ -44,24 +45,26 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
 
         val coroutines = generator.functionToClass.values
         val filter = coroutines.associateBy { it.coroutine }
-        coroutines.filter { !it.coroutine.isInner }.forEach { info ->
-            fun CoroutineTransformer.use(info: CoroutineGenerator, action: (CoroutineGenerator) -> Unit = {}) {
-                coroutine = info
-                info.invokeFunction.transform(this, null)
-                info.invokeFunction.transformChildrenVoid(this)
-                info.coroutine.declarations.filterIsInstance<IrClass>().forEach {
-                    filter[it]?.let { use(it, action) }
-                }
-                action(info)
+        fun CoroutineTransformer.use(info: CoroutineGenerator, function: (CoroutineGenerator) -> IrFunction, action: (CoroutineGenerator) -> Unit = {}) {
+            coroutine = info
+            function(info).transform(this, null)
+            function(info).transformChildrenVoid(this)
+            info.coroutine.declarations.filterIsInstance<IrClass>().forEach {
+                filter[it]?.let { use(it, function, action) }
             }
+            action(info)
+        }
 
-            lambdaTransformer.use(info)
-            stateTransformer.use(info)
-            localsTransformer.use(info)
+        coroutines.filter { !it.coroutine.isInner }.forEach { info ->
+
+
+            lambdaTransformer.use(info, CoroutineGenerator::invokeFunction)
+            stateTransformer.use(info, CoroutineGenerator::invokeFunction)
+            localsTransformer.use(info, CoroutineGenerator::invokeFunction)
             serializableTransformer.filter = localsTransformer.locals
-            serializableTransformer.use(info)
+            serializableTransformer.use(info, CoroutineGenerator::invokeFunction)
             restorableTransformer.filter = localsTransformer.locals
-            restorableTransformer.use(info)
+            restorableTransformer.use(info, CoroutineGenerator::invokeFunction)
         }
         coroutines.forEach { info ->
             info.createSerializer()
@@ -80,16 +83,22 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
 
                     +irIfThen(pluginContext.irBuiltIns.unitType, condition, irBlock {
                         values.forEach { (field, expression) ->
-
-                            +irSetField(
-                                irGet(info.receiver),
-                                field,
-                                expression.deepCopyWithSymbols(info.restoreFunction)
-                            )
+                            if(expression.type == pluginContext.irBuiltIns.unitType) {
+                                +expression
+                            } else {
+                                +irSetField(
+                                    irGet(info.receiver),
+                                    field,
+                                    expression.deepCopyWithSymbols(info.restoreFunction)
+                                )
+                            }
                         }
                     })
                 }
             }
+
+            serializableTransformer.use(info, CoroutineGenerator::restoreFunction)
+            restorableTransformer.use(info, CoroutineGenerator::restoreFunction)
 
             println(info.coroutine.dumpKotlinLike())
         }

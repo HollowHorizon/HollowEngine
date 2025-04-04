@@ -32,10 +32,6 @@ class LocalPropertiesTransformer(
         return expression
     }
 
-    override fun visitConstructorCall(expression: IrConstructorCall): IrExpression {
-        return super.visitConstructorCall(expression)
-    }
-
     override fun visitVariable(declaration: IrVariable): IrStatement {
         if (declaration.parent == coroutine.invokeFunction &&
             !declaration.annotations.hasAnnotation(Restorable)
