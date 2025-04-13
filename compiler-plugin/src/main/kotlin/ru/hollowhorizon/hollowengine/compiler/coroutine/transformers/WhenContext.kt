@@ -47,7 +47,7 @@ class WhenContext(
         (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.add(call)
     }
 
-    fun removeLastStmt(): IrStatement? =
+    fun removeLastStatement(): IrStatement? =
         (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.removeLastOrNull()
 
     fun isBranchEmpty() =

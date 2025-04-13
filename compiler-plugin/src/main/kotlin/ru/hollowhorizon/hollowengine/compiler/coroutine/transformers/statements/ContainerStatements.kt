@@ -29,7 +29,7 @@ fun WhenContext.transformContainer(body: IrContainerExpression): IrExpression {
         if (stmt is IrNothing) return@forEach
         append(stmt)
     }
-    return if(body.type == pluginContext.irBuiltIns.unitType) IrNothing else removeLastStmt() as? IrExpression ?: IrNothing
+    return if(body.type == pluginContext.irBuiltIns.unitType) IrNothing else removeLastStatement() as? IrExpression ?: IrNothing
 }
 
 fun WhenContext.transformStatement(statement: IrStatement): IrStatement {
