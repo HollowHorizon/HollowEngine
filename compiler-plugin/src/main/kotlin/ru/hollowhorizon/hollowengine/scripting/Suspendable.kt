@@ -8,6 +8,9 @@ annotation class Suspendable
 @Retention(AnnotationRetention.RUNTIME)
 annotation class United
 
+@Target(AnnotationTarget.FIELD)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class LambdaParameter
 
 /**
  * Не меняет переменную на сериализуемый аналог. Используйте аккуратно, такие переменные невозможно вызвать после приостанавливаемых функций.

@@ -19,7 +19,7 @@ class WhenContext(
     val generator: CoroutineGenerator,
     val builder: DeclarationIrBuilder,
     val stateVar: IrVariable,
-    private val whenStatement: IrWhen,
+    internal val whenStatement: IrWhen,
     var nextBranch: Int = 0,
     val functionToClass: HashMap<IrFunction, CoroutineGenerator>,
 ) {

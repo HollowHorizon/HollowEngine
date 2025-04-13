@@ -10,18 +10,13 @@ import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.classOrFail
-import org.jetbrains.kotlin.ir.types.typeWith
-import org.jetbrains.kotlin.ir.util.allParametersCount
-import org.jetbrains.kotlin.ir.util.packageFqName
-import org.jetbrains.kotlin.ir.util.primaryConstructor
-import org.jetbrains.kotlin.ir.util.statements
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.FqName
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineGenerator
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.receiver
-import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.sFunctionN
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
-import ru.hollowhorizon.hollowengine.compiler.pluginContext
+import ru.hollowhorizon.hollowengine.compiler.identifiers.LambdaParameter
 
 
 class LambdaPropertiesTransformer(
@@ -51,7 +46,7 @@ class LambdaPropertiesTransformer(
         if (expression.function.isSuspendable()) {
             functionToClass[expression.function]?.let { info ->
                 expression.function.builder {
-                    return irCall(info.coroutine.primaryConstructor!!.symbol, expression.type).apply {
+                    return irCall(info.coroutine.primaryConstructor!!.symbol).apply {
                         dispatchReceiver = irGet(coroutine.coroutine.thisReceiver!!)
                     }
                 }
@@ -63,12 +58,9 @@ class LambdaPropertiesTransformer(
     override fun visitVariable(declaration: IrVariable): IrStatement {
         declaration.initializer?.let {
             if (it is IrFunctionExpression && it.function.isSuspendable()) {
-                val field = coroutine.addField(declaration.name,
-                    sFunctionN(
-                        it.function.allParametersCount
-                    ).typeWith(it.function.parameters.map { it.type } + pluginContext.irBuiltIns.anyNType)
-                )
-                field.initializer = field.builder().irExprBody(visitFunctionExpression(it))
+                val expression = visitFunctionExpression(it)
+                val field = coroutine.addField(declaration.name, expression.type)
+                field.initializer = field.builder().irExprBody(expression)
                 coroutine.addSerializableField(field)
                 coroutine.addRestorableField(field, currentBranch, field.builder().run {
                     irCall(field.type.classOrFail.functionByName("restoreState")).apply {
@@ -91,8 +83,16 @@ class LambdaPropertiesTransformer(
                 type.name.asString().startsWith("Function")
             ) {
                 val dispatchReceiver = expression.dispatchReceiver ?: return@apply
-                return coroutine.coroutine.builder().run {
-                    irCall(dispatchReceiver.type.classOrFail.functionByName("invoke")).apply {
+                return coroutine.coroutine.builder().irBlock {
+                    dispatchReceiver.type.classOrFail.fields.filter { it.owner.hasAnnotation(LambdaParameter) }
+                        .forEach { field ->
+                            +irSetField(
+                                dispatchReceiver,
+                                field.owner,
+                                irGet(coroutine.invokeFunction.valueParameters.first { it.name == field.owner.name })
+                            )
+                        }
+                    +irCall(dispatchReceiver.type.classOrFail.functionByName("invoke")).apply {
                         this.dispatchReceiver = dispatchReceiver
                         expression.arguments.forEachIndexed { index, irExpression ->
                             this.arguments[index] = irExpression

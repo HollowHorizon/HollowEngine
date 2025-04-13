@@ -1,16 +1,20 @@
+@file:OptIn(UnsafeDuringIrConstructionAPI::class)
+
 package ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements
 
 import org.jetbrains.kotlin.backend.common.lower.irIfThen
 import org.jetbrains.kotlin.backend.jvm.functionByName
+import org.jetbrains.kotlin.backend.wasm.ir2wasm.allSuperInterfaces
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
 import org.jetbrains.kotlin.ir.builders.*
-import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
+import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
+import org.jetbrains.kotlin.ir.expressions.IrSetField
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
@@ -52,7 +56,7 @@ fun WhenContext.transformCall(call: IrFunctionAccessExpression): IrExpression {
         val coroutineId = innerCallId++
         val owner = call.symbol.owner
 
-        if (owner.parentClassOrNull?.name?.asString()?.startsWith("SFunction") == true) {
+        if (owner.parentClassOrNull?.allSuperInterfaces()?.any { it.name.asString().startsWith("SFunction") } == true) {
             return transformSFunctionCall(call, owner, coroutineId)
         }
 
@@ -68,6 +72,14 @@ private fun WhenContext.transformSFunctionCall(
     coroutineId: Int,
 ): IrExpression {
     nextBranch(resume = true)
+    (whenStatement.branches[nextBranch - 2].result as IrBlock)
+        .statements.removeIf {
+            if(it !is IrSetField) return@removeIf false
+            if(it.receiver != call.dispatchReceiver) return@removeIf false
+            append(it)
+            true
+        }
+
     val invokeResult = createVariable("invoke", owner, coroutineId, pluginContext.irBuiltIns.anyNType)
     append(invokeResult)
     invokeResult.initializer = builder.irCall(owner.parentAsClass.getSimpleFunction("invoke")!!).apply {
@@ -111,7 +123,7 @@ private fun WhenContext.transformSuspendableCall(
         }
     }
     generator.addSerializableField(coroutineVar)
-    generator.addRestorableField(coroutineVar, nextBranch-1, builder.run {
+    generator.addRestorableField(coroutineVar, nextBranch - 1, builder.run {
         irCall(coroutineVar.type.classOrFail.functionByName("restoreState")).apply {
             setupCall(call)
             dispatchReceiver = irGetField(irGet(generator.receiver), coroutineVar)

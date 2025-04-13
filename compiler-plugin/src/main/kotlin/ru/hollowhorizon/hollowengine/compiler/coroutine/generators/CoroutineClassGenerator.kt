@@ -7,7 +7,6 @@ import org.jetbrains.kotlin.backend.common.peek
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
 import org.jetbrains.kotlin.backend.common.serialization.mangle.ir.isAnonymous
-import org.jetbrains.kotlin.backend.jvm.functionByName
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
@@ -46,7 +45,6 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
     private val anonymousIndexes = HashMap<IrFunction, Int>()
 
     private val stack = ArrayList<CoroutineGenerator>()
-
 
 
     override fun visitMemberAccess(expression: IrMemberAccessExpression<*>): IrExpression {
@@ -118,7 +116,10 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
             pluginContext.irFactory.createValueParameter(
                 it.startOffset, it.endOffset,
                 it.origin, it.kind, it.name,
-                sFunctionN(type.typeParameters.size - 1).typeWith((it.type as IrSimpleType).arguments.map { it.typeOrFail }),
+                sFunctionN(type.typeParameters.size - 1).typeWith(
+                    (it.type as IrSimpleType).arguments.dropLast(1) // Args without return type
+                        .map { it.typeOrFail } + pluginContext.irBuiltIns.anyNType // All return types are Any?
+                ),
                 it.isAssignable, IrValueParameterSymbolImpl(), it.varargElementType,
                 it.isCrossinline, it.isNoinline, it.isHidden
             ).apply {
@@ -188,7 +189,6 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
                 coroutine.parent = outer.coroutine
                 val transformer = OuterPropertyTransformer(outer, coroutine)
                 coroutine.transformChildrenVoid(transformer)
-                transformer.fields // TODO: Эти переменные надо заполнять перед вызовом корутины
             } ?: run {
                 coroutine.parent = file
                 file.addChild(coroutine)
@@ -273,7 +273,7 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
 
     // Создание описания структуры при сериализации
     private fun IrClass.createDescriptor(coroutine: IrClass): Pair<IrProperty, IrFunctionReference> {
-        val irLambda = createLambda(coroutine)
+        val irLambda = createLambda()
         val property = addProperty {
             name = Name.identifier("descriptor")
         }.apply {
@@ -314,9 +314,8 @@ val csdbClass = pluginContext.referenceClass(
 ) ?: error("ClassSerialDescriptorBuilder not found")
 
 // Создание лямбды для ClassSerialDescriptorBuilder
-private fun IrClass.createLambda(coroutine: IrClass): IrFunctionReference {
+private fun IrClass.createLambda(): IrFunctionReference {
     val irBuiltIns = pluginContext.irBuiltIns
-    val irFactory = pluginContext.irFactory
     val receiverType = csdbClass.defaultType
     val lambdaType = irBuiltIns.functionN(1)
         .typeWith(receiverType, irBuiltIns.unitType) // ClassSerialDescriptorBuilder.() -> Unit

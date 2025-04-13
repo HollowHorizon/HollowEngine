@@ -85,6 +85,11 @@ fun WhenContext.transformExpression(statement: IrExpression): IrExpression {
         is IrReturn -> transformReturn(statement)
         is IrThrow -> transformThrow(statement)
         is IrNothing -> IrNothing
+        is IrSetField -> {
+            statement.value = transformExpression(statement.value)
+            statement.receiver = statement.receiver?.let { transformExpression(it) }
+            statement
+        }
         else -> error("Unknown expression type ${statement.javaClass.name}!")
     }
 }

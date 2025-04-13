@@ -57,12 +57,11 @@ class ControlTests {
         assertEquals(Unit, coroutine.update(branch = -1), "Suspend call did not return 'Unit'!")
         coroutine.reset()
         assertEquals(Unit, coroutine.update(branch = 51515351), "Suspend call did not return 'Unit'!")
-
     }
 
     @Test
     fun `Control Suspendable Function (Return + Control)`() {
-        val coroutine = makeCoroutine("WhenReturnSuspendables", decompile = true) as SFunction1<Int, Any?>
+        val coroutine = makeCoroutine("WhenReturnSuspendables") as SFunction1<Int, Any?>
         val initialState = json.encodeToString(coroutine.serializer, JvmHacks.forceCast(coroutine))
         fun SFunction1<Int, Any?>.reset() =  json.decodeFromString(serializer, JvmHacks.forceCast(initialState)) // Reset coroutine
         fun SFunction1<Int, Any?>.update(branch: Int): Any? {

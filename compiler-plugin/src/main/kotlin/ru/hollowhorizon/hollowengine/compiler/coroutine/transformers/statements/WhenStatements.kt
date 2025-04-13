@@ -38,27 +38,37 @@ fun WhenContext.transformWhen(statement: IrWhen): IrExpression = builder.run {
     statement.branches.sortedBy { it is IrElseBranch }.forEachIndexed { index, branch ->
         branch.condition = transformExpression(branch.condition)
 
-        val elseBranch = irSet(stateVar, irInt(nextBranch))
-        append(
-            irIfThenElse(
-                context.irBuiltIns.unitType, branch.condition,
-                irSet(stateVar, irInt(nextBranch)), elseBranch, null
+        if(index == lastIndex && branch is IrElseBranch) {
+            nextBranch(true, resume = true)
+            result?.let {
+                append(irSet(it, transformExpression(branch.result)))
+            } ?: run {
+                append(transformExpression(branch.result))
+            }
+            nextBranch(false, resume = true)
+            elseSkips.forEach { it.value = builder.irInt(nextBranch - 1) }
+        } else {
+
+            val elseBranch = irSet(stateVar, irInt(nextBranch))
+            append(
+                irIfThenElse(
+                    context.irBuiltIns.unitType, branch.condition,
+                    irSet(stateVar, irInt(nextBranch)), elseBranch, null
+                )
             )
-        )
 
-        nextBranch(true, resume = true)
-        result?.let {
-            append(irSet(it, transformExpression(branch.result)))
-        } ?: run {
-            append(transformExpression(branch.result))
+            nextBranch(true, resume = true)
+            result?.let {
+                append(irSet(it, transformExpression(branch.result)))
+            } ?: run {
+                append(transformExpression(branch.result))
+            }
+
+            elseSkips += irSet(stateVar, irInt(nextBranch))
+            append(elseSkips.last())
+            nextBranch(true, resume = true)
+            elseBranch.value = builder.irInt(nextBranch - 1)
         }
-
-        elseSkips += irSet(stateVar, irInt(nextBranch))
-        append(elseSkips.last())
-        nextBranch(true, resume = true)
-
-        if (index == lastIndex) elseSkips.forEach { it.value = builder.irInt(nextBranch - 1) }
-        elseBranch.value = builder.irInt(nextBranch - 1)
     }
     return result?.let { builder.irGet(it) } ?: IrNothing
 }

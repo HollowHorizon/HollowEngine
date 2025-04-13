@@ -4,8 +4,13 @@ import ru.hollowhorizon.hollowengine.scripting.Suspendable
 fun test(first: Boolean) {
     if(first) innerCall1()
     else {
+        if(!first) println("Hi")
         innerCall2()
     }
+
+    if(first) innerCall2()
+    if(first) innerCall2()
+    if(!first) innerCall2()
 }
 
 @Suspendable

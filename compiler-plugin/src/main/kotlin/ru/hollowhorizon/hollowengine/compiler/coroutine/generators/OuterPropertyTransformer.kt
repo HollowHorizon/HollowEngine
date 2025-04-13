@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.compiler.coroutine.generators
 
 import org.jetbrains.kotlin.ir.builders.declarations.addField
+import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetField
 import org.jetbrains.kotlin.ir.builders.irSetField
@@ -14,6 +15,8 @@ import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.util.getNameWithAssert
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
+import ru.hollowhorizon.hollowengine.compiler.identifiers.LambdaParameter
+import ru.hollowhorizon.hollowengine.compiler.identifiers.constructor
 
 class OuterPropertyTransformer(outer: CoroutineGenerator, val coroutine: IrClass): IrElementTransformerVoid() {
     val declarations = outer.invokeFunction.parameters.associateBy { it.symbol }
@@ -25,6 +28,8 @@ class OuterPropertyTransformer(outer: CoroutineGenerator, val coroutine: IrClass
                 coroutine.addField {
                     type = it.type
                     name = it.name
+                }.apply {
+                    annotations += builder().irCall(LambdaParameter.constructor())
                 }
             }
             return field.builder().run { irGetField(irGet(coroutine.thisReceiver!!), field) }

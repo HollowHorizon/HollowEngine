@@ -14,6 +14,8 @@ import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.receiver
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.isSerializable
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.IrNothing
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
+import ru.hollowhorizon.hollowengine.compiler.identifiers.Ignore
+import ru.hollowhorizon.hollowengine.compiler.identifiers.constructor
 
 class SerializablePropertiesTransformer(
     private val replaces: MutableMap<IrVariableSymbol, Pair<IrValueParameter, IrField>> = hashMapOf(),
@@ -26,13 +28,16 @@ class SerializablePropertiesTransformer(
 
         if (declaration.type.isSerializable(coroutine.generator)) {
             val field = coroutine.addField(declaration.name, declaration.type)
-            coroutine.addSerializableField(field)
             replaces[declaration.symbol] = coroutine.receiver to field
+            coroutine.addSerializableField(field)
             declaration.builder {
                 val initializer = declaration.initializer ?: return IrNothing
                 if (declaration.name == Name.special("<stateIndex>")) {
                     field.initializer = irExprBody(initializer)
-                    return irBlock {}
+                    declaration.name = Name.identifier("<stateIndex>")
+                    declaration.initializer = irGetField(irGet(coroutine.receiver), field)
+                    filter[declaration.symbol] = -1
+                    return declaration
                 } else {
                     return super.visitSetField(irSetField(irGet(coroutine.receiver), field, initializer))
                 }
@@ -42,6 +47,7 @@ class SerializablePropertiesTransformer(
     }
 
     override fun visitGetValue(expression: IrGetValue): IrExpression {
+        if(expression.symbol in filter) return super.visitGetValue(expression)
         replaces[expression.symbol]?.let { (receiver, field) ->
             field.builder {
                 return super.visitGetField(irGetField(irGet(receiver), field))
