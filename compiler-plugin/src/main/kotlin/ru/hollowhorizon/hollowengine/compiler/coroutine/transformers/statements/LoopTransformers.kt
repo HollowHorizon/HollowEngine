@@ -32,7 +32,7 @@ fun WhenContext.transformLoop(loop: IrLoop): IrExpression {
         loop.body?.let {
             append(transformExpression(it))
         }
-        append(builder.run { irSet(stateVar, irInt(currentBranch+1)) })
+        append(builder.run { irSet(stateVar, irInt(nextBranch)) })
         nextBranch(true, resume = true)
     }
 

@@ -28,8 +28,10 @@ class LocalPropertiesTransformer(
             expression.branches.forEachIndexed { index, irBranch ->
                 visitStateBranch(index, irBranch)
             }
+            return expression
+        } else {
+            return super.visitWhen(expression)
         }
-        return expression
     }
 
     override fun visitVariable(declaration: IrVariable): IrStatement {

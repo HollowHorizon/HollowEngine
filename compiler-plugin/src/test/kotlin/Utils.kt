@@ -21,6 +21,9 @@ import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.util.classpathFromClassloader
 import kotlin.script.experimental.jvmhost.JvmScriptCompiler
 
+fun ClassLoader.loadCoroutine(name: String) = loadClass("$name\$SerializableCoroutine")
+    .getConstructor().newInstance()
+
 val json = Json {
     prettyPrint = true
 }

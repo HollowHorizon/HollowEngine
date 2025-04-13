@@ -24,6 +24,7 @@ class WhenContext(
     val functionToClass: HashMap<IrFunction, CoroutineGenerator>,
 ) {
     var innerCallId = 0
+    var whenResultId = 0
 
     init {
         whenStatement.branches += with(builder) {
@@ -46,8 +47,8 @@ class WhenContext(
         (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.add(call)
     }
 
-    fun removeLastStmt(): IrStatement =
-        (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.removeLast()
+    fun removeLastStmt(): IrStatement? =
+        (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.removeLastOrNull()
 
     fun isBranchEmpty() =
         nextBranch == 0 || (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.isEmpty()

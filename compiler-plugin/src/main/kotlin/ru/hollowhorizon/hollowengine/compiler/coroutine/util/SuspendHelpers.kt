@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.ir.types.classOrFail
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.superTypes
+import org.jetbrains.kotlin.types.checker.SimpleClassicTypeSystemContext.hasAnnotation
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.isClassWithNamePrefix
 import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFUNCTION_PACKAGE
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
@@ -30,7 +31,7 @@ fun IrFunction.isSuspendable() = annotations.hasAnnotation(Suspendable)
 fun IrType.isSuspendable(): Boolean {
     val type = classOrNull ?: return false
 
-    return type.isClassWithNamePrefix("SFunction", SFUNCTION_PACKAGE) || type.superTypes().any { it.isSuspendable() }
+    return type.isClassWithNamePrefix("SFunction", SFUNCTION_PACKAGE) || this.type.hasAnnotation(Suspendable) || type.superTypes().any { it.isSuspendable() }
 }
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)

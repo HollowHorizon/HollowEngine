@@ -23,6 +23,9 @@ class CoroutineGenerator(
     internal val generator = object : BaseIrGenerator(coroutine, serializationContext) {}
     internal val serializableFields = HashSet<IrField>()
     internal val branchMap = hashMapOf<Int, HashSet<Pair<IrField, IrExpression>>>()
+    internal val asyncs = HashSet<IrField>()
+
+    internal var asyncId = 0
 
     lateinit var stateIndex: IrField
 
@@ -39,6 +42,10 @@ class CoroutineGenerator(
 
     fun addRestorableField(field: IrField, branch: Int, initializer: IrExpression) {
         branchMap.getOrPut(branch) { LinkedHashSet() }.add(field to initializer)
+    }
+
+    fun addAsync(field: IrField) {
+        asyncs += field
     }
 }
 

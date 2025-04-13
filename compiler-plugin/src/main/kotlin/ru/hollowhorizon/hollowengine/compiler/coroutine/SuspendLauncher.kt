@@ -1,20 +1,15 @@
 package ru.hollowhorizon.hollowengine.compiler.coroutine
 
-import ru.hollowhorizon.hollowengine.compiler.identifiers.ResumeState
-import ru.hollowhorizon.hollowengine.scripting.Suspendable
+import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFunction0
+import ru.hollowhorizon.hollowengine.scripting.ResumeState
 
-class SuspendLauncher(val action: @Suspendable () -> Any?) {
-    fun update() {
-        while (action() == ResumeState);
+class SuspendLauncher(val action: SFunction0<Any?>) {
+    fun update(): Any? {
+        var result: Any?
+        do {
+            result = action()
+        } while (result == ResumeState)
+        return result
     }
 }
 
-class AsyncController(val action: @Suspendable () -> Any?) {
-    var isActive = false
-
-    fun update() {
-        if (isActive) {
-            while (action() == ResumeState);
-        }
-    }
-}

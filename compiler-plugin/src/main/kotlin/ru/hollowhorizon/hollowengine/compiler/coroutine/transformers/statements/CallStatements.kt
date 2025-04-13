@@ -48,7 +48,7 @@ fun WhenContext.transformCall(call: IrFunctionAccessExpression): IrExpression {
         }
     }
 
-    if (call.isSuspendable() && call.type != pluginContext.irBuiltIns.unitType) {
+    if (call.isSuspendable()) {
         val coroutineId = innerCallId++
         val owner = call.symbol.owner
 

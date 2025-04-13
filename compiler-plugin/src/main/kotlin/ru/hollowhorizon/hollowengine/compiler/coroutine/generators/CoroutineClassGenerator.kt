@@ -7,6 +7,7 @@ import org.jetbrains.kotlin.backend.common.peek
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
 import org.jetbrains.kotlin.backend.common.serialization.mangle.ir.isAnonymous
+import org.jetbrains.kotlin.backend.jvm.functionByName
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
@@ -14,10 +15,7 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.builders.declarations.*
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
-import org.jetbrains.kotlin.ir.expressions.IrGetValue
-import org.jetbrains.kotlin.ir.expressions.IrSetValue
+import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionReferenceImplWithShape
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.symbols.impl.IrClassSymbolImpl
@@ -26,11 +24,11 @@ import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
+import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.renderer.render
-import org.jetbrains.kotlin.types.checker.SimpleClassicTypeSystemContext.getArguments
 import org.jetbrains.kotlinx.serialization.compiler.backend.ir.addDefaultConstructorBodyIfAbsent
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.KSerializer
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.SerialDescriptor
@@ -39,6 +37,7 @@ import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.sFunctionN
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
+import ru.hollowhorizon.hollowengine.compiler.identifiers.constructor
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 import kotlin.collections.set
 
@@ -47,6 +46,44 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
     private val anonymousIndexes = HashMap<IrFunction, Int>()
 
     private val stack = ArrayList<CoroutineGenerator>()
+
+
+
+    override fun visitMemberAccess(expression: IrMemberAccessExpression<*>): IrExpression {
+        (expression.symbol.owner as? IrFunction)?.parameters?.forEachIndexed { index, parameter ->
+            if (parameter.type.isSuspendable()) {
+                (expression.arguments[index] as? IrFunctionExpression)?.let {
+                    // Замена обычной лямбды на приостанавливаемую (автоматически добавляем к ней аннотацию)
+                    it.function.annotations += it.function.builder().irCall(Suspendable.constructor())
+                }
+            }
+        }
+        return super.visitMemberAccess(expression)
+    }
+
+    override fun visitCall(expression: IrCall): IrExpression {
+        if (expression.symbol == pluginContext.referenceFunctions(
+                CallableId(
+                    FqName("ru.hollowhorizon.hollowengine.compiler.coroutine"),
+                    Name.identifier("async")
+                )
+            ).first()
+        ) {
+            val coroutine = stack.peek() ?: return super.visitCall(expression)
+            val field = coroutine.addField(
+                Name.identifier("async\$coroutine\$${coroutine.asyncId++}"),
+                asyncController.defaultType
+            )
+            field.initializer = field.builder().run {
+                irExprBody(irCall(asyncController.constructors.first()).apply {
+                    putValueArgument(0, expression.getValueArgument(0))
+                })
+            }
+            coroutine.addAsync(field)
+            return field.builder().irBlock { }
+        }
+        return super.visitCall(expression)
+    }
 
     override fun visitFunction(declaration: IrFunction): IrStatement {
         if (declaration.isSuspendable()) {
@@ -87,16 +124,16 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
             ).apply {
                 parent = function
                 val parameter = this
-                function.transformChildrenVoid(object: IrElementTransformerVoid() {
+                function.transformChildrenVoid(object : IrElementTransformerVoid() {
                     override fun visitGetValue(expression: IrGetValue): IrExpression {
-                        if(expression.symbol == it.symbol) {
+                        if (expression.symbol == it.symbol) {
                             return builder().irGet(parameter)
                         }
                         return super.visitGetValue(expression)
                     }
 
                     override fun visitSetValue(expression: IrSetValue): IrExpression {
-                        if(expression.symbol == it.symbol) {
+                        if (expression.symbol == it.symbol) {
                             return builder().irSet(parameter, expression.value)
                         }
                         return super.visitSetValue(expression)

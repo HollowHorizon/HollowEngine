@@ -37,12 +37,14 @@ class LambdaPropertiesTransformer(
     }
 
     override fun visitWhen(expression: IrWhen): IrExpression {
-        if (coroutine.invokeFunction.body?.statements?.get(1) == expression) {
+        if (coroutine.invokeFunction.body?.statements?.getOrNull(1) == expression) {
             expression.branches.forEachIndexed { index, irBranch ->
                 visitStateBranch(index, irBranch)
             }
+            return expression
+        } else {
+            return super.visitWhen(expression)
         }
-        return super.visitWhen(expression)
     }
 
     override fun visitFunctionExpression(expression: IrFunctionExpression): IrExpression {
@@ -84,8 +86,9 @@ class LambdaPropertiesTransformer(
         return super.visitCall(expression).apply {
             val function = expression.symbol.owner
             val type = function.parent as? IrClass ?: return@apply
-            if (function.name.asString() == "invoke" && type.packageFqName == FqName("kotlin") && type.name.asString()
-                    .startsWith("Function")
+            if (function.name.asString() == "invoke" &&
+                type.packageFqName == FqName("kotlin") &&
+                type.name.asString().startsWith("Function")
             ) {
                 val dispatchReceiver = expression.dispatchReceiver ?: return@apply
                 return coroutine.coroutine.builder().run {

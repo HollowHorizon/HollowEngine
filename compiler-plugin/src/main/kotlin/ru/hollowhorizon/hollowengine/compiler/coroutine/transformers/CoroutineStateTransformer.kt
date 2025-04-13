@@ -15,12 +15,14 @@ import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineGene
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.properties.CoroutineTransformer
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.transformBody
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
+import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.throwIllegalStateException
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
 class CoroutineStateTransformer(private val functionToClass: HashMap<IrFunction, CoroutineGenerator>) :
     CoroutineTransformer() {
     override fun visitFunction(declaration: IrFunction): IrStatement {
+        if(!declaration.isSuspendable()) return super.visitFunction(declaration)
         declaration.builder {
             val whenStatement = irWhen(pluginContext.irBuiltIns.unitType, mutableListOf())
             val stateVar = IrVariableImpl(

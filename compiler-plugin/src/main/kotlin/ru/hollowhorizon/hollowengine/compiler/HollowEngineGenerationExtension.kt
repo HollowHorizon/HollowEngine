@@ -68,6 +68,7 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
         }
         coroutines.forEach { info ->
             info.createSerializer()
+            info.createAsyncs()
 
             val fields = groupRestorableFields(info.branchMap)
 
@@ -100,6 +101,7 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
             serializableTransformer.use(info, CoroutineGenerator::restoreFunction)
             restorableTransformer.use(info, CoroutineGenerator::restoreFunction)
 
+            //println(info.coroutine.dumpKotlinLike())
         }
     }
 

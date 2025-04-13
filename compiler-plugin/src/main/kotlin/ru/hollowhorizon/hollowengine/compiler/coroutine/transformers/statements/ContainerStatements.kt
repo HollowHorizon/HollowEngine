@@ -29,7 +29,7 @@ fun WhenContext.transformContainer(body: IrContainerExpression): IrExpression {
         if (stmt is IrNothing) return@forEach
         append(stmt)
     }
-    return if(body.type == pluginContext.irBuiltIns.unitType) IrNothing else removeLastStmt() as IrExpression
+    return if(body.type == pluginContext.irBuiltIns.unitType) IrNothing else removeLastStmt() as? IrExpression ?: IrNothing
 }
 
 fun WhenContext.transformStatement(statement: IrStatement): IrStatement {
@@ -67,7 +67,7 @@ fun WhenContext.transformExpression(statement: IrExpression): IrExpression {
             val breakIndex = loops[statement.loop]!!.breakIndex
             append(builder.run { irBlock {
                 +irSet(stateVar, breakIndex)
-                +irReturn(irGetObject(suspendObject))
+                +irReturn(irGetObject(resumeObject))
             } })
             IrNothing
         }
@@ -75,7 +75,7 @@ fun WhenContext.transformExpression(statement: IrExpression): IrExpression {
             val continueIndex = loops[statement.loop]!!.continueIndex
             append(builder.run { irBlock {
                 +irSet(stateVar, continueIndex)
-                +irReturn(irGetObject(suspendObject))
+                +irReturn(irGetObject(resumeObject))
             } })
             IrNothing
         }
