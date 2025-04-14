@@ -19,6 +19,7 @@ class CoroutineGenerator(
     val serializerDescriptor: IrFunctionReference,
     val invokeFunction: IrFunction,
     val restoreFunction: IrSimpleFunction,
+    val updateAsyncsFunction: IrFunction,
 ) {
     internal val generator = object : BaseIrGenerator(coroutine, serializationContext) {}
     internal val serializableFields = HashSet<IrField>()

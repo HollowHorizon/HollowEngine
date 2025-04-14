@@ -7,12 +7,15 @@ import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
+import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.statements
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.receiver
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.IrNothing
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
+import ru.hollowhorizon.hollowengine.compiler.identifiers.AsyncController
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Ignore
+import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
 class RestorablePropertyTransformer(
     private val replaces: MutableMap<IrVariableSymbol, Pair<IrValueParameter, IrField>> = hashMapOf(),
@@ -35,10 +38,15 @@ class RestorablePropertyTransformer(
     }
 
     override fun visitVariable(declaration: IrVariable): IrStatement {
-        if(declaration.symbol in filter) return super.visitVariable(declaration)
-        val isIgnored = declaration.annotations.hasAnnotation(Ignore)
+        if(declaration.symbol in filter || declaration.parent != coroutine.invokeFunction) return super.visitVariable(declaration)
+        var isIgnored = declaration.annotations.hasAnnotation(Ignore)
+
 
         val field = coroutine.addField(declaration.name, declaration.type)
+        if(field.type.classOrNull == pluginContext.referenceClass(AsyncController)) {
+            isIgnored = true
+            coroutine.addAsync(field)
+        }
         declaration.initializer?.let {
             if(isIgnored) {
                 field.initializer = field.builder().irExprBody(it)

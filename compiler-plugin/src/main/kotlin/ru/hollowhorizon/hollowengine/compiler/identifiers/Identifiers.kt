@@ -7,9 +7,11 @@ import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import ru.hollowhorizon.hollowengine.compiler.coroutine.AsyncController
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 val SCRIPTING_PACKAGE = FqName("ru.hollowhorizon.hollowengine.scripting")
 
+val AsyncController = ClassId(FqName("ru.hollowhorizon.hollowengine.compiler.coroutine"), Name.identifier("AsyncController"))
 val Suspendable = ClassId(SCRIPTING_PACKAGE, Name.identifier("Suspendable"))
 val Ignore = ClassId(SCRIPTING_PACKAGE, Name.identifier("Ignore"))
 val Restorable = ClassId(SCRIPTING_PACKAGE, Name.identifier("Restorable"))

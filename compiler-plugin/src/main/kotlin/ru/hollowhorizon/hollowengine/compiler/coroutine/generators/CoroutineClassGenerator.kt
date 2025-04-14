@@ -67,18 +67,14 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
                 )
             ).first()
         ) {
+            visitMemberAccess(expression)
             val coroutine = stack.peek() ?: return super.visitCall(expression)
-            val field = coroutine.addField(
-                Name.identifier("async\$coroutine\$${coroutine.asyncId++}"),
-                asyncController.defaultType
-            )
-            field.initializer = field.builder().run {
-                irExprBody(irCall(asyncController.constructors.first()).apply {
+
+            return coroutine.invokeFunction.builder().run {
+                irCall(asyncController.constructors.first()).apply {
                     putValueArgument(0, expression.getValueArgument(0))
-                })
+                }
             }
-            coroutine.addAsync(field)
-            return field.builder().irBlock { }
         }
         return super.visitCall(expression)
     }
@@ -210,6 +206,22 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
                 dispatchReceiverParameter = coroutine.thisReceiver
                 this.overriddenSymbols += coroutineLambda.classOrFail.getSimpleFunction("restoreState")!!
             }
+            val updateAsyncFunction = coroutine.addFunction {
+                updateFrom(function)
+                returnType = pluginContext.irBuiltIns.unitType
+                name = Name.identifier("updateAsyncs")
+            }.apply {
+                invokeFunction.parameters.forEach { v ->
+                    parameters += v
+                }
+                invokeFunction.typeParameters.forEach { value ->
+                    typeParameters += value
+                }
+                dispatchReceiverParameter = coroutine.thisReceiver
+                this.overriddenSymbols += coroutineLambda.classOrFail.getSimpleFunction("updateAsyncs")!!
+            }
+            updateAsyncFunction.body = builder().irBlockBody {  }
+
 
             // Создаём вложенный класс-сериализатор корутины
             val serializer = pluginContext.irFactory.buildClass {
@@ -261,7 +273,7 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
             val (property, descriptor) = serializer.createDescriptor(coroutine)
 
             val coroutineGenerator =
-                CoroutineGenerator(coroutine, serializer, property, descriptor, invokeFunction, restoreFunction)
+                CoroutineGenerator(coroutine, serializer, property, descriptor, invokeFunction, restoreFunction, updateAsyncFunction)
             coroutine.addChild(serializer)
             return coroutineGenerator
         }

@@ -10,19 +10,15 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
+import ru.hollowhorizon.hollowengine.compiler.identifiers.AsyncController
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
-internal val asyncController = pluginContext.referenceClass(
-    ClassId(
-        FqName("ru.hollowhorizon.hollowengine.compiler.coroutine"),
-        Name.identifier("AsyncController")
-    )
-)!!
+internal val asyncController = pluginContext.referenceClass(AsyncController)!!
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
 fun CoroutineGenerator.createAsyncs() {
     asyncs.forEach { field ->
-        (invokeFunction.body as IrBlockBody).statements += field.builder().run {
+        (updateAsyncsFunction.body as IrBlockBody).statements.add(0, field.builder().run {
             irIfThen(irEquals(
                 irCall(asyncController.getPropertyGetter("isActive")!!).apply {
                     dispatchReceiver = irGetField(irGet(receiver), field)
@@ -32,6 +28,6 @@ fun CoroutineGenerator.createAsyncs() {
             irCall(asyncController.functionByName("update")).apply {
                 dispatchReceiver = irGetField(irGet(receiver), field)
             })
-        }
+        })
     }
 }

@@ -1,10 +1,13 @@
 package ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements
 
+import org.jetbrains.kotlin.backend.common.lower.irThrow
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.*
+import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
@@ -43,6 +46,7 @@ fun WhenContext.transformStatement(statement: IrStatement): IrStatement {
 fun WhenContext.transformDeclaration(statement: IrDeclaration): IrDeclaration {
     return when (statement) {
         is IrVariable -> transformVariable(statement)
+        is IrClass -> statement
         else -> error("Unknown declaration type ${statement.javaClass.name}")
     }
 }
@@ -57,6 +61,10 @@ fun WhenContext.transformExpression(statement: IrExpression): IrExpression {
             statement
         }
         is IrFunctionExpression -> {
+            statement
+        }
+        is IrGetClass -> {
+            statement.argument = transformExpression(statement)
             statement
         }
         is IrFunctionAccessExpression -> transformCall(statement)
@@ -79,16 +87,35 @@ fun WhenContext.transformExpression(statement: IrExpression): IrExpression {
             } })
             IrNothing
         }
+        is IrVararg -> {
+            statement.elements.transformInPlace {
+                when (it) {
+                    is IrSpreadElement -> it.expression = transformExpression(it.expression)
+                    is IrExpression -> return transformExpression(it)
+                }
+                it
+            }
+            statement
+        }
         is IrWhen -> transformWhen(statement)
-        is IrConst, is IrGetField, is IrGetObjectValue -> statement
+        // TODO IrDeclarationReference, IrDynamicExpression
+        is IrConst, is IrGetObjectValue, is IrErrorExpression,
+        is IrInstanceInitializerCall, is IrConstantValue -> statement
         is IrTypeOperatorCall -> transformTypeOperator(statement)
         is IrReturn -> transformReturn(statement)
         is IrThrow -> transformThrow(statement)
         is IrNothing -> IrNothing
+        is IrGetField -> {
+            statement.receiver = statement.receiver?.let { transformExpression(it) }
+            statement
+        }
         is IrSetField -> {
             statement.value = transformExpression(statement.value)
             statement.receiver = statement.receiver?.let { transformExpression(it) }
             statement
+        }
+        is IrTry -> { //TODO: Я без понятия, как можно это обрабатывать, так что пока просто проигнорируем содержимое
+            return statement
         }
         else -> error("Unknown expression type ${statement.javaClass.name}!")
     }
@@ -99,7 +126,7 @@ fun WhenContext.transformReturn(statement: IrReturn): IrExpression {
 }
 
 fun WhenContext.transformThrow(statement: IrThrow): IrExpression {
-    return builder.irReturn(transformExpression(statement.value))
+    return builder.irThrow(transformExpression(statement.value))
 }
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)

@@ -29,6 +29,7 @@ import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.receiver
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.iterators.*
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.WhenContext
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
+import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isAsyncAwait
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 import ru.hollowhorizon.hollowengine.compiler.identifiers.*
 import ru.hollowhorizon.hollowengine.compiler.irOr
@@ -36,6 +37,7 @@ import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
 val suspendObject = pluginContext.referenceClass(SuspendState)!!
 val resumeObject = pluginContext.referenceClass(ResumeState)!!
+val asyncController = pluginContext.referenceClass(AsyncController)!!
 
 @OptIn(UnsafeDuringIrConstructionAPI::class)
 fun WhenContext.transformCall(call: IrFunctionAccessExpression): IrExpression {
@@ -52,6 +54,14 @@ fun WhenContext.transformCall(call: IrFunctionAccessExpression): IrExpression {
         }
     }
 
+    if (call.isAsyncAwait()) {
+        nextBranch(resume = true)
+        return builder.run {
+            irIfThen(irCall(asyncController.getPropertyGetter("isActive")!!).apply {
+                dispatchReceiver = call.dispatchReceiver
+            }, irReturn(irGetObject(suspendObject)))
+        }
+    }
     if (call.isSuspendable()) {
         val coroutineId = innerCallId++
         val owner = call.symbol.owner
@@ -74,13 +84,16 @@ private fun WhenContext.transformSFunctionCall(
     nextBranch(resume = true)
     (whenStatement.branches[nextBranch - 2].result as IrBlock)
         .statements.removeIf {
-            if(it !is IrSetField) return@removeIf false
-            if(it.receiver != call.dispatchReceiver) return@removeIf false
+            if (it !is IrSetField) return@removeIf false
+            if (it.receiver != call.dispatchReceiver) return@removeIf false
             append(it)
             true
         }
 
     val invokeResult = createVariable("invoke", owner, coroutineId, pluginContext.irBuiltIns.anyNType)
+    append(builder.irCall(owner.parentAsClass.getSimpleFunction("updateAsyncs")!!).apply {
+        setupCall(call)
+    })
     append(invokeResult)
     invokeResult.initializer = builder.irCall(owner.parentAsClass.getSimpleFunction("invoke")!!).apply {
         setupCall(call)
@@ -137,6 +150,10 @@ private fun WhenContext.transformSuspendableCall(
         setupCall(call)
         dispatchReceiver = builder.irGetField(builder.irGet(generator.receiver), coroutineVar)
     }
+    append(builder.irCall(coroutine.functionByName("updateAsyncs")).apply {
+        setupCall(call)
+        dispatchReceiver = builder.irGetField(builder.irGet(generator.receiver), coroutineVar)
+    })
     append(invokeResult)
     append(builder.run {
         irIfThen(
