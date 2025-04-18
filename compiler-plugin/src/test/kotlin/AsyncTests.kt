@@ -28,7 +28,7 @@ class AsyncTests {
 
 
     @Suppress("UNCHECKED_CAST")
-    private fun <T> makeCoroutine(name: String, decompile: Boolean = false): T {
+    private fun <T> makeCoroutine(name: String, params: String = "", decompile: Boolean = false): T {
         val file = TEST_DIR.resolve("$name.kt")
 
         val result = compile(SourceFile.kotlin(file.name, file.readText()))
@@ -37,7 +37,7 @@ class AsyncTests {
 
         if (decompile) CfrHelper.decompile(result)
 
-        return result.classLoader.loadCoroutine("test") as T
+        return result.classLoader.loadCoroutine("test$params") as T
     }
 
 }

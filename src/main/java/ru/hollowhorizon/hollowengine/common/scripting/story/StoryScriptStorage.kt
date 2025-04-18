@@ -35,16 +35,15 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolEvent
 import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolGuiScripts
-import ru.hollowhorizon.hollowengine.compiler.suspendable.ResumeState
-import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendContext
-import ru.hollowhorizon.hollowengine.compiler.suspendable.SuspendState
+import ru.hollowhorizon.hollowengine.scripting.ResumeState
+import ru.hollowhorizon.hollowengine.scripting.SuspendState
 import java.io.File
 import java.lang.StringBuilder
 import kotlin.script.experimental.api.isError
 import kotlin.script.experimental.api.valueOrThrow
 import kotlin.system.measureTimeMillis
 
-data class StoryScript(val context: SuspendContext, val event: StoryEvent, val file: String)
+data class StoryScript(val event: StoryEvent, val file: String)
 
 val STORY_EVENTS_SCRIPTS: MutableSet<StoryScript> = hashSetOf()
 
@@ -53,15 +52,13 @@ fun onStoryTick(event: TickEvent.Server) {
     if (!event.server.isRunning) return
 
     STORY_EVENTS_SCRIPTS.removeIf { script ->
-        script.context.resetLocks()
         try {
-            var result = script.event.tick(script.context)
-            while (result == ResumeState) result = script.event.tick(script.context)
+            var result = script.event.tick()
+            while (result == ResumeState) result = script.event.tick()
             if (result == SuspendState) return@removeIf false
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        event.server[StoryScriptStorage::class.java].scripts.remove(script.file)
         return@removeIf true
     }
 }
@@ -100,8 +97,8 @@ fun onStoryScriptSave(server: MinecraftServer) {
 
     STORY_EVENTS_SCRIPTS.forEach { script ->
         val file = script.file
-        val tag = script.context.serialize()
-        scripts[file] = StoryScriptStorage.TagWrapper(tag)
+//        val tag = script.context.serialize()
+//        scripts[file] = StoryScriptStorage.TagWrapper(tag)
     }
 }
 
@@ -118,9 +115,9 @@ fun startStoryEvent(script: File, tag: CompoundTag? = null) {
                 ?: error("Script instance is null")
 
             onMainThreadSync {
-                STORY_EVENTS_SCRIPTS.add(StoryScript(SuspendContext().apply {
-                    if (tag != null) deserialize(tag)
-                }, event, script.toReadablePath()))
+//                STORY_EVENTS_SCRIPTS.add(StoryScript(SuspendContext().apply {
+//                    if (tag != null) deserialize(tag)
+//                }, event, script.toReadablePath()))
             }
         }
         HollowCore.LOGGER.info("Story script started in $measureTime ms.")

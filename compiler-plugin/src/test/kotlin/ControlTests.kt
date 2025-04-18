@@ -18,7 +18,7 @@ class ControlTests {
 
     @Test
     fun `Control Suspendable Function (If-Else)`() {
-        val coroutine = makeCoroutine("IfElseSuspendables") as SFunction1<Boolean, Any?>
+        val coroutine = makeCoroutine("IfElseSuspendables", params = "Z") as SFunction1<Boolean, Any?>
         fun SFunction1<Boolean, Any?>.update(isFirst: Boolean): Any? {
             var result: Any?
             do {
@@ -36,7 +36,7 @@ class ControlTests {
 
     @Test
     fun `Control Suspendable Function (When)`() {
-        val coroutine = makeCoroutine("WhenSuspendables") as SFunction1<Int, Any?>
+        val coroutine = makeCoroutine("WhenSuspendables", params = "I") as SFunction1<Int, Any?>
         val initialState = json.encodeToString(coroutine.serializer, JvmHacks.forceCast(coroutine))
         fun SFunction1<Int, Any?>.reset() =  json.decodeFromString(serializer, JvmHacks.forceCast(initialState)) // Reset coroutine
         fun SFunction1<Int, Any?>.update(branch: Int): Any? {
@@ -61,7 +61,7 @@ class ControlTests {
 
     @Test
     fun `Control Suspendable Function (Return + Control)`() {
-        val coroutine = makeCoroutine("WhenReturnSuspendables") as SFunction1<Int, Any?>
+        val coroutine = makeCoroutine("WhenReturnSuspendables", params = "I") as SFunction1<Int, Any?>
         val initialState = json.encodeToString(coroutine.serializer, JvmHacks.forceCast(coroutine))
         fun SFunction1<Int, Any?>.reset() =  json.decodeFromString(serializer, JvmHacks.forceCast(initialState)) // Reset coroutine
         fun SFunction1<Int, Any?>.update(branch: Int): Any? {
@@ -118,16 +118,16 @@ class ControlTests {
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun <T> makeCoroutine(name: String, decompile: Boolean = false): T {
+    private fun <T> makeCoroutine(name: String, params: String = "", decompile: Boolean = false): T {
         val file = TEST_DIR.resolve("$name.kt")
 
         val result = compile(SourceFile.kotlin(file.name, file.readText()))
 
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
 
-        if (decompile) CfrHelper.decompile(result)
+        if(decompile) CfrHelper.decompile(result)
 
-        return result.classLoader.loadCoroutine("test") as T
+        return result.classLoader.loadCoroutine("test$params") as T
     }
 
 }

@@ -65,7 +65,7 @@ class SimpleTests {
 
     @Test
     fun `Simple Suspendable Function (Function parameters)`() {
-        val coroutine = makeCoroutine("ParametrizedSuspendableFunction") as SFunction2<String, String, Any?>
+        val coroutine = makeCoroutine("ParametrizedSuspendableFunction", params = "kotlin\$String_kotlin\$String") as SFunction2<String, String, Any?>
         fun SFunction2<String, String, Any?>.update(first: String, second: String): Any? {
             var result: Any?
             do {
@@ -82,7 +82,7 @@ class SimpleTests {
 
     @Test
     fun `Simple Suspendable Function (Several returns)`() {
-        val coroutine = makeCoroutine("SeveralReturnSuspendableFunction") as SFunction1<Boolean, Any?>
+        val coroutine = makeCoroutine("SeveralReturnSuspendableFunction", params = "Z") as SFunction1<Boolean, Any?>
         fun SFunction1<Boolean, Any?>.update(isFirst: Boolean): Any? {
             var result: Any?
             do {
@@ -100,8 +100,30 @@ class SimpleTests {
         assertTrue(serialized.contains("<stateIndex>"), "Serialized output must contain <stateIndex> field!")
     }
 
+    @Test
+    fun `Simple Suspendable Function (Polymorphic)`() {
+        val coroutine = makeCoroutine("PolymorphicSuspendableFunction") as SFunction0<Any?>
+        val launcher = SuspendLauncher(coroutine)
+
+        assertEquals(Unit, launcher.update(), "Suspend call did not return Unit!")
+
+        val serialized = json.encodeToString(coroutine.serializer, JvmHacks.forceCast(coroutine))
+        assertTrue(serialized.contains("<stateIndex>"), "Serialized output must contain <stateIndex> field!")
+    }
+
+    @Test
+    fun `Simple Suspendable Function (Inline)`() {
+        val coroutine = makeCoroutine("InlineSuspendableFunction", decompile = true) as SFunction0<Any?>
+        val launcher = SuspendLauncher(coroutine)
+
+        assertEquals(Unit, launcher.update(), "Suspend call did not return Unit!")
+
+        val serialized = json.encodeToString(coroutine.serializer, JvmHacks.forceCast(coroutine))
+        assertTrue(serialized.contains("<stateIndex>"), "Serialized output must contain <stateIndex> field!")
+    }
+
     @Suppress("UNCHECKED_CAST")
-    private fun <T> makeCoroutine(name: String, decompile: Boolean = false): T {
+    private fun <T> makeCoroutine(name: String, params: String = "", decompile: Boolean = false): T {
         val file = TEST_DIR.resolve("$name.kt")
 
         val result = compile(SourceFile.kotlin(file.name, file.readText()))
@@ -110,7 +132,7 @@ class SimpleTests {
 
         if(decompile) CfrHelper.decompile(result)
 
-        return result.classLoader.loadCoroutine("test") as T
+        return result.classLoader.loadCoroutine("test$params") as T
     }
 
 }

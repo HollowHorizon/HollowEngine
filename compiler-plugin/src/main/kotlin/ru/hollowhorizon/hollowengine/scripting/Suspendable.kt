@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.scripting
 
+import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFunction0
+
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.TYPE)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Suspendable
@@ -24,3 +26,5 @@ annotation class Restorable
 
 object SuspendState
 object ResumeState
+
+external fun script(value: Any?) : SFunction0<Any?>

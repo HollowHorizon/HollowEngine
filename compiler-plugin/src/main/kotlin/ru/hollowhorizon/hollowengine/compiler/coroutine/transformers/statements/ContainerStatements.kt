@@ -100,7 +100,7 @@ fun WhenContext.transformExpression(statement: IrExpression): IrExpression {
         is IrWhen -> transformWhen(statement)
         // TODO IrDeclarationReference, IrDynamicExpression
         is IrConst, is IrGetObjectValue, is IrErrorExpression,
-        is IrInstanceInitializerCall, is IrConstantValue -> statement
+        is IrInstanceInitializerCall, is IrConstantValue, is IrClassReference -> statement
         is IrTypeOperatorCall -> transformTypeOperator(statement)
         is IrReturn -> transformReturn(statement)
         is IrThrow -> transformThrow(statement)
@@ -116,6 +116,9 @@ fun WhenContext.transformExpression(statement: IrExpression): IrExpression {
         }
         is IrTry -> { //TODO: Я без понятия, как можно это обрабатывать, так что пока просто проигнорируем содержимое
             return statement
+        }
+        is IrGetEnumValue -> {
+            statement
         }
         else -> error("Unknown expression type ${statement.javaClass.name}!")
     }

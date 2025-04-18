@@ -30,7 +30,7 @@ class LambdaTests {
 
     @Test
     fun `Lambda Suspendable Function (One Call With Locals)`() {
-        val coroutine = makeCoroutine("LocalsLambdaSuspendableFunction") as SFunction1<String, Any?>
+        val coroutine = makeCoroutine("LocalsLambdaSuspendableFunction", params = "kotlin#String") as SFunction1<String, Any?>
         fun SFunction1<String, Any?>.update(branch: String): Any? {
             var result: Any?
             do {
@@ -75,7 +75,7 @@ class LambdaTests {
 
 
     @Suppress("UNCHECKED_CAST")
-    private fun <T> makeCoroutine(name: String, decompile: Boolean = false): T {
+    private fun <T> makeCoroutine(name: String, params: String = "", decompile: Boolean = false): T {
         val file = TEST_DIR.resolve("$name.kt")
 
         val result = compile(SourceFile.kotlin(file.name, file.readText()))
@@ -84,7 +84,7 @@ class LambdaTests {
 
         if(decompile) CfrHelper.decompile(result)
 
-        return result.classLoader.loadCoroutine("test") as T
+        return result.classLoader.loadCoroutine("test$params") as T
     }
 
 }

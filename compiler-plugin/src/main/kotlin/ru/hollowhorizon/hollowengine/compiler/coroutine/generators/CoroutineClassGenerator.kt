@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.renderer.render
 import org.jetbrains.kotlinx.serialization.compiler.backend.ir.addDefaultConstructorBodyIfAbsent
+import ru.hollowhorizon.hollowengine.compiler.coroutine.NameHelper
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.KSerializer
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.SerialDescriptor
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.serialBuilder
@@ -42,7 +43,6 @@ import kotlin.collections.set
 
 class CoroutineClassGenerator : IrElementTransformerVoid() {
     val functionToClass = HashMap<IrFunction, CoroutineGenerator>()
-    private val anonymousIndexes = HashMap<IrFunction, Int>()
 
     private val stack = ArrayList<CoroutineGenerator>()
 
@@ -80,7 +80,7 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
     }
 
     override fun visitFunction(declaration: IrFunction): IrStatement {
-        if (declaration.isSuspendable()) {
+        if (declaration.isSuspendable() && !declaration.isInline) {
             val generator = generate(declaration)
             functionToClass[declaration] = generator
 
@@ -91,15 +91,6 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
             declaration.body = declaration.builder().irBlockBody {}
         }
         return super.visitFunction(declaration)
-    }
-
-    private fun IrFunction.createName(): String = if (name.isAnonymous) {
-        val function = parent as IrFunction
-        val index = anonymousIndexes.getOrPut(function) { 0 }
-        anonymousIndexes[function] = index + 1
-        "Lambda\$$index"
-    } else {
-        name.identifier + "\$SerializableCoroutine"
     }
 
     private fun generate(function: IrFunction): CoroutineGenerator {
@@ -143,7 +134,7 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
             // Создаём новую корутину
             val coroutine = pluginContext.irFactory.createClass(
                 startOffset, endOffset, IrDeclarationOrigin.DEFINED,
-                Name.identifier(function.createName()),
+                Name.identifier(NameHelper.createName(function)),
                 DescriptorVisibilities.PUBLIC, IrClassSymbolImpl(), ClassKind.CLASS, Modality.FINAL
             )
 

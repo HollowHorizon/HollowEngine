@@ -6,25 +6,28 @@ import org.jetbrains.kotlin.backend.common.lower.irIfThen
 import org.jetbrains.kotlin.backend.jvm.functionByName
 import org.jetbrains.kotlin.backend.wasm.ir2wasm.allSuperInterfaces
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
+import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
-import org.jetbrains.kotlin.ir.expressions.IrBlock
-import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
-import org.jetbrains.kotlin.ir.expressions.IrSetField
+import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
-import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.classOrFail
-import org.jetbrains.kotlin.ir.types.defaultType
+import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
+import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.renderer.render
+import ru.hollowhorizon.hollowengine.compiler.coroutine.NameHelper
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.receiver
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.iterators.*
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.WhenContext
@@ -115,16 +118,28 @@ private fun WhenContext.transformSFunctionCall(
     return builder.irGet(coroutineResult)
 }
 
-@OptIn(UnsafeDuringIrConstructionAPI::class)
+@OptIn(UnsafeDuringIrConstructionAPI::class, ObsoleteDescriptorBasedAPI::class)
 private fun WhenContext.transformSuspendableCall(
     call: IrFunctionAccessExpression,
     owner: IrFunction,
     coroutineId: Int,
 ): IrExpression {
-    val className = ClassId(
-        owner.getPackageFragment().packageFqName,
-        Name.identifier("${owner.name.asString().capitalize()}\$SerializableCoroutine")
-    )
+    val body = owner.body
+    if(owner.isInline && body != null) {
+        body.transformChildrenVoid(object: IrElementTransformerVoid() {
+            override fun visitClassReference(expression: IrClassReference): IrExpression {
+                (expression.classType.classifierOrNull as? IrTypeParameterSymbol)?.let { type ->
+                    val index = type.descriptor.index
+                    expression.classType = call.getTypeArgument(index)!!
+                }
+                return super.visitClassReference(expression)
+            }
+        })
+        transformBody(body)
+        return IrNothing
+    }
+
+    val className = ClassId.topLevel(FqName(NameHelper.createName(owner)))
     val coroutine = functionToClass[owner]?.coroutine?.symbol ?: pluginContext.referenceClass(className)
     ?: error("Class ${className.asSingleFqName().render()} not found!")
 

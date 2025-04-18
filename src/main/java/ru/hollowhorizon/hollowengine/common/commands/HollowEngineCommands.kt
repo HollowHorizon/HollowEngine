@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.commands
 
-import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.brigadier.arguments.StringArgumentType
 import kotlinx.serialization.Serializable
 import net.minecraft.ChatFormatting
@@ -13,16 +12,15 @@ import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.onRegisterCommands
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterCommandsEvent
-import ru.hollowhorizon.hc.common.network.HollowPacketHandler
 import ru.hollowhorizon.hc.common.network.HollowPacket
+import ru.hollowhorizon.hc.common.network.HollowPacketHandler
 import ru.hollowhorizon.hc.common.utils.*
-import ru.hollowhorizon.hollowengine.client.gui.npcs.dialogue.DialogueGui
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
-import ru.hollowhorizon.hollowengine.common.scripting.story.STORY_EVENTS_SCRIPTS
-import ru.hollowhorizon.hollowengine.common.scripting.story.startGuiScript
-import ru.hollowhorizon.hollowengine.common.scripting.story.startStoryEvent
+import ru.hollowhorizon.hollowengine.common.scripting.story.*
+import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFunction0
+import ru.hollowhorizon.hollowengine.scripting.script
 import java.io.File
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -105,7 +103,21 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                 HollowCore.LOGGER.info("Started script $script")
             }
 
-            "active-events" events@ {
+            "example" {
+                try {
+                    val script = script(exampleScript())
+
+                    STORY_EVENTS_SCRIPTS.add(StoryScript(object : StoryEvent() {
+                        override fun tick(): Any? {
+                            return script()
+                        }
+                    }, "Example"))
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            "active-events" events@{
                 val player = source.player ?: return@events
 
                 player.sendSystemMessage("Active story events:".literal)

@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.ir.util.parentAsClass
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineGenerator
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.IrNothing
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.resumeObject
+import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.suspendObject
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
 class WhenContext(
@@ -53,7 +54,7 @@ class WhenContext(
     fun isBranchEmpty() =
         nextBranch == 0 || (whenStatement.branches[nextBranch - 1].result as IrBlock).statements.isEmpty()
 
-    fun nextBranch(skipInc: Boolean = false, resume: Boolean = false) {
+    fun nextBranch(skipInc: Boolean = false, resume: Boolean = false, suspend: Boolean = false) {
         if (isBranchEmpty()) return
 
         if (!skipInc) {
@@ -61,6 +62,9 @@ class WhenContext(
         }
         if (resume) {
             append(builder.run { irReturn(irGetObject(resumeObject)) })
+        }
+        if(suspend) {
+            append(builder.run { irReturn(irGetObject(suspendObject)) })
         }
 
         whenStatement.branches += with(builder) {

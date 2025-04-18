@@ -33,7 +33,7 @@ fun WhenContext.transformLoop(loop: IrLoop): IrExpression {
             append(transformExpression(it))
         }
         append(builder.run { irSet(stateVar, irInt(nextBranch)) })
-        nextBranch(true, resume = true)
+        nextBranch(true, suspend = true)
     }
 
     append(
@@ -53,7 +53,7 @@ fun WhenContext.transformLoop(loop: IrLoop): IrExpression {
             append(transformExpression(it))
         }
         append(builder.run { irSet(stateVar, irInt(currentBranch)) })
-        nextBranch(true, resume = true)
+        nextBranch(true, suspend = true)
     }
 
     breakContinue.breakIndex.value = nextBranch-1
