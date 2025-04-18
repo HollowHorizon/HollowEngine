@@ -6,22 +6,18 @@ import org.jetbrains.kotlin.backend.common.lower.irIfThen
 import org.jetbrains.kotlin.backend.jvm.functionByName
 import org.jetbrains.kotlin.backend.wasm.ir2wasm.allSuperInterfaces
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
-import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
 import org.jetbrains.kotlin.ir.expressions.*
-import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
-import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
@@ -124,19 +120,22 @@ private fun WhenContext.transformSuspendableCall(
     owner: IrFunction,
     coroutineId: Int,
 ): IrExpression {
-    val body = owner.body
-    if(owner.isInline && body != null) {
-        body.transformChildrenVoid(object: IrElementTransformerVoid() {
-            override fun visitClassReference(expression: IrClassReference): IrExpression {
-                (expression.classType.classifierOrNull as? IrTypeParameterSymbol)?.let { type ->
-                    val index = type.descriptor.index
-                    expression.classType = call.getTypeArgument(index)!!
-                }
-                return super.visitClassReference(expression)
+    val ownerBody = owner.body
+    if(owner.isInline && ownerBody != null) {
+        val body = ownerBody.deepCopyWithSymbols(builder.parent)
+        body.transformChildrenVoid(InlineSuspendableLowering(call, builder.parent as IrFunction))
+
+        return when(body) {
+            is IrExpressionBody -> {
+                transformExpression(body.expression)
             }
-        })
-        transformBody(body)
-        return IrNothing
+
+            is IrBlockBody -> {
+                transformContainer(body, call.type)
+            }
+
+            else -> error("Usupported body expression type")
+        }
     }
 
     val className = ClassId.topLevel(FqName(NameHelper.createName(owner)))

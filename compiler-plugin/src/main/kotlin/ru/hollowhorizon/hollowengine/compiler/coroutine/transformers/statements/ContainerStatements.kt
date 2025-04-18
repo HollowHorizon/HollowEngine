@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.statements
 import org.jetbrains.kotlin.ir.util.transformInPlace
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
@@ -26,13 +27,13 @@ fun WhenContext.transformBody(body: IrBody) {
     }
 }
 
-fun WhenContext.transformContainer(body: IrContainerExpression): IrExpression {
+fun WhenContext.transformContainer(body: IrStatementContainer, type: IrType): IrExpression {
     body.statements.forEach {
         val stmt = transformStatement(it)
         if (stmt is IrNothing) return@forEach
         append(stmt)
     }
-    return if(body.type == pluginContext.irBuiltIns.unitType) IrNothing else removeLastStatement() as? IrExpression ?: IrNothing
+    return if(type == pluginContext.irBuiltIns.unitType) IrNothing else removeLastStatement() as? IrExpression ?: IrNothing
 }
 
 fun WhenContext.transformStatement(statement: IrStatement): IrStatement {
@@ -53,7 +54,7 @@ fun WhenContext.transformDeclaration(statement: IrDeclaration): IrDeclaration {
 
 fun WhenContext.transformExpression(statement: IrExpression): IrExpression {
     return when (statement) {
-        is IrContainerExpression -> transformContainer(statement)
+        is IrContainerExpression -> transformContainer(statement, statement.type)
         is IrStringConcatenation -> {
             statement.arguments.transformInPlace {
                 transformExpression(it)

@@ -16,9 +16,13 @@ import org.jetbrains.kotlin.ir.expressions.IrValueAccessExpression
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
-import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.util.constructors
+import org.jetbrains.kotlin.ir.util.createDispatchReceiverParameter
+import org.jetbrains.kotlin.ir.util.getSimpleFunction
+import org.jetbrains.kotlin.ir.util.superClass
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.name.Name
+import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
@@ -35,9 +39,7 @@ class ScriptRelocator : IrElementTransformerVoid() {
         val fileName = (declaration.parent as? IrFile)?.name ?: return super.visitClass(declaration)
         if (!fileName.endsWith(".story.kts")) return super.visitClass(declaration)
 
-        val builder = pluginContext.irBuiltIns
-            .createIrBuilder(declaration.symbol, declaration.startOffset, declaration.endOffset)
-
+        val builder = declaration.builder()
         val storyEvent = declaration.superClass ?: error("StoryEvent class not found!")
         val original = storyEvent.getSimpleFunction("tick")!!
 

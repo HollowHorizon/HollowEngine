@@ -110,7 +110,7 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
             serializableTransformer.use(info, CoroutineGenerator::restoreFunction)
             restorableTransformer.use(info, CoroutineGenerator::restoreFunction)
 
-            // println(info.coroutine.dumpKotlinLike())
+            println(info.coroutine.dumpKotlinLike())
         }
 
         moduleFragment.transformChildrenVoid(object: IrElementTransformerVoid() {

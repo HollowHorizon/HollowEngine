@@ -23,3 +23,17 @@ class ScriptingEventListener(val eventType: String) {
     @Transient
     var result: Event? = null
 }
+
+@Suspendable
+inline fun <reified T : Event> await(): T {
+    val listener = ScriptingEventListener(T::class.java.name)
+    while(listener.result == null);
+    return listener.result!! as T
+}
+
+@Suspendable
+fun test() {
+    val event = await<PlayerInteractEvent.EntityInteract>()
+
+    event.player.sendSystemMessage(("Смари, я нашёл "+ event.target.name.string).literal)
+}

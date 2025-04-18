@@ -2,15 +2,23 @@ import ru.hollowhorizon.hollowengine.scripting.Suspendable
 
 @Suspendable
 fun test() {
-    innerCall<Suspendable>()
+    innerCall<Suspendable>("Hello")
 }
 
 @Suspendable
-inline fun <reified T> innerCall() {
-    innerCall2(T::class.java)
+inline fun <reified T> innerCall(text: String) {
+    innerCall2(text, T::class.java)
 }
 
 @Suspendable
-fun innerCall2(type: Class<*>) {
-    println("Hello: $type")
+inline fun <reified T> await(value: T): T {
+    val listener = value
+    while(listener == null);
+    return listener as T
+}
+
+
+@Suspendable
+fun innerCall2(text: String, type: Class<*>) {
+    println("$text: $type")
 }
