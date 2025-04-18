@@ -38,13 +38,14 @@ class InlineSuspendableLowering(val call: IrFunctionAccessExpression, val parent
         return super.visitGetClass(expression)
     }
 
+    @OptIn(UnsafeDuringIrConstructionAPI::class)
     override fun visitGetValue(expression: IrGetValue): IrExpression {
         // Обработка inline параметров (например, лямбд)
         val parameter = expression.symbol.owner
         if (parameter is IrValueParameter) {
-            val index = call.symbol.owner.valueParameters.indexOfFirst { it.symbol == expression.symbol }
-            if (index != -1 && index < call.valueArgumentsCount) {
-                call.getValueArgument(index)?.let { return it }
+            val index = call.symbol.owner.parameters.indexOfFirst { it.symbol == expression.symbol }
+            if (index != -1 && index < call.arguments.size) {
+                call.arguments[index]?.let { return it }
             }
         }
         return super.visitGetValue(expression)

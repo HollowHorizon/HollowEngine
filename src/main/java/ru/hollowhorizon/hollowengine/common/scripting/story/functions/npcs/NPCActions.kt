@@ -28,7 +28,7 @@ fun NPCEntity.move(entity: Entity, dist: Double = 1.5, speed: Double = 1.0) {
 }
 
 @Suspendable
-infix fun NPCEntity.move(mob: Entity): Unit = move(entity = mob)
+inline infix fun NPCEntity.move(mob: Entity): Unit = move(entity = mob)
 
 @Suspendable
 fun NPCEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
@@ -40,7 +40,7 @@ fun NPCEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
 }
 
 @Suspendable
-infix fun NPCEntity.move(position: Vec3): Unit = move(pos = position)
+inline infix fun NPCEntity.move(position: Vec3): Unit = move(pos = position)
 
 @Suspendable
 infix fun NPCEntity.look(position: Vec3) {

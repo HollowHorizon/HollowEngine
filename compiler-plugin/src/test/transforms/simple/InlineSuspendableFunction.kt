@@ -2,19 +2,12 @@ import ru.hollowhorizon.hollowengine.scripting.Suspendable
 
 @Suspendable
 fun test() {
-    innerCall<Suspendable>("Hello")
+    "Hello".innerCall<Suspendable>()
 }
 
 @Suspendable
-inline fun <reified T> innerCall(text: String) {
-    innerCall2(text, T::class.java)
-}
-
-@Suspendable
-inline fun <reified T> await(value: T): T {
-    val listener = value
-    while(listener == null);
-    return listener as T
+inline fun <reified T> String.innerCall() {
+    innerCall2(this, T::class.java)
 }
 
 

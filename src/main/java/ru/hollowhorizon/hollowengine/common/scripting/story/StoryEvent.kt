@@ -1,12 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import net.minecraft.server.MinecraftServer
+import ru.hollowhorizon.hc.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.move
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.npc
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.pos
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.say
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.await
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.*
 import ru.hollowhorizon.hollowengine.scripting.Suspendable
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.defaultImports
@@ -43,4 +42,13 @@ fun exampleScript() {
     npc move player
 
     npc say "Жесть, оно работает?!"
+
+    npc say "Как у тебя дела?!"
+
+    val event = await<ServerChatEvent>()
+    val input = event.message.string
+
+    npc say "\"$input\", говоришь?"
+    wait(2.sec)
+    npc say "Ну ладно, у меня тоже всё $input"
 }
