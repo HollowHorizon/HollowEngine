@@ -6,11 +6,9 @@ import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irSet
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
-import org.jetbrains.kotlin.ir.expressions.IrElseBranch
-import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrSetValue
-import org.jetbrains.kotlin.ir.expressions.IrWhen
+import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
+import org.jetbrains.kotlin.ir.util.transformInPlace
 import org.jetbrains.kotlin.name.Name
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.WhenContext
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
@@ -22,7 +20,7 @@ fun WhenContext.transformWhen(statement: IrWhen): IrExpression = builder.run {
             endOffset,
             IrDeclarationOrigin.DEFINED,
             IrVariableSymbolImpl(),
-            name = Name.identifier("whenResult$$whenResultId"),
+            name = Name.identifier("whenResult$${whenResultId++}"),
             statement.type,
             true,
             isConst = false,

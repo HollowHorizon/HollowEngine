@@ -19,13 +19,12 @@ val loops = hashMapOf<IrLoop, BreakContinue>()
 fun WhenContext.transformLoop(loop: IrLoop): IrExpression {
     val isDoWhile = loop is IrDoWhileLoop
 
+    if(!isBranchEmpty()) nextBranch(resume = true)
+    val currentBranch = nextBranch - 1
     val breakContinue = loops.getOrPut(loop) { BreakContinue(this) }
     loop.condition = transformExpression(loop.condition)
 
-    if(!isBranchEmpty()) nextBranch(resume = true)
     val elseBranch = builder.run { irSet(stateVar, irInt(nextBranch)) }
-
-    val currentBranch = nextBranch - 1
 
     // Если цикл do-while, выполняем тело до проверки условия
     if (isDoWhile) {

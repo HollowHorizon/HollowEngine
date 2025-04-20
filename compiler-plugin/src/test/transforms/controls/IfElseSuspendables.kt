@@ -11,6 +11,10 @@ fun test(first: Boolean) {
     if(first) innerCall2()
     if(first) innerCall2()
     if(!first) innerCall2()
+
+    if(first && !first) {
+        if(first || !first) println("How")
+    }
 }
 
 @Suspendable

@@ -88,7 +88,7 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
             info.createAsyncs()
 
             val fields = groupRestorableFields(info.branchMap)
-
+            fields.clear() //TODO: Make better state capture
             info.restoreFunction.body = info.restoreFunction.builder().irBlockBody {
                 fields.forEach { (range, values) ->
                     val stateIndex = irGetField(irGet(info.receiver), info.stateIndex)

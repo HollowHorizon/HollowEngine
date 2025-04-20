@@ -5,7 +5,7 @@ import java.util.Random
 fun test() {
     val rand = Random()
     var value = -1
-    while(rand.nextInt(10).apply { value = this } > 1) {
+    while(rand.nextInt(10).apply { value = this } > 1 && example()) {
         innerCall(value)
     }
 }
@@ -14,3 +14,6 @@ fun test() {
 fun innerCall(value: Int) {
     println("Value: $value")
 }
+
+@Suspendable
+fun example() = true
