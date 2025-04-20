@@ -18,7 +18,6 @@ class AsyncTests {
         val coroutine = makeCoroutine("AsyncSuspendable", decompile = true) as SFunction0<Any?>
         val launcher = SuspendLauncher(coroutine)
 
-        assertEquals(SuspendState, launcher.update(), "First call did not return SuspendState!") // Async was only started at that state
         assertEquals(Unit, launcher.update(), "First call did not return Unit!")
 
         val serialized = json.encodeToString(coroutine.serializer, JvmHacks.forceCast(coroutine))

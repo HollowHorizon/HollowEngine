@@ -103,20 +103,6 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                 HollowCore.LOGGER.info("Started script $script")
             }
 
-            "example" {
-                try {
-                    val script = script(exampleScript())
-
-                    STORY_EVENTS_SCRIPTS.add(StoryScript(object : StoryEvent() {
-                        override fun tick(): Any? {
-                            return script()
-                        }
-                    }, "Example"))
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-
             "active-events" events@{
                 val player = source.player ?: return@events
 

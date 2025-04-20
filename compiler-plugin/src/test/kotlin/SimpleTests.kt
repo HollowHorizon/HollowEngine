@@ -65,7 +65,7 @@ class SimpleTests {
 
     @Test
     fun `Simple Suspendable Function (Function parameters)`() {
-        val coroutine = makeCoroutine("ParametrizedSuspendableFunction", params = "kotlin\$String_kotlin\$String") as SFunction2<String, String, Any?>
+        val coroutine = makeCoroutine("ParametrizedSuspendableFunction", params = "kotlin_String_kotlin_String") as SFunction2<String, String, Any?>
         fun SFunction2<String, String, Any?>.update(first: String, second: String): Any? {
             var result: Any?
             do {

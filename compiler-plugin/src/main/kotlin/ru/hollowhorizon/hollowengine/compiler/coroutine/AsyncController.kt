@@ -22,6 +22,7 @@ class AsyncController(val action: SFunction0<Any?>) {
     val serializer = Serializer()
 
     fun update() {
+        action.updateAsyncs()
         if (isActive) {
             var result: Any?
             do {

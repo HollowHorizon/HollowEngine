@@ -11,18 +11,19 @@ import org.jetbrains.kotlin.ir.types.classifierOrNull
 import org.jetbrains.kotlin.ir.util.fqNameWhenAvailable
 
 object NameHelper {
+    private const val SEPARATOR = "_"
     private val anonymousIndexes = HashMap<IrFunction, Int>()
 
     fun createName(function: IrFunction) = if (function.name.isAnonymous) {
         val parentFunction = function.parent as IrFunction
         val index = anonymousIndexes.getOrPut(parentFunction) { 0 }
         anonymousIndexes[parentFunction] = index + 1
-        "Lambda\$$index"
+        "Lambda${SEPARATOR}$index"
     } else {
-        val parameterTypes = function.valueParameters.joinToString("_") { param ->
+        val parameterTypes = function.valueParameters.joinToString(SEPARATOR) { param ->
             param.type.toJvmDescriptor()
         }
-        function.name.identifier + parameterTypes + "\$SerializableCoroutine"
+        function.name.identifier + parameterTypes + "${SEPARATOR}SerializableCoroutine"
     }
 
     @OptIn(UnsafeDuringIrConstructionAPI::class)
@@ -30,7 +31,7 @@ object NameHelper {
         return when (val classifier = this.classifierOrNull) {
             is IrClassSymbol -> mapClassToDescriptor(classifier.owner)
             is IrTypeParameterSymbol -> "T" // Обобщённый тип (условно)
-            else -> "java\$lang\$Object"     // fallback
+            else -> "java${SEPARATOR}lang${SEPARATOR}Object"     // fallback
         }
     }
 
@@ -46,7 +47,7 @@ object NameHelper {
             "kotlin.Char" -> "C"
             "kotlin.Unit" -> "V"
             else -> {
-                clazz.fqNameWhenAvailable?.asString()?.replace(".", "$") ?: "java\$lang\$Object"
+                clazz.fqNameWhenAvailable?.asString()?.replace(".", SEPARATOR) ?: "java${SEPARATOR}lang${SEPARATOR}Object"
             }
         }
     }

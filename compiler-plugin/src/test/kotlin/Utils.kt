@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationComponentRegistrar
 import ru.hollowhorizon.hollowengine.compiler.HollowEngineCompilerRegistrar
+import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFunction0
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.host.ScriptingHostConfiguration
@@ -21,7 +22,7 @@ import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.util.classpathFromClassloader
 import kotlin.script.experimental.jvmhost.JvmScriptCompiler
 
-fun ClassLoader.loadCoroutine(name: String) = loadClass("$name\$SerializableCoroutine")
+fun ClassLoader.loadCoroutine(name: String) = loadClass("${name}_SerializableCoroutine")
     .getConstructor().newInstance()
 
 val json = Json {
@@ -86,10 +87,8 @@ private fun ResultWithDiagnostics<*>.errors() = reports.map {
     fileExtension = "story.kts",
     compilationConfiguration = Configuration::class
 )
-abstract class StoryEvent {
+abstract class StoryEvent: SFunction0<Any?> {
     val hello = "world"
-
-    abstract fun tick(): Any?
 }
 
 class Configuration : ScriptCompilationConfiguration({

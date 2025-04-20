@@ -41,13 +41,13 @@ class ScriptRelocator : IrElementTransformerVoid() {
 
         val builder = declaration.builder()
         val storyEvent = declaration.superClass ?: error("StoryEvent class not found!")
-        val original = storyEvent.getSimpleFunction("tick")!!
+        val original = storyEvent.getSimpleFunction("invoke")!!
 
         hasScript = true
 
         this.function = pluginContext.irFactory.createSimpleFunction(
             declaration.startOffset, declaration.endOffset, IrDeclarationOrigin.DEFINED,
-            Name.identifier("tick"), original.owner.visibility,
+            Name.identifier("invoke"), original.owner.visibility,
             isInline = false,
             isExpect = false,
             returnType = pluginContext.irBuiltIns.anyNType,

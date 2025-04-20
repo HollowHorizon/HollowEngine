@@ -6,11 +6,11 @@ import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.client.models.internal.Transform
 import ru.hollowhorizon.hc.client.models.internal.animations.AnimationType
 import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hc.common.utils.colored
-import ru.hollowhorizon.hc.common.utils.get
-import ru.hollowhorizon.hc.common.utils.mcText
 import ru.hollowhorizon.hc.common.network.HollowPacket
 import ru.hollowhorizon.hc.common.network.HollowPacketHandler
+import ru.hollowhorizon.hc.common.utils.colored
+import ru.hollowhorizon.hc.common.utils.get
+import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
@@ -42,14 +42,14 @@ class NPCCreatorPacket(
 ) : HollowPacket<NPCCreatorPacket> {
     override fun handle(player: Player) {
         if (!player.hasPermissions(2)) {
-            player.sendSystemMessage("У вас не достаточно прав для этого действия!".mcText)
+            player.sendSystemMessage("У вас не достаточно прав для этого действия!".literal)
             return
         }
 
         val entity = player.level().getEntity(id) as? NPCEntity
 
         if (entity == null) {
-            player.sendSystemMessage("Ошибка, персонаж не был заспавнен!".mcText.colored(0xFF2222))
+            player.sendSystemMessage("Ошибка, персонаж не был заспавнен!".literal.colored(0xFF2222))
             return
         }
 
@@ -64,7 +64,7 @@ class NPCCreatorPacket(
 
         entity.isInvulnerable = invulnerable
         entity.isCustomNameVisible = showName && this@NPCCreatorPacket.name.isNotEmpty()
-        entity.customName = name.mcText
+        entity.customName = name.literal
         entity.setDimensions(hitboxWidth to hitboxHeight)
         entity.refreshDimensions()
     }

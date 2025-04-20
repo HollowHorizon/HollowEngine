@@ -1,4 +1,4 @@
-@file:OptIn(UnsafeDuringIrConstructionAPI::class)
+@file:OptIn(UnsafeDuringIrConstructionAPI::class, ObsoleteDescriptorBasedAPI::class)
 
 package ru.hollowhorizon.hollowengine.compiler.coroutine.generators
 
@@ -6,11 +6,11 @@ import org.jetbrains.kotlin.backend.common.ir.createExtensionReceiver
 import org.jetbrains.kotlin.backend.common.peek
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
-import org.jetbrains.kotlin.backend.common.serialization.mangle.ir.isAnonymous
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.builders.declarations.*
 import org.jetbrains.kotlin.ir.declarations.*
@@ -81,19 +81,108 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
 
     override fun visitFunction(declaration: IrFunction): IrStatement {
         if (declaration.isSuspendable() && !declaration.isInline) {
-            val generator = generate(declaration)
+            val isScript = declaration.parentClassOrNull?.origin == IrDeclarationOrigin.SCRIPT_CLASS
+
+            val generator =
+                if (isScript) generateForScript(declaration.parentAsClass) else generateForFunction(declaration)
             functionToClass[declaration] = generator
 
             stack.push(generator)
             generator.invokeFunction.transformChildrenVoid()
             stack.pop()
 
-            declaration.body = declaration.builder().irBlockBody {}
+            if (!isScript) declaration.body = declaration.builder().irBlockBody {}
         }
         return super.visitFunction(declaration)
     }
 
-    private fun generate(function: IrFunction): CoroutineGenerator {
+    private fun generateForScript(coroutine: IrClass): CoroutineGenerator {
+        val lambda = coroutine.superClass ?: error("Script is not story event function")
+        val invokeFunction = coroutine.getSimpleFunction("invoke")!!.owner
+        coroutine.thisReceiver = invokeFunction.dispatchReceiverParameter
+        val restoreFunction = coroutine.addFunction {
+            updateFrom(invokeFunction)
+            returnType = pluginContext.irBuiltIns.unitType
+            name = Name.identifier("restoreState")
+        }.apply {
+            dispatchReceiverParameter = coroutine.thisReceiver
+            this.overriddenSymbols += lambda.getSimpleFunction("restoreState")!!
+        }
+        val updateAsyncFunction = coroutine.addFunction {
+            updateFrom(invokeFunction)
+            returnType = pluginContext.irBuiltIns.unitType
+            name = Name.identifier("updateAsyncs")
+        }.apply {
+            dispatchReceiverParameter = coroutine.thisReceiver
+            this.overriddenSymbols += lambda.getSimpleFunction("updateAsyncs")!!
+        }
+        updateAsyncFunction.body = coroutine.builder().irBlockBody { }
+
+
+        // Создаём вложенный класс-сериализатор корутины
+        val serializer = pluginContext.irFactory.buildClass {
+            name = Name.identifier("Serializer")
+            kind = ClassKind.CLASS
+        }.apply {
+            parent = coroutine
+            isInner = true
+            createThisReceiverParameter()
+            val constructor = addConstructor {
+                isPrimary = true
+            }
+            constructor.addValueParameter(
+                Name.identifier("this$0"),
+                coroutine.defaultType,
+                IrDeclarationOrigin.FIELD_FOR_OUTER_THIS
+            ).kind = IrParameterKind.DispatchReceiver
+            addDefaultConstructorBodyIfAbsent(pluginContext)
+            superTypes += pluginContext.referenceClass(
+                ClassId(
+                    FqName("kotlinx.serialization"),
+                    Name.identifier("KSerializer")
+                )
+            )!!.typeWith(coroutine.defaultType)
+        }
+
+        coroutine.addProperty {
+            name = Name.identifier("serializer")
+        }.apply {
+            addGetter {
+                returnType = pluginContext.referenceClass(
+                    ClassId(
+                        FqName("kotlinx.serialization"),
+                        Name.identifier("KSerializer")
+                    )
+                )!!.typeWith()
+            }.apply {
+                this.dispatchReceiverParameter = coroutine.thisReceiver
+                body = builder().run {
+                    irExprBody(irCall(serializer.primaryConstructor!!.symbol).apply {
+                        dispatchReceiver = irGet(coroutine.thisReceiver!!)
+                    })
+                }
+            }
+            val prop = coroutine.properties
+                .first { it.name == Name.identifier("serializer") }
+            this.overriddenSymbols += prop.symbol
+        }
+        val (property, descriptor) = serializer.createDescriptor(coroutine)
+
+        val coroutineGenerator =
+            CoroutineGenerator(
+                coroutine,
+                serializer,
+                property,
+                descriptor,
+                invokeFunction,
+                restoreFunction,
+                updateAsyncFunction
+            )
+        coroutine.addChild(serializer)
+        return coroutineGenerator
+    }
+
+    private fun generateForFunction(function: IrFunction): CoroutineGenerator {
         function.parameters = function.parameters.map {
             if (!it.hasAnnotation(Suspendable) && !it.type.hasAnnotation(Suspendable)) return@map it
 
@@ -137,7 +226,6 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
                 Name.identifier(NameHelper.createName(function)),
                 DescriptorVisibilities.PUBLIC, IrClassSymbolImpl(), ClassKind.CLASS, Modality.FINAL
             )
-
 
             coroutine.createThisReceiverParameter()
             val constructor = coroutine.addConstructor {
@@ -211,7 +299,7 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
                 dispatchReceiverParameter = coroutine.thisReceiver
                 this.overriddenSymbols += coroutineLambda.classOrFail.getSimpleFunction("updateAsyncs")!!
             }
-            updateAsyncFunction.body = builder().irBlockBody {  }
+            updateAsyncFunction.body = builder().irBlockBody { }
 
 
             // Создаём вложенный класс-сериализатор корутины
@@ -264,7 +352,15 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
             val (property, descriptor) = serializer.createDescriptor(coroutine)
 
             val coroutineGenerator =
-                CoroutineGenerator(coroutine, serializer, property, descriptor, invokeFunction, restoreFunction, updateAsyncFunction)
+                CoroutineGenerator(
+                    coroutine,
+                    serializer,
+                    property,
+                    descriptor,
+                    invokeFunction,
+                    restoreFunction,
+                    updateAsyncFunction
+                )
             coroutine.addChild(serializer)
             return coroutineGenerator
         }
@@ -317,7 +413,7 @@ val csdbClass = pluginContext.referenceClass(
 ) ?: error("ClassSerialDescriptorBuilder not found")
 
 // Создание лямбды для ClassSerialDescriptorBuilder
-private fun IrClass.createLambda(): IrFunctionReference {
+internal fun IrClass.createLambda(): IrFunctionReference {
     val irBuiltIns = pluginContext.irBuiltIns
     val receiverType = csdbClass.defaultType
     val lambdaType = irBuiltIns.functionN(1)

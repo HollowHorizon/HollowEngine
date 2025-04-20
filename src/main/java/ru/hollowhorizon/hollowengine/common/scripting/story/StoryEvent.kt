@@ -6,6 +6,7 @@ import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.await
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.*
+import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFunction0
 import ru.hollowhorizon.hollowengine.scripting.Suspendable
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.defaultImports
@@ -15,11 +16,9 @@ import kotlin.script.experimental.api.defaultImports
     fileExtension = "story.kts",
     compilationConfiguration = StoryConfiguration::class
 )
-abstract class StoryEvent {
+abstract class StoryEvent: SFunction0<Any?> {
     val server = currentServer
     val MinecraftServer.players get() = playerList.players
-
-    abstract fun tick(): Any?
 }
 
 class StoryConfiguration : HollowScriptConfiguration({

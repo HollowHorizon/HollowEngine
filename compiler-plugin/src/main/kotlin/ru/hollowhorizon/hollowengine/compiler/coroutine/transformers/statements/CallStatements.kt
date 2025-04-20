@@ -16,14 +16,16 @@ import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
-import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classOrFail
+import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.renderer.render
 import ru.hollowhorizon.hollowengine.compiler.coroutine.NameHelper
+import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.FakeCoroutine
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.receiver
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.iterators.*
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.WhenContext
@@ -62,7 +64,8 @@ fun WhenContext.transformCall(call: IrFunctionAccessExpression): IrExpression {
         }
     }
     if (call.isSuspendable()) {
-        val coroutineId = innerCallId++
+        val coroutineId = innerCallId.getOrPut(call.symbol.owner) { 0 }
+        innerCallId[call.symbol.owner] = coroutineId + 1
         val owner = call.symbol.owner
 
         if (owner.parentClassOrNull?.allSuperInterfaces()?.any { it.name.asString().startsWith("SFunction") } == true) {
@@ -121,11 +124,11 @@ private fun WhenContext.transformSuspendableCall(
     coroutineId: Int,
 ): IrExpression {
     val ownerBody = owner.body
-    if(owner.isInline && ownerBody != null) {
+    if (owner.isInline && ownerBody != null) {
         val body = ownerBody.deepCopyWithSymbols(builder.parent)
         body.transformChildrenVoid(InlineSuspendableLowering(call, builder.parent as IrFunction))
 
-        return when(body) {
+        return when (body) {
             is IrExpressionBody -> {
                 transformExpression(body.expression)
             }
@@ -138,9 +141,9 @@ private fun WhenContext.transformSuspendableCall(
         }
     }
 
-    val className = ClassId.topLevel(FqName(NameHelper.createName(owner)))
+    val className = ClassId(owner.getPackageFragment().packageFqName, Name.identifier(NameHelper.createName(owner)))
     val coroutine = functionToClass[owner]?.coroutine?.symbol ?: pluginContext.referenceClass(className)
-    ?: error("Class ${className.asSingleFqName().render()} not found!")
+    ?: FakeCoroutine.generate(owner) //error("Class ${className.asSingleFqName().render()} not found!")
 
     val coroutineVar = createField("coroutine", owner, coroutineId, coroutine.defaultType).apply {
         annotations += builder.irCall(Restorable.constructor())
@@ -202,7 +205,7 @@ private fun WhenContext.createVariable(prefix: String, owner: IrFunction, corout
 private fun WhenContext.createField(prefix: String, owner: IrFunction, coroutineId: Int, type: IrType) =
     pluginContext.irFactory.createField(
         -1, -1, IrDeclarationOrigin.DEFINED,
-        Name.identifier("$prefix$${owner.name.asString()}\$$coroutineId"), DescriptorVisibilities.PRIVATE,
+        Name.identifier("$prefix$${NameHelper.createName(owner)}\$$coroutineId"), DescriptorVisibilities.PRIVATE,
         IrFieldSymbolImpl(), type, false, false, false
     ).apply {
         parent = builder.parent

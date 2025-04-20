@@ -4,13 +4,16 @@ package ru.hollowhorizon.hollowengine.compiler
 
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
+import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrConstructorCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.fromSymbolOwner
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
 import org.jetbrains.kotlin.ir.util.dumpKotlinLike
@@ -21,19 +24,20 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.renderer.render
-import org.jetbrains.kotlin.types.checker.SimpleClassicTypeSystemContext.isUnit
 import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationPluginContext
 import ru.hollowhorizon.hollowengine.compiler.coroutine.NameHelper
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.*
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.CoroutineStateTransformer
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.properties.*
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
-import ru.hollowhorizon.hollowengine.compiler.coroutine.util.isSuspendable
 import ru.hollowhorizon.hollowengine.compiler.script.ScriptRelocator
+import kotlin.metadata.jvm.JvmMetadataVersion
+import kotlin.metadata.jvm.KotlinClassMetadata
 
 lateinit var pluginContext: IrPluginContext
 lateinit var serializationContext: SerializationPluginContext
 
+@OptIn(ObsoleteDescriptorBasedAPI::class)
 class HollowEngineGenerationExtension : IrGenerationExtension {
     override fun generate(moduleFragment: IrModuleFragment, context: IrPluginContext) {
         pluginContext = context
@@ -54,7 +58,11 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
 
         val coroutines = generator.functionToClass.values
         val filter = coroutines.associateBy { it.coroutine }
-        fun CoroutineTransformer.use(info: CoroutineGenerator, function: (CoroutineGenerator) -> IrFunction, action: (CoroutineGenerator) -> Unit = {}) {
+        fun CoroutineTransformer.use(
+            info: CoroutineGenerator,
+            function: (CoroutineGenerator) -> IrFunction,
+            action: (CoroutineGenerator) -> Unit = {},
+        ) {
             coroutine = info
             function(info).transform(this, null)
             function(info).transformChildrenVoid(this)
@@ -93,7 +101,7 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
 
                     +irIfThen(pluginContext.irBuiltIns.unitType, condition, irBlock {
                         values.forEach { (field, expression) ->
-                            if(expression.type == pluginContext.irBuiltIns.unitType) {
+                            if (expression.type == pluginContext.irBuiltIns.unitType) {
                                 +expression
                             } else {
                                 +irSetField(
@@ -113,19 +121,21 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
             println(info.coroutine.dumpKotlinLike())
         }
 
-        moduleFragment.transformChildrenVoid(object: IrElementTransformerVoid() {
+        moduleFragment.transformChildrenVoid(object : IrElementTransformerVoid() {
             override fun visitCall(expression: IrCall): IrExpression {
-                if(expression.symbol in pluginContext.referenceFunctions(
-                    CallableId(
-                        FqName("ru.hollowhorizon.hollowengine.scripting"),
-                        Name.identifier("script")
+                if (expression.symbol in pluginContext.referenceFunctions(
+                        CallableId(
+                            FqName("ru.hollowhorizon.hollowengine.scripting"),
+                            Name.identifier("script")
+                        )
                     )
-                )) {
+                ) {
                     val call = expression.getValueArgument(0) as? IrCall ?: return expression
                     val owner = call.symbol.owner
                     val className = ClassId.topLevel(FqName(NameHelper.createName(owner)))
-                    val coroutine = generator.functionToClass[owner]?.coroutine?.symbol ?: pluginContext.referenceClass(className)
-                    ?: error("Class ${className.asSingleFqName().render()} not found!")
+                    val coroutine =
+                        generator.functionToClass[owner]?.coroutine?.symbol ?: pluginContext.referenceClass(className)
+                        ?: error("Class ${className.asSingleFqName().render()} not found!")
                     return owner.builder().irCall(coroutine.constructors.first())
                 }
                 return super.visitCall(expression)

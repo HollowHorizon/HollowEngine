@@ -1,24 +1,15 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import com.mojang.blaze3d.systems.RenderSystem
-import de.fabmax.kool.modules.ui2.setupUiScene
-import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.logE
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.screens.Screen
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.Level
-import org.jetbrains.kotlin.fir.scopes.impl.overrides
 import ru.hollowhorizon.hc.HollowCore
-import ru.hollowhorizon.hc.api.HudHideable
-import ru.hollowhorizon.hc.client.kool.KoolManager
-import ru.hollowhorizon.hc.client.kool.KoolScreen
-import ru.hollowhorizon.hc.client.kool.ScreenScene
 import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hc.common.utils.get
-import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hc.common.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
@@ -29,7 +20,6 @@ import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.level.LevelEvent
 import ru.hollowhorizon.hc.common.events.server.ServerEvent
 import ru.hollowhorizon.hc.common.events.tick.TickEvent
-import ru.hollowhorizon.hollowengine.client.gui.KoolGui
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
@@ -38,7 +28,6 @@ import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolGuiScripts
 import ru.hollowhorizon.hollowengine.scripting.ResumeState
 import ru.hollowhorizon.hollowengine.scripting.SuspendState
 import java.io.File
-import java.lang.StringBuilder
 import kotlin.script.experimental.api.isError
 import kotlin.script.experimental.api.valueOrThrow
 import kotlin.system.measureTimeMillis
@@ -53,8 +42,8 @@ fun onStoryTick(event: TickEvent.Server) {
 
     STORY_EVENTS_SCRIPTS.removeIf { script ->
         try {
-            var result = script.event.tick()
-            while (result == ResumeState) result = script.event.tick()
+            var result = script.event.invoke()
+            while (result == ResumeState) result = script.event.invoke()
             if (result == SuspendState) return@removeIf false
         } catch (e: Exception) {
             e.printStackTrace()
@@ -115,9 +104,7 @@ fun startStoryEvent(script: File, tag: CompoundTag? = null) {
                 ?: error("Script instance is null")
 
             onMainThreadSync {
-//                STORY_EVENTS_SCRIPTS.add(StoryScript(SuspendContext().apply {
-//                    if (tag != null) deserialize(tag)
-//                }, event, script.toReadablePath()))
+                STORY_EVENTS_SCRIPTS.add(StoryScript(event, script.toReadablePath()))
             }
         }
         HollowCore.LOGGER.info("Story script started in $measureTime ms.")

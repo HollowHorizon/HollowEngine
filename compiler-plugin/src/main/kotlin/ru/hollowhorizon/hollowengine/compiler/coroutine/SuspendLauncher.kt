@@ -6,11 +6,14 @@ import ru.hollowhorizon.hollowengine.scripting.SuspendState
 
 class SuspendLauncher(val action: SFunction0<Any?>) {
     fun update(): Any? {
-        action.updateAsyncs()
         var result: Any?
         do {
-            result = action()
-        } while (result == ResumeState || result == SuspendState)
+            action.updateAsyncs()
+
+            do {
+                result = action()
+            } while (result == ResumeState)
+        } while (result == SuspendState)
         return result
     }
 }

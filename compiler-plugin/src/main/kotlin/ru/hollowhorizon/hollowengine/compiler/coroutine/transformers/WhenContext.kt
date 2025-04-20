@@ -24,7 +24,7 @@ class WhenContext(
     var nextBranch: Int = 0,
     val functionToClass: HashMap<IrFunction, CoroutineGenerator>,
 ) {
-    var innerCallId = 0
+    var innerCallId = HashMap<IrFunction, Int>()
     var whenResultId = 0
 
     init {
