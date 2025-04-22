@@ -1,11 +1,8 @@
 package ru.hollowhorizon.hollowengine.compiler.coroutine.generators
 
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 import org.jetbrains.kotlin.ir.builders.declarations.addField
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrFunctionExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.name.Name
@@ -28,13 +25,9 @@ class CoroutineGenerator(
 
     internal var asyncId = 0
 
-    lateinit var stateIndex: IrField
-
     fun addField(name: Name, type: IrType) = coroutine.addField {
         this.name = name
         this.type = type
-    }.apply {
-        if(name == Name.special("<stateIndex>")) stateIndex = this
     }
 
     fun addSerializableField(field: IrField) {
@@ -51,15 +44,15 @@ class CoroutineGenerator(
 }
 
 fun groupRestorableFields(
-    branchMap: HashMap<Int, HashSet<Pair<IrField, IrExpression>>>
-): MutableMap<Pair<Int, Int>, MutableMap<IrField, IrExpression>> {
-    val groupedMap = mutableMapOf<Pair<Int, Int>, MutableMap<IrField, IrExpression>>()
-    val fieldBranches = mutableMapOf<IrField, MutableMap<Int, IrExpression>>()
+    branchMap: HashMap<Int, HashSet<Pair<IrField, IrExpression>>>,
+): MutableMap<Pair<Int, Int>, LinkedHashMap<IrField, IrExpression>> {
+    val groupedMap = mutableMapOf<Pair<Int, Int>, LinkedHashMap<IrField, IrExpression>>()
+    val fieldBranches = mutableMapOf<IrField, LinkedHashMap<Int, IrExpression>>()
 
     // Собираем, в каких ветках встречается каждое поле
     for ((branch, pairs) in branchMap) {
-        for ((field, initializer) in pairs) {
-            fieldBranches.getOrPut(field) { mutableMapOf() }[branch] = initializer
+        for ((field, initializer) in pairs.sortedBy { it.first.name.asString().startsWith("coroutine$") }) {
+            fieldBranches.getOrPut(field) { LinkedHashMap() }[branch] = initializer
         }
     }
 
@@ -68,7 +61,7 @@ fun groupRestorableFields(
         val sortedChanges = changes.entries.sortedBy { it.key }
         for ((index, change) in sortedChanges.withIndex()) {
             val nextBranch = sortedChanges.getOrNull(index + 1)?.key ?: Int.MIN_VALUE
-            val fieldMap = groupedMap.getOrPut(change.key to nextBranch) { mutableMapOf() }
+            val fieldMap = groupedMap.getOrPut(change.key to nextBranch) { LinkedHashMap() }
             fieldMap[field] = change.value
         }
     }

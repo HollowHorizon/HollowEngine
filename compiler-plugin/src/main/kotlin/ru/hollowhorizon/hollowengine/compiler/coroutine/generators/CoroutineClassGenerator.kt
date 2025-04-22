@@ -168,6 +168,8 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
         }
         val (property, descriptor) = serializer.createDescriptor(coroutine)
 
+        coroutine.addField(Name.special("<stateIndex>"), pluginContext.irBuiltIns.intType, DescriptorVisibilities.PUBLIC)
+
         val coroutineGenerator =
             CoroutineGenerator(
                 coroutine,
@@ -350,6 +352,8 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
                 this.overriddenSymbols += prop.symbol
             }
             val (property, descriptor) = serializer.createDescriptor(coroutine)
+
+            coroutine.addField(Name.special("<stateIndex>"), pluginContext.irBuiltIns.intType, DescriptorVisibilities.PUBLIC)
 
             val coroutineGenerator =
                 CoroutineGenerator(

@@ -25,11 +25,7 @@ class ScriptingEventListener(val eventType: String) {
 }
 
 @Suspendable
-inline fun <reified T : Event> await(): T {
-    val listener = ScriptingEventListener(T::class.java.name)
-    while(listener.result == null);
-    return listener.result!! as T
-}
+external fun <T : Event> await(): T
 
 @Suspendable
 fun test() {

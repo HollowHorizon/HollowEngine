@@ -19,11 +19,14 @@ import org.jetbrains.kotlin.ir.types.classOrFail
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.superTypes
+import org.jetbrains.kotlin.name.CallableId
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.checker.SimpleClassicTypeSystemContext.hasAnnotation
 import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.isClassWithNamePrefix
 import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFUNCTION_PACKAGE
 import ru.hollowhorizon.hollowengine.compiler.identifiers.AsyncController
+import ru.hollowhorizon.hollowengine.compiler.identifiers.SCRIPTING_EVENTS
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 import kotlin.contracts.ExperimentalContracts
@@ -42,6 +45,10 @@ fun IrFunctionAccessExpression.isSuspendable() = symbol.owner.isSuspendable()
 
 fun IrFunctionAccessExpression.isAsyncAwait() =
     pluginContext.referenceClass(AsyncController)!!.functionByName("await") == symbol
+
+fun IrFunctionAccessExpression.isEventAwait() =
+    pluginContext.referenceFunctions(CallableId(SCRIPTING_EVENTS, Name.identifier("await"))).firstOrNull() == symbol
+
 
 fun IrBuilderWithScope.throwIllegalStateException(message: String) =
     irThrow(irCall(context.irBuiltIns.illegalArgumentExceptionSymbol).apply {

@@ -10,7 +10,9 @@ import org.jetbrains.kotlin.name.Name
 import ru.hollowhorizon.hollowengine.compiler.coroutine.AsyncController
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
 val SCRIPTING_PACKAGE = FqName("ru.hollowhorizon.hollowengine.scripting")
+val SCRIPTING_EVENTS = FqName("ru.hollowhorizon.hollowengine.common.scripting.story.functions")
 
+val ScriptingEventListener = ClassId(SCRIPTING_EVENTS, Name.identifier("ScriptingEventListener"))
 val AsyncController = ClassId(FqName("ru.hollowhorizon.hollowengine.compiler.coroutine"), Name.identifier("AsyncController"))
 val Suspendable = ClassId(SCRIPTING_PACKAGE, Name.identifier("Suspendable"))
 val Ignore = ClassId(SCRIPTING_PACKAGE, Name.identifier("Ignore"))

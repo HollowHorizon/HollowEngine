@@ -5,10 +5,7 @@ import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
-import org.jetbrains.kotlin.ir.builders.declarations.addConstructor
-import org.jetbrains.kotlin.ir.builders.declarations.addFunction
-import org.jetbrains.kotlin.ir.builders.declarations.addGetter
-import org.jetbrains.kotlin.ir.builders.declarations.addProperty
+import org.jetbrains.kotlin.ir.builders.declarations.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
@@ -160,6 +157,8 @@ object FakeCoroutine {
             this.overriddenSymbols += prop.symbol
         }
         coroutine.parent = owner.parent
+
+        coroutine.addField(Name.special("<stateIndex>"), pluginContext.irBuiltIns.intType, DescriptorVisibilities.PUBLIC)
         return coroutine.symbol
     }
 

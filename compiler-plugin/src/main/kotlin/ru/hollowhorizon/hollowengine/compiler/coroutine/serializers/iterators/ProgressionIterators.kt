@@ -5,14 +5,15 @@ package ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.iterators
 import kotlinx.serialization.Serializable
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.defaultType
-import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
-import kotlin.reflect.KClass
+import java.util.*
+import java.util.function.Consumer
 
+val ListType = pluginContext.referenceClass(ClassId(FqName("kotlin.collections"), Name.identifier("List")))!!.defaultType
 val CharRangeType = pluginContext.referenceClass(ClassId(FqName("kotlin.ranges"), Name.identifier("CharRange")))!!.defaultType
 val IntRangeType = pluginContext.referenceClass(ClassId(FqName("kotlin.ranges"), Name.identifier("IntRange")))!!.defaultType
 val LongRangeType = pluginContext.referenceClass(ClassId(FqName("kotlin.ranges"), Name.identifier("LongRange")))!!.defaultType
@@ -24,6 +25,19 @@ val IntProgressionCtor = pluginContext.referenceClass(ClassId(pkg, Name.identifi
     .constructors.first { it.owner.valueParameters.size == 1 }
 val LongProgressionCtor = pluginContext.referenceClass(ClassId(pkg, Name.identifier("LongProgressionIterator")))!!
     .constructors.first { it.owner.valueParameters.size == 1 }
+val SerializableIteratorCtor = pluginContext.referenceClass(ClassId(pkg, Name.identifier("SerializableIterator")))!!
+    .constructors.first { it.owner.valueParameters.size == 1 }
+
+@Serializable
+class SerializableIterator<T>(private val values: List<T>): Iterator<T> {
+    private var cursor: Int = 0 // index of next element to return
+
+    override fun hasNext() = cursor != values.size
+
+    override fun next(): T {
+        return values[cursor++]
+    }
+}
 
 @Serializable
 class CharProgressionIterator(val first: Char, val last: Char, val step: Int) : CharIterator() {

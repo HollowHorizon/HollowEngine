@@ -86,7 +86,7 @@ class ControlTests {
 
     @Test
     fun `Control Suspendable Function (For)`() {
-        val coroutine = makeCoroutine("ForSuspendables") as SFunction0<Any?>
+        val coroutine = makeCoroutine("ForSuspendables", decompile = true) as SFunction0<Any?>
         val launcher = SuspendLauncher(coroutine)
 
         assertEquals(Unit, launcher.update(), "Suspend call did not return 'Unit'!")

@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
 import org.jetbrains.kotlin.ir.util.dumpKotlinLike
+import org.jetbrains.kotlin.ir.util.fields
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.CallableId
@@ -28,6 +29,7 @@ import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationPlug
 import ru.hollowhorizon.hollowengine.compiler.coroutine.NameHelper
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.*
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.CoroutineStateTransformer
+import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.InlineTransformer
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.properties.*
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
 import ru.hollowhorizon.hollowengine.compiler.script.ScriptRelocator
@@ -49,6 +51,7 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
         val generator = CoroutineClassGenerator()
         moduleFragment.transform(generator, null)
 
+        val inlineTransformer = InlineTransformer()
         val stateTransformer = CoroutineStateTransformer(generator.functionToClass)
         val serializableTransformer = SerializablePropertiesTransformer()
         val lambdaTransformer = LambdaPropertiesTransformer(HashMap(generator.functionToClass))
@@ -73,9 +76,8 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
         }
 
         coroutines.filter { !it.coroutine.isInner }.forEach { info ->
-
-
             lambdaTransformer.use(info, CoroutineGenerator::invokeFunction)
+            inlineTransformer.use(info, CoroutineGenerator::invokeFunction)
             stateTransformer.use(info, CoroutineGenerator::invokeFunction)
             localsTransformer.use(info, CoroutineGenerator::invokeFunction)
             serializableTransformer.filter = localsTransformer.locals
@@ -88,10 +90,9 @@ class HollowEngineGenerationExtension : IrGenerationExtension {
             info.createAsyncs()
 
             val fields = groupRestorableFields(info.branchMap)
-            fields.clear() //TODO: Make better state capture
             info.restoreFunction.body = info.restoreFunction.builder().irBlockBody {
                 fields.forEach { (range, values) ->
-                    val stateIndex = irGetField(irGet(info.receiver), info.stateIndex)
+                    val stateIndex = irGetField(irGet(info.receiver), info.coroutine.fields.single { it.name == Name.special("<stateIndex>") })
                     val condition = if (range.second < 0) irGreaterThan(stateIndex, irInt(range.first)) else {
                         irAnd(
                             irGreaterThan(stateIndex, irInt(range.first)),

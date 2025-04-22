@@ -44,7 +44,7 @@ fun exampleScript() {
 
     npc say "Как у тебя дела?!"
 
-    val event = await<ServerChatEvent>()
+    val event = await<ServerChatEvent>() //TODO: Инлайны не имеют тела в других модулях. Надо захардкодить реализацию в компиляторе
     val input = event.message.string
 
     npc say "\"$input\", говоришь?"
