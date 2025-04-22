@@ -7,7 +7,6 @@ import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hc.common.events.EventListener
 import ru.hollowhorizon.hc.common.events.entity.player.PlayerInteractEvent
-import ru.hollowhorizon.hollowengine.compiler.suspendable.await
 import ru.hollowhorizon.hollowengine.scripting.Suspendable
 
 @Serializable
@@ -25,13 +24,8 @@ class ScriptingEventListener(val eventType: String) {
     var result: Event? = null
 }
 
-
 @Suspendable
-inline fun <reified T : Event> await(): T {
-    val listener = ScriptingEventListener(T::class.java.name)
-    await(listener.result != null)
-    return listener.result!! as T
-}
+external fun <T : Event> await(): T
 
 @Suspendable
 fun test() {

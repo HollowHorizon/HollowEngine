@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.compiler.script
 
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
-import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.irBlockBody
@@ -17,14 +16,15 @@ import org.jetbrains.kotlin.ir.expressions.IrValueAccessExpression
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
-import org.jetbrains.kotlin.ir.types.getClass
-import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.util.constructors
+import org.jetbrains.kotlin.ir.util.createDispatchReceiverParameter
+import org.jetbrains.kotlin.ir.util.getSimpleFunction
+import org.jetbrains.kotlin.ir.util.superClass
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
-import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.Name
+import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Suspendable
 import ru.hollowhorizon.hollowengine.compiler.pluginContext
-import ru.hollowhorizon.hollowengine.compiler.suspendable.isIgnored
 
 class ScriptRelocator : IrElementTransformerVoid() {
     private var setters = HashMap<IrFunction, IrVariable>()
@@ -39,17 +39,15 @@ class ScriptRelocator : IrElementTransformerVoid() {
         val fileName = (declaration.parent as? IrFile)?.name ?: return super.visitClass(declaration)
         if (!fileName.endsWith(".story.kts")) return super.visitClass(declaration)
 
-        val builder = pluginContext.irBuiltIns
-            .createIrBuilder(declaration.symbol, declaration.startOffset, declaration.endOffset)
-
+        val builder = declaration.builder()
         val storyEvent = declaration.superClass ?: error("StoryEvent class not found!")
-        val original = storyEvent.getSimpleFunction("tick")!!
+        val original = storyEvent.getSimpleFunction("invoke")!!
 
         hasScript = true
 
         this.function = pluginContext.irFactory.createSimpleFunction(
             declaration.startOffset, declaration.endOffset, IrDeclarationOrigin.DEFINED,
-            Name.identifier("tick"), original.owner.visibility,
+            Name.identifier("invoke"), original.owner.visibility,
             isInline = false,
             isExpect = false,
             returnType = pluginContext.irBuiltIns.anyNType,
@@ -92,7 +90,7 @@ class ScriptRelocator : IrElementTransformerVoid() {
     }
 
     override fun visitProperty(declaration: IrProperty): IrStatement {
-        if (!declaration.isIgnored() && hasScript) {
+        if (hasScript) {
             declaration.backingField?.let { field ->
                 return super.visitVariable(IrVariableImpl(
                     declaration.startOffset,
@@ -116,13 +114,14 @@ class ScriptRelocator : IrElementTransformerVoid() {
         return super.visitProperty(declaration)
     }
 
+    @OptIn(UnsafeDuringIrConstructionAPI::class)
     override fun visitCall(expression: IrCall): IrExpression {
         val builder = pluginContext.irBuiltIns.createIrBuilder(
             expression.symbol,
             expression.startOffset,
             expression.endOffset
         )
-        if(hasScript) {
+        if (hasScript) {
             (expression.dispatchReceiver as? IrValueAccessExpression)?.origin?.let {
                 if (it == IrStatementOrigin.IMPLICIT_ARGUMENT) {
                     expression.dispatchReceiver = builder.irGet(function.dispatchReceiverParameter!!)

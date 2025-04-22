@@ -22,7 +22,7 @@ object ComboBox {
                 .padding(sizes.smallGap)
                 .height((24.dp + sizes.smallGap * 2) * min(7, items.size) + sizes.gap)
 
-            LazyList(
+            LazyColumn(
                 withHorizontalScrollbar = false,
                 isScrollableHorizontal = false,
                 containerModifier = { it.background(null).margin(sizes.smallGap) },
