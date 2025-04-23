@@ -24,7 +24,7 @@ class RecipeEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.recipes", 
 
         val manager = Minecraft.getInstance().connection?.recipeManager ?: return
 
-        LazyList {
+        LazyColumn {
             items(RECIPE_TYPES) { recipeType ->
                 Box {
                     modifier.padding(sizes.smallGap * 0.5f).margin(sizes.smallGap * 0.5f)

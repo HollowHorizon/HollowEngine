@@ -52,7 +52,7 @@ object ThemeEditor : Composable {
                 surface.colors = makeColors()
                 ideSurface.colors = surface.colors
             }
-            LazyList(
+            LazyColumn(
                 containerModifier = {
                     it
                         .margin(sizes.gap)

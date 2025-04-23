@@ -27,6 +27,7 @@ object CompilationStatus {
             modifier.align(AlignmentX.End, AlignmentY.Bottom)
                 .border(RectBorder(Color.WHITE, sizes.borderWidth))
                 .background(RectBackground(Color("00000066")))
+                .size(FitContent, FitContent)
                 .padding(sizes.gap)
 
             Column {

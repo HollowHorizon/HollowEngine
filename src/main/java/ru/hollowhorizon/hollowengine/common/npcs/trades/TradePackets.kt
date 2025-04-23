@@ -14,6 +14,7 @@ import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.container.ContainerEvent
 import ru.hollowhorizon.hc.common.network.HollowPacketHandler
 import ru.hollowhorizon.hc.common.network.HollowPacket
+import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hollowengine.client.gui.npcs.trading.TradeMenuGui
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
@@ -27,7 +28,7 @@ import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 class AddTradePacket(val npc: Int) : HollowPacket<AddTradePacket> {
     override fun handle(player: Player) {
         if (!player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
-            player.sendSystemMessage("You can't modify npc trades!".mcText)
+            player.sendSystemMessage("You can't modify npc trades!".literal)
             return
         }
         (player.level().getEntity(npc) as? NPCEntity)?.let { npc ->

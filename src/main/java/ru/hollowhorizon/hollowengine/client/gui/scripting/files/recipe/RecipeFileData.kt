@@ -31,7 +31,7 @@ class RecipeFileData(project: IdeContent, name: String, path: String) : FileData
 
         screen.overlay = {}
 
-        LazyList {
+        LazyColumn {
             items(recipes) { chunk ->
                 Row {
                     chunk.forEach {

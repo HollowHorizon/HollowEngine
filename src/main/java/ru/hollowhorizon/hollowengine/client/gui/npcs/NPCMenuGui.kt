@@ -43,7 +43,7 @@ class NPCMenuGui(val npc: NPCEntity) : KoolScreen() {
                 modifier.size(Grow.Std, Grow.Std)
                     .imageSize(ImageSize.ZoomContent)
 
-                LazyList(
+                LazyColumn(
                     width = Grow(0.4f),
                     height = Grow(0.9f),
                     containerModifier = {
