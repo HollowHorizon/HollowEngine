@@ -1,3 +1,5 @@
+package ru.hollowhorizon.hollowengine.compiler;
+
 import kotlin.metadata.KmClass;
 import org.jetbrains.kotlin.ir.expressions.IrCall;
 

@@ -7,7 +7,7 @@ plugins {
 }
 
 val kotlinVersion: String by project
-version = "1.5"
+version = "1.5.1"
 group = "ru.hollowhorizon"
 
 base {

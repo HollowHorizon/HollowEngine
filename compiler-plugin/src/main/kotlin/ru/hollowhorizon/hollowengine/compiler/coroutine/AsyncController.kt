@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.compiler.coroutine
 
-import JvmHacks
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -10,6 +9,7 @@ import kotlinx.serialization.descriptors.element
 import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import ru.hollowhorizon.hollowengine.compiler.JvmHacks
 import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFunction0
 import ru.hollowhorizon.hollowengine.scripting.ResumeState
 import ru.hollowhorizon.hollowengine.scripting.SuspendState

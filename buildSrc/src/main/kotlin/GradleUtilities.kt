@@ -133,7 +133,7 @@ private fun setupPublishing(
         }
 
         repositories {
-            if (System.getenv("MAVEN_PASSWORD") != null) maven {
+            if (System.getenv("MAVEN_PASSWORD") != null && false) maven {
                 name = "GitHubPackages"
                 url = project.uri("https://maven.pkg.github.com/HollowHorizon/${modContainer.modName}")
 

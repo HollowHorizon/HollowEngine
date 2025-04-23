@@ -75,6 +75,6 @@ class ScriptingEnvironmentScreen : KoolScreen() {
     }
 
     override fun shouldCloseOnEsc(): Boolean {
-        return IdeContent.files.values.filterIsInstance<TextFileData>().any { it.modifier.completions.isEmpty() }
+        return IdeContent.files.values.filterIsInstance<TextFileData>().all { it.modifier.completions.isEmpty() }
     }
 }

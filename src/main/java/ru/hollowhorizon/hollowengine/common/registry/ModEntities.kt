@@ -4,7 +4,6 @@ import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.Mob
 import net.minecraft.world.entity.MobCategory
 import net.minecraft.world.entity.ai.attributes.Attributes
-import ru.hollowhorizon.hc.common.utils.rl
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterEntityAttributesEvent
 import ru.hollowhorizon.hc.common.registry.HollowRegistry
@@ -24,7 +23,13 @@ object ModEntities : HollowRegistry(HollowEngine.MODID) {
 
 @SubscribeEvent
 fun onRegisterAttributes(event: RegisterEntityAttributesEvent) {
-    event.register(ModEntities.NPC_ENTITY, Mob.createMobAttributes().add(Attributes.MOVEMENT_SPEED, 0.2).build())
+    event.register(
+        ModEntities.NPC_ENTITY, Mob.createMobAttributes().apply {
+            add(Attributes.MOVEMENT_SPEED, 0.2)
+            add(Attributes.ATTACK_DAMAGE, 2.0)
+            add(Attributes.ATTACK_SPEED, 4.0)
+        }.build()
+    )
 }
 
 fun main() {

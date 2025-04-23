@@ -30,7 +30,7 @@ group = properties["mod_group"].toString()
 version = modVersion
 base.archivesName = "$modName-${container.modPlatform}-${container.minecraftVersion}"
 
-setupEnviroment(container, kotlinVersion, "TheHollowHorizon", includeKotlin = true)
+setupEnviroment(container, kotlinVersion, "TheHollowHorizon", includeKotlin = true, enablePublishing = true)
 
 repositories {
     maven("https://jitpack.io")
@@ -50,6 +50,7 @@ dependencies {
 
     // GRAPHICS //
     install("de.fabmax.kool:kool-core:$koolVersion", false)
+    include("com.github.weisj:jsvg:1.7.1")
     install("com.facebook:ktfmt:0.54")
 
     install("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin", true)

@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.compiler.coroutine.transformers
 
-import JvmHacks
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
@@ -10,6 +9,7 @@ import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrBranchImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.util.parentAsClass
+import ru.hollowhorizon.hollowengine.compiler.JvmHacks
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.CoroutineGenerator
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.IrNothing
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.resumeObject
