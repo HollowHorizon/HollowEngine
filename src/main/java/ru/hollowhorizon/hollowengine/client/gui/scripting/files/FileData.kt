@@ -17,9 +17,7 @@ abstract class FileData(
         UiDockable(filePath, (Minecraft.getInstance().screen as ScriptingEnvironmentScreen).dock)
     override val name = "file\$$fileName"
     override val icon = IconHelper.forPath(filePath)
-    final override var isOpened: Boolean
-        get() = true
-        set(_) {}
+
     val surface: UiSurface = WindowSurface(dockable, IdeTheme.colors, IdeTheme.sizes) {
         modifier.border(null)
         modifier.backgroundColor(colors.backgroundVariant)

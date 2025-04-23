@@ -22,9 +22,9 @@ abstract class DockPanel(final override val name: String, dock: Dock) : Layout, 
                 if (isPanelBarLeft) {
                     ToolBar(this@DockPanel, true)
                     Box(width = sizes.borderWidth, height = Grow.Std) { modifier.backgroundColor(UiColors.titleBg) }
-                    if(isOpened) panelContent()
+                    panelContent()
                 } else {
-                    if(isOpened) panelContent()
+                    panelContent()
                     Box(width = sizes.borderWidth, height = Grow.Std) { modifier.backgroundColor(UiColors.titleBg) }
                     ToolBar(this@DockPanel, false)
                 }
@@ -33,12 +33,6 @@ abstract class DockPanel(final override val name: String, dock: Dock) : Layout, 
             panelContent()
         }
     }
-
-    final override var isOpened = false
-        set(value) {
-            field = value
-            surface.triggerUpdate()
-        }
 
     private fun UiScope.panelContent() {
         Column(Grow.Std, Grow.Std) {

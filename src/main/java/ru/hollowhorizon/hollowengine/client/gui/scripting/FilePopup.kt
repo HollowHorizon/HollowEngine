@@ -48,7 +48,7 @@ class FilePopup : Composable {
 
     fun show(node: FileNode, position: Vec2f) {
         filePopup.hide()
-        filePopup.show(position, SubMenuItem {
+        filePopup.show(Vec2f(position), SubMenuItem {
             if (node.isFolder) {
                 subMenu(ACTIONS("create"), "hollowengine:textures/gui/icons/add.png") {
                     item(ACTIONS("create.folder"), "hollowengine:textures/gui/icons/create_folder.png") {

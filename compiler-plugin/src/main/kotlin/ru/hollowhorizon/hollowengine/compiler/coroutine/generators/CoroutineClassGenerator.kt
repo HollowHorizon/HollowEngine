@@ -23,10 +23,7 @@ import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
-import org.jetbrains.kotlin.name.CallableId
-import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.*
 import org.jetbrains.kotlin.renderer.render
 import org.jetbrains.kotlinx.serialization.compiler.backend.ir.addDefaultConstructorBodyIfAbsent
 import ru.hollowhorizon.hollowengine.compiler.coroutine.NameHelper
@@ -81,7 +78,8 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
 
     override fun visitFunction(declaration: IrFunction): IrStatement {
         if (declaration.isSuspendable() && !declaration.isInline) {
-            val isScript = declaration.parentClassOrNull?.origin == IrDeclarationOrigin.SCRIPT_CLASS
+            val isScript =
+                declaration.parentClassOrNull?.origin == IrDeclarationOrigin.SCRIPT_CLASS && declaration.name != SpecialNames.ANONYMOUS
 
             val generator =
                 if (isScript) generateForScript(declaration.parentAsClass) else generateForFunction(declaration)
@@ -93,13 +91,18 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
 
             if (!isScript) declaration.body = declaration.builder().irBlockBody {}
         }
-        return super.visitFunction(declaration)
+        return declaration
     }
 
     private fun generateForScript(coroutine: IrClass): CoroutineGenerator {
         val lambda = coroutine.superClass ?: error("Script is not story event function")
         val invokeFunction = coroutine.getSimpleFunction("invoke")!!.owner
         coroutine.thisReceiver = invokeFunction.dispatchReceiverParameter
+        coroutine.declarations.forEach {
+            (it as? IrFunction)?.let {
+                if(it.name.asString() == "randomPos") it.dispatchReceiverParameter = null
+            }
+        }
         val restoreFunction = coroutine.addFunction {
             updateFrom(invokeFunction)
             returnType = pluginContext.irBuiltIns.unitType
@@ -168,7 +171,11 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
         }
         val (property, descriptor) = serializer.createDescriptor(coroutine)
 
-        coroutine.addField(Name.special("<stateIndex>"), pluginContext.irBuiltIns.intType, DescriptorVisibilities.PUBLIC)
+        coroutine.addField(
+            Name.special("<stateIndex>"),
+            pluginContext.irBuiltIns.intType,
+            DescriptorVisibilities.PUBLIC
+        )
 
         val coroutineGenerator =
             CoroutineGenerator(
@@ -353,7 +360,11 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
             }
             val (property, descriptor) = serializer.createDescriptor(coroutine)
 
-            coroutine.addField(Name.special("<stateIndex>"), pluginContext.irBuiltIns.intType, DescriptorVisibilities.PUBLIC)
+            coroutine.addField(
+                Name.special("<stateIndex>"),
+                pluginContext.irBuiltIns.intType,
+                DescriptorVisibilities.PUBLIC
+            )
 
             val coroutineGenerator =
                 CoroutineGenerator(

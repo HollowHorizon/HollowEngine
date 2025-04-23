@@ -4,6 +4,7 @@ package ru.hollowhorizon.hollowengine.compiler.coroutine.transformers
 
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.jvm.functionByName
+import org.jetbrains.kotlin.backend.jvm.ir.parentClassId
 import org.jetbrains.kotlin.ir.backend.js.utils.valueArguments
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.expressions.*
@@ -18,6 +19,9 @@ import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.iterators.CharRangeType
+import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.iterators.IntRangeType
+import ru.hollowhorizon.hollowengine.compiler.coroutine.serializers.iterators.LongRangeType
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.properties.CoroutineTransformer
 import ru.hollowhorizon.hollowengine.compiler.coroutine.transformers.statements.InlineSuspendableLowering
 import ru.hollowhorizon.hollowengine.compiler.coroutine.util.builder
@@ -25,24 +29,22 @@ import ru.hollowhorizon.hollowengine.compiler.pluginContext
 
 class InlineTransformer : CoroutineTransformer() {
     var varIndex = 0
+    private val stdlibClass = FqName("kotlin").child(Name.identifier("StandardKt__StandardKt"))
+    private val collectionsClass = FqName("kotlin.collections").child(Name.identifier("CollectionsKt"))
 
     override fun visitCall(expression: IrCall): IrExpression {
         val target = expression.symbol.owner
-        if (target.isInline) {
+        val source = target.parentClassId?.asSingleFqName()
+        if (target.isInline || source == stdlibClass || source == collectionsClass) {
             coroutine.invokeFunction.builder {
-                // Эх, ну за что мне это всё... Почему нельзя было в inline хотя бы декомпилированное тело функции составить...
                 when (target.name.asString()) {
-                    "forEach" -> {
-                        return super.visitExpression(transformForLoop(expression))
-                    }
+                    // Коллекции
+                    "forEach" -> return super.visitExpression(transformForLoop(expression))
+                    "map" -> return super.visitExpression(transformMap(expression))
+                    "filter" -> return super.visitExpression(transformFilter(expression))
 
-                    "map" -> {
-                        return super.visitExpression(transformMap(expression))
-                    }
-
-                    "filter" -> {
-                        return super.visitExpression(transformFilter(expression))
-                    }
+                    // Стандартные функции
+                    "apply" -> return super.visitExpression(transformApply(expression))
                 }
             }
 
@@ -58,6 +60,29 @@ class InlineTransformer : CoroutineTransformer() {
             }
         }
         return super.visitCall(expression)
+    }
+
+    private fun DeclarationIrBuilder.transformApply(expression: IrCall): IrExpression {
+        return irBlock {
+            val receiver = expression.extensionReceiver ?: return@irBlock
+            val lambda = expression.getValueArgument(0) as? IrFunctionExpression ?: return@irBlock
+            val tempVar = irTemporary(receiver, "apply_receiver_${varIndex++}")
+
+            lambda.function.body?.let { body ->
+                val transformedBody = body.deepCopyWithSymbols(coroutine.invokeFunction).apply {
+                    transformChildrenVoid(object : IrElementTransformerVoid() {
+                        override fun visitGetValue(expression: IrGetValue): IrExpression {
+                            if (expression.symbol == lambda.function.extensionReceiverParameter?.symbol) {
+                                return irGet(tempVar)
+                            }
+                            return super.visitGetValue(expression)
+                        }
+                    })
+                }
+                transformedBody.statements.forEach { +it }
+            }
+            +irGet(tempVar)
+        }
     }
 
     private fun DeclarationIrBuilder.transformForLoop(expression: IrCall) = irBlock {
@@ -173,7 +198,12 @@ class InlineTransformer : CoroutineTransformer() {
 
     private fun DeclarationIrBuilder.transformFilter(expression: IrCall) = irBlock {
         val range = expression.extensionReceiver ?: return@irBlock
-        val componentType = (range.type as IrSimpleType).arguments[0].typeOrNull ?: return@irBlock
+        val componentType = when {
+            range.type == IntRangeType -> pluginContext.irBuiltIns.intType
+            range.type == CharRangeType -> pluginContext.irBuiltIns.charType
+            range.type == LongRangeType -> pluginContext.irBuiltIns.longType
+            else -> (range.type as IrSimpleType).arguments.getOrNull(0)?.typeOrNull ?: return@irBlock
+        }
         val transform = expression.getValueArgument(0) as? IrFunctionExpression ?: return@irBlock
         val iterator = range.type.classOrNull?.functionByName("iterator") ?: return@irBlock
         val iteratorClass = iterator.owner.returnType.classOrNull ?: return@irBlock

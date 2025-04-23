@@ -20,6 +20,8 @@ import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.level.LevelEvent
 import ru.hollowhorizon.hc.common.events.server.ServerEvent
 import ru.hollowhorizon.hc.common.events.tick.TickEvent
+import ru.hollowhorizon.hc.common.utils.JavaHacks
+import ru.hollowhorizon.hc.common.utils.nbt.NBTFormat
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
@@ -36,18 +38,38 @@ data class StoryScript(val event: StoryEvent, val file: String)
 
 val STORY_EVENTS_SCRIPTS: MutableSet<StoryScript> = hashSetOf()
 
+private var isLoaded = false
+
 @SubscribeEvent
 fun onStoryTick(event: TickEvent.Server) {
     if (!event.server.isRunning) return
 
+    if (event.server.playerList.players.isNotEmpty() && event.server.playerList.players.all {
+            it.level().isLoaded(it.blockPosition())
+        } && !isLoaded) {
+        isLoaded = true
+
+        val scripts = event.server[StoryScriptStorage::class.java].scripts
+
+        scripts.forEach { (file, data) ->
+            val script = file.fromReadablePath()
+
+            startStoryEvent(script, data.tag)
+        }
+    }
+
     STORY_EVENTS_SCRIPTS.removeIf { script ->
         try {
+            script.event.updateAsyncs()
             var result = script.event.invoke()
             while (result == ResumeState) result = script.event.invoke()
             if (result == SuspendState) return@removeIf false
         } catch (e: Exception) {
             e.printStackTrace()
         }
+
+        val scripts = event.server[StoryScriptStorage::class.java].scripts
+        scripts.remove(script.file)
         return@removeIf true
     }
 }
@@ -61,17 +83,6 @@ class StoryScriptStorage : CapabilityInstance() {
 }
 
 @SubscribeEvent
-fun onStoryScriptLoad(event: ServerEvent.Starting) {
-    val scripts = event.server[StoryScriptStorage::class.java].scripts
-
-    scripts.forEach { (file, data) ->
-        val script = file.fromReadablePath()
-
-        startStoryEvent(script, data.tag)
-    }
-}
-
-@SubscribeEvent
 fun onLevelSave(event: LevelEvent.Save) {
     if (!event.level.isClientSide && event.level.dimension() == Level.OVERWORLD) {
         onStoryScriptSave(currentServer)
@@ -79,15 +90,23 @@ fun onLevelSave(event: LevelEvent.Save) {
 }
 
 @SubscribeEvent
-fun onServerStop(event: ServerEvent.Stoping) = onStoryScriptSave(event.server)
+fun onServerStop(event: ServerEvent.Stoping) {
+    onStoryScriptSave(event.server)
+    STORY_EVENTS_SCRIPTS.clear()
+    isLoaded = false
+}
 
 fun onStoryScriptSave(server: MinecraftServer) {
     val scripts = server[StoryScriptStorage::class.java].scripts
 
     STORY_EVENTS_SCRIPTS.forEach { script ->
-        val file = script.file
-//        val tag = script.context.serialize()
-//        scripts[file] = StoryScriptStorage.TagWrapper(tag)
+        try {
+            val file = script.file
+            val tag = NBTFormat.serialize(script.event.serializer, JavaHacks.forceCast(script.event))
+            scripts[file] = StoryScriptStorage.TagWrapper(tag as CompoundTag)
+        } catch (e: Exception) {
+            HollowCore.LOGGER.error("Error while saving story script ${script.file}", e)
+        }
     }
 }
 
@@ -102,6 +121,19 @@ fun startStoryEvent(script: File, tag: CompoundTag? = null) {
             }
             val event = result.valueOrThrow().returnValue.scriptInstance as? StoryEvent
                 ?: error("Script instance is null")
+
+            tag?.let {
+                try {
+                    NBTFormat.deserialize(event.serializer, it)
+                } catch (e: Exception) {
+                    HollowCore.LOGGER.error("Error while loading story script ${script.toReadablePath()}", e)
+                }
+                try {
+                    event.restoreState()
+                } catch (e: Exception) {
+                    HollowCore.LOGGER.error("Error while restoring state ${script.toReadablePath()}", e)
+                }
+            }
 
             onMainThreadSync {
                 STORY_EVENTS_SCRIPTS.add(StoryScript(event, script.toReadablePath()))

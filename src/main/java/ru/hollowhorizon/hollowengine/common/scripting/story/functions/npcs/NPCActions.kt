@@ -20,6 +20,7 @@ import ru.hollowhorizon.hollowengine.scripting.Suspendable
 
 @Suspendable
 fun NPCEntity.move(entity: Entity, dist: Double = 1.5, speed: Double = 1.0) {
+
     while (distanceTo(entity) > dist) {
         navigation.moveTo(navigation.createPath(entity.x, entity.y, entity.z, 0), speed)
     }

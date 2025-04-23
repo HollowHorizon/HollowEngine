@@ -6,5 +6,4 @@ interface Layout {
     val dockable: Dockable
     val name: String
     val icon: String
-    var isOpened: Boolean
 }

@@ -81,7 +81,7 @@ fun WhenContext.transformCall(call: IrFunctionAccessExpression): IrExpression {
             val expression = builder.irBlock {
                 val eventListenerClass =
                     pluginContext.referenceClass(ScriptingEventListener)!!.typeWith(call.getTypeArgument(0)!!)
-                val constructor = eventListenerClass.classOrFail.constructors.single()
+                val constructor = eventListenerClass.classOrFail.constructors.single { it.owner.valueParameters.size == 1 }
                 val eventListener = createVariable("event", owner, coroutineId, call.getTypeArgument(0)!!)
                 eventListener.initializer = irCall(constructor).apply {
                     var eventClass = "Unknown Event!"

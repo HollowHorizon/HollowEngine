@@ -31,5 +31,5 @@ external fun <T : Event> await(): T
 fun test() {
     val event = await<PlayerInteractEvent.EntityInteract>()
 
-    event.player.sendSystemMessage(("Смари, я нашёл "+ event.target.name.string).literal)
+    event.player.sendSystemMessage(("Смотри, я нашёл "+ event.target.name.string).literal)
 }

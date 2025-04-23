@@ -15,6 +15,7 @@ fun onCompletions(event: ScriptAreaKeyEvent) {
     when (event.keyCode) {
         in APPLY_COMPLETION_KEYBIND -> {
             if (modifier.completionIndex == -1) return
+            if(modifier.completionIndex >= modifier.completions.size) return
 
             modifier.completions[modifier.completionIndex].use(event.area)
         }

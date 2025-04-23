@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.compiler.coroutine
 
 import org.jetbrains.kotlin.backend.common.serialization.mangle.ir.isAnonymous
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationParent
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
@@ -12,10 +13,10 @@ import org.jetbrains.kotlin.ir.util.fqNameWhenAvailable
 
 object NameHelper {
     private const val SEPARATOR = "_"
-    private val anonymousIndexes = HashMap<IrFunction, Int>()
+    private val anonymousIndexes = HashMap<IrDeclarationParent, Int>()
 
     fun createName(function: IrFunction) = if (function.name.isAnonymous) {
-        val parentFunction = function.parent as IrFunction
+        val parentFunction = function.parent
         val index = anonymousIndexes.getOrPut(parentFunction) { 0 }
         anonymousIndexes[parentFunction] = index + 1
         "Lambda${SEPARATOR}$index"

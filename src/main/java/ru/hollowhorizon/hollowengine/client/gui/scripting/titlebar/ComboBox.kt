@@ -8,8 +8,8 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 import kotlin.math.min
 
 object ComboBox {
-    fun UiScope.comboBox(preview: String, items: List<Composable>) {
-        var itemIndex by remember(-1)
+    fun UiScope.comboBox(preview: String, items: List<Composable>, itemIndex: MutableStateValue<Int>) {
+        var index by itemIndex
 
         val popupMenu = remember { AutoPopup() }
         popupMenu.popupContent = Composable {
@@ -37,7 +37,7 @@ object ComboBox {
                             .onEnter { hoveredIndex = i }
                             .onExit { hoveredIndex = -1 }
                             .onClick {
-                                itemIndex = i
+                                index = i
                                 popupMenu.hide()
                                 hoveredIndex = -1
                             }
@@ -63,13 +63,13 @@ object ComboBox {
 
             if (popupMenu.isVisible.use()) modifier.background(RoundRectBackground(IdeTheme.hoveredColors.background, sizes.smallGap))
 
-            if (itemIndex == -1) {
+            if (index == -1) {
                 Text(preview) {
                     modifier.alignY(AlignmentY.Center)
                         .margin(end = sizes.smallGap)
                 }
             } else {
-                items[itemIndex]()
+                items[index]()
             }
 
             modifier.onClick {

@@ -26,7 +26,14 @@ fun npc(
     inverseHeadRotation: Boolean = false,
 ): NPCEntity {
     val level = currentServer.getLevel(currentServer.levelKeys().find { it.location().toString() == world }
-        ?: throw IllegalStateException("Dimension $world not found!")) ?: throw IllegalStateException("Dimension $world is not loaded!")
+        ?: throw IllegalStateException("Dimension $world not found!"))
+        ?: throw IllegalStateException("Dimension $world is not loaded!")
+
+    level.allEntities.asSequence()
+        .filterIsInstance<NPCEntity>()
+        .filter { it.name == name }
+        .firstOrNull { it.model == model }
+        ?.let { return it }
 
     return NPCEntity(level).apply {
         setPos(pos.x, pos.y, pos.z)

@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrFail
 import org.jetbrains.kotlin.ir.types.classOrNull
+import org.jetbrains.kotlin.ir.util.classId
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.superTypes
 import org.jetbrains.kotlin.name.CallableId
@@ -39,7 +40,7 @@ fun IrType.isSuspendable(): Boolean {
 
     return type.isClassWithNamePrefix("SFunction", SFUNCTION_PACKAGE) || this.type.hasAnnotation(Suspendable) || type.superTypes().any { it.isSuspendable() }
 }
-fun IrType.isAsyncController() = classOrNull == pluginContext.referenceClass(AsyncController)
+fun IrType.isAsyncController() = classOrNull?.owner?.classId == pluginContext.referenceClass(AsyncController)?.owner?.classId
 
 fun IrFunctionAccessExpression.isSuspendable() = symbol.owner.isSuspendable()
 

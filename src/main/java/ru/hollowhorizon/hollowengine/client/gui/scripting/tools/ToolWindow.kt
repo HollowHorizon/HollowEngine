@@ -30,7 +30,6 @@ fun UiScope.panelButton(panel: Dockable, dockNode: DockNodeLeaf, layout: Layout,
     iconButton(layout, panel, panel.name, panel == dockNode.dockItemOnTop, isLeft = isLeft) {
         if (panel != dockNode.dockItemOnTop) animators[panel]?.start()
         dockNode.bringToTop(panel)
-        layout.isOpened = panel == dockNode.dockItemOnTop || !layout.isOpened
     }
 }
 

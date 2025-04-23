@@ -5,6 +5,7 @@ import de.fabmax.kool.KoolConfigJvm
 import de.fabmax.kool.math.Vec2i
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
+import de.fabmax.kool.modules.ui2.docking.DockLayout
 import de.fabmax.kool.pipeline.ClearColorFill
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
@@ -14,6 +15,7 @@ import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.loadLayouts
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.TitleBarCreationEvent
 
@@ -68,6 +70,11 @@ class ScriptingEnvironmentScreen : KoolScreen() {
 
     override fun onClose() {
         super.onClose()
+        DockLayout.saveLayout(dock, LayoutLoader.IDE_LAYOUT)
         IdeContent.files.clear()
+    }
+
+    override fun shouldCloseOnEsc(): Boolean {
+        return IdeContent.files.values.filterIsInstance<TextFileData>().any { it.modifier.completions.isEmpty() }
     }
 }

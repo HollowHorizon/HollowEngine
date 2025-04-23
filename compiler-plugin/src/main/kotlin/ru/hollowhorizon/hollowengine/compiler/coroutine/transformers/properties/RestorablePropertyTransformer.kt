@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
 import org.jetbrains.kotlin.ir.types.classOrNull
+import org.jetbrains.kotlin.ir.util.classId
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.statements
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.receiver
@@ -38,12 +39,12 @@ class RestorablePropertyTransformer(
     }
 
     override fun visitVariable(declaration: IrVariable): IrStatement {
-        if(declaration.symbol in filter || declaration.parent != coroutine.invokeFunction) return super.visitVariable(declaration)
+        if(declaration.symbol in filter) return super.visitVariable(declaration)
         var isIgnored = declaration.annotations.hasAnnotation(Ignore)
 
 
         val field = coroutine.addField(declaration.name, declaration.type)
-        if(field.type.classOrNull == pluginContext.referenceClass(AsyncController)) {
+        if(field.type.classOrNull?.owner?.classId == pluginContext.referenceClass(AsyncController)?.owner?.classId) {
             isIgnored = true
             coroutine.addAsync(field)
         }

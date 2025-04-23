@@ -327,6 +327,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         selectionHandler.updateSelectionRange()
         linesHolder.indices(lineProvider.size) { lineIndex ->
+            if(lineIndex >= lineProvider.size) return@indices
             val line = lineProvider[lineIndex]
             val font = MsdfFont(HACK_FONT, 18f)
 

@@ -81,12 +81,14 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
 
     override fun UiScope.compose() {
         modifier.margin(sizes.smallGap)
+        val filePopup = remember(::FilePopup)
+
         LazyColumn(
             containerModifier = { it.backgroundColor(null) },
             vScrollbarModifier = { it.width(sizes.smallGap) },
             withHorizontalScrollbar = true
         ) {
-            val filePopup = remember(::FilePopup)
+
             filePopup()
 
             itemsIndexed(walk()) { i, item ->

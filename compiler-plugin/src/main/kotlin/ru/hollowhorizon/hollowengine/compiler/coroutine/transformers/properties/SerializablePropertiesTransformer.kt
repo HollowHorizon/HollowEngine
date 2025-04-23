@@ -23,7 +23,7 @@ class SerializablePropertiesTransformer(
     var filter: MutableMap<IrVariableSymbol, Int> = mutableMapOf()
 
     override fun visitVariable(declaration: IrVariable): IrStatement {
-        if (declaration.symbol in filter || declaration.parent != coroutine.invokeFunction) return super.visitVariable(
+        if (declaration.symbol in filter) return super.visitVariable(
             declaration
         )
 
