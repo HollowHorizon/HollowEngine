@@ -92,7 +92,7 @@ fun WhenContext.transformExpression(statement: IrExpression): IrExpression {
             statement.elements.transformInPlace {
                 when (it) {
                     is IrSpreadElement -> it.expression = transformExpression(it.expression)
-                    is IrExpression -> return transformExpression(it)
+                    is IrExpression -> return@transformInPlace transformExpression(it)
                 }
                 it
             }

@@ -7,5 +7,4 @@ fun test() {
 
 @Suspendable
 fun innerCall() {
-
 }
