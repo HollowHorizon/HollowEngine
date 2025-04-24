@@ -8,7 +8,6 @@ import net.minecraft.world.entity.ai.control.MoveControl
 import net.minecraft.world.level.pathfinder.BlockPathTypes
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
 import kotlin.math.max
-import kotlin.math.pow
 import kotlin.math.sqrt
 
 class NpcMoveControl(mob: NPCEntity) : MoveControl(mob) {
@@ -24,7 +23,7 @@ class NpcMoveControl(mob: NPCEntity) : MoveControl(mob) {
                 forward *= scale
                 right *= scale
 
-                val yawRad = Math.toRadians(this.mob.yRot.toDouble()).toFloat()
+                val yawRad = mob.yRot * Mth.DEG_TO_RAD
                 val sin = Mth.sin(yawRad)
                 val cos = Mth.cos(yawRad)
 

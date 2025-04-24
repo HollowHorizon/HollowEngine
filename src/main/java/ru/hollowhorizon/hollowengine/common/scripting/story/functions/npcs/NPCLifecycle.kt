@@ -17,7 +17,7 @@ fun npc(
     model: String = "hollowengine:models/entity/player_model.gltf",
     rotation: Vec2 = rotation(0, 0),
     world: String = "minecraft:overworld",
-    size: Pair<Float, Float> = 0.8f to 1.6f,
+    size: Pair<Float, Float> = 0.6f to 1.8f,
     attributes: Map<String, Float> = emptyMap(),
     textures: Map<String, String> = emptyMap(),
     animations: Map<AnimationType, String> = emptyMap(),
