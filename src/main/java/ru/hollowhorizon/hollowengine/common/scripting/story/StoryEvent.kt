@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import net.minecraft.server.MinecraftServer
+import net.minecraft.util.RandomSource
 import ru.hollowhorizon.hc.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
@@ -19,6 +20,7 @@ import kotlin.script.experimental.api.defaultImports
 abstract class StoryEvent: SFunction0<Any?> {
     val server = currentServer
     val MinecraftServer.players get() = playerList.players
+    val random = RandomSource.create()
 }
 
 class StoryConfiguration : HollowScriptConfiguration({
@@ -29,6 +31,13 @@ class StoryConfiguration : HollowScriptConfiguration({
         "ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.*",
         "ru.hollowhorizon.hollowengine.compiler.coroutine.async",
         "ru.hollowhorizon.hollowengine.compiler.coroutine.AsyncController",
+        "net.minecraft.core.BlockPos",
+        "net.minecraft.util.RandomSource",
+        "net.minecraft.util.Mth",
+        "net.minecraft.world.level.levelgen.Heightmap",
+        "net.minecraft.world.phys.Vec3",
+        "net.minecraft.world.entity.*",
+        "net.minecraft.server.level.ServerLevel",
         "ru.hollowhorizon.hc.client.utils.*"
     )
 })
