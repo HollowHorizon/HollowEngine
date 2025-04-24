@@ -42,7 +42,7 @@ data class CompiledScript(
         UpdateStatusPacket(scriptName, CompilationStatus.Status.EXECUTE).sendToOperators()
 
         val evalConfig = ScriptEvaluationConfiguration { body() }
-        val evaluator = BasicJvmScriptEvaluator()
+        val evaluator = HollowEngineScriptEvaluator()
         val result = evaluator(script, evalConfig)
 
         if (result is ResultWithDiagnostics.Success) ScriptStartedEvent(scriptFile)

@@ -27,7 +27,8 @@ class StoryConfiguration : HollowScriptConfiguration({
         "ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.*",
-        "ru.hollowhorizon.hollowengine.compiler.suspendable.async",
+        "ru.hollowhorizon.hollowengine.compiler.coroutine.async",
+        "ru.hollowhorizon.hollowengine.compiler.coroutine.AsyncController",
         "ru.hollowhorizon.hc.client.utils.*"
     )
 })
