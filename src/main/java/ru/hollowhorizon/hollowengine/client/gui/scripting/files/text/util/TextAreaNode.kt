@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalContracts::class)
+
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util
 
 import de.fabmax.kool.Clipboard
@@ -21,6 +23,9 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.getCharBefo
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys.toEngine
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 import kotlin.math.max
 import kotlin.math.min
 
@@ -138,12 +143,14 @@ fun UiScope.ScriptTextArea(
     scopeName: String? = null,
     block: ScriptTextAreaScope.() -> Unit,
 ) {
+    contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
+
     val textArea = uiNode.createChild(scopeName, TextAreaNode::class, TextAreaNode.factory)
     textArea.listState = state
     textArea.modifier
         .size(width, height)
-        .onWheelX { state.scrollDpX(it.pointer.delta.x * -20f) }
-        .onWheelY { state.scrollDpY(it.pointer.delta.y * -50f) }
+        .onWheelX { state.scrollDpX(it.pointer.scroll.x * -20f) }
+        .onWheelY { state.scrollDpY(it.pointer.scroll.y * -50f) }
 
     var completionIndex: Int by textArea.remember(0)
     var completionX: Float by textArea.remember(0f)
@@ -299,24 +306,12 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         if (withVerticalScrollbar) {
             VerticalScrollbar {
-                lazyListAware(
-                    listState,
-                    ScrollbarOrientation.Vertical,
-                    ListOrientation.Vertical,
-                    scrollbarColor,
-                    vScrollbarModifier
-                )
+                lazyListAware(listState, ScrollbarOrientation.Vertical, ListOrientation.Vertical, scrollbarColor, vScrollbarModifier)
             }
         }
         if (withHorizontalScrollbar) {
             HorizontalScrollbar {
-                lazyListAware(
-                    listState,
-                    ScrollbarOrientation.Horizontal,
-                    ListOrientation.Vertical,
-                    scrollbarColor,
-                    hScrollbarModifier
-                )
+                lazyListAware(listState, ScrollbarOrientation.Horizontal, ListOrientation.Vertical, scrollbarColor, hScrollbarModifier)
             }
         }
     }

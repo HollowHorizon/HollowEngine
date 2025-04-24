@@ -84,8 +84,6 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
 
         ScriptTextArea(
             ListTextLineProvider(lines),
-            width = Grow.Std,
-            height = Grow.Std,
             vScrollbarModifier = { it.width(sizes.smallGap) },
             hScrollbarModifier = { it.height(sizes.smallGap) },
         ) {
