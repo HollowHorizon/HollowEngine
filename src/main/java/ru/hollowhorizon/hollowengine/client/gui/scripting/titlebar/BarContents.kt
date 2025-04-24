@@ -80,7 +80,9 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
                 )
             )
             .onClick {
-                val file = items[itemIndex.use()].first
+                val id = itemIndex.use()
+                if (id == -1) return@onClick
+                val file = items[id].first
                 StartScriptPacket(file).send()
             }
 

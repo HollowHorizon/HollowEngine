@@ -12,15 +12,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextAr
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.setSelectionRange
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 
-fun createTexture(path: String) = Texture2d {
-    Assets.loadImage2d(path).getOrThrow()
-}
-
-val COMPLETE_CLASS by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_class.svg") }
-val COMPLETE_METHOD by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_method.svg") }
-val COMPLETE_PACKAGE by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_package.svg") }
-val COMPLETE_VARIABLE by lazy { createTexture("hollowengine:textures/gui/icons/autocomplete_variable.svg") }
-
 data class CompletionVariant(
     val text: String,
     val displayText: String,
