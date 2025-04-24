@@ -97,7 +97,6 @@ class CoroutineClassGenerator : IrElementTransformerVoid() {
     private fun generateForScript(coroutine: IrClass): CoroutineGenerator {
         val lambda = coroutine.superClass ?: error("Script is not story event function")
         val invokeFunction = coroutine.getSimpleFunction("invoke")!!.owner
-        coroutine.thisReceiver = invokeFunction.dispatchReceiverParameter
 
         val restoreFunction = coroutine.addFunction {
             updateFrom(invokeFunction)

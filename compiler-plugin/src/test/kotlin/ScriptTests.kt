@@ -18,7 +18,10 @@ class ScriptTests {
     fun `Suspendable Script`() {
         val coroutine = makeCoroutine<SFunction0<Any?>>(
             """
+            val data = "Data"
             println(hello)
+            fun example(name: String): String = "Aaaa: " + name
+            println(example(data))
         """.trimIndent()
         )
         val launcher = SuspendLauncher(coroutine)

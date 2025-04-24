@@ -5,10 +5,7 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.*
-import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.declarations.IrDeclaration
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
-import org.jetbrains.kotlin.ir.declarations.IrVariable
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
@@ -47,7 +44,7 @@ fun WhenContext.transformStatement(statement: IrStatement): IrStatement {
 fun WhenContext.transformDeclaration(statement: IrDeclaration): IrDeclaration {
     return when (statement) {
         is IrVariable -> transformVariable(statement)
-        is IrClass -> statement
+        is IrClass, is IrFunction -> statement
         else -> error("Unknown declaration type ${statement.javaClass.name}")
     }
 }
