@@ -10,7 +10,6 @@ import ru.hollowhorizon.hollowengine.common.scripting.events.startEventScript
 import ru.hollowhorizon.hollowengine.common.scripting.story.STORY_EVENTS_SCRIPTS
 import ru.hollowhorizon.hollowengine.common.scripting.story.startGuiScript
 import ru.hollowhorizon.hollowengine.common.scripting.story.startStoryEvent
-import ru.hollowhorizon.hollowengine.compiler.HollowEngineCompilerRegistrar
 import java.io.File
 
 fun startScript(file: File) {

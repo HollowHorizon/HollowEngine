@@ -69,7 +69,7 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
         comboBox("Empty", items.map { it.second }, itemIndex)
     }
 
-    Box {
+    if(itemIndex.use() != -1) Box {
         modifier.padding(horizontal = sizes.smallGap)
             .background(
                 RoundRectBackground(
@@ -80,9 +80,7 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
                 )
             )
             .onClick {
-                val id = itemIndex.use()
-                if (id == -1) return@onClick
-                val file = items[id].first
+                val file = items[itemIndex.use()].first
                 StartScriptPacket(file).send()
             }
 

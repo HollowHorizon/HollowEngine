@@ -153,10 +153,7 @@ fun startGuiScript(script: File) {
 
         onMainThreadSync {
             RenderSystem.recordRenderCall {
-                val screenMinecraft = Minecraft.getInstance()
-
-                val gui = KoolGuiScripts(event)
-                gui.open()
+                KoolGuiScripts(event).open()
             }
         }
     }

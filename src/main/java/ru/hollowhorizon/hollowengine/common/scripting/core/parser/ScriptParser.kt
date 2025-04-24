@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler.createCompilationConfiguration
 import ru.hollowhorizon.hollowengine.common.scripting.core.host.HollowEngineScriptingHost
 import ru.hollowhorizon.hollowengine.common.scripting.events.EventScript
+import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolEvent
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
 
 object ScriptParser {
@@ -33,6 +34,10 @@ object ScriptParser {
             add(
                 ScriptingConfigurationKeys.SCRIPT_DEFINITIONS,
                 ScriptDefinition.FromConfigurations(host, createCompilationConfiguration<EventScript>(host), null)
+            )
+            add(
+                ScriptingConfigurationKeys.SCRIPT_DEFINITIONS,
+                ScriptDefinition.FromConfigurations(host, createCompilationConfiguration<KoolEvent>(host), null)
             )
         }
 
