@@ -23,6 +23,7 @@ import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
+import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcMoveControl
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcPathNavigation
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
@@ -30,6 +31,10 @@ import ru.hollowhorizon.hollowengine.common.registry.ModItems
 class NPCEntity : PathfinderMob, IAnimated {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY, level)
     constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
+
+    init {
+        moveControl = NpcMoveControl(this)
+    }
 
     val goals get() = goalSelector
 

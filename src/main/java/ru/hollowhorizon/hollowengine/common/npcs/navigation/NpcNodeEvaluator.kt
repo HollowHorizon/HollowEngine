@@ -12,14 +12,28 @@ class NpcNodeEvaluator : WalkNodeEvaluator() {
     }
 
     override fun isDiagonalValid(root: Node, xNode: Node?, zNode: Node?, diagonal: Node?): Boolean {
-        if (diagonal == null || diagonal.closed || diagonal.type == BlockPathTypes.WALKABLE_DOOR) return false
+        if (diagonal == null || diagonal.closed) return false
 
-        val isZNodeValid =
-            zNode != null && !zNode.closed && zNode.type != BlockPathTypes.WALKABLE_DOOR && (zNode.y <= root.y || zNode.costMalus >= 0.0f)
-        val isXNodeValid =
-            xNode != null && !xNode.closed && xNode.type != BlockPathTypes.WALKABLE_DOOR && (xNode.y <= root.y || xNode.costMalus >= 0.0f)
-        val isNarrowFence =
-            zNode != null && xNode != null && zNode.type == BlockPathTypes.FENCE && xNode.type == BlockPathTypes.FENCE && mob.bbWidth.toDouble() < 0.5
+        // Разрешаем двери, если они проходимы
+        val isBlockedByDoor = diagonal.type == BlockPathTypes.WALKABLE_DOOR
+                || xNode?.type == BlockPathTypes.WALKABLE_DOOR
+                || zNode?.type == BlockPathTypes.WALKABLE_DOOR
+        if (isBlockedByDoor) return false
+
+        // Проверка, разрешено ли движение по диагонали с подъемом не более чем на 1 блок
+        fun isNodeValid(node: Node?): Boolean {
+            if (node == null || node.closed) return false
+            if (node.y > root.y + 1) return false // выше чем на 1 блок — нельзя
+            return node.costMalus >= 0.0f
+        }
+
+        val isZNodeValid = isNodeValid(zNode)
+        val isXNodeValid = isNodeValid(xNode)
+
+        // Узкое пространство между заборами
+        val isNarrowFence = zNode != null && xNode != null &&
+                zNode.type == BlockPathTypes.FENCE && xNode.type == BlockPathTypes.FENCE &&
+                mob.bbWidth.toDouble() < 0.5
 
         return diagonal.costMalus >= 0.0f && (isZNodeValid || isXNodeValid || isNarrowFence)
     }
