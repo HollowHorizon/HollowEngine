@@ -9,9 +9,11 @@ import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.statements
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
+import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.asyncController
 import ru.hollowhorizon.hollowengine.compiler.identifiers.Restorable
 
 
@@ -40,7 +42,8 @@ class LocalPropertiesTransformer(
     override fun visitVariable(declaration: IrVariable): IrStatement {
         val symbol = declaration.symbol
         if (declaration.parent == coroutine.invokeFunction &&
-            !declaration.annotations.hasAnnotation(Restorable)
+            !declaration.annotations.hasAnnotation(Restorable) &&
+            declaration.type != asyncController.defaultType
         ) {
             // Собираем переменные, использованные в инициализаторе
             val usedSymbols = mutableSetOf<IrVariableSymbol>()
