@@ -1,5 +1,6 @@
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
+import ru.hollowhorizon.hollowengine.compiler.JvmHacks
 import ru.hollowhorizon.hollowengine.compiler.coroutine.SuspendLauncher
 import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFunction0
 import ru.hollowhorizon.hollowengine.scripting.SuspendState

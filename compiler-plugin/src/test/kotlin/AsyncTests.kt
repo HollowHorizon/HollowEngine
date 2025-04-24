@@ -2,6 +2,7 @@ import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
+import ru.hollowhorizon.hollowengine.compiler.JvmHacks
 import ru.hollowhorizon.hollowengine.compiler.coroutine.SuspendLauncher
 import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFunction0
 import ru.hollowhorizon.hollowengine.scripting.SuspendState

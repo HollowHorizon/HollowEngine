@@ -10,15 +10,16 @@ import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classifierOrNull
 import org.jetbrains.kotlin.ir.util.fqNameWhenAvailable
+import org.jetbrains.kotlin.ir.util.parentClassOrNull
 
 object NameHelper {
     private const val SEPARATOR = "_"
-    private val anonymousIndexes = HashMap<IrDeclarationParent, Int>()
+    private val anonymousIndexes = HashMap<IrClass, Int>()
 
     fun createName(function: IrFunction) = if (function.name.isAnonymous) {
-        val parentFunction = function.parent
-        val index = anonymousIndexes.getOrPut(parentFunction) { 0 }
-        anonymousIndexes[parentFunction] = index + 1
+        val parentClass = function.parentClassOrNull ?: error("parent class not found")
+        val index = anonymousIndexes.getOrPut(parentClass) { 0 }
+        anonymousIndexes[parentClass] = index + 1
         "Lambda${SEPARATOR}$index"
     } else {
         val parameterTypes = function.valueParameters.joinToString(SEPARATOR) { param ->
