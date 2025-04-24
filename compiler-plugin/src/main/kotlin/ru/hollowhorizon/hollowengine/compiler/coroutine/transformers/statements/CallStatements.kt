@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.resolve.jvm.JvmClassName
 import ru.hollowhorizon.hollowengine.compiler.coroutine.NameHelper
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.FakeCoroutine
 import ru.hollowhorizon.hollowengine.compiler.coroutine.generators.receiver
@@ -86,7 +87,7 @@ fun WhenContext.transformCall(call: IrFunctionAccessExpression): IrExpression {
                 eventListener.initializer = irCall(constructor).apply {
                     var eventClass = "Unknown Event!"
                     call.getTypeArgument(0)?.type?.classOrNull?.let {
-                        eventClass = it.owner.packageFqName?.child(it.owner.name)?.asString() ?: return@let
+                        eventClass = JvmClassName.byClassId(it.owner.classId!!).internalName.replace('/', '.') ?: return@let
                     }
                     putValueArgument(0, irString(eventClass))
                 }
