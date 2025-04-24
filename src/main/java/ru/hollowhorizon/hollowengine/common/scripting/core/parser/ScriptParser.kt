@@ -42,7 +42,7 @@ object ScriptParser {
 
 
     fun parse(code: String, fileName: String): KtFile {
-        val virtualFile = LightVirtualFile(fileName, KotlinFileType.INSTANCE, code)
+        val virtualFile = LightVirtualFile(fileName, KotlinFileType.INSTANCE, code.replace("\r", "")) // Ну спасибо JetBrains...
         return PsiManager.getInstance(env.project).findFile(virtualFile) as KtFile
     }
 }
