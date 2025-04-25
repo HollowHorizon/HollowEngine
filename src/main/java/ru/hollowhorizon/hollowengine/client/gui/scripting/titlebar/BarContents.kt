@@ -5,6 +5,7 @@ import ru.hollowhorizon.hc.client.kool.minecraft.Image
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.StartScriptPacket
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 
@@ -42,7 +43,7 @@ fun UiScope.TextButton(text: String, onClick: () -> Unit = {}) {
 fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
     if (IdeContent.files.isEmpty()) return@append
 
-    val items = IdeContent.files.map { (key, file) ->
+    val items = IdeContent.files.filter { it.value is TextFileData }.map { (key, file) ->
         key to Composable {
             Row {
                 Box {

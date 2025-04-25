@@ -66,14 +66,13 @@ class InlineTransformer : CoroutineTransformer() {
         return irBlock {
             val receiver = expression.extensionReceiver ?: return@irBlock
             val lambda = expression.getValueArgument(0) as? IrFunctionExpression ?: return@irBlock
-            val tempVar = irTemporary(receiver, "apply_receiver_${varIndex++}")
 
             lambda.function.body?.let { body ->
                 val transformedBody = body.deepCopyWithSymbols(coroutine.invokeFunction).apply {
                     transformChildrenVoid(object : IrElementTransformerVoid() {
                         override fun visitGetValue(expression: IrGetValue): IrExpression {
                             if (expression.symbol == lambda.function.extensionReceiverParameter?.symbol) {
-                                return irGet(tempVar)
+                                return receiver
                             }
                             return super.visitGetValue(expression)
                         }
@@ -81,7 +80,7 @@ class InlineTransformer : CoroutineTransformer() {
                 }
                 transformedBody.statements.forEach { +it }
             }
-            +irGet(tempVar)
+            +receiver
         }
     }
 

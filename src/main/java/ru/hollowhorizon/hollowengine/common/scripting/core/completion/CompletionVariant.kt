@@ -73,7 +73,7 @@ data class CompletionVariant(
         val lineIndex = modifier.selectionStartLine.coerceAtMost(scriptTextArea.lineProvider.lastIndex)
         if(lineIndex == -1) return
         val line = scriptTextArea.lineProvider[lineIndex].text
-        val startChar = modifier.selectionStartChar
+        val startChar = (modifier.selectionStartChar - 1).coerceAtLeast(0)
         val startWord = TextCaretNavigation.startOfWord(line, startChar)
         val editor = modifier.editorHandler ?: return
 
@@ -88,7 +88,7 @@ data class CompletionVariant(
             modifier.selectionStartLine,
             modifier.selectionStartLine,
             startWord,
-            startChar,
+            startChar + 1,
             text,
             scriptTextArea
         )

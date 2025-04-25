@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
@@ -13,7 +14,7 @@ import ru.hollowhorizon.hollowengine.client.utils.lang
 fun UiScope.FileDockingTabsBar(
     windowDockable: UiDockable,
     isDragToUndock: Boolean = true,
-    onCloseAction: ((PointerEvent) -> Unit)? = null,
+    onCloseAction: ((Dockable) -> Unit)? = null,
 ): Boolean {
     val dockNode = windowDockable.dockedTo.use()
     val nodeCount = dockNode?.dockedItems?.use()?.count { !it.isHidden } ?: 0
@@ -31,7 +32,7 @@ fun UiScope.FileDockingTabsBar(
                         .alignY(AlignmentY.Bottom)
                         .onClick {
                             if (it.pointer.isMiddleButtonReleased) {
-                                onCloseAction?.invoke(it)
+                                onCloseAction?.invoke(item)
                             } else if (it.isLeftClick) {
                                 dockNode.bringToTop(item)
                             }
@@ -63,10 +64,11 @@ fun UiScope.FileDockingTabsBar(
                     if (onCloseAction != null) {
                         CloseButton(background = bgColor, backgroundHover = bgColor, foreground = colors.onBackground,
                             buttonMod = {
-                                it.align(AlignmentX.End, AlignmentY.Center)
+                                it.onDragStart {}.onDragEnd {}.onDrag {} // Deny drag by close button
+                                    .align(AlignmentX.End, AlignmentY.Center)
                                     .margin(end = sizes.smallGap)
                             }
-                        ) { ev -> onCloseAction(ev) }
+                        ) { ev -> onCloseAction(item) }
                     }
                 }
             }
@@ -83,7 +85,7 @@ fun UiScope.FileTitleBar(
     windowDockable: UiDockable,
     isDraggable: Boolean = true,
     showTabsIfDocked: Boolean = true,
-    onCloseAction: ((PointerEvent) -> Unit)? = null,
+    onCloseAction: ((Dockable) -> Unit)? = null,
 ) {
     val isTabbed = if (showTabsIfDocked) {
         FileDockingTabsBar(windowDockable, onCloseAction = onCloseAction)
@@ -105,7 +107,7 @@ fun UiScope.FileTitleBar(
                 .margin(sizes.smallGap, sizes.smallGap, 0.dp, sizes.smallGap)
                 .onClick {
                     if (it.pointer.isMiddleButtonReleased) {
-                        onCloseAction?.invoke(it)
+                        onCloseAction?.invoke(windowDockable)
                     }
                 }
 
@@ -138,9 +140,10 @@ fun UiScope.FileTitleBar(
             onCloseAction?.let {
                 CloseButton(background = bgColor, backgroundHover = bgColor, foreground = colors.onBackground, buttonMod = {
                     it
+                        .onDragStart {}.onDragEnd {}.onDrag {} // Deny drag by close button
                         .align(AlignmentX.End, AlignmentY.Center)
                         .padding(sizes.smallGap)
-                }) { ev -> it(ev) }
+                }) { ev -> it(windowDockable) }
             }
         }
     } else {

@@ -25,7 +25,7 @@ abstract class FileData(
         Column(Grow.Std, Grow.Std) {
             modifier.margin(sizes.smallGap)
 
-            FileTitleBar(dockable, onCloseAction = {
+            FileTitleBar(dockable, onCloseAction = { dockable ->
                 val file = IdeContent.files.values.find { it.dockable == dockable } ?: return@FileTitleBar
                 (Minecraft.getInstance().screen as ScriptingEnvironmentScreen).dock
                     .removeDockableSurface(file.surface)

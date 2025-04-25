@@ -49,6 +49,8 @@ fun UiScope.iconButton(
     val float = animators.getOrPut(panel) { AnimatedFloat(1f) }
     val anim = Easing.quadRev(float.progressAndUse())
 
+    val tooltipState = remember { TooltipState(0.5) }
+
     if (toggleState) {
         Box(sizes.borderWidth * 2, Grow(0.5f * anim)) {
             modifier.background(RoundRectBackground(colors.onBackground, sizes.smallGap * 0.5f))
@@ -61,6 +63,7 @@ fun UiScope.iconButton(
     modifier
         .align(AlignmentX.Center, AlignmentY.Center)
         .onClick(onClick)
+        .onClick { tooltipState.set(false) }
 
 
     Box {
@@ -80,7 +83,7 @@ fun UiScope.iconButton(
         }
 
         tooltip?.let { text ->
-            Tooltip(remember { TooltipState(0.5) }) {
+            Tooltip(tooltipState) {
                 modifier.layout(CellLayout)
                     .background(UiRenderer { node ->
                         node.apply {

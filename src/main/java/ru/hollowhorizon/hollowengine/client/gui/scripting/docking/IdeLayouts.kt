@@ -9,5 +9,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.FileTreePanel
 fun loadLayouts(event: LoadLayoutEvent) {
     event.provide("hollowengine.gui.ide.project_tree", ::FileTreePanel)
     event.provide("hollowengine.gui.ide.docs", ::DocsTreePanel)
-    event.provide("hollowengine.gui.ide.recipes", ::RecipeEditorPanel)
+    
+    // event.provide("hollowengine.gui.ide.recipes", ::RecipeEditorPanel)
 }

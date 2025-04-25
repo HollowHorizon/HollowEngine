@@ -16,7 +16,6 @@ import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.TextCaretNavigation
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hc.common.events.EventBus
-import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.getCharAfterSelection
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.getCharBeforeSelection
@@ -183,14 +182,9 @@ fun UiScope.ScriptTextArea(
                 ) {
                     modifier.padding(sizes.smallGap * 0.5f)
                         .height(
-                            Grow(
-                                1f,
-                                max = Dp(
-                                    (font.lineHeight + sizes.smallGap.px * 2) * completions.size.coerceAtMost(10) + sizes.smallGap.px * 2
-                                )
-                            )
+                            (24.dp + sizes.smallGap) * completions.size.coerceAtMost(10) + sizes.smallGap
                         )
-                        .width(Grow(1f, max=FitContent))
+                        .width(Grow(1f, max = FitContent))
                         .background(null)
                         .border(null)
                         .zLayer(UiSurface.LAYER_POPUP)
@@ -211,7 +205,7 @@ fun UiScope.ScriptTextArea(
                             it.allowOverscrollY = false
                         }
                     ) {
-                        modifier.margin(end=sizes.gap)
+                        modifier.margin(end = sizes.gap)
 
                         textArea.completionsList = (this as LazyListNode).state
                         itemsIndexed(completions) { index, completion ->
@@ -306,12 +300,24 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         if (withVerticalScrollbar) {
             VerticalScrollbar {
-                lazyListAware(listState, ScrollbarOrientation.Vertical, ListOrientation.Vertical, scrollbarColor, vScrollbarModifier)
+                lazyListAware(
+                    listState,
+                    ScrollbarOrientation.Vertical,
+                    ListOrientation.Vertical,
+                    scrollbarColor,
+                    vScrollbarModifier
+                )
             }
         }
         if (withHorizontalScrollbar) {
             HorizontalScrollbar {
-                lazyListAware(listState, ScrollbarOrientation.Horizontal, ListOrientation.Vertical, scrollbarColor, hScrollbarModifier)
+                lazyListAware(
+                    listState,
+                    ScrollbarOrientation.Horizontal,
+                    ListOrientation.Vertical,
+                    scrollbarColor,
+                    hScrollbarModifier
+                )
             }
         }
     }
@@ -322,7 +328,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         selectionHandler.updateSelectionRange()
         linesHolder.indices(lineProvider.size) { lineIndex ->
-            if(lineIndex >= lineProvider.size) return@indices
+            if (lineIndex >= lineProvider.size) return@indices
             val line = lineProvider[lineIndex]
             val font = MsdfFont(HACK_FONT, 18f)
 
@@ -403,8 +409,20 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
             if (lineIndex != areaModifier.selectionStartLine) return@onPositioned
 
-            areaModifier.setCompletionX(it.leftPx + line.charIndexToPx(areaModifier.selectionStartChar.coerceAtLeast(0)))
-            areaModifier.setCompletionY(it.bottomPx)
+            val selectionIndex = (areaModifier.selectionStartChar - 1).coerceAtLeast(0)
+
+            var dotIndex = TextCaretNavigation.startOfWord(line.text, selectionIndex)
+            if(dotIndex == -1) dotIndex = selectionIndex
+            areaModifier.setCompletionX(it.leftPx + line.charIndexToPx(dotIndex))
+
+            val centerY = topPx + heightPx / 2
+
+            if (it.bottomPx > centerY) {
+                val sizeY = (24.dp + sizes.smallGap).px * areaModifier.completions.size.coerceAtMost(10) + 24.dp.px
+                areaModifier.setCompletionY(it.bottomPx - sizeY)
+            } else {
+                areaModifier.setCompletionY(it.bottomPx)
+            }
         }
 
         if (this@TextAreaNode.modifier.onSelectionChanged != null) {
@@ -447,7 +465,10 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         if (keyEvent.isCharTyped) {
             editText("${keyEvent.typedChar}")
-            bracketPairs[keyEvent.localKeyCode.code.toChar()]?.let { editText(it.toString()) }
+            bracketPairs[keyEvent.localKeyCode.code.toChar()]?.let {
+                editText(it.toString())
+                selectionHandler.moveCaretLeft(wordWise = false, select = false)
+            }
         } else if (keyEvent.isPressed) {
             when (keyEvent.keyCode) {
                 KeyboardInput.KEY_BACKSPACE -> {

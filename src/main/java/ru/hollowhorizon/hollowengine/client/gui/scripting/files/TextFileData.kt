@@ -33,10 +33,10 @@ var currentColumn = 0
 
 class TextFileData(project: IdeContent, name: String, path: String, code: String) :
     FileData(project, name, path) {
-    private val lines = code.lines().map {
+    private val lines = MutableStateList(code.lines().map {
         TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 18f), Color.WHITE)))
-    }.toMutableList()
-
+    }.toMutableList())
+    private val editorHandler = ScriptTextEditorHandler(lines)
     private var textHash = code.hashCode()
     private var bindingContext = BindingContext.EMPTY
 
@@ -80,8 +80,6 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
     override fun UiScope.compose() {
         modifier.backgroundColor(colors.backgroundVariant)
 
-        val lines = MutableStateList(lines)
-
         ScriptTextArea(
             ListTextLineProvider(lines),
             vScrollbarModifier = { it.width(sizes.smallGap) },
@@ -107,7 +105,7 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
                 }
             }
 
-            modifier.editorHandler(ScriptTextEditorHandler(lines))
+            modifier.editorHandler(editorHandler)
         }
     }
 

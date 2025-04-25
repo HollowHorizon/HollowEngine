@@ -9,7 +9,7 @@ import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextAreaScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextEditorHandler
 
-class ScriptTextEditorHandler(val text: MutableList<TextLine> = mutableStateListOf()) : TextEditorHandler {
+class ScriptTextEditorHandler(var text: MutableList<TextLine> = mutableStateListOf()) : TextEditorHandler {
     private val undoStack = ArrayDeque<UndoableAction>()
     private val redoStack = ArrayDeque<UndoableAction>()
 
