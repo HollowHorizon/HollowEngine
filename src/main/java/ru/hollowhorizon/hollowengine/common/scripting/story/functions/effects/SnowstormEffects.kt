@@ -18,14 +18,16 @@ import ru.hollowhorizon.hc.common.utils.nbt.ForVec3
 import ru.hollowhorizon.hc.common.utils.rl
 import ru.hollowhorizon.hc.common.network.HollowPacketHandler
 import ru.hollowhorizon.hc.common.network.HollowPacket
+import ru.hollowhorizon.hc.common.network.sendAllInDimension
+import ru.hollowhorizon.hc.common.network.sendTrackingEntity
 import ru.hollowhorizon.hc.common.objects.molang.asMolang
 
 fun Level.bedrockParticles(pos: Vec3, location: String) {
-    SpawnParticlesPacket(location, pos).send(*players().map { it as ServerPlayer }.toTypedArray())
+    SpawnParticlesPacket(location, pos).sendAllInDimension(this)
 }
 
 fun LivingEntity.bedrockParticles(location: String) {
-    SpawnParticlesPacket(location, entity = this).send(*level().players().map { it as ServerPlayer }.toTypedArray())
+    SpawnParticlesPacket(location, entity = this).sendTrackingEntity(this)
 }
 
 @Serializable

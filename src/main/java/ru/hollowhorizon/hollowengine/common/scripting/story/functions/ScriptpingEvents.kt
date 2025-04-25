@@ -2,11 +2,13 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.functions
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hc.common.events.EventListener
 import ru.hollowhorizon.hc.common.events.entity.player.PlayerInteractEvent
+import ru.hollowhorizon.hc.common.utils.nbt.ForEntity
 import ru.hollowhorizon.hollowengine.scripting.Suspendable
 
 @Serializable
@@ -26,10 +28,3 @@ class ScriptingEventListener(val eventType: String) {
 
 @Suspendable
 external fun <T : Event> await(): T
-
-@Suspendable
-fun test() {
-    val event = await<PlayerInteractEvent.EntityInteract>()
-
-    event.player.sendSystemMessage(("Смотри, я нашёл "+ event.target.name.string).literal)
-}

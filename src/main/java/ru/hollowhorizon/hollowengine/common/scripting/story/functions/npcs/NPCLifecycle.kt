@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
@@ -10,7 +11,10 @@ import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
 
+@OptIn(ExperimentalContracts::class)
 fun npc(
     pos: Vec3,
     name: String = "NPC",
@@ -25,6 +29,10 @@ fun npc(
     showName: Boolean = true,
     inverseHeadRotation: Boolean = false,
 ): NPCEntity {
+    assert(ResourceLocation.isValidResourceLocation(model)) {
+        "Non [a-z0-9/._-] character in path of location: $model"
+    }
+
     val level = currentServer.getLevel(currentServer.levelKeys().find { it.location().toString() == world }
         ?: throw IllegalStateException("Dimension $world not found!"))
         ?: throw IllegalStateException("Dimension $world is not loaded!")
