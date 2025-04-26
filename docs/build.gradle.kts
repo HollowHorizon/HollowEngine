@@ -40,7 +40,7 @@ kotlin {
     }
 
     sourceSets {
-        val koolVersion = "0.17.0-0mods-SNAPSHOT"
+        val koolVersion = "0.18.0-0mods-SNAPSHOT"
         val lwjglVersion = "3.3.3"
         val physxJniVersion = "2.4.0"
 

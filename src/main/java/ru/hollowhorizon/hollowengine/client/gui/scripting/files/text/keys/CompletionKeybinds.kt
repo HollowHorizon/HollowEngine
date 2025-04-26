@@ -10,7 +10,7 @@ private val APPLY_COMPLETION_KEYBIND = setOf(KeyboardInput.KEY_ENTER, KeyboardIn
 fun onCompletions(event: ScriptAreaKeyEvent) {
     val modifier = event.area.modifier
 
-    if (modifier.completions.isEmpty() || !event.isPressed) return
+    if (modifier.completions.isEmpty() || !event.isReleased) return
 
     when (event.keyCode) {
         in APPLY_COMPLETION_KEYBIND -> {
@@ -18,6 +18,7 @@ fun onCompletions(event: ScriptAreaKeyEvent) {
             if(modifier.completionIndex >= modifier.completions.size) return
 
             modifier.completions[modifier.completionIndex].use(event.area)
+            event.isCanceled = true
         }
 
         KeyboardInput.KEY_ESC -> modifier.completions.clear()
@@ -26,18 +27,22 @@ fun onCompletions(event: ScriptAreaKeyEvent) {
             if (modifier.completionIndex > 0) {
                 event.area.completionsList.scrollToItem.set(modifier.completionIndex - 1)
                 modifier.setCompletionIndex(modifier.completionIndex - 1)
+            } else {
+                modifier.setCompletionIndex(modifier.completions.lastIndex)
             }
+            event.isCanceled = true
         }
 
         KeyboardInput.KEY_CURSOR_DOWN -> {
             if (modifier.completionIndex < modifier.completions.size - 1) {
                 event.area.completionsList.scrollToItem.set(modifier.completionIndex + 1)
                 modifier.setCompletionIndex(modifier.completionIndex + 1)
+            } else {
+                modifier.setCompletionIndex(0)
             }
+            event.isCanceled = true
         }
 
         else -> return
     }
-
-    event.isCanceled = true
 }

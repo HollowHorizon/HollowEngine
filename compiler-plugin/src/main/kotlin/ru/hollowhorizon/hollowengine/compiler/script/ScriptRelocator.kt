@@ -89,7 +89,7 @@ class ScriptRelocator : IrElementTransformerVoid() {
     override fun visitProperty(declaration: IrProperty): IrStatement {
         if (hasScript) {
             if(declaration.name == Name.identifier("\$\$result")) {
-                return declaration.backingField?.initializer?.expression ?: return super.visitProperty(declaration)
+                return super.visitExpression(declaration.backingField?.initializer?.expression ?: return super.visitProperty(declaration))
             }
 
             declaration.backingField?.let { field ->
