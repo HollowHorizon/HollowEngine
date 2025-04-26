@@ -15,6 +15,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.example.HollowScript
 import ru.hollowhorizon.hollowengine.common.scripting.core.setupScripting
 import ru.hollowhorizon.hollowengine.common.scripting.events.loadEvents
+//? if forge
+/*import ru.hollowhorizon.hollowengine.mixins.client.setupCamera*/
 
 @HollowMod
 object HollowEngine {
@@ -38,6 +40,10 @@ object HollowEngine {
             KoolManager.context.addScene(CompilationStatus.overlay)
             KoolManager.context.addScene(BetaWarning.overlay)
         }
+
+        //? if forge {
+        /*setupCamera()
+        *///?}
     }
 }
 

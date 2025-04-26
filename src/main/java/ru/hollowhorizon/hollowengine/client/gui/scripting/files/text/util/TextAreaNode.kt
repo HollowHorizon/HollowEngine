@@ -561,7 +561,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             val selectedText = selectionHandler.copySelection() ?: return
             val editor = modifier.editorHandler ?: return
 
-                        
+
             // Заменяем выделение на обёртку (открывающая + оригинал + закрывающая)
             editor.replaceText(
                 fromLine, toLine,
@@ -579,7 +579,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         } else {
             // --- нет выделения: поведение как раньше ---
-            editText(char.toString())
+            editText(char)
             editText(closing.toString())
             // возвращаем каретку между скобками
             selectionHandler.moveCaretLeft(wordWise = false, select = false)
