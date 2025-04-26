@@ -40,8 +40,8 @@ repositories {
 }
 
 dependencies {
-    install("ru.hollowhorizon:HollowCore-${container.modPlatform}-${container.minecraftVersion}:$hollowcore:dev", includeInJar = false, isMod = container.modPlatform == "forge")
-    include("ru.hollowhorizon:HollowCore-${container.modPlatform}-${container.minecraftVersion}:$hollowcore")
+    install("com.github.HollowHorizon.HollowCore:HollowCore-${container.modPlatform}-${container.minecraftVersion}:$hollowcore:dev", includeInJar = false, isMod = container.modPlatform == "forge")
+    include("com.github.HollowHorizon.HollowCore:HollowCore-${container.modPlatform}-${container.minecraftVersion}:$hollowcore")
 
     setupScripting()
 

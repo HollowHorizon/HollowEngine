@@ -9,6 +9,7 @@ import ru.hollowhorizon.hc.api.HollowMod
 import ru.hollowhorizon.hc.client.kool.KoolManager
 import ru.hollowhorizon.hc.common.config.HollowConfig
 import ru.hollowhorizon.hc.common.config.hollowConfig
+import ru.hollowhorizon.hollowengine.client.gui.overlay.BetaWarning
 import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.example.HollowScript
@@ -35,6 +36,7 @@ object HollowEngine {
 
         RenderSystem.recordRenderCall {
             KoolManager.context.addScene(CompilationStatus.overlay)
+            KoolManager.context.addScene(BetaWarning.overlay)
         }
     }
 }
