@@ -1,17 +1,15 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
-import com.mojang.blaze3d.systems.RenderSystem
 import de.fabmax.kool.util.logE
 import kotlinx.serialization.Serializable
-import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.client.kool.KoolManager
 import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hc.common.utils.nbt.ForCompoundNBT
-import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
 import ru.hollowhorizon.hc.common.capabilities.HollowCapability
 import ru.hollowhorizon.hc.common.coroutines.onMainThreadSync
@@ -25,8 +23,8 @@ import ru.hollowhorizon.hc.common.utils.nbt.NBTFormat
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
-import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolEvent
-import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolGuiScripts
+import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolClientManager
+import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolScript
 import ru.hollowhorizon.hollowengine.scripting.ResumeState
 import ru.hollowhorizon.hollowengine.scripting.SuspendState
 import java.io.File
@@ -143,18 +141,21 @@ fun startStoryEvent(script: File, tag: CompoundTag? = null) {
     }
 }
 
-fun startGuiScript(script: File) {
+fun startKoolScript(script: File) {
     scopeAsync {
-        val jar = ScriptingCompiler.compileFile<KoolEvent>(script)
+        val name = script.toReadablePath()
+        val jar = ScriptingCompiler.compileFile<KoolScript>(script)
 
         val result = jar.execute()
-        val event = result.valueOrThrow().returnValue.scriptInstance as? KoolEvent
+        val event = result.valueOrThrow().returnValue.scriptInstance as? KoolScript
             ?: error("Script instance is null")
 
-        onMainThreadSync {
-            RenderSystem.recordRenderCall {
-                KoolGuiScripts(event).open()
-            }
+        if (name in KoolClientManager) {
+            KoolClientManager.updateScene(name, CompoundTag())
+            return@scopeAsync
         }
+
+        KoolClientManager.addScene(name, event)
     }
+
 }

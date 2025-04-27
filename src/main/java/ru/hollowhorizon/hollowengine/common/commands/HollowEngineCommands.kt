@@ -19,8 +19,6 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.story.*
-import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFunction0
-import ru.hollowhorizon.hollowengine.scripting.script
 import java.io.File
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -79,7 +77,7 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                     source.player?.sendSystemMessage("File $script does not exist!".literal)
                 }
 
-                startGuiScript(script)
+                startKoolScript(script)
                 HollowCore.LOGGER.info("Started script $script")
             }
 

@@ -5,9 +5,11 @@ import ru.hollowhorizon.hc.client.kool.minecraft.Image
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.StartScriptPacket
+import ru.hollowhorizon.hollowengine.client.gui.scripting.StopScriptPacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolClientManager
 
 @SubscribeEvent
 fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
@@ -70,24 +72,41 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
         comboBox("Empty", items.map { it.second }, itemIndex)
     }
 
-    if(itemIndex.use() != -1) Box {
-        modifier.padding(horizontal = sizes.smallGap)
-            .background(
-                RoundRectBackground(
-                    hoverColors(
-                        color = colors.background,
-                        hoverColor = IdeTheme.hoveredColors.background
-                    ), sizes.smallGap
-                )
-            )
-            .onClick {
-                val file = items[itemIndex.use()].first
+    if (itemIndex.use() != -1) Box {
+        val file = items[itemIndex.use()].first
+
+        if (file in KoolClientManager) {
+            ActionButton(24.dp, "hollowengine:textures/gui/icons/stop.png") {
+                StopScriptPacket(file).send()
+            }
+        } else {
+            ActionButton(24.dp, "hollowengine:textures/gui/icons/play.png") {
                 StartScriptPacket(file).send()
             }
-
-        Image("hollowengine:textures/gui/icons/play.png") {
-            modifier.size(24.dp, 24.dp).alignY(AlignmentY.Center)
         }
+    }
+}
+
+private fun UiScope.ActionButton(
+    buttonSize: Dimension,
+    icon: String,
+    action: () -> Unit
+) {
+    modifier.padding(horizontal = sizes.smallGap)
+        .background(
+            RoundRectBackground(
+                hoverColors(
+                    color = colors.background,
+                    hoverColor = IdeTheme.hoveredColors.background
+                ), sizes.smallGap
+            )
+        )
+        .onClick {
+            action()
+        }
+
+    Image(icon) {
+        modifier.size(buttonSize, buttonSize).alignY(AlignmentY.Center)
     }
 }
 

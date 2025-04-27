@@ -12,9 +12,9 @@ import ru.hollowhorizon.hollowengine.scripting.Suspendable
 @Suspendable
 fun Player.waitPos(pos: Vec3, radius: Float = 1f, inverse: Boolean = false) {
     if (inverse) {
-        while(distanceToSqr(pos) >= radius * radius);
-    } else {
         while(distanceToSqr(pos) <= radius * radius);
+    } else {
+        while(distanceToSqr(pos) >= radius * radius);
     }
 }
 

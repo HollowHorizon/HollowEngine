@@ -867,6 +867,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                     selectionCaretChar = line.length
 
                     if (wordWise) {
+                        if(newTxt.isEmpty()) return
                         selectionCaretChar = TextCaretNavigation.moveWordLeft(newTxt, selectionCaretChar)
                     }
                     if (!select) {

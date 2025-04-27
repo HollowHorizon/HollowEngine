@@ -1,14 +1,18 @@
 package ru.hollowhorizon.hollowengine.client.gui.overlay
 
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.pipeline.ClearColorDontCare
+import de.fabmax.kool.pipeline.ClearDepthDontCare
+import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hc.client.kool.KoolManager
-import ru.hollowhorizon.hc.client.kool.ScreenScene
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 
 object BetaWarning {
-    val overlay = ScreenScene("Compilation Status").apply {
+    val overlay = Scene("Compilation Status").apply {
         setupUiScene()
+        clearColor = ClearColorDontCare
+        clearDepth = ClearDepthDontCare
 
         val sizes = Sizes.medium
 

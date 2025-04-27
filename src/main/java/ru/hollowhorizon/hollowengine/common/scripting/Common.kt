@@ -7,8 +7,9 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompilerPluginEvent
 import ru.hollowhorizon.hollowengine.common.scripting.events.EVENT_SCRIPTS
 import ru.hollowhorizon.hollowengine.common.scripting.events.startEventScript
+import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolClientManager
 import ru.hollowhorizon.hollowengine.common.scripting.story.STORY_EVENTS_SCRIPTS
-import ru.hollowhorizon.hollowengine.common.scripting.story.startGuiScript
+import ru.hollowhorizon.hollowengine.common.scripting.story.startKoolScript
 import ru.hollowhorizon.hollowengine.common.scripting.story.startStoryEvent
 import java.io.File
 
@@ -17,7 +18,7 @@ fun startScript(file: File) {
 
     when (extension) {
         "story" -> startStoryEvent(file)
-        "kool" -> startGuiScript(file)
+        "kool" -> startKoolScript(file)
         "event" -> {
             runBlocking { startEventScript(file).await() }
         }
@@ -25,11 +26,12 @@ fun startScript(file: File) {
 }
 
 fun stopScript(file: File) {
-    val extension = file.name.substringAfter('.').substringAfterLast('.')
+    val extension = file.name.substringAfter('.').substringBeforeLast('.')
 
     when (extension) {
         "story" -> STORY_EVENTS_SCRIPTS.removeIf { it.file == file.toReadablePath() }
         "event" -> EVENT_SCRIPTS.remove(file)
+        "kool" -> KoolClientManager.removeScene(file.toReadablePath())
     }
 }
 

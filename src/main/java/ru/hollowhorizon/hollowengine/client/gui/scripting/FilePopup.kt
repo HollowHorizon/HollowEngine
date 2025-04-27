@@ -115,9 +115,6 @@ class FilePopup : Composable {
             divider()
             item(ACTIONS("rename"), "hollowengine:textures/gui/icons/rename.png") {
                 renamePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
-                // Немного халтурный способ обновления папки - закрыть и открыть
-                it.toggleExpanded()
-                it.toggleExpanded()
             }
             item(ACTIONS("delete"), "hollowengine:textures/gui/icons/remove.png") {
                 deletePopup.show(Vec2f.ZERO, SubMenuItem {}, node)

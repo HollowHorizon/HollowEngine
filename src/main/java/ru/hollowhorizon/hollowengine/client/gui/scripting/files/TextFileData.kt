@@ -119,7 +119,10 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
         bindingContext = result.bindingContext
         yield()
 
-        onCompletionsEvent(OnCompletionsEvent(fileName, completions, text.hashCode()))
+        // Если выделен текст, то подсказки не нужны
+        if(modifier.selectionStartChar == modifier.selectionStartChar) {
+            onCompletionsEvent(OnCompletionsEvent(fileName, completions, text.hashCode()))
+        }
 
         AnalyzerWithCompilerReport(
             ScriptParser.messageCollector,

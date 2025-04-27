@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.util.launchOnMainThread
+import kotlinx.coroutines.delay
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.utils.lang
@@ -24,8 +26,11 @@ fun EditPopup(label: String, hint: String, onClick: (FileNode, String) -> Unit) 
         }
         ConfirmWidget(this@apply) {
             onClick(it, text)
-            it.parent?.toggleExpanded()
-            it.parent?.toggleExpanded()
+            launchOnMainThread {
+                delay(500)
+                it.parent?.toggleExpanded()
+                it.parent?.toggleExpanded()
+            }
         }
     }
 }
@@ -41,8 +46,11 @@ fun WarningModalPopup(label: String, onClick: (FileNode) -> Unit) = ItemPopupMen
         }
         ConfirmWidget(this@apply) {
             onClick(it)
-            it.parent?.toggleExpanded()
-            it.parent?.toggleExpanded()
+            launchOnMainThread {
+                delay(500)
+                it.parent?.toggleExpanded()
+                it.parent?.toggleExpanded()
+            }
         }
     }
 }

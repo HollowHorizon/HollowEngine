@@ -2,7 +2,8 @@ package ru.hollowhorizon.hollowengine.common.scripting.kool
 
 import de.fabmax.kool.pipeline.ClearColorDontCare
 import de.fabmax.kool.pipeline.ClearDepthDontCare
-import ru.hollowhorizon.hc.client.kool.ScreenScene
+import de.fabmax.kool.scene.Scene
+import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.defaultImports
@@ -12,7 +13,9 @@ import kotlin.script.experimental.api.defaultImports
     fileExtension = "kool.kts",
     compilationConfiguration = KoolConfiguration::class
 )
-abstract class KoolEvent : ScreenScene() {
+abstract class KoolScript : Scene() {
+    var tag = CompoundTag()
+
     init {
         clearColor = ClearColorDontCare
         clearDepth = ClearDepthDontCare

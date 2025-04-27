@@ -1,10 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.gui.overlay
 
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.pipeline.ClearColorDontCare
+import de.fabmax.kool.pipeline.ClearDepthDontCare
+import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hc.client.kool.ScreenScene
 import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hc.common.coroutines.isServerLoaded
 import ru.hollowhorizon.hc.common.network.HollowPacketHandler
@@ -18,8 +20,10 @@ object CompilationStatus {
 
     private val surface: UiSurface
 
-    val overlay = ScreenScene("Compilation Status").apply {
+    val overlay = Scene("Compilation Status").apply {
         setupUiScene()
+        clearColor = ClearColorDontCare
+        clearDepth = ClearDepthDontCare
 
         val sizes = Sizes.medium
 
