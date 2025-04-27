@@ -128,6 +128,7 @@ fun <T : ScriptTextAreaModifier> T.setSelectionRange(startLine: Int, caretLine: 
     return this
 }
 
+@OptIn(ExperimentalContracts::class)
 fun UiScope.ScriptTextArea(
     lineProvider: TextLineProvider,
     width: Dimension = Grow.Std,

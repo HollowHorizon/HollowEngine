@@ -63,13 +63,14 @@ object ComboBox {
 
             if (popupMenu.isVisible.use()) modifier.background(RoundRectBackground(IdeTheme.hoveredColors.background, sizes.smallGap))
 
-            if (index == -1) {
+            val id = index.coerceIn(-1, items.lastIndex)
+            if (id == -1) {
                 Text(preview) {
                     modifier.alignY(AlignmentY.Center)
                         .margin(end = sizes.smallGap)
                 }
             } else {
-                items[index]()
+                items[id]()
             }
 
             modifier.onClick {

@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.BindingContext
+import ru.hollowhorizon.hc.common.coroutines.scopeAsync
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
@@ -45,7 +46,7 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
 
     init {
         EventBus.register(::onCompletionsEvent)
-        ActionManager.launch { compileText(code) }
+        scopeAsync { compileText(code) }
     }
 
     fun setText(text: String) {

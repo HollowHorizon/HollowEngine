@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.kool
 import de.fabmax.kool.pipeline.ClearColorDontCare
 import de.fabmax.kool.pipeline.ClearDepthDontCare
 import de.fabmax.kool.scene.Scene
+import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
 import kotlin.script.experimental.annotations.KotlinScript
@@ -19,6 +20,10 @@ abstract class KoolScript : Scene() {
     init {
         clearColor = ClearColorDontCare
         clearDepth = ClearDepthDontCare
+
+        onUpdate {
+            isVisible = Minecraft.getInstance().level != null
+        }
     }
 }
 
