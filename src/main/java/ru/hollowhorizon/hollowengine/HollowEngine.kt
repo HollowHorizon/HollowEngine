@@ -16,7 +16,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.core.example.HollowScript
 import ru.hollowhorizon.hollowengine.common.scripting.core.setupScripting
 import ru.hollowhorizon.hollowengine.common.scripting.events.loadEvents
 //? if forge
-/*import ru.hollowhorizon.hollowengine.mixins.client.setupCamera*/
+/*import ru.hollowhorizon.hollowengine.client.render.setupCamera*/
 
 @HollowMod
 object HollowEngine {

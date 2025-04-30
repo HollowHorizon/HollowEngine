@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.mixins.client
+package ru.hollowhorizon.hollowengine.client.render
 
 //? if forge {
 /*import net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles
