@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.story
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.RandomSource
 import ru.hollowhorizon.hc.common.events.server.ServerChatEvent
+import ru.hollowhorizon.hc.common.utils.ModList
 import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.await
@@ -41,6 +42,7 @@ class StoryConfiguration : HollowScriptConfiguration({
         "net.minecraft.server.level.ServerLevel",
         "ru.hollowhorizon.hc.client.utils.*"
     )
+    if(ModList.isLoaded("bbs")) defaultImports("ru.hollowhorizon.hollowengine.common.scripting.story.functions.bbs.*")
 })
 
 @Suspendable

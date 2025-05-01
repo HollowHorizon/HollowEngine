@@ -63,6 +63,9 @@ dependencies {
     val modPlatform = container.modPlatform
     val jei = "15.20.0.105"
     modCompileOnly("mezz.jei:jei-1.20.1-${modPlatform}-api:$jei")
+
+    compileOnly("lib:bbs:1.2.6-${container.minecraftVersion}-deobf")
+
     //modRuntimeOnly("mezz.jei:jei-1.20.1-${modPlatform}:$jei")
 }
 
