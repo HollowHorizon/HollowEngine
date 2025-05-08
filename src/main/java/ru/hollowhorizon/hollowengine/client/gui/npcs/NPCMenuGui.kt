@@ -9,7 +9,7 @@ import de.fabmax.kool.util.MsdfFont
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.client.kool.Entity
-import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT_DATA
+import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.post
@@ -31,7 +31,7 @@ class NPCMenuGui(val npc: NPCEntity) : KoolScreen() {
 
         val sizes = Sizes.medium
 
-        addPanelSurface(sizes = sizes.copy(normalText = MsdfFont(MONOCRAFT_DATA, 30f))) {
+        addPanelSurface(sizes = sizes.copy(normalText = MsdfFont(MONOCRAFT, 30f))) {
             modifier.background(null)
                 .size(Grow.Std, Grow.Std)
 

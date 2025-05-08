@@ -5,7 +5,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.apache.logging.log4j.LogManager
-import ru.hollowhorizon.hc.api.HollowMod
+import ru.hollowhorizon.hc.api.Init
 import ru.hollowhorizon.hc.client.kool.KoolManager
 import ru.hollowhorizon.hc.common.config.HollowConfig
 import ru.hollowhorizon.hc.common.config.hollowConfig
@@ -18,7 +18,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.events.loadEvents
 //? if forge
 /*import ru.hollowhorizon.hollowengine.client.render.setupCamera*/
 
-@HollowMod
+@Init
 object HollowEngine {
     const val MODID = "hollowengine"
     val LOGGER = LogManager.getLogger()

@@ -89,7 +89,8 @@ fun DependencyHandlerScope.setupLoader(loom: LoomGradleExtensionAPI, loader: Str
 
                 else -> throw IllegalStateException("Unsupported $loader version $version!")
             }
-            install("io.github.llamalad7:mixinextras-forge:0.4.1")
+            "forgeRuntimeLibrary"("io.github.llamalad7:mixinextras-common:0.4.1")
+            install("io.github.llamalad7:mixinextras-forge:0.4.1", isMod = true)
         }
 
         "neoforge" -> {

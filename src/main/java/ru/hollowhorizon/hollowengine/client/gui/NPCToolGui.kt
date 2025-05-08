@@ -4,7 +4,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
-import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT_DATA
+import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
@@ -21,7 +21,7 @@ class NPCToolGui(val npc: NPCEntity) : KoolScreen() {
 
         val sizes = Sizes.medium
 
-        addPanelSurface(sizes = sizes.copy(normalText = MsdfFont(MONOCRAFT_DATA, 30f))) {
+        addPanelSurface(sizes = sizes.copy(normalText = MsdfFont(MONOCRAFT, 30f))) {
             modifier.background(null).size(Grow.Std, Grow.Std)
                 .margin(sizes.largeGap)
 
