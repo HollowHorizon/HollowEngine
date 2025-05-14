@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story
 
 import net.minecraft.server.MinecraftServer
+import net.minecraft.util.Mth
 import net.minecraft.util.RandomSource
 import ru.hollowhorizon.hc.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hc.common.utils.ModList
@@ -10,8 +11,20 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.functions.await
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.*
 import ru.hollowhorizon.hollowengine.compiler.coroutine.suspendable.SFunction0
 import ru.hollowhorizon.hollowengine.scripting.Suspendable
+import kotlin.random.Random
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.defaultImports
+
+@KotlinScript(
+    displayName = "Inline Script",
+    fileExtension = "inline.kts",
+    compilationConfiguration = InlineConfiguration::class
+)
+abstract class InlineScript {
+    val math = Mth()
+    val random = Random
+}
+class InlineConfiguration: HollowScriptConfiguration()
 
 @KotlinScript(
     displayName = "Story Event",
@@ -45,22 +58,3 @@ class StoryConfiguration : HollowScriptConfiguration({
     if(ModList.isLoaded("bbs")) defaultImports("ru.hollowhorizon.hollowengine.common.scripting.story.functions.bbs.*")
 })
 
-@Suspendable
-fun exampleScript() {
-    val npc = npc(pos(0, 40, 0))
-
-    npc say "Я живой!"
-    val player = currentServer.playerList.players.random()
-    npc move player
-
-    npc say "Жесть, оно работает?!"
-
-    npc say "Как у тебя дела?!"
-
-    val event = await<ServerChatEvent>() //TODO: Инлайны не имеют тела в других модулях. Надо захардкодить реализацию в компиляторе
-    val input = event.message.string
-
-    npc say "\"$input\", говоришь?"
-    wait(2.sec)
-    npc say "Ну ладно, у меня тоже всё $input"
-}

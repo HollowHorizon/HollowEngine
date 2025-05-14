@@ -16,9 +16,9 @@ import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hc.common.network.HollowPacketHandler
 import ru.hollowhorizon.hc.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.client.utils.lang
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 
-class NPCMenuGui(val npc: NPCEntity) : KoolScreen() {
+class NPCMenuGui(val npc: NpcEntity) : KoolScreen() {
     override fun Scene.setup() {
         setupUiScene()
 
@@ -113,10 +113,10 @@ class NPCMenuGui(val npc: NPCEntity) : KoolScreen() {
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 class NpcTalkPacket(val npcId: Int) : HollowPacket<NpcTalkPacket> {
     override fun handle(player: Player) {
-        val npc = player.level().getEntity(npcId) as? NPCEntity ?: return
+        val npc = player.level().getEntity(npcId) as? NpcEntity ?: return
 
         PlayerTalkToNpcEvent(npc, player).post()
     }
 }
 
-class PlayerTalkToNpcEvent(val npc: NPCEntity, val player: Player) : Event
+class PlayerTalkToNpcEvent(val npc: NpcEntity, val player: Player) : Event

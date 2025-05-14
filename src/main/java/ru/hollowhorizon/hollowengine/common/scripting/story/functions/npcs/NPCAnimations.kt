@@ -8,9 +8,9 @@ import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hc.common.network.packets.StartAnimationPacket
 import ru.hollowhorizon.hc.common.network.packets.StopAnimationPacket
 import ru.hollowhorizon.hc.common.network.sendTrackingEntity
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 
-fun NPCEntity.play(
+fun NpcEntity.play(
     animation: String,
     layer: LayerMode = LayerMode.ADD,
     mode: PlayMode = PlayMode.ONCE,
@@ -27,12 +27,12 @@ fun NPCEntity.play(
         serverLayers.addNoUpdate(AnimationLayer(animation, layer, mode, speed))
     }
 }
-infix fun NPCEntity.stop(animation: String) {
+infix fun NpcEntity.stop(animation: String) {
     this[AnimatedEntityCapability::class].layers.removeIfNoUpdate { it.animation == animation }
     StopAnimationPacket(id, animation).sendTrackingEntity(this)
 }
 
-infix fun NPCEntity.playOnce(animation: String) = play(animation, mode = PlayMode.ONCE)
-infix fun NPCEntity.playLooped(animation: String) = play(animation, mode = PlayMode.LOOPED)
-infix fun NPCEntity.playFreeze(animation: String) = play(animation, mode = PlayMode.LAST_FRAME)
-infix fun NPCEntity.playReversed(animation: String) = play(animation, mode = PlayMode.REVERSED)
+infix fun NpcEntity.playOnce(animation: String) = play(animation, mode = PlayMode.ONCE)
+infix fun NpcEntity.playLooped(animation: String) = play(animation, mode = PlayMode.LOOPED)
+infix fun NpcEntity.playFreeze(animation: String) = play(animation, mode = PlayMode.LAST_FRAME)
+infix fun NpcEntity.playReversed(animation: String) = play(animation, mode = PlayMode.REVERSED)

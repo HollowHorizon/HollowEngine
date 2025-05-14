@@ -11,11 +11,11 @@ import ru.hollowhorizon.hc.common.network.HollowPacketHandler
 import ru.hollowhorizon.hc.common.utils.colored
 import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hc.common.utils.literal
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 
-class NPCCreatorGui(val npc: NPCEntity, private val npcId: Int) : KoolGui {
+class NPCCreatorGui(val npc: NpcEntity, private val npcId: Int) : KoolGui {
 
     override fun Scene.setup() {
 
@@ -46,7 +46,7 @@ class NPCCreatorPacket(
             return
         }
 
-        val entity = player.level().getEntity(id) as? NPCEntity
+        val entity = player.level().getEntity(id) as? NpcEntity
 
         if (entity == null) {
             player.sendSystemMessage("Ошибка, персонаж не был заспавнен!".literal.colored(0xFF2222))

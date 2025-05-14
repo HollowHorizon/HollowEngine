@@ -102,6 +102,7 @@ class RequestFilePacket(val path: String) : HollowPacket<RequestFilePacket> {
             file,
             when (extension) {
                 "png", "jpg", "jpeg" -> FileType.IMAGE
+                "dialog" -> FileType.DIALOG
                 else -> FileType.TEXT
             }
         ).send(player as ServerPlayer)
@@ -145,7 +146,7 @@ class SaveFilePacket(val path: String, private val bytes: ByteArray) : HollowPac
 }
 
 enum class FileType {
-    TEXT, IMAGE
+    TEXT, IMAGE, DIALOG
 }
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)

@@ -11,9 +11,15 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.ToolBar
 
 abstract class DockPanel(final override val name: String, dock: Dock) : Layout, Composable {
     final override val dockable = UiDockable(name, dock)
+    var showOnToolbar = true
 
-    val surface: UiSurface = WindowSurface(dockable, IdeTheme.colors, IdeTheme.sizes) {
+    val surface: UiSurface = WindowSurface(dockable, dock.dockingSurface.colors, dock.dockingSurface.sizes) {
         modifier.border(null)
+        if (!showOnToolbar) {
+            panelContent()
+            return@WindowSurface
+        }
+
         dockable.dockedTo.use()?.let {
             val isPanelBarLeft = it.boundsLeftDp.value.px < 1f
                     || it.boundsRightDp.value.px < it.dock.root.boundsRightDp.value.px * 0.99f
@@ -36,7 +42,7 @@ abstract class DockPanel(final override val name: String, dock: Dock) : Layout, 
 
     private fun UiScope.panelContent() {
         Column(Grow.Std, Grow.Std) {
-            FileTitleBar(dockable, showTabsIfDocked = false)
+            FileTitleBar(dockable, showTabsIfDocked = !showOnToolbar)
             this@DockPanel()
         }
     }

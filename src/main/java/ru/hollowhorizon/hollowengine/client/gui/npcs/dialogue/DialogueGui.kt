@@ -6,12 +6,12 @@ import ru.hollowhorizon.hc.client.models.internal.Transform
 import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hollowengine.client.gui.KoolGui
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.model
 
 object DialogueGui : KoolGui {
     private var scale = 1f
-    val vitalik = NPCEntity(Minecraft.getInstance().level!!).apply {
+    val vitalik = NpcEntity(Minecraft.getInstance().level!!).apply {
         model = "hollowengine:models/monster.gltf"
         this[AnimatedEntityCapability::class.java].transform = Transform(sX = 0.75f, sY = 0.75f, sZ = 0.75f)
     }

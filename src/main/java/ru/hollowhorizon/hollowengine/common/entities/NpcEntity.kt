@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
+import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.entity.*
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.goal.FloatGoal
@@ -17,6 +18,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
+import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hc.client.models.internal.manager.IAnimated
 import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hc.common.utils.literal
@@ -27,13 +29,16 @@ import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcMoveControl
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcPathNavigation
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
+import ru.hollowhorizon.hollowengine.ecs.ComponentRegistry
+import ru.hollowhorizon.hollowengine.ecs.npc.NpcComponent
 
-class NPCEntity : PathfinderMob, IAnimated {
+class NpcEntity : PathfinderMob, IAnimated {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY, level)
-    constructor(type: EntityType<NPCEntity>, world: Level) : super(type, world)
+    constructor(type: EntityType<NpcEntity>, world: Level) : super(type, world)
 
     init {
         moveControl = NpcMoveControl(this)
+        this[AnimatedEntityCapability::class].model = "hollowengine:models/entity/player_model.gltf"
     }
 
     val goals get() = goalSelector
@@ -47,6 +52,8 @@ class NPCEntity : PathfinderMob, IAnimated {
         player.setGameMode(GameType.CREATIVE)
         player
     }
+
+    private val components = ArrayList<NpcComponent>()
 
     init {
         setCanPickUpLoot(true)
@@ -68,6 +75,10 @@ class NPCEntity : PathfinderMob, IAnimated {
             return InteractionResult.SUCCESS
         }
 
+        if (pHand == InteractionHand.MAIN_HAND) {
+            components.forEach { it.onInteract(pPlayer, pHand) }
+        }
+
         return super.mobInteract(pPlayer, pHand)
     }
 
@@ -82,10 +93,12 @@ class NPCEntity : PathfinderMob, IAnimated {
     override fun wantsToPickUp(pStack: ItemStack) = false
 
     public override fun pickUpItem(pItemEntity: ItemEntity) {
-        val item = pItemEntity.item
-        onItemPickup(pItemEntity)
-        take(pItemEntity, item.count)
-        pItemEntity.discard()
+        components.firstOrNull { it.canPickup(pItemEntity) }?.let {
+            val item = pItemEntity.item
+            onItemPickup(pItemEntity)
+            take(pItemEntity, item.count)
+            pItemEntity.discard()
+        }
     }
 
     override fun customServerAiStep() {
@@ -104,6 +117,8 @@ class NPCEntity : PathfinderMob, IAnimated {
         } else if (!capability.tradeContainer.getItem(6).isEmpty) {
             capability.tradeContainer.setItem(6, ItemStack.EMPTY)
         }
+
+        components.forEach { it.tick() }
     }
 
     override fun dropEquipment() {
@@ -112,6 +127,11 @@ class NPCEntity : PathfinderMob, IAnimated {
 
         (0 until tradeSlots.size).map { tradeSlots.getItem(it) }.forEach(::spawnAtLocation)
         tradeSlots.clearContent()
+    }
+
+    override fun dropAllDeathLoot(damageSource: DamageSource) {
+        super.dropAllDeathLoot(damageSource)
+        components.forEach { it.onDeath(damageSource) }
     }
 
     override fun doPush(pEntity: Entity) {
@@ -153,6 +173,11 @@ class NPCEntity : PathfinderMob, IAnimated {
         super.save(pCompound)
         pCompound.putFloat("sizeX", entityData[sizeX])
         pCompound.putFloat("sizeY", entityData[sizeY])
+        pCompound.put("components", CompoundTag().apply {
+            components.forEach {
+                put(it.javaClass.name, CompoundTag().apply(it::save))
+            }
+        })
         return true
     }
 
@@ -161,6 +186,13 @@ class NPCEntity : PathfinderMob, IAnimated {
 
         entityData[sizeX] = pCompound.getFloat("sizeX")
         entityData[sizeY] = pCompound.getFloat("sizeY")
+        components.clear()
+        pCompound.getCompound("components").apply {
+            allKeys.forEach {
+                val component = ComponentRegistry.NPC_COMPONENTS[Class.forName(it)] ?: error("Component not found: $it")
+                components += component(this@NpcEntity).apply { load(getCompound(it)) }
+            }
+        }
     }
 
     val pickupDistance get() = pickupReach
@@ -181,7 +213,7 @@ class NPCEntity : PathfinderMob, IAnimated {
         get() = displayName.string
         set(value) {
             customName = value.literal
-            isCustomNameVisible = true
+            isCustomNameVisible = value.isNotEmpty()
         }
 
     fun seat() {
@@ -199,10 +231,10 @@ class NPCEntity : PathfinderMob, IAnimated {
     companion object {
         @JvmField
         val sizeX: EntityDataAccessor<Float> =
-            SynchedEntityData.defineId(NPCEntity::class.java, EntityDataSerializers.FLOAT)
+            SynchedEntityData.defineId(NpcEntity::class.java, EntityDataSerializers.FLOAT)
 
         @JvmField
         val sizeY: EntityDataAccessor<Float> =
-            SynchedEntityData.defineId(NPCEntity::class.java, EntityDataSerializers.FLOAT)
+            SynchedEntityData.defineId(NpcEntity::class.java, EntityDataSerializers.FLOAT)
     }
 }

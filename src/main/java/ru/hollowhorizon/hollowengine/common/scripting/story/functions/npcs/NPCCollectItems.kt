@@ -2,18 +2,18 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.scripting.Suspendable
 
 @Suspendable
-fun NPCEntity.collectItems(vararg items: ItemStack) {
+fun NpcEntity.collectItems(vararg items: ItemStack) {
     val itemList = items.toMutableList()
     while (itemList.isNotEmpty()) {
         pickupItems(itemList)
     }
 }
 
-private fun NPCEntity.pickupItems(list: MutableList<ItemStack>) {
+private fun NpcEntity.pickupItems(list: MutableList<ItemStack>) {
     level().getEntitiesOfClass(
         ItemEntity::class.java,
         this.boundingBox.inflate(pickupDistance.x.toDouble(), pickupDistance.y.toDouble(), pickupDistance.z.toDouble())

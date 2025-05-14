@@ -13,9 +13,9 @@ import ru.hollowhorizon.hc.common.capabilities.containers.container
 import ru.hollowhorizon.hc.common.utils.nbt.ForItemStack
 import ru.hollowhorizon.hc.common.utils.nbt.ForResourceLocation
 import ru.hollowhorizon.hc.common.utils.rl
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 
-@HollowCapability(NPCEntity::class)
+@HollowCapability(NpcEntity::class)
 class NPCCapability : CapabilityInstance() {
     var hitboxMode by syncable(HitboxMode.PULLING)
     var icon by syncable(NpcIcon.EMPTY)

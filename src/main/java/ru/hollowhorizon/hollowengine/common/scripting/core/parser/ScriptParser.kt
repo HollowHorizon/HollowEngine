@@ -10,11 +10,12 @@ import org.jetbrains.kotlin.scripting.compiler.plugin.impl.ScriptDiagnosticsMess
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.createIsolatedCompilationContext
 import org.jetbrains.kotlin.scripting.configuration.ScriptingConfigurationKeys
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptTypes
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler.createCompilationConfiguration
 import ru.hollowhorizon.hollowengine.common.scripting.core.host.HollowEngineScriptingHost
-import ru.hollowhorizon.hollowengine.common.scripting.events.EventScript
-import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolScript
 import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
+import kotlin.script.experimental.api.KotlinType
+import kotlin.script.experimental.host.createCompilationConfigurationFromTemplate
 
 object ScriptParser {
     val env: KotlinCoreEnvironment
@@ -31,14 +32,17 @@ object ScriptParser {
             messageCollector,
             disposable
         ) {
-            add(
-                ScriptingConfigurationKeys.SCRIPT_DEFINITIONS,
-                ScriptDefinition.FromConfigurations(host, createCompilationConfiguration<EventScript>(host), null)
-            )
-            add(
-                ScriptingConfigurationKeys.SCRIPT_DEFINITIONS,
-                ScriptDefinition.FromConfigurations(host, createCompilationConfiguration<KoolScript>(host), null)
-            )
+            ScriptTypes.SCRIPTS.values.forEach {
+                val config = createCompilationConfigurationFromTemplate(
+                    KotlinType(it.kotlin),
+                    host,
+                    ScriptParser::class
+                ) {}
+                add(
+                    ScriptingConfigurationKeys.SCRIPT_DEFINITIONS,
+                    ScriptDefinition.FromConfigurations(host, config, null)
+                )
+            }
         }
 
 
@@ -47,7 +51,8 @@ object ScriptParser {
 
 
     fun parse(code: String, fileName: String): KtFile {
-        val virtualFile = LightVirtualFile(fileName, KotlinFileType.INSTANCE, code.replace("\r", "")) // Ну спасибо JetBrains...
+        val virtualFile =
+            LightVirtualFile(fileName, KotlinFileType.INSTANCE, code.replace("\r", "")) // Ну спасибо JetBrains...
         return PsiManager.getInstance(env.project).findFile(virtualFile) as KtFile
     }
 }

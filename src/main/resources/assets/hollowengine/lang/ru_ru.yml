@@ -1,6 +1,10 @@
 hollowengine:
   gui:
     menu: HollowEngine меню
+    tool:
+      general: Основное
+      attributes: Атрибуты
+      entity: Предпросмотр
     ide:
       .: Встроенная среда разработки
       file: Файл
@@ -91,3 +95,7 @@ key:
   hollowengine:
     .: "HollowEngine: Клавиши"
     menu: Главное меню HollowEngine
+
+entity:
+  hollowengine:
+    npc_entity: Персонаж

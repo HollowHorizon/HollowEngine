@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine
 
 import com.mojang.blaze3d.systems.RenderSystem
+import de.fabmax.kool.scene.Scene
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
