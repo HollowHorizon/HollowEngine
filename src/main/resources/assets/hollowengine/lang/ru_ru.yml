@@ -3,7 +3,24 @@ hollowengine:
     menu: HollowEngine меню
     tool:
       general: Основное
+      animations:
+        .: Анимации
+        idle: Ожидание
+        idle_sneaked: Ожидание (Shift)
+        walk: Ходьба
+        walk_sneaked: Ходьба (Shift)
+        run: Бег
+        swim: Плавание
+        jump: Прыжок
+        hurt: Получение урона
+        fall: Падение
+        fly: Полёт
+        sit: Сидение
+        sleep: Сон
+        swing: Действие (Взмах рукой)
+        death: Смерть
       attributes: Атрибуты
+      components: Компоненты
       entity: Предпросмотр
     ide:
       .: Встроенная среда разработки

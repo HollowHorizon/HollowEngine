@@ -20,4 +20,4 @@ fun onAnnotationProcessing(event: AnnotationProcessorEvent) {
     }
 }
 
-annotation class RegisterComponent(val name: String)
+annotation class RegisterComponent(val path: String)

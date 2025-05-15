@@ -31,6 +31,7 @@ import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
 import ru.hollowhorizon.hollowengine.ecs.ComponentRegistry
 import ru.hollowhorizon.hollowengine.ecs.npc.NpcComponent
+import ru.hollowhorizon.hollowengine.ecs.npc.NpcComponentsCapability
 
 class NpcEntity : PathfinderMob, IAnimated {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY, level)
@@ -53,7 +54,7 @@ class NpcEntity : PathfinderMob, IAnimated {
         player
     }
 
-    private val components = ArrayList<NpcComponent>()
+    val components by lazy { this[NpcComponentsCapability::class].components }
 
     init {
         setCanPickUpLoot(true)
@@ -173,11 +174,6 @@ class NpcEntity : PathfinderMob, IAnimated {
         super.save(pCompound)
         pCompound.putFloat("sizeX", entityData[sizeX])
         pCompound.putFloat("sizeY", entityData[sizeY])
-        pCompound.put("components", CompoundTag().apply {
-            components.forEach {
-                put(it.javaClass.name, CompoundTag().apply(it::save))
-            }
-        })
         return true
     }
 
@@ -187,12 +183,6 @@ class NpcEntity : PathfinderMob, IAnimated {
         entityData[sizeX] = pCompound.getFloat("sizeX")
         entityData[sizeY] = pCompound.getFloat("sizeY")
         components.clear()
-        pCompound.getCompound("components").apply {
-            allKeys.forEach {
-                val component = ComponentRegistry.NPC_COMPONENTS[Class.forName(it)] ?: error("Component not found: $it")
-                components += component(this@NpcEntity).apply { load(getCompound(it)) }
-            }
-        }
     }
 
     val pickupDistance get() = pickupReach
