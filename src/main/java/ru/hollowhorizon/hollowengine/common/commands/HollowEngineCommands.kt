@@ -4,12 +4,14 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import kotlinx.serialization.Serializable
 import net.minecraft.ChatFormatting
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.client.models.internal.manager.GltfManager
-import ru.hollowhorizon.hc.client.utils.*
+import ru.hollowhorizon.hc.client.utils.mc
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.onRegisterCommands
+import ru.hollowhorizon.hc.common.coroutines.scopeAsync
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hc.common.network.HollowPacket
@@ -18,10 +20,14 @@ import ru.hollowhorizon.hc.common.utils.*
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
-import ru.hollowhorizon.hollowengine.common.scripting.story.*
+import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
+import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolClientManager
+import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolScript
+import ru.hollowhorizon.hollowengine.common.scripting.scene.SceneScriptManager
 import java.io.File
 import kotlin.math.pow
 import kotlin.math.roundToInt
+import kotlin.script.experimental.api.valueOrThrow
 
 @SubscribeEvent
 fun onRegisterCommands(event: RegisterCommandsEvent) {
@@ -81,33 +87,31 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                 HollowCore.LOGGER.info("Started script $script")
             }
 
-            "start-script"(
-                arg(
-                    "script",
-                    StringArgumentType.greedyString()
-                ) {
-                    DirectoryManager.storyScripts.map { it.toReadablePath() }.toList()
-                }
+            "start-scene"(
+                arg("script", StringArgumentType.string()) {
+                    DirectoryManager.storyScripts.map { '"'+it.toReadablePath()+'"' }.toList()
+                },
+                arg("state", StringArgumentType.string())
             ) {
-                val raw = StringArgumentType.getString(this, "script")
-                val script = raw.fromReadablePath()
-
-                if (!script.exists()) {
-                    HollowCore.LOGGER.warn("File $script does not exist!")
-                    source.player?.sendSystemMessage("File $script does not exist!".literal)
-                }
-
-                startStoryEvent(script)
-                HollowCore.LOGGER.info("Started script $script")
+                val file = StringArgumentType.getString(this, "script")
+                val state = StringArgumentType.getString(this, "state")
+                SceneScriptManager.startScene(file, state)
             }
 
-            "active-events" events@{
+            "stop-scene"(
+                arg("script", StringArgumentType.string()) { SceneScriptManager.scripts.map { '"'+it+'"' } }
+            ) {
+                val file = StringArgumentType.getString(this, "script")
+                SceneScriptManager.stopScene(file)
+            }
+
+            "active-scenes" events@{
                 val player = source.player ?: return@events
 
-                player.sendSystemMessage("Active story events:".literal)
+                player.sendSystemMessage("Active scenes:".literal)
 
-                STORY_EVENTS_SCRIPTS.forEach {
-                    player.sendSystemMessage("- ".literal.colored(ChatFormatting.GOLD) + it.file.literal)
+                SceneScriptManager.scripts.forEach {
+                    player.sendSystemMessage("- ".literal.colored(ChatFormatting.GOLD) + it.literal)
                 }
             }
         }
@@ -184,4 +188,23 @@ class ShowModelInfoPacket(val model: String) : HollowPacket<ShowModelInfoPacket>
 fun Double.roundTo(numFractionDigits: Int): Double {
     val factor = 10.0.pow(numFractionDigits.toDouble())
     return (this * factor).roundToInt() / factor
+}
+
+fun startKoolScript(script: File) {
+    scopeAsync {
+        val name = script.toReadablePath()
+        val jar = ScriptingCompiler.compileFile<KoolScript>(script)
+
+        val result = jar.execute()
+        val event = result.valueOrThrow().returnValue.scriptInstance as? KoolScript
+            ?: error("Script instance is null")
+
+        if (name in KoolClientManager) {
+            KoolClientManager.updateScene(name, CompoundTag())
+            return@scopeAsync
+        }
+
+        KoolClientManager.addScene(name, event)
+    }
+
 }

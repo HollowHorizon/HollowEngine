@@ -56,8 +56,8 @@ class FilePopup : Composable {
                     }
                     if (node.treePath.startsWith("scripts")) {
                         subMenu(ACTIONS("create.script"), "hollowengine:textures/gui/icons/create_file.png") {
-                            item(ACTIONS("create.script.story"), "hollowengine:textures/gui/icons/file_kts.png") {
-                                fileExtension = ".story.kts"
+                            item(ACTIONS("create.script.scene"), "hollowengine:textures/gui/icons/file_kts.png") {
+                                fileExtension = ".scene.kts"
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                             }
                             item(ACTIONS("create.script.kool"), "hollowengine:textures/gui/icons/file_kts.png") {

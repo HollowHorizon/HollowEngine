@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.gui
 
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.DockLayout
 import de.fabmax.kool.scene.Scene
@@ -27,17 +28,24 @@ import ru.hollowhorizon.hc.common.network.HollowPacketHandler
 import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hc.common.utils.rl
+import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader.TOOL_LAYOUT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.loadMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
-import ru.hollowhorizon.hollowengine.common.scripting.story.InlineScript
+import ru.hollowhorizon.hollowengine.common.scripting.inline.InlineScript
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.model
+import ru.hollowhorizon.hollowengine.common.util.Node
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
+import ru.hollowhorizon.hollowengine.common.util.toNode
+import ru.hollowhorizon.hollowengine.ecs.ComponentRegistry
 import ru.hollowhorizon.hollowengine.ecs.RegisterComponent
+import ru.hollowhorizon.hollowengine.ecs.npc.NpcComponentsCapability
 import kotlin.script.experimental.api.ResultValue
 import kotlin.script.experimental.api.valueOrNull
 
@@ -72,7 +80,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                     "hollowengine.gui.tool.entity" -> entityPanel.dockable
                     "hollowengine.gui.tool.attributes" -> attributesPanel.dockable
                     "hollowengine.gui.tool.components" -> componentsPanel.dockable
-                    "hollowenigne.gui.tool.animations" -> animationsPanel.dockable
+                    "hollowengine.gui.tool.animations" -> animationsPanel.dockable
                     else -> null
                 }
             }
@@ -218,7 +226,8 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                     Property(name) {
                         TextField {
 
-                            modifier.textColor = if (currentAnimations[animation] in animationNames) colors.onBackground else Color.DARK_RED
+                            modifier.textColor =
+                                if (currentAnimations[animation] in animationNames) colors.onBackground else Color.DARK_RED
 
                             modifier.alignY(AlignmentY.Center)
                                 .width(Grow.Std)
@@ -346,25 +355,82 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
         override fun UiScope.compose() {
             modifier.padding(sizes.smallGap)
 
-            val components = npc.components.map { it.javaClass.getAnnotation(RegisterComponent::class.java).path to it }
+            val components =
+                npc.components.map { it.javaClass.getAnnotation(RegisterComponent::class.java).location to it }
 
             Column(Grow.Std, Grow.Std) {
-                LazyColumn {
+                modifier.margin(vertical = sizes.smallGap)
+                val componentsPopup = remember { ItemPopupMenu<Node>("scene-item-popup") }
+                componentsPopup()
+                LazyColumn(containerModifier = { it.background(null) }) {
                     items(components) { (name, component) ->
-                        Column {
+                        Column(Grow.Std) {
                             modifier.padding(sizes.smallGap)
+                                .border(RectBorder(Color.WHITE, sizes.borderWidth))
 
-                            Text(name) {}
-                            component()
+                            var isExpanded by remember(false)
+
+                            Row(Grow.Std) {
+                                modifier.backgroundColor(colors.backgroundMid)
+                                    .padding(sizes.smallGap)
+
+                                Text("component.hollowengine.${name.replace('/', '.')}".lang) {
+                                    modifier.width(Grow.Std)
+                                }
+                                Arrow(isHoverable = false) {
+                                    modifier.rotation(if (isExpanded) ROTATION_DOWN else ArrowScope.ROTATION_LEFT)
+                                        .size(14.dp, 14.dp)
+                                        .alignY(AlignmentY.Center)
+                                        .colors(arrowColor = Color.WHITE, Color.WHITE)
+                                        .onClick { isExpanded = !isExpanded }
+                                }
+                                CloseButton(
+                                    background = colors.backgroundMid,
+                                    backgroundHover = colors.backgroundMid.mulRgb(1.2f),
+                                    foreground = Color.WHITE,
+                                    foregroundHover = Color.WHITE
+                                ) {
+                                    npc[NpcComponentsCapability::class].components
+                                        .removeIf { it.javaClass.getAnnotation(RegisterComponent::class.java).location == name }
+                                }
+                            }
+                            if (isExpanded) {
+                                divider()
+                                Column(width = Grow.Std) {
+                                    modifier.padding(sizes.smallGap)
+                                    component()
+                                }
+                            }
                         }
                     }
                 }
-                Button("Добавить компонент") {
+                Row {
                     modifier.align(AlignmentX.Center, AlignmentY.Bottom)
-                        .onClick {
-                            TODO()
+                    Button("Добавить компонент") {
+                        modifier.textColor(Color.WHITE)
+                        modifier.textHoverColor = Color.WHITE
+                        modifier.onClick {
+                            val node = ComponentRegistry.NPC_COMPONENTS.keys.toNode()
+                            componentsPopup.hide()
+                            componentsPopup.show(it.screenPosition, loadMenu(node) {
+                                ComponentRegistry.NPC_COMPONENTS[it.path]?.let {
+                                    npc.components.add(it(npc))
+                                }
+                            }, node)
                         }
+                    }
+                    Box {
+                        modifier.margin(sizes.smallGap)
+                    }
+                    Button("Сихнронизировать") {
+                        modifier.textColor(Color.WHITE)
+                        modifier.textHoverColor = Color.WHITE
+                        modifier.onClick {
+                            npc[NpcComponentsCapability::class].isChanged = true
+                        }
+                    }
                 }
+
             }
         }
     }
@@ -446,7 +512,7 @@ class UpdateAttributePacket(
     private val attribute: String,
     private val value: Double,
     private val npcId: Int,
-) : HollowPacket<UpdateNamePacket> {
+) : HollowPacket<UpdateAttributePacket> {
     override fun handle(player: Player) {
         if (player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
             (player.level().getEntity(npcId) as? LivingEntity)?.let {

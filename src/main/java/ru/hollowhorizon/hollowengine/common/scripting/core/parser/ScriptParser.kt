@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptTypes
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler.createCompilationConfiguration
 import ru.hollowhorizon.hollowengine.common.scripting.core.host.HollowEngineScriptingHost
-import ru.hollowhorizon.hollowengine.common.scripting.story.StoryEvent
+import ru.hollowhorizon.hollowengine.common.scripting.scene.SceneScript
 import kotlin.script.experimental.api.KotlinType
 import kotlin.script.experimental.host.createCompilationConfigurationFromTemplate
 
@@ -27,7 +27,7 @@ object ScriptParser {
         val disposable = Disposer.newDisposable()
 
         val context = createIsolatedCompilationContext(
-            createCompilationConfiguration<StoryEvent>(host),
+            createCompilationConfiguration<SceneScript>(host),
             host,
             messageCollector,
             disposable

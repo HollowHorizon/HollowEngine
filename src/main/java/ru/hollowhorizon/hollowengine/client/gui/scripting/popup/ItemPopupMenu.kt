@@ -12,6 +12,7 @@ import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.kool.menuDivider
 import ru.hollowhorizon.hollowengine.client.utils.lang
+import ru.hollowhorizon.hollowengine.common.util.Node
 
 class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = true) :
     AutoPopup(hideOnOutsideClick = hideOnOutsideClick, scopeName = scopeName) {
@@ -207,6 +208,24 @@ fun <T : Any?> SubMenuItem(
     val menu = SubMenuItem<T>(label, icon)
     menu.block()
     return menu
+}
+
+fun loadMenu(node: Node, action: (Node) -> Unit) = SubMenuItem<Node> {
+    node.children.values.forEach {
+        loadMenu(it, action)
+    }
+}
+
+fun SubMenuItem<Node>.loadMenu(node: Node, action: (Node) -> Unit) {
+    if (node.children.isNotEmpty()) {
+        subMenu(node.name) {
+            node.children.values.forEach {
+                loadMenu(it, action)
+            }
+        }
+    } else {
+        item(node.name) { action(node) }
+    }
 }
 
 fun ImageModifier.iconImage(iconProvider: Texture2d, size: Dimension, tintColor: Color? = null): ImageModifier {

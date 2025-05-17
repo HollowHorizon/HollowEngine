@@ -55,7 +55,7 @@ kotlin {
                 implementation("de.fabmax.kool:kool-core:$koolVersion")
                 implementation("de.fabmax.kool:kool-physics:$koolVersion")
 
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
             }
         }

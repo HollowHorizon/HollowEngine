@@ -45,7 +45,7 @@ hollowengine:
           .: Создать
           script:
             .: Скрипт
-            story: Сюжетное событие
+            scene: Сцена
             event: Обработчик событий (WIP)
             kool: Сцена Kool (WIP)
           folder: Папка
@@ -116,3 +116,13 @@ key:
 entity:
   hollowengine:
     npc_entity: Персонаж
+
+component:
+  hollowengine:
+    actions:
+      .: Действия
+      look: Смотреть
+      move: Идти
+    utils:
+      .: Разное
+      greetings: Приветствие

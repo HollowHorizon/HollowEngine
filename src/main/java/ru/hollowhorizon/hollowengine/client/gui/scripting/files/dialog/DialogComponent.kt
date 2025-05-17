@@ -1,8 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.dialog
 
-import de.fabmax.kool.input.KeyCode
-import de.fabmax.kool.input.KeyboardInput
-import de.fabmax.kool.input.LocalKeyCode
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import net.minecraft.client.Minecraft
@@ -10,7 +7,7 @@ import ru.hollowhorizon.hc.client.kool.minecraft.Image
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
-import ru.hollowhorizon.hollowengine.common.scripting.story.InlineScript
+import ru.hollowhorizon.hollowengine.common.scripting.inline.InlineScript
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.script.experimental.api.ResultValue

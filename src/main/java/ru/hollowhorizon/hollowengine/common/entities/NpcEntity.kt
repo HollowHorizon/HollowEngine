@@ -29,7 +29,6 @@ import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcMoveControl
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcPathNavigation
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
-import ru.hollowhorizon.hollowengine.ecs.ComponentRegistry
 import ru.hollowhorizon.hollowengine.ecs.npc.NpcComponent
 import ru.hollowhorizon.hollowengine.ecs.npc.NpcComponentsCapability
 
@@ -54,7 +53,9 @@ class NpcEntity : PathfinderMob, IAnimated {
         player
     }
 
-    val components by lazy { this[NpcComponentsCapability::class].components }
+    val components: MutableList<NpcComponent>
+        get() = this[NpcComponentsCapability::class].components
+            .onEach { it.npc = this@NpcEntity }
 
     init {
         setCanPickUpLoot(true)
@@ -71,13 +72,13 @@ class NpcEntity : PathfinderMob, IAnimated {
     override fun createNavigation(pLevel: Level) = NpcPathNavigation(pLevel, this)
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
+        if (pHand == InteractionHand.MAIN_HAND) {
+            components.forEach { it.onInteract(pPlayer, pHand) }
+        }
+
         if (pHand == InteractionHand.MAIN_HAND && level().isClientSide && pPlayer.mainHandItem.item != ModItems.NPC_TOOL) {
             //NPCMenuGui(this).open()
             return InteractionResult.SUCCESS
-        }
-
-        if (pHand == InteractionHand.MAIN_HAND) {
-            components.forEach { it.onInteract(pPlayer, pHand) }
         }
 
         return super.mobInteract(pPlayer, pHand)
@@ -103,6 +104,8 @@ class NpcEntity : PathfinderMob, IAnimated {
     }
 
     override fun customServerAiStep() {
+        components.forEach { it.tick() }
+
         val capability = this[NPCCapability::class]
 
         if (capability.currentTrade == -1) return
@@ -119,7 +122,6 @@ class NpcEntity : PathfinderMob, IAnimated {
             capability.tradeContainer.setItem(6, ItemStack.EMPTY)
         }
 
-        components.forEach { it.tick() }
     }
 
     override fun dropEquipment() {

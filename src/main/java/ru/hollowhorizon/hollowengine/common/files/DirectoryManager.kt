@@ -25,7 +25,7 @@ object DirectoryManager {
     val guiCache = HOLLOW_ENGINE.resolve(".gui_cache").toFile().apply {
         if (!exists()) mkdirs()
     }
-    val storyScripts get() = HOLLOW_ENGINE.resolve("scripts").toFile().walk().filter { it.name.endsWith(".story.kts") }
+    val storyScripts get() = HOLLOW_ENGINE.resolve("scripts").toFile().walk().filter { it.name.endsWith(".scene.kts") }
     val eventScripts get() = HOLLOW_ENGINE.resolve("scripts").toFile().walk().filter { it.name.endsWith(".event.kts") }
     val guiScripts get() = HOLLOW_ENGINE.resolve("scripts").toFile().walk().filter { it.name.endsWith(".gui.kts") }
 }

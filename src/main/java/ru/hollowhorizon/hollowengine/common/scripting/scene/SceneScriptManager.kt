@@ -1,0 +1,125 @@
+package ru.hollowhorizon.hollowengine.common.scripting.scene
+
+import kotlinx.serialization.Serializable
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.server.MinecraftServer
+import net.minecraft.world.level.Level
+import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
+import ru.hollowhorizon.hc.common.capabilities.HollowCapability
+import ru.hollowhorizon.hc.common.coroutines.scopeAsync
+import ru.hollowhorizon.hc.common.events.SubscribeEvent
+import ru.hollowhorizon.hc.common.events.level.LevelEvent
+import ru.hollowhorizon.hc.common.events.server.ServerEvent
+import ru.hollowhorizon.hc.common.events.tick.TickEvent
+import ru.hollowhorizon.hc.common.utils.currentServer
+import ru.hollowhorizon.hc.common.utils.get
+import ru.hollowhorizon.hc.common.utils.nbt.ForCompoundNBT
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
+import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
+import kotlin.script.experimental.api.valueOrThrow
+
+object SceneScriptManager {
+    private val SCRIPTS = HashMap<String, SceneScript>()
+
+    val scripts get() = SCRIPTS.keys
+
+    @SubscribeEvent
+    fun serverStart(event: ServerEvent.Starting) {
+        val server = event.server
+        val scripts = server[SceneScriptStorage::class].scripts
+
+        scripts.keys.forEach { file ->
+            scopeAsync {
+                val result = ScriptingCompiler.compileFile<SceneScript>(file.fromReadablePath())
+                    .execute()
+
+                try {
+                    SCRIPTS[file] = (result.valueOrThrow().returnValue.scriptInstance as SceneScript).apply {
+                        stateMachine.onFinish = { stopScene(file) }
+                    }
+                } catch (e: Exception) {
+                    HollowCore.LOGGER.error("Exception while starting script $file: ", e)
+                }
+            }
+        }
+    }
+
+    @SubscribeEvent
+    fun tick(event: TickEvent.Server) {
+        val server = event.server
+        val scripts = server[SceneScriptStorage::class].scripts
+
+        SCRIPTS.filter { !it.value.isStarted }.forEach { (file, script) ->
+
+            if (!script.isLoaded) {
+                script.isLoaded = true
+                val tag = scripts[file]?.tag ?: return@forEach
+                if ("state" in tag) {
+                    script.stateMachine.current = tag.getString("state")
+                }
+                script.load(tag.getCompound("context"))
+            }
+
+            if (script.canResume()) {
+                script.isStarted = true
+                script.start()
+            }
+        }
+    }
+
+    fun startScene(file: String, state: String) {
+        scopeAsync {
+            val result = ScriptingCompiler.compileFile<SceneScript>(file.fromReadablePath())
+                .execute()
+
+            try {
+                val script = result.valueOrThrow().returnValue.scriptInstance as SceneScript
+                script.stateMachine.current = state
+                script.stateMachine.onFinish = { stopScene(file) }
+                SCRIPTS[file] = script
+            } catch (e: Exception) {
+                HollowCore.LOGGER.error("Exception while starting script $file: ", e)
+            }
+        }
+    }
+
+    fun stopScene(file: String) {
+        SCRIPTS.remove(file)
+        currentServer[SceneScriptStorage::class].scripts.remove(file)
+    }
+
+    @SubscribeEvent
+    fun onLevelSave(event: LevelEvent.Save) {
+        if (!event.level.isClientSide && event.level.dimension() == Level.OVERWORLD) {
+            saveScripts(event.level.server ?: return)
+        }
+    }
+
+    @SubscribeEvent
+    fun onServerStop(event: ServerEvent.Stoping) {
+        saveScripts(event.server)
+        SCRIPTS.clear()
+    }
+
+    private fun saveScripts(server: MinecraftServer) {
+        val scripts = server[SceneScriptStorage::class].scripts
+
+        SCRIPTS.forEach { (file, scene) ->
+            scripts[file] = SceneScriptStorage.TagWrapper(CompoundTag().apply {
+                putString("state", scene.stateMachine.current)
+                if (scene.isStarted) {
+                    put("context", CompoundTag().apply(scene::save))
+                }
+            })
+        }
+    }
+}
+
+@HollowCapability(MinecraftServer::class)
+class SceneScriptStorage : CapabilityInstance() {
+    var scripts by syncableMap<String, TagWrapper>()
+
+    @Serializable
+    class TagWrapper(val tag: @Serializable(ForCompoundNBT::class) CompoundTag)
+}

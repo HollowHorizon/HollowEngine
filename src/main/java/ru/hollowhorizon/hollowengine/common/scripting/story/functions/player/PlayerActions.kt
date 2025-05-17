@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.player
 
+import kotlinx.coroutines.delay
 import net.minecraft.ChatFormatting
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
@@ -7,14 +8,12 @@ import ru.hollowhorizon.hc.common.utils.colored
 import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hc.common.utils.plus
 import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
-import ru.hollowhorizon.hollowengine.scripting.Suspendable
 
-@Suspendable
-fun Player.waitPos(pos: Vec3, radius: Float = 1f, inverse: Boolean = false) {
+suspend fun Player.waitPos(pos: Vec3, radius: Float = 1f, inverse: Boolean = false) {
     if (inverse) {
-        while(distanceToSqr(pos) <= radius * radius);
+        while (distanceToSqr(pos) <= radius * radius) delay(50)
     } else {
-        while(distanceToSqr(pos) >= radius * radius);
+        while (distanceToSqr(pos) >= radius * radius) delay(50)
     }
 }
 

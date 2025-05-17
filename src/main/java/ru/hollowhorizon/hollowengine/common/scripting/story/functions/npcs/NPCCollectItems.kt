@@ -1,15 +1,16 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.yield
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.scripting.Suspendable
 
-@Suspendable
-fun NpcEntity.collectItems(vararg items: ItemStack) {
+suspend fun NpcEntity.collectItems(vararg items: ItemStack) {
     val itemList = items.toMutableList()
     while (itemList.isNotEmpty()) {
         pickupItems(itemList)
+        delay(50)
     }
 }
 

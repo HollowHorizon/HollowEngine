@@ -6,6 +6,7 @@ import ru.hollowhorizon.hc.client.utils.open
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterKeyBindingsEvent
 import ru.hollowhorizon.hc.common.events.tick.TickEvent
+import ru.hollowhorizon.hollowengine.client.gui.dialog.VortexDialogGui
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentScreen
 import ru.hollowhorizon.hollowengine.client.gui.viewers.GltfViewer
 
@@ -23,5 +24,5 @@ fun onTick(event: TickEvent.Client) {
     if (HOLLOW_ENGINE_KEY.isDown) {
         ScriptingEnvironmentScreen().open()
     }
-    if (MODEL_VIEWER.isDown) GltfViewer().open()
+    if (MODEL_VIEWER.isDown) VortexDialogGui().open()
 }
