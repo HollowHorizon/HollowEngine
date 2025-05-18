@@ -26,6 +26,7 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
 
+
 stonecutter {
     kotlinController = true
     centralScript = "build.gradle.kts"
@@ -47,8 +48,4 @@ includeBuild("docs") {
     }
 }
 
-includeBuild("compiler-plugin") {
-    dependencySubstitution {
-        substitute(module("ru.hollowhorizon:HollowEnginePlugin")).using(project(":"))
-    }
-}
+include("ksp")

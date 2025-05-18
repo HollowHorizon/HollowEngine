@@ -1,9 +1,12 @@
 package ru.hollowhorizon.hollowengine.common.util
 
-data class Node(
+import kotlinx.serialization.Serializable
+
+@Serializable
+open class Node(
     val name: String,
     val path: String,
-    val children: MutableMap<String, Node> = mutableMapOf()
+    val children: MutableMap<String, Node> = mutableMapOf(),
 )
 
 fun Collection<String>.toNode(): Node {

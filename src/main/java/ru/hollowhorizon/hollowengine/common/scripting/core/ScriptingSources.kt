@@ -7,10 +7,7 @@ import net.fabricmc.loader.impl.game.minecraft.MinecraftGameProvider
 import java.nio.file.Path
 //?} else {
 /*import net.minecraftforge.fml.loading.FMLLoader
-import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import kotlin.io.path.absolutePathString
-import ru.hollowhorizon.hollowengine.compiler.HollowEngineCompilerRegistrar
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
 *///?}
 import ru.hollowhorizon.hc.common.utils.ModList
 import ru.hollowhorizon.hc.common.utils.isProduction
@@ -141,12 +138,3 @@ fun <T> findField(lookup: Any, name: String): T {
 }
 
 fun compilerJar() = deobfClasspath.first { it.name.startsWith("kotlin-compiler-embeddable") }
-
-//? if forge {
-/*@OptIn(ExperimentalCompilerApi::class)
-@SubscribeEvent
-fun onCompilerRegistry(event: ScriptingCompilerPluginEvent) {
-    // Forge, ну вот что с тобой не так... Почему на Fabric он сам находит плагин?!
-    if(isProduction) event.addExtension(HollowEngineCompilerRegistrar())
-}
-*///?}

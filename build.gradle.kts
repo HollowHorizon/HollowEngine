@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.utils.extendsFrom
+
 plugins {
     idea
     java
@@ -7,6 +9,7 @@ plugins {
     id("me.fallenbreath.yamlang")
     kotlin("jvm")
     kotlin("plugin.serialization")
+    id("com.google.devtools.ksp") version "2.1.20-Beta2-1.0.30"
 }
 
 val compiler_plugin: String by properties
@@ -40,6 +43,8 @@ repositories {
 }
 
 dependencies {
+    ksp(project(":ksp"))
+
     install("ru.hollowhorizon:HollowCore-${container.modPlatform}-${container.minecraftVersion}:$hollowcore:dev", includeInJar = false, isMod = container.modPlatform == "forge")
     include("ru.hollowhorizon:HollowCore-${container.modPlatform}-${container.minecraftVersion}:$hollowcore")
 
@@ -53,12 +58,7 @@ dependencies {
     include("com.github.weisj:jsvg:1.7.1")
     install("com.facebook:ktfmt:0.54")
 
-    install("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin", true)
-
     install("ru.hollowhorizon:hollowengine-docs-jvm:1.0")
-
-    kotlinCompilerPluginClasspath("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin")
-    kotlinCompilerPluginClasspath("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion")
 
     val modPlatform = container.modPlatform
     val jei = "15.20.0.105"
