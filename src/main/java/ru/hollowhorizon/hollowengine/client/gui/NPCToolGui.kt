@@ -406,7 +406,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                 }
                 Row {
                     modifier.align(AlignmentX.Center, AlignmentY.Bottom)
-                    Button("Добавить компонент") {
+                    Button("Add Component") {
                         modifier.textColor(Color.WHITE)
                         modifier.textHoverColor = Color.WHITE
                         modifier.onClick {
@@ -422,7 +422,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                     Box {
                         modifier.margin(sizes.smallGap)
                     }
-                    Button("Сихнронизировать") {
+                    Button("Sync") {
                         modifier.textColor(Color.WHITE)
                         modifier.textHoverColor = Color.WHITE
                         modifier.onClick {

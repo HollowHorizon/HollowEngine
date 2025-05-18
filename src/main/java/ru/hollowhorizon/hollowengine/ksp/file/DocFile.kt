@@ -25,14 +25,14 @@ class DocFile(val title: String, val description: String) : Composable {
                     .font(MsdfFont(HACK_FONT, 30f))
             }
 
-            divider(thickness = sizes.smallGap)
+            divider(thickness = sizes.borderWidth)
 
             Text(description) {
                 modifier.padding(horizontal = sizes.smallGap)
                     .width(Grow.Std).isWrapText(true)
             }
 
-            divider(thickness = sizes.gap)
+            divider(thickness = sizes.borderWidth)
 
             declarations.forEach {
                 Box {
@@ -136,7 +136,7 @@ sealed class DocDeclaration : Composable {
                     }
                 }
 
-                divider(thickness = sizes.smallGap)
+                divider(thickness = sizes.borderWidth)
 
                 // Секция методов
                 Row {

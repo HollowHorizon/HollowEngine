@@ -50,6 +50,12 @@ dependencies {
 
     setupScripting()
 
+    install("io.ktor:ktor-client-core-jvm:3.1.3", true)
+    install("io.ktor:ktor-client-cio:3.1.3", true)
+    install("io.ktor:ktor-client-content-negotiation:3.1.3", true)
+    install("io.ktor:ktor-client-logging:3.1.3", true)
+    install("io.ktor:ktor-serialization-kotlinx-json-jvm:3.1.3", true)
+
     // CONFIG //
     install("com.akuleshov7:ktoml-core-jvm:0.5.1", false)
 

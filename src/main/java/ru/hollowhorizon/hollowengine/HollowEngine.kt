@@ -12,6 +12,7 @@ import ru.hollowhorizon.hc.common.config.HollowConfig
 import ru.hollowhorizon.hc.common.config.hollowConfig
 import ru.hollowhorizon.hollowengine.client.gui.overlay.BetaWarning
 import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
+import ru.hollowhorizon.hollowengine.common.ai.ShapesIncApi
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.example.HollowScript
 import ru.hollowhorizon.hollowengine.common.scripting.core.setupScripting
@@ -24,6 +25,7 @@ object HollowEngine {
     const val MODID = "hollowengine"
     val LOGGER = LogManager.getLogger()
     val config by hollowConfig(::EngineConfig, "hollowengine")
+    val shapesApi = ShapesIncApi(config.shapesToken)
 
     init {
         setupScripting()
@@ -53,6 +55,8 @@ object HollowEngine {
 class EngineConfig : HollowConfig() {
     @SerialName("ide_config")
     var ideConfig = IDEConfig()
+    @SerialName("shapes_token")
+    val shapesToken = ""
 
     @Serializable
     class IDEConfig {

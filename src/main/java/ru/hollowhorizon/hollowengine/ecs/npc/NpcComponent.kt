@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.ecs.npc
 
 import de.fabmax.kool.modules.ui2.*
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.client.Minecraft
@@ -12,11 +13,18 @@ import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
 import ru.hollowhorizon.hc.common.capabilities.HollowCapability
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
+import ru.hollowhorizon.hc.common.events.SubscribeEvent
+import ru.hollowhorizon.hc.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hc.common.utils.nbt.ForUuid
+import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.common.ai.ContentItem
+import ru.hollowhorizon.hollowengine.common.ai.Message
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.inline.InlineScript
+import ru.hollowhorizon.hollowengine.common.scripting.scene.coroutineScope
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.say
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.send
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.ecs.RegisterComponent
 import java.util.*
@@ -103,7 +111,7 @@ class MoveComponent : NpcComponent() {
 
     override fun tick() {
         npc.level().getPlayerByUUID(target ?: return)?.let {
-            if(npc.distanceTo(it) > distance) npc.navigation.moveTo(it, 1.0)
+            if (npc.distanceTo(it) > distance) npc.navigation.moveTo(it, 1.0)
             else npc.navigation.stop()
         }
     }
@@ -161,3 +169,42 @@ class MoveComponent : NpcComponent() {
     }
 }
 
+@RegisterComponent("ai/shapesinc")
+@Serializable
+class ShapeComponent : NpcComponent() {
+    var model = ""
+
+    override fun UiScope.compose() {
+        Row(Grow.Std) {
+            Text("AI Model: ") {}
+            TextField {
+                modifier.text(model)
+                    .onChange { model = it }
+                    .width(Grow.Std)
+            }
+        }
+    }
+}
+
+val messages = HashMap<NpcEntity, MutableList<Message>>()
+
+@SubscribeEvent
+fun onChat(event: ServerChatEvent) {
+    val text = event.message.string
+
+    event.player.level().getEntitiesOfClass(NpcEntity::class.java, event.player.boundingBox.inflate(35.0))
+        .forEach { npc ->
+            npc.components.filterIsInstance<ShapeComponent>().forEach {
+                event.player.server.coroutineScope.launch {
+                    val message = Message("user", text)
+                    val chat = messages.getOrPut(npc) { arrayListOf() }
+                    chat.add(message)
+
+                    val result =
+                        HollowEngine.shapesApi.chatCompletions(it.model, chat)
+                    val text = result.content as ContentItem.Text
+                    event.player send "[${npc.name}] ${text.value}"
+                }
+            }
+        }
+}
