@@ -58,7 +58,7 @@ open class StateMachine(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                HollowCore.LOGGER.error("Error in state '$current': ${'$'}e")
+                HollowCore.LOGGER.error("Error in state '$current': ${e}")
                 break
             }
 
