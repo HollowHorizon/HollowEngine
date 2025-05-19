@@ -8,7 +8,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
-class DocsNode(name: String, path: String, val page: Composable? = null) : FileNode(name, path) {
+class DocsNode(name: String, path: String, var page: Composable? = null) : FileNode(name, path) {
     constructor(path: String, page: Composable? = null) : this(
         "hollowengine.gui.docs.${path.replace('/', '.')}".lang,
         path,

@@ -53,16 +53,14 @@ object PagesReloadManager : ResourceManagerReloadListener {
             for (part in parts) {
                 nodePath += ".$part"
                 current = current.children.find { it.treeName == part } as? DocsNode ?: let {
-                    DocsNode(
-                        part,
-                        path,
-                        if (path.replace('/', '.') == nodePath.substring(1)) PAGES[path.replaceFirst('/', ':').rl] else null
-                    ).apply {
+                    DocsNode(part, path).apply {
                         current.children.add(this)
                         current.isFolder = true
                     }
                 }
             }
+
+            current.page = PAGES[path.replaceFirst('/', ':').rl]
         }
 
         return root
