@@ -186,6 +186,15 @@ fun item(item: String, count: Int = 1, nbt: CompoundTag? = null) = ItemStack(
     }
 }
 
+/**
+ * Переменная-геттер, которая переводит секунды в тики.
+ *
+ * @param this Число которое необходимо преобразовать из тиков в секунды
+ * @template
+ * ```scene.kts
+ * 10.sec // Переводит 10 секунд в тики (10 * 20 = 200)
+ * ```
+ */
 val Number.sec get() = (this.toFloat() * 20).toInt()
 
 /**

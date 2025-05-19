@@ -5,11 +5,11 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromStream
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
-import java.io.File
+import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
+import ru.hollowhorizon.hollowengine.common.scripting.core.completion.ScriptColorizer
+import ru.hollowhorizon.hollowengine.common.scripting.core.completion.SyntaxHighlight
 
 @Serializable
 @SerialName("File")
@@ -17,7 +17,7 @@ class DocFile(val title: String, val description: String) : Composable {
     val declarations = mutableListOf<DocDeclaration>()
 
     override fun UiScope.compose() {
-        Column {
+        Column(Grow.Std) {
             modifier.padding(sizes.smallGap)
 
             Text(title) {
@@ -27,7 +27,7 @@ class DocFile(val title: String, val description: String) : Composable {
 
             divider(thickness = sizes.borderWidth)
 
-            Text(description) {
+            Text(description.trimIndent()) {
                 modifier.padding(horizontal = sizes.smallGap)
                     .width(Grow.Std).isWrapText(true)
             }
@@ -35,14 +35,14 @@ class DocFile(val title: String, val description: String) : Composable {
             divider(thickness = sizes.borderWidth)
 
             declarations.forEach {
-                Box {
+                Box(Grow.Std) {
                     modifier.width(Grow.Std)
                         .background(RoundRectBackground(colors.backgroundVariant, sizes.gap))
-                        .border(RoundRectBorder(colors.primaryVariant, sizes.gap, sizes.borderWidth))
+                        .border(RoundRectBorder(colors.secondaryVariant, sizes.gap, sizes.borderWidth))
                         .padding(sizes.smallGap)
                         .margin(vertical = sizes.smallGap)
 
-                    Column {
+                    Column(Grow.Std) {
                         it()
                     }
                 }
@@ -60,18 +60,35 @@ sealed class DocDeclaration : Composable {
     data class DocTextParts(
         val mainDescription: List<String>,
         val paramDescriptions: Map<String, String>,
-        val returnDescription: String?
-    )
+        val returnDescription: String?,
+        val templates: List<String>, // Поле для хранения шаблонов
+    ) {
+        fun extractCodeFromTemplate(): Pair<String, String>? {
+            val regex = """```([\w.]+)\R([\s\S]*?)```""".toRegex()
+            val match = regex.find(templates.joinToString{it+"\n"})
+            return match?.let {
+                val language = it.groups[1]?.value ?: ""
+                val code = it.groups[2]?.value?.trim() ?: ""
+                language to code
+            }
+        }
+    }
 
     fun parseDocText(): DocTextParts {
         val mainDescription = mutableListOf<String>()
         val paramDescriptions = mutableMapOf<String, String>()
         var returnDescription: String? = null
+        val templates = mutableListOf<String>() // Список шаблонов
         var currentTag: String? = null
+        var templateBuilder: StringBuilder? = null // Для сборки многострочного шаблона
 
         for (line in docText) {
             when {
                 line.startsWith("@param") -> {
+                    templateBuilder?.let {
+                        templates.add(it.toString().trim())
+                        templateBuilder = null
+                    }
                     val parts = line.substringAfter("@param").trim().split(" ", limit = 2)
                     if (parts.size == 2) {
                         paramDescriptions[parts[0]] = parts[1]
@@ -80,15 +97,37 @@ sealed class DocDeclaration : Composable {
                         currentTag = null
                     }
                 }
+
                 line.startsWith("@return") -> {
+                    templateBuilder?.let {
+                        templates.add(it.toString().trim())
+                        templateBuilder = null
+                    }
                     returnDescription = line.substringAfter("@return").trim()
                     currentTag = "return"
                 }
-                line.startsWith("@") -> currentTag = null
+
+                line.startsWith("@template") -> {
+                    templateBuilder?.let {
+                        templates.add(it.toString().trim())
+                    }
+                    templateBuilder = StringBuilder(line.substringAfter("@template").trim())
+                    currentTag = "template"
+                }
+
+                line.startsWith("@") -> {
+                    templateBuilder?.let {
+                        templates.add(it.toString().trim())
+                        templateBuilder = null
+                    }
+                    currentTag = null
+                }
+
                 else -> {
                     when (currentTag) {
                         null -> mainDescription.add(line)
                         "return" -> returnDescription = (returnDescription ?: "") + " $line"
+                        "template" -> templateBuilder?.append("\n")?.append(line)
                         else -> {
                             val paramName = currentTag.substringAfter("param_")
                             paramDescriptions[paramName] = (paramDescriptions[paramName] ?: "") + " $line"
@@ -97,7 +136,13 @@ sealed class DocDeclaration : Composable {
                 }
             }
         }
-        return DocTextParts(mainDescription, paramDescriptions, returnDescription)
+
+        // Добавляем последний шаблон, если он есть
+        templateBuilder?.let {
+            templates.add(it.toString().trim())
+        }
+
+        return DocTextParts(mainDescription, paramDescriptions, returnDescription, templates)
     }
 
     @Serializable
@@ -116,7 +161,7 @@ sealed class DocDeclaration : Composable {
                 Row {
                     Text("Класс: $name") {
                         modifier.font(MsdfFont(HACK_FONT, 24f))
-                            .textColor(methodColor)
+                            .textColor(SyntaxHighlight.EXTENSION_RECEIVER)
                     }
                     Text(pkg) {
                         modifier.padding(sizes.smallGap)
@@ -146,7 +191,7 @@ sealed class DocDeclaration : Composable {
                     Text("Методы") {
                         modifier.textColor(textColor)
                     }
-                    Arrow(if(isMethodsExpanded.use()) ArrowScope.ROTATION_DOWN else ArrowScope.ROTATION_LEFT) {
+                    Arrow(if (isMethodsExpanded.use()) ArrowScope.ROTATION_DOWN else ArrowScope.ROTATION_LEFT) {
                         modifier.size(sizes.largeGap, sizes.largeGap)
                             .alignY(AlignmentY.Center)
                     }
@@ -165,7 +210,7 @@ sealed class DocDeclaration : Composable {
                     Text("Поля") {
                         modifier.textColor(textColor)
                     }
-                    Arrow(if(isFieldsExpanded.use()) ArrowScope.ROTATION_DOWN else ArrowScope.ROTATION_LEFT) {
+                    Arrow(if (isFieldsExpanded.use()) ArrowScope.ROTATION_DOWN else ArrowScope.ROTATION_LEFT) {
                         modifier.size(sizes.largeGap, sizes.largeGap)
                             .alignY(AlignmentY.Center)
                     }
@@ -181,46 +226,87 @@ sealed class DocDeclaration : Composable {
 
     @Serializable
     @SerialName("Method")
-    class DocMethod(val name: String, val valueParameters: List<DocParameter>, val returnType: DocType) :
+    class DocMethod(
+        val name: String,
+        @SerialName("extension_receiver")
+        val extReceiver: DocType? = null,
+        val valueParameters: List<DocParameter>,
+        val returnType: DocType,
+    ) :
         DocDeclaration() {
         override fun UiScope.compose() {
             val parts = parseDocText()
-            Column {
+            Column(Grow.Std) {
                 modifier.padding(sizes.smallGap)
 
                 // Сигнатура метода
-                Row {
-                    modifier.background(RectBackground(colors.backgroundMid))
+                Row(Grow.Std) {
+                    modifier.background(RoundRectBackground(colors.backgroundMid.mulRgb(0.75f), sizes.smallGap))
+                        .border(RoundRectBorder(colors.secondaryVariant, sizes.smallGap, sizes.borderWidth))
                         .padding(sizes.smallGap)
-                    Text("fun ") {
-                        modifier.font(codeFont).textColor(keywordColor)
+
+                    Text("Функция") {
+                        modifier.font(boldFont.derive(20f)).textColor(SyntaxHighlight.KEYWORD)
+                            .background(
+                                RoundRectBackground(
+                                    IdeTheme.colors.background.mix(
+                                        SyntaxHighlight.KEYWORD,
+                                        0.35f
+                                    ), sizes.smallGap
+                                )
+                            )
+                            .padding(sizes.smallGap * 0.5f)
+                            .margin(end = sizes.smallGap)
+                            .alignY(AlignmentY.Center)
+                    }
+                    if (extReceiver != null) {
+                        Row {
+                            modifier.alignY(AlignmentY.Center)
+                            Text(extReceiver.type) {
+                                modifier.font(codeFont).textColor(SyntaxHighlight.NAME_REFERENCE)
+                                    .alignY(AlignmentY.Center)
+                            }
+                            Text(".") {
+                                modifier.font(codeFont).textColor(textColor)
+                                    .alignY(AlignmentY.Center)
+                            }
+                        }
                     }
                     Text(name) {
-                        modifier.font(codeFont).textColor(methodColor)
+                        modifier.font(codeFont).textColor(SyntaxHighlight.EXTENSION_RECEIVER)
+                            .alignY(AlignmentY.Center)
                     }
                     Text("(") {
                         modifier.font(codeFont).textColor(textColor)
+                            .alignY(AlignmentY.Center)
                     }
                     valueParameters.forEachIndexed { i, param ->
                         if (i > 0) Text(", ") {
                             modifier.font(codeFont).textColor(textColor)
+                                .alignY(AlignmentY.Center)
                         }
                         Text(param.name) {
-                            modifier.font(codeFont).textColor(paramColor)
+                            modifier.font(codeFont).textColor(SyntaxHighlight.PROPERTY_IDENTIFIER)
+                                .alignY(AlignmentY.Center)
                         }
                         Text(": ") {
                             modifier.font(codeFont).textColor(textColor)
+                                .alignY(AlignmentY.Center)
                         }
                         Text(param.type.type) {
-                            modifier.font(codeFont).textColor(typeColor)
+                            modifier.font(codeFont).textColor(SyntaxHighlight.NAME_REFERENCE)
+                                .alignY(AlignmentY.Center)
                         }
                     }
                     Text("): ") {
                         modifier.font(codeFont).textColor(textColor)
+                            .alignY(AlignmentY.Center)
                     }
                     Text(returnType.type) {
-                        modifier.font(codeFont).textColor(typeColor)
+                        modifier.font(codeFont).textColor(SyntaxHighlight.NAME_REFERENCE)
+                            .alignY(AlignmentY.Center)
                     }
+                    divider(marginBottom = sizes.largeGap, marginTop = sizes.smallGap)
                 }
 
                 if (parts.paramDescriptions.isNotEmpty()) {
@@ -228,11 +314,155 @@ sealed class DocDeclaration : Composable {
                         modifier.font(boldFont).textColor(textColor)
                     }
                     for ((paramName, desc) in parts.paramDescriptions) {
-                        Text("- $paramName: $desc") {
+                        Row(Grow.Std) {
+                            modifier.padding(sizes.smallGap * 0.5f)
+                            Text("◦") {
+                                modifier.font(codeFont).textColor(textColor)
+                                    .alignY(AlignmentY.Center)
+                                    .margin(end = sizes.smallGap)
+                            }
+                            Text(paramName) {
+                                modifier.font(codeFont).textColor(SyntaxHighlight.PROPERTY_IDENTIFIER)
+                                    .alignY(AlignmentY.Center)
+                            }
+                            Text(": $desc") {
+                                modifier.font(codeFont).textColor(textColor)
+                                    .width(Grow.Std).isWrapText(true)
+                                    .alignY(AlignmentY.Center)
+                            }
+                        }
+                    }
+                    divider(marginBottom = sizes.gap, marginTop = sizes.gap)
+
+                }
+                if (parts.returnDescription != null) {
+                    Text("Возвращаемое значение:") {
+                        modifier.font(boldFont).textColor(textColor)
+                    }
+                    Text(parts.returnDescription) {
+                        modifier.textColor(textColor)
+                            .width(Grow.Std).isWrapText(true)
+                    }
+                    divider(marginBottom = sizes.gap, marginTop = sizes.gap)
+                }
+
+                if (parts.mainDescription.isNotEmpty()) {
+                    Text("Описание:") {
+                        modifier.font(boldFont).textColor(textColor)
+                    }
+                    for (line in parts.mainDescription) {
+                        Text(line) {
                             modifier.textColor(textColor)
                                 .width(Grow.Std).isWrapText(true)
                         }
                     }
+                }
+
+                parts.extractCodeFromTemplate()?.let { (lang, code) ->
+                    val coloredText = Templates.TEMPLATES.getOrPut(lang + code) {
+                        ScriptColorizer.parse("template.$lang", code).toMutableList()
+                    }
+                    Text("Пример:") {
+                        modifier.font(boldFont).textColor(textColor)
+                            .margin(bottom = sizes.smallGap)
+                    }
+                    Column {
+                        modifier.padding(sizes.smallGap)
+                            .background(RoundRectBackground(colors.backgroundMid.mulRgb(0.75f), sizes.gap))
+                            .border(RoundRectBorder(colors.secondaryVariant, sizes.smallGap, sizes.borderWidth))
+                            .alignX(AlignmentX.Center)
+                            .width(Grow.Std)
+
+                        coloredText.forEach {
+                            AttributedText(it) {}
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Serializable
+    @SerialName("Field")
+    class DocField(val name: String, val extReceiver: DocType?, val returnType: DocType) : DocDeclaration() {
+        override fun UiScope.compose() {
+            val parts = parseDocText()
+            Column(Grow.Std) {
+                modifier.padding(sizes.smallGap)
+
+                // Сигнатура поля
+                Row(Grow.Std) {
+                    modifier.background(RoundRectBackground(colors.backgroundMid.mulRgb(0.75f), sizes.smallGap))
+                        .border(RoundRectBorder(colors.secondaryVariant, sizes.smallGap, sizes.borderWidth))
+                        .padding(sizes.smallGap)
+                    Text("Переменная") {
+                        modifier.font(boldFont.derive(20f)).textColor(SyntaxHighlight.EXTENSION_RECEIVER)
+                            .background(
+                                RoundRectBackground(
+                                    IdeTheme.colors.background.mix(
+                                        SyntaxHighlight.EXTENSION_RECEIVER,
+                                        0.35f
+                                    ), sizes.smallGap
+                                )
+                            )
+                            .padding(sizes.smallGap * 0.5f)
+                            .margin(end = sizes.smallGap)
+                            .alignY(AlignmentY.Center)
+                    }
+                    if (extReceiver != null) {
+                        Row {
+                            modifier.alignY(AlignmentY.Center)
+                            Text(extReceiver.type) {
+                                modifier.font(codeFont).textColor(SyntaxHighlight.NAME_REFERENCE)
+                                    .alignY(AlignmentY.Center)
+                            }
+                            Text(".") {
+                                modifier.font(codeFont).textColor(textColor)
+                                    .alignY(AlignmentY.Center)
+                            }
+                        }
+                    }
+                    Text(name) {
+                        modifier.font(codeFont).textColor(SyntaxHighlight.PROPERTY_IDENTIFIER)
+                            .alignY(AlignmentY.Center)
+                    }
+                    Text(": ") {
+                        modifier.font(codeFont).textColor(textColor)
+                            .alignY(AlignmentY.Center)
+                    }
+                    Text(returnType.type) {
+                        modifier.font(codeFont).textColor(SyntaxHighlight.NAME_REFERENCE)
+                            .alignY(AlignmentY.Center)
+                    }
+
+                    divider(marginTop = sizes.smallGap, marginBottom = sizes.gap)
+                }
+
+                if (parts.paramDescriptions.isNotEmpty()) {
+                    Text("Параметры:") {
+                        modifier.font(boldFont).textColor(textColor)
+                    }
+                    for ((paramName, desc) in parts.paramDescriptions) {
+                        Row(Grow.Std) {
+                            modifier.padding(sizes.smallGap * 0.5f)
+                            Text("◦") {
+                                modifier.font(codeFont).textColor(textColor)
+                                    .alignY(AlignmentY.Center)
+                                    .margin(end = sizes.smallGap)
+                            }
+                            Text(paramName) {
+                                modifier.font(codeFont).textColor(SyntaxHighlight.PROPERTY_IDENTIFIER)
+                                    .alignY(AlignmentY.Center)
+                            }
+                            Text(": $desc") {
+                                modifier.font(codeFont).textColor(textColor)
+                                    .width(Grow.Std).isWrapText(true)
+                                    .alignY(AlignmentY.Center)
+                            }
+                        }
+                    }
+                    divider(marginBottom = sizes.gap, marginTop = sizes.gap)
+
                 }
 
                 if (parts.returnDescription != null) {
@@ -243,6 +473,7 @@ sealed class DocDeclaration : Composable {
                         modifier.textColor(textColor)
                             .width(Grow.Std).isWrapText(true)
                     }
+                    divider(marginBottom = sizes.gap, marginTop = sizes.gap)
                 }
 
                 if (parts.mainDescription.isNotEmpty()) {
@@ -256,44 +487,24 @@ sealed class DocDeclaration : Composable {
                         }
                     }
                 }
-            }
-        }
-    }
 
-    @Serializable
-    @SerialName("Field")
-    class DocField(val name: String, val _type: DocType) : DocDeclaration() {
-        override fun UiScope.compose() {
-            val parts = parseDocText()
-            Column {
-                modifier.padding(sizes.smallGap)
-
-                // Сигнатура поля
-                Row {
-                    modifier.backgroundColor(colors.backgroundMid)
-                        .padding(sizes.smallGap)
-                    Text("val ") {
-                        modifier.font(codeFont).textColor(keywordColor)
+                parts.extractCodeFromTemplate()?.let { (lang, code) ->
+                    val coloredText = Templates.TEMPLATES.getOrPut(lang + code) {
+                        ScriptColorizer.parse("template.$lang", code).toMutableList()
                     }
-                    Text(name) {
-                        modifier.font(codeFont).textColor(fieldColor)
-                    }
-                    Text(": ") {
-                        modifier.font(codeFont).textColor(textColor)
-                    }
-                    Text(_type.type) {
-                        modifier.font(codeFont).textColor(typeColor)
-                    }
-                }
-
-                if (parts.mainDescription.isNotEmpty()) {
-                    Text("Описание:") {
+                    Text("Пример:") {
                         modifier.font(boldFont).textColor(textColor)
+                            .margin(bottom = sizes.smallGap)
                     }
-                    for (line in parts.mainDescription) {
-                        Text(line) {
-                            modifier.textColor(textColor)
-                                .width(Grow.Std).isWrapText(true)
+                    Column {
+                        modifier.padding(sizes.smallGap)
+                            .background(RoundRectBackground(colors.backgroundMid.mulRgb(0.75f), sizes.gap))
+                            .border(RoundRectBorder(colors.secondaryVariant, sizes.smallGap, sizes.borderWidth))
+                            .alignX(AlignmentX.Center)
+                            .width(Grow.Std)
+
+                        coloredText.forEach {
+                            AttributedText(it) {}
                         }
                     }
                 }
@@ -303,14 +514,9 @@ sealed class DocDeclaration : Composable {
 }
 
 // Определение цветовой схемы для стилизации кода
-val keywordColor = Color.BLUE
-val methodColor = Color.GREEN
-val fieldColor = Color(0f, 0.5f, 0f, 1f) // Темно-зеленый
-val paramColor = Color.MAGENTA
-val typeColor = Color.CYAN
 val textColor = Color.WHITE
-val codeFont by lazy{ MsdfFont(HACK_FONT, 16f)}
-val boldFont by lazy{ MsdfFont(HACK_FONT, 16f, weight = 0.1f)}
+val codeFont by lazy { MsdfFont(HACK_FONT, 16f) }
+val boldFont by lazy { MsdfFont(HACK_FONT, 16f, weight = 0.1f) }
 
 @Serializable
 class DocParameter(val name: String, val type: DocType)
@@ -318,8 +524,6 @@ class DocParameter(val name: String, val type: DocType)
 @Serializable
 class DocType(val type: String)
 
-fun main() {
-    println(
-        Json.decodeFromStream<DocFile>(File("C:\\Users\\Artem\\Modding\\HollowEngine\\src\\main\\resources\\actions.json").inputStream())
-    )
+object Templates {
+    val TEMPLATES = HashMap<String, MutableList<TextLine>>()
 }

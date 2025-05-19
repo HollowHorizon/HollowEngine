@@ -3,10 +3,7 @@ package ru.hollowhorizon.hollowengine.ksp.file
 import com.google.devtools.ksp.symbol.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromStream
 import ru.hollowhorizon.hollowengine.ksp.DocPage
-import java.io.File
 
 @Serializable
 @SerialName("File")
@@ -46,7 +43,13 @@ sealed class DocDeclaration {
 
     @Serializable
     @SerialName("Method")
-    class DocMethod(val name: String, val valueParameters: List<DocParameter>, val returnType: DocType) :
+    class DocMethod(
+        val name: String,
+        @SerialName("extension_receiver")
+        val extReceiver: DocType? = null,
+        val valueParameters: List<DocParameter>,
+        val returnType: DocType
+    ) :
         DocDeclaration() {
         companion object {
             fun fromDeclaration(declaration: KSFunctionDeclaration): DocMethod {
@@ -59,18 +62,22 @@ sealed class DocDeclaration {
                             DocType(it.type.resolve().declaration.simpleName.asString())
                         )
                     }
-                return DocMethod(declaration.simpleName.asString(), valueParameters, returnType)
+                val extReceiver = declaration.extensionReceiver?.let {
+                    DocType(it.resolve().declaration.simpleName.asString())
+                }
+                return DocMethod(declaration.simpleName.asString(), extReceiver, valueParameters, returnType)
             }
         }
     }
 
     @Serializable
     @SerialName("Field")
-    class DocField(val name: String, val _type: DocType) : DocDeclaration() {
+    class DocField(val name: String, val extReceiver: DocType?, val returnType: DocType) : DocDeclaration() {
         companion object {
             fun fromDeclaration(declaration: KSPropertyDeclaration): DocField {
                 return DocField(
                     declaration.simpleName.asString(),
+                    declaration.extensionReceiver?.let { DocType(it.resolve().declaration.simpleName.asString()) },
                     DocType(declaration.type.resolve().declaration.simpleName.asString())
                 )
             }

@@ -42,10 +42,4 @@ stonecutter {
 val modName: String by settings
 rootProject.name = modName
 
-includeBuild("docs") {
-    dependencySubstitution {
-        substitute(module("ru.hollowhorizon:hollowengine-docs-jvm")).using(project(":"))
-    }
-}
-
 include("ksp")

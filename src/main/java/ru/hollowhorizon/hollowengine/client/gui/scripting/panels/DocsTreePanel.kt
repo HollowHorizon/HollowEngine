@@ -21,7 +21,6 @@ class DocsTreePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.docs", dock) {
     val tree = PagesReloadManager.tree().resize()
 
     override fun UiScope.compose() {
-
         tree()
     }
 

@@ -64,8 +64,6 @@ dependencies {
     include("com.github.weisj:jsvg:1.7.1")
     install("com.facebook:ktfmt:0.54")
 
-    install("ru.hollowhorizon:hollowengine-docs-jvm:1.0")
-
     val modPlatform = container.modPlatform
     val jei = "15.20.0.105"
     modCompileOnly("mezz.jei:jei-1.20.1-${modPlatform}-api:$jei")
