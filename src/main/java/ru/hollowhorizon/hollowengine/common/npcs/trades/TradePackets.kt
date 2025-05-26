@@ -25,7 +25,7 @@ import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 
 @Serializable
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
-class AddTradePacket(val npc: Int) : HollowPacket<AddTradePacket> {
+class AddTradePacket(val npc: Int) : HollowPacket {
     override fun handle(player: Player) {
         if (!player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
             player.sendSystemMessage("You can't modify npc trades!".literal)
@@ -39,7 +39,7 @@ class AddTradePacket(val npc: Int) : HollowPacket<AddTradePacket> {
 
 @Serializable
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
-class RemoveTradePacket(val npc: Int, val index: Int) : HollowPacket<AddTradePacket> {
+class RemoveTradePacket(val npc: Int, val index: Int) : HollowPacket {
     override fun handle(player: Player) {
         if (!player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
             player.sendSystemMessage("You can't modify npc trades!".mcText)
@@ -59,7 +59,7 @@ class RemoveTradePacket(val npc: Int, val index: Int) : HollowPacket<AddTradePac
 
 @Serializable
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
-class ModifyTradePacket(val npc: Int, val index: Int, private val trade: TradeOffer) : HollowPacket<AddTradePacket> {
+class ModifyTradePacket(val npc: Int, val index: Int, private val trade: TradeOffer) : HollowPacket {
     override fun handle(player: Player) {
         if (!player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
             player.sendSystemMessage("You can't modify npc trades!".mcText)
@@ -80,7 +80,7 @@ class ModifyTradePacket(val npc: Int, val index: Int, private val trade: TradeOf
 
 @Serializable
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
-class SelectTradePacket(val npc: Int, val index: Int) : HollowPacket<AddTradePacket> {
+class SelectTradePacket(val npc: Int, val index: Int) : HollowPacket {
     override fun handle(player: Player) {
         if (!player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
             player.sendSystemMessage("You can't modify npc trades!".mcText)
@@ -101,7 +101,7 @@ class SelectTradePacket(val npc: Int, val index: Int) : HollowPacket<AddTradePac
 
 @Serializable
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
-class ClearContainerPacket(val npc: Int) : HollowPacket<AddTradePacket> {
+class ClearContainerPacket(val npc: Int) : HollowPacket {
     override fun handle(player: Player) {
         if (!player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
             player.sendSystemMessage("You can't modify npc trades!".mcText)

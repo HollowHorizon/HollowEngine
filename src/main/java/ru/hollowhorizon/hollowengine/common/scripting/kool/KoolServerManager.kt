@@ -47,7 +47,7 @@ class KoolScenesCapability : CapabilityInstance() {
 @HollowPacketHandler
 @Serializable
 class UpdateScenePacket(val name: String, val tag: @Serializable(ForCompoundNBT::class) CompoundTag) :
-    HollowPacket<UpdateScenePacket> {
+    HollowPacket {
     override fun handle(player: Player) {
         val file = name.fromReadablePath()
 
@@ -72,7 +72,7 @@ class UpdateScenePacket(val name: String, val tag: @Serializable(ForCompoundNBT:
 
 @HollowPacketHandler
 @Serializable
-class RemoveScenePacket(val name: String) : HollowPacket<RemoveScenePacket> {
+class RemoveScenePacket(val name: String) : HollowPacket {
     override fun handle(player: Player) {
         KoolClientManager.removeScene(name)
     }

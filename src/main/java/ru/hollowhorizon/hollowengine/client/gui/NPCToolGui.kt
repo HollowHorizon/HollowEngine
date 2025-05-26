@@ -67,8 +67,10 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
             dockingSurface.sizes = IdeTheme.sizes.copy(normalText = MsdfFont(MONOCRAFT, 18f))
             dockingSurface.colors = IdeTheme.colors
 
+            //TODO: После обновления анимаций больше нет, разве что их контроллер
+
             val generalPanel = GeneralPanel()
-            val animationsPanel = AnimationsPanel()
+            //val animationsPanel = AnimationsPanel()
             val attributesPanel = AttributesPanel()
             val componentsPanel = ComponentsPanel()
 
@@ -80,7 +82,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                     "hollowengine.gui.tool.entity" -> entityPanel.dockable
                     "hollowengine.gui.tool.attributes" -> attributesPanel.dockable
                     "hollowengine.gui.tool.components" -> componentsPanel.dockable
-                    "hollowengine.gui.tool.animations" -> animationsPanel.dockable
+              //      "hollowengine.gui.tool.animations" -> animationsPanel.dockable
                     else -> null
                 }
             }
@@ -94,7 +96,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                 )
                 dock.getLeafAtPath("0:row/0:leaf")?.dock(componentsPanel.dockable)
                 dock.getLeafAtPath("0:row/0:leaf")?.dock(attributesPanel.dockable)
-                dock.getLeafAtPath("0:row/0:leaf")?.dock(animationsPanel.dockable)
+                //dock.getLeafAtPath("0:row/0:leaf")?.dock(animationsPanel.dockable)
                 dock.getLeafAtPath("0:row/0:leaf")?.dock(generalPanel.dockable)
                 dock.getLeafAtPath("0:row/1:leaf")?.dock(entityPanel.dockable)
             }
@@ -201,94 +203,94 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
         }
     }
 
-    inner class AnimationsPanel : DockPanel("hollowengine.gui.tool.animations", dock) {
-        override val icon = "Not used."
-        private val animationTypes = AnimationType.entries.map {
-            "hollowengine.gui.tool.animations.${it.name.lowercase()}".lang to it
-        }
-
-        init {
-            showOnToolbar = false
-        }
-
-
-        override fun UiScope.compose() {
-            modifier.padding(sizes.smallGap)
-
-            val player = GltfManager.getOrCreate(npc.model.rl).animationPlayer
-            val animationNames = player.nameToAnimationMap.keys
-            val animations = npc[AnimatedEntityCapability::class].animations
-            val currentAnimations by remember(HashMap(player.typeToAnimationMap.mapValues { it.value.name } + animations))
-            var lastAnimationType = AnimationType.IDLE
-
-            LazyColumn {
-                items(animationTypes) { (name, animation) ->
-                    Property(name) {
-                        TextField {
-
-                            modifier.textColor =
-                                if (currentAnimations[animation] in animationNames) colors.onBackground else Color.DARK_RED
-
-                            modifier.alignY(AlignmentY.Center)
-                                .width(Grow.Std)
-                                .text(currentAnimations[animation] ?: "")
-                                .onChange {
-                                    position = Vec2f(uiNode.leftPx, uiNode.bottomPx)
-                                    currentAnimations[animation] = it
-                                    lastAnimationType = animation
-                                    if (it in animationNames || it.isEmpty()) {
-                                        animations[animation] = it
-                                        UpdateAnimationPacket(it, animation, npc.id).send()
-                                    }
-                                }
-                        }
-                    }
-                }
-            }
-
-            val completions =
-                animationNames.filter { it.startsWith(currentAnimations[lastAnimationType] ?: "", ignoreCase = true) }
-                    .filter { it != currentAnimations[lastAnimationType] }.sorted()
-            if (completions.isNotEmpty() && currentAnimations[lastAnimationType]?.isNotEmpty() == true) {
-                val font = MsdfFont(MONOCRAFT, 18f)
-                val length = completions.maxByOrNull { it.length } ?: ""
-                val width = font.textDimensions(length).width.dp + sizes.smallGap * 2f + sizes.gap * 2f
-                Popup(position.x, position.y) {
-                    modifier.background(null).border(null).zLayer(UiSurface.LAYER_POPUP)
-                        .size(
-                            width,
-                            (22.dp + sizes.smallGap) * completions.size.coerceAtMost(10) + sizes.smallGap
-                        )
-
-                    LazyColumn(
-                        withVerticalScrollbar = false,
-                        withHorizontalScrollbar = false,
-                        containerModifier = {
-                            it.background(null)
-                        }
-                    ) {
-                        modifier.margin(end = sizes.gap)
-                        items(completions) { resource ->
-                            Box(Grow.Std) {
-                                val color = hoverColors(1f, Color("1B1E23FF"), Color("252930FF"))
-                                modifier.backgroundColor(color).padding(sizes.smallGap)
-                                    .onClick {
-                                        animations[lastAnimationType] = resource
-                                        currentAnimations[lastAnimationType] = resource
-                                        UpdateAnimationPacket(resource, lastAnimationType, npc.id).send()
-                                    }
-
-                                Text(resource) {
-                                    modifier.font(font)
-                                        .width(Grow.Std)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+//    inner class AnimationsPanel : DockPanel("hollowengine.gui.tool.animations", dock) {
+//        override val icon = "Not used."
+//        private val animationTypes = AnimationType.entries.map {
+//            "hollowengine.gui.tool.animations.${it.name.lowercase()}".lang to it
+//        }
+//
+//        init {
+//            showOnToolbar = false
+//        }
+//
+//
+//        override fun UiScope.compose() {
+//            modifier.padding(sizes.smallGap)
+//
+//            val player = GltfManager.getOrCreate(npc.model.rl).animationPlayer
+//            val animationNames = player.nameToAnimationMap.keys
+//            val animations = npc[AnimatedEntityCapability::class].animations
+//            val currentAnimations by remember(HashMap(player.typeToAnimationMap.mapValues { it.value.name } + animations))
+//            var lastAnimationType = AnimationType.IDLE
+//
+//            LazyColumn {
+//                items(animationTypes) { (name, animation) ->
+//                    Property(name) {
+//                        TextField {
+//
+//                            modifier.textColor =
+//                                if (currentAnimations[animation] in animationNames) colors.onBackground else Color.DARK_RED
+//
+//                            modifier.alignY(AlignmentY.Center)
+//                                .width(Grow.Std)
+//                                .text(currentAnimations[animation] ?: "")
+//                                .onChange {
+//                                    position = Vec2f(uiNode.leftPx, uiNode.bottomPx)
+//                                    currentAnimations[animation] = it
+//                                    lastAnimationType = animation
+//                                    if (it in animationNames || it.isEmpty()) {
+//                                        animations[animation] = it
+//                                        UpdateAnimationPacket(it, animation, npc.id).send()
+//                                    }
+//                                }
+//                        }
+//                    }
+//                }
+//            }
+//
+//            val completions =
+//                animationNames.filter { it.startsWith(currentAnimations[lastAnimationType] ?: "", ignoreCase = true) }
+//                    .filter { it != currentAnimations[lastAnimationType] }.sorted()
+//            if (completions.isNotEmpty() && currentAnimations[lastAnimationType]?.isNotEmpty() == true) {
+//                val font = MsdfFont(MONOCRAFT, 18f)
+//                val length = completions.maxByOrNull { it.length } ?: ""
+//                val width = font.textDimensions(length).width.dp + sizes.smallGap * 2f + sizes.gap * 2f
+//                Popup(position.x, position.y) {
+//                    modifier.background(null).border(null).zLayer(UiSurface.LAYER_POPUP)
+//                        .size(
+//                            width,
+//                            (22.dp + sizes.smallGap) * completions.size.coerceAtMost(10) + sizes.smallGap
+//                        )
+//
+//                    LazyColumn(
+//                        withVerticalScrollbar = false,
+//                        withHorizontalScrollbar = false,
+//                        containerModifier = {
+//                            it.background(null)
+//                        }
+//                    ) {
+//                        modifier.margin(end = sizes.gap)
+//                        items(completions) { resource ->
+//                            Box(Grow.Std) {
+//                                val color = hoverColors(1f, Color("1B1E23FF"), Color("252930FF"))
+//                                modifier.backgroundColor(color).padding(sizes.smallGap)
+//                                    .onClick {
+//                                        animations[lastAnimationType] = resource
+//                                        currentAnimations[lastAnimationType] = resource
+//                                        UpdateAnimationPacket(resource, lastAnimationType, npc.id).send()
+//                                    }
+//
+//                                Text(resource) {
+//                                    modifier.font(font)
+//                                        .width(Grow.Std)
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
 
     inner class AttributesPanel : DockPanel("hollowengine.gui.tool.attributes", dock) {
         override val icon = "Not used."
@@ -467,7 +469,7 @@ class NpcOptionsEvent(private val generator: (NpcOption) -> Unit, val npc: NpcEn
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 @Serializable
-class UpdateNamePacket(private val name: String, private val npcId: Int) : HollowPacket<UpdateNamePacket> {
+class UpdateNamePacket(private val name: String, private val npcId: Int) : HollowPacket {
     override fun handle(player: Player) {
         if (player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
             player.level().getEntity(npcId)?.let {
@@ -480,7 +482,7 @@ class UpdateNamePacket(private val name: String, private val npcId: Int) : Hollo
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 @Serializable
-class UpdateModelPacket(private val model: String, private val npcId: Int) : HollowPacket<UpdateNamePacket> {
+class UpdateModelPacket(private val model: String, private val npcId: Int) : HollowPacket {
     override fun handle(player: Player) {
         if (player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
             player.level().getEntity(npcId)?.get(AnimatedEntityCapability::class)?.let {
@@ -490,21 +492,21 @@ class UpdateModelPacket(private val model: String, private val npcId: Int) : Hol
     }
 }
 
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
-@Serializable
-class UpdateAnimationPacket(
-    private val animationName: String,
-    private val animationType: AnimationType,
-    private val npcId: Int,
-) : HollowPacket<UpdateNamePacket> {
-    override fun handle(player: Player) {
-        if (player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
-            player.level().getEntity(npcId)?.get(AnimatedEntityCapability::class)?.let {
-                it.animations[animationType] = animationName
-            }
-        }
-    }
-}
+//@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
+//@Serializable
+//class UpdateAnimationPacket(
+//    private val animationName: String,
+//    private val animationType: AnimationType,
+//    private val npcId: Int,
+//) : HollowPacket {
+//    override fun handle(player: Player) {
+//        if (player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
+//            player.level().getEntity(npcId)?.get(AnimatedEntityCapability::class)?.let {
+//                it.animations[animationType] = animationName
+//            }
+//        }
+//    }
+//}
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 @Serializable
@@ -512,7 +514,7 @@ class UpdateAttributePacket(
     private val attribute: String,
     private val value: Double,
     private val npcId: Int,
-) : HollowPacket<UpdateAttributePacket> {
+) : HollowPacket {
     override fun handle(player: Player) {
         if (player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
             (player.level().getEntity(npcId) as? LivingEntity)?.let {

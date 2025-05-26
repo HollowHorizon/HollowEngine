@@ -111,7 +111,7 @@ class NPCMenuGui(val npc: NpcEntity) : KoolScreen() {
 
 @Serializable
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
-class NpcTalkPacket(val npcId: Int) : HollowPacket<NpcTalkPacket> {
+class NpcTalkPacket(val npcId: Int) : HollowPacket {
     override fun handle(player: Player) {
         val npc = player.level().getEntity(npcId) as? NpcEntity ?: return
 

@@ -55,7 +55,7 @@ class SoundEffectPacket(
     private val position: @Serializable(ForVec3::class) Vec3?,
     private val velocity: @Serializable(ForVec3::class) Vec3?,
     private val relative: Boolean,
-) : HollowPacket<SoundEffectPacket> {
+) : HollowPacket {
     override fun handle(player: Player) {
         val wave = SOUNDS.getOrPut(location) {
             val ext = location.path.substringAfterLast(".")

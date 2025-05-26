@@ -56,6 +56,8 @@ dependencies {
     install("io.ktor:ktor-client-logging:3.1.3", true)
     install("io.ktor:ktor-serialization-kotlinx-json-jvm:3.1.3", true)
 
+    install("org.codehaus.janino:janino:3.1.12", false)
+
     // CONFIG //
     install("com.akuleshov7:ktoml-core-jvm:0.5.1", false)
 

@@ -15,14 +15,8 @@ fun Player.resetModel() {
 }
 
 val Player.textures get() = this[AnimatedEntityCapability::class.java].textures
-val Player.animations get() = this[AnimatedEntityCapability::class.java].animations
 var Player.transform
     get() = this[AnimatedEntityCapability::class.java].transform
     set(value) {
         this[AnimatedEntityCapability::class.java].transform = value
-    }
-var Player.switchHeadRot
-    get() = this[AnimatedEntityCapability::class.java].switchHeadRot
-    set(value) {
-        this[AnimatedEntityCapability::class.java].switchHeadRot = value
     }

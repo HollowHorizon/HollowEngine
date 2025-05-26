@@ -36,7 +36,7 @@ class SpawnParticlesPacket(
     val location: String,
     val pos: @Serializable(ForVec3::class) Vec3? = null,
     val entity: @Serializable(ForEntity::class) Entity? = null,
-) : HollowPacket<SpawnParticlesPacket> {
+) : HollowPacket {
     override fun handle(player: Player) {
         val renderer = player.level() as ParticlesProvider
 

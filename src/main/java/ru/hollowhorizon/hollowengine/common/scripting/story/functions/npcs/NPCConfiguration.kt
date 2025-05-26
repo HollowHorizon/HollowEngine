@@ -15,12 +15,8 @@ fun NpcEntity.resetModel() {
 }
 
 val NpcEntity.textures get() = this[AnimatedEntityCapability::class.java].textures
-val NpcEntity.animations get() = this[AnimatedEntityCapability::class.java].animations
-var NpcEntity.transform get() = this[AnimatedEntityCapability::class.java].transform
+var NpcEntity.transform
+    get() = this[AnimatedEntityCapability::class.java].transform
     set(value) {
         this[AnimatedEntityCapability::class.java].transform = value
-    }
-var NpcEntity.switchHeadRot get() = this[AnimatedEntityCapability::class.java].switchHeadRot
-    set(value) {
-        this[AnimatedEntityCapability::class.java].switchHeadRot = value
     }

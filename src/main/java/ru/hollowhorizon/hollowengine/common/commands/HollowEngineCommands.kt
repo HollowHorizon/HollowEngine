@@ -136,7 +136,7 @@ fun listModels(): Collection<String> {
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
-class CopyTextPacket(val text: String) : HollowPacket<CopyTextPacket> {
+class CopyTextPacket(val text: String) : HollowPacket {
     override fun handle(player: Player) {
         player.sendSystemMessage(
             "hollowengine.commands.copy".mcTranslate(text.literal)
@@ -149,7 +149,7 @@ class CopyTextPacket(val text: String) : HollowPacket<CopyTextPacket> {
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
-class ShowModelInfoPacket(val model: String) : HollowPacket<ShowModelInfoPacket> {
+class ShowModelInfoPacket(val model: String) : HollowPacket {
     override fun handle(player: Player) {
         val location = model.rl
 
@@ -159,7 +159,7 @@ class ShowModelInfoPacket(val model: String) : HollowPacket<ShowModelInfoPacket>
                     .mcTranslate(this.model.substringAfterLast('/'))
             )
 
-            model.animationPlayer.nameToAnimationMap.keys.forEach { anim ->
+            model.animations.keys.forEach { anim ->
                 player.sendSystemMessage(
                     ("- ".literal + anim.literal)
                         .onHoverText("hollowengine.tooltips.copy".mcTranslate)
@@ -173,7 +173,7 @@ class ShowModelInfoPacket(val model: String) : HollowPacket<ShowModelInfoPacket>
             )
 
 
-            model.modelTree.materials.map { it.texture.path.removeSuffix(".png") }.forEach { anim ->
+            model.model.materials.map { it.texture.path.removeSuffix(".png") }.forEach { anim ->
                 player.sendSystemMessage(
                     ("- ".literal + anim.literal)
                         .onHoverText("hollowengine.tooltips.copy".mcTranslate)

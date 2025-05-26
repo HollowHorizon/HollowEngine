@@ -47,12 +47,9 @@ fun npc(
 
         this[AnimatedEntityCapability::class].apply {
             this.model = model
-            this.animations.clear()
-            this.animations.putAll(animations)
             this.textures.clear()
             this.textures.putAll(textures)
             this.transform = transform
-            switchHeadRot = inverseHeadRotation
         }
         moveTo(pos.x, pos.y, pos.z, rotation.x, rotation.y)
 
