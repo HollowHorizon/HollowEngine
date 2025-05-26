@@ -29,6 +29,6 @@ suspend inline fun <reified T : Event> await(): T = awaitEvent<T>()
 suspend fun Player.input(): String {
     while (true) {
         val event = awaitEvent<ServerChatEvent>()
-        if(event.player == this) return event.message.string
+        if (event.player == this) return event.message.string
     }
 }

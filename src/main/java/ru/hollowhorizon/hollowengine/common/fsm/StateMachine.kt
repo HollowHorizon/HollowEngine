@@ -24,7 +24,7 @@ data class StateDefinition(
 )
 
 open class StateMachine(
-    private val scope: CoroutineScope = currentServer.coroutineScope,
+    private val scope: CoroutineScope = currentServer.coroutineScope + StateStorage(CompoundTag()),
 ) {
     private val states = mutableMapOf<String, StateDefinition>()
     internal lateinit var current: String

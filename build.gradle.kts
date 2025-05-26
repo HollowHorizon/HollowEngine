@@ -50,11 +50,24 @@ dependencies {
 
     setupScripting()
 
+    // TODO: Может сделать чтобы он и зависимости зависимостей сразу в jar упаковывал? Но как?
+    install("io.ktor:ktor-client-cio-jvm:3.1.3", true)
+    install("io.ktor:ktor-client-content-negotiation-jvm:3.1.3", true)
     install("io.ktor:ktor-client-core-jvm:3.1.3", true)
-    install("io.ktor:ktor-client-cio:3.1.3", true)
-    install("io.ktor:ktor-client-content-negotiation:3.1.3", true)
-    install("io.ktor:ktor-client-logging:3.1.3", true)
+    install("io.ktor:ktor-client-logging-jvm:3.1.3", true)
+    install("io.ktor:ktor-events-jvm:3.1.3", true)
+    install("io.ktor:ktor-http-cio-jvm:3.1.3", true)
+    install("io.ktor:ktor-http-jvm:3.1.3", true)
+    install("io.ktor:ktor-io-jvm:3.1.3", true)
+    install("io.ktor:ktor-network-jvm:3.1.3", true)
+    install("io.ktor:ktor-network-tls-jvm:3.1.3", true)
+    install("io.ktor:ktor-serialization-jvm:3.1.3", true)
     install("io.ktor:ktor-serialization-kotlinx-json-jvm:3.1.3", true)
+    install("io.ktor:ktor-serialization-kotlinx-jvm:3.1.3", true)
+    install("io.ktor:ktor-sse-jvm:3.1.3", true)
+    install("io.ktor:ktor-utils-jvm:3.1.3", true)
+    install("io.ktor:ktor-websocket-serialization-jvm:3.1.3", true)
+    install("io.ktor:ktor-websockets-jvm:3.1.3", true)
 
     install("org.codehaus.janino:janino:3.1.12", false)
 
