@@ -61,7 +61,10 @@ object SceneScriptManager {
 
             if (script.canResume()) {
                 script.isStarted = true
-                currentServer.coroutineScope.launch { script.stateMachine.start() }
+                currentServer.coroutineScope.launch {
+                    script.stateMachine.start()
+                    stopScene(file)
+                }
             }
         }
     }
