@@ -12,6 +12,7 @@ import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
 import ru.hollowhorizon.hc.common.capabilities.HollowCapability
+import ru.hollowhorizon.hc.common.coroutines.coroutineScope
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.server.ServerChatEvent
@@ -22,7 +23,6 @@ import ru.hollowhorizon.hollowengine.common.ai.Message
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.inline.InlineScript
-import ru.hollowhorizon.hollowengine.common.scripting.scene.coroutineScope
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.say
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.send
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions

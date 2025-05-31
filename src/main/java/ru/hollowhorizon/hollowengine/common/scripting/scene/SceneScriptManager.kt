@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.scene
 
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
@@ -7,6 +8,7 @@ import net.minecraft.world.level.Level
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
 import ru.hollowhorizon.hc.common.capabilities.HollowCapability
+import ru.hollowhorizon.hc.common.coroutines.coroutineScope
 import ru.hollowhorizon.hc.common.coroutines.scopeAsync
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.level.LevelEvent
@@ -35,9 +37,7 @@ object SceneScriptManager {
                     .execute()
 
                 try {
-                    SCRIPTS[file] = (result.valueOrThrow().returnValue.scriptInstance as SceneScript).apply {
-                        stateMachine.onFinish = { stopScene(file) }
-                    }
+                    SCRIPTS[file] = (result.valueOrThrow().returnValue.scriptInstance as SceneScript)
                 } catch (e: Exception) {
                     HollowCore.LOGGER.error("Exception while starting script $file: ", e)
                 }
@@ -55,15 +55,13 @@ object SceneScriptManager {
             if (!script.isLoaded) {
                 script.isLoaded = true
                 val tag = scripts[file]?.tag ?: return@forEach
-                if ("state" in tag) {
-                    script.stateMachine.current = tag.getString("state")
-                }
+                script.stateMachine.tag = tag
                 script.load(tag.getCompound("context"))
             }
 
             if (script.canResume()) {
                 script.isStarted = true
-                script.start()
+                currentServer.coroutineScope.launch { script.stateMachine.start() }
             }
         }
     }
@@ -75,8 +73,7 @@ object SceneScriptManager {
 
             try {
                 val script = result.valueOrThrow().returnValue.scriptInstance as SceneScript
-                script.stateMachine.current = state
-                script.stateMachine.onFinish = { stopScene(file) }
+                script.stateMachine.currentState = state
                 SCRIPTS[file] = script
             } catch (e: Exception) {
                 HollowCore.LOGGER.error("Exception while starting script $file: ", e)
@@ -106,12 +103,7 @@ object SceneScriptManager {
         val scripts = server[SceneScriptStorage::class].scripts
 
         SCRIPTS.forEach { (file, scene) ->
-            scripts[file] = SceneScriptStorage.TagWrapper(CompoundTag().apply {
-                putString("state", scene.stateMachine.current)
-                if (scene.isStarted) {
-                    put("context", CompoundTag().apply(scene::save))
-                }
-            })
+            scripts[file] = SceneScriptStorage.TagWrapper(scene.stateMachine.tag)
         }
     }
 }

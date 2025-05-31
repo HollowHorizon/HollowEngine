@@ -8,7 +8,6 @@
     "ClipboardMixin",
     "DimensionTypeMixin",
     "FeatureUtilsMixin",
-    "MinecraftServerMixin",
     "RecipeManagerAccessor",
     "compact.RecipeManagerMixin",
     "kool.DockNodeInvoker",

@@ -1,8 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.scene
 
-import kotlinx.coroutines.async
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hollowengine.common.fsm.StateMachine
+import ru.hollowhorizon.hollowengine.common.fsm.StateNode
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.defaultImports
@@ -13,15 +12,14 @@ import kotlin.script.experimental.api.defaultImports
     compilationConfiguration = SceneScriptConfiguration::class
 )
 abstract class SceneScript {
-    internal val stateMachine = StateMachine()
+    internal val stateMachine = StateNode("Root") {}
     internal var isStarted = false
     internal var isLoaded = false
 
-    fun script(body: StateMachine.() -> Unit) {
-        stateMachine.body()
+    fun script(body: suspend StateNode.() -> Unit) {
+        stateMachine.initializer = body
     }
 
-    fun start(state: String = stateMachine.current) = stateMachine.start(state)
 
     open fun save(tag: CompoundTag) {}
     open fun load(tag: CompoundTag) {}
