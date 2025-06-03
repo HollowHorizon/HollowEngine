@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.utils.extendsFrom
+
 plugins {
     idea
     java
@@ -7,6 +9,7 @@ plugins {
     id("me.fallenbreath.yamlang")
     kotlin("jvm")
     kotlin("plugin.serialization")
+    id("com.google.devtools.ksp") version "2.1.20-Beta2-1.0.30"
 }
 
 val compiler_plugin: String by properties
@@ -40,10 +43,33 @@ repositories {
 }
 
 dependencies {
+    ksp(project(":ksp"))
+
     install("ru.hollowhorizon:HollowCore-${container.modPlatform}-${container.minecraftVersion}:$hollowcore:dev", includeInJar = false, isMod = container.modPlatform == "forge")
     include("ru.hollowhorizon:HollowCore-${container.modPlatform}-${container.minecraftVersion}:$hollowcore")
 
     setupScripting()
+
+    // TODO: Может сделать чтобы он и зависимости зависимостей сразу в jar упаковывал? Но как?
+    install("io.ktor:ktor-client-cio-jvm:3.1.3", true)
+    install("io.ktor:ktor-client-content-negotiation-jvm:3.1.3", true)
+    install("io.ktor:ktor-client-core-jvm:3.1.3", true)
+    install("io.ktor:ktor-client-logging-jvm:3.1.3", true)
+    install("io.ktor:ktor-events-jvm:3.1.3", true)
+    install("io.ktor:ktor-http-cio-jvm:3.1.3", true)
+    install("io.ktor:ktor-http-jvm:3.1.3", true)
+    install("io.ktor:ktor-io-jvm:3.1.3", true)
+    install("io.ktor:ktor-network-jvm:3.1.3", true)
+    install("io.ktor:ktor-network-tls-jvm:3.1.3", true)
+    install("io.ktor:ktor-serialization-jvm:3.1.3", true)
+    install("io.ktor:ktor-serialization-kotlinx-json-jvm:3.1.3", true)
+    install("io.ktor:ktor-serialization-kotlinx-jvm:3.1.3", true)
+    install("io.ktor:ktor-sse-jvm:3.1.3", true)
+    install("io.ktor:ktor-utils-jvm:3.1.3", true)
+    install("io.ktor:ktor-websocket-serialization-jvm:3.1.3", true)
+    install("io.ktor:ktor-websockets-jvm:3.1.3", true)
+
+    install("org.codehaus.janino:janino:3.1.12", false)
 
     // CONFIG //
     install("com.akuleshov7:ktoml-core-jvm:0.5.1", false)
@@ -52,13 +78,6 @@ dependencies {
     install("de.fabmax.kool:kool-core:$koolVersion", false)
     include("com.github.weisj:jsvg:1.7.1")
     install("com.facebook:ktfmt:0.54")
-
-    install("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin", true)
-
-    install("ru.hollowhorizon:hollowengine-docs-jvm:1.0")
-
-    kotlinCompilerPluginClasspath("ru.hollowhorizon:HollowEnginePlugin:$compiler_plugin")
-    kotlinCompilerPluginClasspath("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion")
 
     val modPlatform = container.modPlatform
     val jei = "15.20.0.105"

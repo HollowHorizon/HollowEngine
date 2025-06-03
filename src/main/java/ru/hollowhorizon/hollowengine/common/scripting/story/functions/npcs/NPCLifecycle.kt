@@ -10,9 +10,8 @@ import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapabili
 import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hc.common.utils.literal
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import kotlin.contracts.ExperimentalContracts
-import kotlin.contracts.contract
 
 @OptIn(ExperimentalContracts::class)
 fun npc(
@@ -28,7 +27,7 @@ fun npc(
     transform: Transform = Transform(),
     showName: Boolean = true,
     inverseHeadRotation: Boolean = false,
-): NPCEntity {
+): NpcEntity {
     assert(ResourceLocation.isValidResourceLocation(model)) {
         "Non [a-z0-9/._-] character in path of location: $model"
     }
@@ -38,22 +37,19 @@ fun npc(
         ?: throw IllegalStateException("Dimension $world is not loaded!")
 
     level.allEntities.asSequence()
-        .filterIsInstance<NPCEntity>()
+        .filterIsInstance<NpcEntity>()
         .filter { it.name == name }
         .firstOrNull { it.model == model }
         ?.let { return it }
 
-    return NPCEntity(level).apply {
+    return NpcEntity(level).apply {
         setPos(pos.x, pos.y, pos.z)
 
         this[AnimatedEntityCapability::class].apply {
             this.model = model
-            this.animations.clear()
-            this.animations.putAll(animations)
             this.textures.clear()
             this.textures.putAll(textures)
             this.transform = transform
-            switchHeadRot = inverseHeadRotation
         }
         moveTo(pos.x, pos.y, pos.z, rotation.x, rotation.y)
 
@@ -69,7 +65,7 @@ fun npc(
     }
 }
 
-fun NPCEntity.despawn() {
+fun NpcEntity.despawn() {
     this.remove(Entity.RemovalReason.DISCARDED)
 }
 

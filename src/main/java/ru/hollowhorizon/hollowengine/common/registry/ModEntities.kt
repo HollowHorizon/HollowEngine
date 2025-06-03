@@ -8,12 +8,12 @@ import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterEntityAttributesEvent
 import ru.hollowhorizon.hc.common.registry.HollowRegistry
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.entities.SeatEntity
 
 object ModEntities : HollowRegistry(HollowEngine.MODID) {
-    val NPC_ENTITY: EntityType<NPCEntity> by register("npc_entity") {
-        EntityType.Builder.of(::NPCEntity, MobCategory.CREATURE).sized(0.6f, 1.8f).build("npc_entity")
+    val NPC_ENTITY: EntityType<NpcEntity> by register("npc_entity") {
+        EntityType.Builder.of(::NpcEntity, MobCategory.CREATURE).sized(0.6f, 1.8f).build("npc_entity")
     }
 
     val SEAT: EntityType<SeatEntity> by register("seat") {

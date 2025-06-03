@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.render
 
-import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.Minecraft
 //? if >=1.20.1 {
@@ -14,15 +13,15 @@ import ru.hollowhorizon.hc.client.render.entity.GLTFEntityRenderer
 import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterEntityRenderersEvent
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
-class NPCRenderer(context: EntityRendererProvider.Context) : GLTFEntityRenderer<NPCEntity>(context) {
+class NPCRenderer(context: EntityRendererProvider.Context) : GLTFEntityRenderer<NpcEntity>(context) {
 
     override fun renderNameTag(
-        pEntity: NPCEntity,
+        pEntity: NpcEntity,
         pDisplayName: Component,
         pMatrixStack: PoseStack,
         pBuffer: MultiBufferSource,

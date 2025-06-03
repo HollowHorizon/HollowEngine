@@ -23,52 +23,56 @@ fun UiScope.FileDockingTabsBar(
 
         Row(width = Grow.Std) {
 
-            dockNode.dockedItems.filter { !it.isHidden }.forEach { item ->
-                Row {
-                    val (isHovered, anim) = hoverListener { !dockNode.isOnTop(item) }
+            LazyRow(height = FitContent, containerModifier = { it.background(null) }) {
+                items(dockNode.dockedItems.filter { !it.isHidden }) { item ->
+                    Row {
+                        val (isHovered, anim) = hoverListener { !dockNode.isOnTop(item) }
 
-                    modifier
-                        .margin(horizontal = sizes.smallGap)
-                        .alignY(AlignmentY.Bottom)
-                        .onClick {
-                            if (it.pointer.isMiddleButtonReleased) {
-                                onCloseAction?.invoke(item)
-                            } else if (it.isLeftClick) {
-                                dockNode.bringToTop(item)
+                        modifier
+                            .margin(horizontal = sizes.smallGap)
+                            .alignY(AlignmentY.Bottom)
+                            .onClick {
+                                if (it.pointer.isMiddleButtonReleased) {
+                                    onCloseAction?.invoke(item)
+                                } else if (it.isLeftClick) {
+                                    dockNode.bringToTop(item)
+                                }
                             }
+
+                        var factor = Easing.quadRev(anim.progressAndUse())
+                        if (!isHovered.use() && !dockNode.isOnTop(item)) factor = 1f - factor
+                        val bgColor = colors.background.mix(Color("394450FF"), factor)
+                        val borderColor = Color("3C3C4AFF").mix(Color("586D84FF"), factor)
+
+                        modifier
+                            .background(RoundRectBackground(bgColor, sizes.smallGap))
+                            .border(RoundRectBorder(borderColor, sizes.smallGap, sizes.borderWidth))
+
+
+                        val itemName = IdeContent.files.values.find { it.dockable == item }?.fileName ?: item.name.lang
+
+                        Text(itemName) {
+                            modifier.textAlign(AlignmentX.Start, AlignmentY.Center)
+                                .margin(horizontal = sizes.gap, vertical = sizes.smallGap * 0.5f)
+                                .font(sizes.normalText)
                         }
 
-                    var factor = Easing.quadRev(anim.progressAndUse())
-                    if (!isHovered.use() && !dockNode.isOnTop(item)) factor = 1f - factor
-                    val bgColor = colors.background.mix(Color("394450FF"), factor)
-                    val borderColor = Color("3C3C4AFF").mix(Color("586D84FF"), factor)
-
-                    modifier
-                        .background(RoundRectBackground(bgColor, sizes.smallGap))
-                        .border(RoundRectBorder(borderColor, sizes.smallGap, sizes.borderWidth))
-
-
-                    val itemName = IdeContent.files.values.find { it.dockable == item }?.fileName ?: item.name.lang
-
-                    Text(itemName) {
-                        modifier.textAlign(AlignmentX.Start, AlignmentY.Center)
-                            .margin(horizontal = sizes.gap, vertical = sizes.smallGap * 0.5f)
-                            .font(sizes.normalText)
-                    }
-
-                    if (isDragToUndock) {
-                        with(windowDockable) {
-                            registerDragCallbacks(false)
-                        }
-                    }
-                    if (onCloseAction != null) {
-                        CloseButton(background = bgColor, backgroundHover = bgColor, foreground = colors.onBackground,
-                            buttonMod = {
-                                it.onDragStart {}.onDragEnd {}.onDrag {} // Deny drag by close button
-                                    .align(AlignmentX.End, AlignmentY.Center)
-                                    .margin(end = sizes.smallGap)
+                        if (isDragToUndock) {
+                            with(windowDockable) {
+                                registerDragCallbacks(false)
                             }
-                        ) { ev -> onCloseAction(item) }
+                        }
+                        if (onCloseAction != null) {
+                            CloseButton(background = bgColor,
+                                backgroundHover = bgColor,
+                                foreground = colors.onBackground,
+                                buttonMod = {
+                                    it.onDragStart {}.onDragEnd {}.onDrag {} // Deny drag by close button
+                                        .align(AlignmentX.End, AlignmentY.Center)
+                                        .margin(end = sizes.smallGap)
+                                }
+                            ) { ev -> onCloseAction(item) }
+                        }
                     }
                 }
             }
@@ -138,12 +142,16 @@ fun UiScope.FileTitleBar(
             }
 
             onCloseAction?.let {
-                CloseButton(background = bgColor, backgroundHover = bgColor, foreground = colors.onBackground, buttonMod = {
-                    it
-                        .onDragStart {}.onDragEnd {}.onDrag {} // Deny drag by close button
-                        .align(AlignmentX.End, AlignmentY.Center)
-                        .padding(sizes.smallGap)
-                }) { ev -> it(windowDockable) }
+                CloseButton(
+                    background = bgColor,
+                    backgroundHover = bgColor,
+                    foreground = colors.onBackground,
+                    buttonMod = {
+                        it
+                            .onDragStart {}.onDragEnd {}.onDrag {} // Deny drag by close button
+                            .align(AlignmentX.End, AlignmentY.Center)
+                            .padding(sizes.smallGap)
+                    }) { ev -> it(windowDockable) }
             }
         }
     } else {

@@ -1,6 +1,27 @@
 hollowengine:
   gui:
     menu: HollowEngine меню
+    tool:
+      general: Основное
+      animations:
+        .: Анимации
+        idle: Ожидание
+        idle_sneaked: Ожидание (Shift)
+        walk: Ходьба
+        walk_sneaked: Ходьба (Shift)
+        run: Бег
+        swim: Плавание
+        jump: Прыжок
+        hurt: Получение урона
+        fall: Падение
+        fly: Полёт
+        sit: Сидение
+        sleep: Сон
+        swing: Действие (Взмах рукой)
+        death: Смерть
+      attributes: Атрибуты
+      components: Компоненты
+      entity: Предпросмотр
     ide:
       .: Встроенная среда разработки
       file: Файл
@@ -24,7 +45,7 @@ hollowengine:
           .: Создать
           script:
             .: Скрипт
-            story: Сюжетное событие
+            scene: Сцена
             event: Обработчик событий (WIP)
             kool: Сцена Kool (WIP)
           folder: Папка
@@ -91,3 +112,17 @@ key:
   hollowengine:
     .: "HollowEngine: Клавиши"
     menu: Главное меню HollowEngine
+
+entity:
+  hollowengine:
+    npc_entity: Персонаж
+
+component:
+  hollowengine:
+    actions:
+      .: Действия
+      look: Смотреть
+      move: Идти
+    utils:
+      .: Разное
+      greetings: Приветствие

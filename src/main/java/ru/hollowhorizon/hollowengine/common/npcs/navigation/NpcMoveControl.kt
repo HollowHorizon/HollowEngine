@@ -6,11 +6,11 @@ import net.minecraft.util.Mth
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.control.MoveControl
 import net.minecraft.world.level.pathfinder.BlockPathTypes
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import kotlin.math.max
 import kotlin.math.sqrt
 
-class NpcMoveControl(mob: NPCEntity) : MoveControl(mob) {
+class NpcMoveControl(mob: NpcEntity) : MoveControl(mob) {
     override fun tick() {
         when (this.operation) {
             Operation.STRAFE -> {

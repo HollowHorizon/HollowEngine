@@ -69,7 +69,7 @@ object CompilationStatus {
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
 class UpdateStatusPacket(val file: String, private val status: CompilationStatus.Status?) :
-    HollowPacket<UpdateStatusPacket> {
+    HollowPacket {
     override fun handle(player: Player) {
         if (status != null) CompilationStatus.updateStatus(file, status)
         else CompilationStatus.clearStatus(file)

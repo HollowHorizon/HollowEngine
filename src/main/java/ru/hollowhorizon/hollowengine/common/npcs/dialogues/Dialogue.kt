@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.utils.nbt.ForCompoundNBT
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.npc
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.pos
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.say
@@ -13,7 +13,7 @@ class Dialogue {
     val scene = DialogueScene()
 
     //@Suspendable
-    infix fun NPCEntity.say(text: String) {
+    infix fun NpcEntity.say(text: String) {
         scene.character = name
         scene.text = text
 

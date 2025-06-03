@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys
 
 import com.facebook.ktfmt.format.Formatter
+import com.facebook.ktfmt.format.Formatter.KOTLINLANG_FORMAT
 import de.fabmax.kool.input.LocalKeyCode
 import de.fabmax.kool.util.logW
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
@@ -16,7 +17,7 @@ fun onReformat(event: ScriptAreaKeyEvent) {
 
     try {
         val original = event.area.lineProvider.fullText()
-        val new = Formatter.format(original)
+        val new = Formatter.format(KOTLINLANG_FORMAT, original)
         if (original == new) return
         editorHandler?.replaceAll(new, event.area)
         event.area.modifier.onSelectionChanged?.let { it(-1, -1, 0, 0) }

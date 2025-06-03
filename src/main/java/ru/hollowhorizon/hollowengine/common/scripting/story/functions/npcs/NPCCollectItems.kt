@@ -1,19 +1,25 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
+import kotlinx.coroutines.delay
+import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
-import ru.hollowhorizon.hollowengine.scripting.Suspendable
+import ru.hollowhorizon.hc.common.utils.nbt.ForItemStack
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
+import ru.hollowhorizon.hollowengine.common.fsm.rememberList
 
-@Suspendable
-fun NPCEntity.collectItems(vararg items: ItemStack) {
-    val itemList = items.toMutableList()
+@Serializable
+class Item(val itemStack: @Serializable(ForItemStack::class) ItemStack)
+
+suspend fun NpcEntity.collectItems(vararg items: ItemStack) {
+    val itemList by rememberList(stringUUID + "_items") { items.map { Item(it) }.toMutableList() }
     while (itemList.isNotEmpty()) {
         pickupItems(itemList)
+        delay(50)
     }
 }
 
-private fun NPCEntity.pickupItems(list: MutableList<ItemStack>) {
+private fun NpcEntity.pickupItems(list: MutableList<Item>) {
     level().getEntitiesOfClass(
         ItemEntity::class.java,
         this.boundingBox.inflate(pickupDistance.x.toDouble(), pickupDistance.y.toDouble(), pickupDistance.z.toDouble())
@@ -22,12 +28,12 @@ private fun NPCEntity.pickupItems(list: MutableList<ItemStack>) {
 
         val entityItem = item.item
 
-        list.find { it.item == entityItem.item }?.let { requestItem ->
-            val remaining = requestItem.count
-            requestItem.shrink(entityItem.count)
+        list.find { it.itemStack.item == entityItem.item }?.let { requestItem ->
+            val remaining = requestItem.itemStack.count
+            requestItem.itemStack.shrink(entityItem.count)
             entityItem.shrink(remaining)
         }
 
-        list.removeIf { it.isEmpty }
+        list.removeIf { it.itemStack.isEmpty }
     }
 }

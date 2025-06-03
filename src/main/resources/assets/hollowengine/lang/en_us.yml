@@ -1,5 +1,26 @@
 hollowengine:
   gui:
+    tool:
+      general: General
+      animations:
+        .: Animations
+        idle: Ожидание
+        idle_sneaked: Ожидание (Shift)
+        walk: Ходьба
+        walk_sneaked: Ходьба (Shift)
+        run: Бег
+        swim: Плавание
+        jump: Прыжок
+        hurt: Получение урона
+        fall: Падение
+        fly: Полёт
+        sit: Сидение
+        sleep: Сон
+        swing: Действие (Взмах рукой)
+        death: Смерть
+      attributes: Attributes
+      components: Components
+      entity: Preview
     menu: HollowEngine Menu
     ide:
       .: Integrated Development Environment
@@ -83,3 +104,16 @@ key:
   hollowengine:
     .: "HollowEngine: Keys"
     menu: HollowEngine Main Menu
+
+component:
+  hollowengine:
+    actions:
+      .: Actions
+      look: Look
+      move: Move
+    utils:
+      .: Utils
+      greetings: Greeting
+    ai:
+      .: AI
+      shapesinc: Shapes Inc Component

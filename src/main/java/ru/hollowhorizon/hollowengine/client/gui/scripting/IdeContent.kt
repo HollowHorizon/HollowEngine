@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.DocFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.dialog.DialogFileData
 
 object IdeContent {
     val files = HashMap<String, FileData>()
@@ -34,6 +35,7 @@ object IdeContent {
                     path,
                     bytes
                 )
+                FileType.DIALOG -> DialogFileData(path.substringAfterLast('/'), path)
             }
             dock.addDockableSurface(localFile.dockable, localFile.surface)
             val fileLeaf = dock.getLeafAtPath("0/1")
@@ -52,6 +54,8 @@ object IdeContent {
             FileType.TEXT -> (file as TextFileData).apply {
                 setText(String(bytes))
             }
+
+            else -> {}
         }
 
     }

@@ -220,7 +220,7 @@ private fun ScriptTextAreaScope.installSelectionHandler(
     val selCaretChar = remember(0)
 
     modifier.onSelectionChanged = handler@{ startLine, caretLine, startChar, caretChar ->
-        if (startLine >= lines.size) return@handler
+        if (startLine >= lines.size || startLine < 0) return@handler
         if (caretLine >= lines.size) return@handler
         val start = lines[startLine]
         if (startChar > start.length) return@handler

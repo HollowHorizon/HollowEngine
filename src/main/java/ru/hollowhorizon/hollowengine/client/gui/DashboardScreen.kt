@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.client.gui
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.MsdfFont
-import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT_DATA
+import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.post
@@ -24,7 +24,7 @@ class DashBoardScreen : KoolScreen() {
             modifier.align(AlignmentX.Center, AlignmentY.Center).border(RectBorder(colors.primaryVariant, 3.dp))
 
             Text("HollowEngine Меню") {
-                modifier.alignX(AlignmentX.Center).font(MsdfFont(MONOCRAFT_DATA, 30f)).margin(10.dp)
+                modifier.alignX(AlignmentX.Center).font(MsdfFont(MONOCRAFT, 30f)).margin(10.dp)
             }
 
             Column {
@@ -32,7 +32,7 @@ class DashBoardScreen : KoolScreen() {
 
                 modTabs.forEach { tab ->
                     Button(tab.name) {
-                        modifier.onClick { tab.onClick() }.font(MsdfFont(MONOCRAFT_DATA, 30f)).margin(10.dp)
+                        modifier.onClick { tab.onClick() }.font(MsdfFont(MONOCRAFT, 30f)).margin(10.dp)
                     }
                 }
             }

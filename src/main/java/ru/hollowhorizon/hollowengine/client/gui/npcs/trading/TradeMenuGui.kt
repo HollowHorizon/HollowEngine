@@ -4,11 +4,11 @@ import de.fabmax.kool.scene.Scene
 import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hc.common.utils.rl
 import ru.hollowhorizon.hollowengine.client.gui.KoolGui
-import ru.hollowhorizon.hollowengine.common.entities.NPCEntity
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 
 
-class TradeMenuGui(val npc: NPCEntity, val editMode: Boolean = false) : KoolGui {
+class TradeMenuGui(val npc: NpcEntity, val editMode: Boolean = false) : KoolGui {
     private val GUI = "hollowengine:textures/gui/trades/trade_menu.png".rl
     private val TRADE_ICON = "hollowengine:textures/gui/trades/trade_icon.png".rl
     private var scale = 1f

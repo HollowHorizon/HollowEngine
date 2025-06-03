@@ -175,7 +175,6 @@ fun UiScope.ScriptTextArea(
         afterContent = {
             val completions = textArea.modifier.completions
             if (completions.isNotEmpty()) {
-                val font = MsdfFont(HACK_FONT, 18f)
 
                 Popup(
                     modifier.completionX,

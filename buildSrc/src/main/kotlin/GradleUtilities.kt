@@ -40,7 +40,7 @@ fun Project.setupEnviroment(
         setupArchitectutyLoom(loom, this, this@setupEnviroment, sourceSets, userName, architectury)
         setupStonecutter(this@setupEnviroment, stonecutter, loom, this, java, kotlin)
         setupResources(this@setupEnviroment, sourceSets, this)
-        if(enablePublishing) setupPublishing(publishing, this, this@setupEnviroment)
+        if (enablePublishing) setupPublishing(publishing, this, this@setupEnviroment)
 
         configurations.configureEach {
             resolutionStrategy {
@@ -304,7 +304,7 @@ private fun setupArchitectutyLoom(
             if (environment == "client") programArgs("--username=$userName")
             val javaVendor = System.getProperty("java.vendor")
             project.logger.info("Java vendor: $javaVendor")
-            if(javaVendor.contains("JetBrains")) programArgs("-XX:+AllowEnhancedClassRedefinition")
+            if (javaVendor.contains("JetBrains")) programArgs("-XX:+AllowEnhancedClassRedefinition")
             property("sodium.checks.issue2561", "false")
             runDir("../../run")
         }

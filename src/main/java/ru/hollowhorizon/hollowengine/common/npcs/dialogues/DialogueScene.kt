@@ -18,7 +18,7 @@ class DialogueScene {
 
 @Serializable
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-class UpdateScenePacket(val scene: DialogueScene) : HollowPacket<UpdateScenePacket> {
+class UpdateScenePacket(val scene: DialogueScene) : HollowPacket {
     override fun handle(player: Player) {
 
     }

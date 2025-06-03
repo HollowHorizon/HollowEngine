@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.core
 
 import kotlinx.coroutines.yield
 import net.minecraft.ChatFormatting
+import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hc.LOGGER
 import ru.hollowhorizon.hc.common.utils.colored

@@ -11,6 +11,7 @@ import ru.hollowhorizon.hollowengine.mixins.kool.DockNodeInvoker
 
 object LayoutLoader {
     val IDE_LAYOUT = "hollowengine.ide.layout"
+    val TOOL_LAYOUT = "hollowengine.tool.layout"
 
     val layoutOrder = LinkedHashSet<String>()
     val LAYOUTS = HashMap<String, Layout>()
