@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.scene
 
 import net.minecraft.nbt.CompoundTag
+import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.fsm.StateNode
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
 import kotlin.script.experimental.annotations.KotlinScript
@@ -15,6 +16,8 @@ abstract class SceneScript {
     internal val stateMachine = StateNode("Root") {}
     internal var isStarted = false
     internal var isLoaded = false
+
+    val server = currentServer
 
     fun script(body: suspend StateNode.() -> Unit) {
         stateMachine.initializer = body
@@ -33,6 +36,7 @@ class SceneScriptConfiguration : HollowScriptConfiguration({
         "ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.*",
+        "ru.hollowhorizon.hollowengine.common.scripting.util.*",
         "ru.hollowhorizon.hollowengine.common.capability.*",
         "ru.hollowhorizon.hollowengine.common.fsm.*",
         "net.minecraft.core.BlockPos",
