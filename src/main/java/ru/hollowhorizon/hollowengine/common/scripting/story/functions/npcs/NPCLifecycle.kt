@@ -54,6 +54,9 @@ fun npc(
         moveTo(pos.x, pos.y, pos.z, rotation.x, rotation.y)
 
         //TODO: Make attributes
+        if (attributes.isNotEmpty()) {
+            setAttributes(attributes)
+        }
 
         setDimensions(size)
         refreshDimensions()
@@ -67,6 +70,10 @@ fun npc(
 
 fun NpcEntity.despawn() {
     this.remove(Entity.RemovalReason.DISCARDED)
+}
+
+fun NpcEntity.updateAttributes(attributes: Map<String, Float>) {
+    setAttributes(attributes)
 }
 
 fun pos(x: Int, y: Int, z: Int) = Vec3(x + 0.5, y.toDouble(), z + 0.5)
