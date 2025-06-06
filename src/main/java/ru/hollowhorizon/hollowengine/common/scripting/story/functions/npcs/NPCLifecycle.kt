@@ -53,7 +53,6 @@ fun npc(
         }
         moveTo(pos.x, pos.y, pos.z, rotation.x, rotation.y)
 
-        //TODO: Make attributes
         if (attributes.isNotEmpty()) {
             setAttributes(attributes)
         }
