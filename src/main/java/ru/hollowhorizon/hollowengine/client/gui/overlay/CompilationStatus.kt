@@ -8,7 +8,6 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.common.utils.currentServer
-import ru.hollowhorizon.hc.common.coroutines.isServerLoaded
 import ru.hollowhorizon.hc.common.network.HollowPacketHandler
 import ru.hollowhorizon.hc.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
@@ -76,7 +75,11 @@ class UpdateStatusPacket(val file: String, private val status: CompilationStatus
     }
 
     fun sendToOperators() {
-        if (!isServerLoaded) return
+        try {
+            currentServer // TODO: Make check is server loaded
+        } catch (e: Exception) {
+            return
+        }
 
         val players = currentServer.playerList.players.filter { it.hasPermissions(PlayerPermissions.GAMEMASTER) }
         send(*players.toTypedArray())

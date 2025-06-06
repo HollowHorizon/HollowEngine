@@ -1,18 +1,23 @@
 package ru.hollowhorizon.hollowengine.common.fsm
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.serializer
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hc.common.capabilities.SyncableListImpl
-import ru.hollowhorizon.hc.common.coroutines.suspendBy
+import ru.hollowhorizon.hc.common.coroutines.coroutineScope
 import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hc.common.utils.nbt.NBTFormat
 import ru.hollowhorizon.hc.common.utils.nbt.deserialize
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.getLevel
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
@@ -75,7 +80,7 @@ suspend fun <T : LivingEntity> rememberEntity(name: String, initializer: () -> T
         val context = tag.getCompound(name)
         val uuid = context.getUUID("uuid")
         val level = server.getLevel(context.getString("level"))
-        suspendBy { level.getEntity(uuid) != null }
+        await { level.getEntity(uuid) != null }
         return level.getEntity(uuid) as T
     } else {
         return initializer().apply {
@@ -85,4 +90,22 @@ suspend fun <T : LivingEntity> rememberEntity(name: String, initializer: () -> T
             })
         }
     }
+}
+
+private fun waiter(checker: CompletableDeferred<Boolean>, condition: () -> Boolean) {
+    currentServer.coroutineScope.launch {
+        if (condition()) checker.complete(true)
+        else {
+            delay(50L)
+            waiter(checker, condition)
+        }
+    }
+}
+
+suspend fun await(condition: () -> Boolean) {
+    val checker = CompletableDeferred<Boolean>()
+
+    waiter(checker, condition)
+
+    checker.await()
 }
