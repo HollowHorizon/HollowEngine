@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.syncher.EntityDataAccessor
 import net.minecraft.network.syncher.EntityDataSerializers
@@ -224,14 +225,10 @@ class NpcEntity : PathfinderMob, IAnimated {
     }
 
     fun setAttributes(attributes: Map<String, Float>) {
-        if (attributes.isEmpty()) return
-
         attributes.forEach { (attributeName, value) ->
-            val attribute = getAttributeByName(attributeName)
-            if (attribute != null) {
-                val attributeInstance = this.attributes.getInstance(attribute)
-                if (attributeInstance != null) {
-                    attributeInstance.baseValue = value.toDouble()
+            BuiltInRegistries.ATTRIBUTE[attributeName.rl]?.let { attribute ->
+                this.attributes.getInstance(attribute)?.let { instance ->
+                    instance.baseValue = value.toDouble()
                 }
             }
         }
@@ -267,7 +264,7 @@ class NpcEntity : PathfinderMob, IAnimated {
         fun createAttributes(): AttributeSupplier.Builder {
             return LivingEntity.createLivingAttributes()
                 .add(Attributes.MAX_HEALTH, 20.0)
-                .add(Attributes.MOVEMENT_SPEED, 0.25)
+                .add(Attributes.MOVEMENT_SPEED, 0.2)
                 .add(Attributes.ARMOR, 0.0)
                 .add(Attributes.ARMOR_TOUGHNESS, 0.0)
                 .add(Attributes.ATTACK_DAMAGE, 1.0)

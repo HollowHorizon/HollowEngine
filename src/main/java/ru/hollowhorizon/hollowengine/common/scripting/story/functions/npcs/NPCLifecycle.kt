@@ -71,10 +71,6 @@ fun NpcEntity.despawn() {
     this.remove(Entity.RemovalReason.DISCARDED)
 }
 
-fun NpcEntity.updateAttributes(attributes: Map<String, Float>) {
-    setAttributes(attributes)
-}
-
 fun pos(x: Int, y: Int, z: Int) = Vec3(x + 0.5, y.toDouble(), z + 0.5)
 fun pos(x: Double, y: Double, z: Double) = Vec3(x, y, z)
 fun rotation(x: Int, y: Int) = Vec2(x.toFloat(), y.toFloat())
