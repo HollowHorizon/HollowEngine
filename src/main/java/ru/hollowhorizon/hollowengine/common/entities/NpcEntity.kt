@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.syncher.EntityDataAccessor
 import net.minecraft.network.syncher.EntityDataSerializers
@@ -10,6 +11,8 @@ import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.entity.*
+import net.minecraft.world.entity.ai.attributes.Attribute
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
@@ -22,6 +25,7 @@ import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapabili
 import ru.hollowhorizon.hc.client.models.internal.manager.IAnimated
 import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hc.common.utils.literal
+import ru.hollowhorizon.hc.common.utils.rl
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
@@ -59,7 +63,7 @@ class NpcEntity : PathfinderMob, IAnimated {
 
     init {
         setCanPickUpLoot(true)
-        attributes.getInstance(Attributes.FOLLOW_RANGE)?.baseValue = 128.0
+        createAttributes()
     }
 
 
@@ -220,6 +224,34 @@ class NpcEntity : PathfinderMob, IAnimated {
         target = null
     }
 
+    fun setAttributes(attributes: Map<String, Float>) {
+        attributes.forEach { (attributeName, value) ->
+            BuiltInRegistries.ATTRIBUTE[attributeName.rl]?.let { attribute ->
+                this.attributes.getInstance(attribute)?.let { instance ->
+                    instance.baseValue = value.toDouble()
+                }
+            }
+        }
+    }
+
+    private fun getAttributeByName(name: String): Attribute? {
+        return when (name.lowercase().replace("generic.", "")) {
+            "max_health", "health" -> Attributes.MAX_HEALTH
+            "movement_speed", "speed" -> Attributes.MOVEMENT_SPEED
+            "armor" -> Attributes.ARMOR
+            "armor_toughness" -> Attributes.ARMOR_TOUGHNESS
+            "attack_damage", "damage" -> Attributes.ATTACK_DAMAGE
+            "attack_speed" -> Attributes.ATTACK_SPEED
+            "attack_knockback", "knockback" -> Attributes.ATTACK_KNOCKBACK
+            "follow_range", "range" -> Attributes.FOLLOW_RANGE
+            "knockback_resistance" -> Attributes.KNOCKBACK_RESISTANCE
+            "flying_speed", "fly_speed" -> Attributes.FLYING_SPEED
+            "luck" -> Attributes.LUCK
+            else -> null
+        }
+    }
+
+
     companion object {
         @JvmField
         val sizeX: EntityDataAccessor<Float> =
@@ -228,5 +260,21 @@ class NpcEntity : PathfinderMob, IAnimated {
         @JvmField
         val sizeY: EntityDataAccessor<Float> =
             SynchedEntityData.defineId(NpcEntity::class.java, EntityDataSerializers.FLOAT)
+
+        fun createAttributes(): AttributeSupplier.Builder {
+            return LivingEntity.createLivingAttributes()
+                .add(Attributes.MAX_HEALTH, 20.0)
+                .add(Attributes.MOVEMENT_SPEED, 0.2)
+                .add(Attributes.ARMOR, 0.0)
+                .add(Attributes.ARMOR_TOUGHNESS, 0.0)
+                .add(Attributes.ATTACK_DAMAGE, 1.0)
+                .add(Attributes.ATTACK_SPEED, 4.0)
+                .add(Attributes.ATTACK_KNOCKBACK, 0.0)
+                .add(Attributes.FOLLOW_RANGE, 128.0)
+                .add(Attributes.KNOCKBACK_RESISTANCE, 0.0)
+                .add(Attributes.FLYING_SPEED, 0.4)
+                .add(Attributes.LUCK, 0.0)
+        }
+
     }
 }

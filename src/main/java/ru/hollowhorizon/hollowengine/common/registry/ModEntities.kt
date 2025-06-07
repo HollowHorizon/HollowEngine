@@ -23,13 +23,7 @@ object ModEntities : HollowRegistry(HollowEngine.MODID) {
 
 @SubscribeEvent
 fun onRegisterAttributes(event: RegisterEntityAttributesEvent) {
-    event.register(
-        ModEntities.NPC_ENTITY, Mob.createMobAttributes().apply {
-            add(Attributes.MOVEMENT_SPEED, 0.2)
-            add(Attributes.ATTACK_DAMAGE, 2.0)
-            add(Attributes.ATTACK_SPEED, 4.0)
-        }.build()
-    )
+    event.register(ModEntities.NPC_ENTITY, NpcEntity.createAttributes().build())
 }
 
 fun main() {
