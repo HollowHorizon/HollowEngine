@@ -46,6 +46,7 @@ class SceneScriptConfiguration : HollowScriptConfiguration({
         "net.minecraft.world.phys.Vec3",
         "net.minecraft.world.entity.*",
         "net.minecraft.server.level.ServerLevel",
+        "ru.hollowhorizon.hc.client.models.internal.controller.*",
         "ru.hollowhorizon.hc.client.utils.*",
         "ru.hollowhorizon.hc.common.utils.*"
     )

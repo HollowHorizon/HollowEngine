@@ -415,8 +415,6 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             if (dotIndex == -1) dotIndex = selectionIndex
             areaModifier.setCompletionX(it.leftPx + line.charIndexToPx(dotIndex))
 
-            val centerY = topPx + heightPx / 2
-
             val sizeY = (24.dp + sizes.smallGap).px * areaModifier.completions.size.coerceAtMost(10) + 24.dp.px
             if (it.bottomPx + sizeY > bottomPx) {
                 areaModifier.setCompletionY(it.bottomPx - sizeY)
