@@ -412,13 +412,13 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             val selectionIndex = (areaModifier.selectionStartChar - 1).coerceAtLeast(0)
 
             var dotIndex = TextCaretNavigation.startOfWord(line.text, selectionIndex)
-            if(dotIndex == -1) dotIndex = selectionIndex
+            if (dotIndex == -1) dotIndex = selectionIndex
             areaModifier.setCompletionX(it.leftPx + line.charIndexToPx(dotIndex))
 
             val centerY = topPx + heightPx / 2
 
-            if (it.bottomPx > centerY) {
-                val sizeY = (24.dp + sizes.smallGap).px * areaModifier.completions.size.coerceAtMost(10) + 24.dp.px
+            val sizeY = (24.dp + sizes.smallGap).px * areaModifier.completions.size.coerceAtMost(10) + 24.dp.px
+            if (it.bottomPx + sizeY > bottomPx) {
                 areaModifier.setCompletionY(it.bottomPx - sizeY)
             } else {
                 areaModifier.setCompletionY(it.bottomPx)
@@ -466,7 +466,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         if (keyEvent.isCharTyped) {
             val closing = bracketPairs[keyEvent.localKeyCode.code.toChar()]
 
-            if(closing == null) {
+            if (closing == null) {
                 editText(keyEvent.typedChar.toString())
             } else {
                 applyBrackets(keyEvent.typedChar.toString(), closing)
@@ -538,12 +538,13 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         } else if (keyEvent.isReleased) {
             when (keyEvent.keyCode) {
                 KeyboardInput.KEY_TAB -> {
-                    if(keyEvent.isShiftDown) {
+                    if (keyEvent.isShiftDown) {
                         unindentSelection()
                     } else {
                         indentSelection()
                     }
                 }
+
                 else -> {}
             }
         }
@@ -553,9 +554,9 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         if (!selectionHandler.isEmptySelection) {
             // Границы выделения
             val fromLine = selectionHandler.selectionFromLine
-            val toLine   = selectionHandler.selectionToLine
+            val toLine = selectionHandler.selectionToLine
             val fromChar = selectionHandler.selectionFromChar
-            val toChar   = selectionHandler.selectionToChar
+            val toChar = selectionHandler.selectionToChar
 
             // Получаем текст выделения
             val selectedText = selectionHandler.copySelection() ?: return
@@ -647,10 +648,10 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         // 2) Есть выделение → для каждой строки удаляем до 4 пробелов в начале
         val fromLine = selectionHandler.selectionFromLine
-        val toLine   = selectionHandler.selectionToLine
+        val toLine = selectionHandler.selectionToLine
 
         var removedAtStart = 0
-        var removedAtEnd   = 0
+        var removedAtEnd = 0
 
         for (line in fromLine..toLine) {
             val text = lineProvider[line].text
@@ -666,13 +667,13 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                     "", this
                 )
                 if (line == fromLine) removedAtStart = count
-                if (line == toLine)   removedAtEnd   = count
+                if (line == toLine) removedAtEnd = count
             }
         }
 
         // Пересчитываем границы выделения, чтобы оно «повисло» на том же тексте
         val newFromChar = (selectionHandler.selectionFromChar - removedAtStart).coerceAtLeast(0)
-        val newToChar   = (selectionHandler.selectionToChar   - removedAtEnd).coerceAtLeast(0)
+        val newToChar = (selectionHandler.selectionToChar - removedAtEnd).coerceAtLeast(0)
 
         selectionHandler.selectionChanged(
             fromLine, toLine,
@@ -867,7 +868,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                     selectionCaretChar = line.length
 
                     if (wordWise) {
-                        if(newTxt.isEmpty()) return
+                        if (newTxt.isEmpty()) return
                         selectionCaretChar = TextCaretNavigation.moveWordLeft(newTxt, selectionCaretChar)
                     }
                     if (!select) {
