@@ -6,7 +6,9 @@ import de.fabmax.kool.modules.ui2.TextLine
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import org.jetbrains.kotlin.KtNodeTypes
+import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.com.intellij.lang.ASTNode
+import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiErrorElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiRecursiveElementWalkingVisitor
@@ -93,8 +95,10 @@ object ScriptColorizer {
 
     fun parse(file: String, text: String): List<TextLine> {
         val script = ScriptParser.parse(text, file)
-        val (result) = ResolveUtils.analyzeFileForJvm(ScriptParser.env, listOf(script), ScriptParser.env.project)
-        return colorize(script, result.bindingContext, null)
+        val (result) = ResolveUtils.analyzeFileForJvm(script.environment, listOf(script.file), script.environment.project)
+        return colorize(script.file, result.bindingContext, null).apply {
+            script.close()
+        }
     }
 }
 

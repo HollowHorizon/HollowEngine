@@ -6,6 +6,7 @@ import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.launchOnMainThread
 import kotlinx.coroutines.*
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
+import org.jetbrains.kotlin.cli.jvm.compiler.messageCollector
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.psi.KtElement
@@ -24,9 +25,12 @@ import ru.hollowhorizon.hollowengine.common.scripting.core.completion.Completion
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.OnCompletionsEvent
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.ScriptColorizer
 import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptParser
+import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptingContext
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.coroutineContext
 import kotlin.script.experimental.api.isError
 
 var currentLine = 0
@@ -41,7 +45,7 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
     private var textHash = code.hashCode()
     private var bindingContext = BindingContext.EMPTY
 
-    lateinit var file: KtFile
+    var context: ScriptingContext? = null
     lateinit var modifier: ScriptTextAreaModifier
 
     init {
@@ -102,7 +106,7 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
                         save()
                     }
                 } else {
-                    if (::file.isInitialized) colorizeText()
+                    context?.let { colorizeText(it) }
                 }
             }
 
@@ -111,29 +115,31 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
     }
 
     private suspend fun compileText(text: String) {
-        file = ScriptParser.parse(text, fileName)
+        context?.close()
+        val context = ScriptParser.parse(text, fileName).also { context = it }
+        coroutineContext[ActionManager.ScriptContext.Key]?.context = context
 
-        val files = mutableListOf(file)
+        val files = mutableListOf(context.file)
         val completionProvider = CompletionProvider(files, fileName, currentLine, currentColumn)
 
-        val (result, completions) = completionProvider.getResult(ScriptParser.env)
+        val (result, completions) = completionProvider.getResult(context.environment)
         bindingContext = result.bindingContext
         yield()
 
         // Если выделен текст, то подсказки не нужны
-        if(modifier.selectionStartChar == modifier.selectionStartChar) {
+        if (modifier.selectionStartChar == modifier.selectionStartChar) {
             onCompletionsEvent(OnCompletionsEvent(fileName, completions, text.hashCode()))
         }
 
         AnalyzerWithCompilerReport(
-            ScriptParser.messageCollector,
-            ScriptParser.env.configuration.languageVersionSettings,
+            context.environment.messageCollector,
+            context.environment.configuration.languageVersionSettings,
             false
         ).analyzeAndReport(files) { result }
         yield()
 
-        colorizeText()
-        ScriptParser.messageCollector.diagnostics
+        colorizeText(context)
+        context.messageCollector.diagnostics
             .filter { it.isError() }
             .map {
                 ScriptError(
@@ -145,13 +151,14 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
                     it.exception
                 )
             }.apply { onErrorsEvent(this) }
-        ScriptParser.messageCollector.clear()
+        context.messageCollector.clear()
+
     }
 
-    private fun colorizeText() {
+    private fun colorizeText(context: ScriptingContext) {
         if (textHash == 0) return
 
-        val newLines = ScriptColorizer.colorize(file, bindingContext, expressionAtCaret)
+        val newLines = ScriptColorizer.colorize(context.file, bindingContext, expressionAtCaret)
 
         val text = newLines.joinToString("\n") { it.text }
 
@@ -162,7 +169,7 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
         surface.triggerUpdate()
     }
 
-    private fun getOffsetFromLineAndChar(line: Int, charNumber: Int): Int {
+    private fun getOffsetFromLineAndChar(file: KtFile, line: Int, charNumber: Int): Int {
         if (line >= file.viewProvider.document.lineCount) return -1
         val lineStart = file.viewProvider.document.getLineStartOffset(line)
         return lineStart + charNumber
@@ -172,11 +179,13 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
         get() {
             if (modifier.selectionStartChar != modifier.selectionCaretChar || modifier.selectionStartLine != modifier.selectionCaretLine) return null
             if (modifier.selectionStartLine == -1) return null
-            val caretPositionOffset = getOffsetFromLineAndChar(modifier.selectionCaretLine, modifier.selectionCaretChar)
+            val context = context ?: return null
+
+            val caretPositionOffset =
+                getOffsetFromLineAndChar(context.file, modifier.selectionCaretLine, modifier.selectionCaretChar)
             if (caretPositionOffset == -1) return null
-            var element = file.findElementAt(caretPositionOffset)
-            if (element == null || element !is KtElement) element =
-                file.findElementAt(caretPositionOffset - 1)
+            var element = context.file.findElementAt(caretPositionOffset)
+            if (element == null || element !is KtElement) element = context.file.findElementAt(caretPositionOffset - 1)
             return element
         }
 
@@ -186,10 +195,9 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
 }
 
 object ActionManager {
-    private val executor = Executors.newSingleThreadExecutor()
     private var currentJob: Job? = null
     private var futureTask: Future<*>? = null
-    private val scope = CoroutineScope(Dispatchers.Default)
+    private val scope = CoroutineScope(Dispatchers.Default) + ScriptContext()
 
     fun launch(action: suspend () -> Unit) {
         currentJob?.cancel()
@@ -202,12 +210,15 @@ object ActionManager {
                 action()
             } catch (e: Exception) {
                 // Ignore
+                coroutineContext[ScriptContext.Key]?.context?.close()
             }
         }
     }
 
-    fun <T> future(action: () -> T): Future<*>? = executor.submit(Callable { action() })
-        .also { futureTask = it }
+    class ScriptContext(var context: ScriptingContext? = null): CoroutineContext.Element {
+        companion object Key : CoroutineContext.Key<ScriptContext>
+        override val key get() = Key
+    }
 }
 
 private fun ScriptTextAreaScope.installSelectionHandler(
