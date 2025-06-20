@@ -46,7 +46,7 @@ suspend fun NpcEntity.move(entity: Entity, dist: Double = 1.5, speed: Double = 1
  *
  * @param mob Сущность, к которой нужно переместиться.
  */
-suspend fun NpcEntity.move(mob: Entity): Unit = move(entity = mob)
+suspend infix fun NpcEntity.move(mob: Entity): Unit = move(entity = mob)
 
 /**
  * Перемещает NPC к указанной позиции до тех пор, пока расстояние не станет меньше или равно заданному.

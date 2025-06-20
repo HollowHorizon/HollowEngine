@@ -102,3 +102,4 @@ fun DependencyHandlerScope.setupScripting() {
     install("org.jetbrains.kotlin:kotlin-serialization-compiler-plugin:$kotlinVersion", true)
 
 }
+

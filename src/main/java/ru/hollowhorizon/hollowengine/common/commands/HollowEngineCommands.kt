@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.commands
 
 import com.mojang.brigadier.arguments.StringArgumentType
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import net.minecraft.ChatFormatting
 import net.minecraft.core.registries.BuiltInRegistries
@@ -11,6 +13,7 @@ import ru.hollowhorizon.hc.client.models.internal.manager.GltfManager
 import ru.hollowhorizon.hc.client.utils.mc
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.onRegisterCommands
+import ru.hollowhorizon.hc.common.coroutines.coroutineScope
 import ru.hollowhorizon.hc.common.coroutines.scopeAsync
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterCommandsEvent
@@ -20,6 +23,7 @@ import ru.hollowhorizon.hc.common.utils.*
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
+import ru.hollowhorizon.hollowengine.common.npcs.dialogues.exampleDialog
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolClientManager
 import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolScript
@@ -112,6 +116,16 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
 
                 SceneScriptManager.scripts.forEach {
                     player.sendSystemMessage("- ".literal.colored(ChatFormatting.GOLD) + it.literal)
+                }
+            }
+
+            "test" {
+                val player = source.playerOrException
+
+                source.server.coroutineScope.launch {
+                    val pos = player.position()
+                    delay(1000)
+                    player.exampleDialog(pos)
                 }
             }
         }

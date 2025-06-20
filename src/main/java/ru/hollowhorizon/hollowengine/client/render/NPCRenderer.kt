@@ -7,12 +7,14 @@ import net.minecraft.client.gui.GuiGraphics
 //?} else {
 //?}
 import net.minecraft.client.renderer.MultiBufferSource
+import net.minecraft.client.renderer.culling.Frustum
 import net.minecraft.client.renderer.entity.EntityRendererProvider
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hc.client.render.entity.GLTFEntityRenderer
 import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterEntityRenderersEvent
+import ru.hollowhorizon.hollowengine.client.gui.dialog.DialogGui
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
@@ -70,6 +72,17 @@ class NPCRenderer(context: EntityRendererProvider.Context) : GLTFEntityRenderer<
 
             pMatrixStack.popPose()
         }
+    }
+
+    override fun shouldRender(
+        livingEntity: NpcEntity,
+        camera: Frustum,
+        camX: Double,
+        camY: Double,
+        camZ: Double
+    ): Boolean {
+        val screen = (Minecraft.getInstance().screen as? DialogGui)?.entities ?: emptyList()
+        return livingEntity !in screen && super.shouldRender(livingEntity, camera, camX, camY, camZ)
     }
 }
 

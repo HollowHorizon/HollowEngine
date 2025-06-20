@@ -13,7 +13,12 @@ fun UiScope.hoverListener(
 
     return remember(false).apply {
         modifier
-            .onEnter { set(true); if (condition()) anim.start() }
+            .onEnter {
+                set(true)
+                if (condition()) {
+                    anim.start()
+                }
+            }
             .onExit { set(false); if (condition()) anim.start() }
 
     } to anim
@@ -43,4 +48,32 @@ fun UiScope.hoverColors(
     var factor = Easing.quadRev(anim.progressAndUse())
     if (!isHovered.use()) factor = 1f - factor
     return colors.mapIndexed { i, color -> color.mix(hoverColors[i], factor) }
+}
+
+class AnimatedFloat(var duration: Float, initValue: Float = 1f) : AnimatedState<Float>(initValue) {
+    override var isActive = false
+        private set
+    var progressionTime = duration
+
+    fun start() {
+        set(0f)
+        stateChanged()
+        progressionTime = duration - progressionTime
+        isActive = true
+    }
+
+    override fun progress(deltaT: Float) {
+        if (progressionTime < duration) {
+            progressionTime += deltaT
+            if (progressionTime >= duration) {
+                set(1f)
+                isActive = false
+            } else {
+                set(progressionTime / duration)
+            }
+        } else {
+            progressionTime = duration
+            isActive = false
+        }
+    }
 }
