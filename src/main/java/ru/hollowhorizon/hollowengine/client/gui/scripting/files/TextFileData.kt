@@ -99,7 +99,7 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
                 currentColumn = modifier.selectionStartChar
                 val text = lines.joinToString("\n") { it.text }
                 val newHash = text.hashCode()
-                if (textHash != newHash) {
+                if (textHash != newHash || context?.isDisposed == true) {
                     textHash = newHash
                     ActionManager.launch {
                         compileText(text)

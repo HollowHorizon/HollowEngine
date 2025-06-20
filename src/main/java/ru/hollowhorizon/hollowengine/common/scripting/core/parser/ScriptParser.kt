@@ -46,9 +46,13 @@ data class ScriptingContext(
     val environment: KotlinCoreEnvironment,
     val messageCollector: ScriptDiagnosticsMessageCollector,
     val file: KtFile,
-    val disposable: Disposable
-): Closeable {
+    val disposable: Disposable,
+) : Closeable {
+    var isDisposed = false
+        private set
+
     override fun close() {
         Disposer.dispose(disposable)
+        isDisposed = true
     }
 }

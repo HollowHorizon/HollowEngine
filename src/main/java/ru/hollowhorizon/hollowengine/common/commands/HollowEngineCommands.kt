@@ -119,15 +119,6 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                 }
             }
 
-            "test" {
-                val player = source.playerOrException
-
-                source.server.coroutineScope.launch {
-                    val pos = player.position()
-                    delay(1000)
-                    player.exampleDialog(pos)
-                }
-            }
         }
     }
 }
