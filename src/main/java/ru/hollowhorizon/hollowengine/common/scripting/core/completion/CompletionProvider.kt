@@ -1,5 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 
+import net.minecraft.client.Minecraft
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.world.phys.Vec3
 import org.jetbrains.kotlin.analyzer.AnalysisResult
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.com.intellij.openapi.editor.Document
@@ -28,6 +31,7 @@ import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.asFlexibleType
 import org.jetbrains.kotlin.types.isFlexible
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
+import ru.hollowhorizon.hollowengine.common.commands.roundTo
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.codeInsight.ReferenceVariantsHelper
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.resolve.getResolutionScope
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.util.IdeDescriptorRenderersScripting
@@ -181,7 +185,36 @@ class CompletionProvider(
             if(prefix == ".") prefix = ""
             result += filterCandidates(prefix, descriptors)
 
-            return analysisResult to (sortedCandidates(result).map {
+            val extras = mutableListOf<CompletionVariant>()
+
+            if("pos".startsWith(prefix)) {
+                var pos = Minecraft.getInstance().player?.position() ?: Vec3.ZERO
+                var completion = "pos(${pos.x.roundTo(2)}, ${pos.y.roundTo(2)}, ${pos.z.roundTo(2)})"
+                extras.add(CompletionVariant(completion, completion, "Координаты игрока", CompletionVariant.Icon.METHOD, null, listOf()))
+                pos = Minecraft.getInstance().hitResult?.location ?: Vec3.ZERO
+                completion = "pos(${pos.x.roundTo(2)}, ${pos.y.roundTo(2)}, ${pos.z.roundTo(2)})"
+                extras.add(CompletionVariant(completion, completion, "Координаты взгляда игрока", CompletionVariant.Icon.METHOD, null, listOf()))
+            }
+            if("item".startsWith(prefix)) {
+                val player = Minecraft.getInstance().player!!
+                val item = player.mainHandItem
+                val location = "\"" + BuiltInRegistries.ITEM.getKey(item.item).toString() + "\""
+                val count = item.count
+                val nbt = if (item.hasTag()) item.getOrCreateTag() else null
+                val itemCommand = when {
+                    nbt == null && count > 1 -> "item($location, $count)"
+                    nbt == null && count == 1 -> "item($location)"
+                    else -> {
+                        "item($location, $count, \"${
+                            nbt.toString()
+                                .replace("\"", "\\\"")
+                        }\")"
+                    }
+                }
+                extras.add(CompletionVariant(itemCommand, itemCommand, "Предмет в руке", CompletionVariant.Icon.METHOD, null, listOf()))
+            }
+
+            return analysisResult to (extras + sortedCandidates(result).map {
                 val presentableText = getPresentableText(it.descriptor, element.isCallableReference())
 
                 val fullName = presentableText.first
