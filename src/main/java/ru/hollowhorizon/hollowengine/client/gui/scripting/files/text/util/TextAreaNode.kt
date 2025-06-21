@@ -492,8 +492,28 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                     editText("")
                 }
 
-                KeyboardInput.KEY_ENTER -> editText("\n")
-                KeyboardInput.KEY_NP_ENTER -> editText("\n")
+                KeyboardInput.KEY_ENTER, KeyboardInput.KEY_NP_ENTER -> {
+                    try {
+                        val whitespaces = selectionHandler.caretLine?.text
+                            ?.let {
+                                var whitespaces = 0
+                                for(c in it) {
+                                    if(c == ' ') whitespaces++
+                                    else break
+                                }
+                                whitespaces
+                            }
+                            ?: 0
+
+                        val isLambda = selectionHandler.caretLine?.text
+                            ?.substring(0, selectionHandler.selectionCaretChar.coerceAtLeast(0))
+                            ?.trim()?.endsWith("{") == true
+
+                        editText("\n" + " ".repeat(whitespaces + if (isLambda) 4 else 0))
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
                 KeyboardInput.KEY_CURSOR_LEFT -> selectionHandler.moveCaretLeft(
                     wordWise = keyEvent.isCtrlDown,
                     select = keyEvent.isShiftDown

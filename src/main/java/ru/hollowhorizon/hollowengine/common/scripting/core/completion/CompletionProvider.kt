@@ -77,7 +77,7 @@ class CompletionProvider(
             val element = expressionForScope as? KtElement ?: return analysisResult to emptyList()
 
 
-            var descriptors: Collection<DeclarationDescriptor>? = null
+            val descriptors = ArrayList<DeclarationDescriptor>()
             var isTipsManagerCompletion = true
             val resolutionFacade = KotlinResolutionFacade(env.project, containerProvider, moduleDescriptor)
             val inDescriptor: DeclarationDescriptor =
@@ -92,10 +92,10 @@ class CompletionProvider(
             )
 
             if (element is KtSimpleNameExpression) {
-                descriptors =
+                descriptors +=
                     helper.getReferenceVariants(element, DescriptorKindFilter.ALL, NAME_FILTER, true, true, true, null)
             } else if (element.parent is KtSimpleNameExpression) {
-                descriptors = helper.getReferenceVariants(
+                descriptors += helper.getReferenceVariants(
                     element.parent as KtSimpleNameExpression,
                     DescriptorKindFilter.ALL,
                     NAME_FILTER,
@@ -112,19 +112,33 @@ class CompletionProvider(
                     val receiverExpression = parent.receiverExpression
 
                     val expressionType =
-                        bindingContext.get(BindingContext.EXPRESSION_TYPE_INFO, receiverExpression)!!.type
+                        bindingContext.get(BindingContext.EXPRESSION_TYPE_INFO, receiverExpression)?.type
                     resolutionScope = bindingContext.get(BindingContext.LEXICAL_SCOPE, receiverExpression)
 
                     if (expressionType != null && resolutionScope != null) {
-                        descriptors = expressionType.memberScope.getContributedDescriptors(
+                        descriptors += expressionType.memberScope.getContributedDescriptors(
                             DescriptorKindFilter.ALL,
                             MemberScope.ALL_NAME_FILTER
                         )
                     }
+
+                    bindingContext.get(BindingContext.QUALIFIER, receiverExpression)?.apply {
+                        val isObject = (descriptor as? ClassDescriptor)?.kind?.isObject ?: false
+                        if (isObject) descriptors += classValueReceiver?.type?.memberScope
+                            ?.getContributedDescriptors(DescriptorKindFilter.ALL, MemberScope.ALL_NAME_FILTER)
+                            ?: emptyList()
+
+                        staticScope.let {
+                            descriptors += it.getContributedDescriptors(
+                                DescriptorKindFilter.ALL,
+                                MemberScope.ALL_NAME_FILTER
+                            )
+                        }
+                    }
                 } else {
                     resolutionScope = bindingContext.get(BindingContext.LEXICAL_SCOPE, element as KtExpression)
                     if (resolutionScope != null) {
-                        descriptors = resolutionScope.getContributedDescriptors(
+                        descriptors += resolutionScope.getContributedDescriptors(
                             DescriptorKindFilter.ALL,
                             MemberScope.ALL_NAME_FILTER
                         )
@@ -149,22 +163,10 @@ class CompletionProvider(
                 if (prefix.endsWith(".") || element is KtDotQualifiedExpression) {
                     prefix = ""
                 }
+                userText = prefix
 
-                if (descriptors !is ArrayList<*>) {
-                    descriptors = ArrayList(descriptors)
-                }
-
-                (descriptors as ArrayList<DeclarationDescriptor>?)?.sortWith { d1, d2 ->
-                    val d1PresText = getPresentableText(d1)
-                    val d2PresText = getPresentableText(d2)
-                    (d1PresText.first + d1PresText.second).compareTo(
-                        d2PresText.first + d2PresText.second,
-                        ignoreCase = true
-                    )
-                }
-
-                for (descriptor in descriptors) {
-                    val presentableText = getPresentableText(descriptor, element.isCallableReference())
+                filterAndSortCandidates(prefix, descriptors).forEach { sorted ->
+                    val presentableText = getPresentableText(sorted.descriptor, element.isCallableReference())
 
                     val fullName = presentableText.first
                     var completionText = fullName
@@ -185,21 +187,21 @@ class CompletionProvider(
                         completionText = completionText.substring(0, position - 1)
                     }
 
-                    if (prefix.isEmpty() || fullName.startsWith(prefix)) {
-                        val completionVariant = CompletionVariant(
-                            completionText, fullName,
-                            presentableText.second,
-                            getIconFromDescriptor(descriptor)
-                        )
-                        result.add(completionVariant)
-                    }
+                    val completionVariant = CompletionVariant(
+                        completionText, fullName,
+                        presentableText.second,
+                        getIconFromDescriptor(sorted.descriptor),
+                        sorted.descriptor,
+                        sorted.matchResult.matchedIndices
+                    )
+                    result.add(completionVariant)
                 }
 
                 result.addAll(keywordsCompletionVariants(KtTokens.KEYWORDS, prefix))
                 result.addAll(keywordsCompletionVariants(KtTokens.SOFT_KEYWORDS, prefix))
             }
 
-            return analysisResult to result.sortedBy { it.icon.ordinal }
+            return analysisResult to result
         } catch (e: Throwable) {
             throw IllegalStateException(e)
         }
@@ -240,8 +242,16 @@ class CompletionProvider(
     private fun keywordsCompletionVariants(keywords: TokenSet, prefix: String): List<CompletionVariant> {
         return keywords.types
             .map { (it as KtKeywordToken).value }
-            .filter { it.startsWith(prefix) }
-            .mapTo(ArrayList()) { CompletionVariant(it, it, "", CompletionVariant.Icon.UNKNOWN) }
+            .filter { it.startsWith(prefix, ignoreCase = true) }
+            .mapTo(ArrayList()) {
+                CompletionVariant(
+                    it,
+                    it,
+                    "",
+                    CompletionVariant.Icon.UNKNOWN,
+                    null
+                )
+            }
     }
 
 
@@ -352,3 +362,5 @@ class CompletionProvider(
         )
     }
 }
+
+var userText: String = ""
