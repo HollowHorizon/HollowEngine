@@ -498,7 +498,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                             ?.let {
                                 var whitespaces = 0
                                 for(c in it) {
-                                    if(c == ' ') whitespaces++
+                                    if(c == ' ' && whitespaces < selectionHandler.selectionCaretChar) whitespaces++
                                     else break
                                 }
                                 whitespaces

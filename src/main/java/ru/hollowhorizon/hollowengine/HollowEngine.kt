@@ -63,5 +63,6 @@ class EngineConfig : HollowConfig() {
         var tabSpace = 4
         var fontSize = 30
         var enableSound = false
+        var indexClasses = true
     }
 }

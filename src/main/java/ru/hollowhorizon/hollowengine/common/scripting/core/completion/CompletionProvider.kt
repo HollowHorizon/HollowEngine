@@ -9,13 +9,16 @@ import org.jetbrains.kotlin.com.intellij.psi.tree.TokenSet
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor
 import org.jetbrains.kotlin.descriptors.impl.TypeParameterDescriptorImpl
+import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.lexer.KtKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.parentOrNull
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
 import org.jetbrains.kotlin.renderer.ClassifierNamePolicy
 import org.jetbrains.kotlin.renderer.ParameterNameRenderingPolicy
+import org.jetbrains.kotlin.renderer.render
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
@@ -73,9 +76,9 @@ class CompletionProvider(
             val containerProvider = resolveResult.second
             val bindingContext = analysisResult.bindingContext
             val moduleDescriptor = analysisResult.moduleDescriptor
+            GlobalClassesIndex.scan(moduleDescriptor)
 
             val element = expressionForScope as? KtElement ?: return analysisResult to emptyList()
-
 
             val descriptors = ArrayList<DeclarationDescriptor>()
             var isTipsManagerCompletion = true
@@ -90,10 +93,34 @@ class CompletionProvider(
                 VisibilityFilter(inDescriptor, bindingContext, element, resolutionFacade),
                 emptySet()
             )
+            val result = ArrayList<ScoredDescriptor>()
 
             if (element is KtSimpleNameExpression) {
-                descriptors +=
-                    helper.getReferenceVariants(element, DescriptorKindFilter.ALL, NAME_FILTER, true, true, true, null)
+                descriptors += helper.getReferenceVariants(
+                    element, DescriptorKindFilter.ALL, NAME_FILTER,
+                    filterOutJavaGettersAndSetters = true,
+                    filterOutShadowed = true,
+                    excludeNonInitializedVariable = true,
+                    useReceiverType = null
+                )
+
+                val imports = element.containingKtFile.importDirectives.mapNotNull { it.importedFqName?.parentOrNull() }.toSet()
+
+                if(element.parent !is KtDotQualifiedExpression) GlobalClassesIndex.CLASSES.keys.mapNotNull {
+                    (fuzzyCamelHumpScore(element.text, it.asString()) ?: return@mapNotNull null) to it
+                }.filter { it.first.score >= 0 }.forEach { (score, name) ->
+                    result += GlobalClassesIndex.CLASSES[name]?.map { fullName ->
+                        ScoredDescriptor(
+                            score,
+                            0,
+                            name.asString().length,
+                            0,
+                            name.asString().equals(element.text, ignoreCase = true),
+                            moduleDescriptor.getPackage(fullName).memberScope.getContributedClassifier(name, NoLookupLocation.FROM_IDE) ?: return@forEach,
+                            if(fullName !in imports) listOf(fullName.child(name).render()) else emptyList()
+                        )
+                    } ?: emptyList()
+                }
             } else if (element.parent is KtSimpleNameExpression) {
                 descriptors += helper.getReferenceVariants(
                     element.parent as KtSimpleNameExpression,
@@ -148,60 +175,58 @@ class CompletionProvider(
                 }
             }
 
-            val result = ArrayList<CompletionVariant>()
 
-            if (descriptors != null) {
-                var prefix: String
-                prefix = if (!isTipsManagerCompletion) {
-                    element.parent.text
-                } else {
-                    element.text
-                }
-
-                val offset = caretPositionOffset - element.startOffset
-                prefix = prefix.substring(0, offset.coerceIn(0, prefix.length))
-                if (prefix.endsWith(".") || element is KtDotQualifiedExpression) {
-                    prefix = ""
-                }
-                userText = prefix
-
-                filterAndSortCandidates(prefix, descriptors).forEach { sorted ->
-                    val presentableText = getPresentableText(sorted.descriptor, element.isCallableReference())
-
-                    val fullName = presentableText.first
-                    var completionText = fullName
-                    var position = completionText.indexOf('(')
-                    if (position != -1) {
-                        //If this is a string with a package after
-                        if (completionText[position - 1] == ' ') {
-                            position -= 2
-                        }
-                        //if this is a method without args
-                        if (completionText[position + 1] == ')') {
-                            position++
-                        }
-                        completionText = completionText.substring(0, position + 1)
-                    }
-                    position = completionText.indexOf(":")
-                    if (position != -1) {
-                        completionText = completionText.substring(0, position - 1)
-                    }
-
-                    val completionVariant = CompletionVariant(
-                        completionText, fullName,
-                        presentableText.second,
-                        getIconFromDescriptor(sorted.descriptor),
-                        sorted.descriptor,
-                        sorted.matchResult.matchedIndices
-                    )
-                    result.add(completionVariant)
-                }
-
-                result.addAll(keywordsCompletionVariants(KtTokens.KEYWORDS, prefix))
-                result.addAll(keywordsCompletionVariants(KtTokens.SOFT_KEYWORDS, prefix))
+            var prefix: String
+            prefix = if (!isTipsManagerCompletion) {
+                element.parent.text
+            } else {
+                element.text
             }
 
-            return analysisResult to result
+            val offset = caretPositionOffset - element.startOffset
+            prefix = prefix.substring(0, offset.coerceIn(0, prefix.length))
+            if (prefix.endsWith(".") || element is KtDotQualifiedExpression) {
+                prefix = ""
+            }
+            userText = prefix
+
+            result += filterCandidates(prefix, descriptors)
+
+            return analysisResult to (sortedCandidates(result).map {
+                val presentableText = getPresentableText(it.descriptor, element.isCallableReference())
+
+                val fullName = presentableText.first
+                var completionText = fullName
+                var position = completionText.indexOf('(')
+                if (position != -1) {
+                    //If this is a string with a package after
+                    if (completionText[position - 1] == ' ') {
+                        position -= 2
+                    }
+                    //if this is a method without args
+                    if (completionText[position + 1] == ')') {
+                        position++
+                    }
+                    completionText = completionText.substring(0, position + 1)
+                }
+                position = completionText.indexOf(":")
+                if (position != -1) {
+                    completionText = completionText.substring(0, position - 1)
+                }
+
+                CompletionVariant(
+                    completionText, fullName,
+                    presentableText.second,
+                    getIconFromDescriptor(it.descriptor),
+                    it.descriptor,
+                    it.matchResult.matchedIndices,
+                    it.imports
+                )
+            } + keywordsCompletionVariants(
+                KtTokens.KEYWORDS,
+                prefix
+            ) + keywordsCompletionVariants(KtTokens.SOFT_KEYWORDS, prefix)).distinct()
+
         } catch (e: Throwable) {
             throw IllegalStateException(e)
         }
@@ -261,7 +286,7 @@ class CompletionProvider(
         parameterNameRenderingPolicy = ParameterNameRenderingPolicy.NONE
         typeNormalizer = { kotlinType: KotlinType ->
             if (kotlinType.isFlexible()) {
-                kotlinType.asFlexibleType().upperBound
+                kotlinType.asFlexibleType().lowerBound
             } else kotlinType
         }
     }

@@ -6,6 +6,7 @@ import de.fabmax.kool.util.TextCaretNavigation
 import org.jetbrains.kotlin.builtins.isFunctionOrSuspendFunctionType
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
+import org.jetbrains.kotlin.psi.KtPsiFactory
 import ru.hollowhorizon.hc.client.kool.minecraft.Image
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextAreaNode
@@ -19,6 +20,7 @@ data class CompletionVariant(
     val icon: Icon,
     val descriptor: DeclarationDescriptor?,
     val matchIndices: List<Int> = emptyList(), // Индексы совпадающих символов для подсветки
+    val additionalImports: List<String> = emptyList(),
 ) {
     override fun toString() = displayText
     val isLambda = (descriptor as? FunctionDescriptor)?.valueParameters?.lastOrNull()
@@ -84,13 +86,21 @@ data class CompletionVariant(
 
     fun use(scriptTextArea: TextAreaNode) {
         val modifier = scriptTextArea.modifier
-        val lineIndex = modifier.selectionStartLine.coerceAtMost(scriptTextArea.lineProvider.lastIndex)
+        var lineIndex = modifier.selectionStartLine.coerceAtMost(scriptTextArea.lineProvider.lastIndex)
         if (lineIndex == -1) return
 
         val line = scriptTextArea.lineProvider[lineIndex].text
         val startChar = (modifier.selectionStartChar - 1).coerceAtLeast(0)
         val startWord = TextCaretNavigation.startOfWord(line, startChar)
         val editor = modifier.editorHandler ?: return
+
+        // Добавление импортов
+        if (additionalImports.isNotEmpty()) {
+            additionalImports.forEach {
+                editor.insertText(0, 0, "import ${it}\n", scriptTextArea)
+                lineIndex++
+            }
+        }
 
         var textToInsert = text
         var offset = 0
@@ -117,8 +127,8 @@ data class CompletionVariant(
         }
 
         editor.replaceText(
-            modifier.selectionStartLine,
-            modifier.selectionStartLine,
+            lineIndex,
+            lineIndex,
             startWord,
             startChar + 1,
             textToInsert,
@@ -128,8 +138,8 @@ data class CompletionVariant(
         // Установка курсора в правильное место
         val cursorPos = startWord + textToInsert.length - offset
         modifier.setSelectionRange(
-            modifier.selectionStartLine,
-            modifier.selectionCaretLine,
+            lineIndex,
+            lineIndex,
             cursorPos,
             cursorPos
         )

@@ -176,14 +176,14 @@ data class ScoredDescriptor(
     val length: Int,
     val typePriority: Int,
     val exactMatch: Boolean,
-    val descriptor: DeclarationDescriptor
+    val descriptor: DeclarationDescriptor,
+    val imports: List<String> = emptyList()
 )
 
-fun filterAndSortCandidates(
+fun filterCandidates(
     prefix: String,
     descriptors: List<DeclarationDescriptor>
 ): List<ScoredDescriptor> {
-
     val scored = descriptors.mapNotNull { descriptor ->
         val name = descriptor.name.asString()
         val matchScore = fuzzyCamelHumpScore(prefix, name) ?: return@mapNotNull null
@@ -197,6 +197,10 @@ fun filterAndSortCandidates(
         )
     }
 
+    return scored
+}
+
+fun sortedCandidates(scored: List<ScoredDescriptor>): List<ScoredDescriptor> {
     return scored.sortedWith(
         compareBy(
             { !it.exactMatch },     // Точные совпадения - первыми

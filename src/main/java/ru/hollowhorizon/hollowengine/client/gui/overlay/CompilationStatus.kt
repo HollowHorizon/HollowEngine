@@ -7,9 +7,9 @@ import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hc.common.utils.currentServer
-import ru.hollowhorizon.hc.common.network.HollowPacketHandler
 import ru.hollowhorizon.hc.common.network.HollowPacket
+import ru.hollowhorizon.hc.common.network.HollowPacketHandler
+import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
