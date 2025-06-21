@@ -21,8 +21,8 @@ fun fuzzyCamelHumpScore(prefix: String, name: String): MatchResult? {
     if (prefix.isEmpty()) return MatchResult(0, emptyList())
     if (name.isEmpty()) return null
 
-    val lowerPrefix = prefix.lowercase()
-    val lowerName = name.lowercase()
+    val lowerPrefix = prefix
+    val lowerName = name
 
     // Точное совпадение (высший приоритет)
     if (name == prefix) return MatchResult(1000 + EXACT_MATCH_BONUS + SHORT_NAME_BONUS, name.indices.toList())
@@ -118,8 +118,8 @@ private val enToRuLayout = ("qwertyuiop[]asdfghjkl;'zxcvbnm,./" zip "йцуке�
 private val ruToEnLayout = enToRuLayout.map { it.value to it.key }.toMap()
 
 private fun charMatches(inputChar: Char, targetChar: Char): Boolean {
-    val input = inputChar.lowercaseChar()
-    val target = targetChar.lowercaseChar()
+    val input = inputChar
+    val target = targetChar
 
     return when {
         input == target -> true

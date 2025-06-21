@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.asFlexibleType
 import org.jetbrains.kotlin.types.isFlexible
+import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.codeInsight.ReferenceVariantsHelper
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.resolve.getResolutionScope
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.util.IdeDescriptorRenderersScripting
@@ -176,20 +177,8 @@ class CompletionProvider(
             }
 
 
-            var prefix: String
-            prefix = if (!isTipsManagerCompletion) {
-                element.parent.text
-            } else {
-                element.text
-            }
-
-            val offset = caretPositionOffset - element.startOffset
-            prefix = prefix.substring(0, offset.coerceIn(0, prefix.length))
-            if (prefix.endsWith(".") || element is KtDotQualifiedExpression) {
-                prefix = ""
-            }
-            userText = prefix
-
+            var prefix = currentPsiFile!!.findElementAt(caretPositionOffset-1)?.text ?: element.text
+            if(prefix == ".") prefix = ""
             result += filterCandidates(prefix, descriptors)
 
             return analysisResult to (sortedCandidates(result).map {
@@ -362,6 +351,10 @@ class CompletionProvider(
         } else if (descriptor is ClassDescriptor) {
             val declaredIn = descriptor.containingDeclaration
             tailText = " (" + DescriptorUtils.getFqName(declaredIn) + ")"
+
+            descriptor.declaredTypeParameters.map { it.name }.ifNotEmpty {
+                presentableText += '<'+joinToString(", ")+'>'
+            }
         } else {
             typeText = RENDERER.render(descriptor)
         }
