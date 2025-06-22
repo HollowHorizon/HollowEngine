@@ -1,12 +1,16 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar
 
+import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
+import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hc.client.kool.minecraft.Image
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.StartScriptPacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.StopScriptPacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolClientManager
@@ -16,13 +20,23 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
     Image("hollowengine:textures/gui/icons/logo.png") {
         modifier.size(24.dp, 24.dp).alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap)
     }
-    TextButton("File")
+
+    val overlay = remember { ItemPopupMenu<Unit>("Title-File-Overlay") }
+    overlay()
+    TextButton("File") {
+        overlay.hide()
+        overlay.show(Vec2f(it.screenPosition), SubMenuItem {
+            item("Перезагрузить ресурсы", "hollowengine:textures/gui/icons/reload_mc.png") {
+                Minecraft.getInstance().reloadResourcePacks()
+            }
+        }, Unit)
+    }
     TextButton("Edit")
     TextButton("Search")
     TextButton("Settings")
 }
 
-fun UiScope.TextButton(text: String, onClick: () -> Unit = {}) {
+fun UiScope.TextButton(text: String, onClick: (PointerEvent) -> Unit = {}) {
     Box {
 
         modifier.padding(horizontal = sizes.smallGap)
@@ -37,6 +51,9 @@ fun UiScope.TextButton(text: String, onClick: () -> Unit = {}) {
 
         Text(text) {
             modifier.alignY(AlignmentY.Center)
+                .onClick {
+                    onClick(it)
+                }
         }
     }
 }
