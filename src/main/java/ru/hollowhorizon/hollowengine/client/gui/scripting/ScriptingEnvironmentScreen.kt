@@ -72,4 +72,6 @@ class ScriptingEnvironmentScreen : KoolScreen() {
             it.surface.isFocused.value
         }?.modifier?.completions?.isEmpty() ?: true
     }
+
+    override fun isPauseScreen() = false
 }

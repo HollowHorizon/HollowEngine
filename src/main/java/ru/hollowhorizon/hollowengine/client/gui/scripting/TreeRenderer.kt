@@ -26,11 +26,6 @@ fun EditPopup(label: String, hint: String, onClick: (FileNode, String) -> Unit) 
         }
         ConfirmWidget(this@apply) {
             onClick(it, text)
-            launchOnMainThread {
-                delay(500)
-                it.parent?.toggleExpanded()
-                it.parent?.toggleExpanded()
-            }
         }
     }
 }
@@ -46,11 +41,6 @@ fun WarningModalPopup(label: String, onClick: (FileNode) -> Unit) = ItemPopupMen
         }
         ConfirmWidget(this@apply) {
             onClick(it)
-            launchOnMainThread {
-                delay(500)
-                it.parent?.toggleExpanded()
-                it.parent?.toggleExpanded()
-            }
         }
     }
 }

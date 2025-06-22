@@ -45,32 +45,34 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
         if (!isFolder) return
 
         // При закрытии папки удаляем из памяти её содержимое, чтобы при открытии оно обновилось
-        if (isExpanded.value) this.children.clear()
-        else {
-            // Запрашиваем у сервера содержимое папки (оно придёт с задержкой)
-            scopeSync {
-                val result = RequestFolderPacket(this@FileNode.treePath).request()
-
-                // Добавляем новые элементы *перед* отрисовкой
-                // Чтобы не получить ConcurrentModificationException
-                launchOnMainThread {
-                    this@FileNode.children.addAll(result.children.map { child ->
-                        FileNode(
-                            child.name,
-                            if (this@FileNode.treePath.isEmpty()) child.name else this@FileNode.treePath + "/" + child.name
-                        ).apply {
-                            parent = this@FileNode
-                            depth = this@FileNode.depth + 1
-                            isFolder = child.isFolder
-                        }
-                    })
-                    this@FileNode.sort()
-                }
-            }
-        }
+        if (isExpanded.value) children.clear()
+        else update()
 
         // Открываем / Закрываем папку
         isExpanded.set(!isExpanded.value)
+    }
+
+    fun update() {
+        // Запрашиваем у сервера содержимое папки (оно придёт с задержкой)
+        launchOnMainThread {
+            val result = RequestFolderPacket(this@FileNode.treePath).request()
+
+            val old = children.associate { it.treeName to it.isExpanded.value }
+            children.clear()
+            children.addAll(result.children.map { child ->
+                FileNode(
+                    child.name,
+                    if (this@FileNode.treePath.isEmpty()) child.name
+                    else this@FileNode.treePath + "/" + child.name
+                ).apply {
+                    parent = this@FileNode
+                    depth = this@FileNode.depth + 1
+                    isFolder = child.isFolder
+                    if(old[treeName] == true) toggleExpanded()
+                }
+            })
+            sort()
+        }
     }
 
     private fun sort() {

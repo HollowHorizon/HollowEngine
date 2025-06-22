@@ -39,12 +39,23 @@ class FilePopup : Composable {
         filePopup()
     }
 
-    private fun createFolder(item: FileNode, name: String) = CreateFilePacket(item.treePath + "/" + name).send()
-    private fun createFile(item: FileNode, name: String) =
+    private fun createFolder(item: FileNode, name: String) {
+        CreateFilePacket(item.treePath + "/" + name).send()
+        item.update()
+    }
+    private fun createFile(item: FileNode, name: String) {
         CreateFilePacket(item.treePath + "/" + name + fileExtension).send()
+        item.update()
+    }
 
-    private fun rename(item: FileNode, newName: String) = RenameFilePacket(item.treePath, newName).send()
-    private fun delete(item: FileNode) = DeleteFilePacket(item.treePath).send()
+    private fun rename(item: FileNode, newName: String) {
+        RenameFilePacket(item.treePath, newName).send()
+        item.parent?.update()
+    }
+    private fun delete(item: FileNode) {
+        DeleteFilePacket(item.treePath).send()
+        item.parent?.update()
+    }
 
     fun show(node: FileNode, position: Vec2f) {
         filePopup.hide()
@@ -92,10 +103,6 @@ class FilePopup : Composable {
 
                 if (copySource.isNotEmpty()) CopyFilePacket(copySource, target, deleteOriginal).send()
                 if (deleteOriginal) copySource = ""
-
-                // Немного халтурный способ обновления папки - закрыть и открыть
-                it.toggleExpanded()
-                it.toggleExpanded()
             }
             divider()
             if (node.treePath.startsWith("assets/")) item(
