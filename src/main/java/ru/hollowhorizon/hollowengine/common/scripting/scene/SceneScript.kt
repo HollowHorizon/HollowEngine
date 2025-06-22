@@ -37,6 +37,7 @@ class SceneScriptConfiguration : HollowScriptConfiguration({
         "ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.*",
         "ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.*",
         "ru.hollowhorizon.hollowengine.common.scripting.util.*",
+        "ru.hollowhorizon.hollowengine.common.npcs.dialogues.*",
         "ru.hollowhorizon.hollowengine.common.capability.*",
         "ru.hollowhorizon.hollowengine.common.fsm.*",
         "net.minecraft.core.BlockPos",

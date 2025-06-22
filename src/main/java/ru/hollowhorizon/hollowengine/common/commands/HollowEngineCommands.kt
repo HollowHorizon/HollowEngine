@@ -23,7 +23,6 @@ import ru.hollowhorizon.hc.common.utils.*
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
-import ru.hollowhorizon.hollowengine.common.npcs.dialogues.exampleDialog
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolClientManager
 import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolScript

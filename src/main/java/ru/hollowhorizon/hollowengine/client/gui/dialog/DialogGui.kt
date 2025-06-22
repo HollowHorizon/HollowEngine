@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.dialog
 
+import de.fabmax.kool.math.Vec2i
 import de.fabmax.kool.math.clamp
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.Scene
@@ -47,10 +48,11 @@ class DialogGui : KoolScreen() {
     private val textAnimator = AnimatedFloat(2f)
     private val toggleAnimator = AnimatedFloatLoop()
 
+    init {
+        uiSize = Vec2i(500, 281)
+    }
+
     override fun init() {
-        val w = KoolManager.context.windowWidth / 500f
-        val h = KoolManager.context.windowHeight / 281f
-        UiScale.uiScale.set(min(w, h) / UiScale.windowScale.value)
         super.init()
         showAnimator.start()
         textAnimator.start()
@@ -282,12 +284,6 @@ class DialogGui : KoolScreen() {
             modifier.size(22.dp * scale, 24.dp * scale).tint(Color(1f, 1f, 1f, Interpolation.QUAD_IN(progress) * hover))
                 .margin(start = (237.dp - 12.dp * hover) * scale)
         }
-    }
-
-
-    override fun removed() {
-        super.removed()
-        UiScale.uiScale.set(1f)
     }
 
     fun update(scene: DialogueScene) {
