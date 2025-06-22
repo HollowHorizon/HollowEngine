@@ -190,10 +190,11 @@ class CompletionProvider(
             if("pos".startsWith(prefix)) {
                 var pos = Minecraft.getInstance().player?.position() ?: Vec3.ZERO
                 var completion = "pos(${pos.x.roundTo(2)}, ${pos.y.roundTo(2)}, ${pos.z.roundTo(2)})"
-                extras.add(CompletionVariant(completion, completion, "Координаты игрока", CompletionVariant.Icon.METHOD, null, listOf()))
+                val match = "pos".mapIndexedNotNull { i, c -> if(prefix.getOrNull(i) == c) i else null }
+                extras.add(CompletionVariant(completion, completion, "Координаты игрока", CompletionVariant.Icon.METHOD, null, match))
                 pos = Minecraft.getInstance().hitResult?.location ?: Vec3.ZERO
                 completion = "pos(${pos.x.roundTo(2)}, ${pos.y.roundTo(2)}, ${pos.z.roundTo(2)})"
-                extras.add(CompletionVariant(completion, completion, "Координаты взгляда игрока", CompletionVariant.Icon.METHOD, null, listOf()))
+                extras.add(CompletionVariant(completion, completion, "Координаты взгляда игрока", CompletionVariant.Icon.METHOD, null, match))
             }
             if("item".startsWith(prefix)) {
                 val player = Minecraft.getInstance().player!!
@@ -211,7 +212,8 @@ class CompletionProvider(
                         }\")"
                     }
                 }
-                extras.add(CompletionVariant(itemCommand, itemCommand, "Предмет в руке", CompletionVariant.Icon.METHOD, null, listOf()))
+                val match = "item".mapIndexedNotNull { i, c -> if(prefix.getOrNull(i) == c) i else null }
+                extras.add(CompletionVariant(itemCommand, itemCommand, "Предмет в руке", CompletionVariant.Icon.METHOD, null, match))
             }
 
             return analysisResult to (extras + sortedCandidates(result).map {
