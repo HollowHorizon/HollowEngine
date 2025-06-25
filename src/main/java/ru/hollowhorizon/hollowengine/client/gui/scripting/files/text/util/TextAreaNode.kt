@@ -3,6 +3,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util
 
 import de.fabmax.kool.Clipboard
+import de.fabmax.kool.KoolContext
 import de.fabmax.kool.input.KeyEvent
 import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.LocalKeyCode
@@ -267,6 +268,49 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     override lateinit var linesHolder: LazyListNode
     val selectionHandler = SelectionHandler()
 
+    private fun getIndentDepth(text: String, indentSize: Int): Int {
+        var depth = 0
+        for (char in text) {
+            if (char == ' ') {
+                depth++
+            } else if (char == '\t') {
+                depth += indentSize - (depth % indentSize)
+            } else {
+                break
+            }
+        }
+        return depth
+    }
+
+    private inner class LineItem(parent: UiNode?, surface: UiSurface) : RowNode(parent, surface) {
+        lateinit var line: TextLine
+        val font = MsdfFont(HACK_FONT, 18f)
+
+        private val guideColor = Color("3C3C4AFF").withAlpha(0.5f)
+        private val indentSize = 4
+
+        override fun render(ctx: KoolContext) {
+            super.render(ctx)
+
+            val totalIndent = getIndentDepth(line.text, indentSize)
+            val numGuides = totalIndent / indentSize
+
+            val textNode = children.getOrNull(2)
+            if (numGuides > 0 && textNode != null) {
+                val spaceWidth = font.charWidth(' ')
+                val prims = getUiPrimitives(UiSurface.LAYER_BACKGROUND)
+                val textNodeXInRow = textNode.leftPx - this.leftPx
+                val guideStartX = textNodeXInRow + textNode.paddingStartPx
+
+                for (i in 1..numGuides) {
+                    val x = guideStartX + i * indentSize * spaceWidth - spaceWidth * 0.5f
+                    prims.localRect(x, 0f, 1f, heightPx, guideColor)
+                }
+            }
+        }
+    }
+    private val lineItemFactory: (UiNode, UiSurface) -> LineItem = { parent, surface -> LineItem(parent, surface) }
+
     fun setupContent(
         lineProvider: TextLineProvider,
         withVerticalScrollbar: Boolean,
@@ -332,7 +376,10 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             val line = lineProvider[lineIndex]
             val font = MsdfFont(HACK_FONT, 18f)
 
-            Row(Grow.Std) {
+            val lineItem = uiNode.createChild(null, LineItem::class, lineItemFactory)
+            lineItem.line = line
+            lineItem.modifier.width(Grow.Std).layout(RowLayout)
+            with(lineItem) {
                 val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp
 
 
