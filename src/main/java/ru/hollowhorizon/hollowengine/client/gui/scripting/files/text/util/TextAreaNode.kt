@@ -292,19 +292,21 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         override fun render(ctx: KoolContext) {
             super.render(ctx)
 
-            val totalIndent = getIndentDepth(line.text, indentSize)
-            val numGuides = totalIndent / indentSize
+            if (line.text.isNotBlank()) {
+                val totalIndent = getIndentDepth(line.text, indentSize)
+                val numGuides = totalIndent / indentSize
 
-            val textNode = children.getOrNull(2)
-            if (numGuides > 0 && textNode != null) {
-                val spaceWidth = font.charWidth(' ')
-                val prims = getUiPrimitives(UiSurface.LAYER_BACKGROUND)
-                val textNodeXInRow = textNode.leftPx - this.leftPx
-                val guideStartX = textNodeXInRow + textNode.paddingStartPx
+                val textNode = children.getOrNull(2)
+                if (numGuides > 0 && textNode != null) {
+                    val spaceWidth = font.charWidth(' ')
+                    val prims = getUiPrimitives(UiSurface.LAYER_BACKGROUND)
+                    val textNodeXInRow = textNode.leftPx - this.leftPx
+                    val guideStartX = textNodeXInRow + textNode.paddingStartPx
 
-                for (i in 1..numGuides) {
-                    val x = guideStartX + i * indentSize * spaceWidth - spaceWidth * 0.5f
-                    prims.localRect(x, 0f, 1f, heightPx, guideColor)
+                    for (i in 1 until numGuides) {
+                        val x = guideStartX + i * indentSize * spaceWidth - spaceWidth * 0.5f
+                        prims.localRect(x, 0f, 1f, heightPx, guideColor)
+                    }
                 }
             }
         }
