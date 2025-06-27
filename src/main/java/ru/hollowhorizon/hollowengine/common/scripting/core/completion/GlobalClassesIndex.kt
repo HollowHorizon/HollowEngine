@@ -90,6 +90,10 @@ object GlobalClassesIndex {
 
         return classes.distinct()
     }
+
+    fun reload() {
+        isScanned = false
+    }
 }
 
 internal var isVisible = false
