@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar
 
+import de.fabmax.kool.KeyValueStore
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import net.minecraft.client.Minecraft
@@ -83,7 +84,7 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
             }
         }
     }
-    val itemIndex = remember(-1)
+    val itemIndex = remember { mutableStateOf(KeyValueStore.getInt("ide.file_index", -1)) }
 
     ComboBox.apply {
         comboBox("Empty", items.map { it.second }, itemIndex)

@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar
 
+import de.fabmax.kool.KeyValueStore
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
@@ -38,6 +39,7 @@ object ComboBox {
                             .onExit { hoveredIndex = -1 }
                             .onClick {
                                 index = i
+                                KeyValueStore.setInt("ide.file_index", i)
                                 popupMenu.hide()
                                 hoveredIndex = -1
                             }
