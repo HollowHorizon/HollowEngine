@@ -76,7 +76,7 @@ dependencies {
 
     // GRAPHICS //
     install("de.fabmax.kool:kool-core:$koolVersion", false)
-    include("com.github.weisj:jsvg:1.7.1")
+    include("com.github.weisj:jsvg:2.0.0")
     install("com.facebook:ktfmt:0.54")
 
     val modPlatform = container.modPlatform
