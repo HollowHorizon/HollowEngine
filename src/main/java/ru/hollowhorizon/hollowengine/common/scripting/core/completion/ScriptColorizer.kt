@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.com.intellij.psi.PsiRecursiveElementWalkingVisitor
 import org.jetbrains.kotlin.com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.PropertyDescriptor
+import org.jetbrains.kotlin.descriptors.VariableDescriptor
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.allChildren
@@ -206,7 +207,7 @@ object SyntaxHighlight {
 }
 
 private fun KtExpression.hasProperty(bindingContext: BindingContext): Boolean {
-    return (this as? KtReferenceExpression)?.let { bindingContext[BindingContext.REFERENCE_TARGET, it] is PropertyDescriptor } == true
+    return (this as? KtReferenceExpression)?.let { bindingContext[BindingContext.REFERENCE_TARGET, it].let {it is PropertyDescriptor || it is VariableDescriptor } } == true
 }
 
 private fun PsiElement.isPropertyIdentifier(): Boolean {
