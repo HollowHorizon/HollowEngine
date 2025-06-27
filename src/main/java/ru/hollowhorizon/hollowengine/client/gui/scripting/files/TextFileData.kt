@@ -26,8 +26,6 @@ import ru.hollowhorizon.hollowengine.common.scripting.core.completion.OnCompleti
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.ScriptColorizer
 import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptParser
 import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptingContext
-import java.util.concurrent.Callable
-import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
@@ -215,8 +213,9 @@ object ActionManager {
         }
     }
 
-    class ScriptContext(var context: ScriptingContext? = null): CoroutineContext.Element {
+    class ScriptContext(var context: ScriptingContext? = null) : CoroutineContext.Element {
         companion object Key : CoroutineContext.Key<ScriptContext>
+
         override val key get() = Key
     }
 }
