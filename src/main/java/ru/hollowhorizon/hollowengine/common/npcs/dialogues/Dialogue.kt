@@ -20,6 +20,7 @@ import ru.hollowhorizon.hc.common.network.HollowPacket
 import ru.hollowhorizon.hc.common.network.HollowPacketHandler
 import ru.hollowhorizon.hc.common.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hc.common.utils.nbt.ForItemStack
+import ru.hollowhorizon.hollowengine.client.gui.scripting.CloseScreenPacket
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.fsm.StateNode
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.await
@@ -52,6 +53,7 @@ class Dialogue(private val targetNode: StateNode, vararg val players: ServerPlay
             choice = await<DialogueUpdateEvent>().tag.let { if (it.contains("choiceId")) it.getInt("choiceId") else -1 }
         } while (choice < 0)
         scene.choices.clear()
+        CloseScreenPacket().send(*players)
         targetNode.transition(options[choice])
     }
 }
@@ -70,6 +72,7 @@ fun StateNode.dialogue(vararg player: ServerPlayer, action: suspend Dialogue.() 
 
     state("main") {
         action(dialogue)
+        CloseScreenPacket().send(*player)
     }
 }
 
