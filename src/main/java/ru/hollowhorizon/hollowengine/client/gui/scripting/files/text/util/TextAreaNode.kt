@@ -3,6 +3,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util
 
 import de.fabmax.kool.Clipboard
+import de.fabmax.kool.KoolContext
 import de.fabmax.kool.input.KeyEvent
 import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.LocalKeyCode
@@ -15,6 +16,8 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.TextCaretNavigation
 import net.minecraft.client.Minecraft
+import org.jetbrains.kotlin.backend.common.pop
+import org.jetbrains.kotlin.backend.common.push
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.getCharAfterSelection
@@ -31,8 +34,7 @@ import kotlin.math.min
 var errorMessage = ""
 
 internal val bracketPairs = mapOf(
-    '(' to ')', '[' to ']', '{' to '}',
-    '<' to '>', '"' to '"', '\'' to '\''
+    '(' to ')', '[' to ']', '{' to '}', '<' to '>', '"' to '"', '\'' to '\''
 )
 
 interface ScriptTextAreaScope : UiScope {
@@ -147,9 +149,7 @@ fun UiScope.ScriptTextArea(
 
     val textArea = uiNode.createChild(scopeName, TextAreaNode::class, TextAreaNode.factory)
     textArea.listState = state
-    textArea.modifier
-        .size(width, height)
-        .onWheelX { state.scrollDpX(it.pointer.scroll.x * -20f) }
+    textArea.modifier.size(width, height).onWheelX { state.scrollDpX(it.pointer.scroll.x * -20f) }
         .onWheelY { state.scrollDpY(it.pointer.scroll.y * -50f) }
 
     var completionIndex: Int by textArea.remember(0)
@@ -164,8 +164,7 @@ fun UiScope.ScriptTextArea(
     textArea.modifier.setCompletionY = { completionY = it }
 
     textArea.lineProvider = lineProvider
-    textArea.setupContent(
-        lineProvider,
+    textArea.setupContent(lineProvider,
         withVerticalScrollbar,
         withHorizontalScrollbar,
         scrollbarColor,
@@ -177,20 +176,13 @@ fun UiScope.ScriptTextArea(
             if (completions.isNotEmpty()) {
 
                 Popup(
-                    modifier.completionX,
-                    modifier.completionY
+                    modifier.completionX, modifier.completionY
                 ) {
-                    modifier.padding(sizes.smallGap * 0.5f)
-                        .height(
-                            (24.dp + sizes.smallGap) * completions.size.coerceAtMost(10) + sizes.smallGap
-                        )
-                        .width(Grow(1f, max = FitContent))
-                        .background(null)
-                        .border(null)
-                        .zLayer(UiSurface.LAYER_POPUP)
+                    modifier.padding(sizes.smallGap * 0.5f).height(
+                        (24.dp + sizes.smallGap) * completions.size.coerceAtMost(10) + sizes.smallGap
+                    ).width(Grow(1f, max = FitContent)).background(null).border(null).zLayer(UiSurface.LAYER_POPUP)
 
-                    LazyColumn(
-                        withVerticalScrollbar = true,
+                    LazyColumn(withVerticalScrollbar = true,
                         withHorizontalScrollbar = false,
                         isScrollableHorizontal = true,
                         vScrollbarModifier = {
@@ -203,8 +195,7 @@ fun UiScope.ScriptTextArea(
                         },
                         scrollPaneModifier = {
                             it.allowOverscrollY = false
-                        }
-                    ) {
+                        }) {
                         modifier.margin(end = sizes.gap)
 
                         textArea.completionsList = (this as LazyListNode).state
@@ -214,8 +205,7 @@ fun UiScope.ScriptTextArea(
                     }
                 }
             }
-        }
-    ) {
+        }) {
         this.block()
 
         val pos = Minecraft.getInstance().mouseHandler
@@ -224,18 +214,12 @@ fun UiScope.ScriptTextArea(
             Popup(pos.xpos().toFloat(), pos.ypos().toFloat()) {
                 modifier.background(UiRenderer { node ->
                     node.apply {
-                        getUiPrimitives(UiSurface.LAYER_BACKGROUND)
-                            .localRoundRect(0f, 0f, widthPx, heightPx, sizes.smallGap.px, colors.background)
-                        getUiPrimitives(UiSurface.LAYER_BACKGROUND)
-                            .localRoundRectBorder(
-                                0f,
-                                0f,
-                                widthPx,
-                                heightPx,
-                                sizes.smallGap.px,
-                                sizes.borderWidth.px,
-                                colors.primaryVariant
-                            )
+                        getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRoundRect(
+                            0f, 0f, widthPx, heightPx, sizes.smallGap.px, colors.background
+                        )
+                        getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRoundRectBorder(
+                            0f, 0f, widthPx, heightPx, sizes.smallGap.px, sizes.borderWidth.px, colors.primaryVariant
+                        )
                     }
                 })
 
@@ -267,6 +251,47 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     override lateinit var linesHolder: LazyListNode
     val selectionHandler = SelectionHandler()
 
+    private fun getIndentDepth(text: String, indentSize: Int): Int {
+        var depth = 0
+        for (char in text) {
+            if (char == ' ') {
+                depth++
+            } else if (char == '\t') {
+                depth += indentSize - (depth % indentSize)
+            } else {
+                break
+            }
+        }
+        return depth
+    }
+
+    private inner class LineItem(parent: UiNode?, surface: UiSurface) : RowNode(parent, surface) {
+        lateinit var indents: IntArray
+
+        val font = MsdfFont(HACK_FONT, 18f)
+
+        private val guideColor = Color("3C3C4AFF").withAlpha(0.5f)
+
+        override fun render(ctx: KoolContext) {
+            super.render(ctx)
+
+            val textNode = children.getOrNull(2)
+            if (indents.isNotEmpty() && textNode != null) {
+                val spaceWidth = font.charWidth(' ').dp.px
+                val prims = getUiPrimitives(UiSurface.LAYER_BACKGROUND)
+                val textNodeXInRow = textNode.leftPx - this.leftPx
+                val guideStartX = textNodeXInRow + textNode.paddingStartPx
+
+                for (i in indents) {
+                    val x = guideStartX + i * spaceWidth - sizes.smallGap.px * 0.5f
+                    prims.localRect(x, 0f, 2f, heightPx, guideColor.withAlpha(if(selectionHandler.selectionCaretChar == i) 1f else 0.5f))
+                }
+            }
+        }
+    }
+
+    private val lineItemFactory: (UiNode, UiSurface) -> LineItem = { parent, surface -> LineItem(parent, surface) }
+
     fun setupContent(
         lineProvider: TextLineProvider,
         withVerticalScrollbar: Boolean,
@@ -286,10 +311,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
             linesHolder = uiNode.createChild(null, LazyListNode::class, LazyListNode.factory)
             linesHolder.state = listState
-            linesHolder.modifier
-                .orientation(ListOrientation.Vertical)
-                .layout(ColumnLayout)
-                .width(Grow.MinFit)
+            linesHolder.modifier.orientation(ListOrientation.Vertical).layout(ColumnLayout).width(Grow.MinFit)
 
             block.invoke(this@TextAreaNode)
 
@@ -326,13 +348,40 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         val textAreaMod = this@TextAreaNode.modifier
         val errors = modifier.errors
 
+        val indentStack = mutableListOf<Int>()
+        for (i in 0..<linesHolder.state.itemsFrom.use()) {
+            val line = lineProvider[i]
+            val indentIndex = line.text.indexOfFirst { it != ' ' }
+
+            indentIndex.let {
+                if (it == -1 && line.length != 0) return@let
+                while (it <= (indentStack.lastOrNull() ?: 0) && indentStack.isNotEmpty()) {
+                    indentStack.pop()
+                    if (line.length == 0) break
+                }
+                if (it > 0 && it != indentStack.lastOrNull()) {
+                    indentStack.push(it)
+                }
+            }
+        }
         selectionHandler.updateSelectionRange()
         linesHolder.indices(lineProvider.size) { lineIndex ->
             if (lineIndex >= lineProvider.size) return@indices
             val line = lineProvider[lineIndex]
+            val indentIndex = line.text.indexOfFirst { it != ' ' }
+            indentIndex.let {
+                if (it == -1 && line.length != 0) return@let
+                while (it <= (indentStack.lastOrNull() ?: 0) && indentStack.isNotEmpty()) {
+                    indentStack.pop()
+                    if (line.length == 0) break
+                }
+            }
             val font = MsdfFont(HACK_FONT, 18f)
 
-            Row(Grow.Std) {
+            val lineItem = uiNode.createChild(null, LineItem::class, lineItemFactory)
+            lineItem.indents = indentStack.toIntArray()
+            lineItem.modifier.width(Grow.Std).layout(RowLayout)
+            with(lineItem) {
                 val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp
 
 
@@ -341,18 +390,14 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                 }
 
                 Box(maxWidth) {
-                    modifier.margin(horizontal = sizes.smallGap)
-                        .alignY(AlignmentY.Center)
+                    modifier.margin(horizontal = sizes.smallGap).alignY(AlignmentY.Center)
                     Text((lineIndex + 1).toString()) {
-                        modifier.font(font).textColor(Color("717888FF"))
-                            .align(AlignmentX.End, AlignmentY.Center)
+                        modifier.font(font).textColor(Color("717888FF")).align(AlignmentX.End, AlignmentY.Center)
                     }
                 }
 
                 Box(sizes.borderWidth, Grow.Std) {
-                    modifier
-                        .backgroundColor(Color("3C3C4AFF"))
-                        .alignY(AlignmentY.Center)
+                    modifier.backgroundColor(Color("3C3C4AFF")).alignY(AlignmentY.Center)
                 }
 
                 setupTextLine(line, lineIndex, textAreaMod, lineProvider).apply {
@@ -361,6 +406,12 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                     if (lineIndex == this@TextAreaNode.modifier.selectionStartLine) {
                         modifier.border(RoundRectBorder(Color("3C3C4AFF"), sizes.smallGap, sizes.borderWidth))
                     }
+                }
+            }
+
+            indentIndex.let {
+                if (it > 0 && it != indentStack.lastOrNull()) {
+                    indentStack.push(it)
                 }
             }
         }
@@ -383,8 +434,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).toInt()).step(5)) {
                 val offset = if (i % 2 == 0) 5 else -5
                 addLine(
-                    Vec3f(i + 0f, uiNode.bottomPx + offset, 0f),
-                    Vec3f(i + 5f, uiNode.bottomPx - offset, 0f)
+                    Vec3f(i + 0f, uiNode.bottomPx + offset, 0f), Vec3f(i + 5f, uiNode.bottomPx - offset, 0f)
                 )
             }
 
@@ -424,29 +474,22 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         }
 
         if (this@TextAreaNode.modifier.onSelectionChanged != null) {
-            modifier
-                .onClick {
-                    when (it.pointer.leftButtonRepeatedClickCount) {
-                        1 -> selectionHandler.onSelectStart(this, lineIndex, it, false)
-                        2 -> selectionHandler.selectWord(this, line.text, lineIndex, it)
-                        3 -> selectionHandler.selectLine(this, line.text, lineIndex)
-                    }
+            modifier.onClick {
+                when (it.pointer.leftButtonRepeatedClickCount) {
+                    1 -> selectionHandler.onSelectStart(this, lineIndex, it, false)
+                    2 -> selectionHandler.selectWord(this, line.text, lineIndex, it)
+                    3 -> selectionHandler.selectLine(this, line.text, lineIndex)
                 }
-                .onDragStart { selectionHandler.onSelectStart(this, lineIndex, it, true) }
-                .onDrag { selectionHandler.onDrag(it) }
-                .onDragEnd { selectionHandler.onSelectEnd() }
+            }.onDragStart { selectionHandler.onSelectStart(this, lineIndex, it, true) }
+                .onDrag { selectionHandler.onDrag(it) }.onDragEnd { selectionHandler.onSelectEnd() }
                 .onPointer { selectionHandler.onPointer(this, lineIndex, it) }
 
             modifier.padding(start = textAreaMod.lineStartPadding, end = textAreaMod.lineEndPadding)
             if (lineIndex == 0) {
-                modifier
-                    .textAlignY(AlignmentY.Bottom)
-                    .padding(top = textAreaMod.firstLineTopPadding)
+                modifier.textAlignY(AlignmentY.Bottom).padding(top = textAreaMod.firstLineTopPadding)
             }
             if (lineIndex == lineProvider.lastIndex) {
-                modifier
-                    .textAlignY(AlignmentY.Top)
-                    .padding(bottom = textAreaMod.lastLineBottomPadding)
+                modifier.textAlignY(AlignmentY.Top).padding(bottom = textAreaMod.lastLineBottomPadding)
             }
 
             selectionHandler.applySelectionRange(this, line, lineIndex)
@@ -494,34 +537,31 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
                 KeyboardInput.KEY_ENTER, KeyboardInput.KEY_NP_ENTER -> {
                     try {
-                        val whitespaces = selectionHandler.caretLine?.text
-                            ?.let {
-                                var whitespaces = 0
-                                for(c in it) {
-                                    if(c == ' ' && whitespaces < selectionHandler.selectionCaretChar) whitespaces++
-                                    else break
-                                }
-                                whitespaces
+                        val whitespaces = selectionHandler.caretLine?.text?.let {
+                            var whitespaces = 0
+                            for (c in it) {
+                                if (c == ' ' && whitespaces < selectionHandler.selectionCaretChar) whitespaces++
+                                else break
                             }
-                            ?: 0
+                            whitespaces
+                        } ?: 0
 
-                        val isLambda = selectionHandler.caretLine?.text
-                            ?.substring(0, selectionHandler.selectionCaretChar.coerceAtLeast(0))
-                            ?.trim()?.endsWith("{") == true
+                        val isLambda = selectionHandler.caretLine?.text?.substring(
+                            0, selectionHandler.selectionCaretChar.coerceAtLeast(0)
+                        )?.trim()?.endsWith("{") == true
 
                         editText("\n" + " ".repeat(whitespaces + if (isLambda) 4 else 0))
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
                 }
+
                 KeyboardInput.KEY_CURSOR_LEFT -> selectionHandler.moveCaretLeft(
-                    wordWise = keyEvent.isCtrlDown,
-                    select = keyEvent.isShiftDown
+                    wordWise = keyEvent.isCtrlDown, select = keyEvent.isShiftDown
                 )
 
                 KeyboardInput.KEY_CURSOR_RIGHT -> selectionHandler.moveCaretRight(
-                    wordWise = keyEvent.isCtrlDown,
-                    select = keyEvent.isShiftDown
+                    wordWise = keyEvent.isCtrlDown, select = keyEvent.isShiftDown
                 )
 
                 KeyboardInput.KEY_CURSOR_UP -> selectionHandler.moveCaretLineUp(select = keyEvent.isShiftDown)
@@ -583,17 +623,12 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
             // Заменяем выделение на обёртку (открывающая + оригинал + закрывающая)
             editor.replaceText(
-                fromLine, toLine,
-                fromChar, toChar,
-                "$char$selectedText$closing",
-                this
+                fromLine, toLine, fromChar, toChar, "$char$selectedText$closing", this
             )
 
             // Ставим новое выделение ровно на ту же часть, но внутри скобок
             selectionHandler.selectionChanged(
-                fromLine, toLine,
-                fromChar + 1,
-                fromChar + 1 + selectedText.length
+                fromLine, toLine, fromChar + 1, fromChar + 1 + selectedText.length
             )
 
         } else {
@@ -643,22 +678,15 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             val char = selectionHandler.selectionCaretChar
             val text = lineProvider[line].text
             // сколько пробелов подряд перед кареткой?
-            val spacesToRemove = text
-                .take(char)
-                .takeLastWhile { it == ' ' }
-                .length
-                .coerceAtMost(4)
+            val spacesToRemove = text.take(char).takeLastWhile { it == ' ' }.length.coerceAtMost(4)
 
             if (spacesToRemove > 0) {
                 editor.replaceText(
-                    line, line,
-                    char - spacesToRemove, char,
-                    "", this
+                    line, line, char - spacesToRemove, char, "", this
                 )
                 // ставим каретку на место после удаления
                 selectionHandler.selectionChanged(
-                    line, line,
-                    char - spacesToRemove, char - spacesToRemove
+                    line, line, char - spacesToRemove, char - spacesToRemove
                 )
             }
             return
@@ -673,16 +701,11 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         for (line in fromLine..toLine) {
             val text = lineProvider[line].text
-            val count = text
-                .takeWhile { it == ' ' }
-                .length
-                .coerceAtMost(4)
+            val count = text.takeWhile { it == ' ' }.length.coerceAtMost(4)
 
             if (count > 0) {
                 editor.replaceText(
-                    line, line,
-                    0, count,
-                    "", this
+                    line, line, 0, count, "", this
                 )
                 if (line == fromLine) removedAtStart = count
                 if (line == toLine) removedAtEnd = count
@@ -694,8 +717,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         val newToChar = (selectionHandler.selectionToChar - removedAtEnd).coerceAtLeast(0)
 
         selectionHandler.selectionChanged(
-            fromLine, toLine,
-            newFromChar, newToChar
+            fromLine, toLine, newFromChar, newToChar
         )
     }
 
@@ -705,9 +727,12 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             editor.insertText(selectionHandler.selectionCaretLine, selectionHandler.selectionCaretChar, text, this)
         } else {
             editor.replaceText(
-                selectionHandler.selectionFromLine, selectionHandler.selectionToLine,
-                selectionHandler.selectionFromChar, selectionHandler.selectionToChar,
-                text, this
+                selectionHandler.selectionFromLine,
+                selectionHandler.selectionToLine,
+                selectionHandler.selectionFromChar,
+                selectionHandler.selectionToChar,
+                text,
+                this
             )
         }
         selectionHandler.selectionChanged(caretPos.y, caretPos.y, caretPos.x, caretPos.x)
@@ -800,8 +825,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                 caretLineScope = attributedText
             }
 
-            attributedText.modifier
-                .selectionRange(selStartPos, selCaretPos)
+            attributedText.modifier.selectionRange(selStartPos, selCaretPos)
                 .isCaretVisible(isFocused.use() && lineIndex == selectionCaretLine)
         }
 
@@ -1009,11 +1033,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             selectionStartChar = startChar
             selectionCaretChar = caretChar
 
-            if (startLine != modifier.selectionStartLine
-                || caretLine != modifier.selectionCaretLine
-                || startChar != modifier.selectionStartChar
-                || caretChar != modifier.selectionCaretChar
-            ) {
+            if (startLine != modifier.selectionStartLine || caretLine != modifier.selectionCaretLine || startChar != modifier.selectionStartChar || caretChar != modifier.selectionCaretChar) {
 
                 modifier.setSelectionRange(startLine, caretLine, startChar, caretChar)
                 resetCaretBlinkState()
@@ -1098,8 +1118,7 @@ class DefaultTextEditorHandler(val text: MutableList<TextLine> = mutableStateLis
 
         val caretPos = MutableVec2i()
         val attr = editAttribs ?: before.lastAttribs() ?: after.firstAttribs() ?: TextAttributes(
-            MsdfFont.DEFAULT_FONT,
-            Color.GRAY
+            MsdfFont.DEFAULT_FONT, Color.GRAY
         )
         val replaceLines = replacement.toLines(attr)
 
@@ -1110,8 +1129,7 @@ class DefaultTextEditorHandler(val text: MutableList<TextLine> = mutableStateLis
         } else {
             caretPos.x = replaceLines.last().length
             listOf(before + replaceLines[0]) + replaceLines.subList(
-                1,
-                replaceLines.lastIndex
+                1, replaceLines.lastIndex
             ) + (replaceLines.last() + after)
         }
 
