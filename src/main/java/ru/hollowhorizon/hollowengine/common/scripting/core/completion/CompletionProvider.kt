@@ -187,7 +187,7 @@ class CompletionProvider(
 
             val extras = mutableListOf<CompletionVariant>()
 
-            if("pos".startsWith(prefix)) {
+            if("pos".startsWith(prefix) && isTipsManagerCompletion) {
                 var pos = Minecraft.getInstance().player?.position() ?: Vec3.ZERO
                 var completion = "pos(${pos.x.roundTo(2)}, ${pos.y.roundTo(2)}, ${pos.z.roundTo(2)})"
                 val match = "pos".mapIndexedNotNull { i, c -> if(prefix.getOrNull(i) == c) i else null }
@@ -196,7 +196,7 @@ class CompletionProvider(
                 completion = "pos(${pos.x.roundTo(2)}, ${pos.y.roundTo(2)}, ${pos.z.roundTo(2)})"
                 extras.add(CompletionVariant(completion, completion, "Координаты взгляда игрока", CompletionVariant.Icon.METHOD, null, match))
             }
-            if("item".startsWith(prefix)) {
+            if("item".startsWith(prefix) && isTipsManagerCompletion) {
                 val player = Minecraft.getInstance().player!!
                 val item = player.mainHandItem
                 val location = "\"" + BuiltInRegistries.ITEM.getKey(item.item).toString() + "\""
