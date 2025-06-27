@@ -15,6 +15,7 @@ fun UiScope.FileDockingTabsBar(
     windowDockable: UiDockable,
     isDragToUndock: Boolean = true,
     onCloseAction: ((Dockable) -> Unit)? = null,
+    onRightClick: (Dockable, PointerEvent) -> Unit = { dockable, event -> }
 ): Boolean {
     val dockNode = windowDockable.dockedTo.use()
     val nodeCount = dockNode?.dockedItems?.use()?.count { !it.isHidden } ?: 0
@@ -36,6 +37,8 @@ fun UiScope.FileDockingTabsBar(
                                     onCloseAction?.invoke(item)
                                 } else if (it.isLeftClick) {
                                     dockNode.bringToTop(item)
+                                } else if(it.isRightClick) {
+                                    onRightClick(item, it)
                                 }
                             }
 
@@ -90,9 +93,10 @@ fun UiScope.FileTitleBar(
     isDraggable: Boolean = true,
     showTabsIfDocked: Boolean = true,
     onCloseAction: ((Dockable) -> Unit)? = null,
+    onRightClick: (Dockable, PointerEvent) -> Unit = { dockable, event ->}
 ) {
     val isTabbed = if (showTabsIfDocked) {
-        FileDockingTabsBar(windowDockable, onCloseAction = onCloseAction)
+        FileDockingTabsBar(windowDockable, onCloseAction = onCloseAction, onRightClick = onRightClick)
     } else {
         false
     }
@@ -112,6 +116,8 @@ fun UiScope.FileTitleBar(
                 .onClick {
                     if (it.pointer.isMiddleButtonReleased) {
                         onCloseAction?.invoke(windowDockable)
+                    } else if(it.isRightClick) {
+                        onRightClick(windowDockable, it)
                     }
                 }
 

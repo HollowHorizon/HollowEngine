@@ -251,20 +251,6 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     override lateinit var linesHolder: LazyListNode
     val selectionHandler = SelectionHandler()
 
-    private fun getIndentDepth(text: String, indentSize: Int): Int {
-        var depth = 0
-        for (char in text) {
-            if (char == ' ') {
-                depth++
-            } else if (char == '\t') {
-                depth += indentSize - (depth % indentSize)
-            } else {
-                break
-            }
-        }
-        return depth
-    }
-
     private inner class LineItem(parent: UiNode?, surface: UiSurface) : RowNode(parent, surface) {
         lateinit var indents: IntArray
 

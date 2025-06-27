@@ -1,11 +1,15 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
+import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentScreen
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.Layout
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 
 abstract class FileData(
@@ -25,14 +29,39 @@ abstract class FileData(
         Column(Grow.Std, Grow.Std) {
             modifier.margin(sizes.smallGap)
 
+            val overlay = remember { ItemPopupMenu<Dockable>("Title-File-Overlay") }
+            overlay()
             FileTitleBar(dockable, onCloseAction = { dockable ->
-                val file = IdeContent.files.values.find { it.dockable == dockable } ?: return@FileTitleBar
-                (Minecraft.getInstance().screen as ScriptingEnvironmentScreen).dock
-                    .removeDockableSurface(file.surface)
-                IdeContent.files.values.remove(file)
+                closeFile(dockable)
+            }, onRightClick = { dockable, event ->
+                val menu = SubMenuItem("File-Context-Menu") {
+                    createMenu()
+                    divider()
+
+                    item("Сохранить", "hollowengine:textures/gui/icons/icon_45.png") {
+                        save()
+                    }
+                    item("Закрыть", "hollowengine:textures/gui/icons/close.png") {
+                        closeFile(dockable)
+                    }
+                }
+                overlay.hide()
+                overlay.show(Vec2f(event.screenPosition), menu, dockable)
             })
             this@FileData()
         }
+    }
+
+    private fun closeFile(dockable: Dockable) {
+        val file = IdeContent.files.values.find { it.dockable == dockable } ?: return
+        (Minecraft.getInstance().screen as ScriptingEnvironmentScreen).dock
+            .removeDockableSurface(file.surface)
+        IdeContent.files.values.remove(file)
+        close()
+    }
+
+    open fun SubMenuItem<Dockable>.createMenu() {
+        // Можно расширять в наследниках
     }
 
     abstract fun save()

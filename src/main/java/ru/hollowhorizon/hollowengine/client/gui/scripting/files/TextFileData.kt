@@ -1,9 +1,13 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
+import com.facebook.ktfmt.format.Formatter
+import com.facebook.ktfmt.format.Formatter.KOTLINLANG_FORMAT
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.launchOnMainThread
+import de.fabmax.kool.util.logE
 import kotlinx.coroutines.*
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.cli.jvm.compiler.messageCollector
@@ -20,6 +24,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.SaveFilePacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextEditorHandler
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ListTextLineProvider
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionProvider
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.OnCompletionsEvent
@@ -45,6 +50,7 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
 
     var context: ScriptingContext? = null
     lateinit var modifier: ScriptTextAreaModifier
+    lateinit var area: ScriptTextAreaScope
 
     init {
         EventBus.register(::onCompletionsEvent)
@@ -90,6 +96,7 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
         ) {
             modifier.margin(vertical = sizes.smallGap)
             this@TextFileData.modifier = modifier
+            this@TextFileData.area = this
             installSelectionHandler(lines) { startLine, caretLine, startChar, caretChar ->
                 modifier.completions.clear()
 
@@ -188,7 +195,24 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
         }
 
     override fun close() {
+        super.close()
         EventBus.unregister(::onCompletionsEvent)
+    }
+
+    override fun SubMenuItem<Dockable>.createMenu() {
+        item("Форматировать", "hollowengine:textures/gui/icons/icon_41.png") {
+            val editorHandler = editorHandler as? ScriptTextEditorHandler
+
+            try {
+                val original = lines.joinToString("\n") { it.text }
+                val new = Formatter.format(KOTLINLANG_FORMAT, original)
+                if (original == new) return@item
+                editorHandler?.replaceAll(new, area)
+                modifier.onSelectionChanged?.let { it(-1, -1, 0, 0) }
+            } catch (ex: Exception) {
+                logE { ex.stackTraceToString() }
+            }
+        }
     }
 }
 
