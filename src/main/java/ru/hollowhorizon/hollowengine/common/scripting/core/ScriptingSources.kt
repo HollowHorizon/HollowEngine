@@ -107,7 +107,7 @@ fun setupFabric() {
     val classpath = forgeClasspath()
 
     val gameJars = FMLLoader.getLaunchHandler().minecraftPaths.minecraftPaths
-        .map { File(it.absolutePathString()) }
+        .map { File(it.absolutePathString()) }.filter { it.isFile && it.exists() }
 
     if (isProduction) {
         remapJars(MAPPINGS, gameJars, deobfClassPath,

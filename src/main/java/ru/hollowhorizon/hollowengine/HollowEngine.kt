@@ -10,6 +10,8 @@ import ru.hollowhorizon.hc.api.Init
 import ru.hollowhorizon.hc.client.kool.KoolManager
 import ru.hollowhorizon.hc.common.config.HollowConfig
 import ru.hollowhorizon.hc.common.config.hollowConfig
+import ru.hollowhorizon.hc.common.utils.isPhysicalClient
+import ru.hollowhorizon.hollowengine.client.HollowEngineClient
 import ru.hollowhorizon.hollowengine.client.gui.overlay.BetaWarning
 import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
 import ru.hollowhorizon.hollowengine.common.ai.ShapesIncApi
@@ -39,13 +41,10 @@ object HollowEngine {
 
         loadEvents()
 
-        RenderSystem.recordRenderCall {
-            KoolManager.context.addScene(CompilationStatus.overlay)
-            KoolManager.context.addScene(BetaWarning.overlay)
-        }
+        if(isPhysicalClient) HollowEngineClient
 
         //? if forge {
-        /*setupCamera()
+        /*if(isPhysicalClient) setupCamera()
         *///?}
     }
 }
