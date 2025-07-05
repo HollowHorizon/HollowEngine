@@ -1,18 +1,17 @@
 package ru.hollowhorizon.hollowengine.client
 
-import com.mojang.blaze3d.systems.RenderSystem
-import ru.hollowhorizon.hc.api.Init
-import ru.hollowhorizon.hc.client.kool.KoolManager
+import ru.hollowhorizon.hc.client.kool.gl.render
 import ru.hollowhorizon.hc.common.events.ClientOnly
-import ru.hollowhorizon.hollowengine.client.gui.overlay.BetaWarning
+import ru.hollowhorizon.hc.common.events.SubscribeEvent
+import ru.hollowhorizon.hc.common.events.client.render.GuiOverlay
+import ru.hollowhorizon.hc.common.events.client.render.RenderOverlayEvent
 import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
 
 @ClientOnly
 object HollowEngineClient {
-    init {
-        RenderSystem.recordRenderCall {
-            KoolManager.context.addScene(CompilationStatus.overlay)
-            KoolManager.context.addScene(BetaWarning.overlay)
-        }
+    @SubscribeEvent
+    fun onRenderOverlay(event: RenderOverlayEvent.Pre) {
+        if (event.overlay != GuiOverlay.HOTBAR) return
+        CompilationStatus.overlay.render()
     }
 }

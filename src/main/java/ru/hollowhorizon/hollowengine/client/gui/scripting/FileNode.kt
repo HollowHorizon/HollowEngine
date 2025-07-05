@@ -231,7 +231,7 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
 
 @HollowPacketHandler
 @Serializable
-class RequestFolderPacket(private var folder: String) : RequestPacket<RequestFolderPacket>() {
+class RequestFolderPacket(private var folder: String) : RequestPacket() {
     val children = mutableListOf<Child>()
 
     override fun retrieveValue(player: ServerPlayer) {
