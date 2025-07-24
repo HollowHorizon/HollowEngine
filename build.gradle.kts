@@ -85,6 +85,14 @@ dependencies {
 
     compileOnly("lib:bbs:1.2.6-${container.minecraftVersion}-deobf")
 
+    install("org.jetbrains.exposed:exposed-core:0.37.3")
+    install("org.jetbrains.exposed:exposed-dao:0.37.3")
+    install("org.jetbrains.exposed:exposed-jdbc:0.37.3")
+    install("com.h2database:h2:1.4.200")
+
+    install("org.eclipse.lsp4j:org.eclipse.lsp4j:0.24.0")
+    install("org.jetbrains.kotlin:kotlin-sam-with-receiver-compiler-plugin:$kotlinVersion")
+
     //modRuntimeOnly("mezz.jei:jei-1.20.1-${modPlatform}:$jei")
 }
 
@@ -92,7 +100,7 @@ fun DependencyHandlerScope.setupScripting() {
     install("org.jetbrains.kotlin:kotlin-scripting-jvm:$kotlinVersion", true)
     install("org.jetbrains.kotlin:kotlin-scripting-jvm-host:$kotlinVersion", true)
     install("org.jetbrains.kotlin:kotlin-script-runtime:$kotlinVersion", true)
-    install("org.jetbrains.kotlin:kotlin-compiler-embeddable-mcfriendly:$kotlinVersion", true) // I Hate forge modules system...
+    install("org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion", true) // I Hate forge modules system...
     install("org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable:$kotlinVersion", true)
     install("org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable:$kotlinVersion", true)
     install("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion", true)

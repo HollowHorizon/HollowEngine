@@ -9,8 +9,8 @@ import de.fabmax.kool.util.toBuffer
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 
-class ImageFileData(project: IdeContent, name: String, path: String, var image: ByteArray) :
-    FileData(project, name, path) {
+class ImageFileData(name: String, path: String, var image: ByteArray) :
+    FileData(name, path) {
 
 
     override fun save() {
@@ -22,7 +22,7 @@ class ImageFileData(project: IdeContent, name: String, path: String, var image: 
 
         Image(remember {
             Texture2d(mipMapping = MipMapping.Off, samplerSettings = SamplerSettings().nearest()) {
-                Assets.loadImageFromBuffer(image.toBuffer(), "image/png", )
+                Assets.loadImageFromBuffer(image.toBuffer(), "image/png")
             }
         }) {
             modifier.imageSize(ImageSize.FitContent)

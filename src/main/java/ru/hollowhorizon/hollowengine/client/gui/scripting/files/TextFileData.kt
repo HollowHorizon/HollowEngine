@@ -9,44 +9,32 @@ import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.launchOnMainThread
 import de.fabmax.kool.util.logE
 import kotlinx.coroutines.*
-import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
-import org.jetbrains.kotlin.cli.jvm.compiler.messageCollector
-import org.jetbrains.kotlin.com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.config.languageVersionSettings
-import org.jetbrains.kotlin.psi.KtElement
-import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.resolve.BindingContext
-import ru.hollowhorizon.hc.common.coroutines.scopeAsync
+import org.eclipse.lsp4j.DidOpenTextDocumentParams
+import org.eclipse.lsp4j.PublishDiagnosticsParams
+import org.eclipse.lsp4j.TextDocumentItem
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.SaveFilePacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextEditorHandler
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ListTextLineProvider
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.psi.PsiFileEditor
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextAreaModifier
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextAreaScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
-import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
-import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionProvider
+import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.OnCompletionsEvent
-import ru.hollowhorizon.hollowengine.common.scripting.core.completion.ScriptColorizer
-import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptParser
 import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptingContext
+import java.net.URI
 import java.util.concurrent.Future
 import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.coroutineContext
-import kotlin.script.experimental.api.isError
 
-var currentLine = 0
-var currentColumn = 0
 
-class TextFileData(project: IdeContent, name: String, path: String, code: String) :
-    FileData(project, name, path) {
+class TextFileData(name: String, path: String, code: String) :
+    FileData(name, path) {
     private val lines = MutableStateList(code.lines().map {
         TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 18f), Color.WHITE)))
     }.toMutableList())
     private val editorHandler = ScriptTextEditorHandler(lines)
-    private var textHash = code.hashCode()
-    private var bindingContext = BindingContext.EMPTY
+    private var textVersion = 0
 
     var context: ScriptingContext? = null
     lateinit var modifier: ScriptTextAreaModifier
@@ -54,8 +42,20 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
 
     init {
         EventBus.register(::onCompletionsEvent)
-        scopeAsync { compileText(code) }
+        KotlinLanguageServer.textDocumentService.didOpen(
+            DidOpenTextDocumentParams(
+                TextDocumentItem(
+                    filePath,
+                    "kotlin",
+                    textVersion++,
+                    code
+                )
+            )
+        )
     }
+
+    private val editor = PsiFileEditor(KotlinLanguageServer.sourcePath.currentVersion(URI.create(filePath)))
+
 
     fun setText(text: String) {
         lines.clear()
@@ -66,7 +66,7 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
     }
 
     fun onCompletionsEvent(event: OnCompletionsEvent) = launchOnMainThread {
-        if (event.fileName != fileName || event.hashCode != textHash) return@launchOnMainThread
+        if (event.fileName != fileName || event.textVersion != textVersion) return@launchOnMainThread
 
         modifier.completions.clear()
         modifier.completions.addAll(event.completions)
@@ -74,9 +74,9 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
 
     }
 
-    fun onErrorsEvent(errors: List<ScriptError>) {
+    fun onErrorsEvent(errors: PublishDiagnosticsParams) {
         modifier.errors.clear()
-        modifier.errors.addAll(errors)
+        modifier.errors.addAll(errors.diagnostics)
         surface.triggerUpdate()
 
     }
@@ -89,110 +89,67 @@ class TextFileData(project: IdeContent, name: String, path: String, code: String
     override fun UiScope.compose() {
         modifier.backgroundColor(colors.backgroundVariant)
 
-        ScriptTextArea(
-            ListTextLineProvider(lines),
-            vScrollbarModifier = { it.width(sizes.smallGap) },
-            hScrollbarModifier = { it.height(sizes.smallGap) },
-        ) {
-            modifier.margin(vertical = sizes.smallGap)
-            this@TextFileData.modifier = modifier
-            this@TextFileData.area = this
-            installSelectionHandler(lines) { startLine, caretLine, startChar, caretChar ->
-                modifier.completions.clear()
-
-                currentLine = modifier.selectionStartLine
-                currentColumn = modifier.selectionStartChar
-                val text = lines.joinToString("\n") { it.text }
-                val newHash = text.hashCode()
-                if (textHash != newHash || context?.isDisposed == true) {
-                    textHash = newHash
-                    ActionManager.launch {
-                        compileText(text)
-                        save()
-                    }
-                } else {
-                    context?.let { colorizeText(it) }
-                }
-            }
-
-            modifier.editorHandler(editorHandler)
-        }
-    }
-
-    private suspend fun compileText(text: String) {
-        context?.close()
-        val context = ScriptParser.parse(text, fileName).also { context = it }
-        coroutineContext[ActionManager.ScriptContext.Key]?.context = context
-
-        val files = mutableListOf(context.file)
-        val completionProvider = CompletionProvider(files, fileName, currentLine, currentColumn)
-
-        val (result, completions) = completionProvider.getResult(context.environment)
-        bindingContext = result.bindingContext
-        yield()
-
-        // Если выделен текст, то подсказки не нужны
-        if (modifier.selectionStartChar == modifier.selectionStartChar) {
-            onCompletionsEvent(OnCompletionsEvent(fileName, completions, text.hashCode()))
+        editor.apply {
+            render()
         }
 
-        AnalyzerWithCompilerReport(
-            context.environment.messageCollector,
-            context.environment.configuration.languageVersionSettings,
-            false
-        ).analyzeAndReport(files) { result }
-        yield()
-
-        colorizeText(context)
-        context.messageCollector.diagnostics
-            .filter { it.isError() }
-            .map {
-                ScriptError(
-                    ScriptError.Severity.entries[it.severity.ordinal],
-                    it.message,
-                    it.sourcePath ?: "",
-                    it.location?.start?.line ?: 0,
-                    it.location?.start?.col ?: 0,
-                    it.exception
-                )
-            }.apply { onErrorsEvent(this) }
-        context.messageCollector.clear()
-
+//        ScriptTextArea(
+//            ListTextLineProvider(lines),
+//            vScrollbarModifier = { it.width(sizes.smallGap) },
+//            hScrollbarModifier = { it.height(sizes.smallGap) },
+//        ) {
+//            modifier.margin(vertical = sizes.smallGap)
+//            this@TextFileData.modifier = modifier
+//            this@TextFileData.area = this
+//            installSelectionHandler(lines) { startLine, caretLine, startChar, caretChar ->
+//                modifier.completions.clear()
+//
+//                currentLine = modifier.selectionStartLine
+//                currentColumn = modifier.selectionStartChar
+//                val text = lines.joinToString("\n") { it.text }
+//
+//                save()
+//
+//                KotlinLanguageServer.textDocumentService.didChange(
+//                    DidChangeTextDocumentParams(
+//                        VersionedTextDocumentIdentifier(
+//                            filePath,
+//                            textVersion++,
+//                        ),
+//                        listOf(TextDocumentContentChangeEvent(text))
+//                    )
+//                )
+//                KotlinLanguageServer.textDocumentService.completion(
+//                    CompletionParams(
+//                        TextDocumentIdentifier(filePath),
+//                        Position(modifier.selectionStartLine, modifier.selectionStartChar)
+//                    )
+//                ).whenComplete { result, error ->
+//                    if (error != null) {
+//                        logE { "Error fetching completions: ${error.message}" }
+//                        return@whenComplete
+//                    }
+//                    if (result == null) return@whenComplete
+//
+//                    val completions = result.right.items.map { completion ->
+//                        CompletionVariant(
+//                            completion.insertText ?: completion.label,
+//                            completion.label,
+//                            completion.detail ?: "",
+//                            CompletionVariant.Icon.fromKind(completion.kind),
+//                            null,
+//                            emptyList(),
+//                            completion.additionalTextEdits?.map { it.newText } ?: emptyList(),
+//                        )
+//                    }
+//                    modifier.completions.clear()
+//                    modifier.completions.addAll(completions)
+//                }
+//            }
+//
+//            modifier.editorHandler(editorHandler)
+//        }
     }
-
-    private fun colorizeText(context: ScriptingContext) {
-        if (textHash == 0) return
-
-        val newLines = ScriptColorizer.colorize(context.file, bindingContext, expressionAtCaret)
-
-        val text = newLines.joinToString("\n") { it.text }
-
-        if (text.hashCode() != textHash) return
-
-        lines.clear()
-        lines.addAll(newLines)
-        surface.triggerUpdate()
-    }
-
-    private fun getOffsetFromLineAndChar(file: KtFile, line: Int, charNumber: Int): Int {
-        if (line >= file.viewProvider.document.lineCount) return -1
-        val lineStart = file.viewProvider.document.getLineStartOffset(line)
-        return lineStart + charNumber
-    }
-
-    private val expressionAtCaret: PsiElement?
-        get() {
-            if (modifier.selectionStartChar != modifier.selectionCaretChar || modifier.selectionStartLine != modifier.selectionCaretLine) return null
-            if (modifier.selectionStartLine == -1) return null
-            val context = context ?: return null
-
-            val caretPositionOffset =
-                getOffsetFromLineAndChar(context.file, modifier.selectionCaretLine, modifier.selectionCaretChar)
-            if (caretPositionOffset == -1) return null
-            var element = context.file.findElementAt(caretPositionOffset)
-            if (element == null || element !is KtElement) element = context.file.findElementAt(caretPositionOffset - 1)
-            return element
-        }
 
     override fun close() {
         super.close()

@@ -16,8 +16,10 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.TextCaretNavigation
 import net.minecraft.client.Minecraft
+import org.eclipse.lsp4j.Diagnostic
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
+import org.jetbrains.kotlin.resolve.diagnostics.Diagnostics
 import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.getCharAfterSelection
@@ -76,7 +78,7 @@ open class ScriptTextAreaModifier(surface: UiSurface) : UiModifier(surface) {
     var onSelectionChanged: ((Int, Int, Int, Int) -> Unit)? by property(null)
 
     val completions by property(mutableListOf<CompletionVariant>())
-    val errors by property(mutableListOf<ScriptError>())
+    val errors by property(mutableListOf<Diagnostic>())
 
     var completionIndex by property(-1)
     var completionX: Float by property(0f)
@@ -371,7 +373,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                 val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp
 
 
-                errors.find { it.line - 1 == lineIndex }?.let { error ->
+                errors.find { it.range.start.line == lineIndex }?.let { error ->
                     setupError(error, font, line.text, maxWidth)
                 }
 
@@ -403,8 +405,8 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         }
     }
 
-    private fun UiScope.setupError(error: ScriptError, font: MsdfFont, text: String, maxWidth: Dp) {
-        val column = error.column - 1
+    private fun UiScope.setupError(error: Diagnostic, font: MsdfFont, text: String, maxWidth: Dp) {
+        val column = error.range.start.character
         val startPos = if (text.isEmpty()) 0f else font.textDimensions(
             text.substring(0, column.coerceAtMost(text.lastIndex))
         ).width.dp.px
@@ -412,7 +414,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             text.substring(0, TextCaretNavigation.endOfWord(text, column).coerceAtMost(text.lastIndex) + 1)
         ).width.dp.px
 
-        if (error.severity.ordinal > 2) getUiPrimitives().addTriangulatedLineMesh {
+        if (error.severity.ordinal >= 0) getUiPrimitives().addTriangulatedLineMesh {
             this.width = 3f
             this.color = Color.RED
 

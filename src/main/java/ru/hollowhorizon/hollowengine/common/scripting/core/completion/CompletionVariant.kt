@@ -3,10 +3,10 @@ package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.TextCaretNavigation
+import org.eclipse.lsp4j.CompletionItemKind
 import org.jetbrains.kotlin.builtins.isFunctionOrSuspendFunctionType
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
-import org.jetbrains.kotlin.psi.KtPsiFactory
 import ru.hollowhorizon.hc.client.kool.minecraft.Image
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextAreaNode
@@ -192,8 +192,18 @@ data class CompletionVariant(
     }
 
     enum class Icon {
-        PACKAGE, CLASS, METHOD, VARIABLE, UNKNOWN
+        PACKAGE, CLASS, METHOD, VARIABLE, UNKNOWN;
+
+        companion object {
+            fun fromKind(kind: CompletionItemKind) = when (kind) {
+                CompletionItemKind.File, CompletionItemKind.Folder -> PACKAGE
+                CompletionItemKind.Class, CompletionItemKind.Enum, CompletionItemKind.Interface -> CLASS
+                CompletionItemKind.Method, CompletionItemKind.Function, CompletionItemKind.Operator -> METHOD
+                CompletionItemKind.Field, CompletionItemKind.Variable, CompletionItemKind.Property, CompletionItemKind.Value -> VARIABLE
+                else -> UNKNOWN
+            }
+        }
     }
 }
 
-class OnCompletionsEvent(val fileName: String, val completions: List<CompletionVariant>, val hashCode: Int) : Event
+class OnCompletionsEvent(val fileName: String, val completions: List<CompletionVariant>, val textVersion: Int) : Event

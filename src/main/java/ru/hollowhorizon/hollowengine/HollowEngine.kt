@@ -1,24 +1,24 @@
 package ru.hollowhorizon.hollowengine
 
-import com.mojang.blaze3d.systems.RenderSystem
-import de.fabmax.kool.scene.Scene
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.apache.logging.log4j.LogManager
+import org.eclipse.lsp4j.InitializeParams
 import ru.hollowhorizon.hc.api.Init
-import ru.hollowhorizon.hc.client.kool.KoolManager
 import ru.hollowhorizon.hc.common.config.HollowConfig
 import ru.hollowhorizon.hc.common.config.hollowConfig
 import ru.hollowhorizon.hc.common.utils.isPhysicalClient
 import ru.hollowhorizon.hollowengine.client.HollowEngineClient
-import ru.hollowhorizon.hollowengine.client.gui.overlay.BetaWarning
-import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
 import ru.hollowhorizon.hollowengine.common.ai.ShapesIncApi
+import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageClient
+import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
+import ru.hollowhorizon.hollowengine.common.project.kt.startServer
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.example.HollowScript
 import ru.hollowhorizon.hollowengine.common.scripting.core.setupScripting
 import ru.hollowhorizon.hollowengine.common.scripting.events.loadEvents
+
 //? if forge
 /*import ru.hollowhorizon.hollowengine.client.render.setupCamera*/
 
@@ -41,11 +41,15 @@ object HollowEngine {
 
         loadEvents()
 
-        if(isPhysicalClient) HollowEngineClient
+        if (isPhysicalClient) HollowEngineClient
 
         //? if forge {
         /*if(isPhysicalClient) setupCamera()
         *///?}
+
+        KotlinLanguageServer.initialize(InitializeParams().apply {
+        })
+        KotlinLanguageServer.connect(KotlinLanguageClient)
     }
 }
 
@@ -54,6 +58,7 @@ object HollowEngine {
 class EngineConfig : HollowConfig() {
     @SerialName("ide_config")
     var ideConfig = IDEConfig()
+
     @SerialName("shapes_token")
     val shapesToken = ""
 

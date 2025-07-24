@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.scene
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hc.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.fsm.StateNode
+import ru.hollowhorizon.hollowengine.common.npcs.dialogues.dialogue
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.defaultImports

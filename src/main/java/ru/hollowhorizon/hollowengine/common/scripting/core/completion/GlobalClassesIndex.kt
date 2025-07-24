@@ -21,18 +21,16 @@ object GlobalClassesIndex {
     fun scan(moduleDescriptor: ModuleDescriptor) {
         if (isScanned || !HollowEngine.config.ideConfig.indexClasses) return
         CLASSES.clear()
-        isVisible = true
 
         moduleDescriptor.collectGlobalClasses(
             { true },
-            { processed, total -> progress = processed / total.toFloat() }
+            { processed, total ->  }
         ).forEach { classId ->
             classId.containingPackage()?.let {
                 CLASSES.getOrPut(classId.name) { ObjectOpenHashSet() }.add(it)
             }
         }
 
-        isVisible = false
 
         isScanned = true
     }
@@ -93,33 +91,5 @@ object GlobalClassesIndex {
 
     fun reload() {
         isScanned = false
-    }
-}
-
-internal var isVisible = false
-internal var progress = 0f
-
-@SubscribeEvent
-fun onProgressRender(event: TitleBarCreationEvent.Center) {
-    if(isVisible) event.append {
-        Box {
-            modifier.size(FitContent, Grow.Std)
-                .align(AlignmentX.Center, AlignmentY.Center)
-                .background(RoundRectBackground(Color("1B1E23FF"), sizes.smallGap))
-                .border(RoundRectBorder(Color("394450FF"), sizes.smallGap, sizes.borderWidth))
-                .padding(sizes.smallGap * 0.5f)
-
-            Box {
-                modifier.size(Grow(progress), Grow.Std)
-                    .align(AlignmentX.Start, AlignmentY.Top)
-                    .background(RoundRectBackground(Color("586D84FF"), sizes.smallGap))
-            }
-
-            Text("Индексация проекта...") {
-                modifier.margin(horizontal=sizes.gap).font(sizes.normalText.derive(16f))
-            }
-
-            surface.triggerUpdate()
-        }
     }
 }

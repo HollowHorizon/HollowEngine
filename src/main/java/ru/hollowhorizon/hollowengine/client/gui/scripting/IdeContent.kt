@@ -27,10 +27,9 @@ object IdeContent {
                 FileType.TEXT -> {
                     var text = String(bytes)
                     if(text.isEmpty()) text = "\n"
-                    TextFileData(this, path.substringAfterLast('/'), path, text)
+                    TextFileData(path.substringAfterLast('/'), path, text)
                 }
                 FileType.IMAGE -> ImageFileData(
-                    this,
                     path.substringAfterLast('/'),
                     path,
                     bytes

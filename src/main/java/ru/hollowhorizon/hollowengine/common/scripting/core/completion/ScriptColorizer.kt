@@ -45,27 +45,7 @@ object ScriptColorizer {
 
                 // TODO: Нужно что-то сделать с этими параметрами, потому что при их удалении слетает к чертам каретка
 
-                /*                if (element is KtValueArgument) {
-                                    // Если в качестве параметра передаётся не примитивный тип, то подсказка к нему не нужна
-                                    if (element.children.any { it is KtCallExpression }) return
 
-                                    val callExpression = element.parent.parent as KtCallExpression
-                                    val call = callExpression.getResolvedCall(bindingContext)
-                                    if (call != null && call.resultingDescriptor.varargParameterPosition() == -1) {
-                                        val parameter = call.valueArguments.entries
-                                            .firstOrNull { (_, args) -> args.arguments.contains(element) }
-                                            ?.key?.name?.asString()
-
-                                        if (parameter != null) currentLine.add(
-                                            "$parameter: " to TextAttributes(
-                                                MsdfFont(HACK_FONT, 25f),
-                                                Color.WHITE,
-                                                ideColors.backgroundMid
-                                            )
-                                        )
-
-                                    }
-                                }*/
 
                 if (!element.allChildren.isEmpty || element.text.isEmpty()) return
 
@@ -118,7 +98,7 @@ operator fun ASTNode.contains(other: PsiElement): Boolean {
     return false
 }
 
-private fun PsiElement.shouldHighlight(bindingContext: BindingContext, other: PsiElement?): Boolean {
+fun PsiElement.shouldHighlight(bindingContext: BindingContext, other: PsiElement?): Boolean {
     if (other == null) return false
 
     val otherType = other.node.elementType
@@ -168,7 +148,7 @@ private fun PsiElement.isOtherParenthesis(other: PsiElement): Boolean {
             commonParent.firstChild == other && commonParent.lastChild == this
 }
 
-private fun getElementColor(element: PsiElement, bindingContext: BindingContext): Color {
+internal fun getElementColor(element: PsiElement, bindingContext: BindingContext): Color {
     val expression = element.parentsWithSelf.firstIsInstanceOrNull<KtExpression>()
 
     val token = element.node.elementType
