@@ -32,16 +32,17 @@ import java.util.concurrent.CompletableFuture
 class KotlinTextDocumentService(
     private val sf: SourceFiles,
     private val sp: SourcePath,
-    private val config: Configuration,
+    val config: Configuration,
     private val tempDirectory: TemporaryDirectory,
     private val uriContentProvider: URIContentProvider,
     private val cp: CompilerClassPath
 ) : TextDocumentService, Closeable {
     private lateinit var client: LanguageClient
-    private val async = AsyncExecutor()
+    val async = AsyncExecutor()
     private val formattingService = FormattingService(config.formatting)
 
-    var debounceLint = Debouncer(Duration.ofMillis(config.diagnostics.debounceTime))
+    private var debounceLint = Debouncer(Duration.ofMillis(config.diagnostics.debounceTime))
+    var debounceHighlight = Debouncer(Duration.ofMillis(config.diagnostics.debounceTime))
     val lintTodo = mutableSetOf<URI>()
     var lintCount = 0
 

@@ -17,6 +17,7 @@ import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.TextCaretNavigation
 import net.minecraft.client.Minecraft
 import org.eclipse.lsp4j.Diagnostic
+import org.eclipse.lsp4j.DiagnosticSeverity
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
 import org.jetbrains.kotlin.resolve.diagnostics.Diagnostics
@@ -182,7 +183,7 @@ fun UiScope.ScriptTextArea(
                 ) {
                     modifier.padding(sizes.smallGap * 0.5f).height(
                         (24.dp + sizes.smallGap) * completions.size.coerceAtMost(10) + sizes.smallGap
-                    ).width(Grow(1f, max = FitContent)).background(null).border(null).zLayer(UiSurface.LAYER_POPUP)
+                    ).width(Grow(1f, max = FitContent)).background(null).border(null).zLayer(500)
 
                     LazyColumn(withVerticalScrollbar = true,
                         withHorizontalScrollbar = false,
@@ -223,7 +224,7 @@ fun UiScope.ScriptTextArea(
                             0f, 0f, widthPx, heightPx, sizes.smallGap.px, sizes.borderWidth.px, colors.primaryVariant
                         )
                     }
-                })
+                }).zLayer(700)
 
                 modifier.width(Grow(1f, max = FitContent))
 
@@ -234,7 +235,7 @@ fun UiScope.ScriptTextArea(
         }
 
         errorMessage = ""
-        val primitives = surface.getUiPrimitives(modifier.zLayer)
+        val primitives = surface.getUiPrimitives(modifier.zLayer+50)
         primitives.children.filterIsInstance<TriangulatedLineMesh>().forEach {
             primitives.removeNode(it)
         }
@@ -373,7 +374,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                 val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp
 
 
-                errors.find { it.range.start.line == lineIndex }?.let { error ->
+                errors.filter { it.range.start.line == lineIndex }.forEach { error ->
                     setupError(error, font, line.text, maxWidth)
                 }
 
@@ -414,9 +415,9 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             text.substring(0, TextCaretNavigation.endOfWord(text, column).coerceAtMost(text.lastIndex) + 1)
         ).width.dp.px
 
-        if (error.severity.ordinal >= 0) getUiPrimitives().addTriangulatedLineMesh {
+        if (error.severity.ordinal >= 0) getUiPrimitives(50).addTriangulatedLineMesh {
             this.width = 3f
-            this.color = Color.RED
+            this.color = if(error.severity == DiagnosticSeverity.Error) Color.RED else Color.YELLOW
 
             val leftPos = uiNode.leftPx + maxWidth.px + sizes.smallGap.px * 3f + sizes.borderWidth.px
             for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).toInt()).step(5)) {

@@ -6,9 +6,8 @@ import de.fabmax.kool.modules.ui2.TextLine
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import org.jetbrains.kotlin.KtNodeTypes
-import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.com.intellij.lang.ASTNode
-import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
+import org.jetbrains.kotlin.com.intellij.openapi.util.TextRange
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiErrorElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiRecursiveElementWalkingVisitor
@@ -18,10 +17,7 @@ import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.descriptors.VariableDescriptor
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
-import org.jetbrains.kotlin.psi.psiUtil.allChildren
-import org.jetbrains.kotlin.psi.psiUtil.children
-import org.jetbrains.kotlin.psi.psiUtil.parents
-import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
+import org.jetbrains.kotlin.psi.psiUtil.*
 import org.jetbrains.kotlin.psi.stubs.elements.KtNameReferenceExpressionElementType
 import org.jetbrains.kotlin.psi.stubs.elements.KtPropertyElementType
 import org.jetbrains.kotlin.resolve.BindingContext
@@ -32,6 +28,8 @@ import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptParser
+import kotlin.math.max
+import kotlin.math.min
 
 object ScriptColorizer {
     fun colorize(file: KtFile, bindingContext: BindingContext, expressionAtCaret: PsiElement?): List<TextLine> {
@@ -42,10 +40,6 @@ object ScriptColorizer {
         file.accept(object : PsiRecursiveElementWalkingVisitor() {
             override fun visitElement(element: PsiElement) {
                 super.visitElement(element)
-
-                // TODO: Нужно что-то сделать с этими параметрами, потому что при их удалении слетает к чертам каретка
-
-
 
                 if (!element.allChildren.isEmpty || element.text.isEmpty()) return
 
@@ -74,9 +68,14 @@ object ScriptColorizer {
         return textLines
     }
 
+
     fun parse(file: String, text: String): List<TextLine> {
         val script = ScriptParser.parse(text, file)
-        val (result) = ResolveUtils.analyzeFileForJvm(script.environment, listOf(script.file), script.environment.project)
+        val (result) = ResolveUtils.analyzeFileForJvm(
+            script.environment,
+            listOf(script.file),
+            script.environment.project
+        )
         return colorize(script.file, result.bindingContext, null).apply {
             script.close()
         }
@@ -104,7 +103,10 @@ fun PsiElement.shouldHighlight(bindingContext: BindingContext, other: PsiElement
     val otherType = other.node.elementType
     when (otherType) {
         in KtTokens.WHITE_SPACE_OR_COMMENT_BIT_SET -> return false
-        KtTokens.LPAR, KtTokens.RPAR, KtTokens.LBRACE, KtTokens.RBRACE, KtTokens.LBRACKET, KtTokens.RBRACKET -> return this == other || isOtherParenthesis(other)
+        KtTokens.LPAR, KtTokens.RPAR, KtTokens.LBRACE, KtTokens.RBRACE, KtTokens.LBRACKET, KtTokens.RBRACKET -> return this == other || isOtherParenthesis(
+            other
+        )
+
         KtTokens.CLOSING_QUOTE, KtTokens.OPEN_QUOTE -> return this in other.parent.node
         else -> {
             if (this == other) return true
@@ -187,7 +189,7 @@ object SyntaxHighlight {
 }
 
 private fun KtExpression.hasProperty(bindingContext: BindingContext): Boolean {
-    return (this as? KtReferenceExpression)?.let { bindingContext[BindingContext.REFERENCE_TARGET, it].let {it is PropertyDescriptor || it is VariableDescriptor } } == true
+    return (this as? KtReferenceExpression)?.let { bindingContext[BindingContext.REFERENCE_TARGET, it].let { it is PropertyDescriptor || it is VariableDescriptor } } == true
 }
 
 private fun PsiElement.isPropertyIdentifier(): Boolean {

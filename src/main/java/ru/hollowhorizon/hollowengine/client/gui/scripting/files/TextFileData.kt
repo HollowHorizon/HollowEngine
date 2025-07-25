@@ -6,22 +6,14 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
-import de.fabmax.kool.util.launchOnMainThread
 import de.fabmax.kool.util.logE
 import kotlinx.coroutines.*
-import org.eclipse.lsp4j.DidOpenTextDocumentParams
 import org.eclipse.lsp4j.PublishDiagnosticsParams
-import org.eclipse.lsp4j.TextDocumentItem
-import ru.hollowhorizon.hc.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.SaveFilePacket
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.ScriptTextEditorHandler
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.psi.PsiFileEditor
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextAreaModifier
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextAreaScope
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
-import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
-import ru.hollowhorizon.hollowengine.common.scripting.core.completion.OnCompletionsEvent
+import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
 import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptingContext
 import java.net.URI
 import java.util.concurrent.Future
@@ -33,29 +25,10 @@ class TextFileData(name: String, path: String, code: String) :
     private val lines = MutableStateList(code.lines().map {
         TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 18f), Color.WHITE)))
     }.toMutableList())
-    private val editorHandler = ScriptTextEditorHandler(lines)
-    private var textVersion = 0
 
     var context: ScriptingContext? = null
     lateinit var modifier: ScriptTextAreaModifier
     lateinit var area: ScriptTextAreaScope
-
-    init {
-        EventBus.register(::onCompletionsEvent)
-        KotlinLanguageServer.textDocumentService.didOpen(
-            DidOpenTextDocumentParams(
-                TextDocumentItem(
-                    filePath,
-                    "kotlin",
-                    textVersion++,
-                    code
-                )
-            )
-        )
-    }
-
-    private val editor = PsiFileEditor(KotlinLanguageServer.sourcePath.currentVersion(URI.create(filePath)))
-
 
     fun setText(text: String) {
         lines.clear()
@@ -65,20 +38,10 @@ class TextFileData(name: String, path: String, code: String) :
         surface.triggerUpdate()
     }
 
-    fun onCompletionsEvent(event: OnCompletionsEvent) = launchOnMainThread {
-        if (event.fileName != fileName || event.textVersion != textVersion) return@launchOnMainThread
-
-        modifier.completions.clear()
-        modifier.completions.addAll(event.completions)
-        surface.triggerUpdate()
-
-    }
-
     fun onErrorsEvent(errors: PublishDiagnosticsParams) {
         modifier.errors.clear()
         modifier.errors.addAll(errors.diagnostics)
         surface.triggerUpdate()
-
     }
 
     override fun save() {
@@ -86,85 +49,54 @@ class TextFileData(name: String, path: String, code: String) :
         SaveFilePacket(filePath, lines.joinToString("\n") { it.text }.toByteArray()).send()
     }
 
+    private val provider = CompiledFileProvider(URI.create(filePath)) {
+        modifier.completions.clear()
+        val completions = it.items.map { completion ->
+            CompletionVariant(
+                completion.insertText ?: completion.label,
+                completion.label,
+                completion.detail ?: "",
+                CompletionVariant.Icon.fromKind(completion.kind),
+                null,
+                emptyList(),
+                completion.additionalTextEdits?.map { it.newText } ?: emptyList(),
+            )
+        }
+        modifier.completions += completions
+    }
+
     override fun UiScope.compose() {
         modifier.backgroundColor(colors.backgroundVariant)
 
-        editor.apply {
-            render()
+        ScriptTextArea(
+            provider,
+            vScrollbarModifier = { it.width(sizes.smallGap) },
+            hScrollbarModifier = { it.height(sizes.smallGap) },
+        ) {
+            modifier.margin(vertical = sizes.smallGap)
+            this@TextFileData.modifier = modifier
+            this@TextFileData.area = this
+            installSelectionHandler(provider) { startLine, caretLine, startChar, caretChar ->
+                modifier.completions.clear()
+
+                save()
+
+                provider.recolorize(startLine, startChar)
+            }
+
+            modifier.editorHandler(provider)
         }
-
-//        ScriptTextArea(
-//            ListTextLineProvider(lines),
-//            vScrollbarModifier = { it.width(sizes.smallGap) },
-//            hScrollbarModifier = { it.height(sizes.smallGap) },
-//        ) {
-//            modifier.margin(vertical = sizes.smallGap)
-//            this@TextFileData.modifier = modifier
-//            this@TextFileData.area = this
-//            installSelectionHandler(lines) { startLine, caretLine, startChar, caretChar ->
-//                modifier.completions.clear()
-//
-//                currentLine = modifier.selectionStartLine
-//                currentColumn = modifier.selectionStartChar
-//                val text = lines.joinToString("\n") { it.text }
-//
-//                save()
-//
-//                KotlinLanguageServer.textDocumentService.didChange(
-//                    DidChangeTextDocumentParams(
-//                        VersionedTextDocumentIdentifier(
-//                            filePath,
-//                            textVersion++,
-//                        ),
-//                        listOf(TextDocumentContentChangeEvent(text))
-//                    )
-//                )
-//                KotlinLanguageServer.textDocumentService.completion(
-//                    CompletionParams(
-//                        TextDocumentIdentifier(filePath),
-//                        Position(modifier.selectionStartLine, modifier.selectionStartChar)
-//                    )
-//                ).whenComplete { result, error ->
-//                    if (error != null) {
-//                        logE { "Error fetching completions: ${error.message}" }
-//                        return@whenComplete
-//                    }
-//                    if (result == null) return@whenComplete
-//
-//                    val completions = result.right.items.map { completion ->
-//                        CompletionVariant(
-//                            completion.insertText ?: completion.label,
-//                            completion.label,
-//                            completion.detail ?: "",
-//                            CompletionVariant.Icon.fromKind(completion.kind),
-//                            null,
-//                            emptyList(),
-//                            completion.additionalTextEdits?.map { it.newText } ?: emptyList(),
-//                        )
-//                    }
-//                    modifier.completions.clear()
-//                    modifier.completions.addAll(completions)
-//                }
-//            }
-//
-//            modifier.editorHandler(editorHandler)
-//        }
-    }
-
-    override fun close() {
-        super.close()
-        EventBus.unregister(::onCompletionsEvent)
     }
 
     override fun SubMenuItem<Dockable>.createMenu() {
         item("Форматировать", "hollowengine:textures/gui/icons/icon_41.png") {
-            val editorHandler = editorHandler as? ScriptTextEditorHandler
+            //val editorHandler = editorHandler as? ScriptTextEditorHandler
 
             try {
                 val original = lines.joinToString("\n") { it.text }
                 val new = Formatter.format(KOTLINLANG_FORMAT, original)
                 if (original == new) return@item
-                editorHandler?.replaceAll(new, area)
+                //editorHandler?.replaceAll(new, area)
                 modifier.onSelectionChanged?.let { it(-1, -1, 0, 0) }
             } catch (ex: Exception) {
                 logE { ex.stackTraceToString() }
@@ -202,7 +134,7 @@ object ActionManager {
 }
 
 private fun ScriptTextAreaScope.installSelectionHandler(
-    lines: MutableStateList<TextLine>,
+    provider: CompiledFileProvider,
     onChange: (startLine: Int, caretLine: Int, startChar: Int, caretChar: Int) -> Unit,
 ) {
     val selStartLine = remember(-1)
@@ -211,11 +143,11 @@ private fun ScriptTextAreaScope.installSelectionHandler(
     val selCaretChar = remember(0)
 
     modifier.onSelectionChanged = handler@{ startLine, caretLine, startChar, caretChar ->
-        if (startLine >= lines.size || startLine < 0) return@handler
-        if (caretLine >= lines.size) return@handler
-        val start = lines[startLine]
+        if (startLine >= provider.size || startLine < 0) return@handler
+        if (caretLine >= provider.size) return@handler
+        val start = provider[startLine]
         if (startChar > start.length) return@handler
-        val caret = lines[caretLine]
+        val caret = provider[caretLine]
         if (caretChar > caret.length) return@handler
 
         selStartLine.set(startLine)

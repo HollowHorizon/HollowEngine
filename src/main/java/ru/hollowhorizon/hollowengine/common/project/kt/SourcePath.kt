@@ -24,7 +24,7 @@ import kotlin.io.path.name
 
 class SourcePath(
     private val cp: CompilerClassPath,
-    private val contentProvider: URIContentProvider,
+    val contentProvider: URIContentProvider,
     private val indexingConfig: IndexingConfiguration,
 ) {
     private val files = mutableMapOf<URI, SourceFile>()
@@ -42,7 +42,7 @@ class SourcePath(
             index.progressFactory = factory
         }
 
-    private inner class SourceFile(
+    inner class SourceFile(
         val uri: URI,
         var content: String,
         val path: Path? = uri.filePath ?: DirectoryManager.HOLLOW_ENGINE.resolve(uri.path),
@@ -130,7 +130,7 @@ class SourcePath(
         fun clone(): SourceFile = SourceFile(uri, content, path, parsed, compiledFile, compiledContext, module, language, isTemporary)
     }
 
-    private fun sourceFile(uri: URI): SourceFile {
+    fun sourceFile(uri: URI): SourceFile {
         if (uri !in files) {
             // Fallback solution, usually *all* source files
             // should be added/opened through SourceFiles
