@@ -10,7 +10,7 @@ import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.culling.Frustum
 import net.minecraft.client.renderer.entity.EntityRendererProvider
 import net.minecraft.network.chat.Component
-import ru.hollowhorizon.hc.client.render.entity.GLTFEntityRenderer
+import ru.hollowhorizon.hc.client.render.entity.HollowEntityRenderer
 import ru.hollowhorizon.hc.common.utils.get
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterEntityRenderersEvent
@@ -20,7 +20,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
 import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
-class NPCRenderer(context: EntityRendererProvider.Context) : GLTFEntityRenderer<NpcEntity>(context) {
+class NPCRenderer(context: EntityRendererProvider.Context) : HollowEntityRenderer<NpcEntity>(context) {
 
     override fun renderNameTag(
         pEntity: NpcEntity,
