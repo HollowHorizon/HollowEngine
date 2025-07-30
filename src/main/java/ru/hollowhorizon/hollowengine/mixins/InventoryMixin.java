@@ -36,11 +36,6 @@ public abstract class InventoryMixin extends EffectRenderingInventoryScreen<Inve
 
     @Inject(method = "render", at = @At(value = "TAIL"))
     private void onResize(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        //? if >=1.20.1 {
         hollowengine$button.setPosition(this.leftPos + 131, this.topPos + 58);
-        //?} else {
-        /*hollowengine$questsButton.x = this.leftPos + 131;
-        hollowengine$questsButton.y = this.topPos + 58;
-         *///?}
     }
 }

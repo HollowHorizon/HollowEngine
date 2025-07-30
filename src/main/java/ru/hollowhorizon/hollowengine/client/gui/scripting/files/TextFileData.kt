@@ -81,7 +81,7 @@ class TextFileData(name: String, path: String, code: String) :
 
                 save()
 
-                provider.recolorize(startLine, startChar)
+                if(!provider.isRecompiling) provider.recolorize(startLine, caretLine, startChar, caretChar, false)
             }
 
             modifier.editorHandler(provider)

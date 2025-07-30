@@ -5,18 +5,29 @@ import de.fabmax.kool.modules.ui2.TextAttributes
 import de.fabmax.kool.modules.ui2.TextLine
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
+import net.minecraft.world.entity.player.Player
 import org.eclipse.lsp4j.*
+import org.jetbrains.kotlin.com.intellij.psi.PsiWhiteSpace
 import org.jetbrains.kotlin.resolve.BindingContext
 import ru.hollowhorizon.hc.HollowCore
+import ru.hollowhorizon.hc.common.events.entity.player.PlayerInteractEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.project.kt.CompiledFile
 import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
 import ru.hollowhorizon.hollowengine.common.project.kt.completion.completions
 import ru.hollowhorizon.hollowengine.common.project.kt.position.offset
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.ScriptColorizer
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.await
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.npc
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.pos
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.say
 import java.net.URI
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
-class CompiledFileProvider(val file: URI, val completionProvider: (CompletionList) -> Unit) : TextLineProvider, TextEditorHandler {
+class CompiledFileProvider(val file: URI, val completionProvider: (CompletionList) -> Unit) : TextLineProvider,
+    TextEditorHandler {
     private val sp = KotlinLanguageServer.sourcePath
 
     init {
@@ -32,6 +43,7 @@ class CompiledFileProvider(val file: URI, val completionProvider: (CompletionLis
         )
     }
 
+    private var lock = ReentrantLock()
     private var compiledFile: CompiledFile = recover(Position(0, 0), Recompile.NEVER).first
     private val font = MsdfFont(HACK_FONT, 18f)
     private val lines = compiledFile.content.lines().map {
@@ -93,19 +105,36 @@ class CompiledFileProvider(val file: URI, val completionProvider: (CompletionLis
                 )
             )
         )
-        recolorize(selectionStartLine, selectionStartChar)
+        isRecompiling = true
+        recolorize(selectionStartLine, selectionEndLine, selectionStartChar, selectionEndChar, true)
         KotlinLanguageServer.textDocumentService.apply {
             debounceHighlight.schedule {
                 async.compute {
-                    isRecompiling = true
-                    val (newCompiledFile, cursor) = recover(Position(selectionStartLine, selectionStartChar), Recompile.ALWAYS)
-                    if (textVersion != version) return@compute -1
-                    compiledFile = newCompiledFile
-                    recolorize(selectionStartLine, selectionStartChar)
-                    isRecompiling = false
+                    val cursor = lock.withLock {
+                        val (newCompiledFile, cursor) = recover(
+                            Position(selectionStartLine, selectionStartChar),
+                            Recompile.ALWAYS
+                        )
+                        if (textVersion != version) return@compute -1
+                        compiledFile = newCompiledFile
+                        recolorize(selectionStartLine, selectionEndLine, selectionStartChar, selectionEndChar, false)
+                        isRecompiling = false
+                        cursor
+                    }
+
+                    if (compiledFile.compile[BindingContext.SCRIPT, compiledFile.parse.script] == null) {
+                        HollowCore.LOGGER.warn("Somehow script compilation failed... Trying again...")
+                        sp.refresh()
+                        compiledFile = sp.currentVersion(file)
+                        HollowCore.LOGGER.info(
+                            "Compiled script: {}",
+                            compiledFile.compile[BindingContext.SCRIPT, compiledFile.parse.script]
+                        )
+                    }
+
                     cursor
                 }.thenAcceptAsync { cursor ->
-                    if(cursor == -1 || replacement.length != 1 || !(replacement[0].isLetterOrDigit() || replacement[0] == '.')) return@thenAcceptAsync
+                    if (cursor == -1 || replacement.length != 1 || !(replacement[0].isLetterOrDigit() || replacement[0] == '.')) return@thenAcceptAsync
                     val completions = completions(compiledFile, cursor, sp.index, config.completion)
                     completionProvider(completions)
                 }
@@ -121,19 +150,118 @@ class CompiledFileProvider(val file: URI, val completionProvider: (CompletionLis
         }
     }
 
-    fun recolorize(selectionStartLine: Int, selectionStartChar: Int) {
+    fun recolorize(
+        selectionStartLine: Int,
+        selectionEndLine: Int,
+        selectionStartChar: Int,
+        selectionEndChar: Int,
+        light: Boolean,
+    ) {
         sp.sourceFile(file).apply { parseIfChanged() }.let { source ->
             source.parsed?.let {
+                var highlight = it.findElementAt(offset(source.content, selectionStartLine, selectionStartChar))
+                if (highlight == null || highlight is PsiWhiteSpace) highlight =
+                    it.findElementAt(offset(source.content, selectionStartLine, selectionStartChar) - 1)
                 val changed = ScriptColorizer.colorize(
                     it,
                     source.compiledContext ?: BindingContext.EMPTY,
-                    it.findElementAt(offset(source.content, selectionStartLine, selectionStartChar))
+                    highlight
                 )
-                lines.clear()
-                if(changed.isEmpty()) lines.add(TextLine(listOf("" to TextAttributes(font, Color.WHITE))))
-                else lines += changed
+                if (light) {
+                    val lines = mergeHighlight(
+                        lines,
+                        changed,
+                        selectionStartLine,
+                        selectionEndLine,
+                        selectionStartChar,
+                        selectionEndChar
+                    )
+                    this.lines.clear()
+                    this.lines.addAll(lines)
+                } else {
+                    lines.clear()
+                    lines.addAll(changed)
+                }
                 HollowCore.LOGGER.info("Recolored. Version: $version")
             }
         }
     }
+}
+
+fun mergeHighlight(
+    old: List<TextLine>,
+    light: List<TextLine>,
+    selectionStartLine: Int,
+    selectionEndLine: Int,
+    selectionStartChar: Int,
+    selectionEndChar: Int,
+): List<TextLine> {
+    val result = MutableList(light.size) { index ->
+        val inChanged = index in selectionStartLine..selectionEndLine
+        val lineDelta = light.size - old.size
+
+        val oldLine: TextLine?
+        val newLine: TextLine?
+        if (lineDelta >= 0) {
+            oldLine = if (index - selectionEndLine >= 2) old.getOrNull(index - lineDelta) else old.getOrNull(index)
+            newLine = light.getOrNull(index) ?: TextLine(emptyList())
+        } else {
+            oldLine = if (index - selectionStartLine >= 1) old.getOrNull(index - lineDelta) else old.getOrNull(index)
+            newLine = light.getOrNull(index) ?: TextLine(emptyList())
+        }
+
+        return@MutableList when {
+            inChanged && light.size >= old.size -> newLine
+            oldLine == null -> newLine
+            oldLine.text == newLine.text -> oldLine
+            else -> mergeLineHighlights(oldLine, newLine)
+        }
+    }
+
+
+    return result
+}
+
+private fun mergeLineHighlights(old: TextLine, new: TextLine): TextLine {
+    val mergedSpans = mutableListOf<Pair<String, TextAttributes>>()
+    var oldPos = 0
+    var newPos = 0
+
+    while (newPos < new.spans.size) {
+        val newSpan = new.spans[newPos]
+        val newText = newSpan.first
+
+        // Проверяем совпадает ли span со старым
+        val matchingOldSpan = findMatchingSpan(old, oldPos, newText)
+
+        mergedSpans.add(
+            if (matchingOldSpan != null) {
+                oldPos += newText.length
+                newText to matchingOldSpan.second
+            } else {
+                newSpan
+            }
+        )
+
+        newPos++
+    }
+
+    return TextLine(mergedSpans)
+}
+
+private fun findMatchingSpan(
+    line: TextLine,
+    start: Int,
+    target: String,
+): Pair<String, TextAttributes>? {
+    var pos = 0
+    for (span in line.spans) {
+        if (pos >= start) {
+            if (span.first.startsWith(target)) {
+                return span
+            }
+        }
+        pos += span.first.length
+    }
+    return null
 }

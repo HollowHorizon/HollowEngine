@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
-//? if >=1.20.1 {
 
 import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.gui.GuiGraphics
@@ -62,57 +61,3 @@ class ScaleableButton(
         lastHovered = isHovered
     }
 }
-//?} else {
-/*import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.vertex.PoseStack
-import net.minecraft.client.gui.components.Button
-import ru.hollowhorizon.hc.client.utils.GuiAnimator
-import ru.hollowhorizon.hc.client.utils.literal
-import ru.hollowhorizon.hc.client.utils.math.Interpolation
-import ru.hollowhorizon.hc.client.utils.rl
-
-class ScaleableButton(
-    x: Int,
-    y: Int,
-    w: Int,
-    h: Int,
-    val image: String,
-    val tooltipText: String = "",
-    onPress: Button.() -> Unit = {},
-) : Button(x, y, w, h, "".literal, OnPress { onPress(it) }) {
-    var lastHovered = false
-    var animation = GuiAnimator.Single(0, 0, 10, Interpolation.SINE_IN::invoke)
-
-    override fun renderButton(stack: PoseStack, mouseX: Int, mouseY: Int, partialTick: Float) {
-        if (lastHovered != isHovered) {
-            animation = if (isHovered) GuiAnimator.Single(0, 10, 5, Interpolation.SINE_IN::invoke)
-            else GuiAnimator.Single(10, 0, 5, Interpolation.SINE_IN::invoke)
-        }
-
-        animation.update()
-        val progress = animation.value / 10f
-
-        RenderSystem.enableBlend()
-        RenderSystem.defaultBlendFunc()
-
-        stack.pushPose()
-
-        stack.translate(this.x.toDouble(), this.y.toDouble(), 0.0)
-
-        val scale = 1f + 0.6f * progress
-        stack.scale(scale, scale, scale)
-        val tX = (scale * width - width) / 4.0
-        val tY = (scale * height - height) / 4.0
-        stack.translate(-tX, -tY, 70.0)
-
-        val color = 0.6f + 0.4f * progress
-        RenderSystem.setShaderColor(color, color, color, color)
-        RenderSystem.setShaderTexture(0, image.rl)
-        blit(stack, 0, 0, 0f, 0f, width, height, width, height)
-
-        stack.popPose()
-
-        lastHovered = isHovered
-    }
-}
-*///?}

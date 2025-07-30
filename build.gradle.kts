@@ -11,7 +11,6 @@ plugins {
     id("com.google.devtools.ksp") version "2.2.0-2.0.2"
 }
 
-val compiler_plugin: String by properties
 val hollowcore: String by properties
 val modId: String by properties
 val modName: String by properties
@@ -25,7 +24,7 @@ val container = ModProject(
     license = license,
 
     entryPoints = mapOf(),
-    dependencies = mapOf("hollowcore" to hollowcore.toString()),
+    dependencies = mapOf("hollowcore" to hollowcore),
 
     username = "TheHollowHorizon"
 )
@@ -68,8 +67,6 @@ dependencies {
     install("io.ktor:ktor-utils-jvm:3.1.3", true)
     install("io.ktor:ktor-websocket-serialization-jvm:3.1.3", true)
     install("io.ktor:ktor-websockets-jvm:3.1.3", true)
-
-    install("org.codehaus.janino:janino:3.1.12", false)
 
     // CONFIG //
     install("com.akuleshov7:ktoml-core-jvm:0.5.1", false)
