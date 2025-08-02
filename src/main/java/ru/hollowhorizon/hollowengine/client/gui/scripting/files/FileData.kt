@@ -26,7 +26,7 @@ abstract class FileData(
         modifier.backgroundColor(colors.backgroundVariant)
 
         Column(Grow.Std, Grow.Std) {
-            modifier.margin(sizes.smallGap)
+            modifier.margin(top=sizes.smallGap)
 
             val overlay = remember { ItemPopupMenu<Dockable>("Title-File-Overlay") }
             overlay()

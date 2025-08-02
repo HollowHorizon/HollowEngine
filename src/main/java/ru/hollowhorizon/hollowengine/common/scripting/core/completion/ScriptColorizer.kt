@@ -27,7 +27,6 @@ import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptParser
 import kotlin.math.max
 import kotlin.math.min
 
@@ -66,19 +65,6 @@ object ScriptColorizer {
         OnColorizedEvent(file.name, textLines, file.text.hashCode()).post()
 
         return textLines
-    }
-
-
-    fun parse(file: String, text: String): List<TextLine> {
-        val script = ScriptParser.parse(text, file)
-        val (result) = ResolveUtils.analyzeFileForJvm(
-            script.environment,
-            listOf(script.file),
-            script.environment.project
-        )
-        return colorize(script.file, result.bindingContext, null).apply {
-            script.close()
-        }
     }
 }
 

@@ -6,7 +6,8 @@ import de.fabmax.kool.modules.ui2.docking.DockNode
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
-import ru.hollowhorizon.hollowengine.client.gui.scripting.RequestFilePacket
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.mixins.kool.DockNodeInvoker
 
 object LayoutLoader {
@@ -21,8 +22,12 @@ object LayoutLoader {
             LAYOUTS[name] = layout
             layoutOrder.add(name)
         }, dock).post()
-        val layoutLoader: (String) -> Dockable? = layout@ { name ->
-            if(name.startsWith("scripts/")) RequestFilePacket(name).send()
+        val layoutLoader: (String) -> Dockable? = layout@{ name ->
+            if (name.startsWith("scripts/")) IdeContent.openFile(
+                name,
+                name.fromReadablePath().readBytes(),
+                ::TextFileData
+            )
             LAYOUTS[name]?.dockable
         }
 

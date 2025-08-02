@@ -137,7 +137,7 @@ class SourcePath(
             HollowEngine.LOGGER.warn("Requested source file {} is not on source path, this is most likely a bug. Adding it now temporarily...", describeURI(uri))
             put(uri, contentProvider.contentOf(uri), null, temporary = true)
         }
-        return files[uri]!!
+        return files[uri] ?: error("File not found!")
     }
 
     fun put(uri: URI, content: String, language: Language?, temporary: Boolean = false) {

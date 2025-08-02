@@ -13,8 +13,7 @@ import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.*
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.project.kt.symbols.matcher
-import ru.hollowhorizon.hollowengine.common.project.kt.util.containsCharactersInOrder
+import ru.hollowhorizon.hollowengine.common.project.kt.CamelHumpMatcher
 import kotlin.sequences.Sequence
 
 private const val MAX_FQNAME_LENGTH = 255
@@ -181,11 +180,10 @@ class SymbolIndex {
             && fqName.shortName().toString().length <= MAX_SHORT_NAME_LENGTH
 
     fun query(prefix: String, receiverType: FqName? = null, limit: Int = 20, suffix: String = "%"): List<Symbol> = transaction(db) {
-        val matcher = matcher(prefix)
 
         SymbolEntity.find {
             (Symbols.extensionReceiverType eq receiverType?.toString())
-        }.asSequence().filter { matcher.matches(it.shortName) }
+        }.asSequence().filter { CamelHumpMatcher.matches(prefix, it.shortName) }
             .take(limit).toList()
             .map { Symbol(
                 fqName = FqName(it.fqName),

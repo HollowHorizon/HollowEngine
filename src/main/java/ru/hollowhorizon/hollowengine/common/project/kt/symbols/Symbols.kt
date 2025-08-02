@@ -16,8 +16,7 @@ import ru.hollowhorizon.hollowengine.common.project.kt.util.preOrderTraversal
 import ru.hollowhorizon.hollowengine.common.project.kt.util.toPath
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.parents
-import ru.hollowhorizon.hollowengine.common.project.kt.util.idea.MinusculeMatcher
-import ru.hollowhorizon.hollowengine.common.project.kt.util.idea.NameUtil
+import ru.hollowhorizon.hollowengine.common.project.kt.CamelHumpMatcher
 
 fun documentSymbols(file: KtFile): List<Either<SymbolInformation, DocumentSymbol>> =
         doDocumentSymbols(file).map { Either.forRight(it) }
@@ -35,17 +34,11 @@ private fun doDocumentSymbols(element: PsiElement): List<DocumentSymbol> {
     } ?: children
 }
 
-fun workspaceSymbols(query: MinusculeMatcher, sp: SourcePath): List<WorkspaceSymbol> =
+fun workspaceSymbols(query: String, sp: SourcePath): List<WorkspaceSymbol> =
         doWorkspaceSymbols(sp)
-                .filter { query.matches(it.name) }
+                .filter { CamelHumpMatcher.matches(query, it.name ?: return@filter false) }
                 .mapNotNull(::workspaceSymbol)
                 .toList()
-
-fun matcher(pattern: String): MinusculeMatcher = NameUtil.buildMatcher(pattern)
-        .allOccurrences()
-        .preferringStartMatches()
-        .withCaseSensitivity(NameUtil.MatchingCaseSensitivity.FIRST_LETTER)
-        .build()
 
 private fun doWorkspaceSymbols(sp: SourcePath): Sequence<KtNamedDeclaration> =
         sp.all().asSequence().flatMap(::fileSymbols)

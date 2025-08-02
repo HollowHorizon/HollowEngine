@@ -338,7 +338,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         val errors = modifier.errors
 
         val indentStack = mutableListOf<Int>()
-        for (i in 0..<linesHolder.state.itemsFrom.use()) {
+        for (i in 0..<linesHolder.state.itemsFrom.use().coerceAtMost(lineProvider.size)) {
             val line = lineProvider[i]
             val indentIndex = line.text.indexOfFirst { it != ' ' }
 

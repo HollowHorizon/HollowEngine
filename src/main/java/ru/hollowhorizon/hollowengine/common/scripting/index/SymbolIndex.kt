@@ -16,7 +16,6 @@ import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.TitleBarCreationEvent
-import ru.hollowhorizon.hollowengine.common.project.KotlinFile
 import kotlin.sequences.Sequence
 import kotlin.time.DurationUnit
 

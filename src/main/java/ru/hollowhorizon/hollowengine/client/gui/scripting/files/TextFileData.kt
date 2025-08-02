@@ -1,55 +1,35 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
-import com.facebook.ktfmt.format.Formatter
-import com.facebook.ktfmt.format.Formatter.KOTLINLANG_FORMAT
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
-import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.MsdfFont
-import de.fabmax.kool.util.logE
-import kotlinx.coroutines.*
+import org.eclipse.lsp4j.DiagnosticSeverity
 import org.eclipse.lsp4j.PublishDiagnosticsParams
-import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
-import ru.hollowhorizon.hollowengine.client.gui.scripting.SaveFilePacket
+import org.jetbrains.kotlin.diagnostics.Diagnostic
+import ru.hollowhorizon.hc.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
+import ru.hollowhorizon.hollowengine.common.project.kt.diagnostic.convertDiagnostic
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
-import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptingContext
 import java.net.URI
-import java.util.concurrent.Future
-import kotlin.coroutines.CoroutineContext
 
 
 class TextFileData(name: String, path: String, code: String) :
     FileData(name, path) {
-    private val lines = MutableStateList(code.lines().map {
-        TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 18f), Color.WHITE)))
-    }.toMutableList())
 
-    var context: ScriptingContext? = null
+    constructor(path: String, code: ByteArray) : this(path.substringAfterLast('/'), path, String(code))
+
     lateinit var modifier: ScriptTextAreaModifier
     lateinit var area: ScriptTextAreaScope
 
     fun setText(text: String) {
-        lines.clear()
-        lines.addAll(mutableStateListOf(*text.lines().map {
-            TextLine(listOf(it to TextAttributes(MsdfFont(HACK_FONT, 18f), Color.WHITE)))
-        }.toTypedArray()))
-        surface.triggerUpdate()
-    }
-
-    fun onErrorsEvent(errors: PublishDiagnosticsParams) {
-        modifier.errors.clear()
-        modifier.errors.addAll(errors.diagnostics)
         surface.triggerUpdate()
     }
 
     override fun save() {
         if (filePath.startsWith("%")) return
-        SaveFilePacket(filePath, lines.joinToString("\n") { it.text }.toByteArray()).send()
     }
 
-    private val provider = CompiledFileProvider(URI.create(filePath)) {
+    private val provider = CompiledFileProvider(URI.create(filePath), {
         modifier.completions.clear()
         val completions = it.items.map { completion ->
             CompletionVariant(
@@ -63,17 +43,20 @@ class TextFileData(name: String, path: String, code: String) :
             )
         }
         modifier.completions += completions
-    }
+    }, { diagnostics ->
+        modifier.errors.clear()
+        modifier.errors.addAll(diagnostics.flatMap { convertDiagnostic(it).map { it.second } })
+        surface.triggerUpdate()
+    })
 
     override fun UiScope.compose() {
         modifier.backgroundColor(colors.backgroundVariant)
 
         ScriptTextArea(
             provider,
-            vScrollbarModifier = { it.width(sizes.smallGap) },
-            hScrollbarModifier = { it.height(sizes.smallGap) },
+            vScrollbarModifier = { it.width(sizes.smallGap).margin(end=sizes.smallGap) },
+            hScrollbarModifier = { it.height(sizes.smallGap).margin(bottom=sizes.smallGap) },
         ) {
-            modifier.margin(vertical = sizes.smallGap)
             this@TextFileData.modifier = modifier
             this@TextFileData.area = this
             installSelectionHandler(provider) { startLine, caretLine, startChar, caretChar ->
@@ -81,10 +64,38 @@ class TextFileData(name: String, path: String, code: String) :
 
                 save()
 
-                if(!provider.isRecompiling) provider.recolorize(startLine, caretLine, startChar, caretChar, false)
+                if (!provider.isRecompiling) provider.recolorize(startLine, caretLine, startChar, caretChar, false)
             }
 
             modifier.editorHandler(provider)
+
+            Row {
+                modifier.align(AlignmentX.End)
+                    .margin(end = sizes.smallGap*2f)
+
+                val errors = this@TextFileData.modifier.errors.count { it.severity == DiagnosticSeverity.Error }
+                val warnings = this@TextFileData.modifier.errors.count { it.severity == DiagnosticSeverity.Warning }
+
+                if (errors > 0) {
+                    Image("hollowengine:textures/gui/icons/error.png") {
+                        modifier.size(18.dp, 18.dp)
+                    }
+                    Text(errors.toString()) {
+                        modifier.font(provider.font)
+                            .margin(horizontal = sizes.smallGap)
+                    }
+                }
+                divider()
+                if (warnings > 0) {
+                    Image("hollowengine:textures/gui/icons/warn.png") {
+                        modifier.size(18.dp, 18.dp)
+                    }
+                    Text(warnings.toString()) {
+                        modifier.font(provider.font)
+                            .margin(horizontal = sizes.smallGap)
+                    }
+                }
+            }
         }
     }
 
@@ -92,44 +103,16 @@ class TextFileData(name: String, path: String, code: String) :
         item("Форматировать", "hollowengine:textures/gui/icons/icon_41.png") {
             //val editorHandler = editorHandler as? ScriptTextEditorHandler
 
-            try {
-                val original = lines.joinToString("\n") { it.text }
-                val new = Formatter.format(KOTLINLANG_FORMAT, original)
-                if (original == new) return@item
-                //editorHandler?.replaceAll(new, area)
-                modifier.onSelectionChanged?.let { it(-1, -1, 0, 0) }
-            } catch (ex: Exception) {
-                logE { ex.stackTraceToString() }
-            }
+//            try {
+//                val original = lines.joinToString("\n") { it.text }
+//                val new = Formatter.format(KOTLINLANG_FORMAT, original)
+//                if (original == new) return@item
+//                //editorHandler?.replaceAll(new, area)
+//                modifier.onSelectionChanged?.let { it(-1, -1, 0, 0) }
+//            } catch (ex: Exception) {
+//                logE { ex.stackTraceToString() }
+//            }
         }
-    }
-}
-
-object ActionManager {
-    private var currentJob: Job? = null
-    private var futureTask: Future<*>? = null
-    private val scope = CoroutineScope(Dispatchers.Default) + ScriptContext()
-
-    fun launch(action: suspend () -> Unit) {
-        currentJob?.cancel()
-        futureTask?.cancel(true)
-        currentJob = scope.launch debounce@{
-            delay(300)
-            if (!isActive) return@debounce
-
-            try {
-                action()
-            } catch (e: Exception) {
-                // Ignore
-                coroutineContext[ScriptContext.Key]?.context?.close()
-            }
-        }
-    }
-
-    class ScriptContext(var context: ScriptingContext? = null) : CoroutineContext.Element {
-        companion object Key : CoroutineContext.Key<ScriptContext>
-
-        override val key get() = Key
     }
 }
 

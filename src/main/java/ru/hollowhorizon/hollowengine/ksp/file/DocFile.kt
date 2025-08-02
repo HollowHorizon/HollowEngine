@@ -359,9 +359,7 @@ sealed class DocDeclaration : Composable {
                 }
 
                 parts.extractCodeFromTemplate()?.let { (lang, code) ->
-                    val coloredText = Templates.TEMPLATES.getOrPut(lang + code) {
-                        ScriptColorizer.parse("template.$lang", code).toMutableList()
-                    }
+                    val coloredText = code
                     Text("Пример:") {
                         modifier.font(boldFont).textColor(textColor)
                             .margin(bottom = sizes.smallGap)
@@ -373,9 +371,7 @@ sealed class DocDeclaration : Composable {
                             .alignX(AlignmentX.Center)
                             .width(Grow.Std)
 
-                        coloredText.forEach {
-                            AttributedText(it) {}
-                        }
+                        Text(coloredText) {  }
                     }
                 }
             }
@@ -489,9 +485,7 @@ sealed class DocDeclaration : Composable {
                 }
 
                 parts.extractCodeFromTemplate()?.let { (lang, code) ->
-                    val coloredText = Templates.TEMPLATES.getOrPut(lang + code) {
-                        ScriptColorizer.parse("template.$lang", code).toMutableList()
-                    }
+                    val coloredText = code
                     Text("Пример:") {
                         modifier.font(boldFont).textColor(textColor)
                             .margin(bottom = sizes.smallGap)
@@ -503,9 +497,7 @@ sealed class DocDeclaration : Composable {
                             .alignX(AlignmentX.Center)
                             .width(Grow.Std)
 
-                        coloredText.forEach {
-                            AttributedText(it) {}
-                        }
+                        Text(coloredText) {}
                     }
                 }
             }

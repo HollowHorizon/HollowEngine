@@ -17,7 +17,6 @@ import com.google.gson.JsonElement
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.project.kt.symbols.matcher
 
 class KotlinWorkspaceService(
     private val sf: SourceFiles,
@@ -197,7 +196,7 @@ class KotlinWorkspaceService(
 
     @Suppress("DEPRECATION")
     override fun symbol(params: WorkspaceSymbolParams): CompletableFuture<Either<List<SymbolInformation>, List<WorkspaceSymbol>>> {
-        val result = workspaceSymbols(matcher(params.query), sp)
+        val result = workspaceSymbols(params.query, sp)
 
         return CompletableFuture.completedFuture(Either.forRight(result))
     }

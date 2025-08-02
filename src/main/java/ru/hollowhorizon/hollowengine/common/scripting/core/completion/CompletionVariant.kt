@@ -146,7 +146,6 @@ data class CompletionVariant(
 
         modifier.completions.clear()
         modifier.setCompletionIndex(0)
-        descriptor?.let(UsageStatistics::recordUsage)
     }
 
     // Вспомогательная функция для разбивки текста на подсвеченные части

@@ -7,14 +7,11 @@ import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hc.client.kool.minecraft.Image
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
-import ru.hollowhorizon.hollowengine.client.gui.scripting.StartScriptPacket
-import ru.hollowhorizon.hollowengine.client.gui.scripting.StopScriptPacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
-import ru.hollowhorizon.hollowengine.common.scripting.core.completion.GlobalClassesIndex
 import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolClientManager
 
 @SubscribeEvent
@@ -45,7 +42,6 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
                 Minecraft.getInstance().reloadResourcePacks()
             }
             item("Сбросить индексы") {
-                GlobalClassesIndex.reload()
             }
             divider()
             item("Выход", "hollowengine:textures/gui/icons/exit.png") {
@@ -116,11 +112,11 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
 
         if (file in KoolClientManager) {
             ActionButton(24.dp, "hollowengine:textures/gui/icons/stop.png") {
-                StopScriptPacket(file).send()
+                //StopScriptPacket(file).send()
             }
         } else {
             ActionButton(24.dp, "hollowengine:textures/gui/icons/play.png") {
-                StartScriptPacket(file).send()
+                //StartScriptPacket(file).send()
             }
         }
     }

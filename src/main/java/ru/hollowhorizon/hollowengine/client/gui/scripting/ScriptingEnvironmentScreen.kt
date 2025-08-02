@@ -5,6 +5,7 @@ import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.DockLayout
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
+import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
@@ -18,6 +19,11 @@ class ScriptingEnvironmentScreen : KoolScreen() {
 
     override fun Scene.setup() {
         setupUiScene()
+
+        if (!Minecraft.getInstance().hasSingleplayerServer()) {
+            addPanelSurface(sizes = IdeTheme.sizes, colors = IdeTheme.colors) { ServerIdeWarning() }
+            return
+        }
 
         var titleBarHeight = 0f
 

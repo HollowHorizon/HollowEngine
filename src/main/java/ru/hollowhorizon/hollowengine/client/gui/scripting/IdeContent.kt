@@ -17,46 +17,19 @@ object IdeContent {
     val dndContext = DragAndDropContext<FileNode>()
 
 
-    fun openFile(path: String, bytes: ByteArray, type: FileType) {
+    fun <T: FileData> openFile(path: String, bytes: ByteArray, generator: (String, ByteArray) -> T) {
         val screen = Minecraft.getInstance().screen as? ScriptingEnvironmentScreen ?: return
         val dock = screen.dock
 
         // Get or Create file
         val file = files.getOrPut(path) {
-            val localFile = when (type) {
-                FileType.TEXT -> {
-                    var text = String(bytes)
-                    if(text.isEmpty()) text = "\n"
-                    TextFileData(path.substringAfterLast('/'), path, text)
-                }
-                FileType.IMAGE -> ImageFileData(
-                    path.substringAfterLast('/'),
-                    path,
-                    bytes
-                )
-                FileType.DIALOG -> DialogFileData(path.substringAfterLast('/'), path)
-            }
+            val localFile = generator(path, bytes)
             dock.addDockableSurface(localFile.dockable, localFile.surface)
             val fileLeaf = dock.getLeafAtPath("0/1")
             if (fileLeaf != null) fileLeaf.dock(localFile.dockable)
             else dock.getLeafAtPath("0")?.insertItem(localFile.dockable, DockNode.SlotPosition.Right)
             localFile
         }
-
-        // Update File
-        when (type) {
-            FileType.IMAGE -> (file as ImageFileData).apply {
-                image = bytes
-                surface.triggerUpdate()
-            }
-
-            FileType.TEXT -> (file as TextFileData).apply {
-                setText(String(bytes))
-            }
-
-            else -> {}
-        }
-
     }
 
     fun openDocFile(node: FileNode) {

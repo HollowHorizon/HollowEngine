@@ -5,47 +5,43 @@ import de.fabmax.kool.modules.ui2.TextAttributes
 import de.fabmax.kool.modules.ui2.TextLine
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
-import net.minecraft.world.entity.player.Player
 import org.eclipse.lsp4j.*
 import org.jetbrains.kotlin.com.intellij.psi.PsiWhiteSpace
 import org.jetbrains.kotlin.resolve.BindingContext
+import org.jetbrains.kotlin.resolve.diagnostics.Diagnostics
 import ru.hollowhorizon.hc.HollowCore
-import ru.hollowhorizon.hc.common.events.entity.player.PlayerInteractEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
-import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.project.kt.CompiledFile
 import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
 import ru.hollowhorizon.hollowengine.common.project.kt.completion.completions
 import ru.hollowhorizon.hollowengine.common.project.kt.position.offset
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.ScriptColorizer
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.await
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.npc
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.pos
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.say
 import java.net.URI
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-class CompiledFileProvider(val file: URI, val completionProvider: (CompletionList) -> Unit) : TextLineProvider,
-    TextEditorHandler {
+class CompiledFileProvider(
+    val file: URI,
+    val completionProvider: (CompletionList) -> Unit,
+    val errorsProvider: (Diagnostics) -> Unit,
+) : TextLineProvider, TextEditorHandler {
     private val sp = KotlinLanguageServer.sourcePath
+    private var lock = ReentrantLock()
 
     init {
         KotlinLanguageServer.textDocumentService.didOpen(
             DidOpenTextDocumentParams(
                 TextDocumentItem(
-                    file.path,
-                    "kotlin",
-                    0,
-                    sp.contentProvider.contentOf(file)
+                    file.path, "kotlin", 0, sp.contentProvider.contentOf(file)
                 )
             )
         )
+        colorizeAsync(0, 0, 0, 0, 0)
     }
 
-    private var lock = ReentrantLock()
     private var compiledFile: CompiledFile = recover(Position(0, 0), Recompile.NEVER).first
-    private val font = MsdfFont(HACK_FONT, 18f)
+    val font = MsdfFont(HACK_FONT, 18f)
     private val lines = compiledFile.content.lines().map {
         TextLine(listOf(it to TextAttributes(font, Color.WHITE)))
     }.toMutableList()
@@ -93,14 +89,12 @@ class CompiledFileProvider(val file: URI, val completionProvider: (CompletionLis
         val textVersion = ++version
         KotlinLanguageServer.textDocumentService.didChange(
             DidChangeTextDocumentParams(
-                VersionedTextDocumentIdentifier(file.path, textVersion),
-                listOf(
+                VersionedTextDocumentIdentifier(file.path, textVersion), listOf(
                     TextDocumentContentChangeEvent(
                         Range(
                             Position(selectionStartLine, selectionStartChar),
                             Position(selectionEndLine, selectionEndChar)
-                        ),
-                        replacement
+                        ), replacement
                     )
                 )
             )
@@ -109,31 +103,13 @@ class CompiledFileProvider(val file: URI, val completionProvider: (CompletionLis
         recolorize(selectionStartLine, selectionEndLine, selectionStartChar, selectionEndChar, true)
         KotlinLanguageServer.textDocumentService.apply {
             debounceHighlight.schedule {
-                async.compute {
-                    val cursor = lock.withLock {
-                        val (newCompiledFile, cursor) = recover(
-                            Position(selectionStartLine, selectionStartChar),
-                            Recompile.ALWAYS
-                        )
-                        if (textVersion != version) return@compute -1
-                        compiledFile = newCompiledFile
-                        recolorize(selectionStartLine, selectionEndLine, selectionStartChar, selectionEndChar, false)
-                        isRecompiling = false
-                        cursor
-                    }
-
-                    if (compiledFile.compile[BindingContext.SCRIPT, compiledFile.parse.script] == null) {
-                        HollowCore.LOGGER.warn("Somehow script compilation failed... Trying again...")
-                        sp.refresh()
-                        compiledFile = sp.currentVersion(file)
-                        HollowCore.LOGGER.info(
-                            "Compiled script: {}",
-                            compiledFile.compile[BindingContext.SCRIPT, compiledFile.parse.script]
-                        )
-                    }
-
-                    cursor
-                }.thenAcceptAsync { cursor ->
+                colorizeAsync(
+                    selectionStartLine,
+                    selectionStartChar,
+                    selectionEndLine,
+                    selectionEndChar,
+                    textVersion,
+                ).thenAcceptAsync { cursor ->
                     if (cursor == -1 || replacement.length != 1 || !(replacement[0].isLetterOrDigit() || replacement[0] == '.')) return@thenAcceptAsync
                     val completions = completions(compiledFile, cursor, sp.index, config.completion)
                     completionProvider(completions)
@@ -150,6 +126,38 @@ class CompiledFileProvider(val file: URI, val completionProvider: (CompletionLis
         }
     }
 
+    private fun colorizeAsync(
+        selectionStartLine: Int,
+        selectionStartChar: Int,
+        selectionEndLine: Int,
+        selectionEndChar: Int,
+        textVersion: Int,
+    ): CompletableFuture<Int> {
+        return KotlinLanguageServer.textDocumentService.async.compute {
+            val cursor = lock.withLock {
+                val (newCompiledFile, cursor) = recover(
+                    Position(selectionStartLine, selectionStartChar), Recompile.ALWAYS
+                )
+                isRecompiling = false
+                if (textVersion != version) return@compute -1
+                compiledFile = newCompiledFile
+                recolorize(selectionStartLine, selectionEndLine, selectionStartChar, selectionEndChar, false)
+                cursor
+            }
+
+            if (compiledFile.compile[BindingContext.SCRIPT, compiledFile.parse.script] == null) {
+                HollowCore.LOGGER.warn("Somehow script compilation failed... Trying again...")
+                sp.refresh()
+                compiledFile = sp.currentVersion(file)
+                HollowCore.LOGGER.info(
+                    "Compiled script: {}", compiledFile.compile[BindingContext.SCRIPT, compiledFile.parse.script]
+                )
+            }
+
+            cursor
+        }
+    }
+
     fun recolorize(
         selectionStartLine: Int,
         selectionEndLine: Int,
@@ -163,25 +171,20 @@ class CompiledFileProvider(val file: URI, val completionProvider: (CompletionLis
                 if (highlight == null || highlight is PsiWhiteSpace) highlight =
                     it.findElementAt(offset(source.content, selectionStartLine, selectionStartChar) - 1)
                 val changed = ScriptColorizer.colorize(
-                    it,
-                    source.compiledContext ?: BindingContext.EMPTY,
-                    highlight
+                    it, source.compiledContext ?: BindingContext.EMPTY, highlight
                 )
                 if (light) {
                     val lines = mergeHighlight(
-                        lines,
-                        changed,
-                        selectionStartLine,
-                        selectionEndLine,
-                        selectionStartChar,
-                        selectionEndChar
+                        lines, changed, selectionStartLine, selectionEndLine, selectionStartChar, selectionEndChar
                     )
                     this.lines.clear()
                     this.lines.addAll(lines)
                 } else {
                     lines.clear()
                     lines.addAll(changed)
+                    source.compiledContext?.let { errorsProvider(it.diagnostics) }
                 }
+                if (lines.isEmpty()) lines.add(TextLine(listOf("" to TextAttributes(font, Color.WHITE))))
                 HollowCore.LOGGER.info("Recolored. Version: $version")
             }
         }
@@ -211,7 +214,7 @@ fun mergeHighlight(
         }
 
         return@MutableList when {
-            inChanged && light.size >= old.size -> newLine
+            inChanged && light.size > old.size -> newLine
             oldLine == null -> newLine
             oldLine.text == newLine.text -> oldLine
             else -> mergeLineHighlights(oldLine, newLine)

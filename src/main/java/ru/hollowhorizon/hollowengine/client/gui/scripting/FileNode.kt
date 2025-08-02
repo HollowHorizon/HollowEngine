@@ -17,6 +17,7 @@ import ru.hollowhorizon.hc.common.network.RequestPacket
 import ru.hollowhorizon.hc.common.network.request
 import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverListener
@@ -116,7 +117,7 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
                         val screen = Minecraft.getInstance().screen as? ScriptingEnvironmentScreen ?: return@onClick
                         val file = IdeContent.files[item.treePath]
 
-                        if (file == null) RequestFilePacket(item.treePath).send()
+                        if (file == null) IdeContent.openFile(item.treePath, item.treePath.fromReadablePath().readBytes(), ::TextFileData)
                         else screen.dock.getLeafAtPath("0/1")?.bringToTop(file.dockable)
                     }
                 }
@@ -178,7 +179,7 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
             super.onDragEnd(dragItem, dragPointer, source, target, success)
             (target as? FileHandler)?.node?.let { node ->
                 if (!node.isFolder || dragItem.treePath == node.treePath) return@let
-                CopyFilePacket(dragItem.treePath, node.treePath, true).send()
+                //CopyFilePacket(dragItem.treePath, node.treePath, true).send()
             }
         }
     }

@@ -6,6 +6,7 @@ import de.fabmax.kool.modules.ui2.Composable
 import de.fabmax.kool.modules.ui2.UiScope
 import de.fabmax.kool.modules.ui2.remember
 import net.minecraft.client.Minecraft
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.utils.lang
@@ -40,20 +41,20 @@ class FilePopup : Composable {
     }
 
     private fun createFolder(item: FileNode, name: String) {
-        CreateFilePacket(item.treePath + "/" + name).send()
+        //CreateFilePacket(item.treePath + "/" + name).send()
         item.update()
     }
     private fun createFile(item: FileNode, name: String) {
-        CreateFilePacket(item.treePath + "/" + name + fileExtension).send()
+        //CreateFilePacket(item.treePath + "/" + name + fileExtension).send()
         item.update()
     }
 
     private fun rename(item: FileNode, newName: String) {
-        RenameFilePacket(item.treePath, newName).send()
+        //RenameFilePacket(item.treePath, newName).send()
         item.parent?.update()
     }
     private fun delete(item: FileNode) {
-        DeleteFilePacket(item.treePath).send()
+        //DeleteFilePacket(item.treePath).send()
         item.parent?.update()
     }
 
@@ -84,7 +85,7 @@ class FilePopup : Composable {
                 }
             } else {
                 item(ACTIONS("open"), "hollowengine:textures/gui/icons/file_kts.png") {
-                    RequestFilePacket(node.treePath).send()
+                    IdeContent.openFile(node.treePath, node.treePath.fromReadablePath().readBytes(), ::TextFileData)
                 }
             }
             divider()
@@ -101,7 +102,7 @@ class FilePopup : Composable {
 
                 val target = it.treePath
 
-                if (copySource.isNotEmpty()) CopyFilePacket(copySource, target, deleteOriginal).send()
+                if (copySource.isNotEmpty()) //CopyFilePacket(copySource, target, deleteOriginal).send()
                 if (deleteOriginal) copySource = ""
             }
             divider()

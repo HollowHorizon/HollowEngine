@@ -145,7 +145,6 @@ object KotlinLanguageClient : LanguageClient {
     }
 
     override fun publishDiagnostics(params: PublishDiagnosticsParams) {
-        (IdeContent.files["scripts/"+params.uri.substringAfter("scripts/")] as TextFileData).onErrorsEvent(params)
     }
 
     override fun showMessage(p0: MessageParams) {

@@ -43,7 +43,7 @@ import org.jetbrains.kotlin.types.typeUtil.replaceArgumentsWithStarProjections
 import org.jetbrains.kotlin.types.checker.KotlinTypeChecker
 import org.jetbrains.kotlin.utils.addToStdlib.applyIf
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.project.kt.symbols.matcher
+import ru.hollowhorizon.hollowengine.common.project.kt.CamelHumpMatcher
 import ru.hollowhorizon.hollowengine.common.project.kt.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.collections.onEachIndexed
@@ -159,11 +159,10 @@ data class ElementCompletionItems(val items: Sequence<CompletionItem>, val eleme
 /** Finds completions based on the element around the user's cursor. */
 private fun elementCompletionItems(file: CompiledFile, cursor: Int, config: CompletionConfiguration, partial: String): ElementCompletionItems {
     val (surroundingElement, isGlobal) = completableElement(file, cursor) ?: return ElementCompletionItems(emptySequence())
-    val matcher = matcher(partial)
     val completions = elementCompletions(file, cursor, surroundingElement, isGlobal)
         .applyIf(isGlobal) { filter { declarationIsInfix(it) } }
         .applyIf(surroundingElement.endOffset == cursor) {
-            filter { matcher.matches(name(it)) }
+            filter { CamelHumpMatcher.matches(partial, name(it)) }
         }
 
     val sorted = completions.takeIf { partial.length >= MIN_SORT_LENGTH }?.sortedBy { stringDistance(name(it), partial) }
