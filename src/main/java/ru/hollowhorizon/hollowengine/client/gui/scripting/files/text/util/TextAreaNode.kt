@@ -8,6 +8,7 @@ import de.fabmax.kool.input.KeyEvent
 import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.LocalKeyCode
 import de.fabmax.kool.input.PointerInput
+import de.fabmax.kool.input.UniversalKeyCode
 import de.fabmax.kool.math.*
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.TriangulatedLineMesh
@@ -566,7 +567,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
                 else -> {
                     if (keyEvent.isCtrlDown) {
-                        when (keyEvent.localKeyCode) {
+                        when (keyEvent.keyCode) {
                             KEY_CODE_SELECT_ALL -> selectionHandler.selectAll()
                             KEY_CODE_PASTE -> Clipboard.getStringFromClipboard { paste -> paste?.let { editText(it) } }
                             KEY_CODE_COPY -> selectionHandler.copySelection()?.let { Clipboard.copyToClipboard(it) }
@@ -1052,10 +1053,10 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     }
 
     companion object {
-        private val KEY_CODE_SELECT_ALL = LocalKeyCode('a')
-        private val KEY_CODE_CUT = LocalKeyCode('x')
-        private val KEY_CODE_COPY = LocalKeyCode('c')
-        private val KEY_CODE_PASTE = LocalKeyCode('v')
+        private val KEY_CODE_SELECT_ALL = UniversalKeyCode('A')
+        private val KEY_CODE_CUT = UniversalKeyCode('X')
+        private val KEY_CODE_COPY = UniversalKeyCode('C')
+        private val KEY_CODE_PASTE = UniversalKeyCode('V')
 
         val factory: (UiNode, UiSurface) -> TextAreaNode = { parent, surface -> TextAreaNode(parent, surface) }
     }

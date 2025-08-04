@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.resolve.diagnostics.Diagnostics
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoableAction
 import ru.hollowhorizon.hollowengine.common.project.kt.CompiledFile
 import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
 import ru.hollowhorizon.hollowengine.common.project.kt.completion.completions
@@ -50,6 +51,9 @@ class CompiledFileProvider(
     var isRecompiling = false
         private set
 
+    private val undoStack = ArrayDeque<UndoableAction>()
+    private val redoStack = ArrayDeque<UndoableAction>()
+
     private enum class Recompile {
         ALWAYS, AFTER_DOT, NEVER
     }
@@ -86,6 +90,24 @@ class CompiledFileProvider(
         selectionEndChar: Int,
         replacement: String,
     ): Vec2i {
+        val oldText = getTextFromRange(selectionStartLine, selectionStartChar, selectionEndLine, selectionEndChar)
+        val replacementLines = replacement.lines()
+        val M = replacementLines.size
+        val endLineAfter = if (M == 1) selectionStartLine else selectionStartLine + M - 1
+        val endCharAfter = if (M == 1) selectionStartChar + replacement.length else replacementLines.last().length
+
+        val action = UndoableAction(
+            startLine = selectionStartLine,
+            caretLine = endLineAfter,
+            startChar = selectionStartChar,
+            caretChar = endCharAfter,
+            numOldLines = 0, // Не используется
+            oldLines = listOf(TextLine(listOf(oldText to TextAttributes(font, Color.WHITE)))),
+            newLines = listOf(TextLine(listOf(replacement to TextAttributes(font, Color.WHITE))))
+        )
+        undoStack.addLast(action)
+        redoStack.clear()
+
         val textVersion = ++version
         KotlinLanguageServer.textDocumentService.didChange(
             DidChangeTextDocumentParams(
@@ -123,6 +145,36 @@ class CompiledFileProvider(
                 val lines = replacement.lines()
                 Vec2i(lines.last().length, selectionStartLine + lines.size - 1)
             }
+        }
+    }
+
+    private fun getTextFromRange(startLine: Int, startChar: Int, endLine: Int, endChar: Int): String {
+        if (startLine < 0 || startLine >= lines.size || endLine < 0 || endLine >= lines.size || startChar < 0 || endChar < 0) {
+            throw IndexOutOfBoundsException("Invalid range: lines $startLine to $endLine, chars $startChar to $endChar")
+        }
+        if (startLine == endLine) {
+            val line = lines[startLine].text
+            if (line.isEmpty()) return ""
+            if (startChar > line.length || endChar > line.length || startChar > endChar) {
+                throw IndexOutOfBoundsException("Invalid char range in line $startLine: $startChar to $endChar, line length ${line.length}")
+            }
+            return line.substring(startChar, endChar)
+        } else {
+            val builder = StringBuilder()
+            val firstLine = lines[startLine].text
+            if (startChar > firstLine.length) {
+                throw IndexOutOfBoundsException("Start char $startChar out of range in line $startLine, length ${firstLine.length}")
+            }
+            builder.append(firstLine.substring(startChar))
+            for (i in startLine + 1 until endLine) {
+                builder.append("\n").append(lines[i].text)
+            }
+            val lastLine = lines[endLine].text
+            if (endChar > lastLine.length) {
+                throw IndexOutOfBoundsException("End char $endChar out of range in line $endLine, length ${lastLine.length}")
+            }
+            builder.append("\n").append(lastLine.substring(0, endChar))
+            return builder.toString()
         }
     }
 
@@ -196,11 +248,62 @@ class CompiledFileProvider(
     }
 
     override fun undo(onSelectionChanged: ((Int, Int, Int, Int) -> Unit)?) {
-        TODO()
+        if (undoStack.isEmpty()) return
+        val action = undoStack.removeLast()
+        val oldText = action.oldLines[0].text
+        val newText = action.newLines[0].text
+        val oldTextLines = oldText.lines()
+        val K = oldTextLines.size
+        val endLine = if (K == 1) action.startLine else action.startLine + K - 1
+        val endChar = if (K == 1) action.startChar + oldText.length else oldTextLines.last().length
+
+        KotlinLanguageServer.textDocumentService.didChange(
+            DidChangeTextDocumentParams(
+                VersionedTextDocumentIdentifier(file.path, ++version),
+                listOf(
+                    TextDocumentContentChangeEvent(
+                        Range(
+                            Position(action.startLine, action.startChar),
+                            Position(action.caretLine, action.caretChar)
+                        ),
+                        oldText
+                    )
+                )
+            )
+        )
+        recolorize(action.startLine, action.caretLine, action.startChar, action.caretChar, true)
+        redoStack.addLast(action)
+
+        onSelectionChanged?.invoke(action.startLine, endLine, action.startChar, endChar)
     }
 
     override fun redo(onSelectionChanged: ((Int, Int, Int, Int) -> Unit)?) {
-        TODO()
+        if (redoStack.isEmpty()) return
+        val action = redoStack.removeLast()
+        val oldText = action.oldLines[0].text
+        val newText = action.newLines[0].text
+        val oldTextLines = oldText.lines()
+        val K = oldTextLines.size
+        val endLine = if (K == 1) action.startLine else action.startLine + K - 1
+        val endChar = if (K == 1) action.startChar + oldText.length else oldTextLines.last().length
+
+        KotlinLanguageServer.textDocumentService.didChange(
+            DidChangeTextDocumentParams(
+                VersionedTextDocumentIdentifier(file.path, ++version),
+                listOf(
+                    TextDocumentContentChangeEvent(
+                        Range(
+                            Position(action.startLine, action.startChar),
+                            Position(endLine, endChar)
+                        ),
+                        newText
+                    )
+                )
+            )
+        )
+        recolorize(action.startLine, endLine, action.startChar, endChar, true)
+        undoStack.addLast(action)
+        onSelectionChanged?.invoke(action.caretLine, action.caretLine, action.caretChar, action.caretChar)
     }
 }
 
@@ -231,8 +334,6 @@ fun mergeHighlight(
             else -> mergeLineHighlights(oldLine, newLine)
         }
     }
-
-
     return result
 }
 
@@ -244,8 +345,6 @@ private fun mergeLineHighlights(old: TextLine, new: TextLine): TextLine {
     while (newPos < new.spans.size) {
         val newSpan = new.spans[newPos]
         val newText = newSpan.first
-
-        // Проверяем совпадает ли span со старым
         val matchingOldSpan = findMatchingSpan(old, oldPos, newText)
 
         mergedSpans.add(
@@ -256,10 +355,8 @@ private fun mergeLineHighlights(old: TextLine, new: TextLine): TextLine {
                 newSpan
             }
         )
-
         newPos++
     }
-
     return TextLine(mergedSpans)
 }
 
