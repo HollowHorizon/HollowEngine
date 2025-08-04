@@ -19,7 +19,6 @@ import ru.hollowhorizon.hollowengine.common.project.kt.completion.completions
 import ru.hollowhorizon.hollowengine.common.project.kt.position.offset
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.ScriptColorizer
 import java.io.File
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -30,6 +29,14 @@ class CompiledFileProvider(
 ) : TextLineProvider, TextEditorHandler, UndoRedoHandler {
     private val sp = KotlinLanguageServer.sourcePath
     private var lock = ReentrantLock()
+    val font = MsdfFont(HACK_FONT, 18f)
+    val lines = ArrayList<TextLine>()
+    private var compiledFile: CompiledFile = recover(Position(0, 0), Recompile.NEVER).first
+    private var version = 0
+    var isRecompiling = false
+        private set
+    private val undoStack = ArrayDeque<UndoableAction>()
+    private val redoStack = ArrayDeque<UndoableAction>()
 
     init {
         KotlinLanguageServer.textDocumentService.didOpen(
@@ -39,20 +46,8 @@ class CompiledFileProvider(
                 )
             )
         )
-        colorizeAsync(0, 0, 0, 0, 0)
+        colorizeAsync(0, 0, 0, 0, 0, false)
     }
-
-    private var compiledFile: CompiledFile = recover(Position(0, 0), Recompile.NEVER).first
-    val font = MsdfFont(HACK_FONT, 18f)
-    private val lines = compiledFile.content.lines().map {
-        TextLine(listOf(it to TextAttributes(font, Color.WHITE)))
-    }.toMutableList()
-    private var version = 0
-    var isRecompiling = false
-        private set
-
-    private val undoStack = ArrayDeque<UndoableAction>()
-    private val redoStack = ArrayDeque<UndoableAction>()
 
     private enum class Recompile {
         ALWAYS, AFTER_DOT, NEVER
@@ -121,23 +116,16 @@ class CompiledFileProvider(
                 )
             )
         )
-        isRecompiling = true
-        recolorize(selectionStartLine, selectionEndLine, selectionStartChar, selectionEndChar, true)
-        KotlinLanguageServer.textDocumentService.apply {
-            debounceHighlight.schedule {
-                colorizeAsync(
-                    selectionStartLine,
-                    selectionStartChar,
-                    selectionEndLine,
-                    selectionEndChar,
-                    textVersion,
-                ).thenAcceptAsync { cursor ->
-                    if (cursor == -1 || replacement.length != 1 || !(replacement[0].isLetterOrDigit() || replacement[0] == '.')) return@thenAcceptAsync
-                    val completions = completions(compiledFile, cursor + 1, sp.index, config.completion)
-                    completionProvider(completions)
-                }
-            }
-        }
+
+        colorizeAsync(
+            selectionStartLine,
+            selectionStartChar,
+            selectionEndLine,
+            selectionEndChar,
+            textVersion,
+            showCompletions = replacement.length == 1 && (replacement[0].isLetterOrDigit() || replacement[0] == '.')
+        )
+
         return when {
             replacement.isEmpty() -> Vec2i(selectionStartChar, selectionStartLine)
             !replacement.contains('\n') -> Vec2i(selectionStartChar + replacement.length, selectionStartLine)
@@ -184,29 +172,44 @@ class CompiledFileProvider(
         selectionEndLine: Int,
         selectionEndChar: Int,
         textVersion: Int,
-    ): CompletableFuture<Int> {
-        return KotlinLanguageServer.textDocumentService.async.compute {
-            val cursor = lock.withLock {
-                val (newCompiledFile, cursor) = recover(
-                    Position(selectionStartLine, selectionStartChar), Recompile.ALWAYS
-                )
-                isRecompiling = false
-                if (textVersion != version) return@compute -1
-                compiledFile = newCompiledFile
-                recolorize(selectionStartLine, selectionEndLine, selectionStartChar, selectionEndChar, false)
-                cursor
-            }
+        showCompletions: Boolean,
+    ) {
+        isRecompiling = true
+        recolorize(selectionStartLine, selectionEndLine, selectionStartChar, selectionEndChar, true)
 
-            if (compiledFile.compile[BindingContext.SCRIPT, compiledFile.parse.script] == null) {
-                HollowCore.LOGGER.warn("Somehow script compilation failed... Trying again...")
-                sp.refresh()
-                compiledFile = sp.currentVersion(file)
-                HollowCore.LOGGER.info(
-                    "Compiled script: {}", compiledFile.compile[BindingContext.SCRIPT, compiledFile.parse.script]
-                )
-            }
+        KotlinLanguageServer.textDocumentService.apply {
+            debounceHighlight.schedule {
+                val result = async.compute {
+                    val cursor = lock.withLock {
+                        val (newCompiledFile, cursor) = recover(
+                            Position(selectionStartLine, selectionStartChar), Recompile.ALWAYS
+                        )
+                        isRecompiling = false
+                        if (textVersion != version) return@compute -1
+                        compiledFile = newCompiledFile
+                        recolorize(selectionStartLine, selectionEndLine, selectionStartChar, selectionEndChar, false)
+                        cursor
+                    }
 
-            cursor
+                    if (compiledFile.compile[BindingContext.SCRIPT, compiledFile.parse.script] == null) {
+                        HollowCore.LOGGER.warn("Somehow script compilation failed... Trying again...")
+                        sp.refresh()
+                        compiledFile = sp.currentVersion(file)
+                        HollowCore.LOGGER.info(
+                            "Compiled script: {}",
+                            compiledFile.compile[BindingContext.SCRIPT, compiledFile.parse.script]
+                        )
+                    }
+
+                    cursor
+                }
+
+                if (showCompletions) result.thenAcceptAsync { cursor ->
+                    if (cursor == -1) return@thenAcceptAsync
+                    val completions = completions(compiledFile, cursor + 1, sp.index, config.completion)
+                    completionProvider(completions)
+                }
+            }
         }
     }
 
@@ -244,7 +247,7 @@ class CompiledFileProvider(
     }
 
     fun setText(text: String) {
-        replaceText(0, lines.lastIndex, 0, lines.last().text.lastIndex, text)
+        replaceText(0, lines.lastIndex, 0, lines.last().text.length, text)
     }
 
     override fun undo(onSelectionChanged: ((Int, Int, Int, Int) -> Unit)?) {
@@ -271,7 +274,7 @@ class CompiledFileProvider(
                 )
             )
         )
-        recolorize(action.startLine, action.caretLine, action.startChar, action.caretChar, true)
+        colorizeAsync(action.startLine, action.startChar, action.caretLine, action.caretChar, version, false)
         redoStack.addLast(action)
 
         onSelectionChanged?.invoke(action.startLine, endLine, action.startChar, endChar)
@@ -301,7 +304,8 @@ class CompiledFileProvider(
                 )
             )
         )
-        recolorize(action.startLine, endLine, action.startChar, endChar, true)
+        colorizeAsync(action.startLine, action.startChar, endLine, endChar, version, false)
+
         undoStack.addLast(action)
         onSelectionChanged?.invoke(action.caretLine, action.caretLine, action.caretChar, action.caretChar)
     }

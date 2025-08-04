@@ -1,7 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
+import com.facebook.ktfmt.format.Formatter
+import com.facebook.ktfmt.format.Formatter.KOTLINLANG_FORMAT
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
+import de.fabmax.kool.util.logE
 import org.eclipse.lsp4j.DiagnosticSeverity
 import org.eclipse.lsp4j.PublishDiagnosticsParams
 import org.jetbrains.kotlin.diagnostics.Diagnostic
@@ -98,17 +101,15 @@ class TextFileData(name: String, path: String, code: String) :
 
     override fun SubMenuItem<Dockable>.createMenu() {
         item("Форматировать", "hollowengine:textures/gui/icons/icon_41.png") {
-            //val editorHandler = editorHandler as? ScriptTextEditorHandler
-
-//            try {
-//                val original = lines.joinToString("\n") { it.text }
-//                val new = Formatter.format(KOTLINLANG_FORMAT, original)
-//                if (original == new) return@item
-//                //editorHandler?.replaceAll(new, area)
-//                modifier.onSelectionChanged?.let { it(-1, -1, 0, 0) }
-//            } catch (ex: Exception) {
-//                logE { ex.stackTraceToString() }
-//            }
+            try {
+                val original = provider.lines.joinToString("\n") { it.text }
+                val new = Formatter.format(KOTLINLANG_FORMAT, original)
+                if (original == new) return@item
+                provider.setText(new)
+                modifier.onSelectionChanged?.let { it(-1, -1, 0, 0) }
+            } catch (ex: Exception) {
+                logE { ex.stackTraceToString() }
+            }
         }
     }
 }
