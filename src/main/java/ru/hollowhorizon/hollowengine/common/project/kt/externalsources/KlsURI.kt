@@ -70,7 +70,7 @@ data class KlsURI(val fileUri: URI, val query: Map<QueryParam, String>) {
         }
 
     val archivePath: Path
-        get() = Paths.get(parseURI(fileUri.schemeSpecificPart.split(archiveType.delimiter)[0]))
+        get() = parseURI(fileUri.schemeSpecificPart.split(archiveType.delimiter)[0]).toPath()
 
     private val innerPath: String
         get() = fileUri.schemeSpecificPart.split(archiveType.delimiter, limit = 2)[1]

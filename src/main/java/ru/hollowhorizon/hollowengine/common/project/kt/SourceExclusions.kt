@@ -1,17 +1,14 @@
 package ru.hollowhorizon.hollowengine.common.project.kt
 
-import ru.hollowhorizon.hollowengine.common.project.kt.util.filePath
 import java.io.File
-import java.net.URI
 import java.nio.file.FileSystems
 import java.nio.file.Path
-import java.nio.file.Paths
 
 // TODO: Read exclusions from gitignore/settings.json/... instead of
 // hardcoding them
 class SourceExclusions(
     private val workspaceRoots: Collection<Path>,
-    private val scriptsConfig: ScriptsConfiguration
+    private val scriptsConfig: ScriptsConfiguration,
 ) {
     val excludedPatterns = (listOf(
         ".git", ".hg", ".svn",                                                      // Version control systems
@@ -35,7 +32,7 @@ class SourceExclusions(
     }
 
     /** Tests whether the given URI is not excluded. */
-    fun isURIIncluded(uri: URI) = uri.filePath?.let(this::isPathIncluded) ?: false
+    fun isURIIncluded(uri: File) = uri.toPath().let(this::isPathIncluded)
 
     /** Tests whether the given path is not excluded. */
     fun isPathIncluded(file: Path): Boolean = workspaceRoots.any { file.startsWith(it) }

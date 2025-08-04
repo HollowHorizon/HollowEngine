@@ -7,7 +7,6 @@ import ru.hollowhorizon.hollowengine.common.project.kt.resolve.resolveMain
 import ru.hollowhorizon.hollowengine.common.project.kt.position.offset
 import ru.hollowhorizon.hollowengine.common.project.kt.overridemembers.listOverridableMembers
 import java.util.concurrent.CompletableFuture
-import java.nio.file.Paths
 
 class KotlinProtocolExtensionService(
     private val uriContentProvider: URIContentProvider,
@@ -25,8 +24,8 @@ class KotlinProtocolExtensionService(
     }
 
     override fun mainClass(textDocument: TextDocumentIdentifier): CompletableFuture<Map<String, Any?>> = async.compute {
-        val fileUri = parseURI(textDocument.uri)
-        val filePath = Paths.get(fileUri)
+        val file = parseURI(textDocument.uri)
+        val filePath = file.toPath()
         
         // we find the longest one in case both the root and submodule are included
         val workspacePath = cp.workspaceRoots.filter {
@@ -35,7 +34,7 @@ class KotlinProtocolExtensionService(
             it.toString()
         }.maxByOrNull(String::length) ?: ""
         
-        val compiledFile = sp.currentVersion(fileUri)
+        val compiledFile = sp.currentVersion(file)
 
         resolveMain(compiledFile) + mapOf(
             "projectRoot" to workspacePath

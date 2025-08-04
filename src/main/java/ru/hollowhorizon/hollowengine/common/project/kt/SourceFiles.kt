@@ -1,24 +1,15 @@
 package ru.hollowhorizon.hollowengine.common.project.kt
 
-import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent
 import org.jetbrains.kotlin.com.intellij.lang.Language
 import org.jetbrains.kotlin.com.intellij.openapi.util.text.StringUtil.convertLineSeparators
+import org.jetbrains.kotlin.idea.KotlinLanguage
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.project.kt.util.filePath
-import ru.hollowhorizon.hollowengine.common.project.kt.util.partitionAroundLast
-import ru.hollowhorizon.hollowengine.common.project.kt.util.describeURIs
 import ru.hollowhorizon.hollowengine.common.project.kt.util.describeURI
-import java.io.BufferedReader
-import java.io.StringReader
-import java.io.StringWriter
-import java.io.IOException
-import java.io.FileNotFoundException
-import java.net.URI
+import ru.hollowhorizon.hollowengine.common.project.kt.util.describeURIs
+import java.io.*
 import java.nio.file.FileSystems
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.Paths
 
 private class SourceVersion(val content: String, val version: Int, val language: Language?, val isTemporary: Boolean)
 
@@ -26,23 +17,23 @@ private class SourceVersion(val content: String, val version: Int, val language:
  * Notify SourcePath whenever a file changes
  */
 private class NotifySourcePath(private val sp: SourcePath) {
-    private val files = mutableMapOf<URI, SourceVersion>()
+    private val files = mutableMapOf<File, SourceVersion>()
 
-    operator fun get(uri: URI): SourceVersion? = files[uri]
+    operator fun get(uri: File): SourceVersion? = files[uri]
 
-    operator fun set(uri: URI, source: SourceVersion) {
+    operator fun set(uri: File, source: SourceVersion) {
         val content = convertLineSeparators(source.content)
 
         files[uri] = source
         sp.put(uri, content, source.language, source.isTemporary)
     }
 
-    fun remove(uri: URI) {
+    fun remove(uri: File) {
         files.remove(uri)
         sp.delete(uri)
     }
 
-    fun removeIfTemporary(uri: URI): Boolean =
+    fun removeIfTemporary(uri: File): Boolean =
         if (sp.deleteIfTemporary(uri)) {
             files.remove(uri)
             true
@@ -50,7 +41,7 @@ private class NotifySourcePath(private val sp: SourcePath) {
             false
         }
 
-    fun removeAll(rm: Collection<URI>) {
+    fun removeAll(rm: Collection<File>) {
         files -= rm
 
         rm.forEach(sp::delete)
@@ -65,21 +56,19 @@ private class NotifySourcePath(private val sp: SourcePath) {
 class SourceFiles(
     private val sp: SourcePath,
     private val contentProvider: URIContentProvider,
-    private val scriptsConfig: ScriptsConfiguration
+    private val scriptsConfig: ScriptsConfiguration,
 ) {
     private val workspaceRoots = mutableSetOf<Path>()
     private var exclusions = SourceExclusions(workspaceRoots, scriptsConfig)
     private val files = NotifySourcePath(sp)
-    private val open = mutableSetOf<URI>()
+    private val open = mutableSetOf<File>()
 
-    fun open(uri: URI, content: String, version: Int) {
-        if (isIncluded(uri) || true) {
-            files[uri] = SourceVersion(content, version, languageOf(uri), isTemporary = false)
-            open.add(uri)
-        }
+    fun open(uri: File, content: String, version: Int) {
+        files[uri] = SourceVersion(content, version, languageOf(uri), isTemporary = false)
+        open.add(uri)
     }
 
-    fun close(uri: URI) {
+    fun close(uri: File) {
         if (uri in open) {
             open.remove(uri)
             val removed = files.removeIfTemporary(uri)
@@ -96,43 +85,42 @@ class SourceFiles(
         }
     }
 
-    fun edit(uri: URI, newVersion: Int, contentChanges: List<TextDocumentContentChangeEvent>) {
-        if (isIncluded(uri) || true) {
-            val existing = files[uri]!!
-            var newText = existing.content
+    fun edit(uri: File, newVersion: Int, contentChanges: List<TextDocumentContentChangeEvent>) {
+        val existing = files[uri]!!
+        var newText = existing.content
 
-            if (newVersion <= existing.version) {
-                HollowEngine.LOGGER.warn("Ignored {} version {}", describeURI(uri), newVersion)
-                return
-            }
-
-            for (change in contentChanges) {
-                if (change.range == null) newText = change.text
-                else newText = patch(newText, change)
-            }
-
-            files[uri] = SourceVersion(newText, newVersion, existing.language, existing.isTemporary)
+        if (newVersion <= existing.version) {
+            HollowEngine.LOGGER.warn("Ignored {} version {}", describeURI(uri), newVersion)
+            return
         }
+
+        for (change in contentChanges) {
+            if (change.range == null) newText = change.text
+            else newText = patch(newText, change)
+        }
+
+        uri.toPath().toFile().writeText(newText, Charsets.UTF_8)
+        files[uri] = SourceVersion(newText, newVersion, existing.language, existing.isTemporary)
     }
 
-    fun createdOnDisk(uri: URI) {
+    fun createdOnDisk(uri: File) {
         changedOnDisk(uri)
     }
 
-    fun deletedOnDisk(uri: URI) {
+    fun deletedOnDisk(uri: File) {
         if (isSource(uri)) {
             files.remove(uri)
         }
     }
 
-    fun changedOnDisk(uri: URI) {
+    fun changedOnDisk(uri: File) {
         if (isSource(uri)) {
             files[uri] = readFromDisk(uri, files[uri]?.isTemporary ?: true)
                 ?: error("Could not read source file '$uri' after being changed on disk")
         }
     }
 
-    private fun readFromDisk(uri: URI, temporary: Boolean): SourceVersion? = try {
+    private fun readFromDisk(uri: File, temporary: Boolean): SourceVersion? = try {
         val content = contentProvider.contentOf(uri)
         SourceVersion(content, -1, languageOf(uri), isTemporary = temporary)
     } catch (e: FileNotFoundException) {
@@ -142,10 +130,10 @@ class SourceFiles(
         null
     }
 
-    private fun isSource(uri: URI): Boolean = isIncluded(uri) && languageOf(uri) != null
+    private fun isSource(uri: File): Boolean = isIncluded(uri) && languageOf(uri) != null
 
-    private fun languageOf(uri: URI): Language? {
-        val fileName = uri.filePath?.fileName?.toString() ?: return null
+    private fun languageOf(uri: File): Language? {
+        val fileName = uri.name
         return when {
             fileName.endsWith(".kt") || fileName.endsWith(".kts") -> KotlinLanguage.INSTANCE
             else -> null
@@ -169,7 +157,7 @@ class SourceFiles(
     }
 
     fun removeWorkspaceRoot(root: Path) {
-        val rmSources = files.keys.filter { it.filePath?.startsWith(root) ?: false }
+        val rmSources = files.keys.filter { it.toPath().startsWith(root) }
 
         logRemoved(rmSources, root)
 
@@ -178,12 +166,12 @@ class SourceFiles(
         updateExclusions()
     }
 
-    private fun findSourceFiles(root: Path): Set<URI> {
+    private fun findSourceFiles(root: Path): Set<File> {
         val sourceMatcher = FileSystems.getDefault().getPathMatcher("glob:*.{kt,kts}")
         return SourceExclusions(listOf(root), scriptsConfig)
             .walkIncluded()
             .filter { sourceMatcher.matches(it.fileName) }
-            .map(Path::toUri)
+            .map(Path::toFile)
             .toSet()
     }
 
@@ -192,9 +180,9 @@ class SourceFiles(
         HollowEngine.LOGGER.info("Updated exclusions: ${exclusions.excludedPatterns}")
     }
 
-    fun isOpen(uri: URI): Boolean = (uri in open)
+    fun isOpen(uri: File): Boolean = (uri in open)
 
-    fun isIncluded(uri: URI): Boolean = exclusions.isURIIncluded(uri)
+    fun isIncluded(uri: File): Boolean = exclusions.isURIIncluded(uri)
 }
 
 private fun patch(sourceText: String, change: TextDocumentContentChangeEvent): String {
@@ -237,10 +225,10 @@ private fun patch(sourceText: String, change: TextDocumentContentChangeEvent): S
     }
 }
 
-private fun logAdded(sources: Collection<URI>, rootPath: Path?) {
+private fun logAdded(sources: Collection<File>, rootPath: Path?) {
     HollowEngine.LOGGER.info("Adding {} under {} to source path", describeURIs(sources), rootPath)
 }
 
-private fun logRemoved(sources: Collection<URI>, rootPath: Path?) {
+private fun logRemoved(sources: Collection<File>, rootPath: Path?) {
     HollowEngine.LOGGER.info("Removing {} under {} to source path", describeURIs(sources), rootPath)
 }

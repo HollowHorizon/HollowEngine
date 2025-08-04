@@ -25,6 +25,7 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.util.*
 import java.net.URI
 import java.io.Closeable
+import java.io.File
 import java.nio.file.Path
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
@@ -43,7 +44,7 @@ class KotlinTextDocumentService(
 
     private var debounceLint = Debouncer(Duration.ofMillis(config.diagnostics.debounceTime))
     var debounceHighlight = Debouncer(Duration.ofMillis(config.diagnostics.debounceTime))
-    val lintTodo = mutableSetOf<URI>()
+    val lintTodo = mutableSetOf<File>()
     var lintCount = 0
 
     var lintRecompilationCallback: () -> Unit
@@ -51,10 +52,10 @@ class KotlinTextDocumentService(
         set(callback) { sp.beforeCompileCallback = callback }
 
     private val TextDocumentItem.filePath: Path?
-        get() = parseURI(uri).filePath
+        get() = parseURI(uri).toPath()
 
     private val TextDocumentIdentifier.filePath: Path?
-        get() = parseURI(uri).filePath
+        get() = parseURI(uri).toPath()
 
     private val TextDocumentIdentifier.isKotlinScript: Boolean
         get() = uri.endsWith(".kts")
@@ -280,18 +281,18 @@ class KotlinTextDocumentService(
         }
     }
 
-    private fun clearLint(): List<URI> {
+    private fun clearLint(): List<File> {
         val result = lintTodo.toList()
         lintTodo.clear()
         return result
     }
 
-    private fun lintLater(uri: URI) {
+    private fun lintLater(uri: File) {
         lintTodo.add(uri)
         debounceLint.schedule(::doLint)
     }
 
-    private fun lintNow(file: URI) {
+    private fun lintNow(file: File) {
         lintTodo.add(file)
         debounceLint.submitImmediately(::doLint)
     }
@@ -306,7 +307,7 @@ class KotlinTextDocumentService(
         lintCount++
     }
 
-    private fun reportDiagnostics(compiled: Collection<URI>, kotlinDiagnostics: Diagnostics) {
+    private fun reportDiagnostics(compiled: Collection<File>, kotlinDiagnostics: Diagnostics) {
         val langServerDiagnostics = kotlinDiagnostics
             .flatMap(::convertDiagnostic)
             .filter { config.diagnostics.enabled && it.second.severity <= config.diagnostics.level }
@@ -331,7 +332,7 @@ class KotlinTextDocumentService(
         lintCount++
     }
 
-    private fun clearDiagnostics(uri: URI) {
+    private fun clearDiagnostics(uri: File) {
         client.publishDiagnostics(PublishDiagnosticsParams(uri.toString(), listOf()))
     }
 

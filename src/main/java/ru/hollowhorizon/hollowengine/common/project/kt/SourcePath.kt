@@ -1,25 +1,22 @@
 package ru.hollowhorizon.hollowengine.common.project.kt
 
 import org.jetbrains.kotlin.com.intellij.lang.Language
-import ru.hollowhorizon.hollowengine.common.project.kt.compiler.CompilationKind
-import ru.hollowhorizon.hollowengine.common.project.kt.util.AsyncExecutor
-import ru.hollowhorizon.hollowengine.common.project.kt.util.fileExtension
-import ru.hollowhorizon.hollowengine.common.project.kt.util.filePath
-import ru.hollowhorizon.hollowengine.common.project.kt.util.describeURI
-import ru.hollowhorizon.hollowengine.common.project.kt.index.SymbolIndex
-import ru.hollowhorizon.hollowengine.common.project.kt.progress.Progress
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.CompositeBindingContext
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
-import kotlin.concurrent.withLock
+import ru.hollowhorizon.hollowengine.common.project.kt.compiler.CompilationKind
+import ru.hollowhorizon.hollowengine.common.project.kt.index.SymbolIndex
+import ru.hollowhorizon.hollowengine.common.project.kt.progress.Progress
+import ru.hollowhorizon.hollowengine.common.project.kt.util.AsyncExecutor
+import ru.hollowhorizon.hollowengine.common.project.kt.util.describeURI
+import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.net.URI
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import kotlin.io.path.name
 
 class SourcePath(
@@ -27,7 +24,7 @@ class SourcePath(
     val contentProvider: URIContentProvider,
     private val indexingConfig: IndexingConfiguration,
 ) {
-    private val files = mutableMapOf<URI, SourceFile>()
+    private val files = mutableMapOf<File, SourceFile>()
     private val parseDataWriteLock = ReentrantLock()
 
     private val indexAsync = AsyncExecutor()
@@ -43,9 +40,9 @@ class SourcePath(
         }
 
     inner class SourceFile(
-        val uri: URI,
+        val uri: File,
         var content: String,
-        val path: Path? = uri.filePath ?: DirectoryManager.HOLLOW_ENGINE.resolve(uri.path),
+        val path: Path = uri.toPath(),
         var parsed: KtFile? = null,
         var compiledFile: KtFile? = null,
         var compiledContext: BindingContext? = null,
@@ -54,7 +51,7 @@ class SourcePath(
         val isTemporary: Boolean = false, // A temporary source file will not be returned by .all()
         var lastSavedFile: KtFile? = null,
     ) {
-        val extension: String = uri.fileExtension ?: language?.associatedFileType?.defaultExtension ?: "kt" // TODO: Use language?.associatedFileType?.defaultExtension again
+        val extension: String = uri.name.substringAfter('.')
         val isScript: Boolean = extension.endsWith("kts")
         val kind: CompilationKind =
             if (path?.name?.endsWith(".gradle.kts") == true) CompilationKind.BUILD_SCRIPT
@@ -116,10 +113,10 @@ class SourcePath(
         }
 
         fun prepareCompiledFile(): CompiledFile =
-                parseIfChanged().apply { compileIfNull() }.let { doPrepareCompiledFile() }
+            parseIfChanged().apply { compileIfNull() }.let { doPrepareCompiledFile() }
 
         private fun doPrepareCompiledFile(): CompiledFile =
-                CompiledFile(content, compiledFile!!, compiledContext!!, module!!, allIncludingThis(), cp, isScript, kind)
+            CompiledFile(content, compiledFile!!, compiledContext!!, module!!, allIncludingThis(), cp, isScript, kind)
 
         private fun allIncludingThis(): Collection<KtFile> = parseIfChanged().let {
             if (isTemporary) (all().asSequence() + sequenceOf(parsed!!)).toList()
@@ -127,20 +124,24 @@ class SourcePath(
         }
 
         // Creates a shallow copy
-        fun clone(): SourceFile = SourceFile(uri, content, path, parsed, compiledFile, compiledContext, module, language, isTemporary)
+        fun clone(): SourceFile =
+            SourceFile(uri, content, path, parsed, compiledFile, compiledContext, module, language, isTemporary)
     }
 
-    fun sourceFile(uri: URI): SourceFile {
+    fun sourceFile(uri: File): SourceFile {
         if (uri !in files) {
             // Fallback solution, usually *all* source files
             // should be added/opened through SourceFiles
-            HollowEngine.LOGGER.warn("Requested source file {} is not on source path, this is most likely a bug. Adding it now temporarily...", describeURI(uri))
+            HollowEngine.LOGGER.warn(
+                "Requested source file {} is not on source path, this is most likely a bug. Adding it now temporarily...",
+                describeURI(uri)
+            )
             put(uri, contentProvider.contentOf(uri), null, temporary = true)
         }
         return files[uri] ?: error("File not found!")
     }
 
-    fun put(uri: URI, content: String, language: Language?, temporary: Boolean = false) {
+    fun put(uri: File, content: String, language: Language?, temporary: Boolean = false) {
         assert(!content.contains('\r'))
 
         if (temporary) {
@@ -154,7 +155,7 @@ class SourcePath(
         }
     }
 
-    fun deleteIfTemporary(uri: URI): Boolean =
+    fun deleteIfTemporary(uri: File): Boolean =
         if (sourceFile(uri).isTemporary) {
             HollowEngine.LOGGER.info("Removing temporary source file {} from source path", describeURI(uri))
             delete(uri)
@@ -163,7 +164,7 @@ class SourcePath(
             false
         }
 
-    fun delete(uri: URI) {
+    fun delete(uri: File) {
         files[uri]?.let {
             refreshWorkspaceIndexes(listOf(it), listOf())
             cp.compiler.removeGeneratedCode(listOfNotNull(it.lastSavedFile))
@@ -175,26 +176,26 @@ class SourcePath(
     /**
      * Get the latest content of a file
      */
-    fun content(uri: URI): String = sourceFile(uri).content
+    fun content(uri: File): String = sourceFile(uri).content
 
-    fun parsedFile(uri: URI): KtFile = sourceFile(uri).apply { parseIfChanged() }.parsed!!
+    fun parsedFile(uri: File): KtFile = sourceFile(uri).apply { parseIfChanged() }.parsed!!
 
     /**
      * Compile the latest version of a file
      */
-    fun currentVersion(uri: URI): CompiledFile =
-            sourceFile(uri).apply { compileIfChanged() }.prepareCompiledFile()
+    fun currentVersion(uri: File): CompiledFile =
+        sourceFile(uri).apply { compileIfChanged() }.prepareCompiledFile()
 
     /**
      * Return whatever is the most-recent already-compiled version of `file`
      */
-    fun latestCompiledVersion(uri: URI): CompiledFile =
-            sourceFile(uri).prepareCompiledFile()
+    fun latestCompiledVersion(uri: File): CompiledFile =
+        sourceFile(uri).prepareCompiledFile()
 
     /**
      * Compile changed files
      */
-    fun compileFiles(all: Collection<URI>): BindingContext {
+    fun compileFiles(all: Collection<File>): BindingContext {
         // Figure out what has changed
         val sources = all.map { files[it]!! }
         val allChanged = sources.filter { it.content != it.compiledFile?.text }
@@ -267,7 +268,7 @@ class SourcePath(
     /**
      * Saves a file. This generates code for the file and deletes previously generated code for this file.
      */
-    fun save(uri: URI) {
+    fun save(uri: File) {
         files[uri]?.let {
             if (!it.isScript) {
                 // If the code generation fails for some reason, we generate code for the other files anyway
@@ -352,7 +353,7 @@ class SourcePath(
      * Get parsed trees for all .kt files on source path
      */
     fun all(includeHidden: Boolean = false): Collection<KtFile> =
-            files.values
-                .filter { includeHidden || !it.isTemporary }
-                .map { it.apply { parseIfChanged() }.parsed!! }
+        files.values
+            .filter { includeHidden || !it.isTemporary }
+            .map { it.apply { parseIfChanged() }.parsed!! }
 }

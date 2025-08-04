@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.common.project.kt.util.describeURI
 import java.io.BufferedReader
 import java.io.FileNotFoundException
 import java.nio.file.Files
+import kotlin.io.path.toPath
 
 /**
  * Provides the source code for classes located inside
@@ -38,7 +39,7 @@ class ClassContentProvider(
             sourceArchiveProvider.fetchSourceArchive(uri.archivePath)?.let(uri.withSource(true)::withArchivePath) ?: uri
         val key = resolvedUri.toString()
         val (contents, extension) = cachedContents[key] ?: run {
-            HollowEngine.LOGGER.info("Reading contents of {}", describeURI(resolvedUri.fileUri))
+            HollowEngine.LOGGER.info("Reading contents of {}", describeURI(resolvedUri.fileUri.toPath().toFile()))
             tryReadContentOf(resolvedUri)
                 ?: tryReadContentOf(resolvedUri.withFileExtension("class"))
                 ?: tryReadContentOf(resolvedUri.withFileExtension("java"))

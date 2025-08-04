@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.collections.onEachIndexed
 
 // The maximum number of completion items
-private const val MAX_COMPLETION_ITEMS = 75
+private const val MAX_COMPLETION_ITEMS = 750
 
 // The minimum length after which completion lists are sorted
 private const val MIN_SORT_LENGTH = 3
@@ -160,7 +160,10 @@ data class ElementCompletionItems(val items: Sequence<CompletionItem>, val eleme
 private fun elementCompletionItems(file: CompiledFile, cursor: Int, config: CompletionConfiguration, partial: String): ElementCompletionItems {
     val (surroundingElement, isGlobal) = completableElement(file, cursor) ?: return ElementCompletionItems(emptySequence())
     val completions = elementCompletions(file, cursor, surroundingElement, isGlobal)
-        .applyIf(isGlobal) { filter { declarationIsInfix(it) } }
+        .applyIf(isGlobal) {
+            filter { declarationIsInfix(it) }
+                .filter { CamelHumpMatcher.matches(partial, name(it)) }
+        }
         .applyIf(surroundingElement.endOffset == cursor) {
             filter { CamelHumpMatcher.matches(partial, name(it)) }
         }

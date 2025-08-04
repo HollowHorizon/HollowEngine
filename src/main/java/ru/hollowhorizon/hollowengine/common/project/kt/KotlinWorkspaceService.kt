@@ -9,7 +9,6 @@ import ru.hollowhorizon.hollowengine.common.project.kt.symbols.workspaceSymbols
 import ru.hollowhorizon.hollowengine.common.project.kt.command.JAVA_TO_KOTLIN_COMMAND
 import ru.hollowhorizon.hollowengine.common.project.kt.j2k.convertJavaToKotlin
 import ru.hollowhorizon.hollowengine.common.project.kt.position.extractRange
-import ru.hollowhorizon.hollowengine.common.project.kt.util.filePath
 import ru.hollowhorizon.hollowengine.common.project.kt.util.parseURI
 import java.nio.file.Paths
 import java.util.concurrent.CompletableFuture
@@ -59,20 +58,20 @@ class KotlinWorkspaceService(
     override fun didChangeWatchedFiles(params: DidChangeWatchedFilesParams) {
         for (change in params.changes) {
             val uri = parseURI(change.uri)
-            val path = uri.filePath
+            val path = uri.toPath()
 
             when (change.type) {
                 FileChangeType.Created -> {
                     sf.createdOnDisk(uri)
-                    path?.let(cp::createdOnDisk)?.let { if (it) sp.refresh() }
+                    path.let(cp::createdOnDisk).let { if (it) sp.refresh() }
                 }
                 FileChangeType.Deleted -> {
                     sf.deletedOnDisk(uri)
-                    path?.let(cp::deletedOnDisk)?.let { if (it) sp.refresh() }
+                    path.let(cp::deletedOnDisk).let { if (it) sp.refresh() }
                 }
                 FileChangeType.Changed -> {
                     sf.changedOnDisk(uri)
-                    path?.let(cp::changedOnDisk)?.let { if (it) sp.refresh() }
+                    path.let(cp::changedOnDisk).let { if (it) sp.refresh() }
                 }
                 null -> {
                     // Nothing to do
@@ -205,7 +204,7 @@ class KotlinWorkspaceService(
         for (change in params.event.removed) {
             HollowEngine.LOGGER.info("Dropping workspace {} from source path", change.uri)
 
-            val root = Paths.get(parseURI(change.uri))
+            val root = parseURI(change.uri).toPath()
 
             sf.removeWorkspaceRoot(root)
             val refreshed = cp.removeWorkspaceRoot(root)
@@ -216,7 +215,7 @@ class KotlinWorkspaceService(
         for (change in params.event.added) {
             HollowEngine.LOGGER.info("Adding workspace {} to source path", change.uri)
 
-            val root = Paths.get(parseURI(change.uri))
+            val root = parseURI(change.uri).toPath()
 
             sf.addWorkspaceRoot(root)
             val refreshed = cp.addWorkspaceRoot(root)

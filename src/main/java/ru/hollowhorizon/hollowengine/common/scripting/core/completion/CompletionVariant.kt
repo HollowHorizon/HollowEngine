@@ -197,7 +197,7 @@ data class CompletionVariant(
             fun fromKind(kind: CompletionItemKind) = when (kind) {
                 CompletionItemKind.File, CompletionItemKind.Folder -> PACKAGE
                 CompletionItemKind.Class, CompletionItemKind.Enum, CompletionItemKind.Interface -> CLASS
-                CompletionItemKind.Method, CompletionItemKind.Function, CompletionItemKind.Operator -> METHOD
+                CompletionItemKind.Method, CompletionItemKind.Function, CompletionItemKind.Operator, CompletionItemKind.Constructor -> METHOD
                 CompletionItemKind.Field, CompletionItemKind.Variable, CompletionItemKind.Property, CompletionItemKind.Value -> VARIABLE
                 else -> UNKNOWN
             }

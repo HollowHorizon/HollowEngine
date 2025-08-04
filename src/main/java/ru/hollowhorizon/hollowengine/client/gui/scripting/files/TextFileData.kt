@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.diagnostics.Diagnostic
 import ru.hollowhorizon.hc.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.project.kt.diagnostic.convertDiagnostic
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
 import java.net.URI
@@ -26,10 +27,9 @@ class TextFileData(name: String, path: String, code: String) :
     }
 
     override fun save() {
-        if (filePath.startsWith("%")) return
     }
 
-    private val provider = CompiledFileProvider(URI.create(filePath), {
+    private val provider = CompiledFileProvider(filePath.fromReadablePath(), {
         modifier.completions.clear()
         val completions = it.items.map { completion ->
             CompletionVariant(
@@ -61,9 +61,6 @@ class TextFileData(name: String, path: String, code: String) :
             this@TextFileData.area = this
             installSelectionHandler(provider) { startLine, caretLine, startChar, caretChar ->
                 modifier.completions.clear()
-
-                save()
-
                 if (!provider.isRecompiling) provider.recolorize(startLine, caretLine, startChar, caretChar, false)
             }
 

@@ -85,6 +85,7 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.ScriptsConfiguration
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptTypes
 import java.io.File
+import kotlin.io.path.name
 import kotlin.script.experimental.api.KotlinType
 import kotlin.script.experimental.host.createCompilationConfigurationFromTemplate
 import kotlin.script.experimental.host.getScriptingClass
@@ -253,7 +254,7 @@ class Compiler(
     fun createPsiFile(content: String, file: Path = Paths.get("dummy.virtual.kt"), language: Language = KotlinLanguage.INSTANCE, kind: CompilationKind = CompilationKind.DEFAULT): PsiFile {
         assert(!content.contains('\r'))
 
-        val new = psiFileFactoryFor(kind).createFileFromText(file.toString(), language, content, true, false)
+        val new = psiFileFactoryFor(kind).createFileFromText(file.name, language, content, true, false)
         assert(new.virtualFile != null)
 
         return new

@@ -12,8 +12,8 @@ import java.net.URI
 import org.eclipse.lsp4j.Diagnostic as LangServerDiagnostic
 import org.jetbrains.kotlin.diagnostics.Diagnostic as KotlinDiagnostic
 
-fun convertDiagnostic(diagnostic: KotlinDiagnostic): List<Pair<URI, LangServerDiagnostic>> {
-    val uri = URI.create(File(diagnostic.psiFile.viewProvider.virtualFile.path.substring(1)).toReadablePath())
+fun convertDiagnostic(diagnostic: KotlinDiagnostic): List<Pair<File, LangServerDiagnostic>> {
+    val uri = File(diagnostic.psiFile.viewProvider.virtualFile.path.substring(1))
     val content = diagnostic.psiFile.text
 
     return diagnostic.textRanges.map {

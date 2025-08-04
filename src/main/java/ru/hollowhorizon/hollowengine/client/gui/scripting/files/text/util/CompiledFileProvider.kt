@@ -16,13 +16,13 @@ import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
 import ru.hollowhorizon.hollowengine.common.project.kt.completion.completions
 import ru.hollowhorizon.hollowengine.common.project.kt.position.offset
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.ScriptColorizer
-import java.net.URI
+import java.io.File
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 class CompiledFileProvider(
-    val file: URI,
+    val file: File,
     val completionProvider: (CompletionList) -> Unit,
     val errorsProvider: (Diagnostics) -> Unit,
 ) : TextLineProvider, TextEditorHandler {
@@ -111,7 +111,7 @@ class CompiledFileProvider(
                     textVersion,
                 ).thenAcceptAsync { cursor ->
                     if (cursor == -1 || replacement.length != 1 || !(replacement[0].isLetterOrDigit() || replacement[0] == '.')) return@thenAcceptAsync
-                    val completions = completions(compiledFile, cursor, sp.index, config.completion)
+                    val completions = completions(compiledFile, cursor + 1, sp.index, config.completion)
                     completionProvider(completions)
                 }
             }
