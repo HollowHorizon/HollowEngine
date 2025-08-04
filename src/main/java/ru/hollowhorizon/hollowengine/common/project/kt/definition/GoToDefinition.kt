@@ -80,8 +80,8 @@ fun goToDefinition(
 //                    definitionPattern.findAll(content)
 //                        .map { it.groups[1]!! }
 //                        .find { it.value == name }
-//                        ?.let { it.range }
-//                        ?.let { destination.range = Range(position(content, it.first), position(content, it.last)) }
+////                        ?.let { it.range }
+////                        ?.let { destination.range = Range(position(content, it.first), position(content, it.last)) }
 //                }
             }
         }

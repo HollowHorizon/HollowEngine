@@ -18,6 +18,7 @@
     "scripting.FListAccessor",
     "scripting.JvmCompilationUtilMixin",
     "scripting.KotlinCoreEnvironmentMixin",
+    "scripting.LazyDeclarationResolverMixin",
     "scripting.ScriptJvmCompilerImplsMixin",
     "scripting.SlicedMapImplAccessor"
   ],

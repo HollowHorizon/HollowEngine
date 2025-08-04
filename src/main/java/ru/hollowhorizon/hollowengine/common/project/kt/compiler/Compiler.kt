@@ -8,14 +8,35 @@ import org.jetbrains.kotlin.backend.jvm.JvmGeneratorExtensionsImpl
 import org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.environment.setIdeaIoUseFallback
+import org.jetbrains.kotlin.cli.common.output.writeAllTo
+import org.jetbrains.kotlin.cli.jvm.compiler.CliBindingTrace
+import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
+import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
+import org.jetbrains.kotlin.cli.jvm.compiler.TopDownAnalyzerFacadeForJVM
 import org.jetbrains.kotlin.cli.jvm.config.addJavaSourceRoots
 import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
-import org.jetbrains.kotlin.config.CommonConfigurationKeys
-import org.jetbrains.kotlin.config.CompilerConfiguration as KotlinCompilerConfiguration
+import org.jetbrains.kotlin.cli.jvm.config.configureJdkClasspathRoots
+import org.jetbrains.kotlin.codegen.ClassBuilderFactories
+import org.jetbrains.kotlin.codegen.state.GenerationState
+import org.jetbrains.kotlin.com.intellij.lang.Language
+import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
+import org.jetbrains.kotlin.com.intellij.openapi.vfs.StandardFileSystems
+import org.jetbrains.kotlin.com.intellij.openapi.vfs.VirtualFileManager
+import org.jetbrains.kotlin.com.intellij.openapi.vfs.VirtualFileSystem
+import org.jetbrains.kotlin.com.intellij.psi.PsiFile
+import org.jetbrains.kotlin.com.intellij.psi.PsiFileFactory
+import org.jetbrains.kotlin.com.intellij.testFramework.LightVirtualFile
+import org.jetbrains.kotlin.compiler.plugin.ComponentRegistrar
+import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
+import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.container.ComponentProvider
 import org.jetbrains.kotlin.container.get
-import org.jetbrains.kotlin.compiler.plugin.ComponentRegistrar
+import org.jetbrains.kotlin.container.getService
+import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
+import org.jetbrains.kotlin.descriptors.ModuleDescriptor
+import org.jetbrains.kotlin.extensions.StorageComponentContainerContributor
 import org.jetbrains.kotlin.idea.KotlinLanguage
+import org.jetbrains.kotlin.load.kotlin.toSourceElement
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmProtoBufUtil
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.resolve.BindingContext
@@ -25,74 +46,48 @@ import org.jetbrains.kotlin.resolve.TopDownAnalysisMode
 import org.jetbrains.kotlin.resolve.calls.components.InferenceSession
 import org.jetbrains.kotlin.resolve.calls.smartcasts.DataFlowInfo
 import org.jetbrains.kotlin.resolve.lazy.declarations.FileBasedDeclarationProviderFactory
+import org.jetbrains.kotlin.resolve.scopes.LexicalScope
+import org.jetbrains.kotlin.resolve.source.PsiSourceFile
+import org.jetbrains.kotlin.samWithReceiver.CliSamWithReceiverComponentContributor
 import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptingCompilerConfigurationComponentRegistrar
 import org.jetbrains.kotlin.scripting.compiler.plugin.definitions.CliScriptDefinitionProvider
 import org.jetbrains.kotlin.scripting.configuration.ScriptingConfigurationKeys
-import org.jetbrains.kotlin.scripting.definitions.ScriptDefinitionProvider
+import org.jetbrains.kotlin.scripting.definitions.KotlinScriptDefinition
+import org.jetbrains.kotlin.scripting.definitions.ScriptConfigurationsProvider
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
-import org.jetbrains.kotlin.scripting.definitions.KotlinScriptDefinition // Legacy
+import org.jetbrains.kotlin.scripting.definitions.ScriptDefinitionProvider
 import org.jetbrains.kotlin.scripting.definitions.findScriptDefinition
-import org.jetbrains.kotlin.scripting.definitions.getEnvironment
-import org.jetbrains.kotlin.scripting.resolve.KotlinScriptDefinitionFromAnnotatedTemplate
+import org.jetbrains.kotlin.scripting.resolve.ScriptCompilationConfigurationResult
+import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.expressions.ExpressionTypingServices
 import org.jetbrains.kotlin.util.KotlinFrontEndException
-import java.io.Closeable
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.net.URLClassLoader
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
-import kotlin.script.dependencies.Environment
-import kotlin.script.dependencies.ScriptContents
-import kotlin.script.experimental.dependencies.ScriptDependencies
-import kotlin.script.experimental.dependencies.DependenciesResolver
-import kotlin.script.experimental.dependencies.DependenciesResolver.ResolveResult
-import kotlin.script.experimental.host.ScriptingHostConfiguration
-import kotlin.script.experimental.host.configurationDependencies
-import kotlin.script.experimental.jvm.defaultJvmScriptingHostConfiguration
-import kotlin.script.experimental.jvm.JvmDependency
+import ru.hollowhorizon.hc.common.utils.UnsafeTools
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.CodegenConfiguration
 import ru.hollowhorizon.hollowengine.common.project.kt.CompilerConfiguration
-import ru.hollowhorizon.hollowengine.common.project.kt.util.LoggingMessageCollector
-import org.jetbrains.kotlin.cli.common.output.writeAllTo
-import org.jetbrains.kotlin.codegen.ClassBuilderFactories
-import org.jetbrains.kotlin.codegen.state.GenerationState
-import org.jetbrains.kotlin.container.getService
-import org.jetbrains.kotlin.descriptors.ModuleDescriptor
-import org.jetbrains.kotlin.cli.jvm.compiler.CliBindingTrace
-import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
-import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
-import org.jetbrains.kotlin.cli.jvm.compiler.TopDownAnalyzerFacadeForJVM
-import org.jetbrains.kotlin.cli.jvm.config.configureJdkClasspathRoots
-import org.jetbrains.kotlin.com.intellij.lang.Language
-import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
-import org.jetbrains.kotlin.com.intellij.openapi.vfs.StandardFileSystems
-import org.jetbrains.kotlin.com.intellij.openapi.vfs.VirtualFileManager
-import org.jetbrains.kotlin.com.intellij.openapi.vfs.VirtualFileSystem
-import org.jetbrains.kotlin.com.intellij.psi.PsiFile
-import org.jetbrains.kotlin.com.intellij.psi.PsiFileFactory
-import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
-import org.jetbrains.kotlin.config.*
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
-import org.jetbrains.kotlin.resolve.scopes.LexicalScope
-import org.jetbrains.kotlin.extensions.StorageComponentContainerContributor
-import org.jetbrains.kotlin.load.kotlin.toSourceElement
-import org.jetbrains.kotlin.resolve.source.PsiSourceFile
-import org.jetbrains.kotlin.samWithReceiver.CliSamWithReceiverComponentContributor
-import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
-import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.ScriptsConfiguration
+import ru.hollowhorizon.hollowengine.common.project.kt.util.LoggingMessageCollector
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptTypes
+import java.io.Closeable
 import java.io.File
-import kotlin.io.path.name
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import kotlin.script.experimental.api.KotlinType
+import kotlin.script.experimental.host.ScriptingHostConfiguration
+import kotlin.script.experimental.host.configurationDependencies
 import kotlin.script.experimental.host.createCompilationConfigurationFromTemplate
 import kotlin.script.experimental.host.getScriptingClass
+import kotlin.script.experimental.jvm.JvmDependency
 import kotlin.script.experimental.jvm.JvmGetScriptingClass
+import kotlin.script.experimental.jvm.defaultJvmScriptingHostConfiguration
+import org.jetbrains.kotlin.config.CompilerConfiguration as KotlinCompilerConfiguration
 
 private val GRADLE_DSL_DEPENDENCY_PATTERN = Regex("^gradle-(?:kotlin-dsl|core).*\\.jar$")
-val STUB_UNBOUND_IR_SYMBOLS: CompilerConfigurationKey<Boolean> = CompilerConfigurationKey<Boolean>("stub unbound IR symbols")
+val STUB_UNBOUND_IR_SYMBOLS: CompilerConfigurationKey<Boolean> =
+    CompilerConfigurationKey<Boolean>("stub unbound IR symbols")
 
 /**
  * Kotlin compiler APIs used to parse, analyze and compile
@@ -101,7 +96,7 @@ val STUB_UNBOUND_IR_SYMBOLS: CompilerConfigurationKey<Boolean> = CompilerConfigu
 private class CompilationEnvironment(
     javaSourcePath: Set<Path>,
     classPath: Set<Path>,
-    scriptsConfig: ScriptsConfiguration
+    scriptsConfig: ScriptsConfiguration,
 ) : Closeable {
     private val disposable = Disposer.newDisposable()
 
@@ -144,7 +139,8 @@ private class CompilationEnvironment(
 
                 if (scriptsConfig.enabled) {
                     // Setup script templates (e.g. used by Gradle's Kotlin DSL)
-                    val scriptDefinitions: MutableList<ScriptDefinition> = mutableListOf(ScriptDefinition.getDefault(defaultJvmScriptingHostConfiguration))
+                    val scriptDefinitions: MutableList<ScriptDefinition> =
+                        mutableListOf(ScriptDefinition.getDefault(defaultJvmScriptingHostConfiguration))
 
                     val fileClassPath = classPath.map { it.toFile() }
                     val scriptHostConfig = ScriptingHostConfiguration(defaultJvmScriptingHostConfiguration) {
@@ -152,11 +148,17 @@ private class CompilationEnvironment(
                         configurationDependencies(JvmDependency(fileClassPath))
                     }
 
-                    scriptDefinitions.addAll(ScriptTypes.SCRIPTS.values.map { ScriptDefinition.FromConfigurations(
-                        scriptHostConfig,
-                        createCompilationConfigurationFromTemplate(KotlinType(it.kotlin), scriptHostConfig, Compiler::class),
-                        null
-                    ) })
+                    scriptDefinitions.addAll(ScriptTypes.SCRIPTS.values.map {
+                        ScriptDefinition.FromConfigurations(
+                            scriptHostConfig,
+                            createCompilationConfigurationFromTemplate(
+                                KotlinType(it.kotlin),
+                                scriptHostConfig,
+                                Compiler::class
+                            ),
+                            null
+                        )
+                    })
 
                     HollowEngine.LOGGER.info("Adding script definitions ${scriptDefinitions.map { it.name }}")
                     addAll(ScriptingConfigurationKeys.SCRIPT_DEFINITIONS, scriptDefinitions)
@@ -166,10 +168,14 @@ private class CompilationEnvironment(
         )
 
         // hacky way to support SamWithReceiverAnnotations for scripts
-        val scriptDefinitions: List<ScriptDefinition> = environment.configuration.getList(ScriptingConfigurationKeys.SCRIPT_DEFINITIONS)
+        val scriptDefinitions: List<ScriptDefinition> =
+            environment.configuration.getList(ScriptingConfigurationKeys.SCRIPT_DEFINITIONS)
         scriptDefinitions.takeIf { it.isNotEmpty() }?.let {
             val annotations = scriptDefinitions.map { it.definitionId }
-            StorageComponentContainerContributor.registerExtension(environment.project, CliSamWithReceiverComponentContributor(annotations))
+            StorageComponentContainerContributor.registerExtension(
+                environment.project,
+                CliSamWithReceiverComponentContributor(annotations)
+            )
         }
         val project = environment.project
         parser = KtPsiFactory(project)
@@ -192,6 +198,7 @@ private class CompilationEnvironment(
             // TODO FileBasedDeclarationProviderFactory keeps indices, re-use it across calls
             declarationProviderFactory = ::FileBasedDeclarationProviderFactory
         )
+        UnsafeTools.setField(ScriptConfigurationsProvider.getInstance(environment.project)!!, "cache", hashMapOf<String, ScriptCompilationConfigurationResult?>())
         return Pair(container, trace)
     }
 
@@ -207,6 +214,7 @@ private class CompilationEnvironment(
 enum class CompilationKind {
     /** Uses the default class path. */
     DEFAULT,
+
     /** Uses the Kotlin DSL class path if available. */
     BUILD_SCRIPT
 }
@@ -251,24 +259,48 @@ class Compiler(
         buildScriptCompileEnvironment?.updateConfiguration(config)
     }
 
-    fun createPsiFile(content: String, file: Path = Paths.get("dummy.virtual.kt"), language: Language = KotlinLanguage.INSTANCE, kind: CompilationKind = CompilationKind.DEFAULT): PsiFile {
+    fun createPsiFile(
+        content: String,
+        file: Path = Paths.get("dummy.virtual.kt"),
+        language: Language = KotlinLanguage.INSTANCE,
+        kind: CompilationKind = CompilationKind.DEFAULT,
+    ): PsiFile {
         assert(!content.contains('\r'))
 
-        val new = psiFileFactoryFor(kind).createFileFromText(file.name, language, content, true, false)
+        val new = psiFileFactoryFor(kind).createFileFromText(
+            file.toString().substringAfterLast('/').substringAfterLast('\\'),
+            language,
+            content,
+            true,
+            false
+        )
         assert(new.virtualFile != null)
+        (new.virtualFile as? LightVirtualFile)?.originalFile = LightVirtualFile(file.toString())
 
         return new
     }
 
-    fun createKtFile(content: String, file: Path = Paths.get("dummy.virtual.kt"), kind: CompilationKind = CompilationKind.DEFAULT): KtFile =
-            createPsiFile(content, file, language = KotlinLanguage.INSTANCE, kind = kind) as KtFile
+    fun createKtFile(
+        content: String,
+        file: Path = Paths.get("dummy.virtual.kt"),
+        kind: CompilationKind = CompilationKind.DEFAULT,
+    ): KtFile =
+        createPsiFile(content, file, language = KotlinLanguage.INSTANCE, kind = kind) as KtFile
 
-    fun createKtExpression(content: String, file: Path = Paths.get("dummy.virtual.kt"), kind: CompilationKind = CompilationKind.DEFAULT): KtExpression {
+    fun createKtExpression(
+        content: String,
+        file: Path = Paths.get("dummy.virtual.kt"),
+        kind: CompilationKind = CompilationKind.DEFAULT,
+    ): KtExpression {
         val property = createKtDeclaration("val x = $content", file, kind) as KtProperty
         return property.initializer!!
     }
 
-    fun createKtDeclaration(content: String, file: Path = Paths.get("dummy.virtual.kt"), kind: CompilationKind = CompilationKind.DEFAULT): KtDeclaration {
+    fun createKtDeclaration(
+        content: String,
+        file: Path = Paths.get("dummy.virtual.kt"),
+        kind: CompilationKind = CompilationKind.DEFAULT,
+    ): KtDeclaration {
         val parse = createKtFile(content, file, kind)
         val declarations = parse.declarations
 
@@ -282,8 +314,7 @@ class Compiler(
             assert(declarations.size == 1) { "${declarations.size} declarations in script in $content" }
 
             return scriptDeclarations.first()
-        }
-        else return onlyDeclaration
+        } else return onlyDeclaration
     }
 
     private fun compileEnvironmentFor(kind: CompilationKind): CompilationEnvironment = when (kind) {
@@ -294,10 +325,18 @@ class Compiler(
     fun psiFileFactoryFor(kind: CompilationKind): PsiFileFactory =
         PsiFileFactory.getInstance(compileEnvironmentFor(kind).environment.project)
 
-    fun compileKtFile(file: KtFile, sourcePath: Collection<KtFile>, kind: CompilationKind = CompilationKind.DEFAULT): Pair<BindingContext, ModuleDescriptor> =
+    fun compileKtFile(
+        file: KtFile,
+        sourcePath: Collection<KtFile>,
+        kind: CompilationKind = CompilationKind.DEFAULT,
+    ): Pair<BindingContext, ModuleDescriptor> =
         compileKtFiles(listOf(file), sourcePath, kind)
 
-    fun compileKtFiles(files: Collection<KtFile>, sourcePath: Collection<KtFile>, kind: CompilationKind = CompilationKind.DEFAULT): Pair<BindingContext, ModuleDescriptor> {
+    fun compileKtFiles(
+        files: Collection<KtFile>,
+        sourcePath: Collection<KtFile>,
+        kind: CompilationKind = CompilationKind.DEFAULT,
+    ): Pair<BindingContext, ModuleDescriptor> {
         if (kind == CompilationKind.BUILD_SCRIPT) {
             // Print the (legacy) script template used by the compiled Kotlin DSL build file
             files.forEach {
@@ -318,7 +357,12 @@ class Compiler(
         }
     }
 
-    fun compileKtExpression(expression: KtExpression, scopeWithImports: LexicalScope, sourcePath: Collection<KtFile>, kind: CompilationKind = CompilationKind.DEFAULT): Pair<BindingContext, ComponentProvider>? =
+    fun compileKtExpression(
+        expression: KtExpression,
+        scopeWithImports: LexicalScope,
+        sourcePath: Collection<KtFile>,
+        kind: CompilationKind = CompilationKind.DEFAULT,
+    ): Pair<BindingContext, ComponentProvider>? =
         try {
             // Use same lock as 'compileFile' to avoid concurrency issues such as #42
             compileLock.withLock {
@@ -326,22 +370,25 @@ class Compiler(
                 val (container, trace) = compileEnv.createContainer(sourcePath)
                 val incrementalCompiler = container.get<ExpressionTypingServices>()
                 incrementalCompiler.getTypeInfo(
-                        scopeWithImports,
-                        expression,
-                        TypeUtils.NO_EXPECTED_TYPE,
-                        DataFlowInfo.EMPTY,
-                        InferenceSession.default,
-                        trace,
-                        true)
+                    scopeWithImports,
+                    expression,
+                    TypeUtils.NO_EXPECTED_TYPE,
+                    DataFlowInfo.EMPTY,
+                    InferenceSession.default,
+                    trace,
+                    true
+                )
                 Pair(trace.bindingContext, container)
             }
         } catch (e: KotlinFrontEndException) {
-            HollowEngine.LOGGER.error("""
+            HollowEngine.LOGGER.error(
+                """
                 Error while analyzing expression: ${describeExpression(expression.text)}
                 Message: ${e.message}
                 Cause: ${e.cause?.message}
                 Stack trace: ${e.attachments.joinToString("\n") { it.displayText }}
-            """.trimIndent())
+            """.trimIndent()
+            )
             null
         }
 
@@ -349,7 +396,8 @@ class Compiler(
         files.forEach { file ->
             file.declarations.forEach { declaration ->
                 outputDirectory.resolve(
-                    file.packageFqName.asString().replace(".", File.separator) + File.separator + declaration.name + ".class"
+                    file.packageFqName.asString()
+                        .replace(".", File.separator) + File.separator + declaration.name + ".class"
                 ).delete()
             }
         }
@@ -383,7 +431,9 @@ class Compiler(
                     // an `IrExternalPackageFragment` parent, which trips up code generation during IR lowering.
                     //descriptor.toSourceElement.containingFile
                     val psiSourceFile =
-                        descriptor.toSourceElement.containingFile as? PsiSourceFile ?: return super.getContainerSource(descriptor)
+                        descriptor.toSourceElement.containingFile as? PsiSourceFile ?: return super.getContainerSource(
+                            descriptor
+                        )
                     return FacadeClassSourceShimForFragmentCompilation(psiSourceFile)
                 }
             }
