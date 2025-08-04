@@ -612,7 +612,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
             // Заменяем выделение на обёртку (открывающая + оригинал + закрывающая)
             editor.replaceText(
-                fromLine, toLine, fromChar, toChar, "$char$selectedText$closing", this
+                fromLine, toLine, fromChar, toChar, "$char$selectedText$closing"
             )
 
             // Ставим новое выделение ровно на ту же часть, но внутри скобок
@@ -641,7 +641,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             val caretLine = selectionHandler.selectionCaretLine
             val caretChar = selectionHandler.selectionCaretChar
             // Вставляем 4 пробела перед кареткой
-            editor.insertText(caretLine, caretChar, "    ", this)
+            editor.insertText(caretLine, caretChar, "    ")
             // Сдвигаем каретку вправо на 4
             selectionHandler.selectionChanged(caretLine, caretLine, caretChar + 4, caretChar + 4)
             return
@@ -649,7 +649,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         // Для каждой строки в диапазоне вставляем 4 пробела в начало
         for (line in fromLine..toLine) {
-            editor.insertText(line, 0, "    ", this)
+            editor.insertText(line, 0, "    ")
         }
 
         // Обновляем координаты выделения: сдвигаем отступы начала и конца
@@ -671,7 +671,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
             if (spacesToRemove > 0) {
                 editor.replaceText(
-                    line, line, char - spacesToRemove, char, "", this
+                    line, line, char - spacesToRemove, char, ""
                 )
                 // ставим каретку на место после удаления
                 selectionHandler.selectionChanged(
@@ -694,7 +694,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
             if (count > 0) {
                 editor.replaceText(
-                    line, line, 0, count, "", this
+                    line, line, 0, count, ""
                 )
                 if (line == fromLine) removedAtStart = count
                 if (line == toLine) removedAtEnd = count
@@ -713,15 +713,14 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     private fun editText(text: String) {
         val editor = modifier.editorHandler ?: return
         val caretPos = if (selectionHandler.isEmptySelection) {
-            editor.insertText(selectionHandler.selectionCaretLine, selectionHandler.selectionCaretChar, text, this)
+            editor.insertText(selectionHandler.selectionCaretLine, selectionHandler.selectionCaretChar, text)
         } else {
             editor.replaceText(
                 selectionHandler.selectionFromLine,
                 selectionHandler.selectionToLine,
                 selectionHandler.selectionFromChar,
                 selectionHandler.selectionToChar,
-                text,
-                this
+                text
             )
         }
         selectionHandler.selectionChanged(caretPos.y, caretPos.y, caretPos.x, caretPos.x)
@@ -1074,174 +1073,12 @@ class ListTextLineProvider(val lines: MutableList<TextLine> = mutableStateListOf
 }
 
 interface TextEditorHandler {
-    fun insertText(line: Int, caret: Int, insertion: String, textAreaScope: ScriptTextAreaScope): Vec2i
+    fun insertText(line: Int, caret: Int, insertion: String): Vec2i
     fun replaceText(
         selectionStartLine: Int,
         selectionEndLine: Int,
         selectionStartChar: Int,
         selectionEndChar: Int,
         replacement: String,
-        textAreaScope: ScriptTextAreaScope,
     ): Vec2i
-}
-
-class DefaultTextEditorHandler(val text: MutableList<TextLine> = mutableStateListOf()) : TextEditorHandler {
-    var editAttribs: TextAttributes? = null
-
-    override fun insertText(line: Int, caret: Int, insertion: String, textAreaScope: ScriptTextAreaScope): Vec2i {
-        return replaceText(line, line, caret, caret, insertion, textAreaScope)
-    }
-
-    override fun replaceText(
-        selectionStartLine: Int,
-        selectionEndLine: Int,
-        selectionStartChar: Int,
-        selectionEndChar: Int,
-        replacement: String,
-        textAreaScope: ScriptTextAreaScope,
-    ): Vec2i {
-        val startLine = this[selectionStartLine] ?: return Vec2i(selectionEndChar, selectionEndLine)
-        val endLine = this[selectionEndLine] ?: return Vec2i(selectionEndChar, selectionEndLine)
-        val before = startLine.before(selectionStartChar)
-        val after = endLine.after(selectionEndChar)
-
-        val caretPos = MutableVec2i()
-        val attr = editAttribs ?: before.lastAttribs() ?: after.firstAttribs() ?: TextAttributes(
-            MsdfFont.DEFAULT_FONT, Color.GRAY
-        )
-        val replaceLines = replacement.toLines(attr)
-
-        caretPos.y = selectionStartLine + replaceLines.lastIndex
-        val insertion = if (replaceLines.size == 1) {
-            caretPos.x = before.length + replaceLines[0].length
-            listOf(before + replaceLines[0] + after)
-        } else {
-            caretPos.x = replaceLines.last().length
-            listOf(before + replaceLines[0]) + replaceLines.subList(
-                1, replaceLines.lastIndex
-            ) + (replaceLines.last() + after)
-        }
-
-        insertLines(insertion, selectionStartLine, selectionEndLine)
-        return caretPos
-    }
-
-    private fun insertLines(insertLines: List<TextLine>, insertFrom: Int, insertTo: Int) {
-        val linesBefore = mutableListOf<TextLine>()
-        val linesAfter = mutableListOf<TextLine>()
-        if (insertFrom > 0) {
-            linesBefore += text.subList(0, insertFrom)
-        }
-        if (insertTo < text.lastIndex) {
-            linesAfter += text.subList(insertTo + 1, text.size)
-        }
-
-        text.clear()
-        text += linesBefore
-        text += insertLines
-        text += linesAfter
-    }
-
-    fun String.toLines(attributes: TextAttributes): List<TextLine> {
-        return lines().map { str -> TextLine(listOf(str to attributes)) }
-    }
-
-    operator fun get(line: Int): TextLine? {
-        return if (text.isEmpty()) {
-            null
-        } else {
-            text[line.clamp(0, text.lastIndex)]
-        }
-    }
-
-    operator fun TextLine.plus(other: TextLine): TextLine {
-        return TextLine(sanitize(spans + other.spans))
-    }
-
-    fun TextLine.firstAttribs(): TextAttributes? {
-        return if (spans.isNotEmpty()) {
-            spans.first().second
-        } else {
-            null
-        }
-    }
-
-    fun TextLine.lastAttribs(): TextAttributes? {
-        return if (spans.isNotEmpty()) {
-            spans.last().second
-        } else {
-            null
-        }
-    }
-
-    fun TextLine.before(charIndex: Int): TextLine {
-        val newSpans = mutableListOf<Pair<String, TextAttributes>>()
-        var i = 0
-        var spanI = 0
-        while (spanI < spans.size && i + spans[spanI].first.length < charIndex) {
-            newSpans += spans[spanI]
-            i += spans[spanI].first.length
-            spanI++
-        }
-        newSpans += spans[spanI].before(charIndex - i)
-        return TextLine(sanitize(newSpans))
-    }
-
-    fun TextLine.after(charIndex: Int): TextLine {
-        val newSpans = mutableListOf<Pair<String, TextAttributes>>()
-        var i = 0
-        var spanI = 0
-        while (spanI < spans.size && i + spans[spanI].first.length < charIndex) {
-            i += spans[spanI].first.length
-            spanI++
-        }
-        if (spanI < spans.size) {
-            newSpans += spans[spanI].after(charIndex - i)
-            for (j in spanI + 1 until spans.size) {
-                newSpans += spans[j]
-            }
-        }
-        return TextLine(sanitize(newSpans))
-    }
-
-    fun TextLine.append(text: String): TextLine {
-        val newSpans = mutableListOf<Pair<String, TextAttributes>>()
-        newSpans += spans
-        newSpans[spans.lastIndex] = spans.last().append(text)
-        return TextLine(sanitize(newSpans))
-    }
-
-    fun Pair<String, TextAttributes>.before(index: Int): Pair<String, TextAttributes> {
-        return first.substring(0, index) to second
-    }
-
-    fun Pair<String, TextAttributes>.after(index: Int): Pair<String, TextAttributes> {
-        return first.substring(index) to second
-    }
-
-    fun Pair<String, TextAttributes>.append(text: String): Pair<String, TextAttributes> {
-        return (first + text) to second
-    }
-
-    fun sanitize(spans: List<Pair<String, TextAttributes>>): List<Pair<String, TextAttributes>> {
-        val newSpans = mutableListOf<Pair<String, TextAttributes>>()
-        if (spans.isNotEmpty()) {
-            var prevSpan = spans[0]
-            newSpans += prevSpan
-            for (i in 1 until spans.size) {
-                val span = spans[i]
-                if (span.second == prevSpan.second) {
-                    prevSpan = prevSpan.append(span.first)
-                    newSpans[newSpans.lastIndex] = prevSpan
-                } else if (span.first.isNotEmpty()) {
-                    prevSpan = span
-                    newSpans += span
-                }
-            }
-        }
-        if (newSpans.size > 1 && newSpans[0].first.isEmpty()) {
-            newSpans.removeAt(0)
-        }
-        return newSpans
-    }
 }

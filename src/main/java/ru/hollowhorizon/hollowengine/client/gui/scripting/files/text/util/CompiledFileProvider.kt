@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.diagnostics.Diagnostics
 import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
 import ru.hollowhorizon.hollowengine.common.project.kt.CompiledFile
 import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
 import ru.hollowhorizon.hollowengine.common.project.kt.completion.completions
@@ -25,7 +26,7 @@ class CompiledFileProvider(
     val file: File,
     val completionProvider: (CompletionList) -> Unit,
     val errorsProvider: (Diagnostics) -> Unit,
-) : TextLineProvider, TextEditorHandler {
+) : TextLineProvider, TextEditorHandler, UndoRedoHandler {
     private val sp = KotlinLanguageServer.sourcePath
     private var lock = ReentrantLock()
 
@@ -74,8 +75,8 @@ class CompiledFileProvider(
         return lines[index]
     }
 
-    override fun insertText(line: Int, caret: Int, insertion: String, textAreaScope: ScriptTextAreaScope): Vec2i {
-        return replaceText(line, line, caret, caret, insertion, textAreaScope)
+    override fun insertText(line: Int, caret: Int, insertion: String): Vec2i {
+        return replaceText(line, line, caret, caret, insertion)
     }
 
     override fun replaceText(
@@ -84,7 +85,6 @@ class CompiledFileProvider(
         selectionStartChar: Int,
         selectionEndChar: Int,
         replacement: String,
-        textAreaScope: ScriptTextAreaScope,
     ): Vec2i {
         val textVersion = ++version
         KotlinLanguageServer.textDocumentService.didChange(
@@ -175,7 +175,7 @@ class CompiledFileProvider(
                 )
                 if (light) {
                     val lines = mergeHighlight(
-                        lines, changed, selectionStartLine, selectionEndLine, selectionStartChar, selectionEndChar
+                        lines, changed, selectionStartLine, selectionEndLine
                     )
                     this.lines.clear()
                     this.lines.addAll(lines)
@@ -185,9 +185,22 @@ class CompiledFileProvider(
                     source.compiledContext?.let { errorsProvider(it.diagnostics) }
                 }
                 if (lines.isEmpty()) lines.add(TextLine(listOf("" to TextAttributes(font, Color.WHITE))))
+
                 HollowCore.LOGGER.info("Recolored. Version: $version")
             }
         }
+    }
+
+    fun setText(text: String) {
+        replaceText(0, lines.lastIndex, 0, lines.last().text.lastIndex, text)
+    }
+
+    override fun undo(onSelectionChanged: ((Int, Int, Int, Int) -> Unit)?) {
+        TODO()
+    }
+
+    override fun redo(onSelectionChanged: ((Int, Int, Int, Int) -> Unit)?) {
+        TODO()
     }
 }
 
@@ -196,8 +209,6 @@ fun mergeHighlight(
     light: List<TextLine>,
     selectionStartLine: Int,
     selectionEndLine: Int,
-    selectionStartChar: Int,
-    selectionEndChar: Int,
 ): List<TextLine> {
     val result = MutableList(light.size) { index ->
         val inChanged = index in selectionStartLine..selectionEndLine

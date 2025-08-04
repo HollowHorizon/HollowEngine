@@ -97,7 +97,7 @@ data class CompletionVariant(
         // Добавление импортов
         if (additionalImports.isNotEmpty()) {
             additionalImports.forEach {
-                editor.insertText(0, 0, "import ${it}\n", scriptTextArea)
+                editor.insertText(0, 0, "import ${it}\n")
                 lineIndex++
             }
         }
@@ -132,7 +132,6 @@ data class CompletionVariant(
             startWord,
             startChar + 1,
             textToInsert,
-            scriptTextArea
         )
 
         // Установка курсора в правильное место

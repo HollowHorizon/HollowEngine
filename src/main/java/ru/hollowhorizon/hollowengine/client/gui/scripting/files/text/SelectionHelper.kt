@@ -4,30 +4,28 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.Script
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextLineProvider
 
 fun ScriptTextAreaModifier.getCharBeforeSelection(): Char? {
-    val handler = editorHandler as? ScriptTextEditorHandler ?: return null
-    val textProvider = handler.text
-    if (textProvider.size == 0) return null
+    val handler = editorHandler as? TextLineProvider ?: return null
+    if (handler.size == 0) return null
 
     // Получаем упорядоченные границы выделения
     val (start, _) = getOrderedSelection() ?: return null
     val (startLine, startChar) = start
 
     // Получаем текст строки, где начинается выделение
-    val line = textProvider[startLine].text
+    val line = handler[startLine].text
 
     return when {
         // Символ слева в той же строке
         startChar > 0 -> line.getOrNull(startChar - 1)
         // Первый символ предыдущей строки
-        startLine > 0 -> textProvider[startLine - 1].text.lastOrNull()
+        startLine > 0 -> handler[startLine - 1].text.lastOrNull()
         // Нет доступных символов
         else -> null
     }
 }
 
 fun ScriptTextAreaModifier.getCharAfterSelection(): Char? {
-    val handler = editorHandler as? ScriptTextEditorHandler ?: return null
-    val textProvider = handler.text
+    val textProvider = editorHandler as? TextLineProvider ?: return null
     if (textProvider.size == 0) return null
 
     // Получаем упорядоченные границы выделения
@@ -48,7 +46,7 @@ fun ScriptTextAreaModifier.getCharAfterSelection(): Char? {
 }
 
 private fun ScriptTextAreaModifier.getOrderedSelection(): Pair<Pair<Int, Int>, Pair<Int, Int>>? {
-    val textProvider = (editorHandler as? ScriptTextEditorHandler)?.text ?: return null
+    val textProvider = editorHandler as? TextLineProvider ?: return null
 
     // Проверка валидности позиций
     if (selectionStartLine !in 0..textProvider.lastIndex ||
