@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.common.project.kt.externalsources
 
 import ru.hollowhorizon.hollowengine.common.project.kt.util.partitionAroundLast
 import ru.hollowhorizon.hollowengine.common.project.kt.util.TemporaryDirectory
-import ru.hollowhorizon.hollowengine.common.project.kt.util.parseURI
+import ru.hollowhorizon.hollowengine.common.project.kt.util.parseFile
 import java.net.URI
 import java.net.URL
 import java.net.JarURLConnection
@@ -10,7 +10,6 @@ import java.io.BufferedReader
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Files
-import java.nio.file.Paths
 import java.util.zip.ZipFile
 
 fun URI.toKlsURI(): KlsURI? = when (scheme) {
@@ -70,7 +69,7 @@ data class KlsURI(val fileUri: URI, val query: Map<QueryParam, String>) {
         }
 
     val archivePath: Path
-        get() = parseURI(fileUri.schemeSpecificPart.split(archiveType.delimiter)[0]).toPath()
+        get() = parseFile(fileUri.schemeSpecificPart.split(archiveType.delimiter)[0]).toPath()
 
     private val innerPath: String
         get() = fileUri.schemeSpecificPart.split(archiveType.delimiter, limit = 2)[1]

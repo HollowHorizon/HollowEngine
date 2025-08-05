@@ -4,26 +4,25 @@ import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.eclipse.lsp4j.services.LanguageClient
 import org.eclipse.lsp4j.services.TextDocumentService
+import org.jetbrains.kotlin.resolve.diagnostics.Diagnostics
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.codeaction.codeActions
 import ru.hollowhorizon.hollowengine.common.project.kt.completion.completions
 import ru.hollowhorizon.hollowengine.common.project.kt.definition.goToDefinition
 import ru.hollowhorizon.hollowengine.common.project.kt.diagnostic.convertDiagnostic
 import ru.hollowhorizon.hollowengine.common.project.kt.formatting.FormattingService
+import ru.hollowhorizon.hollowengine.common.project.kt.highlight.documentHighlightsAt
 import ru.hollowhorizon.hollowengine.common.project.kt.hover.hoverAt
-import ru.hollowhorizon.hollowengine.common.project.kt.position.offset
+import ru.hollowhorizon.hollowengine.common.project.kt.inlayhints.provideHints
 import ru.hollowhorizon.hollowengine.common.project.kt.position.extractRange
+import ru.hollowhorizon.hollowengine.common.project.kt.position.offset
 import ru.hollowhorizon.hollowengine.common.project.kt.position.position
 import ru.hollowhorizon.hollowengine.common.project.kt.references.findReferences
+import ru.hollowhorizon.hollowengine.common.project.kt.rename.renameSymbol
 import ru.hollowhorizon.hollowengine.common.project.kt.semantictokens.encodedSemanticTokens
 import ru.hollowhorizon.hollowengine.common.project.kt.signaturehelp.fetchSignatureHelpAt
-import ru.hollowhorizon.hollowengine.common.project.kt.rename.renameSymbol
-import ru.hollowhorizon.hollowengine.common.project.kt.highlight.documentHighlightsAt
-import ru.hollowhorizon.hollowengine.common.project.kt.inlayhints.provideHints
 import ru.hollowhorizon.hollowengine.common.project.kt.symbols.documentSymbols
-import org.jetbrains.kotlin.resolve.diagnostics.Diagnostics
-import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.util.*
-import java.net.URI
 import java.io.Closeable
 import java.io.File
 import java.nio.file.Path
@@ -36,7 +35,7 @@ class KotlinTextDocumentService(
     val config: Configuration,
     private val tempDirectory: TemporaryDirectory,
     private val uriContentProvider: URIContentProvider,
-    private val cp: CompilerClassPath
+    private val cp: CompilerClassPath,
 ) : TextDocumentService, Closeable {
     private lateinit var client: LanguageClient
     val async = AsyncExecutor()
@@ -49,19 +48,21 @@ class KotlinTextDocumentService(
 
     var lintRecompilationCallback: () -> Unit
         get() = sp.beforeCompileCallback
-        set(callback) { sp.beforeCompileCallback = callback }
+        set(callback) {
+            sp.beforeCompileCallback = callback
+        }
 
     private val TextDocumentItem.filePath: Path?
-        get() = parseURI(uri).toPath()
+        get() = parseFile(uri).toPath()
 
     private val TextDocumentIdentifier.filePath: Path?
-        get() = parseURI(uri).toPath()
+        get() = parseFile(uri).toPath()
 
     private val TextDocumentIdentifier.isKotlinScript: Boolean
         get() = uri.endsWith(".kts")
 
     private val TextDocumentIdentifier.content: String
-        get() = sp.content(parseURI(uri))
+        get() = sp.content(parseFile(uri))
 
     fun connect(client: LanguageClient) {
         this.client = client
@@ -75,72 +76,80 @@ class KotlinTextDocumentService(
         return recover(position.textDocument.uri, position.position, recompile)
     }
 
-    private fun recover(uriString: String, position: Position, recompile: Recompile): Pair<CompiledFile, Int>? {
-        val uri = parseURI(uriString)
-        if (!sf.isIncluded(uri) && false) {
-            HollowEngine.LOGGER.warn("URI is excluded, therefore cannot be recovered: $uri")
-            return null
-        }
-        val content = sp.content(uri)
+    private fun recover(fileString: String, position: Position, recompile: Recompile): Pair<CompiledFile, Int>? {
+        val file = parseFile(fileString)
+        val content = sp.content(file)
         val offset = offset(content, position.line, position.character)
         val shouldRecompile = when (recompile) {
             Recompile.ALWAYS -> true
             Recompile.AFTER_DOT -> offset > 0 && content[offset - 1] == '.'
             Recompile.NEVER -> false
         }
-        val compiled = if (shouldRecompile) sp.currentVersion(uri) else sp.latestCompiledVersion(uri)
+        val compiled = if (shouldRecompile) sp.currentVersion(file) else sp.latestCompiledVersion(file)
         return Pair(compiled, offset)
     }
 
-    override fun codeAction(params: CodeActionParams): CompletableFuture<List<Either<Command, CodeAction>>> = async.compute {
-        val (file, _) = recover(params.textDocument.uri, params.range.start, Recompile.NEVER) ?: return@compute emptyList()
-        codeActions(file, sp.index, params.range, params.context)
-    }
+    override fun codeAction(params: CodeActionParams): CompletableFuture<List<Either<Command, CodeAction>>> =
+        async.compute {
+            val (file, _) = recover(params.textDocument.uri, params.range.start, Recompile.NEVER)
+                ?: return@compute emptyList()
+            codeActions(file, sp.index, params.range, params.context)
+        }
 
     override fun inlayHint(params: InlayHintParams): CompletableFuture<List<InlayHint>> = async.compute {
-        val (file, _) = recover(params.textDocument.uri, params.range.start, Recompile.ALWAYS) ?: return@compute emptyList()
+        val (file, _) = recover(params.textDocument.uri, params.range.start, Recompile.ALWAYS)
+            ?: return@compute emptyList()
         provideHints(file, config.inlayHints)
     }
 
     //TODO: hoverAt - информация об элементе на котором курсор
     override fun hover(position: HoverParams): CompletableFuture<Hover?> = async.compute {
-        reportTime {
-            HollowEngine.LOGGER.info("Hovering at {}", describePosition(position))
-
-            val (file, cursor) = recover(position, Recompile.NEVER) ?: return@compute null
-            hoverAt(file, cursor) ?: noResult("No hover found at ${describePosition(position)}", null)
-        }
+        val (file, cursor) = recover(position, Recompile.NEVER) ?: return@compute null
+        hoverAt(file, cursor) ?: noResult("No hover found at ${describePosition(position)}", null)
     }
 
     // TODO: Это всякие выделения одинаковых переменных, скобок и т.п.
-    override fun documentHighlight(position: DocumentHighlightParams): CompletableFuture<List<DocumentHighlight>> = async.compute {
-        val (file, cursor) = recover(position.textDocument.uri, position.position, Recompile.NEVER) ?: return@compute emptyList()
-        documentHighlightsAt(file, cursor)
-    }
+    override fun documentHighlight(position: DocumentHighlightParams): CompletableFuture<List<DocumentHighlight>> =
+        async.compute {
+            val (file, cursor) = recover(position.textDocument.uri, position.position, Recompile.NEVER)
+                ?: return@compute emptyList()
+            documentHighlightsAt(file, cursor)
+        }
 
     override fun onTypeFormatting(params: DocumentOnTypeFormattingParams): CompletableFuture<List<TextEdit>> {
         TODO("not implemented")
     }
 
-    override fun definition(position: DefinitionParams): CompletableFuture<Either<List<Location>, List<LocationLink>>> = async.compute {
-        reportTime {
-            HollowEngine.LOGGER.info("Go-to-definition at {}", describePosition(position))
+    override fun definition(position: DefinitionParams): CompletableFuture<Either<List<Location>, List<LocationLink>>> =
+        async.compute {
 
             val (file, cursor) = recover(position, Recompile.NEVER) ?: return@compute Either.forLeft(emptyList())
-            goToDefinition(file, cursor, uriContentProvider.classContentProvider, tempDirectory, config.externalSources, cp)
+            goToDefinition(
+                file,
+                cursor,
+                uriContentProvider.classContentProvider,
+                tempDirectory,
+                config.externalSources,
+                cp
+            )
                 ?.let(::listOf)
                 ?.let { Either.forLeft<List<Location>, List<LocationLink>>(it) }
-                ?: noResult("Couldn't find definition at ${describePosition(position)}", Either.forLeft(emptyList()))
+                ?: noResult(
+                    "Couldn't find definition at ${describePosition(position)}",
+                    Either.forLeft(emptyList())
+                )
         }
-    }
 
-    override fun rangeFormatting(params: DocumentRangeFormattingParams): CompletableFuture<List<TextEdit>> = async.compute {
-        val code = extractRange(params.textDocument.content, params.range)
-        listOf(TextEdit(
-            params.range,
-            formattingService.formatKotlinCode(code, params.options)
-        ))
-    }
+    override fun rangeFormatting(params: DocumentRangeFormattingParams): CompletableFuture<List<TextEdit>> =
+        async.compute {
+            val code = extractRange(params.textDocument.content, params.range)
+            listOf(
+                TextEdit(
+                    params.range,
+                    formattingService.formatKotlinCode(code, params.options)
+                )
+            )
+        }
 
     override fun codeLens(params: CodeLensParams): CompletableFuture<List<CodeLens>> {
         TODO("not implemented")
@@ -151,43 +160,37 @@ class KotlinTextDocumentService(
         renameSymbol(file, cursor, sp, params.newName)
     }
 
-    override fun completion(position: CompletionParams): CompletableFuture<Either<List<CompletionItem>, CompletionList>> = async.compute {
-        reportTime {
-            HollowEngine.LOGGER.info("Completing at {}", describePosition(position))
-
-            val (file, cursor) = recover(position, Recompile.NEVER) ?: return@compute Either.forRight(CompletionList()) // TODO: Investigate when to recompile
+    override fun completion(position: CompletionParams): CompletableFuture<Either<List<CompletionItem>, CompletionList>> =
+        async.compute {
+            val (file, cursor) = recover(position, Recompile.NEVER)
+                ?: return@compute Either.forRight(CompletionList()) // TODO: Investigate when to recompile
             val completions = completions(file, cursor, sp.index, config.completion)
-            HollowEngine.LOGGER.info("Found {} items", completions.items.size)
 
             Either.forRight(completions)
         }
-    }
 
     override fun resolveCompletionItem(unresolved: CompletionItem): CompletableFuture<CompletionItem> {
         TODO("not implemented")
     }
 
     @Suppress("DEPRECATION")
-    override fun documentSymbol(params: DocumentSymbolParams): CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> = async.compute {
-        HollowEngine.LOGGER.info("Find symbols in {}", describeURI(params.textDocument.uri))
-
-        reportTime {
-            val uri = parseURI(params.textDocument.uri)
+    override fun documentSymbol(params: DocumentSymbolParams): CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> =
+        async.compute {
+            val uri = parseFile(params.textDocument.uri)
             val parsed = sp.parsedFile(uri)
 
             documentSymbols(parsed)
         }
-    }
 
     override fun didOpen(params: DidOpenTextDocumentParams) {
-        val uri = parseURI(params.textDocument.uri)
+        val uri = parseFile(params.textDocument.uri)
         sf.open(uri, params.textDocument.text, params.textDocument.version)
         lintNow(uri)
     }
 
     override fun didSave(params: DidSaveTextDocumentParams) {
         // Lint after saving to prevent inconsistent diagnostics
-        val uri = parseURI(params.textDocument.uri)
+        val uri = parseFile(params.textDocument.uri)
         lintNow(uri)
         debounceLint.schedule {
             sp.save(uri)
@@ -195,31 +198,31 @@ class KotlinTextDocumentService(
     }
 
     override fun signatureHelp(position: SignatureHelpParams): CompletableFuture<SignatureHelp?> = async.compute {
-        reportTime {
-            HollowEngine.LOGGER.info("Signature help at {}", describePosition(position))
-
-            val (file, cursor) = recover(position, Recompile.NEVER) ?: return@compute null
-            fetchSignatureHelpAt(file, cursor) ?: noResult("No function call around ${describePosition(position)}", null)
-        }
+        val (file, cursor) = recover(position, Recompile.NEVER) ?: return@compute null
+        fetchSignatureHelpAt(file, cursor) ?: noResult(
+            "No function call around ${describePosition(position)}",
+            null
+        )
     }
 
     override fun didClose(params: DidCloseTextDocumentParams) {
-        val uri = parseURI(params.textDocument.uri)
+        val uri = parseFile(params.textDocument.uri)
         sf.close(uri)
         clearDiagnostics(uri)
     }
 
     override fun formatting(params: DocumentFormattingParams): CompletableFuture<List<TextEdit>> = async.compute {
         val code = params.textDocument.content
-        HollowEngine.LOGGER.info("Formatting {}", describeURI(params.textDocument.uri))
-        listOf(TextEdit(
-            Range(Position(0, 0), position(code, code.length)),
-            formattingService.formatKotlinCode(code, params.options)
-        ))
+        listOf(
+            TextEdit(
+                Range(Position(0, 0), position(code, code.length)),
+                formattingService.formatKotlinCode(code, params.options)
+            )
+        )
     }
 
     override fun didChange(params: DidChangeTextDocumentParams) {
-        val uri = parseURI(params.textDocument.uri)
+        val uri = parseFile(params.textDocument.uri)
         sf.edit(uri, params.textDocument.version, params.contentChanges)
         lintLater(uri)
     }
@@ -227,38 +230,29 @@ class KotlinTextDocumentService(
     override fun references(position: ReferenceParams) = async.compute {
         position.textDocument.filePath
             ?.let { file ->
-                val content = sp.content(parseURI(position.textDocument.uri))
+                val content = sp.content(parseFile(position.textDocument.uri))
                 val offset = offset(content, position.position.line, position.position.character)
                 findReferences(file, offset, sp)
             }
     }
 
     override fun semanticTokensFull(params: SemanticTokensParams) = async.compute {
-        HollowEngine.LOGGER.info("Full semantic tokens in {}", describeURI(params.textDocument.uri))
+        val uri = parseFile(params.textDocument.uri)
+        val file = sp.currentVersion(uri)
 
-        reportTime {
-            val uri = parseURI(params.textDocument.uri)
-            val file = sp.currentVersion(uri)
+        val tokens = encodedSemanticTokens(file)
 
-            val tokens = encodedSemanticTokens(file)
-            HollowEngine.LOGGER.info("Found {} tokens", tokens.size)
-
-            SemanticTokens(tokens)
-        }
+        SemanticTokens(tokens)
     }
 
     override fun semanticTokensRange(params: SemanticTokensRangeParams) = async.compute {
-        HollowEngine.LOGGER.info("Ranged semantic tokens in {}", describeURI(params.textDocument.uri))
+        val uri = parseFile(params.textDocument.uri)
+        val file = sp.currentVersion(uri)
 
-        reportTime {
-            val uri = parseURI(params.textDocument.uri)
-            val file = sp.currentVersion(uri)
+        val tokens = encodedSemanticTokens(file, params.range)
 
-            val tokens = encodedSemanticTokens(file, params.range)
-            HollowEngine.LOGGER.info("Found {} tokens", tokens.size)
+        SemanticTokens(tokens)
 
-            SemanticTokens(tokens)
-        }
     }
 
     override fun resolveCodeLens(unresolved: CodeLens): CompletableFuture<CodeLens> {
@@ -298,7 +292,6 @@ class KotlinTextDocumentService(
     }
 
     private fun doLint(cancelCallback: () -> Boolean) {
-        HollowEngine.LOGGER.info("Linting {}", describeURIs(lintTodo))
         val files = clearLint()
         val context = sp.compileFiles(files)
         if (!cancelCallback.invoke()) {
@@ -314,19 +307,15 @@ class KotlinTextDocumentService(
         val byFile = langServerDiagnostics.groupBy({ it.first }, { it.second })
 
         for ((uri, diagnostics) in byFile) {
-            if (sf.isOpen(uri) || true) {
+            if (sf.isOpen(uri)) {
                 client.publishDiagnostics(PublishDiagnosticsParams(uri.toString(), diagnostics))
 
-                HollowEngine.LOGGER.info("Reported {} diagnostics in {}", diagnostics.size, describeURI(uri))
             }
-            else HollowEngine.LOGGER.info("Ignore {} diagnostics in {} because it's not open", diagnostics.size, describeURI(uri))
         }
 
         val noErrors = compiled - byFile.keys
         for (file in noErrors) {
             clearDiagnostics(file)
-
-            HollowEngine.LOGGER.info("No diagnostics in {}", file)
         }
 
         lintCount++
@@ -343,15 +332,5 @@ class KotlinTextDocumentService(
 
     override fun close() {
         shutdownExecutors(awaitTermination = true)
-    }
-}
-
-private inline fun<T> reportTime(block: () -> T): T {
-    val started = System.currentTimeMillis()
-    try {
-        return block()
-    } finally {
-        val finished = System.currentTimeMillis()
-        HollowEngine.LOGGER.info("Finished in {} ms", finished - started)
     }
 }

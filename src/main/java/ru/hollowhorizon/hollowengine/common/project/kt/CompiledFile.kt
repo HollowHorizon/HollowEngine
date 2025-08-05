@@ -75,7 +75,6 @@ class CompiledFile(
         // NOTE: Due to our tiny-fake-file mechanism, we may have `path == /dummy.virtual.kt != parse.containingFile.toPath`
         val path = surroundingExpr.containingFile.toPath()
         val context = bindingContextOf(surroundingExpr, scope) ?: return null
-        HollowEngine.LOGGER.info("Hovering {}", surroundingExpr)
         return referenceFromContext(cursor, path, context)
     }
 
@@ -122,8 +121,6 @@ class CompiledFile(
                 .filterNot { it is KtScript }
                 .firstOrNull { it.textRange.contains(oldChanged) } ?: parse
 
-        HollowEngine.LOGGER.debug("PSI path: ${psi.parentsWithSelf.toList()}")
-
         val (surroundingContent, offset) = contentAndOffsetFromElement(psi, oldParent, asReference)
         val padOffset = " ".repeat(offset)
         val recompile = classPath.compiler.createKtFile(padOffset + surroundingContent, Paths.get("dummy.virtual." + parse.name.substringAfter('.')), kind)
@@ -157,7 +154,6 @@ class CompiledFile(
 
         // Otherwise just use the expression
         val recoveryRange = parent.textRange
-        HollowEngine.LOGGER.info("Re-parsing {}", describeRange(recoveryRange, true))
 
         surroundingContent = content.substring(recoveryRange.startOffset, content.length - (parse.text.length - recoveryRange.endOffset))
         offset = recoveryRange.startOffset

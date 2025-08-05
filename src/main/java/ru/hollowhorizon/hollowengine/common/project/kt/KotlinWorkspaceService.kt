@@ -9,8 +9,7 @@ import ru.hollowhorizon.hollowengine.common.project.kt.symbols.workspaceSymbols
 import ru.hollowhorizon.hollowengine.common.project.kt.command.JAVA_TO_KOTLIN_COMMAND
 import ru.hollowhorizon.hollowengine.common.project.kt.j2k.convertJavaToKotlin
 import ru.hollowhorizon.hollowengine.common.project.kt.position.extractRange
-import ru.hollowhorizon.hollowengine.common.project.kt.util.parseURI
-import java.nio.file.Paths
+import ru.hollowhorizon.hollowengine.common.project.kt.util.parseFile
 import java.util.concurrent.CompletableFuture
 import com.google.gson.JsonElement
 import com.google.gson.Gson
@@ -33,14 +32,13 @@ class KotlinWorkspaceService(
 
     override fun executeCommand(params: ExecuteCommandParams): CompletableFuture<Any> {
         val args = params.arguments
-        HollowEngine.LOGGER.info("Executing command: {} with {}", params.command, params.arguments)
 
         when (params.command) {
             JAVA_TO_KOTLIN_COMMAND -> {
                 val fileUri = gson.fromJson(args[0] as JsonElement, String::class.java)
                 val range = gson.fromJson(args[1] as JsonElement, Range::class.java)
 
-                val selectedJavaCode = extractRange(sp.content(parseURI(fileUri)), range)
+                val selectedJavaCode = extractRange(sp.content(parseFile(fileUri)), range)
                 val kotlinCode = convertJavaToKotlin(selectedJavaCode, cp.compiler)
 
                 languageClient?.applyEdit(ApplyWorkspaceEditParams(WorkspaceEdit(listOf(Either.forLeft<TextDocumentEdit, ResourceOperation>(
@@ -57,7 +55,7 @@ class KotlinWorkspaceService(
 
     override fun didChangeWatchedFiles(params: DidChangeWatchedFilesParams) {
         for (change in params.changes) {
-            val uri = parseURI(change.uri)
+            val uri = parseFile(change.uri)
             val path = uri.toPath()
 
             when (change.type) {
@@ -156,7 +154,6 @@ class KotlinWorkspaceService(
                 val scripts = config.scripts
                 get("enabled")?.asBoolean?.let { scripts.enabled = it }
                 get("buildScriptsEnabled")?.asBoolean?.let { scripts.buildScriptsEnabled = it }
-                sf.updateExclusions()
             }
 
             // Update code generation options
@@ -189,8 +186,6 @@ class KotlinWorkspaceService(
                 get("autoConvertToKotlin")?.asBoolean?.let { externalSources.autoConvertToKotlin = it }
             }
         }
-
-        HollowEngine.LOGGER.info("Updated configuration: {}", settings)
     }
 
     @Suppress("DEPRECATION")
@@ -202,9 +197,8 @@ class KotlinWorkspaceService(
 
     override fun didChangeWorkspaceFolders(params: DidChangeWorkspaceFoldersParams) {
         for (change in params.event.removed) {
-            HollowEngine.LOGGER.info("Dropping workspace {} from source path", change.uri)
 
-            val root = parseURI(change.uri).toPath()
+            val root = parseFile(change.uri).toPath()
 
             sf.removeWorkspaceRoot(root)
             val refreshed = cp.removeWorkspaceRoot(root)
@@ -213,9 +207,7 @@ class KotlinWorkspaceService(
             }
         }
         for (change in params.event.added) {
-            HollowEngine.LOGGER.info("Adding workspace {} to source path", change.uri)
-
-            val root = parseURI(change.uri).toPath()
+            val root = parseFile(change.uri).toPath()
 
             sf.addWorkspaceRoot(root)
             val refreshed = cp.addWorkspaceRoot(root)

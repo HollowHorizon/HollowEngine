@@ -61,7 +61,6 @@ class ExitingInputStream(private val delegate: InputStream): InputStream() {
         val result = call()
 
         if (result < 0) {
-            HollowEngine.LOGGER.info("System.in has closed, exiting")
             System.exit(0)
         }
 

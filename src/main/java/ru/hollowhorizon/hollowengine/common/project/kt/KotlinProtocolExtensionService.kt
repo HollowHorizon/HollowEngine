@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.common.project.kt
 
 import org.eclipse.lsp4j.*
 import ru.hollowhorizon.hollowengine.common.project.kt.util.AsyncExecutor
-import ru.hollowhorizon.hollowengine.common.project.kt.util.parseURI
+import ru.hollowhorizon.hollowengine.common.project.kt.util.parseFile
 import ru.hollowhorizon.hollowengine.common.project.kt.resolve.resolveMain
 import ru.hollowhorizon.hollowengine.common.project.kt.position.offset
 import ru.hollowhorizon.hollowengine.common.project.kt.overridemembers.listOverridableMembers
@@ -16,7 +16,7 @@ class KotlinProtocolExtensionService(
     private val async = AsyncExecutor()
 
     override fun jarClassContents(textDocument: TextDocumentIdentifier): CompletableFuture<String?> = async.compute {
-        uriContentProvider.contentOf(parseURI(textDocument.uri))
+        uriContentProvider.contentOf(parseFile(textDocument.uri))
     }
 
     override fun buildOutputLocation(): CompletableFuture<String?> = async.compute {
@@ -24,7 +24,7 @@ class KotlinProtocolExtensionService(
     }
 
     override fun mainClass(textDocument: TextDocumentIdentifier): CompletableFuture<Map<String, Any?>> = async.compute {
-        val file = parseURI(textDocument.uri)
+        val file = parseFile(textDocument.uri)
         val filePath = file.toPath()
         
         // we find the longest one in case both the root and submodule are included
@@ -42,7 +42,7 @@ class KotlinProtocolExtensionService(
     }
 
     override fun overrideMember(position: TextDocumentPositionParams): CompletableFuture<List<CodeAction>> = async.compute {
-        val fileUri = parseURI(position.textDocument.uri)
+        val fileUri = parseFile(position.textDocument.uri)
         val compiledFile = sp.currentVersion(fileUri)
         val cursorOffset = offset(compiledFile.content, position.position)
 

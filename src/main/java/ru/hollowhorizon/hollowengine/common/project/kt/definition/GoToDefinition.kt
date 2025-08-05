@@ -1,26 +1,19 @@
 package ru.hollowhorizon.hollowengine.common.project.kt.definition
 
 import org.eclipse.lsp4j.Location
-import org.eclipse.lsp4j.Range
 import java.nio.file.Path
 import ru.hollowhorizon.hollowengine.common.project.kt.CompiledFile
 import ru.hollowhorizon.hollowengine.common.project.kt.CompilerClassPath
 import ru.hollowhorizon.hollowengine.common.project.kt.ExternalSourcesConfiguration
 import ru.hollowhorizon.hollowengine.common.project.kt.externalsources.ClassContentProvider
-import ru.hollowhorizon.hollowengine.common.project.kt.externalsources.toKlsURI
 import ru.hollowhorizon.hollowengine.common.project.kt.externalsources.KlsURI
 import ru.hollowhorizon.hollowengine.common.project.kt.position.location
-import ru.hollowhorizon.hollowengine.common.project.kt.position.isZero
-import ru.hollowhorizon.hollowengine.common.project.kt.position.position
-import ru.hollowhorizon.hollowengine.common.project.kt.util.partitionAroundLast
 import ru.hollowhorizon.hollowengine.common.project.kt.util.TemporaryDirectory
-import ru.hollowhorizon.hollowengine.common.project.kt.util.parseURI
+import ru.hollowhorizon.hollowengine.common.project.kt.util.parseFile
 import org.jetbrains.kotlin.js.resolve.diagnostics.findPsi
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
-import org.jetbrains.kotlin.descriptors.ConstructorDescriptor
 import ru.hollowhorizon.hollowengine.HollowEngine
 import java.io.File
-import java.nio.file.Paths
 
 private val cachedTempFiles = mutableMapOf<KlsURI, Path>()
 private val definitionPattern = Regex("(?:class|interface|object|fun)\\s+(\\w+)")
@@ -47,7 +40,7 @@ fun goToDefinition(
         val rawClassURI = destination.uri
 
         if (isInsideArchive(rawClassURI, cp)) {
-            parseURI(rawClassURI).toPath()?.let { klsURI ->
+            parseFile(rawClassURI).toPath()?.let { klsURI ->
 //                val (klsSourceURI, content) = classContentProvider.contentOf(klsURI)
 //
 //                if (config.useKlsScheme) {
@@ -92,5 +85,5 @@ fun goToDefinition(
 
 private fun isInsideArchive(uri: String, cp: CompilerClassPath) =
     uri.contains(".jar!") || uri.contains(".zip!") || cp.javaHome?.let {
-        parseURI(uri).toPath().toString().startsWith(File(it).path)
+        parseFile(uri).toPath().toString().startsWith(File(it).path)
     } ?: false

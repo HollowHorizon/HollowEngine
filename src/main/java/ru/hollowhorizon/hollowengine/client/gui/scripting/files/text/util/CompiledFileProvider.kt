@@ -5,6 +5,7 @@ import de.fabmax.kool.modules.ui2.TextAttributes
 import de.fabmax.kool.modules.ui2.TextLine
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
+import de.fabmax.kool.util.logE
 import org.eclipse.lsp4j.*
 import org.jetbrains.kotlin.com.intellij.psi.PsiWhiteSpace
 import org.jetbrains.kotlin.resolve.BindingContext
@@ -31,7 +32,6 @@ class CompiledFileProvider(
     private var lock = ReentrantLock()
     val font = MsdfFont(HACK_FONT, 18f)
     val lines = ArrayList<TextLine>()
-    private var compiledFile: CompiledFile = recover(Position(0, 0), Recompile.NEVER).first
     private var version = 0
     var isRecompiling = false
         private set
@@ -46,6 +46,11 @@ class CompiledFileProvider(
                 )
             )
         )
+    }
+
+    private var compiledFile: CompiledFile = recover(Position(0, 0), Recompile.NEVER).first
+
+    init {
         colorizeAsync(0, 0, 0, 0, 0, false)
     }
 
@@ -85,54 +90,59 @@ class CompiledFileProvider(
         selectionEndChar: Int,
         replacement: String,
     ): Vec2i {
-        val oldText = getTextFromRange(selectionStartLine, selectionStartChar, selectionEndLine, selectionEndChar)
-        val replacementLines = replacement.lines()
-        val M = replacementLines.size
-        val endLineAfter = if (M == 1) selectionStartLine else selectionStartLine + M - 1
-        val endCharAfter = if (M == 1) selectionStartChar + replacement.length else replacementLines.last().length
+        try {
+            val oldText = getTextFromRange(selectionStartLine, selectionStartChar, selectionEndLine, selectionEndChar)
+            val replacementLines = replacement.lines()
+            val M = replacementLines.size
+            val endLineAfter = if (M == 1) selectionStartLine else selectionStartLine + M - 1
+            val endCharAfter = if (M == 1) selectionStartChar + replacement.length else replacementLines.last().length
 
-        val action = UndoableAction(
-            startLine = selectionStartLine,
-            caretLine = endLineAfter,
-            startChar = selectionStartChar,
-            caretChar = endCharAfter,
-            numOldLines = 0, // Не используется
-            oldLines = listOf(TextLine(listOf(oldText to TextAttributes(font, Color.WHITE)))),
-            newLines = listOf(TextLine(listOf(replacement to TextAttributes(font, Color.WHITE))))
-        )
-        undoStack.addLast(action)
-        redoStack.clear()
+            val action = UndoableAction(
+                startLine = selectionStartLine,
+                caretLine = endLineAfter,
+                startChar = selectionStartChar,
+                caretChar = endCharAfter,
+                numOldLines = 0, // Не используется
+                oldLines = listOf(TextLine(listOf(oldText to TextAttributes(font, Color.WHITE)))),
+                newLines = listOf(TextLine(listOf(replacement to TextAttributes(font, Color.WHITE))))
+            )
+            undoStack.addLast(action)
+            redoStack.clear()
 
-        val textVersion = ++version
-        KotlinLanguageServer.textDocumentService.didChange(
-            DidChangeTextDocumentParams(
-                VersionedTextDocumentIdentifier(file.path, textVersion), listOf(
-                    TextDocumentContentChangeEvent(
-                        Range(
-                            Position(selectionStartLine, selectionStartChar),
-                            Position(selectionEndLine, selectionEndChar)
-                        ), replacement
+            val textVersion = ++version
+            KotlinLanguageServer.textDocumentService.didChange(
+                DidChangeTextDocumentParams(
+                    VersionedTextDocumentIdentifier(file.path, textVersion), listOf(
+                        TextDocumentContentChangeEvent(
+                            Range(
+                                Position(selectionStartLine, selectionStartChar),
+                                Position(selectionEndLine, selectionEndChar)
+                            ), replacement
+                        )
                     )
                 )
             )
-        )
 
-        colorizeAsync(
-            selectionStartLine,
-            selectionStartChar,
-            selectionEndLine,
-            selectionEndChar,
-            textVersion,
-            showCompletions = replacement.length == 1 && (replacement[0].isLetterOrDigit() || replacement[0] == '.')
-        )
+            colorizeAsync(
+                selectionStartLine,
+                selectionStartChar,
+                selectionEndLine,
+                selectionEndChar,
+                textVersion,
+                showCompletions = replacement.length == 1 && (replacement[0].isLetterOrDigit() || replacement[0] == '.')
+            )
 
-        return when {
-            replacement.isEmpty() -> Vec2i(selectionStartChar, selectionStartLine)
-            !replacement.contains('\n') -> Vec2i(selectionStartChar + replacement.length, selectionStartLine)
-            else -> {
-                val lines = replacement.lines()
-                Vec2i(lines.last().length, selectionStartLine + lines.size - 1)
+            return when {
+                replacement.isEmpty() -> Vec2i(selectionStartChar, selectionStartLine)
+                !replacement.contains('\n') -> Vec2i(selectionStartChar + replacement.length, selectionStartLine)
+                else -> {
+                    val lines = replacement.lines()
+                    Vec2i(lines.last().length, selectionStartLine + lines.size - 1)
+                }
             }
+        } catch (e: Exception) {
+            logE { e.stackTraceToString() }
+            return Vec2i(selectionStartChar, selectionStartLine)
         }
     }
 
@@ -195,10 +205,6 @@ class CompiledFileProvider(
                         HollowCore.LOGGER.warn("Somehow script compilation failed... Trying again...")
                         sp.refresh()
                         compiledFile = sp.currentVersion(file)
-                        HollowCore.LOGGER.info(
-                            "Compiled script: {}",
-                            compiledFile.compile[BindingContext.SCRIPT, compiledFile.parse.script]
-                        )
                     }
 
                     cursor
@@ -241,7 +247,6 @@ class CompiledFileProvider(
                 }
                 if (lines.isEmpty()) lines.add(TextLine(listOf("" to TextAttributes(font, Color.WHITE))))
 
-                HollowCore.LOGGER.info("Recolored. Version: $version")
             }
         }
     }

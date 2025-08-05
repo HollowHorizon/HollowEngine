@@ -30,7 +30,6 @@ class AsyncExecutor {
     fun shutdown(awaitTermination: Boolean) {
         workerThread.shutdown()
         if (awaitTermination) {
-            HollowEngine.LOGGER.info("Awaiting async termination...")
             workerThread.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS)
         }
     }

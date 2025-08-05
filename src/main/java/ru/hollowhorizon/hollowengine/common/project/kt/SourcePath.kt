@@ -92,8 +92,6 @@ class SourcePath(
         fun compile() = parse().apply { doCompile() }
 
         private fun doCompile() {
-            HollowEngine.LOGGER.debug("Compiling {}", path)
-
             val oldFile = clone()
 
             val (context, module) = cp.compiler.compileKtFile(parsed!!, allIncludingThis(), kind)
@@ -132,10 +130,6 @@ class SourcePath(
         if (uri !in files) {
             // Fallback solution, usually *all* source files
             // should be added/opened through SourceFiles
-            HollowEngine.LOGGER.warn(
-                "Requested source file {} is not on source path, this is most likely a bug. Adding it now temporarily...",
-                describeURI(uri)
-            )
             put(uri, contentProvider.contentOf(uri), null, temporary = true)
         }
         return files[uri] ?: error("File not found!")
@@ -143,10 +137,6 @@ class SourcePath(
 
     fun put(uri: File, content: String, language: Language?, temporary: Boolean = false) {
         assert(!content.contains('\r'))
-
-        if (temporary) {
-            HollowEngine.LOGGER.info("Adding temporary source file {} to source path", describeURI(uri))
-        }
 
         if (uri in files) {
             sourceFile(uri).put(content)
@@ -157,7 +147,6 @@ class SourcePath(
 
     fun deleteIfTemporary(uri: File): Boolean =
         if (sourceFile(uri).isTemporary) {
-            HollowEngine.LOGGER.info("Removing temporary source file {} from source path", describeURI(uri))
             delete(uri)
             true
         } else {
@@ -343,7 +332,6 @@ class SourcePath(
     fun refresh() {
         val initialized = files.values.any { it.parsed != null }
         if (initialized) {
-            HollowEngine.LOGGER.info("Refreshing source path")
             files.values.forEach { it.clean() }
             files.values.forEach { it.compile() }
         }

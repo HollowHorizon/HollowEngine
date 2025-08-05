@@ -239,6 +239,7 @@ fun UiScope.ScriptTextArea(
         val primitives = surface.getUiPrimitives(modifier.zLayer+50)
         primitives.children.filterIsInstance<TriangulatedLineMesh>().forEach {
             primitives.removeNode(it)
+            it.release()
         }
     }
 }
@@ -409,14 +410,15 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
     private fun UiScope.setupError(error: Diagnostic, font: MsdfFont, text: String, maxWidth: Dp) {
         val column = error.range.start.character
+        val column2 = error.range.end.character
         val startPos = if (text.isEmpty()) 0f else font.textDimensions(
             text.substring(0, column.coerceAtMost(text.lastIndex))
         ).width.dp.px
         val endPos = if (text.isEmpty()) 0f else font.textDimensions(
-            text.substring(0, TextCaretNavigation.endOfWord(text, column).coerceAtMost(text.lastIndex) + 1)
+            text.substring(0, column2.coerceAtMost(text.lastIndex))
         ).width.dp.px
 
-        if (error.severity.ordinal >= 0) getUiPrimitives(50).addTriangulatedLineMesh {
+        getUiPrimitives(50).addTriangulatedLineMesh {
             this.width = 3f
             this.color = if(error.severity == DiagnosticSeverity.Error) Color.RED else Color.YELLOW
 

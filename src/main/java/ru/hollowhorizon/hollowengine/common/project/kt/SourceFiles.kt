@@ -130,7 +130,7 @@ class SourceFiles(
         null
     }
 
-    private fun isSource(uri: File): Boolean = isIncluded(uri) && languageOf(uri) != null
+    private fun isSource(uri: File): Boolean = languageOf(uri) != null
 
     private fun languageOf(uri: File): Language? {
         val fileName = uri.name
@@ -149,11 +149,10 @@ class SourceFiles(
         for (uri in addSources) {
             readFromDisk(uri, temporary = false)?.let {
                 files[uri] = it
-            } ?: HollowEngine.LOGGER.warn("Could not read source file '{}'", uri.path)
+            }
         }
 
         workspaceRoots.add(root)
-        updateExclusions()
     }
 
     fun removeWorkspaceRoot(root: Path) {
@@ -163,7 +162,6 @@ class SourceFiles(
 
         files.removeAll(rmSources)
         workspaceRoots.remove(root)
-        updateExclusions()
     }
 
     private fun findSourceFiles(root: Path): Set<File> {
@@ -175,14 +173,7 @@ class SourceFiles(
             .toSet()
     }
 
-    fun updateExclusions() {
-        exclusions = SourceExclusions(workspaceRoots, scriptsConfig)
-        HollowEngine.LOGGER.info("Updated exclusions: ${exclusions.excludedPatterns}")
-    }
-
     fun isOpen(uri: File): Boolean = (uri in open)
-
-    fun isIncluded(uri: File): Boolean = exclusions.isURIIncluded(uri)
 }
 
 private fun patch(sourceText: String, change: TextDocumentContentChangeEvent): String {

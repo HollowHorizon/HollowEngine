@@ -122,7 +122,6 @@ class SymbolIndex {
     // Removes a list of indexes and adds another list. Everything is done in the same transaction.
     fun updateIndexes(remove: Sequence<DeclarationDescriptor>, add: Sequence<DeclarationDescriptor>) {
         val started = System.currentTimeMillis()
-        HollowEngine.LOGGER.info("Updating symbol index...")
 
         try {
             transaction(db) {
@@ -131,7 +130,6 @@ class SymbolIndex {
 
                 val finished = System.currentTimeMillis()
                 val count = Symbols.slice(Symbols.fqName.count()).selectAll().first()[Symbols.fqName.count()]
-                HollowEngine.LOGGER.info("Updated symbol index in ${finished - started} ms! (${count} symbol(s))")
             }
         } catch (e: Exception) {
             HollowEngine.LOGGER.error("Error while updating symbol index: ", e)

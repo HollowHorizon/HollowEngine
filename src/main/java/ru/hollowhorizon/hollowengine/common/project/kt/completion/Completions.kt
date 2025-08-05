@@ -352,7 +352,6 @@ private fun elementCompletions(file: CompiledFile, cursor: Int, surroundingEleme
         }
         // \?
         is KtNameReferenceExpression -> {
-            HollowEngine.LOGGER.info("Completing identifier '{}'", surroundingElement.text)
             if (infixCall) {
                 completeMembers(file, surroundingElement.startOffset, surroundingElement)
             } else {
@@ -562,20 +561,20 @@ private fun isVisible(file: CompiledFile, cursor: Int): (DeclarationDescriptor) 
 private fun isDeclarationVisible(target: DeclarationDescriptor, from: DeclarationDescriptor): Boolean =
     target.parentsWithSelf
             .filterIsInstance<DeclarationDescriptorWithVisibility>()
-            .none { isNotVisible(it, from) }
+            .none { isNotVisible(it, from) || !DescriptorVisibilities.isVisibleWithAnyReceiver(it, from, false)}
 
 private fun isNotVisible(target: DeclarationDescriptorWithVisibility, from: DeclarationDescriptor): Boolean {
-    when (target.visibility.delegate) {
+    return when (target.visibility.delegate) {
         Visibilities.Private, Visibilities.PrivateToThis -> {
             if (DescriptorUtils.isTopLevelDeclaration(target))
-                return !sameFile(target, from)
+                !sameFile(target, from)
             else
-                return !sameParent(target, from)
+                !sameParent(target, from)
         }
         Visibilities.Protected -> {
-            return !subclassParent(target, from)
+            !subclassParent(target, from)
         }
-        else -> return false
+        else -> false
     }
 }
 

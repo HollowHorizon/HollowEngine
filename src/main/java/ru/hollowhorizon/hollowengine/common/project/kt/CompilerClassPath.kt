@@ -72,7 +72,6 @@ class CompilerClassPath(
         }
 
         if (updateBuildScriptClassPath) {
-            HollowEngine.LOGGER.info("Update build script path")
             val newBuildScriptClassPath = resolver.buildScriptClasspathOrEmpty
             if (newBuildScriptClassPath != buildScriptClassPath) {
                 syncPaths(buildScriptClassPath, newBuildScriptClassPath, "build script class path") { it }
@@ -81,29 +80,29 @@ class CompilerClassPath(
         }
 
         if (refreshCompiler) {
-            HollowEngine.LOGGER.info("Reinstantiating compiler")
-            compiler.close()
-            compiler = Compiler(
-                javaSourcePath,
-                classPath.map { it.compiledJar }.toSet(),
-                buildScriptClassPath,
-                scriptsConfig,
-                codegenConfig,
-                outputDirectory
-            )
+            refreshCompiler()
             updateCompilerConfiguration()
         }
 
         return refreshCompiler
     }
 
+    fun refreshCompiler() {
+        compiler.close()
+        compiler = Compiler(
+            javaSourcePath,
+            classPath.map { it.compiledJar }.toSet(),
+            buildScriptClassPath,
+            scriptsConfig,
+            codegenConfig,
+            outputDirectory
+        )
+    }
+
     /** Synchronizes the given two path sets and logs the differences. */
     private fun <T> syncPaths(dest: MutableSet<T>, new: Set<T>, name: String, toPath: (T) -> Path) {
         val added = new - dest
         val removed = dest - new
-
-        logAdded(added.map(toPath), name)
-        logRemoved(removed.map(toPath), name)
 
         dest.removeAll(removed)
         dest.addAll(added)
@@ -114,8 +113,6 @@ class CompilerClassPath(
     }
 
     fun addWorkspaceRoot(root: Path): Boolean {
-        HollowEngine.LOGGER.info("Searching for dependencies and Java sources in workspace root {}", root)
-
         workspaceRoots.add(root)
         javaSourcePath.addAll(findJavaSourceFiles(root))
 
@@ -123,8 +120,6 @@ class CompilerClassPath(
     }
 
     fun removeWorkspaceRoot(root: Path): Boolean {
-        HollowEngine.LOGGER.info("Removing dependencies and Java source path from workspace root {}", root)
-
         workspaceRoots.remove(root)
         javaSourcePath.removeAll(findJavaSourceFiles(root))
 
@@ -170,21 +165,5 @@ class CompilerClassPath(
     override fun close() {
         compiler.close()
         outputDirectory.delete()
-    }
-}
-
-private fun logAdded(sources: Collection<Path>, name: String) {
-    when {
-        sources.isEmpty() -> return
-        sources.size > 5 -> HollowEngine.LOGGER.info("Adding {} files to {}", sources.size, name)
-        else -> HollowEngine.LOGGER.info("Adding {} to {}", sources, name)
-    }
-}
-
-private fun logRemoved(sources: Collection<Path>, name: String) {
-    when {
-        sources.isEmpty() -> return
-        sources.size > 5 -> HollowEngine.LOGGER.info("Removing {} files from {}", sources.size, name)
-        else -> HollowEngine.LOGGER.info("Removing {} from {}", sources, name)
     }
 }

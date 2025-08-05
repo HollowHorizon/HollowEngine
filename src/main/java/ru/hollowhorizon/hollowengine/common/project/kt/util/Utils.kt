@@ -88,15 +88,9 @@ fun <T> nonNull(item: T?, errorMsgIfNull: String): T =
 
 inline fun <T> tryResolving(what: String, resolver: () -> T?): T? {
     try {
-        val resolved = resolver()
-        if (resolved != null) {
-            HollowEngine.LOGGER.info("Successfully resolved {} to {}", what, resolved)
-            return resolved
-        } else {
-            HollowEngine.LOGGER.info("Could not resolve {} as it is null", what)
-        }
+        return resolver()
     } catch (e: Exception) {
-        HollowEngine.LOGGER.info("Could not resolve {}: {}", what, e.message)
+        HollowEngine.LOGGER.warn("Could not resolve {}: {}", what, e.message)
     }
     return null
 }

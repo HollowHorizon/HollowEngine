@@ -220,7 +220,6 @@ class JavaElementConverter(
     }
 
     override fun visitForStatement(statement: PsiForStatement) {
-        HollowEngine.LOGGER.info("Body: ${statement.body}")
         val translatedBody = ((statement.body?.containedStatements ?: emptySequence()) + sequenceOf(statement.update))
             .mapNotNull { it.translate(indentDelta = 1) }
             .buildCodeBlock()

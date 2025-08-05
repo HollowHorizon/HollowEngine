@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.cli.common.environment.setIdeaIoUseFallback
 import org.jetbrains.kotlin.cli.common.output.writeAllTo
 import org.jetbrains.kotlin.cli.jvm.compiler.CliBindingTrace
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
+import org.jetbrains.kotlin.cli.jvm.compiler.JvmPackagePartProvider
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.compiler.TopDownAnalyzerFacadeForJVM
 import org.jetbrains.kotlin.cli.jvm.config.addJavaSourceRoots
@@ -50,12 +51,10 @@ import org.jetbrains.kotlin.resolve.scopes.LexicalScope
 import org.jetbrains.kotlin.resolve.source.PsiSourceFile
 import org.jetbrains.kotlin.samWithReceiver.CliSamWithReceiverComponentContributor
 import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptingCompilerConfigurationComponentRegistrar
-import org.jetbrains.kotlin.scripting.compiler.plugin.definitions.CliScriptDefinitionProvider
 import org.jetbrains.kotlin.scripting.configuration.ScriptingConfigurationKeys
 import org.jetbrains.kotlin.scripting.definitions.KotlinScriptDefinition
 import org.jetbrains.kotlin.scripting.definitions.ScriptConfigurationsProvider
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
-import org.jetbrains.kotlin.scripting.definitions.ScriptDefinitionProvider
 import org.jetbrains.kotlin.scripting.definitions.findScriptDefinition
 import org.jetbrains.kotlin.scripting.resolve.ScriptCompilationConfigurationResult
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
@@ -100,72 +99,69 @@ private class CompilationEnvironment(
 ) : Closeable {
     private val disposable = Disposer.newDisposable()
 
-    val environment: KotlinCoreEnvironment
-    val parser: KtPsiFactory
-    val scripts: ScriptDefinitionProvider
+    val environment: KotlinCoreEnvironment = KotlinCoreEnvironment.createForProduction(
+        projectDisposable = disposable,
+        // Not to be confused with the CompilerConfiguration in the language server Configuration
+        configuration = KotlinCompilerConfiguration().apply {
+            val langFeatures = mutableMapOf<LanguageFeature, LanguageFeature.State>()
+            for (langFeature in LanguageFeature.values()) {
+                langFeatures[langFeature] = LanguageFeature.State.ENABLED
+            }
+            val languageVersionSettings = LanguageVersionSettingsImpl(
+                LanguageVersion.LATEST_STABLE,
+                ApiVersion.createByLanguageVersion(LanguageVersion.LATEST_STABLE),
+                emptyMap(),
+                langFeatures
+            )
+
+            put(CommonConfigurationKeys.MODULE_NAME, JvmProtoBufUtil.DEFAULT_MODULE_NAME)
+            put(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS, languageVersionSettings)
+            put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, LoggingMessageCollector)
+            add(ComponentRegistrar.PLUGIN_COMPONENT_REGISTRARS, ScriptingCompilerConfigurationComponentRegistrar())
+            put(JVMConfigurationKeys.USE_PSI_CLASS_FILES_READING, true)
+
+            // configure jvm runtime classpaths
+            configureJdkClasspathRoots()
+
+            // Kotlin 1.8.20 requires us to specify the JDK home, otherwise java.* classes won't resolve
+            // See https://github.com/JetBrains/kotlin-compiler-server/pull/626
+            val jdkHome = File(System.getProperty("java.home"))
+            put(JVMConfigurationKeys.JDK_HOME, jdkHome)
+
+            addJvmClasspathRoots(classPath.map { it.toFile() })
+            addJavaSourceRoots(javaSourcePath.map { it.toFile() })
+
+            if (scriptsConfig.enabled) {
+                // Setup script templates (e.g. used by Gradle's Kotlin DSL)
+                val scriptDefinitions: MutableList<ScriptDefinition> =
+                    mutableListOf(ScriptDefinition.getDefault(defaultJvmScriptingHostConfiguration))
+
+                val fileClassPath = classPath.map { it.toFile() }
+                val scriptHostConfig = ScriptingHostConfiguration(defaultJvmScriptingHostConfiguration) {
+                    getScriptingClass(JvmGetScriptingClass())
+                    configurationDependencies(JvmDependency(fileClassPath))
+                }
+
+                scriptDefinitions.addAll(ScriptTypes.SCRIPTS.values.map {
+                    ScriptDefinition.FromConfigurations(
+                        scriptHostConfig,
+                        createCompilationConfigurationFromTemplate(
+                            KotlinType(it.kotlin),
+                            scriptHostConfig,
+                            Compiler::class
+                        ),
+                        null
+                    )
+                })
+
+                HollowEngine.LOGGER.info("Adding script definitions ${scriptDefinitions.map { it.name }}")
+                addAll(ScriptingConfigurationKeys.SCRIPT_DEFINITIONS, scriptDefinitions)
+            }
+        },
+        configFiles = EnvironmentConfigFiles.JVM_CONFIG_FILES
+    )
 
     init {
-        environment = KotlinCoreEnvironment.createForProduction(
-            projectDisposable = disposable,
-            // Not to be confused with the CompilerConfiguration in the language server Configuration
-            configuration = KotlinCompilerConfiguration().apply {
-                val langFeatures = mutableMapOf<LanguageFeature, LanguageFeature.State>()
-                for (langFeature in LanguageFeature.values()) {
-                    langFeatures[langFeature] = LanguageFeature.State.ENABLED
-                }
-                val languageVersionSettings = LanguageVersionSettingsImpl(
-                    LanguageVersion.LATEST_STABLE,
-                    ApiVersion.createByLanguageVersion(LanguageVersion.LATEST_STABLE),
-                    emptyMap(),
-                    langFeatures
-                )
-
-                put(CommonConfigurationKeys.MODULE_NAME, JvmProtoBufUtil.DEFAULT_MODULE_NAME)
-                put(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS, languageVersionSettings)
-                put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, LoggingMessageCollector)
-                add(ComponentRegistrar.PLUGIN_COMPONENT_REGISTRARS, ScriptingCompilerConfigurationComponentRegistrar())
-                put(JVMConfigurationKeys.USE_PSI_CLASS_FILES_READING, true)
-
-                // configure jvm runtime classpaths
-                configureJdkClasspathRoots()
-
-                // Kotlin 1.8.20 requires us to specify the JDK home, otherwise java.* classes won't resolve
-                // See https://github.com/JetBrains/kotlin-compiler-server/pull/626
-                val jdkHome = File(System.getProperty("java.home"))
-                put(JVMConfigurationKeys.JDK_HOME, jdkHome)
-
-                addJvmClasspathRoots(classPath.map { it.toFile() })
-                addJavaSourceRoots(javaSourcePath.map { it.toFile() })
-
-                if (scriptsConfig.enabled) {
-                    // Setup script templates (e.g. used by Gradle's Kotlin DSL)
-                    val scriptDefinitions: MutableList<ScriptDefinition> =
-                        mutableListOf(ScriptDefinition.getDefault(defaultJvmScriptingHostConfiguration))
-
-                    val fileClassPath = classPath.map { it.toFile() }
-                    val scriptHostConfig = ScriptingHostConfiguration(defaultJvmScriptingHostConfiguration) {
-                        getScriptingClass(JvmGetScriptingClass())
-                        configurationDependencies(JvmDependency(fileClassPath))
-                    }
-
-                    scriptDefinitions.addAll(ScriptTypes.SCRIPTS.values.map {
-                        ScriptDefinition.FromConfigurations(
-                            scriptHostConfig,
-                            createCompilationConfigurationFromTemplate(
-                                KotlinType(it.kotlin),
-                                scriptHostConfig,
-                                Compiler::class
-                            ),
-                            null
-                        )
-                    })
-
-                    HollowEngine.LOGGER.info("Adding script definitions ${scriptDefinitions.map { it.name }}")
-                    addAll(ScriptingConfigurationKeys.SCRIPT_DEFINITIONS, scriptDefinitions)
-                }
-            },
-            configFiles = EnvironmentConfigFiles.JVM_CONFIG_FILES
-        )
 
         // hacky way to support SamWithReceiverAnnotations for scripts
         val scriptDefinitions: List<ScriptDefinition> =
@@ -177,9 +173,6 @@ private class CompilationEnvironment(
                 CliSamWithReceiverComponentContributor(annotations)
             )
         }
-        val project = environment.project
-        parser = KtPsiFactory(project)
-        scripts = ScriptDefinitionProvider.getInstance(project)!! as CliScriptDefinitionProvider
     }
 
     fun updateConfiguration(config: CompilerConfiguration) {
@@ -187,18 +180,26 @@ private class CompilationEnvironment(
             ?.let { environment.configuration.put(JVMConfigurationKeys.JVM_TARGET, it) }
     }
 
+    var cached: JvmPackagePartProvider? = null
+
     fun createContainer(sourcePath: Collection<KtFile>): Pair<ComponentProvider, BindingTraceContext> {
         val trace = CliBindingTrace(environment.project)
+
         val container = TopDownAnalyzerFacadeForJVM.createContainer(
             project = environment.project,
             files = sourcePath,
             trace = trace,
             configuration = environment.configuration,
-            packagePartProvider = environment::createPackagePartProvider,
+            packagePartProvider = { cached ?: environment.createPackagePartProvider(it).also { provider -> cached = provider } },
             // TODO FileBasedDeclarationProviderFactory keeps indices, re-use it across calls
             declarationProviderFactory = ::FileBasedDeclarationProviderFactory
         )
-        UnsafeTools.setField(ScriptConfigurationsProvider.getInstance(environment.project)!!, "cache", hashMapOf<String, ScriptCompilationConfigurationResult?>())
+
+        UnsafeTools.setField(
+            ScriptConfigurationsProvider.getInstance(environment.project)!!,
+            "cache",
+            hashMapOf<String, ScriptCompilationConfigurationResult?>()
+        )
         return Pair(container, trace)
     }
 
@@ -276,7 +277,6 @@ class Compiler(
         )
         assert(new.virtualFile != null)
         (new.virtualFile as? LightVirtualFile)?.originalFile = LightVirtualFile(file.toString())
-
         return new
     }
 

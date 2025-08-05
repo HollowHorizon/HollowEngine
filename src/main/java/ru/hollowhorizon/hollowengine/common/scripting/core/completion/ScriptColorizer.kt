@@ -15,6 +15,8 @@ import org.jetbrains.kotlin.com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.descriptors.VariableDescriptor
+import org.jetbrains.kotlin.diagnostics.DiagnosticWithParameters1
+import org.jetbrains.kotlin.diagnostics.Errors
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.*
@@ -144,6 +146,10 @@ internal fun getElementColor(element: PsiElement, bindingContext: BindingContext
         KtTokens.COMMENTS.contains(token) -> SyntaxHighlight.COMMENT
         KtTokens.KEYWORDS.contains(token) || KtTokens.SOFT_KEYWORDS.contains(token) -> SyntaxHighlight.KEYWORD
         KtTokens.STRINGS.contains(token) || token == KtTokens.OPEN_QUOTE || token == KtTokens.CLOSING_QUOTE -> SyntaxHighlight.STRING
+        bindingContext.diagnostics.filter { it.factory == Errors.UNUSED_VARIABLE }
+            .map { it as DiagnosticWithParameters1<*, *> }
+            .any { it.psiElement == expression } && token == KtTokens.IDENTIFIER -> SyntaxHighlight.COMMENT.mulRgb(0.75f)
+
         element.isPropertyIdentifier() || expression?.hasProperty(bindingContext) == true -> SyntaxHighlight.PROPERTY_IDENTIFIER
         (expression as? KtReferenceExpression)?.getResolvedCall(bindingContext)
             ?.resultingDescriptor?.extensionReceiverParameter != null && token != KtTokens.LPAR && token != KtTokens.RPAR -> SyntaxHighlight.EXTENSION_RECEIVER
