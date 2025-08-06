@@ -66,6 +66,7 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.CodegenConfiguration
 import ru.hollowhorizon.hollowengine.common.project.kt.CompilerConfiguration
 import ru.hollowhorizon.hollowengine.common.project.kt.ScriptsConfiguration
+import ru.hollowhorizon.hollowengine.common.project.kt.imports.collectUnusedImports
 import ru.hollowhorizon.hollowengine.common.project.kt.util.LoggingMessageCollector
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptTypes
 import java.io.Closeable
@@ -195,6 +196,7 @@ private class CompilationEnvironment(
             declarationProviderFactory = ::FileBasedDeclarationProviderFactory
         )
 
+        // Без этого он не будет обновлять конфигурацию файла, вроде его @Import-аннотаций
         UnsafeTools.setField(
             ScriptConfigurationsProvider.getInstance(environment.project)!!,
             "cache",
@@ -353,6 +355,9 @@ class Compiler(
             val (container, trace) = compileEnv.createContainer(sourcePath)
             val module = container.getService(ModuleDescriptor::class.java)
             container.get<LazyTopDownAnalyzer>().analyzeDeclarations(TopDownAnalysisMode.TopLevelDeclarations, files)
+            files.forEach {
+                collectUnusedImports(it, trace)
+            }
             return Pair(trace.bindingContext, module)
         }
     }

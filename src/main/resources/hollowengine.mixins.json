@@ -13,6 +13,7 @@
     "kool.DockNodeInvoker",
     "kool.DockNodeMixin",
     "kool.DragAndDropContextAccessor",
+    "kool.UiDockableAccessor",
     "scripting.BindingTraceContextAccessor",
     "scripting.CompilationContextMixin",
     "scripting.FListAccessor",

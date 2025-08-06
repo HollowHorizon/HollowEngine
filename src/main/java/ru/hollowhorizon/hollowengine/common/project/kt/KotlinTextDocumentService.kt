@@ -122,22 +122,7 @@ class KotlinTextDocumentService(
 
     override fun definition(position: DefinitionParams): CompletableFuture<Either<List<Location>, List<LocationLink>>> =
         async.compute {
-
-            val (file, cursor) = recover(position, Recompile.NEVER) ?: return@compute Either.forLeft(emptyList())
-            goToDefinition(
-                file,
-                cursor,
-                uriContentProvider.classContentProvider,
-                tempDirectory,
-                config.externalSources,
-                cp
-            )
-                ?.let(::listOf)
-                ?.let { Either.forLeft<List<Location>, List<LocationLink>>(it) }
-                ?: noResult(
-                    "Couldn't find definition at ${describePosition(position)}",
-                    Either.forLeft(emptyList())
-                )
+            TODO()
         }
 
     override fun rangeFormatting(params: DocumentRangeFormattingParams): CompletableFuture<List<TextEdit>> =
@@ -166,7 +151,7 @@ class KotlinTextDocumentService(
                 ?: return@compute Either.forRight(CompletionList()) // TODO: Investigate when to recompile
             val completions = completions(file, cursor, sp.index, config.completion)
 
-            Either.forRight(completions)
+            TODO()
         }
 
     override fun resolveCompletionItem(unresolved: CompletionItem): CompletableFuture<CompletionItem> {

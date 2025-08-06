@@ -4,6 +4,7 @@ import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.CompletionItemKind
 import org.eclipse.lsp4j.InsertTextFormat.PlainText
 import org.eclipse.lsp4j.InsertTextFormat.Snippet
+import org.jetbrains.kotlin.builtins.isFunctionOrSuspendFunctionType
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.builtins.isFunctionType
 import org.jetbrains.kotlin.renderer.ClassifierNamePolicy
@@ -87,13 +88,12 @@ class RenderCompletionItem(val snippetsEnabled: Boolean) : DeclarationDescriptor
 
         return if (snippetsEnabled) {
             val parameters = desc.valueParameters
-            val hasTrailingLambda = parameters.lastOrNull()?.type?.isFunctionType ?: false
+            val hasTrailingLambda = parameters.lastOrNull()?.type?.isFunctionOrSuspendFunctionType ?: false
 
-            if (hasTrailingLambda) {
-                val parenthesizedParams = parameters.dropLast(1).ifEmpty { null }?.let { "(${valueParametersSnippet(it)})" } ?: ""
-                "$name$parenthesizedParams { \${${parameters.size}:${parameters.last().name}} }"
+            if (hasTrailingLambda && parameters.size == 1) {
+                "$name{"
             } else {
-                "$name(${valueParametersSnippet(parameters)})"
+                name
             }
         } else {
             name

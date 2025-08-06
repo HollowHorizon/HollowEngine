@@ -17,8 +17,8 @@ object IdeContent {
     val dndContext = DragAndDropContext<FileNode>()
 
 
-    fun <T: FileData> openFile(path: String, bytes: ByteArray, generator: (String, ByteArray) -> T) {
-        val screen = Minecraft.getInstance().screen as? ScriptingEnvironmentScreen ?: return
+    fun <T: FileData> openFile(path: String, bytes: ByteArray, generator: (String, ByteArray) -> T): FileData? {
+        val screen = Minecraft.getInstance().screen as? ScriptingEnvironmentScreen ?: return null
         val dock = screen.dock
 
         // Get or Create file
@@ -30,6 +30,7 @@ object IdeContent {
             else dock.getLeafAtPath("0")?.insertItem(localFile.dockable, DockNode.SlotPosition.Right)
             localFile
         }
+        return file
     }
 
     fun openDocFile(node: FileNode) {

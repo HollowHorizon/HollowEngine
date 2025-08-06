@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.CompositeBindingContext
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
+import ru.hollowhorizon.hc.HollowCore
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.compiler.CompilationKind
 import ru.hollowhorizon.hollowengine.common.project.kt.index.SymbolIndex
@@ -94,11 +95,12 @@ class SourcePath(
         private fun doCompile() {
             val oldFile = clone()
 
-            val (context, module) = cp.compiler.compileKtFile(parsed!!, allIncludingThis(), kind)
+            val parsedFile = parsed!!
+            val (context, module) = cp.compiler.compileKtFile(parsedFile, allIncludingThis(), kind)
             parseDataWriteLock.withLock {
                 compiledContext = context
                 this.module = module
-                compiledFile = parsed
+                compiledFile = parsedFile
             }
 
             refreshWorkspaceIndexes(listOfNotNull(oldFile), listOfNotNull(this))

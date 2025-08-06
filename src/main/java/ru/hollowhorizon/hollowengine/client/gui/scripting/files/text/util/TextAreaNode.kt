@@ -29,6 +29,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.getCharBefo
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys.toEngine
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptError
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
+import ru.hollowhorizon.hollowengine.common.scripting.core.completion.SyntaxHighlight
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -82,7 +83,7 @@ open class ScriptTextAreaModifier(surface: UiSurface) : UiModifier(surface) {
     val completions by property(mutableListOf<CompletionVariant>())
     val errors by property(mutableListOf<Diagnostic>())
 
-    var completionIndex by property(-1)
+    var completionIndex by property(0)
     var completionX: Float by property(0f)
     var completionY: Float by property(0f)
 
@@ -393,7 +394,8 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
                 setupTextLine(line, lineIndex, textAreaMod, lineProvider).apply {
                     modifier.alignY(AlignmentY.Center).margin(start = sizes.smallGap * 0.5f).alignY(AlignmentY.Top)
-                    modifier.padding(sizes.smallGap * 0.5f)
+                    modifier.height( 18.dp+sizes.smallGap)
+                        .padding(start = sizes.smallGap*0.5f)
                     if (lineIndex == this@TextAreaNode.modifier.selectionStartLine) {
                         modifier.border(RoundRectBorder(Color("3C3C4AFF"), sizes.smallGap, sizes.borderWidth))
                     }
@@ -410,17 +412,19 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
     private fun UiScope.setupError(error: Diagnostic, font: MsdfFont, text: String, maxWidth: Dp) {
         val column = error.range.start.character
+        if(column > text.length) return
         val column2 = error.range.end.character
+        if(column2 > text.length) return
         val startPos = if (text.isEmpty()) 0f else font.textDimensions(
-            text.substring(0, column.coerceAtMost(text.lastIndex))
+            text.substring(0, column.coerceAtMost(text.length))
         ).width.dp.px
         val endPos = if (text.isEmpty()) 0f else font.textDimensions(
-            text.substring(0, column2.coerceAtMost(text.lastIndex))
+            text.substring(0, column2.coerceAtMost(text.length))
         ).width.dp.px
 
         getUiPrimitives(50).addTriangulatedLineMesh {
             this.width = 3f
-            this.color = if(error.severity == DiagnosticSeverity.Error) Color.RED else Color.YELLOW
+            this.color = if(error.severity == DiagnosticSeverity.Error) SyntaxHighlight.ERROR_ELEMENT else SyntaxHighlight.KEYWORD.mix(SyntaxHighlight.ANNOTATION, 0.5f)
 
             val leftPos = uiNode.leftPx + maxWidth.px + sizes.smallGap.px * 3f + sizes.borderWidth.px
             for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).toInt()).step(5)) {
@@ -477,12 +481,6 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                 .onPointer { selectionHandler.onPointer(this, lineIndex, it) }
 
             modifier.padding(start = textAreaMod.lineStartPadding, end = textAreaMod.lineEndPadding)
-            if (lineIndex == 0) {
-                modifier.textAlignY(AlignmentY.Bottom).padding(top = textAreaMod.firstLineTopPadding)
-            }
-            if (lineIndex == lineProvider.lastIndex) {
-                modifier.textAlignY(AlignmentY.Top).padding(bottom = textAreaMod.lastLineBottomPadding)
-            }
 
             selectionHandler.applySelectionRange(this, line, lineIndex)
         }

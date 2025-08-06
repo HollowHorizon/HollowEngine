@@ -7,6 +7,9 @@ import org.eclipse.lsp4j.services.LanguageClient
 import org.eclipse.lsp4j.services.LanguageClientAware
 import org.eclipse.lsp4j.services.LanguageServer
 import org.eclipse.lsp4j.services.NotebookDocumentService
+import org.jetbrains.kotlin.diagnostics.rendering.DefaultErrorMessages
+import org.jetbrains.kotlin.diagnostics.rendering.DiagnosticFactoryToRendererMap
+import ru.hollowhorizon.hc.common.utils.UnsafeTools
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
@@ -18,6 +21,7 @@ import ru.hollowhorizon.hollowengine.common.project.kt.semantictokens.semanticTo
 import ru.hollowhorizon.hollowengine.common.project.kt.util.AsyncExecutor
 import ru.hollowhorizon.hollowengine.common.project.kt.util.TemporaryDirectory
 import ru.hollowhorizon.hollowengine.common.project.kt.externalsources.*
+import ru.hollowhorizon.hollowengine.common.project.kt.imports.UNUSED_IMPORT_FACTORY
 import java.io.Closeable
 import java.nio.file.Paths
 import java.util.concurrent.CompletableFuture

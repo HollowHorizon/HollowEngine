@@ -13,6 +13,37 @@ import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import kotlin.contracts.ExperimentalContracts
 
+/**
+ * Создаёт и возвращает нового NPC (`NpcEntity`) в указанной позиции и с заданными параметрами внешнего вида, поведения и анимации.
+ *
+ * Эта функция используется для быстрой генерации NPC с полной кастомизацией: модель, текстуры, анимации, масштаб, имя, и прочее.
+ * Она подходит как для статических, так и для интерактивных персонажей, включая анимированных мобов, актёров сцен и сюжетных героев.
+ *
+ * ### Пример использования:
+ * ```
+ * npc(
+ *     pos = Vec3(10.0, 64.0, 10.0),
+ *     name = "Guide",
+ *     model = "my_mod:models/entity/guide.gltf",
+ *     animations = mapOf(AnimationType.IDLE to "my_mod:animations/guide_idle.animation.json")
+ * )
+ * ```
+ *
+ * @param pos Позиция размещения NPC в мире (в мировых координатах).
+ * @param name Отображаемое имя NPC. Показывается над головой, если [showName] = `true`.
+ * @param model Путь к 3D-модели в формате `.gltf`. Используется для рендеринга внешности NPC.
+ * @param rotation Начальная ориентация NPC в виде углов (yaw, pitch), в радианах.
+ * @param world Идентификатор мира, в котором должен появиться NPC. Например: `"minecraft:overworld"`.
+ * @param size Пара `(ширина, высота)` хитбокса NPC, влияет на столкновения и взаимодействие.
+ * @param attributes Дополнительные числовые параметры NPC (например, `"health"` → `20f`, `"speed"` → `0.3f`), определяют поведение.
+ * @param textures Словарь текстур по именам слоёв. Например: `"skin"` → `"modid:textures/entity/custom_skin.png"`.
+ * @param animations Карта анимаций, соответствующих типам из [AnimationType]. Позволяет задать разные движения (ходьба, прыжок, атака и т.п.).
+ * @param transform Локальные трансформации модели: смещение, поворот и масштаб по всем осям.
+ * @param showName Показывать ли имя NPC над головой (аналогично `nameTag` у сущностей Minecraft).
+ * @param inverseHeadRotation Если `true`, голова NPC будет поворачиваться в противоположную сторону (например, для камеры от 3-го лица).
+ *
+ * @return Созданный экземпляр [NpcEntity], добавленный в мир.
+ */
 @OptIn(ExperimentalContracts::class)
 fun npc(
     pos: Vec3,

@@ -120,7 +120,7 @@ fun location(expr: PsiElement): Location? {
     return content?.let { Location(file, range(it, expr.textRange)) }
 }
 
-fun PsiFile.toURIString() = toPath().toUri().toString()
+fun PsiFile.toURIString() = toPath().toString()
 
 /**
  * Region that has been changed

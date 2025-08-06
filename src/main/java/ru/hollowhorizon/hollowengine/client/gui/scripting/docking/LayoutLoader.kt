@@ -27,8 +27,8 @@ object LayoutLoader {
                 name,
                 name.fromReadablePath().readBytes(),
                 ::TextFileData
-            )
-            LAYOUTS[name]?.dockable
+            )?.dockable
+            else LAYOUTS[name]?.dockable
         }
 
         val layoutLoaded = DockLayout.loadLayout(IDE_LAYOUT, dock, layoutLoader)

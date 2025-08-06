@@ -4,17 +4,16 @@ import com.facebook.ktfmt.format.Formatter
 import com.facebook.ktfmt.format.Formatter.KOTLINLANG_FORMAT
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
+import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.logE
 import org.eclipse.lsp4j.DiagnosticSeverity
-import org.eclipse.lsp4j.PublishDiagnosticsParams
-import org.jetbrains.kotlin.diagnostics.Diagnostic
 import ru.hollowhorizon.hc.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.project.kt.diagnostic.convertDiagnostic
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
-import java.net.URI
 
 
 class TextFileData(name: String, path: String, code: String) :
@@ -32,17 +31,24 @@ class TextFileData(name: String, path: String, code: String) :
     override fun save() {
     }
 
-    private val provider = CompiledFileProvider(filePath.fromReadablePath(), {
+    private val provider = CompiledFileProvider(filePath.fromReadablePath(), { it, query ->
         modifier.completions.clear()
         val completions = it.items.map { completion ->
+            val chars = query.toMutableList()
+            val isLambda = completion.insertText?.lastOrNull() == '{'
             CompletionVariant(
-                completion.insertText ?: completion.label,
+                completion.insertText?.let { if(isLambda) it.dropLast(1) else it } ?: completion.label,
                 completion.label,
                 completion.detail ?: "",
                 CompletionVariant.Icon.fromKind(completion.kind),
-                null,
-                emptyList(),
-                completion.additionalTextEdits?.map { it.newText } ?: emptyList(),
+                completion.label.mapIndexedNotNull { index, char ->
+                    if (char == chars.firstOrNull()) {
+                        if(chars.isNotEmpty()) chars.removeAt(0)
+                        index
+                    } else null
+                },
+                completion.additionalTextEdits?.map { it.range.start to it.newText } ?: emptyList(),
+                isLambda
             )
         }
         modifier.completions += completions
@@ -55,44 +61,59 @@ class TextFileData(name: String, path: String, code: String) :
     override fun UiScope.compose() {
         modifier.backgroundColor(colors.backgroundVariant)
 
-        ScriptTextArea(
-            provider,
-            vScrollbarModifier = { it.width(sizes.smallGap).margin(end=sizes.smallGap) },
-            hScrollbarModifier = { it.height(sizes.smallGap).margin(bottom=sizes.smallGap) },
-        ) {
-            this@TextFileData.modifier = modifier
-            this@TextFileData.area = this
-            installSelectionHandler(provider) { startLine, caretLine, startChar, caretChar ->
-                modifier.completions.clear()
-                if (!provider.isRecompiling) provider.recolorize(startLine, caretLine, startChar, caretChar, false)
+        Box(Grow.Std, Grow.Std) {
+            ScriptTextArea(
+                provider,
+                vScrollbarModifier = { it.width(sizes.smallGap).margin(end = sizes.smallGap) },
+                hScrollbarModifier = { it.height(sizes.smallGap).margin(bottom = sizes.smallGap) },
+            ) {
+                this@TextFileData.modifier = modifier
+                this@TextFileData.area = this
+                installSelectionHandler(provider) { startLine, caretLine, startChar, caretChar ->
+                    modifier.completions.clear()
+                    if (!provider.isRecompiling) provider.recolorize(startLine, caretLine, startChar, caretChar, false)
+                }
+
+                modifier.editorHandler(provider)
             }
-
-            modifier.editorHandler(provider)
-
             Row {
-                modifier.align(AlignmentX.End)
-                    .margin(end = sizes.smallGap*2f)
+                modifier.align(AlignmentX.End, AlignmentY.Top)
+                    .margin(end = sizes.smallGap * 2f)
+                    .zLayer(5)
 
                 val errors = this@TextFileData.modifier.errors.count { it.severity == DiagnosticSeverity.Error }
                 val warnings = this@TextFileData.modifier.errors.count { it.severity == DiagnosticSeverity.Warning }
 
                 if (errors > 0) {
-                    Image("hollowengine:textures/gui/icons/error.png") {
-                        modifier.size(18.dp, 18.dp)
-                    }
-                    Text(errors.toString()) {
-                        modifier.font(provider.font)
-                            .margin(horizontal = sizes.smallGap)
+                    Row {
+                        val color = hoverColors(0.5f, Color.BLACK.withAlpha(0f), Color.GRAY.withAlpha(0.5f))
+                        modifier.background(RoundRectBackground(color, sizes.smallGap))
+                            .padding(vertical = sizes.smallGap * 0.5f, horizontal = sizes.smallGap)
+
+                        Image("hollowengine:textures/gui/icons/error.png") {
+                            modifier.size(18.dp - sizes.smallGap * 0.5f, 18.dp - sizes.smallGap * 0.5f)
+                                .alignY(AlignmentY.Center)
+                        }
+                        Text(errors.toString()) {
+                            modifier.font(provider.font)
+                                .margin(horizontal = sizes.smallGap)
+                        }
                     }
                 }
-                divider()
                 if (warnings > 0) {
-                    Image("hollowengine:textures/gui/icons/warn.png") {
-                        modifier.size(18.dp, 18.dp)
-                    }
-                    Text(warnings.toString()) {
-                        modifier.font(provider.font)
-                            .margin(horizontal = sizes.smallGap)
+                    Row {
+                        val color = hoverColors(0.5f, Color.BLACK.withAlpha(0f), Color.GRAY.withAlpha(0.5f))
+                        modifier.background(RoundRectBackground(color, sizes.smallGap))
+                            .padding(vertical = sizes.smallGap * 0.5f, horizontal = sizes.smallGap)
+
+                        Image("hollowengine:textures/gui/icons/warn.png") {
+                            modifier.size(18.dp - sizes.smallGap * 0.5f, 18.dp - sizes.smallGap * 0.5f)
+                                .alignY(AlignmentY.Center)
+                        }
+                        Text(warnings.toString()) {
+                            modifier.font(provider.font)
+                                .margin(horizontal = sizes.smallGap)
+                        }
                     }
                 }
             }

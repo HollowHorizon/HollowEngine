@@ -25,7 +25,7 @@ import kotlin.concurrent.withLock
 
 class CompiledFileProvider(
     val file: File,
-    val completionProvider: (CompletionList) -> Unit,
+    val completionProvider: (CompletionList, String) -> Unit,
     val errorsProvider: (Diagnostics) -> Unit,
 ) : TextLineProvider, TextEditorHandler, UndoRedoHandler {
     private val sp = KotlinLanguageServer.sourcePath
@@ -54,11 +54,11 @@ class CompiledFileProvider(
         colorizeAsync(0, 0, 0, 0, 0, false)
     }
 
-    private enum class Recompile {
+    enum class Recompile {
         ALWAYS, AFTER_DOT, NEVER
     }
 
-    private fun recover(position: Position, recompile: Recompile): Pair<CompiledFile, Int> {
+    fun recover(position: Position, recompile: Recompile = Recompile.NEVER): Pair<CompiledFile, Int> {
         val content = sp.content(file)
         val offset = offset(content, position.line, position.character)
         val shouldRecompile = when (recompile) {
@@ -124,10 +124,10 @@ class CompiledFileProvider(
             )
 
             colorizeAsync(
-                selectionStartLine,
-                selectionStartChar,
-                selectionEndLine,
-                selectionEndChar,
+                endLineAfter,
+                endCharAfter,
+                endLineAfter,
+                endCharAfter,
                 textVersion,
                 showCompletions = replacement.length == 1 && (replacement[0].isLetterOrDigit() || replacement[0] == '.')
             )
@@ -201,19 +201,13 @@ class CompiledFileProvider(
                         cursor
                     }
 
-                    if (compiledFile.compile[BindingContext.SCRIPT, compiledFile.parse.script] == null) {
-                        HollowCore.LOGGER.warn("Somehow script compilation failed... Trying again...")
-                        sp.refresh()
-                        compiledFile = sp.currentVersion(file)
-                    }
-
                     cursor
                 }
 
                 if (showCompletions) result.thenAcceptAsync { cursor ->
                     if (cursor == -1) return@thenAcceptAsync
-                    val completions = completions(compiledFile, cursor + 1, sp.index, config.completion)
-                    completionProvider(completions)
+                    val completions = completions(compiledFile, cursor, sp.index, config.completion)
+                    completionProvider(completions.first, completions.second)
                 }
             }
         }
@@ -227,12 +221,13 @@ class CompiledFileProvider(
         light: Boolean,
     ) {
         sp.sourceFile(file).apply { parseIfChanged() }.let { source ->
-            source.parsed?.let {
+            val file = if(light) source.parsed else source.compiledFile
+            file?.let {
                 var highlight = it.findElementAt(offset(source.content, selectionStartLine, selectionStartChar))
                 if (highlight == null || highlight is PsiWhiteSpace) highlight =
                     it.findElementAt(offset(source.content, selectionStartLine, selectionStartChar) - 1)
                 val changed = ScriptColorizer.colorize(
-                    it, source.compiledContext ?: BindingContext.EMPTY, highlight
+                    it, font, source.compiledContext ?: BindingContext.EMPTY, highlight
                 )
                 if (light) {
                     val lines = mergeHighlight(
@@ -323,21 +318,19 @@ fun mergeHighlight(
     selectionEndLine: Int,
 ): List<TextLine> {
     val result = MutableList(light.size) { index ->
-        val inChanged = index in selectionStartLine..selectionEndLine
         val lineDelta = light.size - old.size
 
         val oldLine: TextLine?
         val newLine: TextLine?
         if (lineDelta >= 0) {
-            oldLine = if (index - selectionEndLine >= 2) old.getOrNull(index - lineDelta) else old.getOrNull(index)
+            oldLine = if (index - selectionEndLine >= 0) old.getOrNull(index - lineDelta) else old.getOrNull(index)
             newLine = light.getOrNull(index) ?: TextLine(emptyList())
         } else {
-            oldLine = if (index - selectionStartLine >= 1) old.getOrNull(index - lineDelta) else old.getOrNull(index)
+            oldLine = if (index - selectionStartLine >= 0) old.getOrNull(index - lineDelta) else old.getOrNull(index)
             newLine = light.getOrNull(index) ?: TextLine(emptyList())
         }
 
         return@MutableList when {
-            inChanged && light.size > old.size -> newLine
             oldLine == null -> newLine
             oldLine.text == newLine.text -> oldLine
             else -> mergeLineHighlights(oldLine, newLine)
