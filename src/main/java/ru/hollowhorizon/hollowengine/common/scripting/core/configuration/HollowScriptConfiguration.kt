@@ -55,7 +55,7 @@ open class HollowScriptConfiguration(body: Builder.() -> Unit = {}) : ScriptComp
 fun classpath(): List<File> {
     val files = ArrayList<File>()
 
-    if(!false) files += scriptCompilationClasspathFromContext(
+    if(!isProduction) files += scriptCompilationClasspathFromContext(
         classLoader = Thread.currentThread().contextClassLoader, wholeClasspath = true, unpackJarCollections = false
     )
 

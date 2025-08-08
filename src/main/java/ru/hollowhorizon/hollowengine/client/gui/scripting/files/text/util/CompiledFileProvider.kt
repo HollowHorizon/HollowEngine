@@ -204,11 +204,11 @@ class CompiledFileProvider(
                     cursor
                 }
 
-                if (showCompletions) result.thenAcceptAsync { cursor ->
+                if (showCompletions) result.thenAcceptAsync({ cursor ->
                     if (cursor == -1) return@thenAcceptAsync
                     val completions = completions(compiledFile, cursor, sp.index, config.completion)
                     completionProvider(completions.first, completions.second)
-                }
+                }, async.workerThread)
             }
         }
     }

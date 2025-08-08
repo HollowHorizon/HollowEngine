@@ -5,8 +5,6 @@ import org.jetbrains.kotlin.com.intellij.lang.Language
 import org.jetbrains.kotlin.com.intellij.openapi.util.text.StringUtil.convertLineSeparators
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.project.kt.util.describeURI
-import ru.hollowhorizon.hollowengine.common.project.kt.util.describeURIs
 import java.io.*
 import java.nio.file.FileSystems
 import java.nio.file.Path
@@ -90,7 +88,7 @@ class SourceFiles(
         var newText = existing.content
 
         if (newVersion <= existing.version) {
-            HollowEngine.LOGGER.warn("Ignored {} version {}", describeURI(uri), newVersion)
+            HollowEngine.LOGGER.warn("Ignored {} version {}", uri.path, newVersion)
             return
         }
 
@@ -126,7 +124,7 @@ class SourceFiles(
     } catch (e: FileNotFoundException) {
         null
     } catch (e: IOException) {
-        HollowEngine.LOGGER.warn("Exception while reading source file {}", describeURI(uri))
+        HollowEngine.LOGGER.warn("Exception while reading source file {}", uri.path)
         null
     }
 
@@ -217,9 +215,9 @@ private fun patch(sourceText: String, change: TextDocumentContentChangeEvent): S
 }
 
 private fun logAdded(sources: Collection<File>, rootPath: Path?) {
-    HollowEngine.LOGGER.info("Adding {} under {} to source path", describeURIs(sources), rootPath)
+    HollowEngine.LOGGER.info("Adding {} under {} to source path", sources.joinToString { it.name }, rootPath)
 }
 
 private fun logRemoved(sources: Collection<File>, rootPath: Path?) {
-    HollowEngine.LOGGER.info("Removing {} under {} to source path", describeURIs(sources), rootPath)
+    HollowEngine.LOGGER.info("Removing {} under {} to source path", sources.joinToString { it.name }, rootPath)
 }

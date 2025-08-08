@@ -3,16 +3,26 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar
 import de.fabmax.kool.KeyValueStore
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
+import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.client.kool.minecraft.Image
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
+import ru.hollowhorizon.hc.common.network.HollowPacket
+import ru.hollowhorizon.hc.common.network.HollowPacketHandler
+import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
+import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolClientManager
+import ru.hollowhorizon.hollowengine.common.scripting.startScript
+import ru.hollowhorizon.hollowengine.common.scripting.stopScript
 
 @SubscribeEvent
 fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
@@ -112,11 +122,11 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
 
         if (file in KoolClientManager) {
             ActionButton(24.dp, "hollowengine:textures/gui/icons/stop.png") {
-                //StopScriptPacket(file).send()
+                StopScriptPacket(file).send()
             }
         } else {
             ActionButton(24.dp, "hollowengine:textures/gui/icons/play.png") {
-                //StartScriptPacket(file).send()
+                StartScriptPacket(file).send()
             }
         }
     }
@@ -145,3 +155,44 @@ private fun UiScope.ActionButton(
     }
 }
 
+
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
+@Serializable
+class StartScriptPacket(val path: String) : HollowPacket {
+    override fun handle(player: Player) {
+        if (!player.hasPermissions(2)) {
+            player.sendSystemMessage("You don't have permissions to start scripts!".literal)
+            return
+        } else {
+            val file = path.fromReadablePath()
+
+            startScript(file)
+            CloseScreenPacket().send(player as ServerPlayer)
+        }
+    }
+}
+
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
+@Serializable
+class CloseScreenPacket : HollowPacket {
+    override fun handle(player: Player) {
+        Minecraft.getInstance().screen?.onClose()
+    }
+}
+
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
+@Serializable
+class StopScriptPacket(val path: String) : HollowPacket {
+    override fun handle(player: Player) {
+        if (!player.hasPermissions(2)) {
+            player.sendSystemMessage("You don't have permissions to start scripts!".literal)
+            return
+        } else {
+            val file = path.fromReadablePath()
+
+            stopScript(file)
+
+            player.sendToast("Скрипт успешно остановлен.".literal)
+        }
+    }
+}

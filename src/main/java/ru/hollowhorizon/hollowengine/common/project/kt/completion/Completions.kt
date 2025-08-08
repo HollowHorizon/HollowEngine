@@ -207,9 +207,6 @@ private fun completionItem(
 
     result.label = methodSignature.find(result.detail)?.groupValues?.get(1) ?: result.label
 
-    if(d is CallableMemberDescriptor && (d.valueParameters.isEmpty() || d.valueParameters.all { it.hasDefaultValue() })) {
-        if(!result.label.endsWith("()")) result.label += "()"
-    }
     if (d is SyntheticPropertyDescriptor) {
         result.label += " (from ${d.getMethod.name}()" + (d.setMethod?.let { "/${it.name}())" } ?: ")")
     }

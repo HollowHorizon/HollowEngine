@@ -14,6 +14,8 @@ import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.*
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.CamelHumpMatcher
+import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
+import ru.hollowhorizon.hollowengine.common.project.kt.util.AsyncExecutor
 import kotlin.sequences.Sequence
 
 private const val MAX_FQNAME_LENGTH = 255
@@ -99,7 +101,7 @@ class SymbolIndex {
         val started = System.currentTimeMillis()
         HollowEngine.LOGGER.info("Updating full symbol index...")
 
-        progressFactory.create("Indexing").thenApplyAsync { progress ->
+        progressFactory.create("Indexing").thenApplyAsync({ progress ->
             try {
                 transaction(db) {
                     // Remove everything first.
@@ -116,7 +118,7 @@ class SymbolIndex {
             }
 
             progress.close()
-        }
+        }, KotlinLanguageServer.textDocumentService.async.workerThread)
     }
 
     // Removes a list of indexes and adds another list. Everything is done in the same transaction.

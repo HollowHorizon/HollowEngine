@@ -5,7 +5,6 @@ import ru.hollowhorizon.hollowengine.common.project.kt.CompilerClassPath
 import ru.hollowhorizon.hollowengine.common.project.kt.ExternalSourcesConfiguration
 import ru.hollowhorizon.hollowengine.common.project.kt.j2k.convertJavaToKotlin
 import ru.hollowhorizon.hollowengine.common.project.kt.util.TemporaryDirectory
-import ru.hollowhorizon.hollowengine.common.project.kt.util.describeURI
 import java.io.BufferedReader
 import java.io.FileNotFoundException
 import java.nio.file.Files
@@ -39,7 +38,7 @@ class ClassContentProvider(
             sourceArchiveProvider.fetchSourceArchive(uri.archivePath)?.let(uri.withSource(true)::withArchivePath) ?: uri
         val key = resolvedUri.toString()
         val (contents, extension) = cachedContents[key] ?: run {
-            HollowEngine.LOGGER.info("Reading contents of {}", describeURI(resolvedUri.fileUri.toPath().toFile()))
+            HollowEngine.LOGGER.info("Reading contents of {}", resolvedUri.fileUri)
             tryReadContentOf(resolvedUri)
                 ?: tryReadContentOf(resolvedUri.withFileExtension("class"))
                 ?: tryReadContentOf(resolvedUri.withFileExtension("java"))
