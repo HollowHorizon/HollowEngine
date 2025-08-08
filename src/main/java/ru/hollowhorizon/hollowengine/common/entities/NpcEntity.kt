@@ -11,7 +11,6 @@ import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.entity.*
-import net.minecraft.world.entity.ai.attributes.Attribute
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.goal.FloatGoal
@@ -231,23 +230,6 @@ class NpcEntity : PathfinderMob, IAnimated {
                     instance.baseValue = value.toDouble()
                 }
             }
-        }
-    }
-
-    private fun getAttributeByName(name: String): Attribute? {
-        return when (name.lowercase().replace("generic.", "")) {
-            "max_health", "health" -> Attributes.MAX_HEALTH
-            "movement_speed", "speed" -> Attributes.MOVEMENT_SPEED
-            "armor" -> Attributes.ARMOR
-            "armor_toughness" -> Attributes.ARMOR_TOUGHNESS
-            "attack_damage", "damage" -> Attributes.ATTACK_DAMAGE
-            "attack_speed" -> Attributes.ATTACK_SPEED
-            "attack_knockback", "knockback" -> Attributes.ATTACK_KNOCKBACK
-            "follow_range", "range" -> Attributes.FOLLOW_RANGE
-            "knockback_resistance" -> Attributes.KNOCKBACK_RESISTANCE
-            "flying_speed", "fly_speed" -> Attributes.FLYING_SPEED
-            "luck" -> Attributes.LUCK
-            else -> null
         }
     }
 

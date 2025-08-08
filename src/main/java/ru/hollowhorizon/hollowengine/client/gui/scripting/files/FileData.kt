@@ -13,7 +13,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 
 abstract class FileData(
-    val project: IdeContent,
     val fileName: String,
     val filePath: String,
 ) : Layout, Composable {
@@ -27,7 +26,7 @@ abstract class FileData(
         modifier.backgroundColor(colors.backgroundVariant)
 
         Column(Grow.Std, Grow.Std) {
-            modifier.margin(sizes.smallGap)
+            modifier.margin(top=sizes.smallGap)
 
             val overlay = remember { ItemPopupMenu<Dockable>("Title-File-Overlay") }
             overlay()

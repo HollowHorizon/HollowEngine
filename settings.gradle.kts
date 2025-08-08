@@ -1,4 +1,3 @@
-import dev.kikugie.stonecutter.data.tree.TreeBuilder
 
 pluginManagement {
     repositories {
@@ -22,19 +21,18 @@ pluginManagement {
 }
 
 plugins {
-    id("dev.kikugie.stonecutter") version "0.6-alpha.1"
+    id("dev.kikugie.stonecutter") version "0.7.7-beta.2"
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
-
 
 stonecutter {
     kotlinController = true
     centralScript = "build.gradle.kts"
     shared {
-        fun mc(version: String, vararg loaders: String) {
-            for (it in loaders) vers("$version-$it", version)
-        }
-        mc("1.20.1", "fabric", "forge")
+        rootProject.projectDir.resolve("versions")
+            .listFiles()
+            .filter { !it.isFile }
+            .forEach { version(it.name) }
     }
     create(rootProject)
 }

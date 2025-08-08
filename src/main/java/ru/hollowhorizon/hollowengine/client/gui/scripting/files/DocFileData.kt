@@ -6,7 +6,7 @@ import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 
 class DocFileData(fileName: String, filePath: String, val content: Composable) :
-    FileData(IdeContent, fileName, filePath) {
+    FileData(fileName, filePath) {
     override fun save() {}
 
     override fun UiScope.compose() {

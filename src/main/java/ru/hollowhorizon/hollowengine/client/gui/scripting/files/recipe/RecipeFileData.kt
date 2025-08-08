@@ -17,7 +17,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 
-class RecipeFileData(project: IdeContent, name: String, path: String) : FileData(project, name, path) {
+class RecipeFileData(name: String, path: String) : FileData(name, path) {
     val screen = (Minecraft.getInstance().screen as ScriptingEnvironmentScreen)
 
     override fun save() {}

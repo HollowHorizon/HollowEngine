@@ -6,14 +6,17 @@ import net.minecraft.network.protocol.game.ClientboundAddEntityPacket
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.EquipmentSlot
+import net.minecraft.world.entity.HumanoidArm
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.vehicle.DismountHelper
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
 
-class SeatEntity(entityType: EntityType<SeatEntity>, pLevel: Level) : Entity(entityType, pLevel) {
+class SeatEntity(entityType: EntityType<SeatEntity>, pLevel: Level) : LivingEntity(entityType, pLevel) {
     constructor(level: Level) : this(ModEntities.SEAT, level)
 
     constructor(level: Level, pos: Vec3, dir: Direction) : this(level) {
@@ -23,6 +26,7 @@ class SeatEntity(entityType: EntityType<SeatEntity>, pLevel: Level) : Entity(ent
 
     init {
         this.noPhysics = true
+        this.isInvulnerable = true
     }
 
     override fun tick() {
@@ -38,9 +42,20 @@ class SeatEntity(entityType: EntityType<SeatEntity>, pLevel: Level) : Entity(ent
         )
     }
 
+    override fun getMainArm(): HumanoidArm = HumanoidArm.RIGHT
+
     override fun defineSynchedData() {}
 
     override fun readAdditionalSaveData(p0: CompoundTag) {}
+    override fun getArmorSlots(): Iterable<ItemStack> = emptySet()
+
+    override fun getItemBySlot(slot: EquipmentSlot)= ItemStack.EMPTY
+
+    override fun setItemSlot(
+        slot: EquipmentSlot,
+        stack: ItemStack,
+    ) {
+    }
 
     override fun addAdditionalSaveData(p0: CompoundTag) {}
 

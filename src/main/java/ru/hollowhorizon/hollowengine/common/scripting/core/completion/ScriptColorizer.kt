@@ -6,16 +6,13 @@ import de.fabmax.kool.modules.ui2.TextLine
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import org.jetbrains.kotlin.KtNodeTypes
-import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.com.intellij.lang.ASTNode
-import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiErrorElement
 import org.jetbrains.kotlin.com.intellij.psi.PsiRecursiveElementWalkingVisitor
 import org.jetbrains.kotlin.com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
-import org.jetbrains.kotlin.descriptors.PropertyDescriptor
-import org.jetbrains.kotlin.descriptors.VariableDescriptor
+import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.diagnostics.Errors
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.allChildren
@@ -29,47 +26,57 @@ import org.jetbrains.kotlin.resolve.calls.util.getResolvedCall
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.post
-import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.common.scripting.core.parser.ScriptParser
+import ru.hollowhorizon.hollowengine.common.fsm.StateNode
+import ru.hollowhorizon.hollowengine.common.project.kt.imports.UNUSED_IMPORT_FACTORY
+
+private data class UnusedInfo(
+    val unusedVariables: Set<PsiElement>,
+    val unusedParameters: Set<PsiElement>,
+    val unusedExpressions: Set<PsiElement>,
+    val unusedImports: Set<PsiElement>,
+)
+
+private fun collectUnusedElements(bindingContext: BindingContext): UnusedInfo {
+    val diagnostics = bindingContext.diagnostics
+    return UnusedInfo(
+        unusedVariables = diagnostics
+            .filter { it.factory == Errors.UNUSED_VARIABLE }
+            .mapTo(HashSet()) { it.psiElement },
+        unusedParameters = diagnostics
+            .filter { it.factory == Errors.UNUSED_PARAMETER }
+            .mapTo(HashSet()) { it.psiElement },
+        unusedExpressions = diagnostics
+            .filter { it.factory == Errors.UNUSED_EXPRESSION }
+            .mapTo(HashSet()) { it.psiElement },
+        unusedImports = diagnostics
+            .filter { it.factory == UNUSED_IMPORT_FACTORY }
+            .mapTo(HashSet()) { it.psiElement }
+    )
+}
 
 object ScriptColorizer {
-    fun colorize(file: KtFile, bindingContext: BindingContext, expressionAtCaret: PsiElement?): List<TextLine> {
+    fun colorize(
+        file: KtFile,
+        font: MsdfFont,
+        bindingContext: BindingContext,
+        expressionAtCaret: PsiElement?,
+    ): List<TextLine> {
         if (!KoolSystem.isInitialized) return emptyList()
         val textLines = mutableListOf<TextLine>()
         val currentLine = mutableListOf<Pair<String, TextAttributes>>()
+        val unusedInfo = collectUnusedElements(bindingContext)
 
         file.accept(object : PsiRecursiveElementWalkingVisitor() {
             override fun visitElement(element: PsiElement) {
                 super.visitElement(element)
 
-                // TODO: Нужно что-то сделать с этими параметрами, потому что при их удалении слетает к чертам каретка
-
-                /*                if (element is KtValueArgument) {
-                                    // Если в качестве параметра передаётся не примитивный тип, то подсказка к нему не нужна
-                                    if (element.children.any { it is KtCallExpression }) return
-
-                                    val callExpression = element.parent.parent as KtCallExpression
-                                    val call = callExpression.getResolvedCall(bindingContext)
-                                    if (call != null && call.resultingDescriptor.varargParameterPosition() == -1) {
-                                        val parameter = call.valueArguments.entries
-                                            .firstOrNull { (_, args) -> args.arguments.contains(element) }
-                                            ?.key?.name?.asString()
-
-                                        if (parameter != null) currentLine.add(
-                                            "$parameter: " to TextAttributes(
-                                                MsdfFont(HACK_FONT, 25f),
-                                                Color.WHITE,
-                                                ideColors.backgroundMid
-                                            )
-                                        )
-
-                                    }
-                                }*/
-
                 if (!element.allChildren.isEmpty || element.text.isEmpty()) return
 
-                val primary = getElementColor(element, bindingContext)
+                var primary = getElementColor(element, bindingContext, unusedInfo)
+                val isUnused = element.isUnused(unusedInfo)
+
+                if (isUnused) primary = primary.mix(SyntaxHighlight.COMMENT.mulRgb(0.55f), 0.85f)
 
                 val background = if (element.shouldHighlight(bindingContext, expressionAtCaret)) {
                     IdeTheme.colors.background.mix(primary, 0.35f)
@@ -77,8 +84,7 @@ object ScriptColorizer {
 
                 val lines = element.text.split("\n")
                 lines.forEachIndexed { index, line ->
-                    currentLine.add(line to TextAttributes(MsdfFont(HACK_FONT, 18f), primary, background))
-                    // Если это конец строки, добавляем в `textLines`
+                    currentLine.add(line to TextAttributes(font, primary, background))
                     if (index != lines.size - 1) {
                         textLines.add(TextLine(currentLine.toList()))
                         currentLine.clear()
@@ -92,14 +98,6 @@ object ScriptColorizer {
         OnColorizedEvent(file.name, textLines, file.text.hashCode()).post()
 
         return textLines
-    }
-
-    fun parse(file: String, text: String): List<TextLine> {
-        val script = ScriptParser.parse(text, file)
-        val (result) = ResolveUtils.analyzeFileForJvm(script.environment, listOf(script.file), script.environment.project)
-        return colorize(script.file, result.bindingContext, null).apply {
-            script.close()
-        }
     }
 }
 
@@ -118,13 +116,16 @@ operator fun ASTNode.contains(other: PsiElement): Boolean {
     return false
 }
 
-private fun PsiElement.shouldHighlight(bindingContext: BindingContext, other: PsiElement?): Boolean {
+fun PsiElement.shouldHighlight(bindingContext: BindingContext, other: PsiElement?): Boolean {
     if (other == null) return false
 
     val otherType = other.node.elementType
     when (otherType) {
         in KtTokens.WHITE_SPACE_OR_COMMENT_BIT_SET -> return false
-        KtTokens.LPAR, KtTokens.RPAR, KtTokens.LBRACE, KtTokens.RBRACE, KtTokens.LBRACKET, KtTokens.RBRACKET -> return this == other || isOtherParenthesis(other)
+        KtTokens.LPAR, KtTokens.RPAR, KtTokens.LBRACE, KtTokens.RBRACE, KtTokens.LBRACKET, KtTokens.RBRACKET -> return this == other || isOtherParenthesis(
+            other
+        )
+
         KtTokens.CLOSING_QUOTE, KtTokens.OPEN_QUOTE -> return this in other.parent.node
         else -> {
             if (this == other) return true
@@ -168,28 +169,69 @@ private fun PsiElement.isOtherParenthesis(other: PsiElement): Boolean {
             commonParent.firstChild == other && commonParent.lastChild == this
 }
 
-private fun getElementColor(element: PsiElement, bindingContext: BindingContext): Color {
-    val expression = element.parentsWithSelf.firstIsInstanceOrNull<KtExpression>()
+private operator fun Set<PsiElement>.contains(other: PsiElement?) = other?.let { contains(it) } == true
 
+private fun PsiElement.isUnused(unusedInfo: UnusedInfo): Boolean {
+    val expression = parentsWithSelf.firstIsInstanceOrNull<KtExpression>()
+    val declaration = parentsWithSelf.firstIsInstanceOrNull<KtNamedDeclaration>()
+    val import = parentsWithSelf.firstIsInstanceOrNull<KtImportDirective>()
+    val token = node.elementType
+
+    return when {
+        (expression in unusedInfo.unusedVariables
+                || expression in unusedInfo.unusedExpressions
+                || declaration in unusedInfo.unusedParameters)
+                && token == KtTokens.IDENTIFIER && expression !is KtReferenceExpression -> true
+
+        import in unusedInfo.unusedImports -> true
+
+        else -> false
+    }
+}
+
+private fun getElementColor(element: PsiElement, bindingContext: BindingContext, unusedInfo: UnusedInfo): Color {
+    val expression = element.parentsWithSelf.firstIsInstanceOrNull<KtExpression>()
     val token = element.node.elementType
+
     return when {
         KtTokens.COMMENTS.contains(token) -> SyntaxHighlight.COMMENT
         KtTokens.KEYWORDS.contains(token) || KtTokens.SOFT_KEYWORDS.contains(token) -> SyntaxHighlight.KEYWORD
         KtTokens.STRINGS.contains(token) || token == KtTokens.OPEN_QUOTE || token == KtTokens.CLOSING_QUOTE -> SyntaxHighlight.STRING
-        element.isPropertyIdentifier() || expression?.hasProperty(bindingContext) == true -> SyntaxHighlight.PROPERTY_IDENTIFIER
-        (expression as? KtReferenceExpression)?.getResolvedCall(bindingContext)
-            ?.resultingDescriptor?.extensionReceiverParameter != null && token != KtTokens.LPAR && token != KtTokens.RPAR -> SyntaxHighlight.EXTENSION_RECEIVER
 
-        (expression as? KtReferenceExpression)?.getResolvedCall(bindingContext)
-            ?.call?.callElement is KtAnnotationEntry || element.node.elementType == KtTokens.AT -> SyntaxHighlight.ANNOTATION
+        expression?.hasProperty(bindingContext) == true || expression?.isEnumEntry(bindingContext) == true -> SyntaxHighlight.PROPERTY_IDENTIFIER
+
+        (expression as? KtReferenceExpression)?.let {
+            val descriptor = bindingContext[BindingContext.REFERENCE_TARGET, it]
+            when (descriptor) {
+                is ClassDescriptor -> return@let descriptor
+                is ConstructorDescriptor -> return@let descriptor.constructedClass
+                else -> return@let null
+            }
+        }
+            ?.kind == ClassKind.ANNOTATION_CLASS || element.node.elementType == KtTokens.AT -> SyntaxHighlight.ANNOTATION
+
+        ((expression as? KtReferenceExpression)?.getResolvedCall(bindingContext)
+            ?.resultingDescriptor?.extensionReceiverParameter != null || expression is KtFunction) &&
+                token !in setOf(
+            KtTokens.LPAR,
+            KtTokens.RPAR,
+            KtTokens.LBRACE,
+            KtTokens.RBRACE,
+            KtTokens.DOT
+        ) -> SyntaxHighlight.EXTENSION_RECEIVER
+
 
         expression?.parent is KtValueArgumentName -> SyntaxHighlight.VALUE_ARGUMENT_NAME
-
-        element.isNameReference() -> SyntaxHighlight.NAME_REFERENCE
+        element.isNameReference() || expression is KtNamedDeclaration -> SyntaxHighlight.NAME_REFERENCE
         element.isNumericLiteral() -> SyntaxHighlight.NUMERIC_LITERAL
         element is PsiErrorElement -> SyntaxHighlight.ERROR_ELEMENT
         else -> SyntaxHighlight.DEFAULT
     }
+}
+
+fun KtExpression.isEnumEntry(context: BindingContext): Boolean {
+    val descriptor = context[BindingContext.REFERENCE_TARGET, this as? KtReferenceExpression ?: return false]
+    return descriptor is ClassDescriptor && descriptor.kind == ClassKind.ENUM_ENTRY
 }
 
 object SyntaxHighlight {
@@ -207,7 +249,13 @@ object SyntaxHighlight {
 }
 
 private fun KtExpression.hasProperty(bindingContext: BindingContext): Boolean {
-    return (this as? KtReferenceExpression)?.let { bindingContext[BindingContext.REFERENCE_TARGET, it].let {it is PropertyDescriptor || it is VariableDescriptor } } == true
+    val isNonLocalProperty = (this as? KtProperty)?.isLocal == false
+    if(isNonLocalProperty) return true
+    return ((this as? KtReferenceExpression)?.let {
+        bindingContext[BindingContext.REFERENCE_TARGET, it].let {
+            it as? PropertyDescriptor ?: it as? VariableDescriptor
+        }
+    }?.visibility ?: return false) != DescriptorVisibilities.LOCAL
 }
 
 private fun PsiElement.isPropertyIdentifier(): Boolean {

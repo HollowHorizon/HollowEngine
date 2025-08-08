@@ -4,6 +4,7 @@ import kotlin.Unit;
 import kotlin.script.experimental.api.ScriptCompilationConfiguration;
 import kotlin.script.experimental.host.ScriptingHostConfiguration;
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector;
+import org.jetbrains.kotlin.com.intellij.openapi.Disposable;
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar;
 import org.jetbrains.kotlin.config.CompilerConfiguration;
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.CompilationContextKt;
@@ -18,7 +19,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompilerPlug
 @Mixin(value = CompilationContextKt.class, remap = false)
 public class CompilationContextMixin {
     @Inject(method = "createInitialCompilerConfiguration", at = @At("RETURN"))
-    private static void modifyReturn(ScriptCompilationConfiguration scriptCompilationConfiguration, ScriptingHostConfiguration hostConfiguration, MessageCollector messageCollector, IgnoredOptionsReportingState reportingState, CallbackInfoReturnable<CompilerConfiguration> cir) {
+    private static void modifyReturn(ScriptCompilationConfiguration scriptCompilationConfiguration, ScriptingHostConfiguration hostConfiguration, MessageCollector messageCollector, IgnoredOptionsReportingState reportingState, Disposable parentDisposable, CallbackInfoReturnable<CompilerConfiguration> cir) {
         var configuration = cir.getReturnValue();
 
         var event = new ScriptingCompilerPluginEvent(plugin -> {

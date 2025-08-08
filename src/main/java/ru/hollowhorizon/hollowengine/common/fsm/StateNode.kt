@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.fsm
 
-import io.ktor.utils.io.*
 import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.*
 import net.minecraft.nbt.CompoundTag

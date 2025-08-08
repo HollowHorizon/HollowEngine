@@ -1,27 +1,21 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
-import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_RIGHT
 import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.launchOnMainThread
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.client.Minecraft
-import net.minecraft.server.level.ServerPlayer
 import ru.hollowhorizon.hc.client.kool.minecraft.Image
-import ru.hollowhorizon.hc.common.coroutines.scopeSync
-import ru.hollowhorizon.hc.common.network.HollowPacketHandler
-import ru.hollowhorizon.hc.common.network.RequestPacket
 import ru.hollowhorizon.hc.common.network.request
-import ru.hollowhorizon.hc.common.utils.literal
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverListener
 import ru.hollowhorizon.hollowengine.client.kool.DndHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
+import java.io.File
 
 @Serializable
 open class FileNode(val treeName: String, val treePath: String) : Composable {
@@ -53,26 +47,23 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
     }
 
     fun update() {
-        // Запрашиваем у сервера содержимое папки (оно придёт с задержкой)
-        launchOnMainThread {
-            val result = RequestFolderPacket(this@FileNode.treePath).request()
+        children.clear()
+        val result = treePath.fromReadablePath().listFiles()?.toList() ?: emptyList()
 
-            val old = children.associate { it.treeName to it.isExpanded.value }
-            children.clear()
-            children.addAll(result.children.map { child ->
-                FileNode(
-                    child.name,
-                    if (this@FileNode.treePath.isEmpty()) child.name
-                    else this@FileNode.treePath + "/" + child.name
-                ).apply {
-                    parent = this@FileNode
-                    depth = this@FileNode.depth + 1
-                    isFolder = child.isFolder
-                    if(old[treeName] == true) toggleExpanded()
-                }
-            })
-            sort()
-        }
+        val old = children.associate { it.treeName to it.isExpanded.value }
+        children.addAll(result.map { child ->
+            FileNode(
+                child.name,
+                if (this@FileNode.treePath.isEmpty()) child.name
+                else this@FileNode.treePath + "/" + child.name
+            ).apply {
+                parent = this@FileNode
+                depth = this@FileNode.depth + 1
+                isFolder = !child.isFile
+                if (old[treeName] == true) toggleExpanded()
+            }
+        })
+        sort()
     }
 
     private fun sort() {
@@ -116,13 +107,18 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
                         val screen = Minecraft.getInstance().screen as? ScriptingEnvironmentScreen ?: return@onClick
                         val file = IdeContent.files[item.treePath]
 
-                        if (file == null) RequestFilePacket(item.treePath).send()
+                        if (file == null) IdeContent.openFile(
+                            item.treePath,
+                            item.treePath.fromReadablePath().readBytes(),
+                            ::TextFileData
+                        )
                         else screen.dock.getLeafAtPath("0/1")?.bringToTop(file.dockable)
                     }
                 }
             }
 
-        val (bgColor, fgColor) = hoverColors(0.5f,
+        val (bgColor, fgColor) = hoverColors(
+            0.5f,
             listOf(colors.background, Color("9099ACFF")),
             listOf(IdeTheme.hoveredColors.background, Color("C4CBDAFF"))
         )
@@ -178,7 +174,7 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
             super.onDragEnd(dragItem, dragPointer, source, target, success)
             (target as? FileHandler)?.node?.let { node ->
                 if (!node.isFolder || dragItem.treePath == node.treePath) return@let
-                CopyFilePacket(dragItem.treePath, node.treePath, true).send()
+                //CopyFilePacket(dragItem.treePath, node.treePath, true).send()
             }
         }
     }
@@ -227,26 +223,4 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
     companion object {
         val EMPTY = FileNode("HollowEngine", "").apply { isFolder = true }
     }
-}
-
-@HollowPacketHandler
-@Serializable
-class RequestFolderPacket(private var folder: String) : RequestPacket() {
-    val children = mutableListOf<Child>()
-
-    override fun retrieveValue(player: ServerPlayer) {
-        if (!player.hasPermissions(2)) {
-            player.sendSystemMessage("You don't have permissions to open scripts!".literal)
-            return
-        }
-
-        val file = folder.fromReadablePath()
-
-        file.listFiles()?.forEach {
-            children.add(Child(it.name, it.isDirectory))
-        }
-    }
-
-    @Serializable
-    class Child(val name: String, val isFolder: Boolean)
 }

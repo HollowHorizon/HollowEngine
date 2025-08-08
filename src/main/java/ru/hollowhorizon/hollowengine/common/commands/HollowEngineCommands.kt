@@ -9,7 +9,7 @@ import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hc.HollowCore
-import ru.hollowhorizon.hc.client.models.internal.manager.GltfManager
+import ru.hollowhorizon.hc.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hc.client.utils.mc
 import ru.hollowhorizon.hc.common.commands.arg
 import ru.hollowhorizon.hc.common.commands.onRegisterCommands
@@ -157,7 +157,7 @@ class ShowModelInfoPacket(val model: String) : HollowPacket {
     override fun handle(player: Player) {
         val location = model.rl
 
-        GltfManager.getOrCreate(location).let { model ->
+        HollowModelManager.getOrCreate(location).let { model ->
             player.sendSystemMessage(
                 "hollowengine.commands.model_animations"
                     .mcTranslate(this.model.substringAfterLast('/'))

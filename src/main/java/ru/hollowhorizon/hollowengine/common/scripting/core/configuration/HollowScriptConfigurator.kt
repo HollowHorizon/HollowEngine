@@ -1,5 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core.configuration
 
+import org.jetbrains.kotlin.com.intellij.testFramework.LightVirtualFile
+import org.jetbrains.kotlin.com.intellij.testFramework.LightVirtualFileBase
+import org.jetbrains.kotlin.scripting.resolve.VirtualFileScriptSource
 import ru.hollowhorizon.hollowengine.common.scripting.core.Import
 import java.io.File
 import kotlin.script.experimental.api.*
@@ -13,16 +16,26 @@ class HollowScriptConfigurator : RefineScriptCompilationConfigurationHandler {
         val annotations = context.collectedData?.get(ScriptCollectedData.foundAnnotations)?.takeIf { it.isNotEmpty() }
             ?: return context.compilationConfiguration.asSuccess()
 
-        val scriptBaseDir = (context.script as? FileBasedScriptSource)?.file?.parentFile
+        val scriptBaseDir = context.script.let {
+            when (it) {
+                // Виртуальный путь начинается с `/`, а мне не нужно, чтобы он искал скрипт в корневой директории
+                is VirtualFileScriptSource if (it.virtualFile as? LightVirtualFile)?.originalFile != null -> File((it.virtualFile as LightVirtualFileBase).originalFile.path.substring(1)).parentFile
+                is FileBasedScriptSource -> it.file.parentFile
+                else -> null
+            }
+        }
 
         val importedSources = annotations.flatMap {
-            (it as? Import)?.files?.map { sourceName ->
-                FileScriptSource(scriptBaseDir?.resolve(sourceName) ?: File(sourceName))
+            (it as? Import)?.files?.mapNotNull { sourceName ->
+                (scriptBaseDir?.resolve(sourceName) ?: File(sourceName)).takeIf(File::exists)
+                    ?.let(::FileScriptSource)
             } ?: emptyList()
         }
 
+        if(importedSources.isEmpty()) return context.compilationConfiguration.asSuccess()
+
         return ScriptCompilationConfiguration(context.compilationConfiguration) {
-            if (importedSources.isNotEmpty()) importScripts.append(importedSources)
+            importScripts.append(importedSources)
         }.asSuccess()
     }
 }

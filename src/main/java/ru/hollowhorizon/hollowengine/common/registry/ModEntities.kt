@@ -1,9 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.registry
 
 import net.minecraft.world.entity.EntityType
-import net.minecraft.world.entity.Mob
+import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.MobCategory
-import net.minecraft.world.entity.ai.attributes.Attributes
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
 import ru.hollowhorizon.hc.common.events.registry.RegisterEntityAttributesEvent
 import ru.hollowhorizon.hc.common.registry.HollowRegistry
@@ -24,6 +23,7 @@ object ModEntities : HollowRegistry(HollowEngine.MODID) {
 @SubscribeEvent
 fun onRegisterAttributes(event: RegisterEntityAttributesEvent) {
     event.register(ModEntities.NPC_ENTITY, NpcEntity.createAttributes().build())
+    event.register(ModEntities.SEAT, LivingEntity.createLivingAttributes().build())
 }
 
 fun main() {

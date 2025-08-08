@@ -31,7 +31,7 @@ class RecipeEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.recipes", 
                         .width(Grow.Std)
                         .backgroundColor(hoverColors(0.5f, colors.background, IdeTheme.hoveredColors.background))
                         .onClick {
-                            IdeContent.openFile(RecipeFileData(IdeContent, "Crafting Recipes", "files.recipes"))
+                            IdeContent.openFile(RecipeFileData("Crafting Recipes", "files.recipes"))
                         }
 
                     val recipeItem = manager.getAllRecipesFor(recipeType as RecipeType<Recipe<Container>>)

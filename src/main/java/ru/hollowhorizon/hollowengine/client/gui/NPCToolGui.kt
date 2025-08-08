@@ -18,7 +18,7 @@ import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT
 import ru.hollowhorizon.hc.client.kool.KoolScreen
 import ru.hollowhorizon.hc.client.models.internal.animations.AnimationType
 import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hc.client.models.internal.manager.GltfManager
+import ru.hollowhorizon.hc.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hc.common.coroutines.scopeSync
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.SubscribeEvent
@@ -141,14 +141,14 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                 Property("Модель") {
                     TextField {
                         modifier.textColor =
-                            if (ResourceLocation.isValidResourceLocation(model) && model.rl in GltfManager.allModels) colors.onBackground else Color.DARK_RED
+                            if (ResourceLocation.isValidResourceLocation(model) && model.rl in HollowModelManager.allModels) colors.onBackground else Color.DARK_RED
 
                         modifier.alignY(AlignmentY.Center)
                             .width(Grow.Std)
                             .text(model)
                             .onChange {
                                 model = it
-                                if (ResourceLocation.isValidResourceLocation(it) && it.rl in GltfManager.allModels) {
+                                if (ResourceLocation.isValidResourceLocation(it) && it.rl in HollowModelManager.allModels) {
                                     npc.model = it
                                     UpdateModelPacket(it, npc.id).send()
                                 }
@@ -160,7 +160,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                 }
             }
             val models =
-                GltfManager.allModels.map { it.toString() }.filter { it.startsWith(model, ignoreCase = true) }
+                HollowModelManager.allModels.map { it.toString() }.filter { it.startsWith(model, ignoreCase = true) }
                     .filter { it != model }.sorted()
             if (models.isNotEmpty()) {
                 val font = MsdfFont(MONOCRAFT, 18f)

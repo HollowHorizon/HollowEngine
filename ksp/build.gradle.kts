@@ -13,5 +13,5 @@ repositories {
 
 dependencies {
     implementation("com.google.devtools.ksp:symbol-processing-api:2.1.20-Beta2-1.0.30")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 }

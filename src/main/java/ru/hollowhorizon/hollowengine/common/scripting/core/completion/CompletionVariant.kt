@@ -3,28 +3,27 @@ package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.TextCaretNavigation
-import org.jetbrains.kotlin.builtins.isFunctionOrSuspendFunctionType
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
-import org.jetbrains.kotlin.descriptors.FunctionDescriptor
-import org.jetbrains.kotlin.psi.KtPsiFactory
+import org.eclipse.lsp4j.CompletionItemKind
+import org.eclipse.lsp4j.Position
+import org.jetbrains.kotlin.psi.psiUtil.endOffset
 import ru.hollowhorizon.hc.client.kool.minecraft.Image
-import ru.hollowhorizon.hc.common.events.Event
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.fullText
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.CompiledFileProvider
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextAreaNode
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.setSelectionRange
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.common.project.kt.position.position
 
 data class CompletionVariant(
-    val text: String,
+    val insertText: String,
     val displayText: String,
     val tail: String,
     val icon: Icon,
-    val descriptor: DeclarationDescriptor?,
     val matchIndices: List<Int> = emptyList(), // Индексы совпадающих символов для подсветки
-    val additionalImports: List<String> = emptyList(),
+    val textEdits: List<Pair<Position, String>> = emptyList(),
+    val isLambda: Boolean,
 ) {
     override fun toString() = displayText
-    val isLambda = (descriptor as? FunctionDescriptor)?.valueParameters?.lastOrNull()
-        ?.type?.isFunctionOrSuspendFunctionType == true
 
     fun UiScope.create(textArea: TextAreaNode, isFocused: Boolean) {
         Row(Grow.Std) {
@@ -46,12 +45,13 @@ data class CompletionVariant(
             when (icon) {
                 Icon.UNKNOWN -> Box {
                     modifier.alignY(AlignmentY.Center)
-                        .size(24.dp+sizes.smallGap, 24.dp+sizes.smallGap).padding(sizes.smallGap)
+                        .size(24.dp + sizes.smallGap, 24.dp + sizes.smallGap).padding(sizes.smallGap)
                         .background(RectBackground(iconBg))
                 }
+
                 else -> Image("hollowengine:textures/gui/icons/autocomplete_${icon.name.lowercase()}.svg") {
                     modifier.alignY(AlignmentY.Center)
-                        .size(24.dp+sizes.smallGap, 24.dp+sizes.smallGap).padding(sizes.smallGap)
+                        .size(24.dp + sizes.smallGap, 24.dp + sizes.smallGap).padding(sizes.smallGap)
                         .background(RectBackground(iconBg))
                         .tint(iconTint)
                 }
@@ -86,57 +86,34 @@ data class CompletionVariant(
 
     fun use(scriptTextArea: TextAreaNode) {
         val modifier = scriptTextArea.modifier
+        val provider = scriptTextArea.lineProvider as CompiledFileProvider
         var lineIndex = modifier.selectionStartLine.coerceAtMost(scriptTextArea.lineProvider.lastIndex)
         if (lineIndex == -1) return
+
+        // Добавление импортов
+        if (textEdits.isNotEmpty()) {
+            textEdits.forEach { (position, text) ->
+                lineIndex += provider.insertText(position.line, position.character, text).y - position.line
+            }
+        }
+
 
         val line = scriptTextArea.lineProvider[lineIndex].text
         val startChar = (modifier.selectionStartChar - 1).coerceAtLeast(0)
         val startWord = TextCaretNavigation.startOfWord(line, startChar)
-        val editor = modifier.editorHandler ?: return
 
-        // Добавление импортов
-        if (additionalImports.isNotEmpty()) {
-            additionalImports.forEach {
-                editor.insertText(0, 0, "import ${it}\n", scriptTextArea)
-                lineIndex++
-            }
-        }
+        val replacement = insertText + if (isLambda) " {  }" else if (icon == Icon.METHOD) "()" else ""
 
-        var textToInsert = text
-        var offset = 0
-
-        // Упрощение для лямбд: добавляем шаблон
-        if (isLambda) {
-            val params = (descriptor as? FunctionDescriptor)?.valueParameters?.size ?: 1
-
-            textToInsert = when {
-                params == 1 -> {
-                    offset = 2
-                    "${textToInsert.dropLast(1)} {  }"
-                }
-                else -> {
-                    offset = 4
-                    "$textToInsert) {}"
-                }
-            }
-        }
-        // Добавление скобок для функций
-        else if (textToInsert.endsWith("(")) {
-            textToInsert = "$textToInsert)"
-            offset = 1
-        }
-
-        editor.replaceText(
+        provider.replaceText(
             lineIndex,
             lineIndex,
             startWord,
             startChar + 1,
-            textToInsert,
-            scriptTextArea
+            replacement,
         )
 
         // Установка курсора в правильное место
-        val cursorPos = startWord + textToInsert.length - offset
+        val cursorPos = startWord + replacement.length - if (isLambda) 2 else if (icon == Icon.METHOD) 1 else 0
         modifier.setSelectionRange(
             lineIndex,
             lineIndex,
@@ -146,7 +123,6 @@ data class CompletionVariant(
 
         modifier.completions.clear()
         modifier.setCompletionIndex(0)
-        descriptor?.let(UsageStatistics::recordUsage)
     }
 
     // Вспомогательная функция для разбивки текста на подсвеченные части
@@ -192,8 +168,16 @@ data class CompletionVariant(
     }
 
     enum class Icon {
-        PACKAGE, CLASS, METHOD, VARIABLE, UNKNOWN
+        PACKAGE, CLASS, METHOD, VARIABLE, UNKNOWN;
+
+        companion object {
+            fun fromKind(kind: CompletionItemKind) = when (kind) {
+                CompletionItemKind.File, CompletionItemKind.Folder -> PACKAGE
+                CompletionItemKind.Class, CompletionItemKind.Enum, CompletionItemKind.Interface -> CLASS
+                CompletionItemKind.Method, CompletionItemKind.Function, CompletionItemKind.Operator, CompletionItemKind.Constructor -> METHOD
+                CompletionItemKind.Field, CompletionItemKind.Variable, CompletionItemKind.Property, CompletionItemKind.Value -> VARIABLE
+                else -> UNKNOWN
+            }
+        }
     }
 }
-
-class OnCompletionsEvent(val fileName: String, val completions: List<CompletionVariant>, val hashCode: Int) : Event
