@@ -17,12 +17,12 @@ import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.*
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.DescriptorUtils
+import org.jetbrains.kotlin.resolve.calls.components.hasDefaultValue
 import org.jetbrains.kotlin.resolve.descriptorUtil.*
 import org.jetbrains.kotlin.resolve.scopes.*
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter.Companion
 import org.jetbrains.kotlin.resolve.scopes.utils.getImplicitReceiversHierarchy
 import org.jetbrains.kotlin.resolve.scopes.utils.parentsWithSelf
-import org.jetbrains.kotlin.synthetic.SyntheticJavaPropertyDescriptor
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.checker.KotlinTypeChecker
@@ -207,7 +207,10 @@ private fun completionItem(
 
     result.label = methodSignature.find(result.detail)?.groupValues?.get(1) ?: result.label
 
-    if(d is SyntheticPropertyDescriptor) {
+    if(d is CallableMemberDescriptor && (d.valueParameters.isEmpty() || d.valueParameters.all { it.hasDefaultValue() })) {
+        if(!result.label.endsWith("()")) result.label += "()"
+    }
+    if (d is SyntheticPropertyDescriptor) {
         result.label += " (from ${d.getMethod.name}()" + (d.setMethod?.let { "/${it.name}())" } ?: ")")
     }
 
@@ -417,12 +420,18 @@ private fun completeMembers(
             } else expressionType
 
             val members = receiverType.memberScope.getContributedDescriptors().asSequence()
-            val extensions = extensionFunctions(lexicalScope).filter { isExtensionFor(receiverType, it) }
+            val extensions = (extensionFunctions(lexicalScope) + lexicalScope.parentsWithSelf.flatMap(::implicitMembers)
+                .filter(DeclarationDescriptor::isExtension)
+                .filterIsInstance<CallableDescriptor>()).filter { isExtensionFor(receiverType, it) }
             descriptors = members + extensions
 
-            descriptors += synthetics.collectSyntheticExtensionProperties(setOf(receiverType), NoLookupLocation.FROM_IDE)
+            descriptors += synthetics.collectSyntheticExtensionProperties(
+                setOf(receiverType),
+                NoLookupLocation.FROM_IDE
+            )
+                .distinct()
             descriptors += synthetics.collectSyntheticMemberFunctions(setOf(receiverType))
-
+                .distinct()
             if (!isCompanionOfEnum(receiverType) && !isCompanionOfSealed(receiverType)) {
                 return descriptors
             }
@@ -450,8 +459,8 @@ private fun ClassDescriptor.getDescriptors(syntheticScopes: SyntheticScopes): Se
         ) else emptySequence()
 
     val sequence = (statics + classes + types + companionDescriptors).toSet()
-    val syntheticFunctions = syntheticScopes.collectSyntheticStaticFunctions(sequence)
-    val syntheticConstructors = syntheticScopes.collectSyntheticConstructors(sequence)
+    val syntheticFunctions = syntheticScopes.collectSyntheticStaticFunctions(sequence).distinct()
+    val syntheticConstructors = syntheticScopes.collectSyntheticConstructors(sequence).distinct()
     return sequence.asSequence() + syntheticFunctions + syntheticConstructors
 }
 

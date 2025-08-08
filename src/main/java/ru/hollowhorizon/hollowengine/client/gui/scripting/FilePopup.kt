@@ -41,20 +41,20 @@ class FilePopup : Composable {
     }
 
     private fun createFolder(item: FileNode, name: String) {
-        //CreateFilePacket(item.treePath + "/" + name).send()
+        item.treePath.fromReadablePath().resolve(name).mkdirs()
         item.update()
     }
     private fun createFile(item: FileNode, name: String) {
-        //CreateFilePacket(item.treePath + "/" + name + fileExtension).send()
+        item.treePath.fromReadablePath().resolve(name+fileExtension).createNewFile()
         item.update()
     }
 
     private fun rename(item: FileNode, newName: String) {
-        //RenameFilePacket(item.treePath, newName).send()
+        item.treePath.fromReadablePath().renameTo(item.treePath.fromReadablePath().parentFile.resolve(newName))
         item.parent?.update()
     }
     private fun delete(item: FileNode) {
-        //DeleteFilePacket(item.treePath).send()
+        item.treePath.fromReadablePath().deleteRecursively()
         item.parent?.update()
     }
 
@@ -102,7 +102,10 @@ class FilePopup : Composable {
 
                 val target = it.treePath
 
-                if (copySource.isNotEmpty()) //CopyFilePacket(copySource, target, deleteOriginal).send()
+                if (copySource.isNotEmpty()) {
+                    copySource.fromReadablePath().copyTo(target.fromReadablePath(), true)
+                    if(deleteOriginal) copySource.fromReadablePath().deleteRecursively()
+                }
                 if (deleteOriginal) copySource = ""
             }
             divider()

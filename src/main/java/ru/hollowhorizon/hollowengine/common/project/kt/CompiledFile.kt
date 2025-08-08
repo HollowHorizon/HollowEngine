@@ -233,7 +233,7 @@ class CompiledFile(
                     && oldCursor <= it.key.textRange.endOffset
                     && it.key.containingFile.toPath() == path
                 }
-                .sortedBy { it.key.textRange.length  }
+                .sortedByDescending { it.key.parentsWithSelf.count()  }
                 .map { it.value }
                 .firstOrNull()
     }

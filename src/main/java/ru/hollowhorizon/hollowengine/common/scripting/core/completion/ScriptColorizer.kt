@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 import ru.hollowhorizon.hc.common.events.Event
 import ru.hollowhorizon.hc.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
+import ru.hollowhorizon.hollowengine.common.fsm.StateNode
 import ru.hollowhorizon.hollowengine.common.project.kt.imports.UNUSED_IMPORT_FACTORY
 
 private data class UnusedInfo(
@@ -215,7 +216,8 @@ private fun getElementColor(element: PsiElement, bindingContext: BindingContext,
             KtTokens.LPAR,
             KtTokens.RPAR,
             KtTokens.LBRACE,
-            KtTokens.RBRACE
+            KtTokens.RBRACE,
+            KtTokens.DOT
         ) -> SyntaxHighlight.EXTENSION_RECEIVER
 
 
@@ -247,6 +249,8 @@ object SyntaxHighlight {
 }
 
 private fun KtExpression.hasProperty(bindingContext: BindingContext): Boolean {
+    val isNonLocalProperty = (this as? KtProperty)?.isLocal == false
+    if(isNonLocalProperty) return true
     return ((this as? KtReferenceExpression)?.let {
         bindingContext[BindingContext.REFERENCE_TARGET, it].let {
             it as? PropertyDescriptor ?: it as? VariableDescriptor
