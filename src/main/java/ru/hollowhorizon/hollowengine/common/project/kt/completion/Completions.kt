@@ -7,12 +7,10 @@ import org.eclipse.lsp4j.CompletionItemTag
 import org.eclipse.lsp4j.CompletionList
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.js.resolve.diagnostics.findPsi
 import org.jetbrains.kotlin.lexer.KtKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens
-import org.jetbrains.kotlin.load.java.descriptors.JavaMethodDescriptor
-import org.jetbrains.kotlin.load.java.sources.JavaSourceElement
-import org.jetbrains.kotlin.load.java.structure.JavaMethod
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
@@ -20,13 +18,11 @@ import org.jetbrains.kotlin.psi.psiUtil.*
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.descriptorUtil.*
-import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
+import org.jetbrains.kotlin.resolve.scopes.*
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter.Companion
-import org.jetbrains.kotlin.resolve.scopes.HierarchicalScope
-import org.jetbrains.kotlin.resolve.scopes.LexicalScope
-import org.jetbrains.kotlin.resolve.scopes.getDescriptorsFiltered
 import org.jetbrains.kotlin.resolve.scopes.utils.getImplicitReceiversHierarchy
 import org.jetbrains.kotlin.resolve.scopes.utils.parentsWithSelf
+import org.jetbrains.kotlin.synthetic.SyntheticJavaPropertyDescriptor
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.checker.KotlinTypeChecker
@@ -148,7 +144,8 @@ private fun indexCompletionItems(
         .filter(predicate)
         .map {
             completionItem(it, surroundingElement, file).apply {
-                additionalTextEdits = listOf(getImportTextEditEntry(parsedFile, it.getImportableDescriptor().fqNameSafe))
+                additionalTextEdits =
+                    listOf(getImportTextEditEntry(parsedFile, it.getImportableDescriptor().fqNameSafe))
             }
         }
 }
@@ -210,13 +207,8 @@ private fun completionItem(
 
     result.label = methodSignature.find(result.detail)?.groupValues?.get(1) ?: result.label
 
-    if (isNotStaticJavaMethod(d) && (isGetter(d) || isSetter(d))) {
-        val name = extractPropertyName(d)
-
-        result.detail += " (from ${result.label})"
-        result.label = name
-        result.insertText = name
-        result.filterText = name
+    if(d is SyntheticPropertyDescriptor) {
+        result.label += " (from ${d.getMethod.name}()" + (d.setMethod?.let { "/${it.name}())" } ?: ")")
     }
 
     if (KotlinBuiltIns.isDeprecated(d)) {
@@ -230,34 +222,6 @@ private fun completionItem(
 
     return result
 }
-
-private fun isNotStaticJavaMethod(
-    descriptor: DeclarationDescriptor,
-): Boolean {
-    val javaMethodDescriptor = descriptor as? JavaMethodDescriptor ?: return true
-    val source = javaMethodDescriptor.source as? JavaSourceElement ?: return true
-    val javaElement = source.javaElement
-    return javaElement is JavaMethod && !javaElement.isStatic
-}
-
-private fun extractPropertyName(d: DeclarationDescriptor): String {
-    val match = Regex("(get|set)?((?:(?:is)|[A-Z])\\w*)").matchEntire(d.name.identifier)!!
-    val upper = match.groups[2]!!.value
-
-    return upper[0].lowercaseChar() + upper.substring(1)
-}
-
-private fun isGetter(d: DeclarationDescriptor): Boolean =
-    d is CallableDescriptor &&
-            !d.name.isSpecial &&
-            d.name.identifier.matches(Regex("(get|is)[A-Z]\\w+")) &&
-            d.valueParameters.isEmpty()
-
-private fun isSetter(d: DeclarationDescriptor): Boolean =
-    d is CallableDescriptor &&
-            !d.name.isSpecial &&
-            d.name.identifier.matches(Regex("set[A-Z]\\w+")) &&
-            d.valueParameters.size == 1
 
 private fun isGlobalCall(el: KtElement) =
     el is KtBlockExpression || el is KtClassBody || el.parent is KtBinaryExpression
@@ -352,7 +316,7 @@ private fun elementCompletions(
                 val referenceTarget = file.referenceAtPoint(surroundingElement.qualifier!!.startOffset)?.second
                 if (referenceTarget is ClassDescriptor) {
                     HollowEngine.LOGGER.info("Completing members of {}", referenceTarget.fqNameSafe)
-                    return referenceTarget.getDescriptors()
+                    return referenceTarget.getDescriptors(file.syntheticScopes)
                 } else {
                     HollowEngine.LOGGER.warn("No type reference in '{}'", surroundingElement.text)
                     return emptySequence()
@@ -440,6 +404,7 @@ private fun completeMembers(
     receiverExpr: KtExpression,
     unwrapNullable: Boolean = false,
 ): Sequence<DeclarationDescriptor> {
+    val synthetics = file.syntheticScopes.forceEnableSamAdapters()
     // thingWithType.?
     var descriptors = emptySequence<DeclarationDescriptor>()
     file.scopeAtPoint(cursor)?.let { lexicalScope ->
@@ -451,10 +416,12 @@ private fun completeMembers(
                 expressionType
             } else expressionType
 
-            HollowEngine.LOGGER.debug("Completing members of instance '{}'", receiverType)
             val members = receiverType.memberScope.getContributedDescriptors().asSequence()
             val extensions = extensionFunctions(lexicalScope).filter { isExtensionFor(receiverType, it) }
             descriptors = members + extensions
+
+            descriptors += synthetics.collectSyntheticExtensionProperties(setOf(receiverType), NoLookupLocation.FROM_IDE)
+            descriptors += synthetics.collectSyntheticMemberFunctions(setOf(receiverType))
 
             if (!isCompanionOfEnum(receiverType) && !isCompanionOfSealed(receiverType)) {
                 return descriptors
@@ -466,22 +433,26 @@ private fun completeMembers(
     val referenceTarget = file.referenceAtPoint(receiverExpr.endOffset - 1)?.second
     if (referenceTarget is ClassDescriptor) {
         HollowEngine.LOGGER.debug("Completing members of '{}'", referenceTarget.fqNameSafe)
-        return descriptors + referenceTarget.getDescriptors()
+        return descriptors + referenceTarget.getDescriptors(file.syntheticScopes)
     }
 
     HollowEngine.LOGGER.debug("Can't find member scope for {}", receiverExpr.text)
     return emptySequence()
 }
 
-private fun ClassDescriptor.getDescriptors(): Sequence<DeclarationDescriptor> {
+private fun ClassDescriptor.getDescriptors(syntheticScopes: SyntheticScopes): Sequence<DeclarationDescriptor> {
     val statics = staticScope.getContributedDescriptors().asSequence()
     val classes = unsubstitutedInnerClassesScope.getContributedDescriptors().asSequence()
     val types = unsubstitutedMemberScope.getContributedDescriptors().asSequence()
     val companionDescriptors =
-        if (hasCompanionObject && companionObjectDescriptor != null) companionObjectDescriptor!!.getDescriptors() else emptySequence()
+        if (hasCompanionObject && companionObjectDescriptor != null) companionObjectDescriptor!!.getDescriptors(
+            syntheticScopes
+        ) else emptySequence()
 
-    return (statics + classes + types + companionDescriptors).toSet().asSequence()
-
+    val sequence = (statics + classes + types + companionDescriptors).toSet()
+    val syntheticFunctions = syntheticScopes.collectSyntheticStaticFunctions(sequence)
+    val syntheticConstructors = syntheticScopes.collectSyntheticConstructors(sequence)
+    return sequence.asSequence() + syntheticFunctions + syntheticConstructors
 }
 
 private fun declarationIsInfix(declaration: DeclarationDescriptor): Boolean {

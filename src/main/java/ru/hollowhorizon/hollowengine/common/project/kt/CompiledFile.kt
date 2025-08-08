@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.resolve.scopes.LexicalScope
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.com.intellij.openapi.util.TextRange
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
+import org.jetbrains.kotlin.resolve.scopes.SyntheticScopes
 import ru.hollowhorizon.hollowengine.HollowEngine
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -32,6 +33,7 @@ class CompiledFile(
     val module: ModuleDescriptor,
     val sourcePath: Collection<KtFile>,
     val classPath: CompilerClassPath,
+    val syntheticScopes: SyntheticScopes,
     val isScript: Boolean = false,
     val kind: CompilationKind = CompilationKind.DEFAULT
 ) {

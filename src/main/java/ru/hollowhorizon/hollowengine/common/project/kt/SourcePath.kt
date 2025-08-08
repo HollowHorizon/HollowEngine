@@ -6,13 +6,12 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.CompositeBindingContext
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
-import ru.hollowhorizon.hc.HollowCore
+import org.jetbrains.kotlin.resolve.scopes.SyntheticScopes
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.compiler.CompilationKind
 import ru.hollowhorizon.hollowengine.common.project.kt.index.SymbolIndex
 import ru.hollowhorizon.hollowengine.common.project.kt.progress.Progress
 import ru.hollowhorizon.hollowengine.common.project.kt.util.AsyncExecutor
-import ru.hollowhorizon.hollowengine.common.project.kt.util.describeURI
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -48,6 +47,7 @@ class SourcePath(
         var compiledFile: KtFile? = null,
         var compiledContext: BindingContext? = null,
         var module: ModuleDescriptor? = null,
+        var syntheticScopes: SyntheticScopes? = null,
         val language: Language? = null,
         val isTemporary: Boolean = false, // A temporary source file will not be returned by .all()
         var lastSavedFile: KtFile? = null,
@@ -96,9 +96,10 @@ class SourcePath(
             val oldFile = clone()
 
             val parsedFile = parsed!!
-            val (context, module) = cp.compiler.compileKtFile(parsedFile, allIncludingThis(), kind)
+            val (context, scopes, module) = cp.compiler.compileKtFile(parsedFile, allIncludingThis(), kind)
             parseDataWriteLock.withLock {
                 compiledContext = context
+                syntheticScopes = scopes
                 this.module = module
                 compiledFile = parsedFile
             }
@@ -116,7 +117,17 @@ class SourcePath(
             parseIfChanged().apply { compileIfNull() }.let { doPrepareCompiledFile() }
 
         private fun doPrepareCompiledFile(): CompiledFile =
-            CompiledFile(content, compiledFile!!, compiledContext!!, module!!, allIncludingThis(), cp, isScript, kind)
+            CompiledFile(
+                content,
+                compiledFile!!,
+                compiledContext!!,
+                module!!,
+                allIncludingThis(),
+                cp,
+                syntheticScopes!!,
+                isScript,
+                kind
+            )
 
         private fun allIncludingThis(): Collection<KtFile> = parseIfChanged().let {
             if (isTemporary) (all().asSequence() + sequenceOf(parsed!!)).toList()
@@ -125,7 +136,18 @@ class SourcePath(
 
         // Creates a shallow copy
         fun clone(): SourceFile =
-            SourceFile(uri, content, path, parsed, compiledFile, compiledContext, module, language, isTemporary)
+            SourceFile(
+                uri,
+                content,
+                path,
+                parsed,
+                compiledFile,
+                compiledContext,
+                module,
+                syntheticScopes,
+                language,
+                isTemporary
+            )
     }
 
     fun sourceFile(uri: File): SourceFile {
@@ -211,7 +233,7 @@ class SourcePath(
             // Get all the files. This will parse them if they changed
             val allFiles = all()
             beforeCompileCallback.invoke()
-            val (context, module) = cp.compiler.compileKtFiles(parse.values, allFiles, kind)
+            val (context, scopes, module) = cp.compiler.compileKtFiles(parse.values, allFiles, kind)
 
             // Update cache
             for ((f, parsed) in parse) {
@@ -219,6 +241,7 @@ class SourcePath(
                     if (f.parsed == parsed) {
                         //only updated if the parsed file didn't change:
                         f.compiledFile = parsed
+                        f.syntheticScopes = scopes
                         f.compiledContext = context
                         f.module = module
                     }

@@ -48,6 +48,7 @@ import org.jetbrains.kotlin.resolve.calls.components.InferenceSession
 import org.jetbrains.kotlin.resolve.calls.smartcasts.DataFlowInfo
 import org.jetbrains.kotlin.resolve.lazy.declarations.FileBasedDeclarationProviderFactory
 import org.jetbrains.kotlin.resolve.scopes.LexicalScope
+import org.jetbrains.kotlin.resolve.scopes.SyntheticScopes
 import org.jetbrains.kotlin.resolve.source.PsiSourceFile
 import org.jetbrains.kotlin.samWithReceiver.CliSamWithReceiverComponentContributor
 import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptingCompilerConfigurationComponentRegistrar
@@ -331,14 +332,13 @@ class Compiler(
         file: KtFile,
         sourcePath: Collection<KtFile>,
         kind: CompilationKind = CompilationKind.DEFAULT,
-    ): Pair<BindingContext, ModuleDescriptor> =
-        compileKtFiles(listOf(file), sourcePath, kind)
+    ): CompiledResult = compileKtFiles(listOf(file), sourcePath, kind)
 
     fun compileKtFiles(
         files: Collection<KtFile>,
         sourcePath: Collection<KtFile>,
         kind: CompilationKind = CompilationKind.DEFAULT,
-    ): Pair<BindingContext, ModuleDescriptor> {
+    ): CompiledResult {
         if (kind == CompilationKind.BUILD_SCRIPT) {
             // Print the (legacy) script template used by the compiled Kotlin DSL build file
             files.forEach {
@@ -358,7 +358,8 @@ class Compiler(
             files.forEach {
                 collectUnusedImports(it, trace)
             }
-            return Pair(trace.bindingContext, module)
+            val syntheticScopes = container.getService(SyntheticScopes::class.java)
+            return CompiledResult(trace.bindingContext, syntheticScopes, module)
         }
     }
 
@@ -483,3 +484,5 @@ private fun describeExpression(expression: String): String = expression.lines().
         (lines.take(3) + listOf("...", lines.last())).joinToString(separator = "\n")
     }
 }
+
+data class CompiledResult(val bindingContext: BindingContext, val syntheticScopes: SyntheticScopes, val module: ModuleDescriptor)
