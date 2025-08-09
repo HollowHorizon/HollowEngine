@@ -3,12 +3,15 @@ package ru.hollowhorizon.hollowengine.common.scripting.kool
 import de.fabmax.kool.modules.ui2.UiSurface
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hc.client.kool.KoolManager
+import ru.hollowhorizon.hc.client.kool.gl.render
+import ru.hollowhorizon.hc.common.events.SubscribeEvent
+import ru.hollowhorizon.hc.common.events.client.render.GuiOverlay
+import ru.hollowhorizon.hc.common.events.client.render.RenderOverlayEvent
 
 object KoolClientManager {
     private val ACTIVE_SCENES = HashMap<String, KoolScript>()
 
     fun addScene(name: String, scene: KoolScript) {
-        ACTIVE_SCENES[name]?.let { KoolManager.context.removeScene(it) }
         ACTIVE_SCENES[name] = scene
         KoolManager.context.addScene(scene)
     }
@@ -22,8 +25,13 @@ object KoolClientManager {
 
     fun removeScene(name: String) {
         ACTIVE_SCENES.remove(name)
-            ?.let { KoolManager.context.removeScene(it) }
     }
 
     operator fun contains(name: String) = ACTIVE_SCENES.containsKey(name)
+
+    @SubscribeEvent
+    fun render(event: RenderOverlayEvent.Post) {
+        if(event.overlay != GuiOverlay.CROSSHAIR) return
+        ACTIVE_SCENES.forEach { it.value.render() }
+    }
 }
