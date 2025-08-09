@@ -24,8 +24,14 @@ val scriptingClasspath = mutableListOf<File>()
 val deobfClasspath get() = deobfClassPath.walk().toList()
 
 
-fun forgeClasspath() = System.getProperty("java.class.path")
-    .split(";").map(::File).toMutableSet()
+fun forgeClasspath(): Set<File> {
+    val regex = Regex("""[/\\]versions[/\\][^/\\]+[/\\][^/\\]+\.jar$""")
+    return System.getProperty("java.class.path")
+        .split(File.pathSeparator)
+        .map(::File)
+        .filterNot { file -> regex.containsMatchIn(file.absolutePath) }
+        .toSet()
+}
 
 private fun setupSTDLib(files: Collection<File>) {
     System.setProperty("kotlin.java.stdlib.jar", files.first { it.name.startsWith("kotlin-stdlib-jdk8") }.absolutePath)

@@ -16,6 +16,7 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.CamelHumpMatcher
 import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
 import ru.hollowhorizon.hollowengine.common.project.kt.util.AsyncExecutor
+import java.lang.UnsupportedOperationException
 import kotlin.sequences.Sequence
 
 private const val MAX_FQNAME_LENGTH = 255
@@ -202,6 +203,9 @@ class SymbolIndex {
                 ) { name -> !exclusions.any { declaration -> declaration.name == name } }
             } catch (e: IllegalStateException) {
                 HollowEngine.LOGGER.warn("Could not query descriptors in package $it")
+                emptyList()
+            } catch (e: UnsupportedOperationException) {
+                HollowEngine.LOGGER.warn("Could not query descriptors in package $it due to unsupported operation", e)
                 emptyList()
             }
         }

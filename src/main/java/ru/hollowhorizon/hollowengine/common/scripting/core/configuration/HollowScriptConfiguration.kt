@@ -60,11 +60,14 @@ fun classpath(): List<File> {
     )
 
     val jars = scriptingClasspath + deobfClasspath
-    val deobfNames = jars.map { it.name }
-    val originalClasspath = System.getProperty("java.class.path").split(";")
-        .map { File(it) }
-        .toMutableSet()
-    val filteredClasspath = originalClasspath.filter { it.name !in deobfNames }
+    val deobfNames = jars.map { it.name.replace("-deobf", "") }
+    val regex = Regex("""[/\\]versions[/\\][^/\\]+[/\\][^/\\]+\.jar$""")
+    val classPath = System.getProperty("java.class.path")
+        .split(File.pathSeparator)
+        .map(::File)
+        .filterNot { file -> regex.containsMatchIn(file.absolutePath) }
+        .toSet()
+    val filteredClasspath = classPath.filter { it.name !in deobfNames }
     files += (jars + filteredClasspath)
     return files
 }

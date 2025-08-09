@@ -14,6 +14,7 @@ import java.util.concurrent.CompletableFuture
 import com.google.gson.JsonElement
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import org.jetbrains.kotlin.config.JvmTarget
 import ru.hollowhorizon.hollowengine.HollowEngine
 
 class KotlinWorkspaceService(
@@ -95,7 +96,7 @@ class KotlinWorkspaceService(
                 get("jvm")?.asJsonObject?.apply {
                     val jvm = compiler.jvm
                     get("target")?.asString?.let {
-                        jvm.target = it
+                        jvm.target = JvmTarget.fromString(it) ?: error("Target '$it' not set")
                         cp.updateCompilerConfiguration()
                     }
                 }

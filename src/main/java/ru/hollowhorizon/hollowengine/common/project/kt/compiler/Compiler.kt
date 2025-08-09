@@ -178,8 +178,7 @@ private class CompilationEnvironment(
     }
 
     fun updateConfiguration(config: CompilerConfiguration) {
-        JvmTarget.fromString(config.jvm.target)
-            ?.let { environment.configuration.put(JVMConfigurationKeys.JVM_TARGET, it) }
+        config.jvm.target.let { environment.configuration.put(JVMConfigurationKeys.JVM_TARGET, it) }
     }
 
     var cached: JvmPackagePartProvider? = null

@@ -7,6 +7,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonParseException
 import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.DiagnosticSeverity
+import org.jetbrains.kotlin.config.JvmTarget
 import ru.hollowhorizon.hollowengine.HollowEngine
 import java.io.File
 import java.lang.reflect.Type
@@ -39,7 +40,7 @@ public data class DiagnosticsConfiguration(
 
 public data class JVMConfiguration(
     /** Which JVM target the Kotlin compiler uses. See Compiler.jvmTargetFrom for possible values. */
-    var target: String = "default"
+    var target: JvmTarget = JvmTarget.JVM_17
 )
 
 public data class CompilerConfiguration(
