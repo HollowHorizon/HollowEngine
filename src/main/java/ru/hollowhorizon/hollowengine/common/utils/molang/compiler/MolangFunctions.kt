@@ -11,7 +11,7 @@ object MolangFunctions {
     private data class InternalSignature(val className: String, val argCount: Int)
     data class Signature(val className: String, val methodName: String, val returnType: String, val argCount: Int, val isStatic: Boolean)
 
-    private val MATH = "ru.hollowhorizon.hollowengine/common/utils/molang/runtime/Math"
+    private val MATH = "ru/hollowhorizon/hollowengine/common/utils/molang/runtime/Math"
     private val functions = Object2ObjectOpenHashMap<InternalSignature, Signature>()
 
     init {
