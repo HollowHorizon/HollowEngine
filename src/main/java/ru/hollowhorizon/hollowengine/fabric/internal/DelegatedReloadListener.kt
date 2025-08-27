@@ -9,7 +9,11 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
 class DelegatedReloadListener(private val eventListener: PreparableReloadListener) :
     PreparableReloadListener by eventListener, IdentifiableResourceReloadListener {
     override fun getFabricId(): ResourceLocation {
-        return "hollowcore_generated:${eventListener.javaClass.name.lowercase().replace("$", ".")}".rl
+        return "hollowengine_generated:${eventListener.javaClass.name.lowercase().replace("$", ".")}".rl
+    }
+
+    override fun getName(): String? {
+        return eventListener.name
     }
 }
 //?}

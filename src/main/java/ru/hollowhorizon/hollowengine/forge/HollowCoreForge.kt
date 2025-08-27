@@ -1,6 +1,6 @@
-package ru.hollowhorizon.hollowengine.forge//? if forge {
-/*package ru.hollowhorizon.hollowengine.forge
-
+package ru.hollowhorizon.hollowengine.forge
+//? if forge {
+/*
 import net.irisshaders.iris.api.v0.IrisApi
 import net.minecraftforge.fml.ModLoadingContext
 import net.minecraftforge.fml.common.Mod
@@ -15,7 +15,7 @@ import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import ru.hollowhorizon.hollowengine.forge.internal.ForgeNetworkHelper
 import ru.hollowhorizon.hollowengine.forge.internal.RegistryHolderForge
 
-@Mod("hollowcore")
+@Mod("hollowengine")
 class HollowCoreForge {
     init {
         commonInit()

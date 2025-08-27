@@ -208,11 +208,3 @@ class OBJModel(private var location: ResourceLocation, private var mtlLocation: 
     private fun processMaterialName(name: String): String = name.replace("[/|\\\\]+".toRegex(), "-")
 
 }
-
-fun main() {
-    val model = "hollowcore:models/block/obj/brick_oven.obj".rl
-
-    val internalModel = OBJModel(model).toInternalModel()
-
-    println(internalModel)
-}

@@ -25,7 +25,7 @@ import java.util.*
  */
 object MCAssetLoader : AssetLoader() {
     private fun resource(path: String) = if (path.contains(":")) path.rl
-    else "hollowcore:$path".rl
+    else "hollowengine:$path".rl
 
     override suspend fun loadBlob(ref: AssetRef.Blob): LoadedAsset.Blob {
         val result = withContext(Dispatchers.IO) {

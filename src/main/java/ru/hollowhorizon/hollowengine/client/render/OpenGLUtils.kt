@@ -65,7 +65,7 @@ object OpenGLUtils {
         NativeImage(width, height, Minecraft.ON_OSX).apply {
             RenderSystem.setShaderTexture(0, texture)
             downloadTexture(0, false)
-        }.writeToFile(File("hollowcore/framebuffer_debug.png"))
+        }.writeToFile(File("hollowengine/framebuffer_debug.png"))
     }
 }
 

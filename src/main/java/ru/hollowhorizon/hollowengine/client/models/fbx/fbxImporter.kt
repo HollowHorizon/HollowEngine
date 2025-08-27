@@ -36,9 +36,3 @@ object FbxModelLoader: ModelLoader {
 }
 
 lateinit var buffer: ByteBuffer
-
-suspend fun main() {
-    val model = FbxModelLoader.import("hollowcore:models/entity/fbx/frogech_ascii.fbx".rl)
-        .convert("hollowcore:models/entity/fbx/frogech_ascii.fbx".rl)
-    println(model)
-}

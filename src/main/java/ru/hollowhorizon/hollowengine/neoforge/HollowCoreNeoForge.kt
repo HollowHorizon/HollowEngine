@@ -18,7 +18,7 @@ import ru.hollowhorizon.hollowengine.neoforge.internal.RegistryHolderNeoForge
 // TODO: Добавить регистрацию тегов
 // TODO: Починить миксины для отрисовки интерфейсов и оверлеев
 
-@Mod("hollowcore")
+@Mod("hollowengine")
 class HollowCoreNeoForge(modBus: IEventBus) {
     init {
         commonInit(modBus)

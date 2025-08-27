@@ -36,7 +36,7 @@ object NeoForgeNetworkHelper {
 
 fun <T : HollowPacket> registerPacket(registerer: PayloadRegistrar, type: Class<T>) {
     val annotation = type.getAnnotation(HollowPacketHandler::class.java)
-    val location = CustomPacketPayload.Type<T>("hollowcore:${type.name.lowercase().filter { ResourceLocation.validPathChar(it) }}".rl)
+    val location = CustomPacketPayload.Type<T>("hollowengine:${type.name.lowercase().filter { ResourceLocation.validPathChar(it) }}".rl)
 
     val codec: StreamCodec<FriendlyByteBuf, T> = CustomPacketPayload.codec(
         { packet, buffer ->

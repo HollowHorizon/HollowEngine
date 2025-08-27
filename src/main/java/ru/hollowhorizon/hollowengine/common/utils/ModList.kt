@@ -120,7 +120,7 @@ fun FabricLoader.getNestedModFile(origin: ModOrigin): File {
     val nestedJarEntry = parentJar.getJarEntry(subLocation)
 
     val fileName = subLocation.split('/').last()
-    val newFile = File("hollowcore/embed_mods/$fileName").apply {
+    val newFile = File("hollowengine/embed_mods/$fileName").apply {
         if (!this.parentFile.exists()) this.parentFile.mkdirs()
     }
 
@@ -143,7 +143,7 @@ fun FabricLoader.getNestedModFile(origin: ModOrigin): File {
 
         val copy = Files.newInputStream(path)
 
-        val newFile = File("hollowcore/embed_mods/$fileName").apply {
+        val newFile = File("hollowengine/embed_mods/$fileName").apply {
             if (!this.parentFile.exists()) this.parentFile.mkdirs()
         }
 

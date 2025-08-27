@@ -20,7 +20,7 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
 fun <T : HollowPacket> registerPacket(type: Class<T>) {
     val annotation = type.getAnnotation(HollowPacketHandler::class.java)
     val location = CustomPacketPayload.Type<T>(
-        "hollowcore:${
+        "hollowengine:${
             type.name.lowercase().filter { ResourceLocation.validPathChar(it) }
         }".rl
     )

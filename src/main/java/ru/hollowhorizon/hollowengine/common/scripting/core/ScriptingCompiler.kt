@@ -155,7 +155,7 @@ object ScriptingCompiler {
             val manifest = Manifest().apply {
                 mainAttributes.apply {
                     putValue("Manifest-Version", "1.0")
-                    putValue("Created-By", "HollowCore ScriptingEngine")
+                    putValue("Created-By", "HollowEngine ScriptingEngine")
                     putValue("Script-Hashcode", hash)
                     putValue("Main-Class", scriptClassFQName)
                 }

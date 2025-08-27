@@ -35,7 +35,7 @@ object KoolManager {
 
         context = MCKoolContext()
 
-        val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowcore:fonts/monocraft.json".rl.stream)
+        val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/monocraft.json".rl.stream)
         val msdfMap = Texture2d(TexFormat.RGBA, MipMapping.Off, SamplerSettings(), "MsdfFont:${fontInfo.name}") {
             Assets.loadImage2d("fonts/monocraft.png")
                 .getOrDefault(SingleColorTexture.getColorTextureData(Color.BLACK))

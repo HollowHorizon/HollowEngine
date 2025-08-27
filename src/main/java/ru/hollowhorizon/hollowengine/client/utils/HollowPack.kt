@@ -166,7 +166,7 @@ object HollowPack : PackResources {
     }
     *///?}
 
-    override fun packId() = "HollowCore Resources"
+    override fun packId() = "HollowEngine Embed Resources"
     override fun close() {}
 
     val resources = asPack()

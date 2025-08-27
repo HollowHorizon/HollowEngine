@@ -113,7 +113,7 @@ object HollowCoreClient {
                             TitleBar(window)
 
                         }
-                        Image("hollowcore:textures/block/example.png")
+                        Image("hollowengine:textures/block/example.png")
                     }
                     addWindowSurface(w2) {
                         Column(Grow.Std, Grow.Std) {

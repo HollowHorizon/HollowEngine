@@ -68,7 +68,7 @@ interface HollowPacket : CustomPacketPayload {
 
     //? if >= 1.21 {
     /*override fun type(): CustomPacketPayload.Type<HollowPacket> {
-        return CustomPacketPayload.Type("hollowcore:${this::class.java.name.lowercase().filter { ResourceLocation.validPathChar(it) }}".rl)
+        return CustomPacketPayload.Type("hollowengine:${this::class.java.name.lowercase().filter { ResourceLocation.validPathChar(it) }}".rl)
     }
     *///?}
 }

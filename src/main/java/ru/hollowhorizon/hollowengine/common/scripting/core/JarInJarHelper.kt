@@ -10,7 +10,7 @@ import java.nio.file.Files
 import java.util.jar.JarFile
 import kotlin.io.path.exists
 
-private val embedMods = File("hollowcore/embed_mods/").apply {
+private val embedMods = File("hollowengine/embed_mods/").apply {
     if (!exists()) this.mkdirs()
 }.toPath()
 

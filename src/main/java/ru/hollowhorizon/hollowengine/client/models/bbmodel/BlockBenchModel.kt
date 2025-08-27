@@ -17,7 +17,7 @@ private val json = Json {
 }
 
 fun main() {
-    val model: BlockBenchModel = json.decodeFromStream("hollowcore:models/example.bbmodel".rl.stream)
+    val model: BlockBenchModel = json.decodeFromStream("hollowengine:models/example.bbmodel".rl.stream)
 
     println(model)
 }

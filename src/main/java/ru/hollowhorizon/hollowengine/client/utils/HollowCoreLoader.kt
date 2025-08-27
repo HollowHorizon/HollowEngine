@@ -12,7 +12,7 @@ import ru.hollowhorizon.hollowengine.common.config.HollowConfig
 import ru.hollowhorizon.hollowengine.common.config.hollowConfig
 
 object HollowCoreLoader {
-    val config by hollowConfig(::Config, "hollowcore-loader")
+    val config by hollowConfig(::Config, "hollowengine-loader")
 
     @JvmStatic
     fun canAttachRenderdoc(): Boolean {

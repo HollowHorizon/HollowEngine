@@ -143,7 +143,7 @@ object MolangCompiler {
             className,
             null,
             "java/lang/Object",
-            arrayOf("ru.hollowhorizon.hollowengine/common/utils/molang/compiler/BoolExpr")
+            arrayOf("ru/hollowhorizon/hollowengine/common/utils/molang/compiler/BoolExpr")
         )
         generateCtor(cw)
         val mv = cw.visitMethod(
@@ -176,7 +176,7 @@ object MolangCompiler {
             className,
             null,
             "java/lang/Object",
-            arrayOf("ru.hollowhorizon.hollowengine/common/utils/molang/compiler/FloatExpr")
+            arrayOf("ru/hollowhorizon/hollowengine/common/utils/molang/compiler/FloatExpr")
         )
         generateCtor(cw)
         val mv = cw.visitMethod(

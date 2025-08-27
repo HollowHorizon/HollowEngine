@@ -7,7 +7,7 @@ import ru.hollowhorizon.hollowengine.LOGGER
 
 class HollowCoreMixinConfigPlugin : IMixinConfigPlugin {
     init {
-        LOGGER.info("HollowCore Loading Plugin")
+        LOGGER.info("HollowEngine Loading Plugin")
     }
 
     override fun onLoad(mixinPackage: String) {}

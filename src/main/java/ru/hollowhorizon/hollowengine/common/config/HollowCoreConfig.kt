@@ -19,7 +19,7 @@ class InventoryConfig {
 
 @Serializable
 class Scripting {
-    var includeMods = mutableListOf("hollowcore", "hollowengine") + platformMods
+    var includeMods = mutableListOf("hollowengine") + platformMods
 }
 
 private val platformMods = when (HollowCore.platform) {

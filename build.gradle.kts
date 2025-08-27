@@ -24,8 +24,8 @@ val container = ModProject(
     license = license,
 
     entryPoints = mapOf(
-        "main" to listOf("ru.hollowhorizon.hc.fabric.HCFabric::onCommonInitialize"),
-        "client" to listOf("ru.hollowhorizon.hc.fabric.HCFabric::onClientInitialize")
+        "main" to listOf("ru.hollowhorizon.hollowengine.fabric.HCFabric::onCommonInitialize"),
+        "client" to listOf("ru.hollowhorizon.hollowengine.fabric.HCFabric::onClientInitialize")
     ),
     dependencies = mapOf(),
 

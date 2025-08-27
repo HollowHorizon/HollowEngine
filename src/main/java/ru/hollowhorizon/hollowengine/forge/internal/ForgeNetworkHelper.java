@@ -20,13 +20,13 @@ import ru.hollowhorizon.hollowengine.common.network.HollowPacketKt;
 public class ForgeNetworkHelper {
     public static SimpleChannel hollowCoreChannel = ChannelBuilder
             //? if >=1.21 {
-            .named("hollowcore:hollow_packets")
+            .named("hollowengine:hollow_packets")
             .networkProtocolVersion(4)
             .clientAcceptedVersions(Channel.VersionTest.exact(4))
             .serverAcceptedVersions(Channel.VersionTest.exact(4))
             
             //?} else {
-            /^.named(ForgeKotlinKt.getRl("hollowcore:hollow_packets"))
+            /^.named(ForgeKotlinKt.getRl("hollowengine:hollow_packets"))
             .networkProtocolVersion(() -> "4")
             .clientAcceptedVersions(v->v.equals("4"))
             .serverAcceptedVersions(v->v.equals("4"))

@@ -16,7 +16,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.core.mappings.remapJars
 import sun.misc.Unsafe
 import java.io.File
 
-private val deobfClassPath: File = File("hollowcore/.classpath")
+private val deobfClassPath: File = File("hollowengine/.classpath")
     .apply { if (!exists()) mkdirs() }
 
 
@@ -54,13 +54,13 @@ fun setupScripting() {
 
 fun cleanup() {
     val modsHashCode = ModList.mods.map { ModList.getFile(it) }.sumOf { it.hashCode() }
-    val hashFile = File("hollowcore/scripting_env.hash").apply { if (!parentFile.exists()) parentFile.mkdirs() }
+    val hashFile = File("hollowengine/scripting_env.hash").apply { if (!parentFile.exists()) parentFile.mkdirs() }
     if (hashFile.exists()) {
         if (hashFile.readText().toInt() == modsHashCode) return
     }
     hashFile.writeText(modsHashCode.toString())
 
-    File("hollowcore/embed_mods").walk().forEach { it.delete() }
+    File("hollowengine/embed_mods").walk().forEach { it.delete() }
     deobfClasspath.forEach { it.delete() }
 }
 
@@ -72,7 +72,7 @@ fun setupMods() {
             .map { ModList.getFile(it) }
             .filter { it.name.endsWith(".jar") },
         //?} else {
-        /*File("hollowcore/embed_mods").walk()
+        /*File("hollowengine/embed_mods").walk()
             .filter { it.extension == "jar" }
             .toList(),
         *///?}
