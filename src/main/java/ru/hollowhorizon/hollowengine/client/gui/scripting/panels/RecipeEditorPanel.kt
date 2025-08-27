@@ -9,7 +9,7 @@ import net.minecraft.world.Container
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.crafting.Recipe
 import net.minecraft.world.item.crafting.RecipeType
-import ru.hollowhorizon.hc.client.kool.Item
+import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.recipe.RecipeFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme

@@ -29,7 +29,7 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.packs.resources.ResourceManager
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener
 import net.minecraft.util.profiling.ProfilerFiller
-import ru.hollowhorizon.hc.common.events.registry.RegisterReloadListenersEvent
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
 import kotlin.reflect.KClass
 
 abstract class EngineRegistry<T : RegistryEntry> {

@@ -7,21 +7,18 @@ import org.eclipse.lsp4j.services.LanguageClient
 import org.eclipse.lsp4j.services.LanguageClientAware
 import org.eclipse.lsp4j.services.LanguageServer
 import org.eclipse.lsp4j.services.NotebookDocumentService
-import org.jetbrains.kotlin.diagnostics.rendering.DefaultErrorMessages
-import org.jetbrains.kotlin.diagnostics.rendering.DiagnosticFactoryToRendererMap
-import ru.hollowhorizon.hc.common.utils.UnsafeTools
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.project.kt.command.ALL_COMMANDS
+import ru.hollowhorizon.hollowengine.common.project.kt.externalsources.ClassContentProvider
+import ru.hollowhorizon.hollowengine.common.project.kt.externalsources.ClassPathSourceArchiveProvider
+import ru.hollowhorizon.hollowengine.common.project.kt.externalsources.CompositeSourceArchiveProvider
+import ru.hollowhorizon.hollowengine.common.project.kt.externalsources.JdkSourceArchiveProvider
 import ru.hollowhorizon.hollowengine.common.project.kt.progress.LanguageClientProgress
 import ru.hollowhorizon.hollowengine.common.project.kt.progress.Progress
 import ru.hollowhorizon.hollowengine.common.project.kt.semantictokens.semanticTokensLegend
 import ru.hollowhorizon.hollowengine.common.project.kt.util.AsyncExecutor
 import ru.hollowhorizon.hollowengine.common.project.kt.util.TemporaryDirectory
-import ru.hollowhorizon.hollowengine.common.project.kt.externalsources.*
-import ru.hollowhorizon.hollowengine.common.project.kt.imports.UNUSED_IMPORT_FACTORY
 import java.io.Closeable
 import java.nio.file.Paths
 import java.util.concurrent.CompletableFuture
@@ -32,11 +29,22 @@ object KotlinLanguageServer : LanguageServer, LanguageClientAware, Closeable {
     val classPath = CompilerClassPath(config.compiler, config.scripts, config.codegen)
 
     private val tempDirectory = TemporaryDirectory()
-    private val uriContentProvider = URIContentProvider(ClassContentProvider(config.externalSources, classPath, tempDirectory, CompositeSourceArchiveProvider(JdkSourceArchiveProvider(classPath), ClassPathSourceArchiveProvider(classPath))))
+    private val uriContentProvider = URIContentProvider(
+        ClassContentProvider(
+            config.externalSources,
+            classPath,
+            tempDirectory,
+            CompositeSourceArchiveProvider(
+                JdkSourceArchiveProvider(classPath),
+                ClassPathSourceArchiveProvider(classPath)
+            )
+        )
+    )
     val sourcePath = SourcePath(classPath, uriContentProvider, config.indexing)
     val sourceFiles = SourceFiles(sourcePath, uriContentProvider, config.scripts)
 
-    private val textDocuments = KotlinTextDocumentService(sourceFiles, sourcePath, config, tempDirectory, uriContentProvider, classPath)
+    private val textDocuments =
+        KotlinTextDocumentService(sourceFiles, sourcePath, config, tempDirectory, uriContentProvider, classPath)
     private val workspaces = KotlinWorkspaceService(sourceFiles, sourcePath, classPath, textDocuments, config)
     private val protocolExtensions = KotlinProtocolExtensionService(uriContentProvider, classPath, sourcePath)
 
@@ -81,7 +89,8 @@ object KotlinLanguageServer : LanguageServer, LanguageClientAware, Closeable {
         serverCapabilities.documentSymbolProvider = Either.forLeft(true)
         serverCapabilities.workspaceSymbolProvider = Either.forLeft(true)
         serverCapabilities.referencesProvider = Either.forLeft(true)
-        serverCapabilities.semanticTokensProvider = SemanticTokensWithRegistrationOptions(semanticTokensLegend, true, true)
+        serverCapabilities.semanticTokensProvider =
+            SemanticTokensWithRegistrationOptions(semanticTokensLegend, true, true)
         serverCapabilities.codeActionProvider = Either.forLeft(true)
         serverCapabilities.documentFormattingProvider = Either.forLeft(true)
         serverCapabilities.documentRangeFormattingProvider = Either.forLeft(true)
@@ -91,7 +100,8 @@ object KotlinLanguageServer : LanguageServer, LanguageClientAware, Closeable {
         val storagePath = getStoragePath(params)
 
         val clientCapabilities = params.capabilities
-        config.completion.snippets.enabled = clientCapabilities?.textDocument?.completion?.completionItem?.snippetSupport ?: false
+        config.completion.snippets.enabled =
+            clientCapabilities?.textDocument?.completion?.completionItem?.snippetSupport ?: false
 
         if (clientCapabilities?.window?.workDoneProgress ?: false) {
             progressFactory = LanguageClientProgress.Factory(client)
@@ -103,8 +113,9 @@ object KotlinLanguageServer : LanguageServer, LanguageClientAware, Closeable {
 
         @Suppress("DEPRECATION")
         val folders = params.workspaceFolders?.takeIf { it.isNotEmpty() }
-            ?: params.rootUri?.let { WorkspaceFolder(it, "Workspace") } ?.let(::listOf)
-            ?: params.rootPath?.let(Paths::get)?.toUri()?.toString()?.let { WorkspaceFolder(it, "Workspace") }?.let(::listOf)
+            ?: params.rootUri?.let { WorkspaceFolder(it, "Workspace") }?.let(::listOf)
+            ?: params.rootPath?.let(Paths::get)?.toUri()?.toString()?.let { WorkspaceFolder(it, "Workspace") }
+                ?.let(::listOf)
             ?: listOf()
 
         val progress = params.workDoneToken?.let { LanguageClientProgress("Workspace folders", it, client) }
@@ -112,7 +123,7 @@ object KotlinLanguageServer : LanguageServer, LanguageClientAware, Closeable {
         sourceFiles.addWorkspaceRoot(DirectoryManager.HOLLOW_ENGINE.resolve("scripts"))
         val refreshed = classPath.addWorkspaceRoot(DirectoryManager.HOLLOW_ENGINE.resolve("scripts"))
 
-        if(refreshed) sourcePath.refresh()
+        if (refreshed) sourcePath.refresh()
 
 
         textDocuments.lintAll()
@@ -139,8 +150,8 @@ object KotlinLanguageServer : LanguageServer, LanguageClientAware, Closeable {
     // Fixed in https://github.com/eclipse/lsp4j/commit/04b0c6112f0a94140e22b8b15bb5a90d5a0ed851
     // Causes issue in lsp 0.15
     override fun getNotebookDocumentService(): NotebookDocumentService? {
-		return null;
-	}
+        return null;
+    }
 }
 
 object KotlinLanguageClient : LanguageClient {

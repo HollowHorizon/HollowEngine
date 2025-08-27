@@ -6,7 +6,7 @@ import de.fabmax.kool.util.TextCaretNavigation
 import org.eclipse.lsp4j.CompletionItemKind
 import org.eclipse.lsp4j.Position
 import org.jetbrains.kotlin.psi.psiUtil.endOffset
-import ru.hollowhorizon.hc.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.fullText
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.CompiledFileProvider
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextAreaNode

@@ -8,11 +8,11 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.serializer
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.LivingEntity
-import ru.hollowhorizon.hc.common.capabilities.SyncableListImpl
-import ru.hollowhorizon.hc.common.coroutines.coroutineScope
-import ru.hollowhorizon.hc.common.utils.currentServer
-import ru.hollowhorizon.hc.common.utils.nbt.NBTFormat
-import ru.hollowhorizon.hc.common.utils.nbt.deserialize
+import ru.hollowhorizon.hollowengine.common.capabilities.SyncableListImpl
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.common.utils.currentServer
+import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
+import ru.hollowhorizon.hollowengine.common.utils.nbt.deserialize
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.getLevel
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext

@@ -7,11 +7,11 @@ import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import org.apache.commons.io.FileUtils
-import ru.hollowhorizon.hc.common.network.HollowPacket
-import ru.hollowhorizon.hc.common.network.HollowPacketHandler
-import ru.hollowhorizon.hc.common.utils.currentServer
-import ru.hollowhorizon.hc.common.utils.literal
-import ru.hollowhorizon.hc.common.utils.nbt.ForTextComponent
+import ru.hollowhorizon.hollowengine.common.network.HollowPacket
+import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.utils.currentServer
+import ru.hollowhorizon.hollowengine.common.utils.literal
+import ru.hollowhorizon.hollowengine.common.utils.nbt.ForTextComponent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.startScript
 import ru.hollowhorizon.hollowengine.common.scripting.stopScript

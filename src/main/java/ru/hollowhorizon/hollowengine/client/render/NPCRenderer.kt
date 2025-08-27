@@ -7,10 +7,10 @@ import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.culling.Frustum
 import net.minecraft.client.renderer.entity.EntityRendererProvider
 import net.minecraft.network.chat.Component
-import ru.hollowhorizon.hc.client.render.entity.HollowEntityRenderer
-import ru.hollowhorizon.hc.common.utils.get
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
-import ru.hollowhorizon.hc.common.events.registry.RegisterEntityRenderersEvent
+import ru.hollowhorizon.hollowengine.client.render.entity.HollowEntityRenderer
+import ru.hollowhorizon.hollowengine.common.utils.get
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterEntityRenderersEvent
 import ru.hollowhorizon.hollowengine.client.gui.dialog.DialogGui
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability

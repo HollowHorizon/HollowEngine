@@ -7,11 +7,11 @@ import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hc.client.kool.minecraft.Image
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
-import ru.hollowhorizon.hc.common.network.HollowPacket
-import ru.hollowhorizon.hc.common.network.HollowPacketHandler
-import ru.hollowhorizon.hc.common.utils.literal
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.network.HollowPacket
+import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu

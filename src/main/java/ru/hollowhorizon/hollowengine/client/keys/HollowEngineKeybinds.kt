@@ -4,11 +4,11 @@ package ru.hollowhorizon.hollowengine.client.keys
 
 import net.minecraft.client.KeyMapping
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hc.client.utils.open
-import ru.hollowhorizon.hc.common.events.ClientOnly
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
-import ru.hollowhorizon.hc.common.events.registry.RegisterKeyBindingsEvent
-import ru.hollowhorizon.hc.common.events.tick.TickEvent
+import ru.hollowhorizon.hollowengine.client.utils.open
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterKeyBindingsEvent
+import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentScreen
 
 val HOLLOW_ENGINE_KEY = KeyMapping("key.hollowengine.menu", GLFW.GLFW_KEY_F12, "key.hollowengine")

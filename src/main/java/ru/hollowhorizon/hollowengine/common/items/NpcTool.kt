@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.items
 
 //? if <=1.19.2
-/*import ru.hollowhorizon.hc.client.utils.math.level*/
+/*import ru.hollowhorizon.hollowengine.client.utils.math.level*/
 import com.mojang.blaze3d.systems.RenderSystem
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
@@ -17,13 +17,13 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hc.common.utils.get
-import ru.hollowhorizon.hc.common.utils.literal
-import ru.hollowhorizon.hc.client.utils.open
-import ru.hollowhorizon.hc.common.network.HollowPacketHandler
-import ru.hollowhorizon.hc.common.network.HollowPacket
-import ru.hollowhorizon.hc.common.objects.items.CreativeTab
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hollowengine.common.utils.get
+import ru.hollowhorizon.hollowengine.common.utils.literal
+import ru.hollowhorizon.hollowengine.client.utils.open
+import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.network.HollowPacket
+import ru.hollowhorizon.hollowengine.common.objects.items.CreativeTab
 import ru.hollowhorizon.hollowengine.client.gui.NPCToolGui
 import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity

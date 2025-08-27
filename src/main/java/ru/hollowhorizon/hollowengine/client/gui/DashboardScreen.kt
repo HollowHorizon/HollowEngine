@@ -3,10 +3,10 @@ package ru.hollowhorizon.hollowengine.client.gui
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.MsdfFont
-import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT
-import ru.hollowhorizon.hc.client.kool.KoolScreen
-import ru.hollowhorizon.hc.common.events.Event
-import ru.hollowhorizon.hc.common.events.post
+import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
+import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
+import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.post
 
 fun interface KoolGui {
     fun Scene.setup()

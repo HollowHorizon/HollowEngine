@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.structure
 
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hc.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.common.data.HollowEngineCorePack
 import ru.hollowhorizon.hollowengine.common.structure.PoolBuilder.Companion.build
 import ru.hollowhorizon.hollowengine.common.structure.StructureSetBuilder.Companion.build

@@ -4,9 +4,9 @@ import kotlinx.coroutines.delay
 import net.minecraft.ChatFormatting
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hc.common.utils.colored
-import ru.hollowhorizon.hc.common.utils.literal
-import ru.hollowhorizon.hc.common.utils.plus
+import ru.hollowhorizon.hollowengine.common.utils.colored
+import ru.hollowhorizon.hollowengine.common.utils.literal
+import ru.hollowhorizon.hollowengine.common.utils.plus
 import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
 
 suspend fun Player.waitPos(pos: Vec3, radius: Float = 1f, inverse: Boolean = false) {

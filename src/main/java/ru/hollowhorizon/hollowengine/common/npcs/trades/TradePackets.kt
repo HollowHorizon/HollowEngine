@@ -4,17 +4,17 @@ import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hc.common.utils.get
-import ru.hollowhorizon.hc.common.utils.mcText
+import ru.hollowhorizon.hollowengine.common.utils.get
+import ru.hollowhorizon.hollowengine.common.utils.mcText
 //? if <=1.19.2
-/*import ru.hollowhorizon.hc.client.utils.math.level*/
-import ru.hollowhorizon.hc.common.containers.ClientContainerManager
-import ru.hollowhorizon.hc.common.containers.ServerContainerManager
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
-import ru.hollowhorizon.hc.common.events.container.ContainerEvent
-import ru.hollowhorizon.hc.common.network.HollowPacketHandler
-import ru.hollowhorizon.hc.common.network.HollowPacket
-import ru.hollowhorizon.hc.common.utils.literal
+/*import ru.hollowhorizon.hollowengine.client.utils.math.level*/
+import ru.hollowhorizon.hollowengine.common.containers.ClientContainerManager
+import ru.hollowhorizon.hollowengine.common.containers.ServerContainerManager
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.container.ContainerEvent
+import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.network.HollowPacket
+import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.client.gui.npcs.trading.TradeMenuGui
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability

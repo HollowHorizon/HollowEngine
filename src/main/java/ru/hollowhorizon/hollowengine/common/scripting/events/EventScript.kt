@@ -4,9 +4,9 @@ package ru.hollowhorizon.hollowengine.common.scripting.events
 import com.google.common.collect.HashMultimap
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
-import ru.hollowhorizon.hc.HollowCore
-import ru.hollowhorizon.hc.common.coroutines.scopeAsync
-import ru.hollowhorizon.hc.common.events.*
+import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.common.coroutines.scopeAsync
+import ru.hollowhorizon.hollowengine.common.events.*
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration

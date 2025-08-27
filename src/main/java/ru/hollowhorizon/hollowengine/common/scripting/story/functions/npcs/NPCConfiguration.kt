@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
-import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hc.common.utils.get
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hollowengine.common.utils.get
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 
 var NpcEntity.model: String

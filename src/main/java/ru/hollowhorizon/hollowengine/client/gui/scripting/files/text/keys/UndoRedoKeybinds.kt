@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys
 import de.fabmax.kool.input.KeyCode
 import de.fabmax.kool.input.LocalKeyCode
 import de.fabmax.kool.input.UniversalKeyCode
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
 
 private val UNDO_KEY = UniversalKeyCode('Z')

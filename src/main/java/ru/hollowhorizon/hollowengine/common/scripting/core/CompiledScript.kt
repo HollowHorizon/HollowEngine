@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core
 
 import kotlinx.coroutines.runBlocking
-import ru.hollowhorizon.hc.HollowCore
-import ru.hollowhorizon.hc.common.utils.isProduction
-import ru.hollowhorizon.hc.common.events.post
+import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.common.utils.isProduction
+import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
 import ru.hollowhorizon.hollowengine.client.gui.overlay.UpdateStatusPacket
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler.saveScriptToJar

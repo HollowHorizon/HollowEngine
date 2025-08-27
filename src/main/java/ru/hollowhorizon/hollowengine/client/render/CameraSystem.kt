@@ -2,8 +2,8 @@ package ru.hollowhorizon.hollowengine.client.render
 
 import net.minecraft.client.Minecraft
 import net.minecraft.util.Mth
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
-import ru.hollowhorizon.hc.common.utils.get
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.utils.get
 import ru.hollowhorizon.hollowengine.common.capability.Camera
 import ru.hollowhorizon.hollowengine.common.capability.CameraCapability
 import ru.hollowhorizon.hollowengine.mixins.client.CameraInvoker
@@ -18,14 +18,14 @@ fun onSetup(event: CameraSetupEvent) {
     when (camera) {
         Camera.Default -> return
         is Camera.Static -> {
-            controller.position(camera.pos.x, camera.pos.y, camera.pos.z)
+            controller.`hollowcore$setPosition`(camera.pos.x, camera.pos.y, camera.pos.z)
             event.yaw = camera.yaw
             event.pitch = camera.pitch
             event.roll = camera.roll
         }
 
         is Camera.Watcher -> {
-            controller.position(camera.pos.x, camera.pos.y, camera.pos.z)
+            controller.`hollowcore$setPosition`(camera.pos.x, camera.pos.y, camera.pos.z)
             val target = camera.entity.getPosition(event.partialTick).add(0.0, camera.entity.eyeHeight.toDouble(), 0.0)
             val d0: Double = target.x - camera.pos.x
             val d1: Double = target.y - camera.pos.y

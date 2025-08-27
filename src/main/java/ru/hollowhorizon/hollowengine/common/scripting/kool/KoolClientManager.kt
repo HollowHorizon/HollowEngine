@@ -2,11 +2,11 @@ package ru.hollowhorizon.hollowengine.common.scripting.kool
 
 import de.fabmax.kool.modules.ui2.UiSurface
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hc.client.kool.KoolManager
-import ru.hollowhorizon.hc.client.kool.gl.render
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
-import ru.hollowhorizon.hc.common.events.client.render.GuiOverlay
-import ru.hollowhorizon.hc.common.events.client.render.RenderOverlayEvent
+import ru.hollowhorizon.hollowengine.client.kool.KoolManager
+import ru.hollowhorizon.hollowengine.client.kool.gl.render
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
 
 object KoolClientManager {
     private val ACTIVE_SCENES = HashMap<String, KoolScript>()

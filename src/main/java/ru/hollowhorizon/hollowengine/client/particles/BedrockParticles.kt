@@ -1,0 +1,27 @@
+package ru.hollowhorizon.hollowengine.client.particles
+
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.decodeFromStream
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.server.packs.resources.ResourceManager
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener
+import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.client.particles.file.BedrockParticleFile
+import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
+
+object BedrockParticles : ResourceManagerReloadListener {
+    val PARTICLES = hashMapOf<ResourceLocation, BedrockParticleFile>()
+
+    @OptIn(ExperimentalSerializationApi::class)
+    override fun onResourceManagerReload(resourceManager: ResourceManager) {
+        PARTICLES.clear()
+        resourceManager.listResources("particles") { it.path.endsWith(".bedrock.json") }
+            .forEach { (location, resource) ->
+                try {
+                    PARTICLES[location] = JsonFormat.decodeFromStream(resource.open())
+                } catch (e: Exception) {
+                    HollowCore.LOGGER.warn("Error while loading $location", e)
+                }
+            }
+    }
+}

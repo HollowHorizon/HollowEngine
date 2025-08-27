@@ -3,8 +3,8 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.dialog
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import net.minecraft.client.Minecraft
-import ru.hollowhorizon.hc.client.kool.minecraft.Image
-import ru.hollowhorizon.hc.common.coroutines.scopeSync
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.common.coroutines.scopeSync
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.inline.InlineScript

@@ -9,8 +9,8 @@ import java.nio.file.Path
 /*import net.minecraftforge.fml.loading.FMLLoader
 import kotlin.io.path.absolutePathString
 *///?}
-import ru.hollowhorizon.hc.common.utils.ModList
-import ru.hollowhorizon.hc.common.utils.isProduction
+import ru.hollowhorizon.hollowengine.common.utils.ModList
+import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import ru.hollowhorizon.hollowengine.common.scripting.core.mappings.MAPPINGS
 import ru.hollowhorizon.hollowengine.common.scripting.core.mappings.remapJars
 import sun.misc.Unsafe

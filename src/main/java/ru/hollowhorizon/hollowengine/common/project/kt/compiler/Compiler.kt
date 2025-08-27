@@ -62,7 +62,7 @@ import org.jetbrains.kotlin.serialization.deserialization.descriptors.Deserializ
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.expressions.ExpressionTypingServices
 import org.jetbrains.kotlin.util.KotlinFrontEndException
-import ru.hollowhorizon.hc.common.utils.UnsafeTools
+import ru.hollowhorizon.hollowengine.common.utils.UnsafeTools
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.CodegenConfiguration
 import ru.hollowhorizon.hollowengine.common.project.kt.CompilerConfiguration

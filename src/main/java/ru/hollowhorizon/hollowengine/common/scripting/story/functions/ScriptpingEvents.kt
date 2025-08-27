@@ -3,11 +3,11 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.functions
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hc.common.events.Event
-import ru.hollowhorizon.hc.common.events.EventBus
-import ru.hollowhorizon.hc.common.events.EventListener
-import ru.hollowhorizon.hc.common.events.awaitEvent
-import ru.hollowhorizon.hc.common.events.server.ServerChatEvent
+import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.EventBus
+import ru.hollowhorizon.hollowengine.common.events.EventListener
+import ru.hollowhorizon.hollowengine.common.events.awaitEvent
+import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 
 @Serializable
 class ScriptingEventListener(val eventType: String) {

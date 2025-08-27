@@ -6,7 +6,7 @@ import de.fabmax.kool.pipeline.ClearDepthDontCare
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
-import ru.hollowhorizon.hc.client.kool.KoolScreen
+import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import kotlin.math.roundToInt
 

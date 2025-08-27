@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.registry
 
-import ru.hollowhorizon.hc.common.registry.HollowRegistry
-import ru.hollowhorizon.hc.common.utils.rl
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.items.NpcTool
 import ru.hollowhorizon.hollowengine.common.items.StoryTellerDimItem

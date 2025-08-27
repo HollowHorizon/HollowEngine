@@ -24,8 +24,8 @@ import org.jetbrains.kotlin.psi.stubs.elements.KtPropertyElementType
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.calls.util.getResolvedCall
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
-import ru.hollowhorizon.hc.common.events.Event
-import ru.hollowhorizon.hc.common.events.post
+import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.common.fsm.StateNode
 import ru.hollowhorizon.hollowengine.common.project.kt.imports.UNUSED_IMPORT_FACTORY

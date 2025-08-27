@@ -1,13 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
-import ru.hollowhorizon.hc.client.models.internal.controller.BlendMode
-import ru.hollowhorizon.hc.client.models.internal.controller.Controller
-import ru.hollowhorizon.hc.client.models.internal.controller.WrapMode
-import ru.hollowhorizon.hc.client.models.internal.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hc.client.models.internal.manager.manager
-import ru.hollowhorizon.hc.client.models.internal.manager.play
-import ru.hollowhorizon.hc.client.models.internal.manager.stop
-import ru.hollowhorizon.hc.common.utils.get
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.BlendMode
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.Controller
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.AnimatedEntityCapability
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.manager
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.play
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.stop
+import ru.hollowhorizon.hollowengine.common.utils.get
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 
 fun NpcEntity.play(

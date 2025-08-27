@@ -6,8 +6,8 @@ import de.fabmax.kool.modules.ui2.docking.DockLayout
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
 import net.minecraft.client.Minecraft
-import ru.hollowhorizon.hc.client.kool.KoolScreen
-import ru.hollowhorizon.hc.common.events.post
+import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
+import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme

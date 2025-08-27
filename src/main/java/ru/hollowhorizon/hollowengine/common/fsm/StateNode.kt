@@ -3,8 +3,8 @@ package ru.hollowhorizon.hollowengine.common.fsm
 import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.*
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hc.common.coroutines.coroutineScope
-import ru.hollowhorizon.hc.common.utils.currentServer
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.common.utils.currentServer
 
 class TransitionRequest(val path: String) : CancellationException()
 

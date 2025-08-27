@@ -3,8 +3,8 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys
 import de.fabmax.kool.input.KeyCode
 import de.fabmax.kool.input.KeyEvent
 import de.fabmax.kool.input.KeyboardInput
-import ru.hollowhorizon.hc.common.events.Cancelable
-import ru.hollowhorizon.hc.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.Cancelable
+import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextAreaNode
 
 class ScriptAreaKeyEvent(

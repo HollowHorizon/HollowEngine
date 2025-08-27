@@ -6,13 +6,13 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
-import ru.hollowhorizon.hc.common.capabilities.HollowCapability
-import ru.hollowhorizon.hc.common.capabilities.containers.HollowContainer
-import ru.hollowhorizon.hc.common.capabilities.containers.container
-import ru.hollowhorizon.hc.common.utils.nbt.ForItemStack
-import ru.hollowhorizon.hc.common.utils.nbt.ForResourceLocation
-import ru.hollowhorizon.hc.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.capabilities.CapabilityInstance
+import ru.hollowhorizon.hollowengine.common.capabilities.HollowCapability
+import ru.hollowhorizon.hollowengine.common.capabilities.containers.HollowContainer
+import ru.hollowhorizon.hollowengine.common.capabilities.containers.container
+import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStack
+import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
+import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 
 @HollowCapability(NpcEntity::class)

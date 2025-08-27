@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys
 
 import de.fabmax.kool.input.KeyboardInput
 import org.eclipse.lsp4j.Position
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.CompiledFileProvider
 import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
 import ru.hollowhorizon.hollowengine.common.project.kt.definition.goToDefinition

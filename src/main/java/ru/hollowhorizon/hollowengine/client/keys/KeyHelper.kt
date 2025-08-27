@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.keys
 
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hc.client.utils.mc
+import ru.hollowhorizon.hollowengine.client.utils.mc
 
 enum class Key(val id: Int) {
     ESCAPE(256),

@@ -23,8 +23,11 @@ val container = ModProject(
     modVersion = modVersion,
     license = license,
 
-    entryPoints = mapOf(),
-    dependencies = mapOf("hollowcore" to hollowcore),
+    entryPoints = mapOf(
+        "main" to listOf("ru.hollowhorizon.hc.fabric.HCFabric::onCommonInitialize"),
+        "client" to listOf("ru.hollowhorizon.hc.fabric.HCFabric::onClientInitialize")
+    ),
+    dependencies = mapOf(),
 
     username = "TheHollowHorizon"
 )

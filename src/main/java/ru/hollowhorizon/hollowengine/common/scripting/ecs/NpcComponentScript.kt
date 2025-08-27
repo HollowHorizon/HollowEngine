@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.ecs
 
-import ru.hollowhorizon.hc.common.utils.ModList
+import ru.hollowhorizon.hollowengine.common.utils.ModList
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
 import ru.hollowhorizon.hollowengine.ecs.npc.NpcComponent
 import kotlin.script.experimental.annotations.KotlinScript
@@ -25,7 +25,7 @@ class NpcComponentConfiguration : HollowScriptConfiguration({
         "net.minecraft.server.level.ServerLevel",
         "net.minecraft.world.damagesource.DamageSource",
         "net.minecraft.world.entity.player.Player",
-        "ru.hollowhorizon.hc.client.utils.*"
+        "ru.hollowhorizon.hollowengine.client.utils.*"
     )
     if (ModList.isLoaded("bbs")) defaultImports("ru.hollowhorizon.hollowengine.common.scripting.story.functions.bbs.*")
 })

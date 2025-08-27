@@ -8,13 +8,13 @@ import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.MsdfFont
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hc.client.kool.Entity
-import ru.hollowhorizon.hc.client.kool.KoolManager.MONOCRAFT
-import ru.hollowhorizon.hc.client.kool.KoolScreen
-import ru.hollowhorizon.hc.common.events.Event
-import ru.hollowhorizon.hc.common.events.post
-import ru.hollowhorizon.hc.common.network.HollowPacketHandler
-import ru.hollowhorizon.hc.common.network.HollowPacket
+import ru.hollowhorizon.hollowengine.client.kool.Entity
+import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
+import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
+import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.post
+import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 

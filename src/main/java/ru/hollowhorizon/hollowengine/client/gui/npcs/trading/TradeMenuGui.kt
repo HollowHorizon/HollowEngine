@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.gui.npcs.trading
 
 import de.fabmax.kool.scene.Scene
-import ru.hollowhorizon.hc.common.utils.get
-import ru.hollowhorizon.hc.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.utils.get
+import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.client.gui.KoolGui
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability

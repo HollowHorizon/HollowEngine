@@ -10,9 +10,9 @@ import net.minecraft.client.gui.narration.NarrationElementOutput
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.resources.ResourceLocation
 import org.joml.Matrix4f
-import ru.hollowhorizon.hc.common.utils.literal
-import ru.hollowhorizon.hc.client.utils.math.Interpolation
-import ru.hollowhorizon.hc.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.utils.literal
+import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
+import ru.hollowhorizon.hollowengine.common.utils.rl
 
 class ImageTextButton(
     x: Int,

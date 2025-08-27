@@ -2,8 +2,8 @@ package ru.hollowhorizon.hollowengine.common.scripting.story.functions
 
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerLevel
-import ru.hollowhorizon.hc.common.utils.currentServer
-import ru.hollowhorizon.hc.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.utils.currentServer
+import ru.hollowhorizon.hollowengine.common.utils.rl
 
 fun execute(command: String): Int {
     val src = currentServer.createCommandSourceStack()

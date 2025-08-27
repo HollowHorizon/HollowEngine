@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar
 
 import de.fabmax.kool.modules.ui2.RowScope
-import ru.hollowhorizon.hc.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.Event
 
 open class TitleBarCreationEvent(private val scope: RowScope) : Event {
     fun append(block: RowScope.() -> Unit) {

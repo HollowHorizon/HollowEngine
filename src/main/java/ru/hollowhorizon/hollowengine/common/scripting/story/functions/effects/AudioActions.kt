@@ -6,18 +6,18 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hc.client.audio.SoundBuffer
-import ru.hollowhorizon.hc.client.audio.SoundPlayer
-import ru.hollowhorizon.hc.client.audio.Wave
-import ru.hollowhorizon.hc.client.audio.formats.Mp3Format
-import ru.hollowhorizon.hc.client.audio.formats.OggFormat
-import ru.hollowhorizon.hc.client.audio.formats.WavFormat
-import ru.hollowhorizon.hc.common.utils.nbt.ForResourceLocation
-import ru.hollowhorizon.hc.common.utils.nbt.ForVec3
-import ru.hollowhorizon.hc.common.utils.rl
-import ru.hollowhorizon.hc.client.utils.stream
-import ru.hollowhorizon.hc.common.network.HollowPacketHandler
-import ru.hollowhorizon.hc.common.network.HollowPacket
+import ru.hollowhorizon.hollowengine.client.audio.SoundBuffer
+import ru.hollowhorizon.hollowengine.client.audio.SoundPlayer
+import ru.hollowhorizon.hollowengine.client.audio.Wave
+import ru.hollowhorizon.hollowengine.client.audio.formats.Mp3Format
+import ru.hollowhorizon.hollowengine.client.audio.formats.OggFormat
+import ru.hollowhorizon.hollowengine.client.audio.formats.WavFormat
+import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
+import ru.hollowhorizon.hollowengine.common.utils.nbt.ForVec3
+import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.client.utils.stream
+import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 
 
 infix fun Level.playSound(location: String) = playSound(location, 1f, 1f)

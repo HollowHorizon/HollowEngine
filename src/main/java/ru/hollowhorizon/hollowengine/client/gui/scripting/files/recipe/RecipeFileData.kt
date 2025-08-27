@@ -9,8 +9,8 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.TooltipFlag
 import net.minecraft.world.item.crafting.CraftingRecipe
 import net.minecraft.world.item.crafting.RecipeType
-import ru.hollowhorizon.hc.client.kool.Item
-import ru.hollowhorizon.hc.client.kool.textLine
+import ru.hollowhorizon.hollowengine.client.kool.Item
+import ru.hollowhorizon.hollowengine.client.kool.textLine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentScreen
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData

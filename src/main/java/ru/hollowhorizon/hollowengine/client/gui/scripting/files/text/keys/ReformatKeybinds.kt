@@ -4,7 +4,7 @@ import com.facebook.ktfmt.format.Formatter
 import com.facebook.ktfmt.format.Formatter.KOTLINLANG_FORMAT
 import de.fabmax.kool.input.UniversalKeyCode
 import de.fabmax.kool.util.logW
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.fullText
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.CompiledFileProvider
 

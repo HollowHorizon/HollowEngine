@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting
 
-import ru.hollowhorizon.hc.common.events.AnnotationProcessorEvent
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.AnnotationProcessorEvent
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import kotlin.script.experimental.annotations.KotlinScript
 
 object ScriptTypes {

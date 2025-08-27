@@ -12,9 +12,9 @@ import de.fabmax.kool.util.MsdfFontData
 import de.fabmax.kool.util.MsdfMeta
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
-import ru.hollowhorizon.hc.client.utils.stream
-import ru.hollowhorizon.hc.common.utils.json.JsonFormat
-import ru.hollowhorizon.hc.common.utils.rl
+import ru.hollowhorizon.hollowengine.client.utils.stream
+import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
+import ru.hollowhorizon.hollowengine.common.utils.rl
 
 object IdeTheme {
     @OptIn(ExperimentalSerializationApi::class)

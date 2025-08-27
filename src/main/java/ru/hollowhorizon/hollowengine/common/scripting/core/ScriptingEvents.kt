@@ -4,9 +4,9 @@ import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.SharedScriptCompilationContext
-import ru.hollowhorizon.hc.common.events.Cancelable
-import ru.hollowhorizon.hc.common.events.Event
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.Cancelable
+import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
 import ru.hollowhorizon.hollowengine.client.gui.overlay.UpdateStatusPacket
 import java.io.File

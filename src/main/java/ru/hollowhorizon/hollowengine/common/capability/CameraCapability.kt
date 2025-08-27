@@ -14,13 +14,13 @@ import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hc.common.capabilities.CapabilityInstance
-import ru.hollowhorizon.hc.common.capabilities.HollowCapability
-import ru.hollowhorizon.hc.common.utils.currentServer
-import ru.hollowhorizon.hc.common.utils.get
-import ru.hollowhorizon.hc.common.utils.isLogicalClient
-import ru.hollowhorizon.hc.common.utils.nbt.ForUuid
-import ru.hollowhorizon.hc.common.utils.nbt.ForVec3
+import ru.hollowhorizon.hollowengine.common.capabilities.CapabilityInstance
+import ru.hollowhorizon.hollowengine.common.capabilities.HollowCapability
+import ru.hollowhorizon.hollowengine.common.utils.currentServer
+import ru.hollowhorizon.hollowengine.common.utils.get
+import ru.hollowhorizon.hollowengine.common.utils.isLogicalClient
+import ru.hollowhorizon.hollowengine.common.utils.nbt.ForUuid
+import ru.hollowhorizon.hollowengine.common.utils.nbt.ForVec3
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.getLevel
 import java.util.*
 

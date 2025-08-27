@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.scene
 
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hc.common.utils.currentServer
+import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.fsm.StateNode
 import ru.hollowhorizon.hollowengine.common.npcs.dialogues.dialogue
 import ru.hollowhorizon.hollowengine.common.scripting.core.configuration.HollowScriptConfiguration
@@ -48,8 +48,8 @@ class SceneScriptConfiguration : HollowScriptConfiguration({
         "net.minecraft.world.phys.Vec3",
         "net.minecraft.world.entity.*",
         "net.minecraft.server.level.ServerLevel",
-        "ru.hollowhorizon.hc.client.models.internal.controller.*",
-        "ru.hollowhorizon.hc.client.utils.*",
-        "ru.hollowhorizon.hc.common.utils.*"
+        "ru.hollowhorizon.hollowengine.client.models.internal.controller.*",
+        "ru.hollowhorizon.hollowengine.client.utils.*",
+        "ru.hollowhorizon.hollowengine.common.utils.*"
     )
 })

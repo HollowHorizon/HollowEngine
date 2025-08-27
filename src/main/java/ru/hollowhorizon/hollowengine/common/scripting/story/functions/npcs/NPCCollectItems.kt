@@ -4,7 +4,7 @@ import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hc.common.utils.nbt.ForItemStack
+import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStack
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.fsm.rememberList
 

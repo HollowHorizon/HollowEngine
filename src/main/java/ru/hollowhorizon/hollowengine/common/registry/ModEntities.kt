@@ -3,9 +3,9 @@ package ru.hollowhorizon.hollowengine.common.registry
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.MobCategory
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
-import ru.hollowhorizon.hc.common.events.registry.RegisterEntityAttributesEvent
-import ru.hollowhorizon.hc.common.registry.HollowRegistry
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterEntityAttributesEvent
+import ru.hollowhorizon.hollowengine.common.registry.HollowRegistry
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.entities.SeatEntity

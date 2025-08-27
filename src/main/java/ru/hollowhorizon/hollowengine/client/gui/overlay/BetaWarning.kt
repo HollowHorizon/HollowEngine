@@ -5,7 +5,7 @@ import de.fabmax.kool.pipeline.ClearColorDontCare
 import de.fabmax.kool.pipeline.ClearDepthDontCare
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
-import ru.hollowhorizon.hc.client.kool.KoolManager
+import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 
 object BetaWarning {

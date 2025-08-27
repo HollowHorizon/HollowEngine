@@ -1,10 +1,10 @@
 package ru.hollowhorizon.hollowengine.client
 
-import ru.hollowhorizon.hc.client.kool.gl.render
-import ru.hollowhorizon.hc.common.events.ClientOnly
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
-import ru.hollowhorizon.hc.common.events.client.render.GuiOverlay
-import ru.hollowhorizon.hc.common.events.client.render.RenderOverlayEvent
+import ru.hollowhorizon.hollowengine.client.kool.gl.render
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
 import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
 
 @ClientOnly

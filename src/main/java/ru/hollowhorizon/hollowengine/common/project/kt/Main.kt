@@ -5,8 +5,8 @@ import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
 import java.util.concurrent.Executors
 import org.eclipse.lsp4j.launch.LSPLauncher
-import ru.hollowhorizon.hc.common.network.HollowPacket
-import ru.hollowhorizon.hc.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.network.HollowPacket
+import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.util.tcpStartServer
 import ru.hollowhorizon.hollowengine.common.project.kt.util.tcpConnectToClient

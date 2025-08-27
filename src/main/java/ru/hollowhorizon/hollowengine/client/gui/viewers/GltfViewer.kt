@@ -20,7 +20,7 @@ import de.fabmax.kool.util.Time
 import de.fabmax.kool.util.launchOnMainThread
 import net.minecraft.util.Mth.cos
 import net.minecraft.util.Mth.sin
-import ru.hollowhorizon.hc.client.kool.KoolScreen
+import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
 import kotlin.math.PI
 
 class GltfViewer : KoolScreen() {

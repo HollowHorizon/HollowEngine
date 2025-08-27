@@ -7,18 +7,18 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hc.api.ParticlesProvider
-import ru.hollowhorizon.hc.client.particles.BedrockParticles
-import ru.hollowhorizon.hc.client.particles.ParticleEffect
-import ru.hollowhorizon.hc.client.particles.Transform
-import ru.hollowhorizon.hc.common.network.HollowPacket
-import ru.hollowhorizon.hc.common.network.HollowPacketHandler
-import ru.hollowhorizon.hc.common.network.sendAllInDimension
-import ru.hollowhorizon.hc.common.network.sendTrackingEntity
-import ru.hollowhorizon.hc.common.utils.molang.runtime.LivingEntityQuery
-import ru.hollowhorizon.hc.common.utils.nbt.ForEntity
-import ru.hollowhorizon.hc.common.utils.nbt.ForVec3
-import ru.hollowhorizon.hc.common.utils.rl
+import ru.hollowhorizon.hollowengine.api.ParticlesProvider
+import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
+import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
+import ru.hollowhorizon.hollowengine.client.particles.Transform
+import ru.hollowhorizon.hollowengine.common.network.HollowPacket
+import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.network.sendAllInDimension
+import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntity
+import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
+import ru.hollowhorizon.hollowengine.common.utils.nbt.ForEntity
+import ru.hollowhorizon.hollowengine.common.utils.nbt.ForVec3
+import ru.hollowhorizon.hollowengine.common.utils.rl
 
 fun Level.bedrockParticles(pos: Vec3, location: String) {
     SpawnParticlesPacket(location, pos).sendAllInDimension(this)

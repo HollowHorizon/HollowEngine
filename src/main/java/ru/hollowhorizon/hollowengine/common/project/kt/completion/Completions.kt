@@ -253,7 +253,7 @@ private fun KtElement.asKtClass(): KtElement? {
         ?: this.parent as? KtCallableReferenceExpression
         // something.foo() with cursor in the method
         ?: this.parent?.parent as? KtQualifiedExpression
-        // ?
+        //?
         ?: this as? KtNameReferenceExpression
         // x ? y (infix)
         ?: this.parent as? KtBinaryExpression

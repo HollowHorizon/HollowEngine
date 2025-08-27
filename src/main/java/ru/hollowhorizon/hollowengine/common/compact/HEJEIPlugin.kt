@@ -7,8 +7,8 @@ import mezz.jei.api.registration.*
 import mezz.jei.api.runtime.IJeiRuntime
 import mezz.jei.api.runtime.config.IJeiConfigManager
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hc.common.utils.rl
-import ru.hollowhorizon.hc.common.events.post
+import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.events.ModifyRecipeViewerEvent
 

@@ -9,8 +9,8 @@ import net.minecraft.world.item.CreativeModeTab
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
-import ru.hollowhorizon.hc.common.handlers.tab
-import ru.hollowhorizon.hc.common.objects.items.CreativeTab
+import ru.hollowhorizon.hollowengine.common.handlers.tab
+import ru.hollowhorizon.hollowengine.common.objects.items.CreativeTab
 import ru.hollowhorizon.hollowengine.common.registry.ModDimensions
 import ru.hollowhorizon.hollowengine.common.registry.ModTabs
 

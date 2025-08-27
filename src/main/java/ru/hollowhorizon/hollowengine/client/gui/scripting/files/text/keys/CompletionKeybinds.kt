@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys
 
 import de.fabmax.kool.input.KeyboardInput
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextAreaModifier
 
 

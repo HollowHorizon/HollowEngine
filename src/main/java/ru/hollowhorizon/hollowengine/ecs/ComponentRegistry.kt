@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.ecs
 
-import ru.hollowhorizon.hc.common.events.AnnotationProcessorEvent
-import ru.hollowhorizon.hc.common.events.SubscribeEvent
-import ru.hollowhorizon.hc.common.utils.nbt.NBT_TAGS
+import ru.hollowhorizon.hollowengine.common.events.AnnotationProcessorEvent
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.utils.nbt.NBT_TAGS
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.ecs.npc.NpcComponent
 

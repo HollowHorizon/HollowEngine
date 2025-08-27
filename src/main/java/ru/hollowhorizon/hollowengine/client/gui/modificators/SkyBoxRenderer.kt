@@ -5,7 +5,7 @@ import com.mojang.blaze3d.vertex.*
 import org.joml.Quaternionf
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.util.Mth
-import ru.hollowhorizon.hc.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.utils.rl
 
 
 private val Float.radians: Float
