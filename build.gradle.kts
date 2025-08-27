@@ -44,9 +44,6 @@ repositories {
 dependencies {
     ksp(project(":ksp"))
 
-    install("ru.hollowhorizon:HollowCore-${stonecutter.modPlatform}-${stonecutter.minecraftVersion}:$hollowcore:dev", includeInJar = false, isMod = stonecutter.modPlatform == "forge")
-    include("ru.hollowhorizon:HollowCore-${stonecutter.modPlatform}-${stonecutter.minecraftVersion}:$hollowcore")
-
     setupScripting()
 
     // TODO: Может сделать чтобы он и зависимости зависимостей сразу в jar упаковывал? Но как?
