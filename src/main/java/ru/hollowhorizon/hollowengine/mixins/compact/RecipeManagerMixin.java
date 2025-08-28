@@ -5,7 +5,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import ru.hollowhorizon.hollowengine.common.compact.util.JEIHelper;
+import ru.hollowhorizon.hollowengine.common.compat.util.JEIHelper;
 
 @Mixin(RecipeManager.class)
 public class RecipeManagerMixin {

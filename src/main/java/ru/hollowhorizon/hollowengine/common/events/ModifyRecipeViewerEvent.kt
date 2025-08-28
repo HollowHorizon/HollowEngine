@@ -12,11 +12,10 @@ import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.LOGGER
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 import ru.hollowhorizon.hollowengine.common.utils.mcTranslate
-import ru.hollowhorizon.hollowengine.common.events.Event
-import ru.hollowhorizon.hollowengine.common.compact.util.hide
-import ru.hollowhorizon.hollowengine.common.compact.util.hideWithin
-import ru.hollowhorizon.hollowengine.common.compact.util.recipeCategoryId
-import ru.hollowhorizon.hollowengine.common.compact.util.recipeManager
+import ru.hollowhorizon.hollowengine.common.compat.util.hide
+import ru.hollowhorizon.hollowengine.common.compat.util.hideWithin
+import ru.hollowhorizon.hollowengine.common.compat.util.recipeCategoryId
+import ru.hollowhorizon.hollowengine.common.compat.util.recipeManager
 
 open class ModifyRecipeViewerEvent: Event {
     class RegisterItemSubtypes(val reg: ISubtypeRegistration): ModifyRecipeViewerEvent()

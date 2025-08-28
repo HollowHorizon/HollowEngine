@@ -7,18 +7,16 @@ import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.pipeline.*
 import de.fabmax.kool.util.*
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.json.decodeFromStream
 import net.minecraft.resources.ResourceLocation
 import org.apache.logging.log4j.LogManager
-
 import org.apache.logging.log4j.Logger
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.MCAssetLoader
-import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
-import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.post
+import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
+import ru.hollowhorizon.hollowengine.common.utils.rl
 
 @OptIn(ExperimentalSerializationApi::class)
 object KoolManager {
@@ -46,7 +44,7 @@ object KoolManager {
     }
 }
 
-class KoolInitEvent: Event {
+class KoolInitEvent : Event {
     fun loadTexture(texture: ResourceLocation) {
         ImageManager.load(texture.toString())
     }

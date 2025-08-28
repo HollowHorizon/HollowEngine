@@ -31,8 +31,8 @@ import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 import ru.hollowhorizon.hollowengine.common.utils.nbt.INBTSerializable
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
-import ru.hollowhorizon.hollowengine.common.utils.nbt.deserializeNoInline
-import ru.hollowhorizon.hollowengine.common.utils.nbt.serializeNoInline
+import ru.hollowhorizon.hollowengine.common.utils.serialization.deserializeNoInline
+import ru.hollowhorizon.hollowengine.common.utils.serialization.serializeNoInline
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 import kotlin.reflect.javaType

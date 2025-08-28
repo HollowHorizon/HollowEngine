@@ -32,8 +32,6 @@ import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcMoveControl
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcPathNavigation
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
-import ru.hollowhorizon.hollowengine.ecs.npc.NpcComponent
-import ru.hollowhorizon.hollowengine.ecs.npc.NpcComponentsCapability
 
 class NpcEntity : PathfinderMob, IAnimated {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY, level)
@@ -56,10 +54,6 @@ class NpcEntity : PathfinderMob, IAnimated {
         player
     }
 
-    val components: MutableList<NpcComponent>
-        get() = this[NpcComponentsCapability::class].components
-            .onEach { it.npc = this@NpcEntity }
-
     init {
         setCanPickUpLoot(true)
         createAttributes()
@@ -75,10 +69,6 @@ class NpcEntity : PathfinderMob, IAnimated {
     override fun createNavigation(pLevel: Level) = NpcPathNavigation(pLevel, this)
 
     override fun mobInteract(pPlayer: Player, pHand: InteractionHand): InteractionResult {
-        if (pHand == InteractionHand.MAIN_HAND) {
-            components.forEach { it.onInteract(pPlayer, pHand) }
-        }
-
         if (pHand == InteractionHand.MAIN_HAND && level().isClientSide && pPlayer.mainHandItem.item != ModItems.NPC_TOOL) {
             //NPCMenuGui(this).open()
             return InteractionResult.SUCCESS
@@ -97,17 +87,7 @@ class NpcEntity : PathfinderMob, IAnimated {
     override fun canPickUpLoot() = true
     override fun wantsToPickUp(pStack: ItemStack) = false
 
-    public override fun pickUpItem(pItemEntity: ItemEntity) {
-        components.firstOrNull { it.canPickup(pItemEntity) }?.let {
-            val item = pItemEntity.item
-            onItemPickup(pItemEntity)
-            take(pItemEntity, item.count)
-            pItemEntity.discard()
-        }
-    }
-
     override fun customServerAiStep() {
-        components.forEach { it.tick() }
 
         val capability = this[NPCCapability::class]
 
@@ -137,7 +117,6 @@ class NpcEntity : PathfinderMob, IAnimated {
 
     override fun dropAllDeathLoot(damageSource: DamageSource) {
         super.dropAllDeathLoot(damageSource)
-        components.forEach { it.onDeath(damageSource) }
     }
 
     override fun doPush(pEntity: Entity) {
@@ -187,7 +166,6 @@ class NpcEntity : PathfinderMob, IAnimated {
 
         entityData[sizeX] = pCompound.getFloat("sizeX")
         entityData[sizeY] = pCompound.getFloat("sizeY")
-        components.clear()
     }
 
     val pickupDistance get() = pickupReach

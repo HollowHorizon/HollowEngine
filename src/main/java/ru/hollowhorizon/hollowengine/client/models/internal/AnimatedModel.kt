@@ -38,7 +38,6 @@ import net.minecraft.world.item.ItemStack
 import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.Controller
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.utils.shouldOverrideShaders
@@ -80,6 +79,7 @@ class AnimatedModel(val model: Model, val animations: Map<String, Animation> = m
         light: Int,
         overlay: Int,
     ) {
+
         NODE_GLOBAL_TRANSFORMATION_LOOKUP_CACHE.clear()
 
         model.scenes.forEach { scene ->

@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.client.render
 //? if forge {
 /*import net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles
 import net.minecraftforge.common.MinecraftForge
-import ru.hollowhorizon.hc.common.events.EventBus
+import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
 
 fun setupCamera() {

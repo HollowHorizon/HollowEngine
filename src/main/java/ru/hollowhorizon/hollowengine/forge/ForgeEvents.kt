@@ -1,6 +1,6 @@
-package ru.hollowhorizon.hollowengine.forge//? if forge {
-/*package ru.hollowhorizon.hollowengine.forge
-
+package ru.hollowhorizon.hollowengine.forge
+//? if forge {
+/*
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.InteractionResultHolder
 import net.minecraft.world.entity.player.Player

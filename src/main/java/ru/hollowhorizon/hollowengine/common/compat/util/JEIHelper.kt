@@ -1,13 +1,12 @@
 @file:JvmName("JEIHelper")
 
-package ru.hollowhorizon.hollowengine.common.compact.util
+package ru.hollowhorizon.hollowengine.common.compat.util
 
 import com.google.common.collect.Sets
 import mezz.jei.api.recipe.IRecipeManager
 import mezz.jei.api.recipe.category.IRecipeCategory
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.crafting.RecipeManager
-import java.util.Optional
 import java.util.stream.Collectors
 
 @set:JvmName("setRecipeManager")

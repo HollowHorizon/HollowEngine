@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.compact
+package ru.hollowhorizon.hollowengine.common.compat
 
 import mezz.jei.api.IModPlugin
 import mezz.jei.api.JeiPlugin

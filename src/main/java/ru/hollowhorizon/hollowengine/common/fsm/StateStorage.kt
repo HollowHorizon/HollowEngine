@@ -7,13 +7,14 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.serializer
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.Tag
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.common.capabilities.SyncableListImpl
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
-import ru.hollowhorizon.hollowengine.common.utils.nbt.deserialize
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.getLevel
+import ru.hollowhorizon.hollowengine.common.utils.serialization.deserialize
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
@@ -30,7 +31,7 @@ class StateStorage(val tag: CompoundTag) : CoroutineContext.Element {
 suspend inline fun <reified T : Any> remember(name: String, initializer: () -> T): ReadWriteProperty<Any?, T> {
     val tag = coroutineContext[StateStorage]?.tag ?: error("StateStorage not found!")
     val variable =
-        if (name in tag) NBTFormat.deserialize<T>(tag.get(name)!!)
+        if (name in tag) NBTFormat.deserialize<T, Tag>(tag.get(name)!!)
         else initializer()
 
     return RememberValue(name, variable, serializer<T>(), tag)

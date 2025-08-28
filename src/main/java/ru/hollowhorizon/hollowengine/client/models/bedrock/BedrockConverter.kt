@@ -5,7 +5,6 @@ package ru.hollowhorizon.hollowengine.client.models.bedrock
 import de.fabmax.kool.math.*
 import de.fabmax.kool.scene.TrsTransformF
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.json.decodeFromStream
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.models.internal.*
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
@@ -20,7 +19,7 @@ object BedrockModelLoader : ModelLoader {
     override suspend fun load(location: ResourceLocation): AnimatedModel {
         val model = convert(JsonFormat.decodeFromStream<BedrockFile>(location.stream), location)
 
-        val animationFile = location.withPath(location.path.substringBefore('.')+".animation.json")
+        val animationFile = location.withPath(location.path.substringBefore('.') + ".animation.json")
         val animations = JsonFormat.decodeFromStream<BedrockAnimationFile>(animationFile.stream)
         return AnimatedModel(model, BedrockAnimationConverter.convert(model, animations).associate { it.name to it })
     }
@@ -36,9 +35,9 @@ object BedrockModelLoader : ModelLoader {
     fun BedrockFile.Geometry.convertNodes(location: ResourceLocation): List<Node> {
         val material = Material(
             description.color,
-            if(description.texture.contains(':')) description.texture.rl
+            if (description.texture.contains(':')) description.texture.rl
             else location.withPath(location.path.substringBeforeLast('/') + '/' + description.texture),
-            blend = if(description.textureTranslucent) Material.Blend.BLEND else Material.Blend.OPAQUE,
+            blend = if (description.textureTranslucent) Material.Blend.BLEND else Material.Blend.OPAQUE,
             doubleSided = true
         )
 
@@ -50,7 +49,7 @@ object BedrockModelLoader : ModelLoader {
         val transform = TrsTransformF()
 
         val parent = bones.find { it.name == bone.parent }?.pivot ?: Vec3f.ZERO
-        val localPivot = (bone.pivot - parent) / if(bone.parent == null) 16f else 1f
+        val localPivot = (bone.pivot - parent) / if (bone.parent == null) 16f else 1f
         transform.translate(localPivot)
         transform.rotate(MutableQuatF().rotateByEulers(bone.rotation, EulerOrder.XYZ))
 

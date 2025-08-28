@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Shader Pipeline Config",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "blend": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "func": {
+          "type": "string",
+          "enum": ["add", "subtract", "reverse_subtract", "min", "max"]
+        },
+        "srcrgb": {
+          "type": "string",
+          "enum": ["zero", "one", "srccolor", "1-srccolor", "srcalpha", "1-srcalpha", "dstcolor", "1-dstcolor"]
+        },
+        "dstrgb": {
+          "type": "string",
+          "enum": ["zero", "one", "srccolor", "1-srccolor", "srcalpha", "1-srcalpha", "dstcolor", "1-dstcolor"]
+        }
+      },
+      "required": ["func", "srcrgb", "dstrgb"]
+    },
+    "vertex": {
+      "type": "string",
+      "pattern": "^[a-z0-9_.-]+:[a-z0-9_/.-]+$",
+      "description": "ResourceLocation на вершинный шейдер"
+    },
+    "fragment": {
+      "type": "string",
+      "pattern": "^[a-z0-9_.-]+:[a-z0-9_/.-]+$",
+      "description": "ResourceLocation на фрагментный шейдер"
+    },
+    "attributes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["Position", "Color", "UV0", "UV1", "UV2", "Normal"]
+      }
+    },
+    "samplers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" }
+        },
+        "required": ["name"]
+      }
+    },
+    "uniforms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["float", "int", "matrix3x3", "matrix4x4"]
+          },
+          "count": { "type": "integer", "minimum": 1 },
+          "values": { "type": "array", "items": { "type": "number" } }
+        },
+        "required": ["name", "type", "count", "values"]
+      }
+    }
+  },
+  "required": ["vertex", "fragment", "attributes"]
+}

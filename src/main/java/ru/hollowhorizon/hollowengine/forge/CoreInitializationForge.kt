@@ -1,6 +1,6 @@
-package ru.hollowhorizon.hollowengine.forge//? if forge {
-/*package ru.hollowhorizon.hollowengine.forge
-
+package ru.hollowhorizon.hollowengine.forge
+//? if forge {
+/*
 import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.loading.FMLEnvironment
 import net.minecraftforge.fml.loading.FMLLoader

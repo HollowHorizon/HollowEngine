@@ -29,6 +29,8 @@ import de.fabmax.kool.math.Vec3f
 import net.minecraft.client.Minecraft
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.coordinates.Vec3Argument
+import net.minecraft.nbt.StringTag
+import net.minecraft.nbt.TagParser
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.api.ParticlesProvider
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.AnimatedEntityCapability
@@ -36,12 +38,17 @@ import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelM
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
+import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
+import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
+import ru.hollowhorizon.hollowengine.common.registry.system.keyOf
 import ru.hollowhorizon.hollowengine.common.utils.get
+import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.utils.serialization.serialize
 
 object HollowCommands {
     var brightness = 1f
@@ -125,6 +132,52 @@ object HollowCommands {
                                 player.sendSystemMessage(it.toString().literal)
                             }
                     }
+                }
+
+                "add-component"(
+                    arg("entity", EntityArgument.entity()),
+                    arg("component", StringArgumentType.string()) {
+                        ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
+                    }
+                ) {
+                    val entity = EntityArgument.getEntity(this, "entity")
+                    val component = ComponentRegistry[keyOf(StringArgumentType.getString(this, "component").rl)]
+
+                    (entity as ComponentDispatcher).addComponent(component())
+                }
+
+                "remove-component"(
+                    arg("entity", EntityArgument.entity()),
+                    arg("component", StringArgumentType.string()) {
+                        ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
+                    }
+                ) {
+                    val entity = EntityArgument.getEntity(this, "entity")
+                    val component = StringArgumentType.getString(this, "component").rl
+
+                    (entity as ComponentDispatcher).removeComponent(component)
+                }
+
+                "edit-component"(
+                    arg("entity", EntityArgument.entity()),
+                    arg("component", StringArgumentType.string()) {
+                        ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
+                    },
+                    arg("property", StringArgumentType.string()),
+                    arg("value", StringArgumentType.greedyString())
+                ) {
+                    val entity = EntityArgument.getEntity(this, "entity")
+                    val componentLocation = StringArgumentType.getString(this, "component").rl
+                    val propertyName = StringArgumentType.getString(this, "property")
+                    val value = StringArgumentType.getString(this, "value").trim()
+
+                    val dispatcher = entity as? ComponentDispatcher ?: error("Entity is not a ComponentDispatcher")
+                    val component = dispatcher.`hollowcore$components`[componentLocation] ?: error("Component not found")
+                    val property = component.properties[propertyName] ?: error("Property not found")
+
+                    property.deserialize(JsonFormat, JsonFormat.decodeFromString(value))
+
+                    entity.sendSystemMessage("Property $propertyName of component $componentLocation set to $value".literal)
                 }
             }
         }

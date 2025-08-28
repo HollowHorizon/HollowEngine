@@ -1,6 +1,6 @@
-package ru.hollowhorizon.hollowengine.forge.internal;//? if forge {
-/*package ru.hollowhorizon.hollowengine.forge.internal;
-
+package ru.hollowhorizon.hollowengine.forge.internal;
+//? if forge {
+/*
 import kotlin.Unit;
 
 //? if >=1.21 {

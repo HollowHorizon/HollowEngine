@@ -43,9 +43,6 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.model
 import ru.hollowhorizon.hollowengine.common.util.Node
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.util.toNode
-import ru.hollowhorizon.hollowengine.ecs.ComponentRegistry
-import ru.hollowhorizon.hollowengine.ecs.RegisterComponent
-import ru.hollowhorizon.hollowengine.ecs.npc.NpcComponentsCapability
 import kotlin.script.experimental.api.ResultValue
 import kotlin.script.experimental.api.valueOrNull
 
@@ -72,7 +69,6 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
             val generalPanel = GeneralPanel()
             //val animationsPanel = AnimationsPanel()
             val attributesPanel = AttributesPanel()
-            val componentsPanel = ComponentsPanel()
 
             val entityPanel = EntityPanel()
 
@@ -81,7 +77,6 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                     "hollowengine.gui.tool.general" -> generalPanel.dockable
                     "hollowengine.gui.tool.entity" -> entityPanel.dockable
                     "hollowengine.gui.tool.attributes" -> attributesPanel.dockable
-                    "hollowengine.gui.tool.components" -> componentsPanel.dockable
               //      "hollowengine.gui.tool.animations" -> animationsPanel.dockable
                     else -> null
                 }
@@ -94,7 +89,6 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                         "0:row/1:leaf",
                     )
                 )
-                dock.getLeafAtPath("0:row/0:leaf")?.dock(componentsPanel.dockable)
                 dock.getLeafAtPath("0:row/0:leaf")?.dock(attributesPanel.dockable)
                 //dock.getLeafAtPath("0:row/0:leaf")?.dock(animationsPanel.dockable)
                 dock.getLeafAtPath("0:row/0:leaf")?.dock(generalPanel.dockable)
@@ -343,96 +337,6 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                         }
                     }
                 }
-            }
-        }
-    }
-
-    inner class ComponentsPanel : DockPanel("hollowengine.gui.tool.components", dock) {
-        override val icon = "Not used."
-
-        init {
-            showOnToolbar = false
-        }
-
-        override fun UiScope.compose() {
-            modifier.padding(sizes.smallGap)
-
-            val components =
-                npc.components.map { it.javaClass.getAnnotation(RegisterComponent::class.java).location to it }
-
-            Column(Grow.Std, Grow.Std) {
-                modifier.margin(vertical = sizes.smallGap)
-                val componentsPopup = remember { ItemPopupMenu<Node>("scene-item-popup") }
-                componentsPopup()
-                LazyColumn(containerModifier = { it.background(null) }) {
-                    items(components) { (name, component) ->
-                        Column(Grow.Std) {
-                            modifier.padding(sizes.smallGap)
-                                .border(RectBorder(Color.WHITE, sizes.borderWidth))
-
-                            var isExpanded by remember(false)
-
-                            Row(Grow.Std) {
-                                modifier.backgroundColor(colors.backgroundMid)
-                                    .padding(sizes.smallGap)
-
-                                Text("component.hollowengine.${name.replace('/', '.')}".lang) {
-                                    modifier.width(Grow.Std)
-                                }
-                                Arrow(isHoverable = false) {
-                                    modifier.rotation(if (isExpanded) ROTATION_DOWN else ArrowScope.ROTATION_LEFT)
-                                        .size(14.dp, 14.dp)
-                                        .alignY(AlignmentY.Center)
-                                        .colors(arrowColor = Color.WHITE, Color.WHITE)
-                                        .onClick { isExpanded = !isExpanded }
-                                }
-                                CloseButton(
-                                    background = colors.backgroundMid,
-                                    backgroundHover = colors.backgroundMid.mulRgb(1.2f),
-                                    foreground = Color.WHITE,
-                                    foregroundHover = Color.WHITE
-                                ) {
-                                    npc[NpcComponentsCapability::class].components
-                                        .removeIf { it.javaClass.getAnnotation(RegisterComponent::class.java).location == name }
-                                }
-                            }
-                            if (isExpanded) {
-                                divider()
-                                Column(width = Grow.Std) {
-                                    modifier.padding(sizes.smallGap)
-                                    component()
-                                }
-                            }
-                        }
-                    }
-                }
-                Row {
-                    modifier.align(AlignmentX.Center, AlignmentY.Bottom)
-                    Button("Add Component") {
-                        modifier.textColor(Color.WHITE)
-                        modifier.textHoverColor = Color.WHITE
-                        modifier.onClick {
-                            val node = ComponentRegistry.NPC_COMPONENTS.keys.toNode()
-                            componentsPopup.hide()
-                            componentsPopup.show(it.screenPosition, loadMenu(node) {
-                                ComponentRegistry.NPC_COMPONENTS[it.path]?.let {
-                                    npc.components.add(it(npc))
-                                }
-                            }, node)
-                        }
-                    }
-                    Box {
-                        modifier.margin(sizes.smallGap)
-                    }
-                    Button("Sync") {
-                        modifier.textColor(Color.WHITE)
-                        modifier.textHoverColor = Color.WHITE
-                        modifier.onClick {
-                            npc[NpcComponentsCapability::class].isChanged = true
-                        }
-                    }
-                }
-
             }
         }
     }

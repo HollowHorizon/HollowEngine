@@ -9,7 +9,6 @@ import ru.hollowhorizon.hollowengine.api.Init
 import ru.hollowhorizon.hollowengine.common.config.HollowConfig
 import ru.hollowhorizon.hollowengine.common.config.hollowConfig
 import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
-import ru.hollowhorizon.hollowengine.client.HollowEngineClient
 import ru.hollowhorizon.hollowengine.common.ai.ShapesIncApi
 import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageClient
 import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
@@ -40,8 +39,6 @@ object HollowEngine {
         LOGGER.info("Initializing Hollow Engine 2.0!")
 
         loadEvents()
-
-        if (isPhysicalClient) HollowEngineClient
 
         //? if forge {
         /*if(isPhysicalClient) setupCamera()

@@ -69,10 +69,10 @@ dependencies {
     install("io.ktor:ktor-websockets-jvm:3.1.3", true)
 
     // CONFIG //
-    install("com.akuleshov7:ktoml-core-jvm:0.5.1", false)
+    install("com.akuleshov7:ktoml-core-jvm:0.5.1", true)
 
     // GRAPHICS //
-    install("de.fabmax.kool:kool-core:$koolVersion", false)
+    install("de.fabmax.kool:kool-core:$koolVersion", true)
     include("com.github.weisj:jsvg:2.0.0")
     install("com.facebook:ktfmt:0.54")
 

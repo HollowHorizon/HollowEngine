@@ -24,17 +24,17 @@
 
 package ru.hollowhorizon.hollowengine.common.utils.nbt
 
-import com.google.common.reflect.TypeToken
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.SerialKind
 import kotlinx.serialization.modules.*
-import net.minecraft.core.BlockPos
 import net.minecraft.nbt.*
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
+import ru.hollowhorizon.hollowengine.common.utils.serialization.deserialize
+import ru.hollowhorizon.hollowengine.common.utils.serialization.serialize
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.InputStream
@@ -81,7 +81,7 @@ internal val TagModule
 
 val MAPPINGS_SERIALIZER by lazy { NBTFormat() }
 
-open class NBTFormat(context: SerializersModule = EmptySerializersModule()) : SerialFormat {
+open class NBTFormat(context: SerializersModule = EmptySerializersModule()) : SerialFormat, Format<Tag> {
     override val serializersModule = context + TagModule
 
     companion object Default : NBTFormat() {
@@ -97,18 +97,17 @@ open class NBTFormat(context: SerializersModule = EmptySerializersModule()) : Se
     data class Initializator(val value: String)
 
     fun init() {
-        //Первый вызов сериализатора происходит около 5 секунд, так что лучше сделать это заранее и асинхронно
-        runBlocking {
-            deserialize<Initializator>(serialize(Initializator("")))
-        }
+        // Первый вызов долгий, нужно инициализировать все внутренние механизмы сериализации
+        val tag = serialize(Initializator(""))
+        NBTFormat.deserialize<Initializator, Tag>(tag)
     }
 
-    fun <T> serialize(serializer: SerializationStrategy<T>, obj: T): Tag {
-        return writeNbt(obj, serializer)
+    override fun <T> serialize(serializer: SerializationStrategy<T>, value: T): Tag {
+        return writeNbt(value, serializer)
     }
 
-    fun <T> deserialize(deserializer: DeserializationStrategy<T>, tag: Tag): T {
-        return readNbt(tag, deserializer)
+    override fun <T> deserialize(deserializer: DeserializationStrategy<T>, data: Tag): T {
+        return readNbt(data, deserializer)
     }
 }
 
@@ -142,25 +141,6 @@ fun DataInputStream.loadAsNBT(): Tag {
 }
 
 fun InputStream.loadAsNBT() = DataInputStream(this).loadAsNBT()
-
-inline fun <reified T> NBTFormat.serialize(value: T): Tag {
-    return serialize(serializersModule.serializer(), value)
-}
-
-fun <T : Any> NBTFormat.serializeNoInline(value: T, cl: Class<T>): Tag {
-    val typeToken = TypeToken.of(cl)
-    return serialize(serializersModule.serializer(typeToken.type), value)
-}
-
-inline fun <reified T> NBTFormat.deserialize(tag: Tag): T {
-    return deserialize(serializersModule.serializer(), tag)
-}
-
-@Suppress("UNCHECKED_CAST")
-fun <T : Any> NBTFormat.deserializeNoInline(tag: Tag, cl: Class<out T>): T {
-    val typeToken = TypeToken.of(cl)
-    return deserialize(serializersModule.serializer(typeToken.type), tag) as T
-}
 
 @OptIn(ExperimentalSerializationApi::class)
 internal fun compoundTagInvalidKeyKind(keyDescriptor: SerialDescriptor) = IllegalStateException(
