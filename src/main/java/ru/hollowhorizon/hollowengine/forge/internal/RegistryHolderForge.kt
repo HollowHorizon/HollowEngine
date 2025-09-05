@@ -72,8 +72,86 @@ import ru.hollowhorizon.hollowengine.common.objects.blocks.BlockItemProperties
 import ru.hollowhorizon.hollowengine.common.objects.items.CreativeTab
 import ru.hollowhorizon.hollowengine.common.registry.AutoModelType
 import ru.hollowhorizon.hollowengine.common.registry.IRegistryHolder
+import ru.hollowhorizon.hollowengine.common.registry.system.Holder
+import ru.hollowhorizon.hollowengine.common.registry.system.RegistryState
+import ru.hollowhorizon.hollowengine.common.registry.system.RegistryVersion
+import ru.hollowhorizon.hollowengine.common.registry.system.keyOf
+import kotlin.jvm.optionals.getOrNull
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
+
+class ForgeRegistry<T: Any>(val registry: Registry<T>): ru.hollowhorizon.hollowengine.common.registry.system.MutableRegistry<T> {
+    override val key: ResourceLocation = registry.key().location()
+    override val state: RegistryState = RegistryState.REGISTERING
+    override val size: Int get() = registry.size()
+
+    override fun getId(value: T): Int = registry.getId(value)
+
+    override fun getById(id: Int): T? = registry.getHolder(id).getOrNull()?.value()
+
+    override fun getHolder(id: Int): Holder<T>? {
+        val holder = registry.getHolder(id).getOrNull() ?: return null
+        return Holder<T>(keyOf(holder.key().location().namespace, holder.key().location().path), id).apply {
+            this.value = holder.value()
+        }
+    }
+
+    override fun getOrNull(key: ru.hollowhorizon.hollowengine.common.registry.system.ResourceKey<T>): T? {
+        return registry.get(key.location)
+    }
+
+    override fun getHolder(key: ru.hollowhorizon.hollowengine.common.registry.system.ResourceKey<T>): Holder<T>? {
+        val holder = registry.getHolder(net.minecraft.resources.ResourceKey.create(registry.key(), key.location)).getOrNull() ?: return null
+        return Holder(key, registry.getId(holder.value())).apply {
+            this.value = holder.value()
+        }
+    }
+
+    override fun contains(key: ru.hollowhorizon.hollowengine.common.registry.system.ResourceKey<T>): Boolean {
+        return registry.containsKey(key.location)
+    }
+
+    override fun iterator(): Iterator<Holder<T>> {
+        return registry.holders().map {
+            Holder<T>(keyOf(it.key().location().namespace, it.key().location().path), getId(it.value())).apply {
+                this.value = it.value()
+            }
+        }.iterator()
+    }
+
+    override val version: RegistryVersion = RegistryVersion(1, 0, 0)
+
+    override fun register(
+        key: ru.hollowhorizon.hollowengine.common.registry.system.ResourceKey<T>,
+        supplier: () -> T,
+    ): Holder<T> {
+        val item = supplier()
+        Registry.register(registry, key.location, item)
+        return Holder(key, registry.getId(item)).apply {
+            this.value = item
+        }
+    }
+
+    override fun unregister(key: ru.hollowhorizon.hollowengine.common.registry.system.ResourceKey<T>): Boolean {
+        throw UnsupportedOperationException("Unregister is not supported in Fabric")
+    }
+
+    override fun bake() {
+        // NO-OP
+    }
+
+    override fun freeze() {
+        // NO-OP
+    }
+
+    override fun unfreeze() {
+        // NO-OP
+    }
+
+    override fun unbake() {
+        // NO-OP
+    }
+}
 
 @Suppress("UNCHECKED_CAST")
 class RegistryHolderForge<T : Any>(
@@ -153,8 +231,8 @@ class RegistryHolderForge<T : Any>(
             Instrument::class.isAssigned() -> liteRegister(Registries.INSTRUMENT)
             CreativeModeTab::class.isAssigned() -> liteRegister(Registries.CREATIVE_MODE_TAB)
             //? if >=1.21 {
-            DataComponentType::class.isAssigned() -> liteRegister(BuiltInRegistries.DATA_COMPONENT_TYPE.key())
-            //?}
+            /^DataComponentType::class.isAssigned() -> liteRegister(BuiltInRegistries.DATA_COMPONENT_TYPE.key())
+            ^///?}
 
             registry != null -> liteRegister(registry.key())
 

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.forge
 //? if forge {
-/*
+
+/*import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.InteractionResultHolder
 import net.minecraft.world.entity.player.Player
@@ -41,7 +42,8 @@ object ForgeEvents {
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onServerStop)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::registerCommands)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onServerTick)
-        MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onEntityTracking)
+        MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onEntityTrackingStart)
+        MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onEntityTrackingStop)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onPlayerJoin)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onPlayerChangeDimension)
         MinecraftForge.EVENT_BUS.addListener(::onBlockBreak)
@@ -107,9 +109,14 @@ object ForgeEvents {
         )
     }
 
-    private fun onEntityTracking(event: net.minecraftforge.event.entity.player.PlayerEvent.StartTracking) {
-        EntityTrackingEvent(event.entity, event.target).post()
+    private fun onEntityTrackingStart(event: net.minecraftforge.event.entity.player.PlayerEvent.StartTracking) {
+        EntityTrackingEvent.Start(event.entity as ServerPlayer, event.target).post()
     }
+
+    private fun onEntityTrackingStop(event: net.minecraftforge.event.entity.player.PlayerEvent.StartTracking) {
+        EntityTrackingEvent.Stop(event.entity as ServerPlayer, event.target).post()
+    }
+
 
     private fun onPlayerJoin(event: net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent) {
         PlayerEvent.Join(event.entity).post()

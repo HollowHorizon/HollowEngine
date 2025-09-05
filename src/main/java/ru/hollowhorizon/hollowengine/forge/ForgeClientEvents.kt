@@ -75,8 +75,8 @@ object ForgeClientEvents {
             event.itemStack,
             event.toolTip,
             //? if >=1.21 {
-            Item.TooltipContext.of(Minecraft.getInstance().level)
-            //?}
+            /^Item.TooltipContext.of(Minecraft.getInstance().level)
+            ^///?}
         ).post()
     }
 
