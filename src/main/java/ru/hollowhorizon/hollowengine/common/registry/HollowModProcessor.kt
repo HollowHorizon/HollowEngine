@@ -85,12 +85,6 @@ object HollowModProcessor {
             }
         }
 
-        registerClassHandler<Registry> { clazz, t ->
-            val type = (clazz.genericSuperclass as ParameterizedType).actualTypeArguments[0] as Class<*>
-            val instance = clazz.kotlin.objectInstance as CoreRegistry<*>
-            REGISTRIES[type] = instance
-        }
-
         registerClassHandler<Polymorphic> { type, annotation ->
             NBT_TAGS.computeIfAbsent(annotation.baseClass) { ArrayList() }.add(type.kotlin)
         }
