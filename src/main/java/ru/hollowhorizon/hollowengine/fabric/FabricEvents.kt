@@ -81,7 +81,10 @@ object FabricEvents {
 
     private fun onEntityTracking() {
         EntityTrackingEvents.START_TRACKING.register { entity, player ->
-            EntityTrackingEvent(player, entity).post()
+            EntityTrackingEvent.Start(player, entity).post()
+        }
+        EntityTrackingEvents.STOP_TRACKING.register { entity, player ->
+            EntityTrackingEvent.Stop(player, entity).post()
         }
     }
 

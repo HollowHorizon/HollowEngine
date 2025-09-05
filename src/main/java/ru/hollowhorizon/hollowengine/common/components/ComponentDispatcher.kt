@@ -4,53 +4,35 @@ import kotlinx.serialization.Serializable
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.Tag
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
 import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.components.system.ComponentEvent
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.entity.EntityTrackingEvent
 import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntity
 import ru.hollowhorizon.hollowengine.common.registry.system.keyOf
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
-import ru.hollowhorizon.hollowengine.common.utils.isLogicalClient
+import ru.hollowhorizon.hollowengine.common.utils.nbt.ForTag
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
 import kotlin.reflect.full.findAnnotation
 
 
 interface ComponentDispatcher {
     val `hollowcore$components`: MutableMap<ResourceLocation, Component<*>>
+}
 
-
-    fun <T : Component<*>> addComponent(component: T) {
-        val meta = component::class.findAnnotation<ComponentMeta>()
-            ?: error("Required component ${component::class.simpleName} not registered via ComponentMeta")
-        `hollowcore$components`[meta.location.rl] = component
-        component.onAttach()
-        component.provider = JavaHacks.forceCast(this)
-        ComponentEvent.Added(component).post()
-    }
-
-    fun removeComponent(location: ResourceLocation): Boolean {
-        val component = `hollowcore$components`[location] ?: return false
-        val dependents = `hollowcore$components`.values.filter { component::class in it.dependencies }
-        if (dependents.isNotEmpty()) {
-            throw IllegalStateException("Cannot remove ${component::class.simpleName}, used by ${dependents.joinToString { it::class.simpleName ?: "unknown" }}")
-        }
-        component.onDetach()
-        `hollowcore$components`.remove(location)
-        ComponentEvent.Removed(component).post()
-        if (!(this as Entity).level().isClientSide) RemoveClientsideComponentPacket(
-            entityId = this.id,
-            componentId = ComponentRegistry.getIdByLocation(location) ?: return true
-        ).sendTrackingEntity(this)
-        return true
-    }
+inline fun <reified T: Component<*>> ComponentDispatcher.getComponent(): T {
+    val location = T::class.findAnnotation<ComponentMeta>()?.location?.rl ?: error("ComponentMeta annotation not found on ${T::class}")
+    return `hollowcore$components`[location] as T
 }
 
 fun ComponentDispatcher.save(): CompoundTag {
@@ -94,91 +76,112 @@ fun ComponentDispatcher.load(tag: CompoundTag) {
 }
 
 fun ComponentDispatcher.sync() {
-    `hollowcore$components`.forEach { (location, component) ->
-        if (!component.enabled) return@forEach
-        var hasChanges = false
+    if (this is Entity && !this.level().isClientSide) {
+        val changedComponents = HashMap<Int, Map<String, Tag>>()
+        `hollowcore$components`.forEach { (location, component) ->
+            val props = component.properties.mapNotNull { (name, property) ->
+                if (property.sync.shouldSync(property) && property.changed) {
+                    property.changed = false
+                    name to (property.serialize(NBTFormat) ?: return@mapNotNull null)
+                } else null
+            }.toMap()
 
-        component.properties.forEach { (name, property) ->
-            if (property.sync.shouldSync(property) && !isLogicalClient) {
-                hasChanges = true
-                SyncPropertyPacket(
-                    entityId = (this as? Entity)?.id ?: return@forEach,
-                    componentId = ComponentRegistry.getIdByLocation(location) ?: return@forEach,
-                    propertyName = name,
-                    propertyTag = property.serialize(NBTFormat) ?: return@forEach
-                ).sendTrackingEntity(this)
+            if (props.isNotEmpty()) {
+                val id = ComponentRegistry.getIdByLocation(location)
+                    ?: error("Component $location not registered!")
+                changedComponents[id] = props
             }
         }
 
-        if (hasChanges) {
-            ComponentEvent.Updated(component).post()
+        if (changedComponents.isNotEmpty()) {
+            ComponentsSyncPacket(this.id, changedComponents).sendTrackingEntity(this)
+        }
+    }
+}
+
+fun ComponentDispatcher.attachComponent(component: ResourceLocation) {
+    val key = keyOf<() -> Component<*>>(component)
+    if (ComponentRegistry.contains(key) && !`hollowcore$components`.containsKey(component)) {
+        val comp = ComponentRegistry[key]()
+        comp.provider = JavaHacks.forceCast(this)
+        `hollowcore$components`[component] = comp
+        comp.onAttach()
+        ComponentEvent.Added(comp).post()
+        ComponentsSyncPacket(
+            (this as? Entity)?.id ?: return,
+            mapOf(ComponentRegistry.getIdByLocation(component)!! to comp.properties.mapNotNull { (name, property) ->
+                if (property.sync.shouldSync(property)) {
+                    name to (property.serialize(NBTFormat) ?: return@mapNotNull null)
+                } else null
+            }.toMap())
+        ).sendTrackingEntity(this)
+    } else {
+        error("Component $component not found or already attached!")
+    }
+}
+
+fun ComponentDispatcher.detachComponent(component: ResourceLocation) {
+    val comp = `hollowcore$components`.remove(component) ?: return
+    comp.onDetach()
+    ComponentEvent.Removed(comp).post()
+    if (this is Entity) {
+        RemoveComponentPacket(this.id, ComponentRegistry.getIdByLocation(component)!!).sendTrackingEntity(this)
+    }
+}
+
+fun <T> ComponentDispatcher.editComponent(
+    component: ResourceLocation,
+    property: String,
+    format: Format<T>,
+    value: T,
+) {
+    val comp = `hollowcore$components`[component] ?: error("Component $component not found!")
+    val prop = comp.properties[property] ?: error("Property $property not found!")
+    prop.deserialize(format, value)
+}
+
+@SubscribeEvent
+fun onStartTracking(event: EntityTrackingEvent.Start) {
+    val dispatcher = event.entity as ComponentDispatcher
+    dispatcher.`hollowcore$components`.values.forEach { it.properties.values.forEach { prop -> prop.changed = true } }
+}
+
+
+@Serializable
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
+class ComponentsSyncPacket(
+    val entityId: Int,
+    val properties: Map<Int, Map<String, @Serializable(ForTag::class) Tag>>,
+) : HollowPacket {
+    override fun handle(player: Player) {
+        val entity = player.level().getEntity(entityId) ?: return
+        val dispatcher = entity as? ComponentDispatcher ?: return
+        properties.forEach { (componentId, props) ->
+            val holder = ComponentRegistry.getHolder(componentId) ?: error("Component with id $componentId not found!")
+            val component = dispatcher.`hollowcore$components`[holder.key.location] ?: holder.value().apply {
+                provider = JavaHacks.forceCast(entity)
+                dispatcher.`hollowcore$components`[holder.key.location] = this
+                onAttach()
+                ComponentEvent.Added(this).post()
+            }
+            props.forEach { (name, tag) ->
+                val property = component.properties[name] ?: return@forEach
+                property.deserialize(NBTFormat, tag)
+                property.changed = false
+            }
         }
     }
 }
 
 @Serializable
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-class SyncPropertyPacket(
-    val entityId: Int,
-    val componentId: Int,
-    val propertyName: String,
-    val propertyTag: Tag,
-) : HollowPacket {
+class RemoveComponentPacket(val entityId: Int, val componentId: Int) : HollowPacket {
     override fun handle(player: Player) {
-        val entity = player.level().getEntity(entityId) as? ComponentDispatcher ?: return
-        val componentKey = ComponentRegistry.run { getHolder(componentId)?.key?.location } ?: run {
-            HollowCore.LOGGER.warn("Component with id $componentId not found!")
-            return
-        }
-        val component = entity.`hollowcore$components`[componentKey] ?: ComponentRegistry[keyOf(componentKey)]().apply {
-            provider = JavaHacks.forceCast(entity)
-            entity.`hollowcore$components`[componentKey] = this
-            onAttach()
-            ComponentEvent.Added(this).post()
-        }
-        val property = component.properties[propertyName] ?: run {
-            HollowCore.LOGGER.warn("Property $propertyName not found on component $componentKey!")
-            return
-        }
-        property.deserialize(NBTFormat, propertyTag)
-        ComponentEvent.Updated(component).post()
-    }
-}
-
-@Serializable
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-class RemoveClientsideComponentsPacket(
-    val entityId: Int,
-) : HollowPacket {
-    override fun handle(player: Player) {
-        val entity = player.level().getEntity(entityId) as? ComponentDispatcher ?: return
-        entity.remove()
-    }
-}
-
-@Serializable
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-class RemoveClientsideComponentPacket(
-    val entityId: Int,
-    val componentId: Int,
-) : HollowPacket {
-    override fun handle(player: Player) {
-        val entity = player.level().getEntity(entityId) as? ComponentDispatcher ?: return
-        val componentKey = ComponentRegistry.run { getHolder(componentId)?.key?.location } ?: run {
-            HollowCore.LOGGER.warn("Component with id $componentId not found!")
-            return
-        }
-        entity.removeComponent(componentKey)
-    }
-}
-
-fun ComponentDispatcher.remove() {
-    `hollowcore$components`.forEach { (location, component) ->
+        val entity = player.level().getEntity(entityId) ?: return
+        val dispatcher = entity as? ComponentDispatcher ?: return
+        val componentLocation = ComponentRegistry.getLocationById(componentId) ?: return
+        val component = dispatcher.`hollowcore$components`.remove(componentLocation) ?: return
         component.onDetach()
         ComponentEvent.Removed(component).post()
     }
-    `hollowcore$components`.clear()
-    if (!(this as Entity).level().isClientSide) RemoveClientsideComponentsPacket(entityId = this.id).sendTrackingEntity(
-        this
-    )
 }

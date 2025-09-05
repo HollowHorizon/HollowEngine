@@ -2,10 +2,6 @@ package ru.hollowhorizon.hollowengine.common.items
 
 //? if <=1.19.2
 /*import ru.hollowhorizon.hollowengine.client.utils.math.level*/
-import com.mojang.blaze3d.systems.RenderSystem
-import kotlinx.serialization.Serializable
-import net.minecraft.client.Minecraft
-import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.InteractionResultHolder
@@ -17,16 +13,11 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.client.models.internal.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hollowengine.common.utils.get
-import ru.hollowhorizon.hollowengine.common.utils.literal
+import ru.hollowhorizon.hollowengine.client.gui.component.ComponentEditorScreen
 import ru.hollowhorizon.hollowengine.client.utils.open
-import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.network.HollowPacket
-import ru.hollowhorizon.hollowengine.common.objects.items.CreativeTab
-import ru.hollowhorizon.hollowengine.client.gui.NPCToolGui
-import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
+import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
+import ru.hollowhorizon.hollowengine.common.objects.items.CreativeTab
 import ru.hollowhorizon.hollowengine.common.registry.ModTabs
 
 
@@ -37,10 +28,8 @@ class NpcTool : Item(Properties().stacksTo(1)), CreativeTab {
         pInteractionTarget: LivingEntity,
         pUsedHand: InteractionHand,
     ): InteractionResult {
-        if (pUsedHand == InteractionHand.MAIN_HAND && pPlayer.level().isClientSide &&
-            pInteractionTarget is NpcEntity && pPlayer.hasPermissions(2)
-        ) {
-            NPCToolGui(pInteractionTarget).open()
+        if (pUsedHand == InteractionHand.MAIN_HAND && pPlayer.level().isClientSide && pPlayer.hasPermissions(2)) {
+            ComponentEditorScreen(pInteractionTarget as ComponentDispatcher).open()
             return InteractionResult.SUCCESS
         }
 

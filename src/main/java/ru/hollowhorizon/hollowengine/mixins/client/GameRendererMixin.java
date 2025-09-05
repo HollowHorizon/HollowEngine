@@ -14,8 +14,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler;
+import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
-import ru.hollowhorizon.hollowengine.common.events.client.CameraSetupEvent;
 
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin {

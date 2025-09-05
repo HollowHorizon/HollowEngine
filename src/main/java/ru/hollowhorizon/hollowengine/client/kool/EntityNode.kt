@@ -23,7 +23,7 @@ interface EntityScope : ImageScope {
             val rotationY = atan((yOffset - pointer.y) / 150.0f / 3) * 20f
             yaw = rotationX
             pitch = -rotationY
-            this.headRotationModifier = headRotationModifier
+            this.headRotationModifierY = headRotationModifier
         }
         val pointer = PointerInput.primaryPointer.pos
         val xOffset = uiNode.leftPx + uiNode.paddingStartPx + uiNode.innerWidthPx / 2f
@@ -32,7 +32,8 @@ interface EntityScope : ImageScope {
         val rotationY = atan((yOffset - pointer.y) / 150.0f / 3) * 20f
         yaw = rotationX
         pitch = -rotationY
-        this.headRotationModifier = headRotationModifier
+        this.headRotationModifierY = headRotationModifier
+
         return this
     }
 }
@@ -45,14 +46,16 @@ open class EntityModifier(surface: UiSurface) : GlCanvasModifier(surface) {
     var offset by property(Vec2f(0f, 0f))
     var yaw by property(0f)
     var pitch by property(0f)
-    var headRotationModifier by property(1f)
+    var headRotationModifierX by property(1f)
+    var headRotationModifierY by property(1f)
 }
 
 fun EntityModifier.scale(scale: Float): EntityModifier = apply { this.scale = scale }
 fun EntityModifier.offset(offset: Vec2f): EntityModifier = apply { this.offset = offset }
 fun EntityModifier.yaw(yaw: Float): EntityModifier = apply { this.yaw = yaw }
 fun EntityModifier.pitch(pitch: Float): EntityModifier = apply { this.pitch = pitch }
-fun EntityModifier.headRotationModifier(headRotationModifier: Float): EntityModifier = apply { this.headRotationModifier = headRotationModifier }
+fun EntityModifier.headRotationModifierX(headRotationModifier: Float): EntityModifier = apply { this.headRotationModifierX = headRotationModifier }
+fun EntityModifier.headRotationModifierY(headRotationModifier: Float): EntityModifier = apply { this.headRotationModifierY = headRotationModifier }
 fun EntityModifier.isCustomNameVisible(visible: Boolean): EntityModifier = apply { this.isCustomNameVisible = visible }
 fun EntityModifier.isRenderShadow(visible: Boolean): EntityModifier = apply { this.isRenderShadow = visible }
 

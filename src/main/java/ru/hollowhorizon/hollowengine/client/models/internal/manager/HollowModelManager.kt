@@ -39,12 +39,10 @@ import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockModelLoader
 import ru.hollowhorizon.hollowengine.client.models.fbx.FbxModelLoader
 import ru.hollowhorizon.hollowengine.client.models.gltf.GltfModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
-import ru.hollowhorizon.hollowengine.client.models.internal.Model
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.obj.ObjModelLoader
 import ru.hollowhorizon.hollowengine.client.textures.GlTexture
 import ru.hollowhorizon.hollowengine.client.utils.resource
-import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -160,7 +158,7 @@ interface ModelLoader {
     suspend fun load(location: ResourceLocation): AnimatedModel
 }
 
-class RegisterModelLoaderEvent(private val loaders: MutableList<ModelLoader>) : Event {
+class RegisterModelLoaderEvent(private val loaders: MutableList<ModelLoader>) : ClientEvent {
     fun register(loader: ModelLoader) {
         loaders.add(loader)
     }

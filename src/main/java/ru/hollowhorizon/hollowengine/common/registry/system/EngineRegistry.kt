@@ -68,6 +68,7 @@ interface Registry<T : Any> : Iterable<Holder<T>> {
         val holder = getHolder(keyOf(location)) ?: return null
         return holder.id
     }
+    fun getLocationById(id: Int): ResourceLocation? = getHolder(id)?.key?.location
     fun getById(id: Int): T?
     fun getHolder(id: Int): Holder<T>?
     operator fun get(key: ResourceKey<T>): T = getOrNull(key) ?: error("No value found for $key")

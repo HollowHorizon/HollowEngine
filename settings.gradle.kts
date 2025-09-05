@@ -39,5 +39,3 @@ stonecutter {
 
 val modName: String by settings
 rootProject.name = modName
-
-include("ksp")

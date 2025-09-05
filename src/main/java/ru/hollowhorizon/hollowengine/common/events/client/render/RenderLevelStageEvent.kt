@@ -5,6 +5,7 @@ import net.minecraft.client.Camera
 import net.minecraft.client.renderer.LevelRenderer
 import net.minecraft.client.renderer.culling.Frustum
 import org.joml.Matrix4f
+import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.Event
 
 open class RenderLevelStageEvent(
@@ -14,7 +15,7 @@ open class RenderLevelStageEvent(
     val renderTick: Int, val partialTick: Float,
     val camera: Camera, val frustum: Frustum?,
     val stage: RenderStage,
-) : Event
+) : ClientEvent
 
 enum class RenderStage {
     /**

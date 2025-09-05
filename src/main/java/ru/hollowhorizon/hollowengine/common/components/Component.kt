@@ -1,13 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.components
 
-import net.minecraft.nbt.EndTag
-import net.minecraft.nbt.Tag
+import de.fabmax.kool.modules.ui2.UiScope
+import net.minecraft.world.entity.Entity
+import ru.hollowhorizon.hollowengine.client.kool.addons.Renderer
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
 import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.components.system.ComponentEvent
 import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.registry.system.keyOf
-import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
 import ru.hollowhorizon.hollowengine.common.utils.serialization.deserializeNoInline
@@ -19,6 +19,7 @@ import kotlin.reflect.full.findAnnotation
 
 abstract class Component<T : Any> {
     lateinit var provider: T
+    val isClient get() = (provider as? Entity)?.level()?.isClientSide == true
     val properties: MutableMap<String, PropertyDelegate<*>> = mutableMapOf()
     val dependencies: MutableList<KClass<out Component<*>>> = mutableListOf()
     var enabled: Boolean = true
@@ -29,8 +30,9 @@ abstract class Component<T : Any> {
     inline fun <reified C : Component<*>> component(): C {
         val location = C::class.findAnnotation<ComponentMeta>()?.location?.rl
             ?: error("No ComponentMeta annotation found for ${C::class.simpleName}")
-        val component = (provider as ComponentDispatcher).`hollowcore$components`
-            .getOrPut(location) { ComponentRegistry[keyOf(location)]() } as C
+        val component = (provider as ComponentDispatcher).`hollowcore$components`.getOrPut(location) {
+            ComponentRegistry[keyOf(location)]()
+        } as C
         dependencies.add(component::class)
         return component
     }
@@ -91,11 +93,16 @@ fun interface Save {
     }
 }
 
+
+
 class PropertyDelegate<V : Any>(internal val serializer: Class<V>, private val initializer: () -> V) :
     ReadWriteProperty<Component<*>, V> {
     internal var value: V? = null
+    internal var renderer: Renderer<V>? = null
     internal var sync: Sync = Sync.ON_CHANGE
     internal var save: Save = Save.ALWAYS
+
+    lateinit var name: String
 
     private var copyOnDeath: Boolean = false
     private var onChange: Set<(V?, V) -> Unit> = hashSetOf()
@@ -103,6 +110,7 @@ class PropertyDelegate<V : Any>(internal val serializer: Class<V>, private val i
 
     operator fun provideDelegate(thisRef: Component<*>, property: KProperty<*>): PropertyDelegate<V> {
         thisRef.properties[property.name] = this
+        name = property.name
         return this
     }
 
@@ -124,6 +132,8 @@ class PropertyDelegate<V : Any>(internal val serializer: Class<V>, private val i
 
     fun copyOnDeath() = apply { this.copyOnDeath = true }
     fun onChange(block: (old: V?, new: V) -> Unit) = apply { this.onChange += block }
+
+    fun renderer(renderer: Renderer<V>) = apply { this.renderer = renderer }
 
     fun <T> serialize(format: Format<T>): T? {
         return if (value == null) null

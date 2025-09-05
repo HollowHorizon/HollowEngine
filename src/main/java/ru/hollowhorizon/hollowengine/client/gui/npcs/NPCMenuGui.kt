@@ -6,15 +6,9 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.MsdfFont
-import kotlinx.serialization.Serializable
-import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.kool.Entity
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
 import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
-import ru.hollowhorizon.hollowengine.common.events.Event
-import ru.hollowhorizon.hollowengine.common.events.post
-import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 
@@ -108,15 +102,3 @@ class NPCMenuGui(val npc: NpcEntity) : KoolScreen() {
         }
     }
 }
-
-@Serializable
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
-class NpcTalkPacket(val npcId: Int) : HollowPacket {
-    override fun handle(player: Player) {
-        val npc = player.level().getEntity(npcId) as? NpcEntity ?: return
-
-        PlayerTalkToNpcEvent(npc, player).post()
-    }
-}
-
-class PlayerTalkToNpcEvent(val npc: NpcEntity, val player: Player) : Event

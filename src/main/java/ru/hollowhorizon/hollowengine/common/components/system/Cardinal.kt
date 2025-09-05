@@ -1,33 +1,35 @@
 package ru.hollowhorizon.hollowengine.common.components.system
 
-import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.LightTexture
+import net.minecraft.client.renderer.entity.LivingEntityRenderer
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
-import net.minecraft.world.level.LightLayer
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.api.Init
+import ru.hollowhorizon.hollowengine.client.kool.addons.StringRenderer
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.ModelData
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.utils.toTexture
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
+import ru.hollowhorizon.hollowengine.common.events.ClientEvent
+import ru.hollowhorizon.hollowengine.common.events.ComponentDispatcherEvent
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.EventBus
-import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
-import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
 import ru.hollowhorizon.hollowengine.common.utils.isLogicalClient
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
+import kotlin.reflect.full.findAnnotation
 
 @ComponentMeta("hollowengine:model_renderer")
 class ModelComponent : Component<LivingEntity>() {
     var model: String by property { "hollowengine:models/entity/player_model.gltf" }
+        .renderer(StringRenderer)
         .onChange { old, new ->
-            if(!isLogicalClient) return@onChange
+            if (!isLogicalClient) return@onChange
             internalModel = HollowModelManager.getOrCreate(new.rl)
         }
 
@@ -61,41 +63,60 @@ class MutableLazy<T>(private val initializer: () -> T) {
 
 fun <T> mutableLazy(initializer: () -> T) = MutableLazy(initializer)
 
-object Keter {
+object Cardinal {
     inline fun <reified T : Component<*>> query(noinline filter: T.() -> Boolean = { true }) = Query(T::class, filter)
+
+    inline fun <reified T : ComponentDispatcherEvent<*>, reified C : Component<*>> on(noinline handler: T.(C) -> Unit): (T) -> Unit {
+        val location = C::class.findAnnotation<ComponentMeta>()?.location?.rl
+            ?: error("ComponentMeta annotation not found on ${C::class}")
+        val eventListener: (T) -> Unit = let@{ event ->
+            val dispatcher = event.owner
+            val component = dispatcher.`hollowcore$components`[location]
+            (component as? C)?.let { handler(event, it) }
+        }
+        EventBus.register(eventListener)
+        return eventListener
+    }
 }
 
 class Query<T : Component<*>>(private val type: KClass<T>, private val filter: (T) -> Boolean) {
     val components = mutableSetOf<T>()
+    val clientComponents = mutableSetOf<T>()
 
     private val onAdded: ComponentEvent.Added.() -> Unit = {
         if (component::class == type && filter(component as T)) {
-            components.add(component)
+            if (component.isClient) clientComponents.add(component as T)
+            else components.add(component)
         }
     }
     private val onRemoved: ComponentEvent.Removed.() -> Unit = {
         if (component::class == type) {
             components.remove(component as T)
+            clientComponents.remove(component as T)
         }
     }
     private val onUpdated: ComponentEvent.Updated.() -> Unit = {
         if (component::class == type) {
             val comp = component as T
             if (filter(comp)) {
-                components.add(comp)
+                if (comp.isClient) clientComponents.add(comp)
+                else components.add(comp)
             } else {
                 components.remove(comp)
+                clientComponents.remove(comp)
             }
         }
     }
     private val onEnabled: ComponentEvent.Enabled.() -> Unit = {
         if (component::class == type && filter(component as T)) {
-            components.add(component)
+            if (component.isClient) clientComponents.add(component as T)
+            else components.add(component as T)
         }
     }
     private val onDisabled: ComponentEvent.Disabled.() -> Unit = {
         if (component::class == type) {
             components.remove(component as T)
+            clientComponents.remove(component as T)
         }
     }
 
@@ -108,7 +129,12 @@ class Query<T : Component<*>>(private val type: KClass<T>, private val filter: (
     }
 
     inline fun <reified E : Event> on(noinline handler: E.(Collection<T>) -> Unit): (E) -> Unit {
-        val eventListener: (E) -> Unit = { event ->
+        val eventListener: (E) -> Unit = listener@{ event ->
+            if (event is ClientEvent) {
+                if (clientComponents.isEmpty()) return@listener
+                handler(event, clientComponents)
+                return@listener
+            } else if (components.isEmpty()) return@listener
             handler(event, components)
         }
         EventBus.register(eventListener)
@@ -132,42 +158,35 @@ class Query<T : Component<*>>(private val type: KClass<T>, private val filter: (
 
 @Init
 fun main() {
-    Keter.query<ModelComponent>().apply {
-        on<RenderLevelStageEvent> {
-            if (stage != RenderStage.AFTER_ENTITIES) return@on
-            val vec3 = camera.getPosition()
-            val d0 = vec3.x()
-            val d1 = vec3.y()
-            val d2 = vec3.z()
-            it.forEach {
-                if(!it.provider.level().isClientSide) return@forEach
-                val x = Mth.lerp(partialTick.toDouble(), it.provider.xOld, it.provider.x)
-                val y = Mth.lerp(partialTick.toDouble(), it.provider.yOld, it.provider.y)
-                val z = Mth.lerp(partialTick.toDouble(), it.provider.zOld, it.provider.z)
-                val lerpBodyRot = Mth.rotLerp(partialTick, it.provider.yBodyRotO, it.provider.yBodyRot)
+    Cardinal.on<RenderEntityEvent.Pre, ModelComponent> { model ->
 
-                poseStack.pushPose()
-                poseStack.translate(x - d0, y - d1, z - d2)
-                poseStack.mulPose(Quaternionf().rotateY(180f * Mth.DEG_TO_RAD))
-                poseStack.mulPose(Quaternionf().rotateY(-lerpBodyRot * Mth.DEG_TO_RAD))
-
-                val pos = it.provider.blockPosition()
-                val light = LightTexture.pack(
-                    if (it.provider.isOnFire) 15 else it.provider.level().getBrightness(LightLayer.BLOCK, pos),
-                    it.provider.level().getBrightness(LightLayer.SKY, pos)
+        poseStack.pushPose()
+        if (model.internalModel.model.isBlockBench) poseStack.mulPose(Quaternionf().rotateY(180f * Mth.DEG_TO_RAD))
+        var overlay = OverlayTexture.NO_OVERLAY
+        if (entity is LivingEntity) {
+            poseStack.mulPose(
+                Quaternionf().rotateY(
+                    -Mth.rotLerp(
+                        partialTicks,
+                        entity.yBodyRotO,
+                        entity.yBodyRot
+                    ) * Mth.DEG_TO_RAD
                 )
-
-                it.internalModel.render(
-                    poseStack,
-                    ModelData(null, null, null, null),
-                    { it.toTexture().id },
-                    Minecraft.getInstance().renderBuffers().bufferSource(),
-                    light,
-                    OverlayTexture.NO_OVERLAY
-                )
-
-                poseStack.popPose()
-            }
+            )
+            overlay = LivingEntityRenderer.getOverlayCoords(entity, 0f)
         }
+
+        model.internalModel.render(
+            poseStack,
+            ModelData(null, null, null, null),
+            { it.toTexture().id },
+            buffer,
+            packedLight,
+            overlay
+        )
+        poseStack.popPose()
+
+        isCanceled = true
     }
 }
+

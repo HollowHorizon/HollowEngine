@@ -255,9 +255,9 @@ inline fun LivingEntity.use(dispatcher: EntityRenderDispatcher, modifier: Entity
 
     yBodyRot = modifier.yaw
     yBodyRotO = yBodyRot
-    yRot = modifier.yaw * modifier.headRotationModifier
+    yRot = modifier.yaw * modifier.headRotationModifierY
     yRotO = yRotOld
-    xRot = modifier.pitch
+    xRot = modifier.pitch * modifier.headRotationModifierX
     xRotO = xRot
     yHeadRot = yRot
     yHeadRotO = yHeadRot

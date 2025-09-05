@@ -8,10 +8,8 @@ plugins {
     id("me.fallenbreath.yamlang")
     kotlin("jvm")
     kotlin("plugin.serialization")
-    id("com.google.devtools.ksp") version "2.2.0-2.0.2"
 }
 
-val hollowcore: String by properties
 val modId: String by properties
 val modName: String by properties
 val modVersion: String by properties
@@ -45,7 +43,6 @@ repositories {
 }
 
 dependencies {
-    ksp(project(":ksp"))
 
     setupScripting()
 

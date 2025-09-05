@@ -37,6 +37,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
+import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.inline.InlineScript
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.model
@@ -365,7 +366,7 @@ fun registerNpcOptions(event: NpcOptionsEvent) {
 
 data class NpcOption(val name: String, val onClick: () -> Unit)
 
-class NpcOptionsEvent(private val generator: (NpcOption) -> Unit, val npc: NpcEntity) : Event {
+class NpcOptionsEvent(private val generator: (NpcOption) -> Unit, val npc: NpcEntity) : ClientEvent {
     fun register(npc: NpcOption) {
         generator(npc)
     }

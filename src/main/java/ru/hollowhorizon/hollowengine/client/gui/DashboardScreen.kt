@@ -5,6 +5,7 @@ import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
 import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
+import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.post
 
@@ -40,7 +41,7 @@ class DashBoardScreen : KoolScreen() {
     }
 
     class Tab(val name: String, val onClick: () -> Unit)
-    class TabEvent(private val generator: (Tab) -> Unit) : Event {
+    class TabEvent(private val generator: (Tab) -> Unit) : Event, ClientEvent {
         fun register(tab: Tab) {
             generator(tab)
         }

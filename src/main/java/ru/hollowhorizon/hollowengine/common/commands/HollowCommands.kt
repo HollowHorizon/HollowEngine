@@ -39,6 +39,9 @@ import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
+import ru.hollowhorizon.hollowengine.common.components.attachComponent
+import ru.hollowhorizon.hollowengine.common.components.detachComponent
+import ru.hollowhorizon.hollowengine.common.components.editComponent
 import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
@@ -141,9 +144,9 @@ object HollowCommands {
                     }
                 ) {
                     val entity = EntityArgument.getEntity(this, "entity")
-                    val component = ComponentRegistry[keyOf(StringArgumentType.getString(this, "component").rl)]
+                    val component = StringArgumentType.getString(this, "component").rl
 
-                    (entity as ComponentDispatcher).addComponent(component())
+                    (entity as ComponentDispatcher).attachComponent(component)
                 }
 
                 "remove-component"(
@@ -155,7 +158,7 @@ object HollowCommands {
                     val entity = EntityArgument.getEntity(this, "entity")
                     val component = StringArgumentType.getString(this, "component").rl
 
-                    (entity as ComponentDispatcher).removeComponent(component)
+                    (entity as ComponentDispatcher).detachComponent(component)
                 }
 
                 "edit-component"(
@@ -172,10 +175,8 @@ object HollowCommands {
                     val value = StringArgumentType.getString(this, "value").trim()
 
                     val dispatcher = entity as? ComponentDispatcher ?: error("Entity is not a ComponentDispatcher")
-                    val component = dispatcher.`hollowcore$components`[componentLocation] ?: error("Component not found")
-                    val property = component.properties[propertyName] ?: error("Property not found")
 
-                    property.deserialize(JsonFormat, JsonFormat.decodeFromString(value))
+                    dispatcher.editComponent(componentLocation, propertyName, JsonFormat, JsonFormat.decodeFromString(value))
 
                     entity.sendSystemMessage("Property $propertyName of component $componentLocation set to $value".literal)
                 }

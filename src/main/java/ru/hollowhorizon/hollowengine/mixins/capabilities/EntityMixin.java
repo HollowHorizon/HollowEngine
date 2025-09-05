@@ -14,10 +14,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ru.hollowhorizon.hollowengine.api.ICapabilityDispatcher;
 import ru.hollowhorizon.hollowengine.api.ICapabilityDispatcherKt;
+import ru.hollowhorizon.hollowengine.client.particles.collision.CollisionProvider;
 import ru.hollowhorizon.hollowengine.common.capabilities.CapabilityInstance;
 import ru.hollowhorizon.hollowengine.common.components.Component;
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher;
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcherKt;
+import ru.hollowhorizon.hollowengine.common.components.system.ComponentEvent;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityHurtEvent;
 
@@ -69,9 +71,13 @@ public class EntityMixin implements ICapabilityDispatcher, ComponentDispatcher {
         ComponentDispatcherKt.sync(this);
     }
 
-    @Inject(method = "setRemoved", at= @At("TAIL"))
-    public void onRemove(Entity.RemovalReason removalReason, CallbackInfo ci) {
-        ComponentDispatcherKt.remove(this);
+    @Inject(method = "setRemoved", at = @At("HEAD"))
+    public void onRemoved(CallbackInfo ci) {
+        hollowCore$components.forEach((location, component) -> {
+            component.onDetach();
+            EventBus.post(new ComponentEvent.Removed(component));
+        });
+        hollowCore$components.clear();
     }
 
     @Override

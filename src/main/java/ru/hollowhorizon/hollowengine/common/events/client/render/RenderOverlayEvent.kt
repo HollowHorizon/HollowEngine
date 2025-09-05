@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.resources.ResourceLocation
 import org.jetbrains.annotations.ApiStatus
 import ru.hollowhorizon.hollowengine.common.events.Cancelable
+import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
@@ -48,7 +49,7 @@ abstract class RenderOverlayEvent @ApiStatus.Internal protected constructor(
     val guiGraphics: GuiGraphics,
     val partialTick: Float,
     val overlay: GuiOverlay,
-) : Event {
+) : ClientEvent {
     class Pre(
         window: Window,
         guiGraphics: GuiGraphics,

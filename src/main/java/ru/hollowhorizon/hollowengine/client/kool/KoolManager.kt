@@ -13,7 +13,7 @@ import org.apache.logging.log4j.Logger
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.MCAssetLoader
 import ru.hollowhorizon.hollowengine.client.utils.stream
-import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -44,7 +44,7 @@ object KoolManager {
     }
 }
 
-class KoolInitEvent : Event {
+class KoolInitEvent : ClientEvent {
     fun loadTexture(texture: ResourceLocation) {
         ImageManager.load(texture.toString())
     }
