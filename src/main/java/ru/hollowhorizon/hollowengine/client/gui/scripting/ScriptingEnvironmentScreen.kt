@@ -1,10 +1,19 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
+import de.fabmax.kool.Assets
+import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.DockLayout
+import de.fabmax.kool.pipeline.MipMapping
+import de.fabmax.kool.pipeline.SamplerSettings
+import de.fabmax.kool.pipeline.SingleColorTexture
+import de.fabmax.kool.pipeline.TexFormat
+import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
+import de.fabmax.kool.util.MsdfFontData
+import de.fabmax.kool.util.MsdfMeta
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
 import ru.hollowhorizon.hollowengine.common.events.post
@@ -12,6 +21,18 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.TitleBarCreationEvent
+import ru.hollowhorizon.hollowengine.client.utils.stream
+import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
+import ru.hollowhorizon.hollowengine.common.utils.rl
+
+val HACK_FONT by lazy {
+    val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/hack.json".rl.stream)
+    val msdfMap = Texture2d(TexFormat.RGBA, MipMapping.Off, SamplerSettings(), "MsdfFont:${fontInfo.name}") {
+        Assets.loadImage2d("hollowengine:fonts/hack.png")
+            .getOrDefault(SingleColorTexture.getColorTextureData(Color.BLACK))
+    }
+    MsdfFontData(msdfMap, fontInfo)
+}
 
 class ScriptingEnvironmentScreen : KoolScreen() {
     val dock = Dock()

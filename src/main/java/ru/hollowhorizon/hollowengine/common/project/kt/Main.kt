@@ -1,19 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.project.kt
 
 
-import kotlinx.serialization.Serializable
-import net.minecraft.world.entity.player.Player
 import java.util.concurrent.Executors
 import org.eclipse.lsp4j.launch.LSPLauncher
-import ru.hollowhorizon.hollowengine.common.network.HollowPacket
-import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.util.tcpStartServer
 import ru.hollowhorizon.hollowengine.common.project.kt.util.tcpConnectToClient
-import java.io.ByteArrayOutputStream
 import java.io.InputStream
-import java.io.OutputStream
-import java.util.concurrent.LinkedBlockingQueue
 
 class Args {
     var tcpServerPort: Int? = null
@@ -65,23 +57,5 @@ class ExitingInputStream(private val delegate: InputStream): InputStream() {
         }
 
         return result
-    }
-}
-
-class LSPInputStream : InputStream() {
-    private val queue = LinkedBlockingQueue<Int>()
-    fun feed(data: ByteArray) {
-        for (b in data) queue.put(b.toInt() and 0xFF)
-    }
-    override fun read(): Int = queue.take()
-}
-
-class LSPOutputStream(private val sender: (ByteArray) -> Unit) : OutputStream() {
-    private val buffer = ByteArrayOutputStream()
-    override fun write(b: Int) = buffer.write(b)
-    override fun flush() {
-        val bytes = buffer.toByteArray()
-        buffer.reset()
-        sender(bytes)
     }
 }

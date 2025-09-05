@@ -36,9 +36,6 @@ object LayoutLoader {
         if (!layoutLoaded) {
             dock.createNodeLayout(listOf("0:leaf"))
 
-            layoutLoader("hollowengine.gui.ide.docs")?.let {
-                dock.getLeafAtPath("0")?.dock(it)
-            }
             layoutLoader("hollowengine.gui.ide.project_tree")?.let {
                 dock.getLeafAtPath("0")?.dock(it)
             }

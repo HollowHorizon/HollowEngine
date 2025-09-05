@@ -1,11 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.registry
 
 import net.minecraft.world.item.CreativeModeTab
-import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hollowengine.common.utils.rl
-import ru.hollowhorizon.hollowengine.common.utils.mcTranslate
-import ru.hollowhorizon.hollowengine.common.registry.HollowRegistry
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.common.utils.mcTranslate
 
 object ModTabs : HollowRegistry(HollowEngine.MODID) {
     val HOLLOW_ENGINE: CreativeModeTab by creativeTab("creative_tab") {

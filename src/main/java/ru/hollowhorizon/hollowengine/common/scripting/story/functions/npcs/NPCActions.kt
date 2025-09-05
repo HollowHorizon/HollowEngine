@@ -1,12 +1,3 @@
-@file:DocPage(
-    location = "npcs/actions",
-    title = "Действия для персонажей",
-    description = """
-        Эта глава содержит набор функций для управления действиями NPC.
-        Функции позволяют управлять движением, взглядом, взаимодействием с блоками и предметами, а также выводом сообщений от имени NPC. Все функции являются suspend-функциями, что позволяет использовать их в корутинах для асинхронного выполнения.
-    """
-)
-
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
 import kotlinx.coroutines.delay
@@ -21,10 +12,9 @@ import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ClipContext
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
-import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.ksp.DocPage
 
 /**
  * Перемещает NPC к указанной сущности до тех пор, пока расстояние не станет меньше или равно заданному.

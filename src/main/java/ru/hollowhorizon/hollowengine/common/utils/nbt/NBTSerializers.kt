@@ -555,7 +555,7 @@ object ForVec3 : KSerializer<Vec3> {
 }
 
 object ForVec3f : KSerializer<Vec3f> {
-    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("Vector3d") {
+    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("Vec3f") {
         element("x", Float.serializer().descriptor)
         element("y", Float.serializer().descriptor)
         element("z", Float.serializer().descriptor)

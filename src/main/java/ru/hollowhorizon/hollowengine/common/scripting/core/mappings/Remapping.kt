@@ -17,44 +17,10 @@ import org.objectweb.asm.commons.Remapper
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.scripting.core.deobfClasspath
 import ru.hollowhorizon.hollowengine.common.scripting.core.mappings.metadata.KotlinMetadataRemappingClassVisitor
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.npc
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.pos
 import java.io.File
 import java.util.jar.JarEntry
 import java.util.jar.JarFile
 import java.util.jar.JarOutputStream
-
-class AccessWideningVisitor(parent: ClassVisitor) : ClassVisitor(Opcodes.ASM9, parent) {
-    private fun Int.widen() = this and (Opcodes.ACC_PRIVATE or Opcodes.ACC_PROTECTED).inv() or Opcodes.ACC_PUBLIC
-    private fun Int.removeFinal() = this and Opcodes.ACC_FINAL.inv()
-
-    override fun visit(
-        version: Int,
-        access: Int,
-        name: String,
-        signature: String?,
-        superName: String?,
-        interfaces: Array<String>?,
-    ) {
-        super.visit(version, access.widen().removeFinal(), name, signature, superName, interfaces)
-    }
-
-    override fun visitMethod(
-        access: Int,
-        name: String,
-        descriptor: String,
-        signature: String?,
-        exceptions: Array<String>?,
-    ): MethodVisitor = super.visitMethod(access.widen().removeFinal(), name, descriptor, signature, exceptions)
-
-    override fun visitField(
-        access: Int,
-        name: String,
-        descriptor: String,
-        signature: String?,
-        value: Any?,
-    ): FieldVisitor = super.visitField(access.widen(), name, descriptor, signature, value)
-}
 
 class LambdaAwareRemapper(parent: ClassVisitor, remapper: Remapper) : ClassRemapper(Opcodes.ASM9, parent, remapper) {
     override fun createMethodRemapper(parent: MethodVisitor): MethodRemapper =

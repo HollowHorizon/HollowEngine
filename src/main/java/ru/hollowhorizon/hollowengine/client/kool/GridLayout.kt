@@ -8,7 +8,6 @@ import kotlin.math.max
 import kotlin.math.round
 import kotlin.math.sqrt
 
-// Не знаю, как иначе рассчитать количество ячеек, когда они рассчитываются динамически, пусть будет так...
 object GridLayout : Layout {
     override fun measureContentSize(uiNode: UiNode, ctx: KoolContext) {
         val size = uiNode.children.size

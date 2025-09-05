@@ -28,7 +28,6 @@ import de.fabmax.kool.math.QuatF
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.math.Vec4f
 import de.fabmax.kool.scene.TrsTransformF
-import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.Node
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
@@ -147,19 +146,6 @@ enum class AnimationType {
             return result
         }
     }
-}
-
-enum class AnimationState { STARTING, PLAYING, FINISHED }
-
-@Serializable
-enum class PlayMode {
-    ONCE, //Одиночный запуск анимации
-    LOOPED, //После завершения анимация начнётся с начала
-    LAST_FRAME, //После завершения анимация застынет на последнем кадре
-    REVERSED; //После завершения анимация начнёт проигрываться в обратном порядке
-
-
-    fun stopOnEnd(): Boolean = this == ONCE
 }
 
 class AnimationData(

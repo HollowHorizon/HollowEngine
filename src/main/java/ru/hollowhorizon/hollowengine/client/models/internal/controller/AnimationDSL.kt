@@ -6,7 +6,6 @@ import de.fabmax.kool.scene.TrsTransformF
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.HollowCore
-import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.Node
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.BlendMode.Additive
@@ -583,27 +582,6 @@ data class BlendNode(val clip: ClipNode, val threshold: Float) {
         clip.transferFrom(oldNode.clip)
     }
 
-}
-
-class ModelContext(private val proceduralCommands: HashMap<String, ProceduralTransformer>) {
-    fun setBoneRotation(node: String, rotation: String) {
-        proceduralCommands.getOrPut(node) { ProceduralTransformer() }.rotation = rotation
-    }
-
-    fun setBoneTranslation(node: String, translation: String) {
-        proceduralCommands.getOrPut(node) { ProceduralTransformer() }.translation = translation
-    }
-
-    fun setBoneScale(node: String, scale: String) {
-        proceduralCommands.getOrPut(node) { ProceduralTransformer() }.scale = scale
-    }
-}
-
-@Serializable
-class ProceduralTransformer {
-    var translation = ""
-    var rotation = ""
-    var scale = ""
 }
 
 @Serializable

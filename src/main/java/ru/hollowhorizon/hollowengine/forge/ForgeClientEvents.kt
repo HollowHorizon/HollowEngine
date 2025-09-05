@@ -94,7 +94,7 @@ object ForgeClientEvents {
     }
 
     private fun onCameraSetup(event: net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles) {
-        val hcEvent = ru.hollowhorizon.hollowengine.common.events.client.CameraSetupEvent(event.renderer, event.camera, event.partialTick.toFloat(), event.yaw, event.pitch, event.roll)
+        val hcEvent = ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent(event.renderer, event.camera, event.partialTick.toFloat(), event.yaw, event.pitch, event.roll)
         hcEvent.post()
         event.yaw = hcEvent.yaw
         event.pitch = hcEvent.pitch
