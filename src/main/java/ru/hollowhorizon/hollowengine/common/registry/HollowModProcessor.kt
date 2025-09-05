@@ -108,8 +108,8 @@ object HollowModProcessor {
             ComponentRegistry.register(keyOf(location.namespace, location.path)) { generator }
         }
 
-        ComponentRegistry.bake()
-        ComponentRegistry.freeze()
+        RegistryManager.bakeAll()
+        RegistryManager.freezeAll()
 
         registerClassInitializers<HollowRegistry>()
     }
