@@ -208,7 +208,7 @@ object MCGlApi: GlApi {
     override fun createRenderbuffer(): GlRenderbuffer = GlRenderbuffer(glGenRenderbuffers())
     override fun createShader(type: Int): GlShader = GlShader(glCreateShader(type))
     override fun createTexture(): GlTexture = GlTexture(glGenTextures())
-    override fun createVertexArray(): GlVertexArrayObject = GlVertexArrayObject(glCreateVertexArrays())
+    override fun createVertexArray(): GlVertexArrayObject = GlVertexArrayObject(glGenVertexArrays())
     override fun compileShader(shader: GlShader) = glCompileShader(shader.handle)
     override fun copyTexSubImage2D(target: Int, level: Int, xoffset: Int, yoffset: Int, x: Int, y: Int, width: Int, height: Int) = glCopyTexSubImage2D(target, level, xoffset, yoffset, x, y, width, height)
     override fun cullFace(mode: Int) = glCullFace(mode)

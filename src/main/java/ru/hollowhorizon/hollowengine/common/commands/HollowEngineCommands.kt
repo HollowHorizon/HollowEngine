@@ -1,32 +1,34 @@
 package ru.hollowhorizon.hollowengine.common.commands
 
 import com.mojang.brigadier.arguments.StringArgumentType
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import net.minecraft.ChatFormatting
+import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.utils.mc
-import ru.hollowhorizon.hollowengine.common.commands.arg
-import ru.hollowhorizon.hollowengine.common.commands.onRegisterCommands
-import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
+import ru.hollowhorizon.hollowengine.common.components.lifecycle.attach
+import ru.hollowhorizon.hollowengine.common.components.lifecycle.detach
+import ru.hollowhorizon.hollowengine.common.components.lifecycle.edit
+import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.coroutines.scopeAsync
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
-import ru.hollowhorizon.hollowengine.common.network.HollowPacket
-import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
+import ru.hollowhorizon.hollowengine.common.network.HollowPacket
+import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolClientManager
 import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolScript
 import ru.hollowhorizon.hollowengine.common.scripting.scene.SceneScriptManager
+import ru.hollowhorizon.hollowengine.common.utils.*
+import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import java.io.File
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -37,37 +39,47 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
     event.dispatcher.onRegisterCommands {
         "hollowengine" {
             "hand" {
-                val player = source.playerOrException
-                val item = player.mainHandItem
-                val location = "\"" + BuiltInRegistries.ITEM.getKey(item.item).toString() + "\""
-                val count = item.count
-                val nbt = if (item.hasTag()) item.getOrCreateTag() else null
-                val itemCommand = when {
-                    nbt == null && count > 1 -> "item($location, $count)"
-                    nbt == null && count == 1 -> "item($location)"
-                    else -> {
-                        "item($location, $count, \"${
-                            nbt.toString()
-                                .replace("\"", "\\\"")
-                        }\")"
+                executes {
+                    val player = source.playerOrException
+                    val item = player.mainHandItem
+                    val location = "\"" + BuiltInRegistries.ITEM.getKey(item.item).toString() + "\""
+                    val count = item.count
+                    val nbt = if (item.hasTag()) item.getOrCreateTag() else null
+                    val itemCommand = when {
+                        nbt == null && count > 1 -> "item($location, $count)"
+                        nbt == null && count == 1 -> "item($location)"
+                        else -> {
+                            "item($location, $count, \"${
+                                nbt.toString()
+                                    .replace("\"", "\\\"")
+                            }\")"
+                        }
                     }
+                    CopyTextPacket(itemCommand).send(player)
+                    SUCCESS
                 }
-                CopyTextPacket(itemCommand).send(player)
             }
 
             "model"(
                 arg("model", StringArgumentType.greedyString(), ::listModels),
             ) {
-                val player = source.playerOrException
-                val model = StringArgumentType.getString(this, "model")
+                executes {
+                    val player = source.playerOrException
+                    val model = StringArgumentType.getString(this, "model")
 
-                ShowModelInfoPacket(model).send(player)
+                    ShowModelInfoPacket(model).send(player)
+
+                    SUCCESS
+                }
             }
 
             "pos" {
-                val player = source.playerOrException
-                val loc = player.pick(100.0, 0.0f, true).location
-                CopyTextPacket("pos(${loc.x.roundTo(2)}, ${loc.y.roundTo(2)}, ${loc.z.roundTo(2)})").send(player)
+                executes {
+                    val player = source.playerOrException
+                    val loc = player.pick(100.0, 0.0f, true).location
+                    CopyTextPacket("pos(${loc.x.roundTo(2)}, ${loc.y.roundTo(2)}, ${loc.z.roundTo(2)})").send(player)
+                    SUCCESS
+                }
             }
 
             "open-gui"(
@@ -78,46 +90,110 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                     DirectoryManager.guiScripts.map { it.toReadablePath() }.toList()
                 }
             ) {
-                val raw = StringArgumentType.getString(this, "script")
-                val script = raw.fromReadablePath()
+                executes {
 
-                if (!script.exists()) {
-                    HollowCore.LOGGER.warn("File $script does not exist!")
-                    source.player?.sendSystemMessage("File $script does not exist!".literal)
+                    val raw = StringArgumentType.getString(this, "script")
+                    val script = raw.fromReadablePath()
+
+                    if (!script.exists()) {
+                        HollowCore.LOGGER.warn("File $script does not exist!")
+                        source.player?.sendSystemMessage("File $script does not exist!".literal)
+                    }
+
+                    startKoolScript(script)
+                    HollowCore.LOGGER.info("Started script $script")
+                    SUCCESS
                 }
-
-                startKoolScript(script)
-                HollowCore.LOGGER.info("Started script $script")
             }
 
             "start-scene"(
                 arg("script", StringArgumentType.string()) {
-                    DirectoryManager.storyScripts.map { '"'+it.toReadablePath()+'"' }.toList()
+                    DirectoryManager.storyScripts.map { '"' + it.toReadablePath() + '"' }.toList()
                 },
                 arg("state", StringArgumentType.string())
             ) {
-                val file = StringArgumentType.getString(this, "script")
-                val state = StringArgumentType.getString(this, "state")
-                SceneScriptManager.startScene(file, state)
-            }
-
-            "stop-scene"(
-                arg("script", StringArgumentType.string()) { SceneScriptManager.scripts.map { '"'+it+'"' } }
-            ) {
-                val file = StringArgumentType.getString(this, "script")
-                SceneScriptManager.stopScene(file)
-            }
-
-            "active-scenes" events@{
-                val player = source.player ?: return@events
-
-                player.sendSystemMessage("Active scenes:".literal)
-
-                SceneScriptManager.scripts.forEach {
-                    player.sendSystemMessage("- ".literal.colored(ChatFormatting.GOLD) + it.literal)
+                executes {
+                    val file = StringArgumentType.getString(this, "script")
+                    val state = StringArgumentType.getString(this, "state")
+                    SceneScriptManager.startScene(file, state)
+                    SUCCESS
                 }
             }
 
+            "stop-scene"(
+                arg("script", StringArgumentType.string()) { SceneScriptManager.scripts.map { '"' + it + '"' } }
+            ) {
+                executes {
+                    val file = StringArgumentType.getString(this, "script")
+                    SceneScriptManager.stopScene(file)
+                    SUCCESS
+                }
+            }
+
+            "active-scenes" events@{
+                executes {
+                    val player = source.player ?: return@executes FAILURE
+
+                    player.sendSystemMessage("Active scenes:".literal)
+
+                    SceneScriptManager.scripts.forEach {
+                        player.sendSystemMessage("- ".literal.colored(ChatFormatting.GOLD) + it.literal)
+                    }
+                    SUCCESS
+                }
+            }
+
+            "add-component"(
+                arg("entity", EntityArgument.entity()),
+                arg("component", StringArgumentType.string()) {
+                    ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
+                }
+            ) {
+                executes {
+                    val entity = EntityArgument.getEntity(this, "entity")
+                    val component = StringArgumentType.getString(this, "component").rl
+
+                    (entity as ComponentDispatcher).attach(component)
+                    SUCCESS
+                }
+            }
+
+            "remove-component"(
+                arg("entity", EntityArgument.entity()),
+                arg("component", StringArgumentType.string()) {
+                    ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
+                }
+            ) {
+                executes {
+                    val entity = EntityArgument.getEntity(this, "entity")
+                    val component = StringArgumentType.getString(this, "component").rl
+
+                    (entity as ComponentDispatcher).detach(component)
+                    SUCCESS
+                }
+            }
+
+            "edit-component"(
+                arg("entity", EntityArgument.entity()),
+                arg("component", StringArgumentType.string()) {
+                    ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
+                },
+                arg("property", StringArgumentType.string()),
+                arg("value", StringArgumentType.greedyString())
+            ) {
+                executes {
+                    val entity = EntityArgument.getEntity(this, "entity")
+                    val componentLocation = StringArgumentType.getString(this, "component").rl
+                    val propertyName = StringArgumentType.getString(this, "property")
+                    val value = StringArgumentType.getString(this, "value").trim()
+
+                    val dispatcher = entity as? ComponentDispatcher ?: error("Entity is not a ComponentDispatcher")
+
+                    dispatcher.edit(componentLocation, propertyName, JsonFormat, JsonFormat.decodeFromString(value))
+
+                    sendSuccess({ "Property $propertyName of component $componentLocation set to $value".literal })
+                }
+            }
         }
     }
 }

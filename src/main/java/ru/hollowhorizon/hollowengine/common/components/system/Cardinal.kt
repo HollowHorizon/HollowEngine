@@ -28,6 +28,7 @@ import kotlin.reflect.full.findAnnotation
 class ModelComponent : Component<LivingEntity>() {
     var model: String by property { "hollowengine:models/entity/player_model.gltf" }
         .renderer(StringRenderer)
+        .copyOnDeath()
         .onChange { old, new ->
             if (!isLogicalClient) return@onChange
             internalModel = HollowModelManager.getOrCreate(new.rl)
@@ -64,7 +65,6 @@ class MutableLazy<T>(private val initializer: () -> T) {
 fun <T> mutableLazy(initializer: () -> T) = MutableLazy(initializer)
 
 object Cardinal {
-    inline fun <reified T : Component<*>> query(noinline filter: T.() -> Boolean = { true }) = Query(T::class, filter)
 
     inline fun <reified T : ComponentDispatcherEvent<*>, reified C : Component<*>> on(noinline handler: T.(C) -> Unit): (T) -> Unit {
         val location = C::class.findAnnotation<ComponentMeta>()?.location?.rl
@@ -76,83 +76,6 @@ object Cardinal {
         }
         EventBus.register(eventListener)
         return eventListener
-    }
-}
-
-class Query<T : Component<*>>(private val type: KClass<T>, private val filter: (T) -> Boolean) {
-    val components = mutableSetOf<T>()
-    val clientComponents = mutableSetOf<T>()
-
-    private val onAdded: ComponentEvent.Added.() -> Unit = {
-        if (component::class == type && filter(component as T)) {
-            if (component.isClient) clientComponents.add(component as T)
-            else components.add(component)
-        }
-    }
-    private val onRemoved: ComponentEvent.Removed.() -> Unit = {
-        if (component::class == type) {
-            components.remove(component as T)
-            clientComponents.remove(component as T)
-        }
-    }
-    private val onUpdated: ComponentEvent.Updated.() -> Unit = {
-        if (component::class == type) {
-            val comp = component as T
-            if (filter(comp)) {
-                if (comp.isClient) clientComponents.add(comp)
-                else components.add(comp)
-            } else {
-                components.remove(comp)
-                clientComponents.remove(comp)
-            }
-        }
-    }
-    private val onEnabled: ComponentEvent.Enabled.() -> Unit = {
-        if (component::class == type && filter(component as T)) {
-            if (component.isClient) clientComponents.add(component as T)
-            else components.add(component as T)
-        }
-    }
-    private val onDisabled: ComponentEvent.Disabled.() -> Unit = {
-        if (component::class == type) {
-            components.remove(component as T)
-            clientComponents.remove(component as T)
-        }
-    }
-
-    init {
-        EventBus.register(onEnabled)
-        EventBus.register(onDisabled)
-        EventBus.register(onAdded)
-        EventBus.register(onRemoved)
-        EventBus.register(onUpdated)
-    }
-
-    inline fun <reified E : Event> on(noinline handler: E.(Collection<T>) -> Unit): (E) -> Unit {
-        val eventListener: (E) -> Unit = listener@{ event ->
-            if (event is ClientEvent) {
-                if (clientComponents.isEmpty()) return@listener
-                handler(event, clientComponents)
-                return@listener
-            } else if (components.isEmpty()) return@listener
-            handler(event, components)
-        }
-        EventBus.register(eventListener)
-        return eventListener
-    }
-
-    inline fun <reified E : Event> onEach(noinline handler: (E, T) -> Unit) {
-        on<E> { comps ->
-            comps.forEach { handler(this, it) }
-        }
-    }
-
-    fun dispose() {
-        EventBus.unregister(onEnabled)
-        EventBus.unregister(onDisabled)
-        EventBus.unregister(onAdded)
-        EventBus.unregister(onRemoved)
-        EventBus.unregister(onUpdated)
     }
 }
 

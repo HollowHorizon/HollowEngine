@@ -36,27 +36,58 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.network.chat.Component
 
+@DslMarker
+annotation class CommandsDSL
 
-class CommandBuilder<T : SharedSuggestionProvider>(private val dispatcher: CommandDispatcher<T>) {
-    operator fun String.invoke(operation: CommandEditor<T>.() -> Unit) {
-        val command = LiteralArgumentBuilder.literal<T>(this)
-        CommandEditor<T>(command).operation()
+@CommandsDSL
+class CommandBuilder<S : SharedSuggestionProvider>(private val dispatcher: CommandDispatcher<S>) {
+    operator fun String.invoke(vararg aliases: String, operation: CommandEditor<S, LiteralArgumentBuilder<S>>.() -> Unit) {
+        val command = LiteralArgumentBuilder.literal<S>(this)
+        CommandEditor<S, LiteralArgumentBuilder<S>>(command).operation()
         dispatcher.register(command)
+
+        for (alias in aliases) {
+            val aliasNode = LiteralArgumentBuilder.literal<S>(alias)
+            aliasNode.redirect(command.build())
+            dispatcher.register(aliasNode)
+        }
     }
 }
 
-class CommandEditor<T : SharedSuggestionProvider>(private val srcCommand: LiteralArgumentBuilder<T>) {
-    operator fun String.invoke(
-        vararg args: RequiredArgumentBuilder<T, *>,
-        operation: CommandContext<T>.() -> Unit,
-    ) {
-        if (args.isNotEmpty()) srcCommand.then(
-            LiteralArgumentBuilder.literal<T>(this).then(operation, *args)
-                .executes { ctx: CommandContext<T> -> operation(ctx); 1 })
-        else srcCommand.then(
-            LiteralArgumentBuilder.literal<T>(this).executes { ctx -> operation(ctx); 1 })
+@CommandsDSL
+class CommandEditor<S, T: ArgumentBuilder<S, T>>(private val srcCommand: ArgumentBuilder<S, T>) {
+    fun requires(predicate: S.() -> Boolean) {
+        srcCommand.requires(predicate)
     }
+
+    fun executes(operation: CommandContext<S>.() -> Int) {
+        srcCommand.executes(operation)
+    }
+
+    operator fun String.invoke(
+        vararg args: RequiredArgumentBuilder<S, *>,
+        operation: CommandEditor<S, T>.() -> Unit,
+    ) {
+        val literal = LiteralArgumentBuilder.literal<S>(this) as ArgumentBuilder<S, T>
+
+        if (args.isNotEmpty()) {
+            args.lastOrNull()?.let { CommandEditor<S, T>(it as ArgumentBuilder<S, T>).operation() }
+            val chain = args.reduceRight { current, acc ->
+                current.then(acc)
+            }
+            literal.then(chain)
+        } else {
+            val editor = CommandEditor(literal)
+            editor.operation()
+        }
+
+        srcCommand.then(literal)
+    }
+
+    val SUCCESS = 1
+    val FAILURE = 0
 }
 
 fun <S, T : ArgumentBuilder<S, T>> ArgumentBuilder<S, T>.then(
@@ -102,4 +133,14 @@ fun <T> arg(
 
 fun <T : SharedSuggestionProvider> CommandDispatcher<T>.onRegisterCommands(builder: CommandBuilder<T>.() -> Unit) {
     builder(CommandBuilder(this))
+}
+
+fun CommandContext<CommandSourceStack>.sendSuccess(msg: () -> Component, allowLogging: Boolean = true): Int {
+    source.sendSuccess(msg, allowLogging)
+    return 1
+}
+
+fun CommandContext<CommandSourceStack>.sendFailure(msg: Component): Int {
+    source.sendFailure(msg)
+    return 0
 }

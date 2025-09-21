@@ -47,7 +47,7 @@ class MCRenderBackendGl(ctx: KoolContext) : RenderBackendGl(KoolSystem.configJvm
     private val timer = TimeQuery(gl)
 
     override val glslGeneratorHints: GlslGenerator.Hints
-        get() = GlslGenerator.Hints("#version 430 core")
+        get() = GlslGenerator.Hints("#version 330 core")
 
     override fun cleanup(ctx: KoolContext) {}
 

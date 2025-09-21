@@ -10,7 +10,7 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
-import ru.hollowhorizon.hollowengine.common.components.PropertyDelegate
+import ru.hollowhorizon.hollowengine.common.components.property.Property
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
 import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
@@ -22,19 +22,19 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.reflect.full.findAnnotation
 
 interface Renderer<V : Any> {
-    fun UiScope.render(component: Component<*>, property: PropertyDelegate<V>)
+    fun UiScope.render(component: Component<*>, property: Property<V>)
 }
 
 object StringRenderer : Renderer<String> {
-    override fun UiScope.render(component: Component<*>, property: PropertyDelegate<String>) {
+    override fun UiScope.render(component: Component<*>, property: Property<String>) {
         val value = property.value ?: return
         TextField(value) {
             modifier.onChange {
                 property.value = it
                 UpdatePropertyPacket(
-                    (component.provider as Entity).id,
+                    (component.owner as Entity).id,
                     ComponentRegistry.getIdByLocation(component::class.findAnnotation<ComponentMeta>()!!.location.rl)!!,
-                    property.name,
+                    property.name!!,
                     StringTag.valueOf(it),
                 ).send()
             }

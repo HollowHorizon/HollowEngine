@@ -430,6 +430,7 @@ data class StateMachine(
 
     fun uploadAnimations(animations: Map<String, Animation>) {
         states.forEach { it.animations = animations }
+        currentState?.animations = animations
     }
 }
 

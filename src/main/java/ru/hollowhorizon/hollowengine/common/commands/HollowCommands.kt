@@ -29,8 +29,6 @@ import de.fabmax.kool.math.Vec3f
 import net.minecraft.client.Minecraft
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.coordinates.Vec3Argument
-import net.minecraft.nbt.StringTag
-import net.minecraft.nbt.TagParser
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.api.ParticlesProvider
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.AnimatedEntityCapability
@@ -38,28 +36,20 @@ import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelM
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
-import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
-import ru.hollowhorizon.hollowengine.common.components.attachComponent
-import ru.hollowhorizon.hollowengine.common.components.detachComponent
-import ru.hollowhorizon.hollowengine.common.components.editComponent
-import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
-import ru.hollowhorizon.hollowengine.common.registry.system.keyOf
 import ru.hollowhorizon.hollowengine.common.utils.get
-import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
 import ru.hollowhorizon.hollowengine.common.utils.rl
-import ru.hollowhorizon.hollowengine.common.utils.serialization.serialize
 
 object HollowCommands {
-    var brightness = 1f
 
     @SubscribeEvent
     fun onRegisterCommands(event: RegisterCommandsEvent) {
         event.dispatcher.onRegisterCommands {
-            "hollowcore" {
+            "hollowcore"("hc") {
+
                 "particle"(
                     arg("pos", Vec3Argument.vec3()),
                     arg(
@@ -67,13 +57,19 @@ object HollowCommands {
                         StringArgumentType.greedyString()
                     ) { BedrockParticles.PARTICLES.keys.map { it.toString() } },
                 ) {
-                    val particle = StringArgumentType.getString(this, "name")
-                    val pos = Vec3Argument.getVec3(this, "pos")
+                    executes {
+                        val particle = StringArgumentType.getString(this, "name")
+                        val pos = Vec3Argument.getVec3(this, "pos")
 
-                    (Minecraft.getInstance().level as ParticlesProvider).system.spawn(
-                        ParticleEffect.fromFile(BedrockParticles.PARTICLES[particle.rl] ?: error("Particle not found")),
-                        transform = Transform.create(Vec3f(pos.x.toFloat(), pos.y.toFloat(), pos.z.toFloat())),
-                    )
+                        (Minecraft.getInstance().level as ParticlesProvider).system.spawn(
+                            ParticleEffect.fromFile(
+                                BedrockParticles.PARTICLES[particle.rl] ?: error("Particle not found")
+                            ),
+                            transform = Transform.create(Vec3f(pos.x.toFloat(), pos.y.toFloat(), pos.z.toFloat())),
+                        )
+
+                        SUCCESS
+                    }
                 }
 
                 "particle"(
@@ -83,13 +79,19 @@ object HollowCommands {
                         StringArgumentType.greedyString()
                     ) { BedrockParticles.PARTICLES.keys.map { it.toString() } },
                 ) {
-                    val entity = EntityArgument.getEntity(this, "entity")
-                    val particle = StringArgumentType.getString(this, "name")
+                    executes {
+                        val entity = EntityArgument.getEntity(this, "entity")
+                        val particle = StringArgumentType.getString(this, "name")
 
-                    (Minecraft.getInstance().level as ParticlesProvider).system.spawn(
-                        ParticleEffect.fromFile(BedrockParticles.PARTICLES[particle.rl] ?: error("Particle not found")),
-                        query = LivingEntityQuery(entity as LivingEntity),
-                    )
+                        (Minecraft.getInstance().level as ParticlesProvider).system.spawn(
+                            ParticleEffect.fromFile(
+                                BedrockParticles.PARTICLES[particle.rl] ?: error("Particle not found")
+                            ),
+                            query = LivingEntityQuery(entity as LivingEntity),
+                        )
+
+                        SUCCESS
+                    }
                 }
 
                 "remove-particles"(
@@ -98,12 +100,16 @@ object HollowCommands {
                         StringArgumentType.greedyString()
                     ) { BedrockParticles.PARTICLES.keys.map { it.toString() } },
                 ) {
-                    val particle = StringArgumentType.getString(this, "name")
-                    val file = BedrockParticles.PARTICLES[particle.rl] ?: error("Particle not found")
+                    executes {
+                        val particle = StringArgumentType.getString(this, "name")
+                        val file = BedrockParticles.PARTICLES[particle.rl] ?: error("Particle not found")
 
-                    (Minecraft.getInstance().level as ParticlesProvider).system.remove(
-                        file.particleEffect.description.identifier
-                    )
+                        (Minecraft.getInstance().level as ParticlesProvider).system.remove(
+                            file.particleEffect.description.identifier
+                        )
+
+                        SUCCESS
+                    }
                 }
 
                 "player-model"(
@@ -111,8 +117,12 @@ object HollowCommands {
                         (HollowModelManager.allModels.map { it.toString() } + "%NO_MODEL%").map { '"' + it + '"' }
                     }
                 ) {
-                    source.player?.let {
-                        it[AnimatedEntityCapability::class].model = StringArgumentType.getString(this, "model")
+                    executes {
+                        source.player?.let {
+                            it[AnimatedEntityCapability::class].model = StringArgumentType.getString(this, "model")
+                        }
+
+                        SUCCESS
                     }
                 }
 
@@ -121,64 +131,24 @@ object HollowCommands {
                         (HollowModelManager.allModels.map { it.toString() }).map { '"' + it + '"' }
                     }
                 ) {
-                    val model = HollowModelManager.getOrCreate(StringArgumentType.getString(this, "model").rl)
+                    executes {
+                        val model = HollowModelManager.getOrCreate(StringArgumentType.getString(this, "model").rl)
 
-                    source.player?.let { player ->
-                        player.sendSystemMessage("Animations:".literal)
-                        model.animations.keys.forEach {
-                            player.sendSystemMessage(it.literal)
-                        }
-                        player.sendSystemMessage("Textures:".literal)
-
-                        model.model.materials.map { it.texture }
-                            .forEach {
-                                player.sendSystemMessage(it.toString().literal)
+                        source.player?.let { player ->
+                            player.sendSystemMessage("Animations:".literal)
+                            model.animations.keys.forEach {
+                                player.sendSystemMessage(it.literal)
                             }
+                            player.sendSystemMessage("Textures:".literal)
+
+                            model.model.materials.map { it.texture }
+                                .forEach {
+                                    player.sendSystemMessage(it.toString().literal)
+                                }
+                        }
+
+                        SUCCESS
                     }
-                }
-
-                "add-component"(
-                    arg("entity", EntityArgument.entity()),
-                    arg("component", StringArgumentType.string()) {
-                        ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
-                    }
-                ) {
-                    val entity = EntityArgument.getEntity(this, "entity")
-                    val component = StringArgumentType.getString(this, "component").rl
-
-                    (entity as ComponentDispatcher).attachComponent(component)
-                }
-
-                "remove-component"(
-                    arg("entity", EntityArgument.entity()),
-                    arg("component", StringArgumentType.string()) {
-                        ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
-                    }
-                ) {
-                    val entity = EntityArgument.getEntity(this, "entity")
-                    val component = StringArgumentType.getString(this, "component").rl
-
-                    (entity as ComponentDispatcher).detachComponent(component)
-                }
-
-                "edit-component"(
-                    arg("entity", EntityArgument.entity()),
-                    arg("component", StringArgumentType.string()) {
-                        ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
-                    },
-                    arg("property", StringArgumentType.string()),
-                    arg("value", StringArgumentType.greedyString())
-                ) {
-                    val entity = EntityArgument.getEntity(this, "entity")
-                    val componentLocation = StringArgumentType.getString(this, "component").rl
-                    val propertyName = StringArgumentType.getString(this, "property")
-                    val value = StringArgumentType.getString(this, "value").trim()
-
-                    val dispatcher = entity as? ComponentDispatcher ?: error("Entity is not a ComponentDispatcher")
-
-                    dispatcher.editComponent(componentLocation, propertyName, JsonFormat, JsonFormat.decodeFromString(value))
-
-                    entity.sendSystemMessage("Property $propertyName of component $componentLocation set to $value".literal)
                 }
             }
         }

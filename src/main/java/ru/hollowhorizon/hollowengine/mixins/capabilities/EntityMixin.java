@@ -14,17 +14,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ru.hollowhorizon.hollowengine.api.ICapabilityDispatcher;
 import ru.hollowhorizon.hollowengine.api.ICapabilityDispatcherKt;
-import ru.hollowhorizon.hollowengine.client.particles.collision.CollisionProvider;
 import ru.hollowhorizon.hollowengine.common.capabilities.CapabilityInstance;
 import ru.hollowhorizon.hollowengine.common.components.Component;
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher;
-import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcherKt;
-import ru.hollowhorizon.hollowengine.common.components.system.ComponentEvent;
+import ru.hollowhorizon.hollowengine.common.components.lifecycle.ComponentSavingKt;
+import ru.hollowhorizon.hollowengine.common.components.lifecycle.ComponentSyncingKt;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityHurtEvent;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 @Mixin(Entity.class)
@@ -49,13 +46,13 @@ public class EntityMixin implements ICapabilityDispatcher, ComponentDispatcher {
     @Inject(method = "saveWithoutId", at = @At("TAIL"))
     private void serializeExtra(CompoundTag tag, CallbackInfoReturnable<CompoundTag> cir) {
         ICapabilityDispatcherKt.serializeCapabilities(this, tag);
-        tag.put("hollowengine:components", ComponentDispatcherKt.save(this));
+        tag.put(ComponentSavingKt.COMPONENT_TAG, ComponentSavingKt.save(this));
     }
 
     @Inject(method = "load", at = @At("TAIL"))
     private void deserializeExtra(CompoundTag tag, CallbackInfo ci) {
         ICapabilityDispatcherKt.deserializeCapabilities(this, tag);
-        ComponentDispatcherKt.load(this, tag.getCompound("hollowengine:components"));
+        ComponentSavingKt.load(this, tag.getCompound(ComponentSavingKt.COMPONENT_TAG));
     }
 
     @Inject(method = "hurt", at = @At("HEAD"), cancellable = true)
@@ -68,16 +65,7 @@ public class EntityMixin implements ICapabilityDispatcher, ComponentDispatcher {
     @Inject(method = "tick", at = @At("TAIL"))
     public void onTick(CallbackInfo ci) {
         ICapabilityDispatcherKt.syncIfNeeded(this);
-        ComponentDispatcherKt.sync(this);
-    }
-
-    @Inject(method = "setRemoved", at = @At("HEAD"))
-    public void onRemoved(CallbackInfo ci) {
-        hollowCore$components.forEach((location, component) -> {
-            component.onDetach();
-            EventBus.post(new ComponentEvent.Removed(component));
-        });
-        hollowCore$components.clear();
+        ComponentSyncingKt.onTick(this);
     }
 
     @Override
