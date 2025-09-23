@@ -11,8 +11,14 @@ import kotlin.reflect.KProperty
 
 class Property<V : Any>(var name: String?, internal val serializer: Class<V>, private val initializer: () -> V) :
     ReadWriteProperty<Component<*>, V> {
-    internal var value: V? = null
-    internal var renderer: Renderer<V>? = null
+    private var value: V? = null
+    private var renderCreator: (() -> Renderer<V>)? = null
+    var hasRenderer = false
+        private set
+    val renderer by lazy {
+        assert(hasRenderer) { "No renderer set for property $name" }
+        renderCreator!!()
+    }
     internal var sync: Sync = Sync.ON_CHANGE
     internal var save: Save = Save.ALWAYS
 
@@ -22,19 +28,28 @@ class Property<V : Any>(var name: String?, internal val serializer: Class<V>, pr
 
     operator fun provideDelegate(thisRef: Component<*>, property: KProperty<*>): Property<V> {
         val name = name ?: property.name
+        this.name = name
         thisRef.properties[name] = this
         return this
     }
 
-    override fun getValue(thisRef: Component<*>, property: KProperty<*>): V {
-        if (value == null) value = initializer()
-        return value!!
+    fun get(): V {
+        val value = this.value ?: initializer().also { this.value = it }
+        return value
     }
 
-    override fun setValue(thisRef: Component<*>, property: KProperty<*>, value: V) {
+    fun set(value: V) {
         onChange.forEach { it.invoke(this.value, value) }
         this.value = value
         changed = true
+    }
+
+    override fun getValue(thisRef: Component<*>, property: KProperty<*>): V {
+        return get()
+    }
+
+    override fun setValue(thisRef: Component<*>, property: KProperty<*>, value: V) {
+        set(value)
     }
 
     fun sync(sync: Sync) = apply { this.sync = sync }
@@ -45,7 +60,7 @@ class Property<V : Any>(var name: String?, internal val serializer: Class<V>, pr
     fun copyOnDeath() = apply { this.copyOnDeath = true }
     fun onChange(block: (old: V?, new: V) -> Unit) = apply { this.onChange += block }
 
-    fun renderer(renderer: Renderer<V>) = apply { this.renderer = renderer }
+    fun renderer(renderer: () -> Renderer<V>) = apply { this.renderCreator = renderer; this.hasRenderer = true }
 
     fun <T> serialize(format: Format<T>): T? {
         val value = this.value ?: initializer().also { this.value = it }

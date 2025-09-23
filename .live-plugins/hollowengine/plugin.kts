@@ -61,19 +61,7 @@ class ResourceLocationInspection : AbstractKotlinInspection() {
 registerInspection(ResourceLocationInspection())
 
 val typedAction = com.intellij.openapi.editor.actionSystem.EditorActionManager.getInstance().typedAction
-val originalHandler = typedAction.rawHandler
-typedAction.setupHandler(pluginDisposable) { editor, charTyped, dataContext ->
-    val project = editor.project
-    if (project != null && charTyped !in "\n\r.,; :") {
-        showResourceCompletion(editor, project)
-    } else {
-        editor.project?.let { project ->
-            LookupManager.getInstance(project).hideActiveLookup()
-        }
-    }
-    // вызываем оригинальный обработчик, чтобы текст вставился
-    originalHandler.execute(editor, charTyped, dataContext)
-}
+
 
 fun showResourceCompletion(editor: Editor, project: Project) {
     val caretOffset = editor.caretModel.offset

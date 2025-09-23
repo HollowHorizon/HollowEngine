@@ -38,6 +38,7 @@ setupEnviroment(container, kotlinVersion, includeKotlin = false)
 repositories {
     maven("https://jitpack.io")
     maven("https://maven.blamejared.com/")
+    maven("https://s01.oss.sonatype.org/content/repositories/snapshots")
 
     flatDir { dirs(rootProject.file("libs")) }
 }
@@ -64,7 +65,7 @@ dependencies {
     install("io.ktor:ktor-utils-jvm:3.1.3", true)
     install("io.ktor:ktor-websocket-serialization-jvm:3.1.3", true)
     install("io.ktor:ktor-websockets-jvm:3.1.3", true)
-
+    implementation("io.ktor:ktor-client-apache-jvm:3.1.3")
     // CONFIG //
     install("com.akuleshov7:ktoml-core-jvm:0.5.1", true)
 
@@ -87,7 +88,7 @@ dependencies {
     install("org.eclipse.lsp4j:org.eclipse.lsp4j:0.24.0")
     install("org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc:0.24.0")
     install("org.jetbrains.kotlin:kotlin-sam-with-receiver-compiler-plugin:$kotlinVersion")
-
+    
     //modRuntimeOnly("mezz.jei:jei-1.20.1-${modPlatform}:$jei")
 }
 

@@ -6,6 +6,7 @@ import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.api.Init
+import ru.hollowhorizon.hollowengine.client.kool.addons.ResourceLocationRenderer
 import ru.hollowhorizon.hollowengine.client.kool.addons.StringRenderer
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.ModelData
@@ -27,7 +28,7 @@ import kotlin.reflect.full.findAnnotation
 @ComponentMeta("hollowengine:model_renderer")
 class ModelComponent : Component<LivingEntity>() {
     var model: String by property { "hollowengine:models/entity/player_model.gltf" }
-        .renderer(StringRenderer)
+        .renderer { ResourceLocationRenderer(HollowModelManager.allModels.map { it.toString() }, "Путь к модели") }
         .copyOnDeath()
         .onChange { old, new ->
             if (!isLogicalClient) return@onChange

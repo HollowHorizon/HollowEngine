@@ -143,55 +143,57 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                 }
             }
 
-            "add-component"(
-                arg("entity", EntityArgument.entity()),
-                arg("component", StringArgumentType.string()) {
-                    ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
+            "components" {
+                "add"(
+                    arg("entity", EntityArgument.entity()),
+                    arg("component", StringArgumentType.string()) {
+                        ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
+                    }
+                ) {
+                    executes {
+                        val entity = EntityArgument.getEntity(this, "entity")
+                        val component = StringArgumentType.getString(this, "component").rl
+
+                        (entity as ComponentDispatcher).attach(component)
+                        SUCCESS
+                    }
                 }
-            ) {
-                executes {
-                    val entity = EntityArgument.getEntity(this, "entity")
-                    val component = StringArgumentType.getString(this, "component").rl
 
-                    (entity as ComponentDispatcher).attach(component)
-                    SUCCESS
+                "remove"(
+                    arg("entity", EntityArgument.entity()),
+                    arg("component", StringArgumentType.string()) {
+                        ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
+                    }
+                ) {
+                    executes {
+                        val entity = EntityArgument.getEntity(this, "entity")
+                        val component = StringArgumentType.getString(this, "component").rl
+
+                        (entity as ComponentDispatcher).detach(component)
+                        SUCCESS
+                    }
                 }
-            }
 
-            "remove-component"(
-                arg("entity", EntityArgument.entity()),
-                arg("component", StringArgumentType.string()) {
-                    ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
-                }
-            ) {
-                executes {
-                    val entity = EntityArgument.getEntity(this, "entity")
-                    val component = StringArgumentType.getString(this, "component").rl
+                "edit"(
+                    arg("entity", EntityArgument.entity()),
+                    arg("component", StringArgumentType.string()) {
+                        ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
+                    },
+                    arg("property", StringArgumentType.string()),
+                    arg("value", StringArgumentType.greedyString())
+                ) {
+                    executes {
+                        val entity = EntityArgument.getEntity(this, "entity")
+                        val componentLocation = StringArgumentType.getString(this, "component").rl
+                        val propertyName = StringArgumentType.getString(this, "property")
+                        val value = StringArgumentType.getString(this, "value").trim()
 
-                    (entity as ComponentDispatcher).detach(component)
-                    SUCCESS
-                }
-            }
+                        val dispatcher = entity as? ComponentDispatcher ?: error("Entity is not a ComponentDispatcher")
 
-            "edit-component"(
-                arg("entity", EntityArgument.entity()),
-                arg("component", StringArgumentType.string()) {
-                    ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
-                },
-                arg("property", StringArgumentType.string()),
-                arg("value", StringArgumentType.greedyString())
-            ) {
-                executes {
-                    val entity = EntityArgument.getEntity(this, "entity")
-                    val componentLocation = StringArgumentType.getString(this, "component").rl
-                    val propertyName = StringArgumentType.getString(this, "property")
-                    val value = StringArgumentType.getString(this, "value").trim()
+                        dispatcher.edit(componentLocation, propertyName, JsonFormat, JsonFormat.decodeFromString(value))
 
-                    val dispatcher = entity as? ComponentDispatcher ?: error("Entity is not a ComponentDispatcher")
-
-                    dispatcher.edit(componentLocation, propertyName, JsonFormat, JsonFormat.decodeFromString(value))
-
-                    sendSuccess({ "Property $propertyName of component $componentLocation set to $value".literal })
+                        sendSuccess({ "Property $propertyName of component $componentLocation set to $value".literal })
+                    }
                 }
             }
         }

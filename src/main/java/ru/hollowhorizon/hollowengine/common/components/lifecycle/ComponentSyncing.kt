@@ -85,7 +85,7 @@ fun ComponentDispatcher.transferFrom(old: ComponentDispatcher) {
             .filter { (_, property) -> property.copyOnDeath }
             .forEach { (name, oldProperty) ->
                 newComponent.properties[name]?.let { newProperty ->
-                    newProperty.value = JavaHacks.forceCast(oldProperty.value)
+                    newProperty.set(JavaHacks.forceCast(oldProperty.get()))
                     newProperty.changed = true
                 }
             }
