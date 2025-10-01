@@ -14,7 +14,8 @@ const val COMPONENT_TAG = "hollowengine:components"
 fun ComponentDispatcher.save(): CompoundTag {
     val tag = CompoundTag()
     `hollowcore$components`.forEach { (location, component) ->
-        val componentTag = CompoundTag().apply {
+        val componentTag = CompoundTag()
+        val properties = CompoundTag().apply {
             component.properties.forEach { (name, property) ->
                 if (property.save.shouldSave(property)) {
                     property.serialize(NBTFormat)?.let { nbtValue ->
@@ -23,9 +24,10 @@ fun ComponentDispatcher.save(): CompoundTag {
                 }
             }
         }
-        if (!componentTag.isEmpty) {
-            tag.put(location.toString(), componentTag)
-        }
+        val extras = CompoundTag().apply(component::saveExtras)
+        componentTag.put("properties", properties)
+        if (!extras.isEmpty) componentTag.put("extras", extras)
+        tag.put(location.toString(), componentTag)
     }
     return tag
 }
@@ -33,15 +35,17 @@ fun ComponentDispatcher.save(): CompoundTag {
 fun ComponentDispatcher.load(tag: CompoundTag) {
     tag.allKeys.forEach { key ->
         val componentTag = tag.getCompound(key)
+        val properties = componentTag.getCompound("properties")
         val factory = ComponentRegistry.getOrNull(keyOf(key.rl))
         if (factory != null) {
             val component = factory().apply {
                 owner = JavaHacks.forceCast(this@load)
             }
             `hollowcore$components`[key.rl] = component
-            componentTag.allKeys.forEach { name ->
-                component.properties[name]?.deserialize(NBTFormat, componentTag.get(name)!!)
+            properties.allKeys.forEach { name ->
+                component.properties[name]?.deserialize(NBTFormat, properties.get(name)!!)
             }
+            component.loadExtras(componentTag.getCompound("extras"))
             component.onAttach()
         } else {
             HollowEngine.LOGGER.warn("Component $key not found!")

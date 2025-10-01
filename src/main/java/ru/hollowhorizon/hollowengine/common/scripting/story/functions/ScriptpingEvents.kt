@@ -6,7 +6,7 @@ import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.common.events.EventListener
-import ru.hollowhorizon.hollowengine.common.events.awaitEvent
+import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 
 @Serializable
@@ -24,11 +24,11 @@ class ScriptingEventListener(val eventType: String) {
     var result: Event? = null
 }
 
-suspend inline fun <reified T : Event> await(): T = awaitEvent<T>()
+suspend inline fun <reified T : Event> await(): T = await<T>()
 
 suspend fun Player.input(): String {
     while (true) {
-        val event = awaitEvent<ServerChatEvent>()
+        val event = await<ServerChatEvent>()
         if (event.player == this) return event.message.string
     }
 }

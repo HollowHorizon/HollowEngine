@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.common.network
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.events.Event
-import ru.hollowhorizon.hollowengine.common.events.awaitEvent
+import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.post
 
 abstract class RequestPacket : HollowPacket, Event {
@@ -26,5 +26,5 @@ abstract class RequestPacket : HollowPacket, Event {
 
 suspend inline fun <reified T : RequestPacket> T.request(): T {
     send()
-    return awaitEvent<T>()
+    return await<T>()
 }

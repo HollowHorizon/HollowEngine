@@ -26,9 +26,9 @@ class GraphTest {
                 }
             }
         }
-        graph.start(this)
-        graph.updateAwait(this)
-        graph.updateAwait(this)
+        graph.start()
+        graph.updateAwait()
+        graph.updateAwait()
 
 
         assertEquals("A", graph.currentState.name)
@@ -62,12 +62,12 @@ class GraphTest {
             }
         }
 
-        graph.start(this)
-        graph.updateAwait(this)
+        graph.start()
+        graph.updateAwait()
 
         graph.transition("B")
-        graph.updateAwait(this) // EXIT A
-        graph.updateAwait(this) // ENTER B
+        graph.updateAwait() // EXIT A
+        graph.updateAwait() // ENTER B
 
         assertEquals("B", graph.currentState.name, "Current state should be B after transition")
         assertTrue("State A must be exited", "A" in exited)
@@ -90,11 +90,11 @@ class GraphTest {
 
             }
         }
-        graph.start(this)
-        graph.updateAwait(this)
+        graph.start()
+        graph.updateAwait()
 
         graph.transition("B")
-        graph.updateAwait(this) // EXIT A
+        graph.updateAwait() // EXIT A
 
         assertTrue("Transition must be canceled", canceled)
         assertEquals("A", graph.currentState.name, "State must be A")
@@ -107,7 +107,6 @@ class GraphTest {
 
         var catched = false
         val graph = graph {
-            eventScope(this@runTest)
             initialState("A")
             state("A") {
                 onEnter {
@@ -123,9 +122,9 @@ class GraphTest {
 
             }
         }
-        graph.start(this)
-        graph.updateAwait(this)
-        graph.updateAwait(this)
+        graph.start()
+        graph.updateAwait()
+        graph.updateAwait()
 
         EventBus.post(TestEvent())
         graph.await()
@@ -133,8 +132,8 @@ class GraphTest {
         catched = false
 
         graph.transition("B")
-        graph.updateAwait(this)
-        graph.updateAwait(this)
+        graph.updateAwait()
+        graph.updateAwait()
 
         EventBus.post(TestEvent())
         graph.await()
@@ -163,17 +162,17 @@ class GraphTest {
             }
         }
 
-        graph.start(this)
-        graph.updateAwait(this)
-        graph.updateAwait(this)
-        graph.updateAwait(this)
-        graph.updateAwait(this)
+        graph.start()
+        graph.updateAwait()
+        graph.updateAwait()
+        graph.updateAwait()
+        graph.updateAwait()
         assertEquals(graph.serialize().getCompound("variables").getInt("counter"), 32_30_10, "Variable 'counter' must be equal '323010'")
     }
 
     // TODO: Нужно сделать более продвинутый обработчик для тестов, чем спамить по 2-4 итерации, пока он дойдёт до нужного шага
-    suspend fun Graph.updateAwait(scope: CoroutineScope) {
-        update(scope)
+    suspend fun Graph.updateAwait() {
+        update()
         await()
     }
 }

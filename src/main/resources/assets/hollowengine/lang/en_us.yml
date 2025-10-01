@@ -33,6 +33,7 @@ hollowengine:
       project_tree: Project
       docs: Documentation
       recipes: Recipe Editor
+      console: Console
 
       popups:
         create_folder: "Enter folder name:"

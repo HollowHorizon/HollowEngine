@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.components
 
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.common.components.Component
@@ -12,6 +13,8 @@ abstract class ScriptableComponent<T: Any> : Component<T>() {
     private var onTicks = HashSet<() -> Unit>()
     private var onEnableds = HashSet<() -> Unit>()
     private var onDisableds = HashSet<() -> Unit>()
+    private var onSaves = HashSet<CompoundTag.() -> Unit>()
+    private var onLoads = HashSet<CompoundTag.() -> Unit>()
 
     override fun onAttach() {
         onAttaches.forEach { it() }
@@ -33,6 +36,14 @@ abstract class ScriptableComponent<T: Any> : Component<T>() {
         onDisableds.forEach { it() }
     }
 
+    override fun saveExtras(tag: CompoundTag) {
+        onSaves.forEach { it(tag) }
+    }
+
+    override fun loadExtras(tag: CompoundTag) {
+        onLoads.forEach { it(tag) }
+    }
+
     fun onAttach(action: () -> Unit) {
         onAttaches.add(action)
     }
@@ -41,7 +52,7 @@ abstract class ScriptableComponent<T: Any> : Component<T>() {
         onDetachs.add(action)
     }
 
-    fun onTick(action: () -> Unit) {
+    fun onUpdate(action: () -> Unit) {
         onTicks.add(action)
     }
 
@@ -51,6 +62,14 @@ abstract class ScriptableComponent<T: Any> : Component<T>() {
 
     fun onDisabled(action: () -> Unit) {
         onDisableds.add(action)
+    }
+
+    fun onSave(action: CompoundTag.() -> Unit) {
+        onSaves.add(action)
+    }
+
+    fun onLoad(action: CompoundTag.() -> Unit) {
+        onLoads.add(action)
     }
 }
 

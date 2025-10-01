@@ -28,6 +28,7 @@ import java.beans.Introspector
 import java.beans.PropertyDescriptor
 import java.io.File
 import java.lang.reflect.Modifier
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.reflect.KClass
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.javaGetter
@@ -113,7 +114,7 @@ object MolangCompiler {
 
     private val classLoader = BytecodeClassLoader()
 
-    private var generatedIndex = 0
+    private var generatedIndex = AtomicInteger()
 
     private val floatFunctions = Object2ObjectOpenHashMap<String, FloatExpr>()
     private val boolFunctions = Object2ObjectOpenHashMap<String, BoolExpr>()
@@ -135,7 +136,7 @@ object MolangCompiler {
     }
 
     private fun codegenBoolean(ast: AstBoolean): BoolExpr {
-        val className = "GeneratedBooleanExpr${generatedIndex++}"
+        val className = "GeneratedBooleanExpr${generatedIndex.andIncrement}"
         val cw = ClassWriter(ClassWriter.COMPUTE_FRAMES or ClassWriter.COMPUTE_MAXS)
         cw.visit(
             V17,
@@ -168,7 +169,7 @@ object MolangCompiler {
     }
 
     private fun codegenFloat(ast: AstFloat): FloatExpr {
-        val className = "GeneratedFloatExpr${generatedIndex++}"
+        val className = "GeneratedFloatExpr${generatedIndex.andIncrement}"
         val cw = ClassWriter(ClassWriter.COMPUTE_FRAMES or ClassWriter.COMPUTE_MAXS)
         cw.visit(
             V17,
@@ -194,8 +195,6 @@ object MolangCompiler {
         cw.visitEnd()
 
         val bytecode = cw.toByteArray()
-
-        File("test.class").writeBytes(bytecode)
 
         val clazz = classLoader.defineClass(className, bytecode)
         val instance = clazz.getDeclaredConstructor().newInstance()

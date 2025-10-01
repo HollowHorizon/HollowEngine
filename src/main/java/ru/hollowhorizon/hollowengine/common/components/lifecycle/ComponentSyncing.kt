@@ -126,7 +126,7 @@ class SyncEntityComponentsPacket(
         components.forEach { (componentId, props) ->
             val holder = ComponentRegistry.getHolder(componentId) ?: return@forEach
 
-            val component = dispatcher.getOrAttachComponent(holder, entity)
+            val component = dispatcher.getOrAttachComponent(holder, dispatcher)
 
             props.forEach { (name, tag) ->
                 component.properties[name]?.apply {
@@ -150,7 +150,7 @@ class SyncLevelComponentsPacket(
         components.forEach { (componentId, props) ->
             val holder = ComponentRegistry.getHolder(componentId) ?: return@forEach
 
-            val component = dispatcher.getOrAttachComponent(holder, player)
+            val component = dispatcher.getOrAttachComponent(holder, dispatcher)
 
             props.forEach { (name, tag) ->
                 component.properties[name]?.apply {
@@ -163,13 +163,13 @@ class SyncLevelComponentsPacket(
 
 }
 
-private fun ComponentDispatcher.getOrAttachComponent(
+private fun <T: ComponentDispatcher> ComponentDispatcher.getOrAttachComponent(
     holder: Holder<() -> Component<*>>,
-    entity: Entity,
+    owner: T,
 ): Component<*> {
     return `hollowcore$components`.getOrPut(holder.key.location) {
         holder.value().apply {
-            owner = JavaHacks.forceCast(entity)
+            this.owner = JavaHacks.forceCast(owner)
             onAttach()
         }
     }

@@ -37,6 +37,10 @@ class State(
         exitJob?.cancel()
         events.forEach { it.cancel() }
     }
+
+    fun applyGraph(graph: Graph) {
+        events.forEach { it.graph = graph }
+    }
 }
 
 interface StateControl {

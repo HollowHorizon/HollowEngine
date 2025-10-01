@@ -3,12 +3,24 @@ package ru.hollowhorizon.hollowengine.common.graph
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.IntTag
+import net.minecraft.world.InteractionHand
+import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
+import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
+import ru.hollowhorizon.hollowengine.common.fsm.StateStorage
+import ru.hollowhorizon.hollowengine.common.scripting.components.ScriptableComponent
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.send
+import ru.hollowhorizon.hollowengine.common.utils.currentServer
 
 class Graph(
+    coroutineScope: CoroutineScope,
     private val states: Array<State>,
     private val globalEvents: Set<EventHandler<*>>,
     private val rememberVariables: HashSet<Variable<*>>,
@@ -16,7 +28,13 @@ class Graph(
 ) : CancelableStateControl {
     init {
         require(initialState in states.indices) { "Initial state index is out of bounds!" }
+
+        globalEvents.forEach { it.graph = this }
+        states.forEach { it.applyGraph(this) }
     }
+
+    private val extras = CompoundTag()
+    val graphScope = coroutineScope + StateStorage(extras)
 
     var exitCanceled = false
     var currentIndex = initialState
@@ -27,13 +45,21 @@ class Graph(
 
     private var startJob: Job? = null
 
-    fun start(scope: CoroutineScope, tag: CompoundTag = CompoundTag()) {
+    fun start(tag: CompoundTag = CompoundTag()) {
         if (startJob?.isActive == true) error("Graph already started!")
-        startJob = scope.launch {
+        startJob = graphScope.launch {
             deserialize(tag)
             globalEvents.forEach { event -> event.subscribe() }
             currentState.status = Status.ENTER
         }
+    }
+
+    fun stop(): CompoundTag {
+        globalEvents.forEach { event -> event.unsubscribe() }
+        currentState.unsubscribe()
+        currentState.cancel()
+
+        return serialize()
     }
 
     suspend fun deserialize(tag: CompoundTag) {
@@ -44,25 +70,26 @@ class Graph(
         rememberVariables.forEach { variable ->
             variable.init(variables.get(variable.name()))
         }
-    }
 
-    fun stop(): CompoundTag {
-        globalEvents.forEach { event -> event.unsubscribe() }
-        currentState.cancel()
-
-        return serialize()
+        tag.getCompound("extras").apply {
+            allKeys.forEach {
+                val value = get(it) ?: return@forEach
+                extras.put(it, value)
+            }
+        }
     }
 
     fun serialize(): CompoundTag = CompoundTag().apply {
         putInt("index", currentIndex)
-        put("variables", CompoundTag().apply {
+        if (rememberVariables.isNotEmpty()) put("variables", CompoundTag().apply {
             rememberVariables.forEach { variable ->
                 variable.serialize()?.let { put(variable.name(), it) }
             }
         })
+        if (!extras.isEmpty) put("extras", extras)
     }
 
-    fun update(scope: CoroutineScope) {
+    fun update() {
         if (startJob?.isActive == true) return
 
         currentState.apply {
@@ -70,13 +97,13 @@ class Graph(
                 Status.ENTER -> {
                     if (enterJob?.isActive != true) {
                         subscribe()
-                        enterJob = scope.launch {
+                        enterJob = graphScope.launch {
                             try {
                                 onEnter()
                             } catch (e: Exception) {
                                 HollowEngine.LOGGER.error("Error in state $name on enter: ", e)
                             } finally {
-                                if(status == Status.ENTER) status = Status.UPDATE
+                                if (status == Status.ENTER) status = Status.UPDATE
                             }
                         }
                     }
@@ -84,7 +111,7 @@ class Graph(
 
                 Status.UPDATE -> {
                     if (updateJob?.isActive != true) {
-                        updateJob = scope.launch {
+                        updateJob = graphScope.launch {
                             onUpdate()
                         }
                     }
@@ -92,7 +119,7 @@ class Graph(
 
                 Status.EXIT -> {
                     if (exitJob?.isActive != true) {
-                        exitJob = scope.launch {
+                        exitJob = graphScope.launch {
                             try {
                                 onExit()
                             } catch (e: Exception) {
@@ -143,15 +170,14 @@ class Graph(
     }
 
     val isCompleted get() = currentState.status == Status.COMPLETE
+    val isStarted get() = startJob != null
 }
 
 @DslMarker
 annotation class GraphDSL
 
 @GraphDSL
-class GraphContext {
-    @PublishedApi
-    internal var eventScope: CoroutineScope? = null
+class GraphContext(@PublishedApi internal val graphScope: CoroutineScope) {
     private val states = HashSet<State>()
 
     @PublishedApi
@@ -166,12 +192,8 @@ class GraphContext {
         initialState = name
     }
 
-    fun eventScope(scope: CoroutineScope) {
-        this.eventScope = scope
-    }
-
     fun state(name: String, context: StateContext.() -> Unit) =
-        StateContext(eventScope).apply { context() }.build(name).apply { states.add(this) }
+        StateContext(graphScope).apply { context() }.build(name).apply { states.add(this) }
 
     inline fun <reified T : Any> remember(name: String? = null, noinline default: suspend () -> T): Variable<T> {
         return Variable(name, default, T::class.java).apply {
@@ -182,15 +204,20 @@ class GraphContext {
     inline fun <reified E : Event> on(
         priority: Int = 0,
         allowRepeats: Boolean = false,
-        noinline listener: suspend E.() -> Unit,
-    ): EventHandler<E> = eventHandlerOf<E>(eventScope, priority, allowRepeats, listener).apply {
+        noinline listener: StateControl.(E) -> Unit,
+    ): EventHandler<E> = eventHandlerOf<E>(graphScope, priority, allowRepeats, listener).apply {
         globalEvents.add(this)
     }
 
     fun build(): Graph {
         require(initialState != null) { "Initial state is missing!" }
         val states = this.states.toTypedArray()
-        return Graph(states, globalEvents, rememberVariables, states.indexOfFirst { it.name == initialState })
+        return Graph(
+            graphScope,
+            states,
+            globalEvents,
+            rememberVariables,
+            states.indexOfFirst { it.name == initialState })
     }
 
     @GraphDSL
@@ -217,7 +244,7 @@ class GraphContext {
         inline fun <reified E : Event> on(
             priority: Int = 0,
             allowRepeats: Boolean = false,
-            noinline listener: suspend E.() -> Unit,
+            noinline listener: StateControl.(E) -> Unit,
         ): EventHandler<E> = eventHandlerOf<E>(eventScope, priority, allowRepeats, listener).apply {
             onEvents.add(this)
         }
@@ -233,4 +260,63 @@ class GraphContext {
 }
 
 @GraphDSL
-fun graph(context: GraphContext.() -> Unit) = GraphContext().apply(context).build()
+fun CoroutineScope.graph(context: GraphContext.() -> Unit) = GraphContext(this).apply(context).build()
+
+@ComponentMeta("hollowengine:story/example")
+class Example : ScriptableComponent<Level>() {
+    init {
+        attachGraph {
+            initialState("1")
+
+            state("1") {
+                onEnter {
+                    owner.players().forEach { it.send("Вы теперь можете взаимодействовать с сущностями!") }
+                }
+
+                on<PlayerInteractEvent.EntityInteract> {
+                    if(it.player.level().isClientSide || it.hand == InteractionHand.OFF_HAND) return@on
+                    it.player.send("Ты нажал пкм по ${it.target.name.string}")
+                }
+
+                on<ServerChatEvent> {
+                    transition("2")
+                }
+            }
+
+            state("2") {
+                onEnter {
+                    owner.players().forEach { it.send("Вы теперь не можете взаимодействовать с сущностями!") }
+                }
+
+                on<ServerChatEvent> {
+                    transition("1")
+                }
+            }
+        }
+    }
+}
+
+fun ScriptableComponent<Level>.attachGraph(context: GraphContext.() -> Unit) {
+    val graph = currentServer.coroutineScope.graph(context)
+
+    onAttach {
+        if(owner.isClientSide) return@onAttach
+        if(!graph.isStarted) graph.start()
+    }
+    onDetach {
+        if(owner.isClientSide) return@onDetach
+        graph.stop()
+    }
+    onUpdate {
+        if(owner.isClientSide) return@onUpdate
+        graph.update()
+    }
+    onSave {
+        if(owner.isClientSide) return@onSave
+        put("graph", graph.serialize())
+    }
+    onLoad {
+        if(owner.isClientSide) return@onLoad
+        graph.start(getCompound("graph"))
+    }
+}

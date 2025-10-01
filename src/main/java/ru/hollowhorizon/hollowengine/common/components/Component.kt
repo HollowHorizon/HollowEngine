@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.components
 
+import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
 import ru.hollowhorizon.hollowengine.common.components.property.Property
 import ru.hollowhorizon.hollowengine.common.components.property.Sync
@@ -31,6 +32,9 @@ abstract class Component<T : Any> {
     open fun onTick() {}
     open fun onEnabled() {}
     open fun onDisabled() {}
+
+    open fun saveExtras(tag: CompoundTag) {}
+    open fun loadExtras(tag: CompoundTag) {}
 
     fun enable() {
         if (!enabled) {

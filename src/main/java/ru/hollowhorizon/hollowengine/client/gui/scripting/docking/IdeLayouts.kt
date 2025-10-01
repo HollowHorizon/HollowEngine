@@ -7,5 +7,5 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.FileTreePanel
 @SubscribeEvent
 fun loadLayouts(event: LoadLayoutEvent) {
     event.provide("hollowengine.gui.ide.project_tree", ::FileTreePanel)
-    //event.provide("hollowengine.gui.ide.console", ::ConsolePanel)
+    event.provide("hollowengine.gui.ide.console", ::ConsolePanel)
 }

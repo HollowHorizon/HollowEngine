@@ -3,10 +3,10 @@ package ru.hollowhorizon.hollowengine.common.events
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 import kotlin.reflect.KClass
 
 
@@ -46,21 +46,21 @@ object EventBus {
     }
 }
 
-suspend inline fun <reified T : Event> awaitEvent(crossinline isValidCondition: (T) -> Boolean = { true }): T {
-    var listener: EventListener<T>? = null
-
-    val result: T = suspendCoroutine { continuation ->
-        listener = EventListener { event ->
-            if (isValidCondition(event)) continuation.resume(event)
+suspend inline fun <reified T : Event> await(): T =
+    suspendCancellableCoroutine { continuation ->
+        val listener = object : EventListener<T> {
+            override fun onEvent(event: T) {
+                EventBus.unregister(this)
+                continuation.resume(event)
+            }
         }
+
         EventBus.register(listener)
+
+        continuation.invokeOnCancellation {
+            EventBus.unregister(listener)
+        }
     }
-
-    EventBus.unregister(listener!!)
-
-
-    return result
-}
 
 inline fun <reified T : Event> eventFlow(): Flow<T> = callbackFlow {
     val listener = EventListener<T> {
