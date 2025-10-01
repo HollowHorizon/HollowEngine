@@ -2,6 +2,8 @@ import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.common.graph.Graph
 import ru.hollowhorizon.hollowengine.common.graph.Status
 import ru.hollowhorizon.hollowengine.common.graph.graph
@@ -93,8 +95,46 @@ class GraphTest {
         graph.updateAwait(this) // EXIT A
 
         assertTrue("Transition must be canceled", canceled)
-        assertEquals( "A", graph.currentState.name, "State must be A")
+        assertEquals("A", graph.currentState.name, "State must be A")
         assertEquals(Status.UPDATE, graph.currentState.status, "State A must be in UPDATE status")
+    }
+
+    @Test
+    fun `Events in scope`() = runTest {
+        class TestEvent : Event
+
+        var catched = false
+        val graph = graph {
+            eventScope(this@runTest)
+            initialState("A")
+            state("A") {
+                onEnter {
+                    println("Enter A in thread ${Thread.currentThread().name}")
+                }
+
+                on<TestEvent> {
+                    catched = true
+                }
+
+            }
+            state("B") {
+
+            }
+        }
+        graph.start()
+        graph.updateAwait(this)
+
+        EventBus.post(TestEvent())
+        graph.await()
+        assertTrue("Event must be catched in state A", catched)
+        catched = false
+
+        graph.transition("B")
+        graph.updateAwait(this)
+
+        EventBus.post(TestEvent())
+        graph.await()
+        assertTrue("Transition must be not catched in state B", !catched)
     }
 
     suspend fun Graph.updateAwait(scope: CoroutineScope) {

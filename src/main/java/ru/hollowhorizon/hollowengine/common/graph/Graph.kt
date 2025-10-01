@@ -4,7 +4,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.events.Event
-import ru.hollowhorizon.hollowengine.common.graph.StateControl
 
 class Graph(
     private val states: Array<State>,
@@ -92,11 +91,7 @@ class Graph(
     }
 
     suspend fun await() {
-        currentState.apply {
-            enterJob?.join()
-            updateJob?.join()
-            exitJob?.join()
-        }
+        currentState.await()
     }
 
     override fun transition(nextState: String) {
@@ -116,6 +111,8 @@ class Graph(
 }
 
 class GraphContext {
+    @PublishedApi
+    internal var eventScope: CoroutineScope? = null
     private val states = HashSet<State>()
 
     @PublishedApi
@@ -126,14 +123,18 @@ class GraphContext {
         initialState = name
     }
 
+    fun eventScope(scope: CoroutineScope) {
+        this.eventScope = scope
+    }
+
     fun state(name: String, context: StateContext.() -> Unit) =
-        StateContext().apply { context() }.build(name).apply { states.add(this) }
+        StateContext(eventScope).apply { context() }.build(name).apply { states.add(this) }
 
     inline fun <reified E : Event> on(
         priority: Int = 0,
         allowRepeats: Boolean = false,
         noinline listener: suspend E.() -> Unit,
-    ): EventHandler<E> = eventHandlerOf<E>(priority, allowRepeats, listener).apply {
+    ): EventHandler<E> = eventHandlerOf<E>(eventScope, priority, allowRepeats, listener).apply {
         globalEvents.add(this)
     }
 
@@ -143,7 +144,7 @@ class GraphContext {
         return Graph(states, globalEvents, states.indexOfFirst { it.name == initialState })
     }
 
-    class StateContext {
+    class StateContext(val eventScope: CoroutineScope?) {
         private val onEnter = HashSet<suspend StateControl.() -> Unit>()
         private val onUpdate = HashSet<suspend StateControl.() -> Unit>()
         private val onExit = HashSet<suspend CancelableStateControl.() -> Unit>()
@@ -167,7 +168,7 @@ class GraphContext {
             priority: Int = 0,
             allowRepeats: Boolean = false,
             noinline listener: suspend E.() -> Unit,
-        ): EventHandler<E> = eventHandlerOf<E>(priority, allowRepeats, listener).apply {
+        ): EventHandler<E> = eventHandlerOf<E>(eventScope, priority, allowRepeats, listener).apply {
             onEvents.add(this)
         }
 

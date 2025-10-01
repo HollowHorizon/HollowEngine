@@ -23,6 +23,13 @@ class State(
     fun unsubscribe() {
         events.forEach { event -> event.unsubscribe() }
     }
+
+    suspend fun await() {
+        enterJob?.join()
+        updateJob?.join()
+        exitJob?.join()
+        events.forEach { it.await() }
+    }
 }
 
 interface StateControl {
