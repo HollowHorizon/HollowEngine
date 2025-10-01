@@ -32,16 +32,20 @@ import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.api.ICapabilityDispatcher
 import ru.hollowhorizon.hollowengine.api.deserializeCapabilities
 import ru.hollowhorizon.hollowengine.api.serializeCapabilities
-import ru.hollowhorizon.hollowengine.common.utils.mcTranslate
-import ru.hollowhorizon.hollowengine.common.utils.nbt.loadAsNBT
-import ru.hollowhorizon.hollowengine.common.utils.nbt.save
 import ru.hollowhorizon.hollowengine.common.capabilities.CapabilityInstance
+import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
+import ru.hollowhorizon.hollowengine.common.components.lifecycle.load
+import ru.hollowhorizon.hollowengine.common.components.lifecycle.onTick
+import ru.hollowhorizon.hollowengine.common.components.lifecycle.save
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.ItemTooltipEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityTrackingEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
+import ru.hollowhorizon.hollowengine.common.utils.mcTranslate
+import ru.hollowhorizon.hollowengine.common.utils.nbt.loadAsNBT
+import ru.hollowhorizon.hollowengine.common.utils.nbt.save
 import ru.hollowhorizon.hollowengine.mixins.DimensionDataStorageAccessor
 import java.io.DataInputStream
 
@@ -91,8 +95,12 @@ object HollowEventHandler {
 
         val tag = CompoundTag()
         (level as ICapabilityDispatcher).serializeCapabilities(tag)
-        val stream = folder.resolve("hc_capabilities.dat").outputStream()
+        var stream = folder.resolve("hc_capabilities.dat").outputStream()
         tag.save(stream)
+        stream.close()
+
+        stream = folder.resolve("hollowengine-components.dat").outputStream()
+        (event.level as ComponentDispatcher).save().save(stream)
         stream.close()
     }
 
@@ -108,6 +116,19 @@ object HollowEventHandler {
             } catch (e: Exception) {
                 HollowCore.LOGGER.warn(
                     "Exception, while loading capabilities for level {}: ",
+                    level.dimension().location(),
+                    e
+                )
+            }
+        }
+        val components = folder.resolve("hollowengine-components.dat")
+        if (components.exists()) {
+            try {
+                val tag = DataInputStream(components.inputStream()).loadAsNBT() as CompoundTag
+                (event.level as ComponentDispatcher).load(tag)
+            } catch (e: Exception) {
+                HollowCore.LOGGER.warn(
+                    "Exception, while loading components for level {}: ",
                     level.dimension().location(),
                     e
                 )
@@ -131,5 +152,17 @@ object HollowEventHandler {
                 ENTITY_TAGS.remove(event.entity.id)
             }
         }
+    }
+
+    @SubscribeEvent
+    fun onTickLevels(event: TickEvent.Server) {
+        event.server.allLevels.forEach {
+            (it as ComponentDispatcher).onTick()
+        }
+    }
+
+    @SubscribeEvent
+    fun onTickClientLevel(event: TickEvent.Client) {
+        (event.minecraft.level as? ComponentDispatcher)?.onTick()
     }
 }

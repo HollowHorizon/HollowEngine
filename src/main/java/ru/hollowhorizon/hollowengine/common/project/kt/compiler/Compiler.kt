@@ -9,11 +9,7 @@ import org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.environment.setIdeaIoUseFallback
 import org.jetbrains.kotlin.cli.common.output.writeAllTo
-import org.jetbrains.kotlin.cli.jvm.compiler.CliBindingTrace
-import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
-import org.jetbrains.kotlin.cli.jvm.compiler.JvmPackagePartProvider
-import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
-import org.jetbrains.kotlin.cli.jvm.compiler.TopDownAnalyzerFacadeForJVM
+import org.jetbrains.kotlin.cli.jvm.compiler.*
 import org.jetbrains.kotlin.cli.jvm.config.addJavaSourceRoots
 import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
 import org.jetbrains.kotlin.cli.jvm.config.configureJdkClasspathRoots
@@ -62,7 +58,6 @@ import org.jetbrains.kotlin.serialization.deserialization.descriptors.Deserializ
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.expressions.ExpressionTypingServices
 import org.jetbrains.kotlin.util.KotlinFrontEndException
-import ru.hollowhorizon.hollowengine.common.utils.UnsafeTools
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.project.kt.CodegenConfiguration
 import ru.hollowhorizon.hollowengine.common.project.kt.CompilerConfiguration
@@ -70,6 +65,7 @@ import ru.hollowhorizon.hollowengine.common.project.kt.ScriptsConfiguration
 import ru.hollowhorizon.hollowengine.common.project.kt.imports.collectUnusedImports
 import ru.hollowhorizon.hollowengine.common.project.kt.util.LoggingMessageCollector
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptTypes
+import ru.hollowhorizon.hollowengine.common.utils.UnsafeTools
 import java.io.Closeable
 import java.io.File
 import java.nio.file.Path
@@ -77,6 +73,9 @@ import java.nio.file.Paths
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.script.experimental.api.KotlinType
+import kotlin.script.experimental.api.ScriptCompilationConfiguration
+import kotlin.script.experimental.api.ScriptCompilationConfigurationKeys
+import kotlin.script.experimental.api.importScripts
 import kotlin.script.experimental.host.ScriptingHostConfiguration
 import kotlin.script.experimental.host.configurationDependencies
 import kotlin.script.experimental.host.createCompilationConfigurationFromTemplate
@@ -191,7 +190,9 @@ private class CompilationEnvironment(
             files = sourcePath,
             trace = trace,
             configuration = environment.configuration,
-            packagePartProvider = { cached ?: environment.createPackagePartProvider(it).also { provider -> cached = provider } },
+            packagePartProvider = {
+                cached ?: environment.createPackagePartProvider(it).also { provider -> cached = provider }
+            },
             // TODO FileBasedDeclarationProviderFactory keeps indices, re-use it across calls
             declarationProviderFactory = ::FileBasedDeclarationProviderFactory
         )
@@ -338,19 +339,29 @@ class Compiler(
         sourcePath: Collection<KtFile>,
         kind: CompilationKind = CompilationKind.DEFAULT,
     ): CompiledResult {
-        if (kind == CompilationKind.BUILD_SCRIPT) {
-            // Print the (legacy) script template used by the compiled Kotlin DSL build file
-            files.forEach {
-                HollowEngine.LOGGER.debug(
-                    "{} -> ScriptDefinition: {}",
-                    it,
-                    it.findScriptDefinition()?.asLegacyOrNull<KotlinScriptDefinition>()?.template?.simpleName
-                )
-            }
-        }
-
         compileLock.withLock {
             val compileEnv = compileEnvironmentFor(kind)
+
+            val provider = ScriptConfigurationsProvider.getInstance(compileEnv.environment.project)!!
+            val sourcePath = sourcePath.flatMap {
+                val configuration = provider.getScriptConfiguration(it)?.configuration ?: return@flatMap listOf(it)
+                val scripts = configuration[ScriptCompilationConfiguration.importScripts]?.map {
+                    createKtFile(it.text, Paths.get(it.name ?: "imported.virtual.kts"), kind)
+                } ?: emptyList()
+                scripts + it
+            }
+
+            if (kind == CompilationKind.BUILD_SCRIPT) {
+                // Print the (legacy) script template used by the compiled Kotlin DSL build file
+                files.forEach {
+                    HollowEngine.LOGGER.debug(
+                        "{} -> ScriptDefinition: {}",
+                        it,
+                        it.findScriptDefinition()?.asLegacyOrNull<KotlinScriptDefinition>()?.template?.simpleName
+                    )
+                }
+            }
+
             val (container, trace) = compileEnv.createContainer(sourcePath)
             val module = container.getService(ModuleDescriptor::class.java)
             container.get<LazyTopDownAnalyzer>().analyzeDeclarations(TopDownAnalysisMode.TopLevelDeclarations, files)
@@ -484,4 +495,8 @@ private fun describeExpression(expression: String): String = expression.lines().
     }
 }
 
-data class CompiledResult(val bindingContext: BindingContext, val syntheticScopes: SyntheticScopes, val module: ModuleDescriptor)
+data class CompiledResult(
+    val bindingContext: BindingContext,
+    val syntheticScopes: SyntheticScopes,
+    val module: ModuleDescriptor,
+)

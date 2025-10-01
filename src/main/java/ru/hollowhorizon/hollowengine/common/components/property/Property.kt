@@ -9,8 +9,8 @@ import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
 
-class Property<V : Any>(var name: String?, internal val serializer: Class<V>, private val initializer: () -> V) :
-    ReadWriteProperty<Component<*>, V> {
+class Property<V : Any>(val component: Component<*>, var name: String?, internal val serializer: Class<V>, private val initializer: () -> V) :
+    ReadWriteProperty<Any?, V> {
     private var value: V? = null
     private var renderCreator: (() -> Renderer<V>)? = null
     var hasRenderer = false
@@ -26,10 +26,10 @@ class Property<V : Any>(var name: String?, internal val serializer: Class<V>, pr
     private var onChange: Set<(V?, V) -> Unit> = hashSetOf()
     internal var changed: Boolean = false
 
-    operator fun provideDelegate(thisRef: Component<*>, property: KProperty<*>): Property<V> {
+    operator fun provideDelegate(thisRef: Any?, property: KProperty<*>): Property<V> {
         val name = name ?: property.name
         this.name = name
-        thisRef.properties[name] = this
+        component.properties[name] = this
         return this
     }
 
@@ -44,11 +44,11 @@ class Property<V : Any>(var name: String?, internal val serializer: Class<V>, pr
         changed = true
     }
 
-    override fun getValue(thisRef: Component<*>, property: KProperty<*>): V {
+    override fun getValue(thisRef: Any?, property: KProperty<*>): V {
         return get()
     }
 
-    override fun setValue(thisRef: Component<*>, property: KProperty<*>, value: V) {
+    override fun setValue(thisRef: Any?, property: KProperty<*>, value: V) {
         set(value)
     }
 

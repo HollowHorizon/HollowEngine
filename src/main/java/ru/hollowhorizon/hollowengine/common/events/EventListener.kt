@@ -14,6 +14,11 @@ fun interface EventListener<T : Event> {
     fun onEvent(event: T)
 }
 
+fun <T: Event> eventListenerOf(priority: Int = 0, handler: (T) -> Unit) = object : EventListener<T> {
+    override val priority = priority
+    override fun onEvent(event: T) = handler(event)
+}
+
 private val EVENTS = HashMultimap.create<Any, EventListener<Event>>()
 
 fun Any.subscribeEvents() {

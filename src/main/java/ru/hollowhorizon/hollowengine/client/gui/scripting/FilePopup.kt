@@ -11,6 +11,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptTypes
 import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
 
 class FilePopup : Composable {
@@ -44,8 +45,9 @@ class FilePopup : Composable {
         item.treePath.fromReadablePath().resolve(name).mkdirs()
         item.update()
     }
+
     private fun createFile(item: FileNode, name: String) {
-        item.treePath.fromReadablePath().resolve(name+fileExtension).createNewFile()
+        item.treePath.fromReadablePath().resolve(name + fileExtension).createNewFile()
         item.update()
     }
 
@@ -53,6 +55,7 @@ class FilePopup : Composable {
         item.treePath.fromReadablePath().renameTo(item.treePath.fromReadablePath().parentFile.resolve(newName))
         item.parent?.update()
     }
+
     private fun delete(item: FileNode) {
         item.treePath.fromReadablePath().deleteRecursively()
         item.parent?.update()
@@ -68,17 +71,14 @@ class FilePopup : Composable {
                     }
                     if (node.treePath.startsWith("scripts")) {
                         subMenu(ACTIONS("create.script"), "hollowengine:textures/gui/icons/create_file.png") {
-                            item(ACTIONS("create.script.scene"), "hollowengine:textures/gui/icons/file_kts.png") {
-                                fileExtension = ".scene.kts"
-                                createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
-                            }
-                            item(ACTIONS("create.script.kool"), "hollowengine:textures/gui/icons/file_kts.png") {
-                                fileExtension = ".kool.kts"
-                                createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
-                            }
-                            item(ACTIONS("create.script.event"), "hollowengine:textures/gui/icons/file_kts.png") {
-                                fileExtension = ".event.kts"
-                                createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
+                            ScriptTypes.SCRIPTS.keys.forEach { script ->
+                                item(
+                                    ACTIONS("create.script.${script.fileExtension.substringBeforeLast('.')}"),
+                                    "hollowengine:textures/gui/icons/file_kts.png"
+                                ) {
+                                    fileExtension = '.' + script.fileExtension
+                                    createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
+                                }
                             }
                         }
                     }
@@ -104,7 +104,7 @@ class FilePopup : Composable {
 
                 if (copySource.isNotEmpty()) {
                     copySource.fromReadablePath().copyTo(target.fromReadablePath(), true)
-                    if(deleteOriginal) copySource.fromReadablePath().deleteRecursively()
+                    if (deleteOriginal) copySource.fromReadablePath().deleteRecursively()
                 }
                 if (deleteOriginal) copySource = ""
             }

@@ -16,17 +16,21 @@ object EventBus {
     inline fun <reified T : Event> register(listener: EventListener<T>) {
         val list = listeners.getOrPut(T::class, ::CopyOnWriteArrayList)
         list.add(listener)
-        list.sortBy { it.priority }
+        list.sortByDescending { it.priority }
     }
 
     fun registerNoInline(type: Class<Event>, listener: EventListener<Event>) {
         val list = listeners.getOrPut(type.kotlin, ::CopyOnWriteArrayList)
         list.add(listener)
-        list.sortBy { it.priority }
+        list.sortByDescending { it.priority }
     }
 
     inline fun <reified T : Event> unregister(listener: EventListener<T>) {
         listeners[T::class]?.remove(listener)
+    }
+
+    fun unregisterNoInline(type: Class<Event>, listener: EventListener<Event>) {
+        listeners[type.kotlin]?.remove(listener)
     }
 
 
@@ -49,7 +53,7 @@ suspend inline fun <reified T : Event> awaitEvent(crossinline isValidCondition: 
         listener = EventListener { event ->
             if (isValidCondition(event)) continuation.resume(event)
         }
-        EventBus.register(listener ?: return@suspendCoroutine)
+        EventBus.register(listener)
     }
 
     EventBus.unregister(listener!!)

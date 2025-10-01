@@ -88,8 +88,9 @@ dependencies {
     install("org.eclipse.lsp4j:org.eclipse.lsp4j:0.24.0")
     install("org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc:0.24.0")
     install("org.jetbrains.kotlin:kotlin-sam-with-receiver-compiler-plugin:$kotlinVersion")
-    
-    //modRuntimeOnly("mezz.jei:jei-1.20.1-${modPlatform}:$jei")
+
+    testImplementation(kotlin("test"))
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 }
 
 fun DependencyHandlerScope.setupScripting() {

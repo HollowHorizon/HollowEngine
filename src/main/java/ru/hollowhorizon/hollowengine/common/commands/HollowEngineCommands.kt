@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.commands
 import com.mojang.brigadier.arguments.StringArgumentType
 import kotlinx.serialization.Serializable
 import net.minecraft.ChatFormatting
+import net.minecraft.commands.arguments.DimensionArgument
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
@@ -159,6 +160,21 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                     }
                 }
 
+                "add"(
+                    arg("level", DimensionArgument.dimension()),
+                    arg("component", StringArgumentType.string()) {
+                        ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
+                    }
+                ) {
+                    executes {
+                        val level = DimensionArgument.getDimension(this, "level")
+                        val component = StringArgumentType.getString(this, "component").rl
+
+                        (level as ComponentDispatcher).attach(component)
+                        SUCCESS
+                    }
+                }
+
                 "remove"(
                     arg("entity", EntityArgument.entity()),
                     arg("component", StringArgumentType.string()) {
@@ -170,6 +186,21 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                         val component = StringArgumentType.getString(this, "component").rl
 
                         (entity as ComponentDispatcher).detach(component)
+                        SUCCESS
+                    }
+                }
+
+                "remove"(
+                    arg("level", DimensionArgument.dimension()),
+                    arg("component", StringArgumentType.string()) {
+                        ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
+                    }
+                ) {
+                    executes {
+                        val level = DimensionArgument.getDimension(this, "level")
+                        val component = StringArgumentType.getString(this, "component").rl
+
+                        (level as ComponentDispatcher).detach(component)
                         SUCCESS
                     }
                 }
@@ -192,7 +223,44 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
 
                         dispatcher.edit(componentLocation, propertyName, JsonFormat, JsonFormat.decodeFromString(value))
 
-                        sendSuccess({ "Property $propertyName of component $componentLocation set to $value".literal })
+                        sendSuccess({
+                            "[HollowEngine] ".literal.colored(ChatFormatting.GOLD) +
+                                    "Property ".literal.colored(0xFFFFFF) +
+                                    "$propertyName".literal.colored(ChatFormatting.DARK_PURPLE) +
+                                    " of component ".literal.colored(0xFFFFFF) +
+                                    "$componentLocation".literal.colored(ChatFormatting.GRAY) +
+                                    " set to ".literal.colored(0xFFFFFF) +
+                                    value.literal.colored(ChatFormatting.AQUA)
+                        })                    }
+                }
+
+                "edit"(
+                    arg("level", DimensionArgument.dimension()),
+                    arg("component", StringArgumentType.string()) {
+                        ComponentRegistry.map { it.key.location.toString() }.map { '"' + it + '"' }
+                    },
+                    arg("property", StringArgumentType.string()),
+                    arg("value", StringArgumentType.greedyString())
+                ) {
+                    executes {
+                        val level = DimensionArgument.getDimension(this, "level")
+                        val componentLocation = StringArgumentType.getString(this, "component").rl
+                        val propertyName = StringArgumentType.getString(this, "property")
+                        val value = StringArgumentType.getString(this, "value").trim()
+
+                        val dispatcher = level as? ComponentDispatcher ?: error("Level is not a ComponentDispatcher")
+
+                        dispatcher.edit(componentLocation, propertyName, JsonFormat, JsonFormat.decodeFromString(value))
+
+                        sendSuccess({
+                            "[HollowEngine] ".literal.colored(ChatFormatting.GOLD) +
+                                    "Property ".literal.colored(0xFFFFFF) +
+                                    "$propertyName".literal.colored(ChatFormatting.DARK_PURPLE) +
+                                    " of component ".literal.colored(0xFFFFFF) +
+                                    "$componentLocation".literal.colored(ChatFormatting.GRAY) +
+                                    " set to ".literal.colored(0xFFFFFF) +
+                                    value.literal.colored(ChatFormatting.AQUA)
+                        })
                     }
                 }
             }

@@ -8,6 +8,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.core.deobfClasspath
 import ru.hollowhorizon.hollowengine.common.scripting.core.scriptingClasspath
 import java.io.File
 import kotlin.script.experimental.api.*
+import kotlin.script.experimental.host.StringScriptSource
 import kotlin.script.experimental.jvm.dependenciesFromCurrentContext
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.updateClasspath
@@ -50,6 +51,7 @@ open class HollowScriptConfiguration(body: Builder.() -> Unit = {}) : ScriptComp
     }
 
     ide { acceptedLocations(ScriptAcceptedLocation.Everywhere) }
+
 })
 
 fun classpath(): List<File> {
