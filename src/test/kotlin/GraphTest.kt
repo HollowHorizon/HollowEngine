@@ -26,8 +26,10 @@ class GraphTest {
                 }
             }
         }
-        graph.start()
+        graph.start(this)
         graph.updateAwait(this)
+        graph.updateAwait(this)
+
 
         assertEquals("A", graph.currentState.name)
         assertTrue("enterA" in enterCalled)
@@ -60,7 +62,7 @@ class GraphTest {
             }
         }
 
-        graph.start()
+        graph.start(this)
         graph.updateAwait(this)
 
         graph.transition("B")
@@ -88,7 +90,7 @@ class GraphTest {
 
             }
         }
-        graph.start()
+        graph.start(this)
         graph.updateAwait(this)
 
         graph.transition("B")
@@ -121,7 +123,8 @@ class GraphTest {
 
             }
         }
-        graph.start()
+        graph.start(this)
+        graph.updateAwait(this)
         graph.updateAwait(this)
 
         EventBus.post(TestEvent())
@@ -131,12 +134,44 @@ class GraphTest {
 
         graph.transition("B")
         graph.updateAwait(this)
+        graph.updateAwait(this)
 
         EventBus.post(TestEvent())
         graph.await()
         assertTrue("Transition must be not catched in state B", !catched)
     }
 
+    @Test
+    fun `Saving and Loading context of graph`() = runTest {
+        val graph = graph {
+            var counter by remember { 0 }
+
+            initialState("A")
+
+            state("A") {
+                onEnter {
+                    println("Counter in A: ${counter++}")
+                    transition("B")
+                }
+            }
+
+            state("B") {
+                onEnter {
+                    println("Counter in B: $counter")
+                    counter = 32_30_10
+                }
+            }
+        }
+
+        graph.start(this)
+        graph.updateAwait(this)
+        graph.updateAwait(this)
+        graph.updateAwait(this)
+        graph.updateAwait(this)
+        assertEquals(graph.serialize().getCompound("variables").getInt("counter"), 32_30_10, "Variable 'counter' must be equal '323010'")
+    }
+
+    // TODO: Нужно сделать более продвинутый обработчик для тестов, чем спамить по 2-4 итерации, пока он дойдёт до нужного шага
     suspend fun Graph.updateAwait(scope: CoroutineScope) {
         update(scope)
         await()

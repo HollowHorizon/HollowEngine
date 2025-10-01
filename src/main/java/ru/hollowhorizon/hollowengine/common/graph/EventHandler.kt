@@ -61,4 +61,8 @@ open class EventHandler<T : Event>(
     suspend fun await() {
         job?.join()
     }
+
+    fun cancel() {
+        job?.cancel()
+    }
 }

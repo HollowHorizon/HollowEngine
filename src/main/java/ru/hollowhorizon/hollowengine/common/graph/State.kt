@@ -30,6 +30,13 @@ class State(
         exitJob?.join()
         events.forEach { it.await() }
     }
+
+    fun cancel() {
+        enterJob?.cancel()
+        updateJob?.cancel()
+        exitJob?.cancel()
+        events.forEach { it.cancel() }
+    }
 }
 
 interface StateControl {
