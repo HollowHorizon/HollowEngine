@@ -26,6 +26,7 @@ package ru.hollowhorizon.hollowengine.client.models.internal.manager
 
 import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
+import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.models.internal.Transform
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationType
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.AutoController
@@ -52,7 +53,7 @@ class AnimatedEntityCapability : CapabilityInstance() {
             head("Head")
         }
     ) { new, old ->
-        if(!isPhysicalClient) return@syncable
+        if(!(provider as LivingEntity).level().isClientSide) return@syncable
         Minecraft.getInstance().coroutineScope.launch {
             new.layers.find { it.name == Controller.AUTOMATIC_LAYER }?.let {
                 if (model == HollowEntityRenderer.NO_MODEL) return@let

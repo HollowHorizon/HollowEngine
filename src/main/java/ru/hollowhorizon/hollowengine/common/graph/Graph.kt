@@ -1,12 +1,15 @@
 package ru.hollowhorizon.hollowengine.common.graph
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.IntTag
 import net.minecraft.world.InteractionHand
+import net.minecraft.world.entity.ai.util.DefaultRandomPos
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
@@ -16,6 +19,8 @@ import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractE
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hollowengine.common.fsm.StateStorage
 import ru.hollowhorizon.hollowengine.common.scripting.components.ScriptableComponent
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.npc
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.pos
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.send
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 
@@ -68,7 +73,7 @@ class Graph(
         val variables = tag.getCompound("variables")
 
         rememberVariables.forEach { variable ->
-            variable.init(variables.get(variable.name()))
+            variable.deserialize(variables.get(variable.name()))
         }
 
         tag.getCompound("extras").apply {
@@ -100,6 +105,8 @@ class Graph(
                         enterJob = graphScope.launch {
                             try {
                                 onEnter()
+                            } catch (_: CancellationException) {
+                                // Отмены корутин это не ошибки в данном случае
                             } catch (e: Exception) {
                                 HollowEngine.LOGGER.error("Error in state $name on enter: ", e)
                             } finally {
@@ -184,7 +191,7 @@ class GraphContext(@PublishedApi internal val graphScope: CoroutineScope) {
     internal val globalEvents = HashSet<EventHandler<*>>()
 
     @PublishedApi
-    internal var rememberVariables = HashSet<Variable<*>>()
+    internal val rememberVariables = HashSet<Variable<*>>()
     private var initialState: String? = null
 
 
@@ -196,7 +203,7 @@ class GraphContext(@PublishedApi internal val graphScope: CoroutineScope) {
         StateContext(graphScope).apply { context() }.build(name).apply { states.add(this) }
 
     inline fun <reified T : Any> remember(name: String? = null, noinline default: suspend () -> T): Variable<T> {
-        return Variable(name, default, T::class.java).apply {
+        return GraphVariable(name, default, T::class.java).apply {
             rememberVariables += this
         }
     }
@@ -262,36 +269,67 @@ class GraphContext(@PublishedApi internal val graphScope: CoroutineScope) {
 @GraphDSL
 fun CoroutineScope.graph(context: GraphContext.() -> Unit) = GraphContext(this).apply(context).build()
 
-@ComponentMeta("hollowengine:story/example")
+@ComponentMeta("hollowengine:story/example_2")
 class Example : ScriptableComponent<Level>() {
     init {
         attachGraph {
-            initialState("1")
+            val npc by rememberEntity {
+                npc(pos(47, -57, -12))
+            }
 
-            state("1") {
+            initialState("Move to player")
+
+            state("Move to player") {
                 onEnter {
-                    owner.players().forEach { it.send("Вы теперь можете взаимодействовать с сущностями!") }
-                }
-
-                on<PlayerInteractEvent.EntityInteract> {
-                    if(it.player.level().isClientSide || it.hand == InteractionHand.OFF_HAND) return@on
-                    it.player.send("Ты нажал пкм по ${it.target.name.string}")
+                    while(true) {
+                        delay(50)
+                        val player = owner.getNearestPlayer(npc, 100.0) ?: continue
+                        npc.navigation.moveTo(player, 1.0)
+                    }
                 }
 
                 on<ServerChatEvent> {
-                    transition("2")
+                    val message = it.message.string.lowercase()
+                    when {
+                        "уйди" in message -> transition("Move from player")
+                        "стой" in message -> transition("Stay")
+                    }
                 }
             }
 
-            state("2") {
+            state("Move from player") {
                 onEnter {
-                    owner.players().forEach { it.send("Вы теперь не можете взаимодействовать с сущностями!") }
+                    while(true) {
+                        delay(50)
+                        val player = owner.getNearestPlayer(npc, 100.0) ?: continue
+                        val avoidPos = DefaultRandomPos.getPosAway(npc, 16, 7, player.position()) ?: continue
+                        npc.navigation.moveTo(avoidPos.x, avoidPos.y, avoidPos.z, 1.0)
+                    }
                 }
 
                 on<ServerChatEvent> {
-                    transition("1")
+                    val message = it.message.string.lowercase()
+                    when {
+                        "за мной" in message -> transition("Move to player")
+                        "стой" in message -> transition("Stay")
+                    }
                 }
             }
+
+            state("Stay") {
+                onEnter {
+                    npc.navigation.stop()
+                }
+
+                on<ServerChatEvent> {
+                    val message = it.message.string.lowercase()
+                    when {
+                        "уйди" in message -> transition("Move from player")
+                        "за мной" in message -> transition("Move to player")
+                    }
+                }
+            }
+
         }
     }
 }
@@ -300,23 +338,23 @@ fun ScriptableComponent<Level>.attachGraph(context: GraphContext.() -> Unit) {
     val graph = currentServer.coroutineScope.graph(context)
 
     onAttach {
-        if(owner.isClientSide) return@onAttach
-        if(!graph.isStarted) graph.start()
+        if (owner.isClientSide) return@onAttach
+        if (!graph.isStarted) graph.start()
     }
     onDetach {
-        if(owner.isClientSide) return@onDetach
+        if (owner.isClientSide) return@onDetach
         graph.stop()
     }
     onUpdate {
-        if(owner.isClientSide) return@onUpdate
+        if (owner.isClientSide) return@onUpdate
         graph.update()
     }
     onSave {
-        if(owner.isClientSide) return@onSave
+        if (owner.isClientSide) return@onSave
         put("graph", graph.serialize())
     }
     onLoad {
-        if(owner.isClientSide) return@onLoad
+        if (owner.isClientSide) return@onLoad
         graph.start(getCompound("graph"))
     }
 }
