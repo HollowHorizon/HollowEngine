@@ -110,7 +110,7 @@ class LogMessage(
 
             messageFonts[StandardLevel.TRACE] = TextAttributes(font, MdColor.GREY tone 600)
             messageFonts[StandardLevel.DEBUG] = TextAttributes(font, MdColor.GREY tone 400)
-            messageFonts[StandardLevel.INFO] = TextAttributes(font, MdColor.GREY tone 500)
+            messageFonts[StandardLevel.INFO] = TextAttributes(font, MdColor.GREY tone 200)
             messageFonts[StandardLevel.WARN] = TextAttributes(font, MdColor.AMBER tone 200)
             messageFonts[StandardLevel.ERROR] = TextAttributes(font.copy(weight = MsdfFont.WEIGHT_BOLD), MdColor.RED)
         }
