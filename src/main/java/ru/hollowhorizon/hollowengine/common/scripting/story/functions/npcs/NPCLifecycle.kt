@@ -6,9 +6,7 @@ import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.models.internal.Transform
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationType
-import ru.hollowhorizon.hollowengine.client.models.internal.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
-import ru.hollowhorizon.hollowengine.common.utils.get
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import kotlin.contracts.ExperimentalContracts
@@ -69,26 +67,18 @@ fun npc(
 
     level.allEntities.asSequence()
         .filterIsInstance<NpcEntity>()
-        .filter { it.name == name }
-        .firstOrNull { it.model == model }
+        .firstOrNull { it.name == name }
         ?.let { return it }
 
     return NpcEntity(level).apply {
         setPos(pos.x, pos.y, pos.z)
 
-        this[AnimatedEntityCapability::class].apply {
-            this.model = model
-            this.textures.clear()
-            this.textures.putAll(textures)
-            this.transform = transform
-        }
         moveTo(pos.x, pos.y, pos.z, rotation.x, rotation.y)
 
         if (attributes.isNotEmpty()) {
             setAttributes(attributes)
         }
 
-        setDimensions(size)
         refreshDimensions()
 
         isCustomNameVisible = showName && name.isNotEmpty()

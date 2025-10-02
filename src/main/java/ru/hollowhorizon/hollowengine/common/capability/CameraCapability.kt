@@ -12,28 +12,25 @@ import kotlinx.serialization.descriptors.element
 import kotlinx.serialization.encoding.*
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.LivingEntity
-import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.common.capabilities.CapabilityInstance
-import ru.hollowhorizon.hollowengine.common.capabilities.HollowCapability
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
-import ru.hollowhorizon.hollowengine.common.utils.get
 import ru.hollowhorizon.hollowengine.common.utils.isLogicalClient
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForUuid
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForVec3
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.getLevel
 import java.util.*
 
-@HollowCapability(Player::class)
-class CameraCapability : CapabilityInstance() {
-    var camera: Camera by syncable(Camera.Default)
-}
-
-var Player.cameraSystem: Camera
-    get() = this[CameraCapability::class].camera
-    set(value) {
-        this[CameraCapability::class].camera = value
-    }
+//TODO: Fixme
+//@HollowCapability(Player::class)
+//class CameraCapability : CapabilityInstance() {
+//    var camera: Camera by syncable(Camera.Default)
+//}
+//
+//var Player.cameraSystem: Camera
+//    get() = this[CameraCapability::class].camera
+//    set(value) {
+//        this[CameraCapability::class].camera = value
+//    }
 
 @Serializable(with = CameraSerializer::class)
 sealed interface Camera {

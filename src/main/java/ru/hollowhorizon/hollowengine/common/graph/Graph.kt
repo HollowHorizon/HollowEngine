@@ -27,8 +27,8 @@ import ru.hollowhorizon.hollowengine.common.utils.currentServer
 class Graph(
     coroutineScope: CoroutineScope,
     private val states: Array<State>,
-    private val globalEvents: Set<EventHandler<*>>,
-    private val rememberVariables: HashSet<Variable<*>>,
+    private val globalEvents: List<EventHandler<*>>,
+    private val rememberVariables: List<Variable<*>>,
     initialState: Int,
 ) : CancelableStateControl {
     init {
@@ -185,13 +185,13 @@ annotation class GraphDSL
 
 @GraphDSL
 class GraphContext(@PublishedApi internal val graphScope: CoroutineScope) {
-    private val states = HashSet<State>()
+    private val states = mutableListOf<State>()
 
     @PublishedApi
-    internal val globalEvents = HashSet<EventHandler<*>>()
+    internal val globalEvents = mutableListOf<EventHandler<*>>()
 
     @PublishedApi
-    internal val rememberVariables = HashSet<Variable<*>>()
+    internal val rememberVariables = mutableListOf<Variable<*>>()
     private var initialState: String? = null
 
 

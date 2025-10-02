@@ -8,6 +8,7 @@ import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.api.Init
+import ru.hollowhorizon.hollowengine.client.kool.addons.BooleanRenderer
 import ru.hollowhorizon.hollowengine.client.kool.addons.ResourceLocationRenderer
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.ModelData
@@ -17,7 +18,6 @@ import ru.hollowhorizon.hollowengine.client.models.internal.controller.Controlle
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.StateMachineBuilder
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.animationController
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
-import ru.hollowhorizon.hollowengine.client.render.entity.HollowEntityRenderer
 import ru.hollowhorizon.hollowengine.client.utils.toTexture
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
@@ -42,6 +42,7 @@ class ModelComponent : Component<LivingEntity>() {
         }
 
     internal var internalModel: AnimatedModel by mutableLazy { HollowModelManager.getOrCreate(model.rl) }
+
 }
 
 @ComponentMeta("hollowengine:animator")
@@ -56,7 +57,6 @@ class AnimatorComponent : Component<LivingEntity>() {
             if(!isPhysicalClient) return@onChange
             Minecraft.getInstance().coroutineScope.launch {
                 new.layers.find { it.name == Controller.AUTOMATIC_LAYER }?.let {
-                    if (model.model == HollowEntityRenderer.NO_MODEL) return@let
                     val model = HollowModelManager.getOrCreate(model.model.rl)
                     val stateMachine = AutoController.create(StateMachineBuilder(), AnimationType.load(model))
                     it.stateMachine = stateMachine.build()
@@ -69,7 +69,6 @@ class AnimatorComponent : Component<LivingEntity>() {
     override fun onAttach() {
         if(!isPhysicalClient) return
         controller.layers.find { it.name == Controller.AUTOMATIC_LAYER }?.let {
-            if (model.model == HollowEntityRenderer.NO_MODEL) return@let
             val model = HollowModelManager.getOrCreate(model.model.rl)
             val stateMachine = AutoController.create(StateMachineBuilder(), AnimationType.load(model))
             it.stateMachine = stateMachine.build()

@@ -12,9 +12,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import ru.hollowhorizon.hollowengine.api.ICapabilityDispatcher;
-import ru.hollowhorizon.hollowengine.api.ICapabilityDispatcherKt;
-import ru.hollowhorizon.hollowengine.common.capabilities.CapabilityInstance;
 import ru.hollowhorizon.hollowengine.common.components.Component;
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher;
 import ru.hollowhorizon.hollowengine.common.components.lifecycle.ComponentSavingKt;
@@ -25,33 +22,17 @@ import ru.hollowhorizon.hollowengine.common.events.entity.EntityHurtEvent;
 import java.util.Map;
 
 @Mixin(Entity.class)
-public class EntityMixin implements ICapabilityDispatcher, ComponentDispatcher {
-    @Unique
-    private final Map<String, CapabilityInstance> hollowCore$capabilities = new Object2ObjectOpenHashMap<>();
+public class EntityMixin implements ComponentDispatcher {
     @Unique
     private final Map<ResourceLocation, Component<?>> hollowCore$components = new Object2ObjectOpenHashMap<>();
 
-
-    @NotNull
-    @Override
-    public Map<String, CapabilityInstance> getCapabilities() {
-        return hollowCore$capabilities;
-    }
-
-    @Inject(method = "<init>", at = @At("TAIL"))
-    private void onInit(CallbackInfo ci) {
-        ICapabilityDispatcherKt.initialize(this);
-    }
-
     @Inject(method = "saveWithoutId", at = @At("TAIL"))
     private void serializeExtra(CompoundTag tag, CallbackInfoReturnable<CompoundTag> cir) {
-        ICapabilityDispatcherKt.serializeCapabilities(this, tag);
         tag.put(ComponentSavingKt.COMPONENT_TAG, ComponentSavingKt.save(this));
     }
 
     @Inject(method = "load", at = @At("TAIL"))
     private void deserializeExtra(CompoundTag tag, CallbackInfo ci) {
-        ICapabilityDispatcherKt.deserializeCapabilities(this, tag);
         ComponentSavingKt.load(this, tag.getCompound(ComponentSavingKt.COMPONENT_TAG));
     }
 
@@ -64,7 +45,6 @@ public class EntityMixin implements ICapabilityDispatcher, ComponentDispatcher {
 
     @Inject(method = "tick", at = @At("TAIL"))
     public void onTick(CallbackInfo ci) {
-        ICapabilityDispatcherKt.syncIfNeeded(this);
         ComponentSyncingKt.onTick(this);
     }
 

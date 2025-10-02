@@ -42,22 +42,12 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.level.pathfinder.BlockPathTypes
 //?}
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.HollowCore
-import ru.hollowhorizon.hollowengine.client.models.internal.Transform
-import ru.hollowhorizon.hollowengine.client.models.internal.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hollowengine.client.models.internal.manager.IAnimated
-import ru.hollowhorizon.hollowengine.common.utils.get
 import ru.hollowhorizon.hollowengine.client.utils.open
-import ru.hollowhorizon.hollowengine.common.capabilities.containers.TestEntityCapability
 
-class TestEntity(type: EntityType<TestEntity>, world: Level) : PathfinderMob(type, world), IAnimated {
+class TestEntity(type: EntityType<TestEntity>, world: Level) : PathfinderMob(type, world) {
 
     init {
-        this[AnimatedEntityCapability::class].apply {
-            model = "${HollowCore.MODID}:models/entity/npc.gltf"
-            //animations[AnimationType.IDLE] = "hello"
-            transform = Transform.create {}
-        }
+
         setPathfindingMalus(BlockPathTypes.WATER, -1.0f)
         this.setItemInHand(InteractionHand.MAIN_HAND, ItemStack(Items.NETHERITE_HOE))
         this.setItemInHand(InteractionHand.OFF_HAND, ItemStack(Items.TNT))
@@ -80,24 +70,6 @@ class TestEntity(type: EntityType<TestEntity>, world: Level) : PathfinderMob(typ
         if (!level().isClientSide) {
             server?.playerList?.players?.firstOrNull()?.let {
                 lookControl.setLookAt(it)
-            }
-
-            val container = this[TestEntityCapability::class].slots
-            val isValid = container.getItem(0).item == Items.DIRT &&
-                    container.getItem(1).item == Items.DIRT &&
-                    container.getItem(2).item == Items.OAK_PLANKS &&
-                    container.getItem(3).item == Items.STICK
-
-            if (isValid) {
-                container.getItem(0).shrink(1)
-                container.getItem(1).shrink(1)
-                container.getItem(2).shrink(1)
-                container.getItem(3).shrink(1)
-                if (container.getItem(4) == ItemStack.EMPTY) {
-                    container.setItem(4, ItemStack(Items.DIAMOND_BLOCK))
-                } else {
-                    container.setItem(4, container.getItem(4).apply { grow(1) })
-                }
             }
         }
     }

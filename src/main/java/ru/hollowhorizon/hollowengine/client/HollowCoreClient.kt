@@ -39,14 +39,17 @@ import net.minecraft.world.item.Items
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
-import ru.hollowhorizon.hollowengine.client.kool.*
+import ru.hollowhorizon.hollowengine.client.kool.Entity
+import ru.hollowhorizon.hollowengine.client.kool.Item
+import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
+import ru.hollowhorizon.hollowengine.client.kool.createFramebufferTexture
 import ru.hollowhorizon.hollowengine.client.kool.gl.render
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.render.RenderManager
-import ru.hollowhorizon.hollowengine.client.render.entity.HollowEntityRenderer
+import ru.hollowhorizon.hollowengine.client.render.entity.EmptyEntityRenderer
 import ru.hollowhorizon.hollowengine.client.utils.HollowPack
 import ru.hollowhorizon.hollowengine.client.utils.open
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
@@ -58,8 +61,6 @@ import ru.hollowhorizon.hollowengine.common.events.registry.RegisterKeyBindingsE
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
-import ru.hollowhorizon.hollowengine.common.objects.entities.TestEntity
-import ru.hollowhorizon.hollowengine.common.registry.HollowModProcessor
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 
 @ClientOnly
@@ -81,6 +82,11 @@ object HollowCoreClient {
         event.addPack(HollowPack)
     }
 
+    @SubscribeEvent
+    fun onRegisterRenderers(event: RegisterEntityRenderersEvent) {
+        event.registerEntity(ModEntities.NPC_ENTITY, ::EmptyEntityRenderer)
+    }
+
     val KEY_V = KeyMapping("key.v", GLFW.GLFW_KEY_V, "key.v1")
 
     @SubscribeEvent
@@ -94,8 +100,8 @@ object HollowCoreClient {
 
     @SubscribeEvent
     fun onClientTick(event: TickEvent.Client) {
-        if(HollowCore.config.debugMode && KEY_V.isDown) {
-            object: KoolScreen() {
+        if (HollowCore.config.debugMode && KEY_V.isDown) {
+            object : KoolScreen() {
                 override fun Scene.setup() {
                     setupUiScene()
 

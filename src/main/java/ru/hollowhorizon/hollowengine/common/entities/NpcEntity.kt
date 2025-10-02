@@ -15,31 +15,39 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
-import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
-import ru.hollowhorizon.hollowengine.client.models.internal.manager.AnimatedEntityCapability
-import ru.hollowhorizon.hollowengine.client.models.internal.manager.IAnimated
-import ru.hollowhorizon.hollowengine.common.utils.get
+import ru.hollowhorizon.hollowengine.common.components.Component
+import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
+import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
+import ru.hollowhorizon.hollowengine.common.components.lifecycle.attach
+import ru.hollowhorizon.hollowengine.common.components.lifecycle.get
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
-import ru.hollowhorizon.hollowengine.common.npcs.NPCCapability
-import ru.hollowhorizon.hollowengine.common.npcs.NpcIcon
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcMoveControl
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcPathNavigation
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
 
-class NpcEntity : PathfinderMob, IAnimated {
+@ComponentMeta("hollowengine:npcs/main")
+class NpcComponent: Component<NpcEntity>() {
+    var hitboxMode by property { HitboxMode.PULLING }
+}
+
+class NpcEntity : PathfinderMob {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY, level)
     constructor(type: EntityType<NpcEntity>, world: Level) : super(type, world)
 
     init {
         moveControl = NpcMoveControl(this)
-        this[AnimatedEntityCapability::class].model = "hollowengine:models/entity/player_model.gltf"
+        if(!level().isClientSide) (this as ComponentDispatcher).apply {
+            attach("hollowengine:npcs/main".rl)
+            attach("hollowengine:model_renderer".rl)
+            attach("hollowengine:animator".rl)
+        }
     }
 
     val goals get() = goalSelector
@@ -56,15 +64,8 @@ class NpcEntity : PathfinderMob, IAnimated {
 
     init {
         setCanPickUpLoot(true)
-        createAttributes()
     }
 
-
-    override fun defineSynchedData() {
-        entityData.define(sizeX, 0.6f)
-        entityData.define(sizeY, 1.8f)
-        super.defineSynchedData()
-    }
 
     override fun createNavigation(pLevel: Level) = NpcPathNavigation(pLevel, this)
 
@@ -87,48 +88,20 @@ class NpcEntity : PathfinderMob, IAnimated {
     override fun canPickUpLoot() = true
     override fun wantsToPickUp(pStack: ItemStack) = false
 
-    override fun customServerAiStep() {
-
-        val capability = this[NPCCapability::class]
-
-        if (capability.currentTrade == -1) return
-
-        if (capability.currentTrade >= capability.trades.size) {
-            capability.currentTrade = -1
-            return
-        }
-
-        val trade = capability.trades[capability.currentTrade]
-        if (trade.matches(capability.tradeContainer)) {
-            capability.tradeContainer.setItem(6, trade.output.copy())
-        } else if (!capability.tradeContainer.getItem(6).isEmpty) {
-            capability.tradeContainer.setItem(6, ItemStack.EMPTY)
-        }
-
-    }
-
-    override fun dropEquipment() {
-        super.dropEquipment()
-        val tradeSlots = this[NPCCapability::class].tradeContainer
-
-        (0 until tradeSlots.size).map { tradeSlots.getItem(it) }.forEach(::spawnAtLocation)
-        tradeSlots.clearContent()
-    }
-
     override fun dropAllDeathLoot(damageSource: DamageSource) {
         super.dropAllDeathLoot(damageSource)
     }
 
     override fun doPush(pEntity: Entity) {
-        if (this[NPCCapability::class].hitboxMode != HitboxMode.EMPTY) super.doPush(pEntity)
+        if (get<NpcComponent>()?.hitboxMode != HitboxMode.EMPTY) super.doPush(pEntity)
     }
 
     override fun isPushable(): Boolean {
-        return super.isPushable() && this[NPCCapability::class].hitboxMode == HitboxMode.PULLING
+        return super.isPushable() && get<NpcComponent>()?.hitboxMode == HitboxMode.PULLING
     }
 
     override fun canBeCollidedWith(): Boolean {
-        return this[NPCCapability::class].hitboxMode == HitboxMode.BLOCKING && this.isAlive
+        return get<NpcComponent>()?.hitboxMode == HitboxMode.BLOCKING && this.isAlive
     }
 
     override fun aiStep() {
@@ -139,47 +112,12 @@ class NpcEntity : PathfinderMob, IAnimated {
     override fun removeWhenFarAway(dist: Double) = false
     override fun isPersistenceRequired() = true
 
-    override fun onSyncedDataUpdated(pKey: EntityDataAccessor<*>) {
-        super.onSyncedDataUpdated(pKey)
-        if (pKey == sizeX || pKey == sizeY) refreshDimensions()
-    }
-
-    override fun getDimensions(pose: Pose): EntityDimensions =
-        EntityDimensions.fixed(entityData[sizeX], entityData[sizeY])
-
-    fun setDimensions(xy: Pair<Float, Float>) {
-        entityData.apply {
-            set(sizeX, xy.first)
-            set(sizeY, xy.second)
-        }
-    }
-
-    override fun save(pCompound: CompoundTag): Boolean {
-        super.save(pCompound)
-        pCompound.putFloat("sizeX", entityData[sizeX])
-        pCompound.putFloat("sizeY", entityData[sizeY])
-        return true
-    }
-
-    override fun load(pCompound: CompoundTag) {
-        super.load(pCompound)
-
-        entityData[sizeX] = pCompound.getFloat("sizeX")
-        entityData[sizeY] = pCompound.getFloat("sizeY")
-    }
-
     val pickupDistance get() = pickupReach
 
     var hitboxMode: HitboxMode
-        get() = this[NPCCapability::class].hitboxMode
+        get() = get<NpcComponent>()?.hitboxMode ?: HitboxMode.PULLING
         set(value) {
-            this[NPCCapability::class].hitboxMode = value
-        }
-
-    var icon: NpcIcon
-        get() = this[NPCCapability::class].icon
-        set(value) {
-            this[NPCCapability::class].icon = value
+            get<NpcComponent>()?.hitboxMode = value
         }
 
     var name: String
@@ -213,13 +151,6 @@ class NpcEntity : PathfinderMob, IAnimated {
 
 
     companion object {
-        @JvmField
-        val sizeX: EntityDataAccessor<Float> =
-            SynchedEntityData.defineId(NpcEntity::class.java, EntityDataSerializers.FLOAT)
-
-        @JvmField
-        val sizeY: EntityDataAccessor<Float> =
-            SynchedEntityData.defineId(NpcEntity::class.java, EntityDataSerializers.FLOAT)
 
         fun createAttributes(): AttributeSupplier.Builder {
             return LivingEntity.createLivingAttributes()

@@ -25,9 +25,6 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
-import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolClientManager
-import ru.hollowhorizon.hollowengine.common.scripting.kool.KoolScript
-import ru.hollowhorizon.hollowengine.common.scripting.scene.SceneScriptManager
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import java.io.File
@@ -79,67 +76,6 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
                     val player = source.playerOrException
                     val loc = player.pick(100.0, 0.0f, true).location
                     CopyTextPacket("pos(${loc.x.roundTo(2)}, ${loc.y.roundTo(2)}, ${loc.z.roundTo(2)})").send(player)
-                    SUCCESS
-                }
-            }
-
-            "open-gui"(
-                arg(
-                    "script",
-                    StringArgumentType.greedyString()
-                ) {
-                    DirectoryManager.guiScripts.map { it.toReadablePath() }.toList()
-                }
-            ) {
-                executes {
-
-                    val raw = StringArgumentType.getString(this, "script")
-                    val script = raw.fromReadablePath()
-
-                    if (!script.exists()) {
-                        HollowCore.LOGGER.warn("File $script does not exist!")
-                        source.player?.sendSystemMessage("File $script does not exist!".literal)
-                    }
-
-                    startKoolScript(script)
-                    HollowCore.LOGGER.info("Started script $script")
-                    SUCCESS
-                }
-            }
-
-            "start-scene"(
-                arg("script", StringArgumentType.string()) {
-                    DirectoryManager.storyScripts.map { '"' + it.toReadablePath() + '"' }.toList()
-                },
-                arg("state", StringArgumentType.string())
-            ) {
-                executes {
-                    val file = StringArgumentType.getString(this, "script")
-                    val state = StringArgumentType.getString(this, "state")
-                    SceneScriptManager.startScene(file, state)
-                    SUCCESS
-                }
-            }
-
-            "stop-scene"(
-                arg("script", StringArgumentType.string()) { SceneScriptManager.scripts.map { '"' + it + '"' } }
-            ) {
-                executes {
-                    val file = StringArgumentType.getString(this, "script")
-                    SceneScriptManager.stopScene(file)
-                    SUCCESS
-                }
-            }
-
-            "active-scenes" events@{
-                executes {
-                    val player = source.player ?: return@executes FAILURE
-
-                    player.sendSystemMessage("Active scenes:".literal)
-
-                    SceneScriptManager.scripts.forEach {
-                        player.sendSystemMessage("- ".literal.colored(ChatFormatting.GOLD) + it.literal)
-                    }
                     SUCCESS
                 }
             }
@@ -338,23 +274,4 @@ class ShowModelInfoPacket(val model: String) : HollowPacket {
 fun Double.roundTo(numFractionDigits: Int): Double {
     val factor = 10.0.pow(numFractionDigits.toDouble())
     return (this * factor).roundToInt() / factor
-}
-
-fun startKoolScript(script: File) {
-    scopeAsync {
-        val name = script.toReadablePath()
-        val jar = ScriptingCompiler.compileFile<KoolScript>(script)
-
-        val result = jar.execute()
-        val event = result.valueOrThrow().returnValue.scriptInstance as? KoolScript
-            ?: error("Script instance is null")
-
-        if (name in KoolClientManager) {
-            KoolClientManager.updateScene(name, CompoundTag())
-            return@scopeAsync
-        }
-
-        KoolClientManager.addScene(name, event)
-    }
-
 }

@@ -30,9 +30,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import ru.hollowhorizon.hollowengine.HollowCore;
-import ru.hollowhorizon.hollowengine.api.ICapabilityDispatcher;
-import ru.hollowhorizon.hollowengine.api.ICapabilityDispatcherKt;
-import ru.hollowhorizon.hollowengine.common.capabilities.CapabilityInstance;
 import ru.hollowhorizon.hollowengine.common.coroutines.ServerDispatcher;
 import ru.hollowhorizon.hollowengine.common.coroutines.SingleThreadDispatcher;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
@@ -50,21 +47,11 @@ import java.util.Map;
 import static kotlinx.coroutines.SupervisorKt.SupervisorJob;
 
 @Mixin(MinecraftServer.class)
-public abstract class MinecraftServerMixin implements ICapabilityDispatcher, ServerDispatcher {
+public abstract class MinecraftServerMixin implements ServerDispatcher {
     @Unique
     private SingleThreadDispatcher hollowcore$dispatcher;
     @Unique
     private CoroutineScope hollowcore$coroutineScope;
-
-    @Unique
-    private final Map<String, CapabilityInstance> hollowCore$capabilities = new Object2ObjectOpenHashMap<>();
-
-    @NotNull
-    @Override
-    public Map<String, CapabilityInstance> getCapabilities() {
-        return hollowCore$capabilities;
-    }
-
 
     @Shadow
     @Final
@@ -87,7 +74,6 @@ public abstract class MinecraftServerMixin implements ICapabilityDispatcher, Ser
         hollowcore$dispatcher = new SingleThreadDispatcher("MinecraftServer.dispatcher");
         hollowcore$coroutineScope = CoroutineScopeKt.CoroutineScope(SupervisorJob(null).plus(hollowcore$dispatcher));
 
-        ICapabilityDispatcherKt.initialize(this);
 
         //? if fabric {
         var file = storageSource.getIconFile().get().getParent().resolve("server_capability.dat").toFile();
@@ -95,14 +81,7 @@ public abstract class MinecraftServerMixin implements ICapabilityDispatcher, Ser
         /*var file = storageSource.getWorldDir().resolve(storageSource.getLevelId()).resolve("server_capability.dat").toFile();
          *///?}
         if (file.exists()) {
-            try {
-                var stream = new FileInputStream(file);
-                var tag = NBTFormatKt.loadAsNBT(stream);
-                stream.close();
-                ICapabilityDispatcherKt.deserializeCapabilities(this, (CompoundTag) tag);
-            } catch (IOException e) {
-                HollowCore.LOGGER.error("Can't load {}", file.getName(), e);
-            }
+            // TODO создать компоненты для уровня сервера
         }
     }
 
@@ -122,16 +101,6 @@ public abstract class MinecraftServerMixin implements ICapabilityDispatcher, Ser
         //?} else {
         /*var file = storageSource.getWorldDir().resolve(storageSource.getLevelId()).resolve("server_capability.dat").toFile();
          *///?}
-
-        try {
-            if (!file.exists()) file.createNewFile();
-            var output = new FileOutputStream(file);
-            var tag = new CompoundTag();
-            ICapabilityDispatcherKt.serializeCapabilities(this, tag);
-            NBTFormatKt.save(tag, output);
-        } catch (IOException e) {
-            HollowCore.LOGGER.error("Can't load {}", file.getName(), e);
-        }
     }
 
     @Inject(method = "tickServer", at = @At("HEAD"))

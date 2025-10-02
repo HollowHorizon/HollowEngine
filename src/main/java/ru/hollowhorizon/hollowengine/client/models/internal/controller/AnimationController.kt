@@ -2,13 +2,12 @@ package ru.hollowhorizon.hollowengine.client.models.internal.controller
 
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
-import ru.hollowhorizon.hollowengine.client.render.entity.HollowEntityRenderer.Companion.MOVEMENT_FACTOR
 import kotlin.math.abs
 
 private val LivingEntity.animationSpeed: Float
     get() = calculateSpeedViaDeltaMovement(this)
-
-private fun LivingEntity.isMoving() = abs(animationSpeed) >= MOVEMENT_FACTOR
+const val MOVEMENT_FACTOR = (1 / 256f)
+fun LivingEntity.isMoving() = abs(animationSpeed) >= MOVEMENT_FACTOR
 
 fun calculateSpeedViaDeltaMovement(entity: LivingEntity): Float {
     // 1) берём горизонтальную часть вектора скорости (блоки/тик)

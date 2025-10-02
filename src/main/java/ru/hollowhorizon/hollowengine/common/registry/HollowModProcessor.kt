@@ -28,9 +28,6 @@ import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.api.Init
 import ru.hollowhorizon.hollowengine.api.utils.Polymorphic
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBT_TAGS
-import ru.hollowhorizon.hollowengine.common.capabilities.CAPABILITIES
-import ru.hollowhorizon.hollowengine.common.capabilities.CapabilityInstance
-import ru.hollowhorizon.hollowengine.common.capabilities.HollowCapability
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
 import ru.hollowhorizon.hollowengine.common.components.generateProvider
@@ -74,15 +71,6 @@ object HollowModProcessor {
 
         registerPackets = {
             runnables.forEach(Runnable::run)
-        }
-
-        registerClassHandler<HollowCapability> { clazz, annotation ->
-            val generator: () -> CapabilityInstance = {
-                clazz.getDeclaredConstructor().newInstance() as CapabilityInstance
-            }
-            annotation.value.forEach {
-                CAPABILITIES.computeIfAbsent(it.java) { ArrayList() }.add(generator)
-            }
         }
 
         registerClassHandler<Polymorphic> { type, annotation ->

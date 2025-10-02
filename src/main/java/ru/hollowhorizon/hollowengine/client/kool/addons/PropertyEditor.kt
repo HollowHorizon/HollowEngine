@@ -10,11 +10,8 @@ import net.minecraft.nbt.Tag
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hollowengine.client.gui.UpdateModelPacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
-import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
-import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
@@ -22,13 +19,11 @@ import ru.hollowhorizon.hollowengine.common.components.property.Property
 import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.model
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForTag
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.reflect.full.findAnnotation
-import kotlin.text.startsWith
 
 interface Renderer<V : Any> {
     fun UiScope.render(component: Component<*>, property: Property<V>)
@@ -53,6 +48,14 @@ object StringRenderer : Renderer<String> {
                 property.set(it)
                 save(component, property, StringTag.valueOf(it))
             }
+        }
+    }
+}
+
+object BooleanRenderer : Renderer<Boolean> {
+    override fun UiScope.render(component: Component<*>, property: Property<Boolean>) {
+        Checkbox(property.get()) {
+            modifier.onToggle { property.set(it) }
         }
     }
 }

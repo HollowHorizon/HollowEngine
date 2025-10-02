@@ -3,16 +3,14 @@ package ru.hollowhorizon.hollowengine.client.render
 import net.minecraft.client.Minecraft
 import net.minecraft.util.Mth
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.utils.get
 import ru.hollowhorizon.hollowengine.common.capability.Camera
-import ru.hollowhorizon.hollowengine.common.capability.CameraCapability
 import ru.hollowhorizon.hollowengine.mixins.client.CameraInvoker
 import kotlin.math.sqrt
 
 @SubscribeEvent
 fun onSetup(event: CameraSetupEvent) {
     val player = Minecraft.getInstance().player ?: return
-    val camera = player[CameraCapability::class].camera
+    val camera = Camera.Default //FIXME player[CameraCapability::class].camera
     val controller = event.camera as CameraInvoker
 
     when (camera) {

@@ -29,24 +29,17 @@ import de.fabmax.kool.math.Vec3f
 import net.minecraft.client.CameraType
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.api.ParticlesProvider
-import ru.hollowhorizon.hollowengine.client.gui.DebugOverlay
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
-import ru.hollowhorizon.hollowengine.client.models.internal.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.particles.ParticleVertexConsumerProvider
-import ru.hollowhorizon.hollowengine.client.render.entity.HollowEntityRenderer
-import ru.hollowhorizon.hollowengine.client.render.entity.CustomPlayerRenderer
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
-import ru.hollowhorizon.hollowengine.common.events.client.render.RenderPlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
-import ru.hollowhorizon.hollowengine.common.utils.get
 
 object RenderManager {
     fun onInitialize() {
         HollowModelManager.initialize()
         KoolManager
-        DebugOverlay.init()
     }
 
     @SubscribeEvent
@@ -76,13 +69,5 @@ object RenderManager {
             cameraUuid,
             isFirstPerson
         )
-    }
-
-    @SubscribeEvent
-    fun onRenderPlayer(event: RenderPlayerEvent) {
-        if(event.player[AnimatedEntityCapability::class].model != HollowEntityRenderer.NO_MODEL) {
-            event.isCanceled = true
-            CustomPlayerRenderer.render(event.player, event.partialTicks, event.poseStack, event.buffer, event.packedLight)
-        }
     }
 }

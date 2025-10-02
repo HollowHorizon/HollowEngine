@@ -6,18 +6,9 @@ import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStack
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.fsm.rememberList
 
 @Serializable
 class Item(val itemStack: @Serializable(ForItemStack::class) ItemStack)
-
-suspend fun NpcEntity.collectItems(vararg items: ItemStack) {
-    val itemList by rememberList(stringUUID + "_items") { items.map { Item(it) }.toMutableList() }
-    while (itemList.isNotEmpty()) {
-        pickupItems(itemList)
-        delay(50)
-    }
-}
 
 private fun NpcEntity.pickupItems(list: MutableList<Item>) {
     level().getEntitiesOfClass(

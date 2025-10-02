@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.client.gui
 
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.DockLayout
 import de.fabmax.kool.scene.Scene
@@ -13,42 +12,32 @@ import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader.TOOL_LAYOUT
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
+import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 import ru.hollowhorizon.hollowengine.client.kool.Entity
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
 import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationType
-import ru.hollowhorizon.hollowengine.client.models.internal.manager.AnimatedEntityCapability
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.coroutines.scopeSync
-import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
+import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.utils.get
-import ru.hollowhorizon.hollowengine.common.utils.literal
-import ru.hollowhorizon.hollowengine.common.utils.rl
-import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
-import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader.TOOL_LAYOUT
-import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
-import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
-import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.loadMenu
-import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
-import ru.hollowhorizon.hollowengine.client.utils.lang
-import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.inline.InlineScript
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.model
-import ru.hollowhorizon.hollowengine.common.util.Node
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
-import ru.hollowhorizon.hollowengine.common.util.toNode
+import ru.hollowhorizon.hollowengine.common.utils.literal
+import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.script.experimental.api.ResultValue
 import kotlin.script.experimental.api.valueOrNull
 
 class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
-    var model = npc.model
+    var model = ""
     var position = Vec2f.ZERO
     val dock = Dock()
 
@@ -78,7 +67,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                     "hollowengine.gui.tool.general" -> generalPanel.dockable
                     "hollowengine.gui.tool.entity" -> entityPanel.dockable
                     "hollowengine.gui.tool.attributes" -> attributesPanel.dockable
-              //      "hollowengine.gui.tool.animations" -> animationsPanel.dockable
+                    //      "hollowengine.gui.tool.animations" -> animationsPanel.dockable
                     else -> null
                 }
             }
@@ -144,8 +133,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                             .onChange {
                                 model = it
                                 if (ResourceLocation.isValidResourceLocation(it) && it.rl in HollowModelManager.allModels) {
-                                    npc.model = it
-                                    UpdateModelPacket(it, npc.id).send()
+                                    //npc.model = it
                                 }
                             }
                             .onPositioned {
@@ -182,8 +170,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                                 modifier.backgroundColor(color).padding(sizes.smallGap)
                                     .onClick {
                                         model = resource
-                                        npc.model = model
-                                        UpdateModelPacket(model, npc.id).send()
+                                        //npc.model = model
                                     }
 
                                 Text(resource) {
@@ -384,34 +371,6 @@ class UpdateNamePacket(private val name: String, private val npcId: Int) : Hollo
         }
     }
 }
-
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
-@Serializable
-class UpdateModelPacket(private val model: String, private val npcId: Int) : HollowPacket {
-    override fun handle(player: Player) {
-        if (player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
-            player.level().getEntity(npcId)?.get(AnimatedEntityCapability::class)?.let {
-                it.model = model
-            }
-        }
-    }
-}
-
-//@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
-//@Serializable
-//class UpdateAnimationPacket(
-//    private val animationName: String,
-//    private val animationType: AnimationType,
-//    private val npcId: Int,
-//) : HollowPacket {
-//    override fun handle(player: Player) {
-//        if (player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
-//            player.level().getEntity(npcId)?.get(AnimatedEntityCapability::class)?.let {
-//                it.animations[animationType] = animationName
-//            }
-//        }
-//    }
-//}
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 @Serializable

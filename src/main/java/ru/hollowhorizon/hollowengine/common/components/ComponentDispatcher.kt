@@ -1,11 +1,14 @@
 package ru.hollowhorizon.hollowengine.common.components
 
-import de.fabmax.kool.util.Log.level
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.server.MinecraftServer
 import net.minecraft.server.dedicated.DedicatedServer
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.level.Level
+import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
+import ru.hollowhorizon.hollowengine.common.components.lifecycle.get
+import ru.hollowhorizon.hollowengine.common.utils.rl
+import kotlin.reflect.full.findAnnotation
 
 
 interface ComponentDispatcher {

@@ -9,7 +9,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import ru.hollowhorizon.hollowengine.api.ICapabilityDispatcherKt;
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.blocks.BlockEvent;
@@ -22,11 +21,6 @@ public class ServerLevelMixin {
     @Inject(method = "save", at = @At("TAIL"))
     private void onSave(ProgressListener $$0, boolean $$1, boolean $$2, CallbackInfo ci) {
         EventBus.post(new LevelEvent.Save(JavaHacks.forceCast(this)));
-    }
-
-    @Inject(method = "tick", at = @At("TAIL"))
-    public void onTick(CallbackInfo ci) {
-        ICapabilityDispatcherKt.syncIfNeeded(JavaHacks.forceCast(this));
     }
 
     @Inject(method = "updateNeighborsAtExceptFromFacing", at = @At("HEAD"), cancellable = true)

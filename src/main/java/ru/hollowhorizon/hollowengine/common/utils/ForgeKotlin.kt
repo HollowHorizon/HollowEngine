@@ -37,10 +37,6 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.util.RandomSource
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hollowengine.api.ICapabilityDispatcher
-import ru.hollowhorizon.hollowengine.client.utils.registryAccess
-import ru.hollowhorizon.hollowengine.common.capabilities.CapabilityInstance
-import kotlin.reflect.KClass
 
 /**
  * Checks if the game is running in a production environment.
@@ -85,21 +81,6 @@ val RANDOM = RandomSource.create()
  * Stores the current Minecraft server instance.
  */
 lateinit var currentServer: MinecraftServer
-
-/**
- * Retrieves a capability instance from an object implementing [ICapabilityDispatcher].
- *
- * @param capability The capability class type.
- * @return The instance of the requested capability.
- * @throws IllegalStateException if the capability is not supported.
- */
-operator fun <O, T : CapabilityInstance> O.get(capability: KClass<T>): T = get(capability.java)
-
-@Suppress("UNCHECKED_CAST")
-operator fun <O, T : CapabilityInstance> O.get(capability: Class<T>): T = when (this) {
-    is ICapabilityDispatcher -> this.capabilities[capability.name] as T
-    else -> throw IllegalStateException("Unsupported capability type: $capability")
-}
 
 /**
  * Converts a string to a Minecraft resource location.

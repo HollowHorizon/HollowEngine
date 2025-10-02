@@ -4,10 +4,10 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.animal.FlyingAnimal
 import net.minecraft.world.level.block.entity.BlockEntity
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.api.ICapabilityDispatcher
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.MOVEMENT_FACTOR
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.calculateSpeedViaDeltaMovement
-import ru.hollowhorizon.hollowengine.client.render.entity.HollowEntityRenderer.Companion.MOVEMENT_FACTOR
+import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.abs
 
 interface Query {
@@ -44,7 +44,7 @@ interface Query {
     }
 }
 
-fun ICapabilityDispatcher.createQuery() = when (this) {
+fun ComponentDispatcher.createQuery() = when (this) {
     is LivingEntity -> LivingEntityQuery(this)
     is BlockEntity -> BlockEntityQuery(this)
     else -> error("Dispatcher $this not supported yet!")
