@@ -283,7 +283,7 @@ class Example : ScriptableComponent<Level>() {
                 onEnter {
                     while(true) {
                         delay(50)
-                        val player = owner.getNearestPlayer(npc, 100.0) ?: continue
+                        val player = npc.level().getNearestPlayer(npc, 100.0) ?: continue
                         npc.navigation.moveTo(player, 1.0)
                     }
                 }
@@ -301,7 +301,7 @@ class Example : ScriptableComponent<Level>() {
                 onEnter {
                     while(true) {
                         delay(50)
-                        val player = owner.getNearestPlayer(npc, 100.0) ?: continue
+                        val player = npc.level().getNearestPlayer(npc, 100.0) ?: continue
                         val avoidPos = DefaultRandomPos.getPosAway(npc, 16, 7, player.position()) ?: continue
                         npc.navigation.moveTo(avoidPos.x, avoidPos.y, avoidPos.z, 1.0)
                     }

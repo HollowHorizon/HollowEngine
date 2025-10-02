@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.diagnostics.Errors
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.allChildren
 import org.jetbrains.kotlin.psi.psiUtil.children
@@ -23,11 +24,11 @@ import org.jetbrains.kotlin.psi.stubs.elements.KtNameReferenceExpressionElementT
 import org.jetbrains.kotlin.psi.stubs.elements.KtPropertyElementType
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.calls.util.getResolvedCall
+import org.jetbrains.kotlin.resolve.descriptorUtil.parentsWithSelf
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
+import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.post
-import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.common.fsm.StateNode
 import ru.hollowhorizon.hollowengine.common.project.kt.imports.UNUSED_IMPORT_FACTORY
 
 private data class UnusedInfo(
@@ -197,7 +198,13 @@ private fun getElementColor(element: PsiElement, bindingContext: BindingContext,
         KtTokens.COMMENTS.contains(token) -> SyntaxHighlight.COMMENT
         KtTokens.KEYWORDS.contains(token) || KtTokens.SOFT_KEYWORDS.contains(token) -> SyntaxHighlight.KEYWORD
         KtTokens.STRINGS.contains(token) || token == KtTokens.OPEN_QUOTE || token == KtTokens.CLOSING_QUOTE -> SyntaxHighlight.STRING
-
+        token in setOf(
+            KtTokens.LPAR,
+            KtTokens.RPAR,
+            KtTokens.LBRACE,
+            KtTokens.RBRACE,
+            KtTokens.DOT
+        ) -> SyntaxHighlight.NAME_REFERENCE
         expression?.hasProperty(bindingContext) == true || expression?.isEnumEntry(bindingContext) == true -> SyntaxHighlight.PROPERTY_IDENTIFIER
 
         (expression as? KtReferenceExpression)?.let {
@@ -210,15 +217,12 @@ private fun getElementColor(element: PsiElement, bindingContext: BindingContext,
         }
             ?.kind == ClassKind.ANNOTATION_CLASS || element.node.elementType == KtTokens.AT -> SyntaxHighlight.ANNOTATION
 
-        ((expression as? KtReferenceExpression)?.getResolvedCall(bindingContext)
-            ?.resultingDescriptor?.extensionReceiverParameter != null || expression is KtFunction) &&
-                token !in setOf(
-            KtTokens.LPAR,
-            KtTokens.RPAR,
-            KtTokens.LBRACE,
-            KtTokens.RBRACE,
-            KtTokens.DOT
-        ) -> SyntaxHighlight.EXTENSION_RECEIVER
+        expression.getResolvedCall(bindingContext)?.resultingDescriptor?.parentsWithSelf?.any {
+            it.annotations.hasAnnotation(FqName("ru.hollowhorizon.hollowengine.common.graph.GraphDSL"))
+        } == true -> SyntaxHighlight.GRAPH
+
+        (expression.getResolvedCall(bindingContext)
+            ?.resultingDescriptor?.extensionReceiverParameter != null || expression is KtFunction) -> SyntaxHighlight.EXTENSION_RECEIVER
 
 
         expression?.parent is KtValueArgumentName -> SyntaxHighlight.VALUE_ARGUMENT_NAME
@@ -245,12 +249,13 @@ object SyntaxHighlight {
     val NAME_REFERENCE = Color("BCBEC4")
     val NUMERIC_LITERAL = Color("2AACB8")
     val ERROR_ELEMENT = Color("F75464")
+    val GRAPH = Color("0DA19E")
     val DEFAULT = Color.WHITE
 }
 
 private fun KtExpression.hasProperty(bindingContext: BindingContext): Boolean {
     val isNonLocalProperty = (this as? KtProperty)?.isLocal == false
-    if(isNonLocalProperty) return true
+    if (isNonLocalProperty) return true
     return ((this as? KtReferenceExpression)?.let {
         bindingContext[BindingContext.REFERENCE_TARGET, it].let {
             it as? PropertyDescriptor ?: it as? VariableDescriptor

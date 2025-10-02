@@ -14,12 +14,17 @@ import kotlinx.datetime.toLocalDateTime
 import net.minecraft.client.Minecraft
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.spi.StandardLevel
+import ru.hollowhorizon.hollowengine.ConsoleAppender.Companion.filteredLogMessages
+import ru.hollowhorizon.hollowengine.ConsoleAppender.Companion.logLock
+import ru.hollowhorizon.hollowengine.ConsoleAppender.Companion.logMessages
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.utils.mutableLazy
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
@@ -35,7 +40,7 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
     private var position = Vec2f.ZERO
 
     init {
-        updateFonts()
+        LogMessage.updateFonts()
     }
 
     override fun UiScope.compose() {
@@ -54,8 +59,8 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
                     }
                     ComboBox {
                         modifier.width(150.dp).margin(horizontal = sizes.gap).alignY(AlignmentY.Center)
-                            .items(StandardLevel.entries).selectedIndex(minLevel.use().ordinal).onItemSelected {
-                                minLevel.set(StandardLevel.entries[it])
+                            .items(StandardLevel.entries).selectedIndex(LogMessage.minLevel.use().ordinal).onItemSelected {
+                                LogMessage.minLevel.set(StandardLevel.entries[it])
                                 updateFilter()
                             }
                     }
@@ -77,13 +82,13 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
                             .alignY(AlignmentY.Center).hint("Text or regex")
                             .onEnterPressed { surface.requestFocus(null) }.onChange {
                                 filterText = it
-                                messageFilter = if (it.isBlank()) null else {
+                                LogMessage.messageFilter = if (it.isBlank()) null else {
                                     try {
                                         Regex(it)
                                     } catch (e: Exception) {
                                         // Логируем ошибку с использованием log4j
                                         LogManager.getLogger().warn("Invalid filter regex: ${e.message}")
-                                        messageFilter
+                                        LogMessage.messageFilter
                                     }
                                 }
                                 updateFilter()
@@ -142,7 +147,7 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
         }
     }
 
-    private fun updateFilter() {
+    private fun updateFilter() = logLock.withLock {
         filteredLogMessages.clear()
         filteredLogMessages += logMessages.filter { it.isAccepted }
     }
@@ -222,114 +227,15 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
     }
 
     private inner class LogLineProvider : TextLineProvider {
-        override val size: Int get() = filteredLogMessages.size
+        override val size: Int get() = logLock.withLock { filteredLogMessages.size }
         override fun get(index: Int): TextLine {
-            val logLine = filteredLogMessages[index]
-            if (!logLine.isTextValid) {
-                logLine.updateText()
+            logLock.withLock {
+                val logLine = filteredLogMessages[index]
+                if (!logLine.isTextValid) {
+                    logLine.updateText()
+                }
+                return logLine.text
             }
-            return logLine.text
-        }
-    }
-
-    class LogMessage(
-        val level: StandardLevel,
-        val tag: String?,
-        message: String,
-        time: Instant,
-    ) {
-        val fmtTime: String = formatTime(time)
-
-        var isTextValid = false
-
-        val fullMessage = message
-        val message: String = if (message.length < maxMessageLen) message else message.substring(0, maxMessageLen) + "…"
-        var text: TextLine by mutableLazy {
-            makeTextLine()
-        }
-
-        val isAccepted: Boolean
-            get() {
-                if (level.ordinal > minLevel.value.ordinal) return false
-                val filter = messageFilter ?: return true
-                return filter.containsMatchIn(message) || (tag != null && filter.containsMatchIn(tag))
-            }
-
-
-        fun updateText() {
-            text = makeTextLine()
-        }
-
-        private fun makeTextLine(): TextLine {
-            isTextValid = level in levelFonts
-            val spans = mutableListOf<Pair<String, TextAttributes>>()
-            spans += "[$fmtTime] " to timeFont
-            spans += " ${level.name} " to (levelFonts[level] ?: defaultTextAttrs)
-            tag?.let {
-                spans += " [${tag.substringAfterLast(".")}] " to longTagFont
-            }
-            spans += message to (messageFonts[level] ?: defaultTextAttrs)
-
-            return TextLine(spans)
-        }
-
-        private fun formatTime(time: Instant): String {
-            val date = time.toLocalDateTime(TimeZone.currentSystemDefault())
-            return "${fmtInt(date.hour)}:${fmtInt(date.minute)}:${fmtInt(date.second)}"
-        }
-
-        private fun fmtInt(i: Int, len: Int = 2): String {
-            var fmt = "$i"
-            while (fmt.length < len) {
-                fmt = "0$fmt"
-            }
-            return fmt
-        }
-
-        override fun toString(): String {
-            return "$fmtTime ${level.name}: ${fullMessage}${if (tag != null) " [${tag}]" else ""}"
-        }
-    }
-
-    companion object {
-        val logMessages = RingBuffer<LogMessage>(maxMessages)
-        val filteredLogMessages = RingBuffer<LogMessage>(maxMessages)
-
-        var minLevel = mutableStateOf(StandardLevel.DEBUG)
-        var messageFilter: Regex? = null
-
-
-        private const val maxMessages = 10000
-        private const val maxMessageLen = 500
-
-        private val defaultTextAttrs = TextAttributes(MsdfFont(KoolManager.MONOCRAFT), Color.MAGENTA)
-        private var timeFont: TextAttributes = defaultTextAttrs
-        private var longTagFont: TextAttributes = defaultTextAttrs
-        private val levelFonts = mutableMapOf<StandardLevel, TextAttributes>()
-        private val messageFonts = mutableMapOf<StandardLevel, TextAttributes>()
-
-        private fun updateFonts(baseFont: MsdfFont = MsdfFont(HACK_FONT), baseSize: Float = 16f) {
-            val font = baseFont.copy(baseSize)
-
-            timeFont = TextAttributes(font, MdColor.CYAN tone 400)
-            longTagFont = TextAttributes(font, MdColor.GREY tone 600)
-
-            levelFonts[StandardLevel.TRACE] =
-                TextAttributes(font.copy(weight = MsdfFont.WEIGHT_BOLD), MdColor.GREY tone 600, MdColor.GREY tone 850)
-            levelFonts[StandardLevel.DEBUG] =
-                TextAttributes(font.copy(weight = MsdfFont.WEIGHT_BOLD), MdColor.GREY tone 400, MdColor.GREY tone 800)
-            levelFonts[StandardLevel.INFO] =
-                TextAttributes(font.copy(weight = MsdfFont.WEIGHT_BOLD), Color.WHITE, MdColor.LIGHT_GREEN)
-            levelFonts[StandardLevel.WARN] =
-                TextAttributes(font.copy(weight = MsdfFont.WEIGHT_BOLD), Color.WHITE, MdColor.AMBER)
-            levelFonts[StandardLevel.ERROR] =
-                TextAttributes(font.copy(weight = MsdfFont.WEIGHT_BOLD), Color.WHITE, MdColor.RED)
-
-            messageFonts[StandardLevel.TRACE] = TextAttributes(font, MdColor.GREY tone 600)
-            messageFonts[StandardLevel.DEBUG] = TextAttributes(font, MdColor.GREY tone 400)
-            messageFonts[StandardLevel.INFO] = TextAttributes(font, MdColor.LIGHT_GREEN tone 300)
-            messageFonts[StandardLevel.WARN] = TextAttributes(font, MdColor.AMBER tone 200)
-            messageFonts[StandardLevel.ERROR] = TextAttributes(font.copy(weight = MsdfFont.WEIGHT_BOLD), MdColor.RED)
         }
     }
 }

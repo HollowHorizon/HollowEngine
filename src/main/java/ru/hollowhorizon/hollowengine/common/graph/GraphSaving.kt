@@ -7,6 +7,9 @@ import net.minecraft.nbt.Tag
 import net.minecraft.resources.ResourceKey
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hollowengine.common.events.entity.EntityEvent
+import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForUuid
@@ -23,13 +26,26 @@ class SerializedEntity(
 )
 
 inline fun <reified T : Entity> GraphContext.rememberEntity(name: String? = null, crossinline default: suspend () -> T): Variable<T> {
+    var entity: T? = null
+
+    on<EntityEvent.ChangeDimension> {
+        if(it.entity != entity) return@on
+        entity = it.new as T
+    }
+
+    if(Player::class.java.isAssignableFrom(T::class.java)) {
+        on<PlayerEvent.Clone> {
+            if(it.oldPlayer != entity) return@on
+            entity = it.player as T
+        }
+    }
+
     return object : Variable<T> {
         private var name: String? = name
-        private var value: T? = null
 
 
         override suspend fun deserialize(tag: Tag?): T {
-            if(tag == null) return default().also { value = it }
+            if(tag == null) return default().also { entity = it }
 
             val it: SerializedEntity = NBTFormat.deserialize(tag)
 
@@ -37,15 +53,18 @@ inline fun <reified T : Entity> GraphContext.rememberEntity(name: String? = null
                 ?: error("Level ${it.level} not found!")
 
             while (true) {
-                val entity = level.getEntity(it.uuid)
-                if (entity != null) return entity as T
+                val findEntity = level.getEntity(it.uuid)
+                if (findEntity != null) {
+                    entity = findEntity as T
+                    return findEntity
+                }
 
                 delay(50)
             }
         }
 
         override fun serialize(): Tag? {
-            return value?.let { NBTFormat.serialize(SerializedEntity(it.uuid, it.level().dimension().location())) }
+            return entity?.let { NBTFormat.serialize(SerializedEntity(it.uuid, it.level().dimension().location())) }
         }
 
         override fun name(): String {
@@ -61,11 +80,11 @@ inline fun <reified T : Entity> GraphContext.rememberEntity(name: String? = null
         }
 
         override fun getValue(thisRef: Any?, property: KProperty<*>): T {
-            return value ?: error("Variable $name value not found!")
+            return entity ?: error("Variable $name value not found!")
         }
 
         override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
-            this.value = value
+            entity = value
         }
 
     }.apply {
