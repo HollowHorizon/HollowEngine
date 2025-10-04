@@ -1,7 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.files
 
+import com.sun.nio.file.ExtendedWatchEventModifier
 import java.io.File
+import java.nio.file.FileSystems
 import java.nio.file.Path
+import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
+import java.nio.file.StandardWatchEventKinds.ENTRY_DELETE
+import kotlin.concurrent.thread
+import kotlin.io.path.isDirectory
 import kotlin.io.path.walk
 
 object DirectoryManager {
@@ -10,11 +16,32 @@ object DirectoryManager {
             if (!exists()) mkdirs()
         }.toPath()
     }
+    val eventScripts: MutableSet<Path> = HOLLOW_ENGINE.resolve("scripts").walk()
+        .filter { !it.isDirectory() }
+        .filter { it.fileName.toString().endsWith(".event.kts") }
+        .toSortedSet()
+
+    init {
+        DirectoryWatcher(HOLLOW_ENGINE.resolve("scripts")) { path, event ->
+            when(event) {
+                ENTRY_CREATE -> {
+                    if(path.fileName.toString().endsWith(".event.kts")) eventScripts.add(path)
+                }
+                ENTRY_DELETE -> {
+                    if(path.fileName.toString().endsWith(".event.kts")) eventScripts.remove(path)
+                }
+            }
+        }.start()
+    }
 
     @JvmStatic
     fun File.toReadablePath(): String {
-        val path = this.toPath()
-        return HOLLOW_ENGINE.relativize(path).toString().replace("\\", "/")
+        return toPath().toReadablePath()
+    }
+
+    @JvmStatic
+    fun Path.toReadablePath(): String {
+        return HOLLOW_ENGINE.relativize(this).toString().replace("\\", "/")
     }
 
     @JvmStatic
@@ -26,6 +53,5 @@ object DirectoryManager {
         if (!exists()) mkdirs()
     }
     val storyScripts get() = HOLLOW_ENGINE.resolve("scripts").toFile().walk().filter { it.name.endsWith(".scene.kts") }
-    val eventScripts get() = HOLLOW_ENGINE.resolve("scripts").toFile().walk().filter { it.name.endsWith(".event.kts") }
     val guiScripts get() = HOLLOW_ENGINE.resolve("scripts").toFile().walk().filter { it.name.endsWith(".gui.kts") }
 }

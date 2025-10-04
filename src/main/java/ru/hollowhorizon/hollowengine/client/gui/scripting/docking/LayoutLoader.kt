@@ -48,6 +48,9 @@ object LayoutLoader {
             layoutLoader("hollowengine.gui.ide.console")?.let {
                 dock.getLeafAtPath("0")?.dock(it)
             }
+            layoutLoader("hollowengine.gui.ide.autoruns")?.let {
+                dock.getLeafAtPath("0")?.dock(it)
+            }
         }
     }
 }

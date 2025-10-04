@@ -25,7 +25,7 @@ abstract class EventScript
 
 fun loadEvents() {
     DirectoryManager.eventScripts.map { file ->
-        startEventScript(file)
+        startEventScript(file.toFile())
     }.toList().let {
         runBlocking {
             it.awaitAll()

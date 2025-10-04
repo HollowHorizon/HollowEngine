@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.components.isClient
+import ru.hollowhorizon.hollowengine.common.components.registry.ComponentEntry
 import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityTrackingEvent
@@ -164,7 +165,7 @@ class SyncLevelComponentsPacket(
 }
 
 private fun <T: ComponentDispatcher> ComponentDispatcher.getOrAttachComponent(
-    holder: Holder<() -> Component<*>>,
+    holder: Holder<ComponentEntry>,
     owner: T,
 ): Component<*> {
     return `hollowcore$components`.getOrPut(holder.key.location) {

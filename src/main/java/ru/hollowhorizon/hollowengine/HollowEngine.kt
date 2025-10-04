@@ -6,13 +6,11 @@ import kotlinx.serialization.Serializable
 import org.apache.logging.log4j.LogManager
 import org.eclipse.lsp4j.InitializeParams
 import ru.hollowhorizon.hollowengine.api.Init
+import ru.hollowhorizon.hollowengine.common.ai.ShapesIncApi
 import ru.hollowhorizon.hollowengine.common.config.HollowConfig
 import ru.hollowhorizon.hollowengine.common.config.hollowConfig
-import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
-import ru.hollowhorizon.hollowengine.common.ai.ShapesIncApi
 import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageClient
 import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
-import ru.hollowhorizon.hollowengine.common.project.kt.startServer
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.example.HollowScript
 import ru.hollowhorizon.hollowengine.common.scripting.core.setupScripting

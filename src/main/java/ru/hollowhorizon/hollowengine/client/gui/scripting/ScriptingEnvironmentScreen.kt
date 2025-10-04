@@ -37,6 +37,7 @@ val HACK_FONT by lazy {
 class ScriptingEnvironmentScreen : KoolScreen() {
     val dock = Dock()
     var overlay: UiScope.() -> Unit = {}
+    var titleBarHeight = 0f
 
     override fun Scene.setup() {
         setupUiScene()
@@ -46,7 +47,6 @@ class ScriptingEnvironmentScreen : KoolScreen() {
             return
         }
 
-        var titleBarHeight = 0f
 
         addNode(dock)
         addPanelSurface(sizes = IdeTheme.sizes, colors = IdeTheme.colors) {

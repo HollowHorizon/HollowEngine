@@ -33,6 +33,8 @@ hollowengine:
       project_tree: Проект
       docs: Документация
       recipes: Редактор рецептов
+      console: Терминал
+      autoruns: Автозапуск
 
       popups:
         create_folder: "Введите название папки:"

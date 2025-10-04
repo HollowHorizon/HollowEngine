@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.client.gui.scripting.panels
+package ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console
 
 import de.fabmax.kool.modules.ui2.TextAttributes
 import de.fabmax.kool.modules.ui2.TextLine

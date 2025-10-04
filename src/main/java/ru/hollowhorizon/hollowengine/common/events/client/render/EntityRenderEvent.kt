@@ -43,7 +43,7 @@ class AddEntityRendererLayers(
     fun <T : LivingEntity, R : LivingEntityRenderer<T, out EntityModel<T>>> getRenderer(type: EntityType<out T>): R =
         JavaHacks.forceCast(this.renderers[type])
 
-    val entityModels = this.context.modelSet
+    val entityModels get() = this.context.modelSet
 }
 
 class CreateEntitySkullModels(

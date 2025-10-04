@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.client.gui.scripting.panels
+package ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console
 
 import com.mojang.brigadier.suggestion.Suggestion
 import net.minecraft.client.Minecraft

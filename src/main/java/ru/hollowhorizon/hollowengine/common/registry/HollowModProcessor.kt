@@ -1,27 +1,3 @@
-/*
- * MIT License
- *
- * Copyright (c) 2024 HollowHorizon
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
-
 package ru.hollowhorizon.hollowengine.common.registry
 
 import ru.hollowhorizon.hollowengine.HollowCore
@@ -31,6 +7,7 @@ import ru.hollowhorizon.hollowengine.common.utils.nbt.NBT_TAGS
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
 import ru.hollowhorizon.hollowengine.common.components.generateProvider
+import ru.hollowhorizon.hollowengine.common.components.registry.ComponentEntry
 import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.events.*
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
@@ -92,8 +69,12 @@ object HollowModProcessor {
 
         registerClassHandler<ComponentMeta> { klass, meta ->
             val generator = generateProvider(klass as Class<Component<*>>)
+            val superType = (klass.genericSuperclass as? ParameterizedType)?.actualTypeArguments?.getOrNull(0) as? Class<*> ?: run {
+                HollowCore.LOGGER.warn("Class ${klass.simpleName} must have a generic superclass!")
+                return@registerClassHandler
+            }
             val location = meta.location.rl
-            ComponentRegistry.register(keyOf(location.namespace, location.path)) { generator }
+            ComponentRegistry.register(keyOf(location.namespace, location.path)) { ComponentEntry(generator, superType) }
         }
 
         RegistryManager.bakeAll()

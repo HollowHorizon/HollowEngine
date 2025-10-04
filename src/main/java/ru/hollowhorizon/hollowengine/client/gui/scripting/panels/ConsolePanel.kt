@@ -5,31 +5,23 @@ import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.MdColor
-import de.fabmax.kool.util.MsdfFont
-import de.fabmax.kool.util.RingBuffer
-import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import net.minecraft.client.Minecraft
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.spi.StandardLevel
 import ru.hollowhorizon.hollowengine.ConsoleAppender.Companion.filteredLogMessages
 import ru.hollowhorizon.hollowengine.ConsoleAppender.Companion.logLock
 import ru.hollowhorizon.hollowengine.ConsoleAppender.Companion.logMessages
-import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console.ConsoleSuggestionProvider
+import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console.LogMessage
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
-import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
-import ru.hollowhorizon.hollowengine.common.utils.mutableLazy
-import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
 class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock) {
-    override val icon = "hollowengine:textures/gui/icons/code_editor.svg"
+    override val icon = "hollowengine:textures/gui/icons/console.svg"
 
     private val lineProvider = LogLineProvider()
 
@@ -44,7 +36,7 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
     }
 
     override fun UiScope.compose() {
-
+        modifier.margin(sizes.smallGap)
         Box(Grow.Std, Grow.Std) {
             Column(Grow.Std, Grow.Std) {
                 modifier.onClick {

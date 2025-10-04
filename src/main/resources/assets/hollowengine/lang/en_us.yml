@@ -33,7 +33,8 @@ hollowengine:
       project_tree: Project
       docs: Documentation
       recipes: Recipe Editor
-      console: Console
+      console: Terminal
+      autoruns: Auto runs
 
       popups:
         create_folder: "Enter folder name:"
