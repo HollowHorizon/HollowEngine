@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 import de.fabmax.kool.modules.ui2.Dp
 import de.fabmax.kool.modules.ui2.DragAndDropContext
 import de.fabmax.kool.modules.ui2.docking.DockNode
+import de.fabmax.kool.modules.ui2.docking.Dockable
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.docs.DocsNode
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
@@ -63,4 +64,7 @@ object IdeContent {
             node
         }
     }
+
+    @JvmStatic
+    fun contains(dockable: Dockable): Boolean = dockable in files.values.asSequence().map { it.dockable }
 }

@@ -53,6 +53,9 @@ object LayoutLoader {
             }
         }
     }
+
+    @JvmStatic
+    fun contains(dockable: Dockable): Boolean = dockable in LAYOUTS.values.asSequence().map { it.dockable }
 }
 
 fun DockNode.insertItem(item: Dockable, slot: DockNode.SlotPosition) =

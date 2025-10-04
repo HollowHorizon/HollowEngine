@@ -1,16 +1,13 @@
 package ru.hollowhorizon.hollowengine.client.kool.gl
 
 import com.mojang.blaze3d.platform.GlStateManager
+import com.mojang.blaze3d.systems.RenderSystem
 import de.fabmax.kool.input.Input
-import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.pipeline.ClearColorDontCare
-import de.fabmax.kool.pipeline.ClearDepthDontCare
 import de.fabmax.kool.pipeline.CullMethod
 import de.fabmax.kool.pipeline.DepthCompareOp
 import de.fabmax.kool.pipeline.backend.gl.GlRenderPass
 import de.fabmax.kool.pipeline.backend.gl.glOp
 import de.fabmax.kool.scene.Scene
-import de.fabmax.kool.util.Color
 import net.minecraft.client.Minecraft
 import org.lwjgl.opengl.GL30
 import org.lwjgl.opengl.GL33
@@ -18,8 +15,6 @@ import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.kool.KoolHooks
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
-import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
 
 object GlContext {
@@ -30,10 +25,14 @@ object GlContext {
     private var activeEbo = -1
 
     private var depthState = false
+    private var depthClear = 0.0
     private var depthMode = -1
     private var depthMask = false
     private var blendState = false
-    private var blendMode = -1
+    private var blendSrcRgb = -1
+    private var blendDstRgb = -1
+    private var blendSrcAlpha = -1
+    private var blendDstAlpha = -1
     private var cullState = false
     private var cullMode = -1
 
@@ -45,8 +44,12 @@ object GlContext {
         depthState = GL30.glIsEnabled(GL30.GL_DEPTH_TEST)
         depthMode = GL30.glGetInteger(GL30.GL_DEPTH_FUNC)
         depthMask = GL30.glGetBoolean(GL30.GL_DEPTH_WRITEMASK)
+        depthClear = GL30.glGetDouble(GL30.GL_DEPTH_CLEAR_VALUE)
         blendState = GL30.glIsEnabled(GL30.GL_BLEND)
-        blendMode = GL30.glGetInteger(GL30.GL_BLEND_SRC_RGB)
+        blendSrcRgb = GL30.glGetInteger(GL30.GL_BLEND_SRC_RGB)
+        blendDstRgb = GL30.glGetInteger(GL30.GL_BLEND_DST_RGB)
+        blendSrcAlpha = GL30.glGetInteger(GL30.GL_BLEND_SRC_ALPHA)
+        blendDstAlpha = GL30.glGetInteger(GL30.GL_BLEND_DST_ALPHA)
         cullState = GL30.glIsEnabled(GL30.GL_CULL_FACE)
         cullMode = GL30.glGetInteger(GL30.GL_CULL_FACE_MODE)
 
@@ -87,11 +90,10 @@ object GlContext {
             MCGlApi.disable(MCGlApi.DEPTH_TEST)
         }
         GL30.glDepthMask(depthMask)
+        GL30.glBlendFuncSeparate(blendSrcRgb, blendDstRgb, blendSrcAlpha, blendDstAlpha)
         if (blendState) {
             MCGlApi.enable(MCGlApi.BLEND)
-            GL30.glBlendFuncSeparate(blendMode, GL30.GL_ONE_MINUS_SRC_ALPHA, GL30.GL_ONE, GL30.GL_ONE_MINUS_SRC_ALPHA)
         } else {
-            GL30.glBlendFuncSeparate(blendMode, GL30.GL_ONE_MINUS_SRC_ALPHA, GL30.GL_ONE, GL30.GL_ONE_MINUS_SRC_ALPHA)
             MCGlApi.disable(MCGlApi.BLEND)
         }
         if (cullState) {
@@ -101,6 +103,7 @@ object GlContext {
             GL30.glCullFace(cullMode)
             MCGlApi.disable(MCGlApi.CULL_FACE)
         }
+        RenderSystem.clearDepth(depthClear)
         Minecraft.getInstance().mainRenderTarget.bindWrite(true)
     }
 }

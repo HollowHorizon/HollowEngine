@@ -32,9 +32,12 @@ abstract class FileData(
         if (!isHovered.use() && !surface.isFocused.use()) factor = 1f - factor
 
         val borderColor = Color("3C3C4AFF").mix(Color("586D84FF"), factor)
-        if(!isDocked) modifier.border(RoundRectBorder(borderColor, sizes.smallGap, sizes.borderWidth))
-        modifier.background(RoundRectBackground(colors.backgroundVariant, sizes.smallGap))
-
+        if(!isDocked) {
+            modifier.border(RoundRectBorder(borderColor, sizes.smallGap, sizes.borderWidth))
+            modifier.background(RoundRectBackground(colors.backgroundVariant, sizes.smallGap))
+        } else {
+            modifier.backgroundColor(colors.backgroundVariant)
+        }
         Column(Grow.Std, Grow.Std) {
             if(isDocked) modifier.margin(sizes.smallGap)
 

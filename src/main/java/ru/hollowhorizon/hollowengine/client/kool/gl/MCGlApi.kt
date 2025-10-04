@@ -196,10 +196,10 @@ object MCGlApi: GlApi {
     override fun bufferData(target: Int, buffer: Float32Buffer, usage: Int) = buffer.useRaw { glBufferData(target, it, usage) }
     override fun bufferData(target: Int, buffer: MixedBuffer, usage: Int) = buffer.useRaw { glBufferData(target, it, usage) }
     override fun checkFramebufferStatus(target: Int): Int = glCheckFramebufferStatus(target)
-    override fun clear(mask: Int) = glClear(mask)
+    override fun clear(mask: Int) = RenderSystem.clear(mask, false)
     override fun clearBufferfv(buffer: Int, drawBuffer: Int, values: Float32Buffer) = values.useRaw { glClearBufferfv(buffer, drawBuffer, it) }
-    override fun clearColor(r: Float, g: Float, b: Float, a: Float) = glClearColor(r, g, b, 0f)
-    override fun clearDepth(depth: Float) = glClearDepth(depth.toDouble())
+    override fun clearColor(r: Float, g: Float, b: Float, a: Float) = RenderSystem.clearColor(r, g, b, a)
+    override fun clearDepth(depth: Float) = RenderSystem.clearDepth(depth.toDouble())
     override fun clipControl(origin: Int, depth: Int) = glClipControl(origin, depth)
     override fun createBuffer(): GlBuffer = GlBuffer(glGenBuffers())
     override fun createFramebuffer(): GlFramebuffer = GlFramebuffer(glGenFramebuffers())
@@ -221,7 +221,7 @@ object MCGlApi: GlApi {
     override fun deleteTexture(texture: GlTexture) = glDeleteTextures(texture.handle)
     override fun deleteVertexArray(vao: GlVertexArrayObject) = glDeleteVertexArrays(vao.handle)
     override fun depthFunc(func: Int) = RenderSystem.depthFunc(func)
-    override fun depthMask(flag: Boolean) = glDepthMask(flag)
+    override fun depthMask(flag: Boolean) = RenderSystem.depthMask(flag)
     override fun disable(cap: Int) {
         when(cap) {
             BLEND -> RenderSystem.disableBlend()

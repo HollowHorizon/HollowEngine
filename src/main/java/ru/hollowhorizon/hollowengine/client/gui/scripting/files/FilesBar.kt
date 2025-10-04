@@ -236,7 +236,7 @@ fun UiScope.FileTitleBar(
 ) {
     val isTabbed = if (showTabsIfDocked) {
         val hasAnyTabs: Boolean
-        Column {
+        Column(Grow.Std) {
             hasAnyTabs = FileDockingTabsBar(windowDockable, onCloseAction = onCloseAction, onRightClick = onRightClick)
             if(hasAnyTabs && (drawAlignLeft != null || drawAlignRight != null)) Row {
                 drawAlignLeft?.let { it() }
