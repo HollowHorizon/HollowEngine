@@ -7,20 +7,17 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.client.Minecraft
-import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
-import ru.hollowhorizon.hollowengine.common.network.request
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 import ru.hollowhorizon.hollowengine.client.kool.DndHandler
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import java.io.File
 
 @Serializable
-open class FileNode(val treeName: String, val treePath: String) : Composable {
+open class FileNode(val treeName: String, val treePath: String, var depth: Int = 0) {
     var isFolder = false
-    var depth = 0
     val children: MutableList<FileNode> = ArrayList()
 
     @Transient
@@ -29,18 +26,28 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
     @Transient
     var parent: FileNode? = null
 
-    fun walk(): MutableList<FileNode> {
+    init {
+        update()
+    }
+
+    fun walk(filter: String): MutableList<FileNode> {
         val list = mutableListOf(this)
-        if (isExpanded.value) list.addAll(children.flatMap { it.walk() })
+        if (isExpanded.value) list.addAll(
+            children
+                .filter { it.canShow(filter) }
+                .flatMap { it.walk(filter) }
+        )
         return list
+    }
+
+    fun canShow(filter: String): Boolean {
+        if(treePath.contains(filter, ignoreCase = true)) return true
+        if(children.any { it.canShow(filter) }) return true
+        return false
     }
 
     open fun toggleExpanded() {
         if (!isFolder) return
-
-        // При закрытии папки удаляем из памяти её содержимое, чтобы при открытии оно обновилось
-        if (isExpanded.value) children.clear()
-        else update()
 
         // Открываем / Закрываем папку
         isExpanded.set(!isExpanded.value)
@@ -55,10 +62,10 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
             FileNode(
                 child.name,
                 if (this@FileNode.treePath.isEmpty()) child.name
-                else this@FileNode.treePath + "/" + child.name
+                else this@FileNode.treePath + "/" + child.name,
+                depth + 1
             ).apply {
                 parent = this@FileNode
-                depth = this@FileNode.depth + 1
                 isFolder = !child.isFile
                 if (old[treeName] == true) toggleExpanded()
             }
@@ -72,8 +79,7 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
         children.forEach { it.sort() }
     }
 
-    override fun UiScope.compose() {
-        modifier.margin(sizes.smallGap)
+    fun UiScope.draw(filter: String) {
         val filePopup = remember(::FilePopup)
 
         LazyColumn(
@@ -84,7 +90,7 @@ open class FileNode(val treeName: String, val treePath: String) : Composable {
 
             filePopup()
 
-            itemsIndexed(walk()) { i, item ->
+            itemsIndexed(walk(filter)) { i, item ->
                 sceneObjectItem(item)
 
                 modifier.onClick {

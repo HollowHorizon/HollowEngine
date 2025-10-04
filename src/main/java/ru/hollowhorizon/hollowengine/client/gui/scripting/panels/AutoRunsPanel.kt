@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.panels
 
 import de.fabmax.kool.math.Vec2f
-import de.fabmax.kool.math.Vec2i
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_RIGHT
@@ -26,7 +25,11 @@ class AutoRunsPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.autoruns", doc
         popupContent = Composable {
             val components = levelComponents.filter { it.toString() !in AutoRuns.content.levelComponents }
 
-            LazyColumn(height = (Dp.fromPx(sizes.normalText.lineHeight) + sizes.smallGap * 2) * 7.coerceAtMost(components.size)) {
+            LazyColumn(
+                height = (Dp.fromPx(sizes.normalText.lineHeight) + sizes.smallGap * 2) * 7.coerceAtMost(
+                    components.size
+                )
+            ) {
                 items(components) { component ->
                     Text(component.toString()) {
                         modifier.margin(horizontal = sizes.smallGap).padding(sizes.smallGap).width(Grow.Std)
@@ -51,7 +54,7 @@ class AutoRunsPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.autoruns", doc
     val categories: List<Pair<String, UiScope.(filter: MutableStateValue<String>) -> Unit>> = listOf(
         "События" to { Events(it) },
         "Компоненты сервера" to { LevelComponentsPopup(it) },
-        "Компоненты сущностей" to { Placeholder() },
+        "Компоненты игроков" to { Placeholder() },
     )
 
     override fun UiScope.compose() {
@@ -60,7 +63,7 @@ class AutoRunsPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.autoruns", doc
         Box(Grow.Std, Grow.Std) {
             LazyColumn {
                 items(categories) { (name, content) ->
-                    val isCollapsed = remember { mutableStateOf(false) }
+                    val isCollapsed = remember { mutableStateOf(true) }
                     val filter = remember { mutableStateOf("") }
                     Column(Grow.Std) {
                         Header(name, isCollapsed, filter)
@@ -132,8 +135,7 @@ class AutoRunsPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.autoruns", doc
                 modifier.margin(horizontal = sizes.smallGap)
                 modifier.onChange {
                     filter.set(it)
-                }
-                    .hint("Фильтр")
+                }.hint("Фильтр")
             }
         }
     }
@@ -171,51 +173,52 @@ class AutoRunsPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.autoruns", doc
     }
 
     private fun UiScope.LevelComponentsPopup(filter: MutableStateValue<String>) {
-        AutoRuns.content.levelComponents.filter { it.key.contains(filter.use(), ignoreCase = true) }.forEach { component ->
-            Row(Grow.Std) {
-                modifier.margin(horizontal = sizes.smallGap).padding(sizes.smallGap)
-                    .background(
-                        RoundRectBackground(
-                            hoverColors(
-                                color = colors.backgroundVariant,
-                                hoverColor = colors.background.mulRgb(1.15f)
-                            ), sizes.smallGap
+        AutoRuns.content.levelComponents.filter { it.key.contains(filter.use(), ignoreCase = true) }
+            .forEach { component ->
+                Row(Grow.Std) {
+                    modifier.margin(horizontal = sizes.smallGap).padding(sizes.smallGap)
+                        .background(
+                            RoundRectBackground(
+                                hoverColors(
+                                    color = colors.backgroundVariant,
+                                    hoverColor = colors.background.mulRgb(1.15f)
+                                ), sizes.smallGap
+                            )
                         )
-                    )
 
-                Image("hollowengine:textures/gui/icons/autocomplete_package.svg") {
-                    modifier.size(20.dp, 20.dp)
-                        .alignY(AlignmentY.Center)
-                        .margin(horizontal = sizes.smallGap)
-                }
+                    Image("hollowengine:textures/gui/icons/autocomplete_package.svg") {
+                        modifier.size(20.dp, 20.dp)
+                            .alignY(AlignmentY.Center)
+                            .margin(horizontal = sizes.smallGap)
+                    }
 
-                Text(component.key) {}
+                    Text(component.key) {}
 
-                Box(Grow.Std) {}
+                    Box(Grow.Std) {}
 
-                Text("Только первый запуск:") {
-                    modifier.alignY(AlignmentY.Center)
-                        .padding(horizontal = sizes.smallGap)
-                }
+                    Text("Только первый запуск:") {
+                        modifier.alignY(AlignmentY.Center)
+                            .padding(horizontal = sizes.smallGap)
+                    }
 
-                Checkbox(AutoRuns.content.levelComponents[component.key]) {
-                    modifier.onToggle {
-                        AutoRuns.content.levelComponents[component.key] = it
-                    }.alignY(AlignmentY.Center)
-                }
+                    Checkbox(AutoRuns.content.levelComponents[component.key]) {
+                        modifier.onToggle {
+                            AutoRuns.content.levelComponents[component.key] = it
+                        }.alignY(AlignmentY.Center)
+                    }
 
-                Image("hollowengine:textures/gui/icons/remove.png") {
-                    val hoverListener = hoverColors(0.5f, Color("AAFF5588"), Color.WHITE)
-                    modifier.tint(hoverListener)
-                        .size(20.dp, 20.dp)
-                        .alignY(AlignmentY.Center)
-                        .margin(horizontal = sizes.smallGap)
-                        .onClick {
-                            AutoRuns.content.levelComponents.remove(component.key)
-                        }
+                    Image("hollowengine:textures/gui/icons/remove.png") {
+                        val hoverListener = hoverColors(0.5f, Color("AAFF5588"), Color.WHITE)
+                        modifier.tint(hoverListener)
+                            .size(20.dp, 20.dp)
+                            .alignY(AlignmentY.Center)
+                            .margin(horizontal = sizes.smallGap)
+                            .onClick {
+                                AutoRuns.content.levelComponents.remove(component.key)
+                            }
+                    }
                 }
             }
-        }
 
         Button("Добавить компонент") {
             modifier.onClick {

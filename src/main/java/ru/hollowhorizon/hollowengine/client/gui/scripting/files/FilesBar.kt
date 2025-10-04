@@ -231,9 +231,20 @@ fun UiScope.FileTitleBar(
     showTabsIfDocked: Boolean = true,
     onCloseAction: ((Dockable) -> Unit)? = null,
     onRightClick: (Dockable, PointerEvent) -> Unit = { dockable, event -> },
+    drawAlignLeft: (UiScope.() -> Unit)? = null,
+    drawAlignRight: (UiScope.() -> Unit)? = null
 ) {
     val isTabbed = if (showTabsIfDocked) {
-        FileDockingTabsBar(windowDockable, onCloseAction = onCloseAction, onRightClick = onRightClick)
+        val hasAnyTabs: Boolean
+        Column {
+            hasAnyTabs = FileDockingTabsBar(windowDockable, onCloseAction = onCloseAction, onRightClick = onRightClick)
+            if(hasAnyTabs && (drawAlignLeft != null || drawAlignRight != null)) Row {
+                drawAlignLeft?.let { it() }
+                Box(Grow.Std) {}
+                drawAlignRight?.let { it() }
+            }
+        }
+        hasAnyTabs
     } else {
         false
     }
@@ -246,10 +257,7 @@ fun UiScope.FileTitleBar(
             )
         }
         Row(Grow.Std) {
-            val (isHovered, anim) = hoverListener { !surface.isFocused.use() }
-
             modifier
-                .margin(sizes.smallGap, sizes.smallGap, 0.dp, sizes.smallGap)
                 .onClick {
                     if (it.pointer.isMiddleButtonReleased) {
                         onCloseAction?.invoke(windowDockable)
@@ -257,6 +265,8 @@ fun UiScope.FileTitleBar(
                         onRightClick(windowDockable, it)
                     }
                 }
+
+            val (isHovered, anim) = hoverListener { !surface.isFocused.use() }
 
             var factor = Easing.quadRev(anim.progressAndUse())
             if (!isHovered.use() && !surface.isFocused.use()) factor = 1f - factor
@@ -278,11 +288,27 @@ fun UiScope.FileTitleBar(
 
             Text(itemName) {
                 modifier
-                    .width(Grow.Std)
                     .margin(horizontal = sizes.gap, vertical = sizes.smallGap * 0.5f)
-                    .align(AlignmentX.Center, AlignmentY.Center)
+                    .align(AlignmentX.Start, AlignmentY.Center)
                     .textAlign(AlignmentX.Center, AlignmentY.Center)
             }
+
+
+            drawAlignLeft?.let {
+                Box(sizes.borderWidth, Grow.Std) {
+                    modifier.backgroundColor(borderColor)
+                }
+                it()
+            }
+
+            Box(Grow.Std) {}
+
+            if(drawAlignRight != null || onCloseAction != null) Box(sizes.borderWidth, Grow.Std) {
+                modifier.backgroundColor(borderColor)
+                    .margin(horizontal = sizes.smallGap)
+            }
+
+            drawAlignRight?.let { it() }
 
             onCloseAction?.let {
                 CloseButton(

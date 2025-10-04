@@ -43,59 +43,6 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
                     suggestions.clear()
                 }
 
-                Row(Grow.Std) {
-                    modifier.margin(sizes.smallGap)
-
-                    Text("Level:") {
-                        modifier.alignY(AlignmentY.Center)
-                    }
-                    ComboBox {
-                        modifier.width(150.dp).margin(horizontal = sizes.gap).alignY(AlignmentY.Center)
-                            .items(StandardLevel.entries).selectedIndex(LogMessage.minLevel.use().ordinal).onItemSelected {
-                                LogMessage.minLevel.set(StandardLevel.entries[it])
-                                updateFilter()
-                            }
-                    }
-
-                    divider(
-                        colors.secondaryAlpha(0.75f),
-                        marginStart = sizes.largeGap,
-                        marginEnd = sizes.largeGap,
-                        verticalMargin = sizes.smallGap
-                    )
-
-                    Text("Filter:") {
-                        modifier.alignY(AlignmentY.Center)
-                    }
-                    var filterText by remember("")
-                    TextField(filterText) {
-                        modifier.width(150.dp).margin(horizontal = sizes.gap)
-                            .colors(lineColor = colors.secondaryVariant, lineColorFocused = colors.secondary)
-                            .alignY(AlignmentY.Center).hint("Text or regex")
-                            .onEnterPressed { surface.requestFocus(null) }.onChange {
-                                filterText = it
-                                LogMessage.messageFilter = if (it.isBlank()) null else {
-                                    try {
-                                        Regex(it)
-                                    } catch (e: Exception) {
-                                        // Логируем ошибку с использованием log4j
-                                        LogManager.getLogger().warn("Invalid filter regex: ${e.message}")
-                                        LogMessage.messageFilter
-                                    }
-                                }
-                                updateFilter()
-                            }
-                    }
-
-                    Box(width = Grow.Std) { }
-
-                    // TODO: Сделать переключатель, а не просто кнопку
-                    ActionButton(24.dp, "hollowengine:textures/gui/icons/auto_scroll.svg") {
-                        isScrollLock.set(!isScrollLock.value)
-                    }
-                    Box(sizes.smallGap) {}
-                }
-
                 console()
 
                 Row(Grow.Std) {
@@ -127,6 +74,59 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
         }
     }
 
+    override fun UiScope.drawHeaderLeft() {
+
+        Text("Level:") {
+            modifier.alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap)
+        }
+        ComboBox {
+            modifier.width(150.dp).margin(horizontal = sizes.gap).alignY(AlignmentY.Center)
+                .items(StandardLevel.entries).selectedIndex(LogMessage.minLevel.use().ordinal).onItemSelected {
+                    LogMessage.minLevel.set(StandardLevel.entries[it])
+                    updateFilter()
+                }
+                .padding(vertical = 0.dp)
+        }
+
+        Text("Фильтр:") {
+            modifier.alignY(AlignmentY.Center)
+        }
+        var filterText by remember("")
+        TextField(filterText) {
+            modifier.margin(horizontal = sizes.gap)
+                .colors(lineColor = colors.secondaryVariant, lineColorFocused = colors.secondary)
+                .alignY(AlignmentY.Center).hint("Текст или Regex")
+                .onEnterPressed { surface.requestFocus(null) }.onChange {
+                    filterText = it
+                    LogMessage.messageFilter = if (it.isBlank()) null else {
+                        try {
+                            Regex(it)
+                        } catch (e: Exception) {
+                            // Логируем ошибку с использованием log4j
+                            LogManager.getLogger().warn("Invalid filter regex: ${e.message}")
+                            LogMessage.messageFilter
+                        }
+                    }
+                    updateFilter()
+                }
+        }
+    }
+
+    override fun UiScope.drawHeaderRight() {
+        Image("hollowengine:textures/gui/icons/auto_scroll.svg") {
+            val backgroundColor = if (isScrollLock.use()) Color("00b003")
+            else hoverColors(color = colors.background, hoverColor = Color.WHITE)
+
+            modifier.margin(horizontal = sizes.smallGap)
+                .tint(backgroundColor)
+                .onClick {
+                    isScrollLock.set(!isScrollLock.value)
+                }
+                .size(26.dp, 26.dp)
+                .alignY(AlignmentY.Center)
+        }
+    }
+
     private fun executeCommand(command: String) {
         if (command.isNotBlank()) {
             val client = Minecraft.getInstance()
@@ -144,27 +144,6 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
         filteredLogMessages += logMessages.filter { it.isAccepted }
     }
 
-
-    private fun UiScope.ActionButton(
-        buttonSize: Dimension,
-        icon: String,
-        action: () -> Unit,
-    ) {
-        modifier.padding(horizontal = sizes.smallGap).background(
-                RoundRectBackground(
-                    hoverColors(
-                        color = colors.background, hoverColor = IdeTheme.hoveredColors.background
-                    ), sizes.smallGap
-                )
-            ).onClick {
-                action()
-            }
-
-        Image(icon) {
-            modifier.size(buttonSize, buttonSize).alignY(AlignmentY.Center)
-        }
-    }
-
     private fun UiScope.console() {
         val listState = rememberListState()
         TextArea(
@@ -173,12 +152,12 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
             scrollPaneModifier = { it.margin(horizontal = sizes.gap) },
         ) {
             modifier.lastLineBottomPadding(sizes.largeGap).backgroundColor(null).onWheelY { ev ->
-                    if (ev.pointer.scroll.y > 0.0) {
-                        isScrollLock.set(false)
-                    } else if (ev.pointer.scroll.y < 0.0 && listState.itemsTo == listState.numTotalItems - 1) {
-                        isScrollLock.set(true)
-                    }
+                if (ev.pointer.scroll.y > 0.0) {
+                    isScrollLock.set(false)
+                } else if (ev.pointer.scroll.y < 0.0 && listState.itemsTo == listState.numTotalItems - 1) {
+                    isScrollLock.set(true)
                 }
+            }
 
             installDefaultSelectionHandler()
 
@@ -194,8 +173,8 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
 
         Popup(position.x, position.y - height.px) {
             modifier.background(null).border(null).zLayer(UiSurface.LAYER_POPUP).size(
-                    width, height
-                )
+                width, height
+            )
 
             LazyColumn(
                 withVerticalScrollbar = true, withHorizontalScrollbar = false, containerModifier = {
@@ -206,8 +185,8 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
                     Box(Grow.Std) {
                         val color = hoverColors(1f, Color("1B1E23FF"), Color("252930FF"))
                         modifier.backgroundColor(color).padding(sizes.smallGap).onClick {
-                                commandInput = resource.apply(commandInput)
-                            }
+                            commandInput = resource.apply(commandInput)
+                        }
 
                         Text(resource.text + (resource.tooltip?.let { " (${it.string})" } ?: "")) {
                             modifier.width(Grow.Std)

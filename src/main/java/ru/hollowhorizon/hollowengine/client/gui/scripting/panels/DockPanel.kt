@@ -1,13 +1,16 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.panels
 
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
+import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.kool.UiColors
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.Layout
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileTitleBar
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.ToolBar
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverListener
 
 abstract class DockPanel(final override val name: String, dock: Dock) : Layout, Composable {
     final override val dockable = UiDockable(name, dock)
@@ -40,12 +43,28 @@ abstract class DockPanel(final override val name: String, dock: Dock) : Layout, 
         }
     }
 
+    val isDocked: Boolean get() = dockable.dockedTo.value != null
+
     private fun UiScope.panelContent() {
+        val (isHovered, anim) = hoverListener { !surface.isFocused.use() }
+
+        var factor = Easing.quadRev(anim.progressAndUse())
+        if (!isHovered.use() && !surface.isFocused.use()) factor = 1f - factor
+
+        val borderColor = Color("3C3C4AFF").mix(Color("586D84FF"), factor)
+        if(!isDocked) modifier.border(RoundRectBorder(borderColor, sizes.smallGap, sizes.borderWidth))
+        modifier.background(RoundRectBackground(colors.backgroundVariant, sizes.smallGap))
+
         Column(Grow.Std, Grow.Std) {
-            FileTitleBar(dockable, showTabsIfDocked = !showOnToolbar)
+            if(isDocked) modifier.margin(sizes.smallGap)
+
+            FileTitleBar(dockable, showTabsIfDocked = !showOnToolbar, drawAlignLeft = { drawHeaderLeft() }, drawAlignRight = { drawHeaderRight()})
             this@DockPanel()
         }
     }
+
+    protected open fun UiScope.drawHeaderLeft() {}
+    protected open fun UiScope.drawHeaderRight() {}
 
     init {
         dock.addDockableSurface(dockable, surface)
