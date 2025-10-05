@@ -9,6 +9,8 @@ import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
 import ru.hollowhorizon.hollowengine.common.components.generateProvider
 import ru.hollowhorizon.hollowengine.common.components.registry.ComponentEntry
 import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
+import ru.hollowhorizon.hollowengine.common.config.Config
+import ru.hollowhorizon.hollowengine.common.config.ConfigName
 import ru.hollowhorizon.hollowengine.common.events.*
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
@@ -38,6 +40,10 @@ object HollowModProcessor {
         }
 
         AnnotationProcessorEvent(getAnnotatedClasses, getSubTypes, getAnnotatedMethods).post()
+
+        registerClassHandler<ConfigName> { type, _ ->
+            (type.kotlin.objectInstance as Config).initialize()
+        }
 
         val runnables = arrayListOf<Runnable>()
 

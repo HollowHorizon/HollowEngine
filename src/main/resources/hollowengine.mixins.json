@@ -9,7 +9,6 @@
     "BrewingStandBlockEntityMixin",
     "BrewingStandMenuMixin",
     "ClipboardMixin",
-    "CreativeModeTabMixin",
     "DimensionDataStorageAccessor",
     "DimensionTypeMixin",
     "FeatureUtilsMixin",

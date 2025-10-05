@@ -8,28 +8,21 @@ package ru.hollowhorizon.hollowengine.client.utils
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import ru.hollowhorizon.hollowengine.common.config.HollowConfig
-import ru.hollowhorizon.hollowengine.common.config.hollowConfig
 
 object HollowCoreLoader {
-    val config by hollowConfig(::Config, "hollowengine-loader")
+    @SerialName("enable_renderdoc")
+    val enableRenderDoc = false
+    @SerialName("opengl_version")
+    var openGlVersion = "3.3"
 
     @JvmStatic
     fun canAttachRenderdoc(): Boolean {
-        if (!config.enableRenderDoc) return false
+        if (!enableRenderDoc) return false
 
         //? if fabric {
         return true
         //?} else {
         /*return !FMLConfig.getBoolConfigValue(FMLConfig.ConfigValue.EARLY_WINDOW_CONTROL)
         *///?}
-    }
-
-    @Serializable
-    class Config : HollowConfig() {
-        var enableRenderDoc = false
-
-        @SerialName("opengl_version")
-        var openGlVersion = "3.3"
     }
 }

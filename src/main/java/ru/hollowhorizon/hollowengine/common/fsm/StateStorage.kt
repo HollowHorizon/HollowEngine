@@ -22,33 +22,6 @@ class StateStorage(val tag: CompoundTag) : CoroutineContext.Element {
     override val key: CoroutineContext.Key<*> get() = Key
 }
 
-suspend inline fun <reified T : Any> remember(name: String, initializer: () -> T): ReadWriteProperty<Any?, T> {
-    val tag = coroutineContext[StateStorage]?.tag ?: error("StateStorage not found!")
-    val variable =
-        if (name in tag) NBTFormat.deserialize<T, Tag>(tag.get(name)!!)
-        else initializer()
-
-    return RememberValue(name, variable, serializer<T>(), tag)
-}
-
-class RememberValue<T : Any>(
-    val name: String,
-    internal var variable: T,
-    private val type: KSerializer<T>,
-    private val tag: CompoundTag,
-) : ReadWriteProperty<Any?, T> {
-    fun save() {
-        tag.put(name, NBTFormat.serialize(type, variable))
-    }
-
-    override fun getValue(thisRef: Any?, property: KProperty<*>): T = variable
-
-    override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
-        variable = value
-        save()
-    }
-}
-
 private fun waiter(checker: CompletableDeferred<Boolean>, condition: () -> Boolean) {
     currentServer.coroutineScope.launch {
         if (condition()) checker.complete(true)

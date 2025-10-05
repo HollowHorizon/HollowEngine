@@ -7,7 +7,6 @@ import de.fabmax.kool.modules.ui2.tint
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.api.utils.Polymorphic
@@ -20,58 +19,12 @@ import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForCompoundNBT
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStack
-import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.fsm.StateNode
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.await
-
-class Dialogue(private val targetNode: StateNode, vararg val players: ServerPlayer) {
-    val scene = DialogueScene()
-
-    suspend infix fun NpcEntity.say(text: String) {
-        scene.character = name
-        scene.characters.add(this)
-        scene.text = text
-        scene.sync(*players)
-        await<DialogueUpdateEvent>()
-    }
-
-    suspend infix fun Player.say(text: String) {
-        scene.character = name.string
-        scene.characters.add(this)
-        scene.text = text
-        scene.sync(*players)
-        await<DialogueUpdateEvent>()
-    }
-
-    suspend fun choices(vararg options: String) {
-        scene.choices.clear()
-        scene.choices.addAll(options.map { DialogChoice.simple(it) })
-        scene.sync(*players)
-        var choice: Int
-        do {
-            choice = await<DialogueUpdateEvent>().tag.let { if (it.contains("choiceId")) it.getInt("choiceId") else -1 }
-        } while (choice < 0)
-        scene.choices.clear()
-        //CloseScreenPacket().send(*players)
-        targetNode.transition(options[choice])
-    }
-}
 
 @Serializable
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 class DialogueUpdateEvent(val tag: @Serializable(ForCompoundNBT::class) CompoundTag) : HollowPacket, Event {
     override fun handle(player: Player) {
         EventBus.post(this)
-    }
-}
-
-
-fun StateNode.dialogue(vararg player: ServerPlayer, action: suspend Dialogue.() -> Unit) {
-    val dialogue = Dialogue(this, *player)
-
-    state("main") {
-        action(dialogue)
-        //CloseScreenPacket().send(*player)
     }
 }
 

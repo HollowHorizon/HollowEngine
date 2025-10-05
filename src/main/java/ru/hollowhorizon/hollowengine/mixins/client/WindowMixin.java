@@ -27,7 +27,7 @@ public class WindowMixin {
     )
     private void redirectGlfwWindowHint(int target, int value) {
         if (target == GLFW.GLFW_CONTEXT_VERSION_MAJOR || target == GLFW.GLFW_CONTEXT_VERSION_MINOR) {
-            var version = HollowCoreLoader.INSTANCE.getConfig().getOpenGlVersion().split("\\.", 2);
+            var version = HollowCoreLoader.INSTANCE.getOpenGlVersion().split("\\.", 2);
             int major = Integer.parseInt(version[0]);
             int minor = Integer.parseInt(version[1]);
 

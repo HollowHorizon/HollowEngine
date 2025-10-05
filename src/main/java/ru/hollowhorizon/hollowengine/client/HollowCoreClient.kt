@@ -28,6 +28,9 @@ import ru.hollowhorizon.hollowengine.client.render.RenderManager
 import ru.hollowhorizon.hollowengine.client.render.entity.EmptyEntityRenderer
 import ru.hollowhorizon.hollowengine.client.utils.HollowPack
 import ru.hollowhorizon.hollowengine.client.utils.open
+import ru.hollowhorizon.hollowengine.common.config.Config
+import ru.hollowhorizon.hollowengine.common.config.ConfigName
+import ru.hollowhorizon.hollowengine.common.config.HollowCoreConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
@@ -67,7 +70,7 @@ object HollowCoreClient {
 
     @SubscribeEvent
     fun onRegisterKeys(event: RegisterKeyBindingsEvent) {
-        if (HollowCore.config.debugMode) event.registerKeyMapping(KEY_V)
+        if (HollowCoreConfig.debugMode) event.registerKeyMapping(KEY_V)
     }
 
     val img by lazy {
@@ -76,7 +79,7 @@ object HollowCoreClient {
 
     @SubscribeEvent
     fun onClientTick(event: TickEvent.Client) {
-        if (HollowCore.config.debugMode && KEY_V.isDown) {
+        if (HollowCoreConfig.debugMode && KEY_V.isDown) {
             object : KoolScreen() {
                 override fun Scene.setup() {
                     setupUiScene()
@@ -111,6 +114,10 @@ object HollowCoreClient {
                             }
                         }
                         Item(Items.DIAMOND.defaultInstance) {}
+
+                        Switch(ExampleConfig.switch) {
+                            modifier.onToggle { ExampleConfig.switch = it }
+                        }
                         surface.triggerUpdate()
                     }
                 }
@@ -124,4 +131,9 @@ object HollowCoreClient {
         if (event.overlay != GuiOverlay.HOTBAR) return
         CompilationStatus.overlay.render()
     }
+}
+
+@ConfigName("gui/example")
+object ExampleConfig: Config() {
+    var switch by property(false)
 }

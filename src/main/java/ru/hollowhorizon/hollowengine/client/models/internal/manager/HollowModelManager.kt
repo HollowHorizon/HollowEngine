@@ -17,7 +17,7 @@ import ru.hollowhorizon.hollowengine.client.models.gltf.GltfModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.obj.ObjModelLoader
 import ru.hollowhorizon.hollowengine.client.textures.GlTexture
-import ru.hollowhorizon.hollowengine.client.utils.resource
+import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.post
@@ -54,7 +54,7 @@ object HollowModelManager : ResourceManagerReloadListener {
 
     private fun createSkinningProgramGL33() {
         val glShader = GL20.glCreateShader(GL20.GL_VERTEX_SHADER)
-        GL20.glShaderSource(glShader, resource("shaders/core/gltf_skinning.vsh").readBytes().decodeToString())
+        GL20.glShaderSource(glShader, "hollowengine:shaders/core/gltf_skinning.vsh".rl.stream.readBytes().decodeToString())
         GL20.glCompileShader(glShader)
 
         glProgramSkinning = GL20.glCreateProgram()

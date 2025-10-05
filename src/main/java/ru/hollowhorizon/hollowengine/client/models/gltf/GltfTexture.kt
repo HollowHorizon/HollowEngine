@@ -9,8 +9,8 @@ import kotlinx.serialization.Transient
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.utils.rl
-import ru.hollowhorizon.hollowengine.client.utils.toIS
 import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.util.*
@@ -51,7 +51,7 @@ data class GltfTexture(
                                 return Base64.getDecoder().wrap(path.substring(22).byteInputStream())
                             }
 
-                            return path.rl.toIS()
+                            return path.rl.stream
                         }
 
                         createdTex = DynamicTexture(NativeImage.read(retrieveFile(uri)))

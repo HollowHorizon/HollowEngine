@@ -1,10 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.structure
 
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hollowengine.common.utils.rl
-import ru.hollowhorizon.hollowengine.common.data.HollowEngineCorePack
 import ru.hollowhorizon.hollowengine.common.structure.PoolBuilder.Companion.build
 import ru.hollowhorizon.hollowengine.common.structure.StructureSetBuilder.Companion.build
+import ru.hollowhorizon.hollowengine.common.utils.rl
 
 class StructureBuilder(val structureType: String, val id: ResourceLocation) {
     private val mcBiomes: MutableList<String> = mutableListOf()
@@ -103,25 +102,6 @@ class StructureBuilder(val structureType: String, val id: ResourceLocation) {
         pools.forEachIndexed { index, pool ->
             poolIds["${id.namespace}:${id.path}/$index".rl] = pool
         }
-        HollowEngineCorePack.apply {
-            addStructure(id, StructureHelper.createStructure(
-                structureType,
-                poolIds.keys.first().toString(),
-                size,
-                maxDistanceFromCenter,
-                biomes,
-                step,
-                terrainAdaptation,
-                startHeight,
-                maxInclusive,
-                minInclusive,
-                projectStartToHeightmap,
-                useExpansionHack,
-                spawnOverrides
-            ))
-
-            poolIds.forEach(::addTemplatePool)
-        }
     }
 
     private fun fixBeforeBuild() {
@@ -158,6 +138,7 @@ class StructureSetBuilder {
             *structures.toTypedArray()
         )
     }
+
     private var type: String = "minecraft:random_spread"
     private var salt: Int? = null
     private var spacing: Int = 12
