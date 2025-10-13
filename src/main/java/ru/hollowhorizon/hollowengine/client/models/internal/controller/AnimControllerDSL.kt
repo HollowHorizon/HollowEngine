@@ -17,6 +17,9 @@ import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.MolangCompiler
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
 import java.util.*
 
+@DslMarker
+annotation class AnimControllerDSL
+
 private fun Float.modPositive(divisor: Float): Float =
     ((this % divisor) + divisor) % divisor
 
@@ -27,6 +30,7 @@ private fun Float.modPositive(divisor: Float): Float =
  * @property PingPong Проигрывать анимацию до последнего кадра и в обратном порядке зациклено.
  * @property ClampForever Проигрывать анимацию остановившись на последнем кадре.
  */
+@AnimControllerDSL
 enum class WrapMode(val wrapTime: (Animation, Float) -> Float) {
     Once({ animation, time ->
         if (time < 0) animation.duration - (-time).coerceAtMost(animation.duration)
@@ -51,9 +55,11 @@ enum class WrapMode(val wrapTime: (Animation, Float) -> Float) {
  * @property Override Переопределяет анимацию полностью заменяя прошлую позу текущей.
  * @property Additive Добавляет к прошлой позе текущую, накапливая эффект. Рекомендуется использовать вместе с референс-позой.
  */
+@AnimControllerDSL
 enum class BlendMode { Override, Additive }
 
 @Serializable
+@AnimControllerDSL
 data class Mask(val includes: Set<String>, val excludes: Set<String>) {
     @Transient
     private var bakedNodes: Set<Node>? = null
@@ -96,6 +102,7 @@ data class Mask(val includes: Set<String>, val excludes: Set<String>) {
 }
 
 @Serializable
+@AnimControllerDSL
 data class Controller(var layers: MutableList<Layer>) {
     companion object {
         const val AUTOMATIC_LAYER = "__Automatic__"
@@ -184,9 +191,11 @@ data class Controller(var layers: MutableList<Layer>) {
     }
 }
 
+@AnimControllerDSL
 fun animationController(block: ControllerBuilder.() -> Unit): Controller =
     ControllerBuilder().apply(block).build()
 
+@AnimControllerDSL
 class ControllerBuilder {
     private val layers = mutableListOf<Layer>()
 
@@ -234,6 +243,7 @@ class ControllerBuilder {
 }
 
 @Serializable
+@AnimControllerDSL
 data class Layer(
     val name: String,
     val priority: Int,
@@ -251,6 +261,7 @@ data class Layer(
     }
 }
 
+@AnimControllerDSL
 class LayerBuilder(
     val name: String,
     val priority: Int,
@@ -268,6 +279,7 @@ class LayerBuilder(
 }
 
 @Serializable
+@AnimControllerDSL
 data class State(
     val name: String,
     val clip: ClipNode?,
@@ -299,6 +311,7 @@ data class State(
 }
 
 @Serializable
+@AnimControllerDSL
 data class Transition(
     val from: String,
     val to: String,
@@ -363,6 +376,7 @@ fun TrsTransformF?.mix(other: TrsTransformF?, factor: Float): TrsTransformF? {
 }
 
 @Serializable
+@AnimControllerDSL
 data class StateMachine(
     val states: List<State>,
     val transitions: MutableList<Transition>,
@@ -434,6 +448,7 @@ data class StateMachine(
     }
 }
 
+@AnimControllerDSL
 class StateMachineBuilder {
     private val states = mutableListOf<State>()
     private val transitions = mutableListOf<Transition>()
@@ -464,6 +479,7 @@ class StateMachineBuilder {
     fun build() = StateMachine(states, transitions, initialState)
 }
 
+@AnimControllerDSL
 class StateBuilder(val name: String) {
     private var clip: ClipNode? = null
     private var blendTree: BlendTree? = null
@@ -487,6 +503,7 @@ class StateBuilder(val name: String) {
 
 
 @Serializable
+@AnimControllerDSL
 data class BlendTree(
     private val function: String,
     val nodes: List<BlendNode>,
@@ -547,6 +564,7 @@ data class BlendTree(
     }
 }
 
+@AnimControllerDSL
 class BlendTreeBuilder {
     private val nodes = mutableListOf<BlendNode>()
     private var factor: String = "1f"
@@ -570,6 +588,7 @@ class BlendTreeBuilder {
 }
 
 @Serializable
+@AnimControllerDSL
 data class BlendNode(val clip: ClipNode, val threshold: Float) {
     fun update(animations: Map<String, Animation>, query: MolangContext, node: Node, time: Float): TrsTransformF? {
         return clip.update(animations, query, node, time)
@@ -586,6 +605,7 @@ data class BlendNode(val clip: ClipNode, val threshold: Float) {
 }
 
 @Serializable
+@AnimControllerDSL
 data class ClipNode(
     val name: String,
     val wrap: WrapMode,
@@ -647,10 +667,11 @@ data class ClipNode(
 }
 
 @Serializable
+@AnimControllerDSL
 data class DeltaNode(val targetPose: String)
 
 // Transition builder
-
+@AnimControllerDSL
 class TransitionBuilder(val from: String, val to: String) {
     internal var condition: String = "false"
     internal var duration: Float = 0.2f

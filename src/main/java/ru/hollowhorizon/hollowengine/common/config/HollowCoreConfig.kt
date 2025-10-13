@@ -11,7 +11,8 @@ object HollowCoreConfig : Config() {
     val debugMode by property(false)
     val values by map(
         "hello" to true,
-        "world" to false
+        "world" to false,
+        "C://Users/Halva" to false
     )
 
     @PropertyComment("Настройки инвентаря")

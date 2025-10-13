@@ -1,27 +1,19 @@
 package ru.hollowhorizon.hollowengine.common.graph
 
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.plus
+import kotlinx.coroutines.*
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.IntTag
-import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.ai.util.DefaultRandomPos
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.events.Event
-import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hollowengine.common.fsm.StateStorage
 import ru.hollowhorizon.hollowengine.common.scripting.components.ScriptableComponent
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.npc
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.pos
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.send
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 
 class Graph(
@@ -281,7 +273,7 @@ class Example : ScriptableComponent<Level>() {
 
             state("Move to player") {
                 onEnter {
-                    while(true) {
+                    while (true) {
                         delay(50)
                         val player = npc.level().getNearestPlayer(npc, 100.0) ?: continue
                         npc.navigation.moveTo(player, 1.0)
@@ -299,7 +291,7 @@ class Example : ScriptableComponent<Level>() {
 
             state("Move from player") {
                 onEnter {
-                    while(true) {
+                    while (true) {
                         delay(50)
                         val player = npc.level().getNearestPlayer(npc, 100.0) ?: continue
                         val avoidPos = DefaultRandomPos.getPosAway(npc, 16, 7, player.position()) ?: continue

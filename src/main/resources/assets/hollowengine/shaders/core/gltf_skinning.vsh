@@ -38,8 +38,9 @@ void main() {
             texelFetch(jointMatrices, jw + 3)
         );
 
-    outPosition = (skinMatrix * vec4(position, 1.0)).xyz;
+    vec4 skinnedPos = skinMatrix * vec4(position, 1.0);
+    outPosition = skinnedPos.xyz;
 
-    mat3 upperLeft = mat3(skinMatrix);
-    outNormal = upperLeft * normal;
+    mat3 normalMatrix = transpose(inverse(mat3(skinMatrix)));
+    outNormal = normalize(normalMatrix * normal);
 }

@@ -56,7 +56,7 @@ enum class AnimationType {
     companion object {
         // @formatter:off
         private val patterns: Map<AnimationType, List<List<String>>> = mapOf(
-            IDLE            to listOf(listOf("idle")),
+            IDLE            to listOf(listOf("idle", "scene")),
             IDLE_SNEAKED    to listOf(listOf("sneak"), listOf("crouch", "crouth", "idle")),
             WALK            to listOf(listOf("walk"), listOf("move"), listOf("go")),
             WALK_SNEAKED    to listOf(listOf("walk", "sneak"), listOf("crouch", "crouth", "walk")),

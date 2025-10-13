@@ -58,7 +58,6 @@ class AutoRunsPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.autoruns", doc
     )
 
     override fun UiScope.compose() {
-        modifier.margin(sizes.smallGap)
 
         Box(Grow.Std, Grow.Std) {
             LazyColumn {

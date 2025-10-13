@@ -15,9 +15,9 @@ repositories {
 
 dependencies {
     implementation("architectury-plugin:architectury-plugin.gradle.plugin:3.4-SNAPSHOT")
-    implementation("net.fabricmc:tiny-remapper:0.10.4")
     implementation("dev.architectury:architectury-loom:1.9-SNAPSHOT")
-    implementation("dev.kikugie:stonecutter:0.7.7-beta.2")
+    implementation("net.fabricmc:tiny-remapper:0.10.4")
+    implementation("dev.kikugie:stonecutter:0.7.10")
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.0")
     implementation("me.fallenbreath.yamlang:me.fallenbreath.yamlang.gradle.plugin:1.4.1")
 

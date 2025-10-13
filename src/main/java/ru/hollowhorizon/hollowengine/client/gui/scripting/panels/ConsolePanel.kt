@@ -36,7 +36,6 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
     }
 
     override fun UiScope.compose() {
-        modifier.margin(sizes.smallGap)
         Box(Grow.Std, Grow.Std) {
             Column(Grow.Std, Grow.Std) {
                 modifier.onClick {

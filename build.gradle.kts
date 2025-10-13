@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.utils.extendsFrom
-
 plugins {
     java
     `maven-publish`

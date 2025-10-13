@@ -1,3 +1,4 @@
+// import dev.kikugie.stonecutter.build.StonecutterBuildExtension
 import dev.kikugie.stonecutter.build.StonecutterBuildExtension
 import net.fabricmc.loom.extension.LoomGradleExtensionImpl
 import org.gradle.api.JavaVersion

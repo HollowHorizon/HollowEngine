@@ -10,7 +10,6 @@ import org.apache.logging.log4j.core.LogEvent
 import org.apache.logging.log4j.core.appender.AbstractAppender
 import org.apache.logging.log4j.core.config.plugins.Plugin
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console.LogMessage
-import ru.hollowhorizon.hollowengine.common.config.HollowCoreConfig
 import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.MolangCompiler
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock

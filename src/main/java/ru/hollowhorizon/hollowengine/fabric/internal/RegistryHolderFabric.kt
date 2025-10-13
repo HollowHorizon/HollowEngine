@@ -80,7 +80,8 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 
 
-class FabricRegistry<T: Any>(val registry: Registry<T>): ru.hollowhorizon.hollowengine.common.registry.system.MutableRegistry<T> {
+class FabricRegistry<T : Any>(val registry: Registry<T>) :
+    ru.hollowhorizon.hollowengine.common.registry.system.MutableRegistry<T> {
     override val key: ResourceLocation = registry.key().location()
     override val state: RegistryState = RegistryState.REGISTERING
     override val size: Int get() = registry.size()
@@ -101,7 +102,9 @@ class FabricRegistry<T: Any>(val registry: Registry<T>): ru.hollowhorizon.hollow
     }
 
     override fun getHolder(key: ResourceKey<T>): Holder<T>? {
-        val holder = registry.getHolder(net.minecraft.resources.ResourceKey.create(registry.key(), key.location)).getOrNull() ?: return null
+        val holder =
+            registry.getHolder(net.minecraft.resources.ResourceKey.create(registry.key(), key.location)).getOrNull()
+                ?: return null
         return Holder(key, registry.getId(holder.value())).apply {
             this.value = holder.value()
         }
@@ -251,8 +254,7 @@ class RegistryHolderFabric<T : Any>(
                     Registry.register(BuiltInRegistries.ITEM, location, item)
                     if (autoModel != null) {
                         if (autoModel == AutoModelType.CUBE_ALL) HollowPack.addItemModel(
-                            location,
-                            AutoModelType.custom("${location.namespace}:block/${location.path}")
+                            location, AutoModelType.custom("${location.namespace}:block/${location.path}")
                         )
                         else HollowPack.addItemModel(location, AutoModelType.custom("builtin/entity"))
                     }

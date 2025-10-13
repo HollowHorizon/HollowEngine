@@ -11,7 +11,6 @@ import ru.hollowhorizon.hollowengine.HollowLoggerKt;
 import ru.hollowhorizon.hollowengine.client.utils.HollowCoreLoader;
 import ru.hollowhorizon.hollowengine.common.config.Config;
 import ru.hollowhorizon.hollowengine.common.utils.ForgeKotlinKt;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -20,6 +19,7 @@ public class DebugMainMixin {
     @Inject(method = "main", at = @At("HEAD"), remap = false)
     private static void preMain(CallbackInfo ci) {
         ConsoleAppender.attach();
+        HollowCoreLoader.INSTANCE.initialize();
         Config.startObserver();
 
         HollowLoggerKt.getLOGGER().info("Production: {}, Can attach renderdoc: {}, Platform: {}", ForgeKotlinKt.isProduction(), HollowCoreLoader.canAttachRenderdoc(), Util.getPlatform().name());
@@ -41,7 +41,7 @@ public class DebugMainMixin {
 
         if (!detected) {
             var renderDoc = Path.of("C:/Program Files/RenderDoc/renderdoc.dll");
-            if(Files.exists(renderDoc)) {
+            if (Files.exists(renderDoc)) {
                 try {
                     HollowLoggerKt.getLOGGER().info("Trying load system renderdoc");
                     System.load("C:/Program Files/RenderDoc/renderdoc.dll");

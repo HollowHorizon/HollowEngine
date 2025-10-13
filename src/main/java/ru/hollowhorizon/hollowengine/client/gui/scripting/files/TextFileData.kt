@@ -59,7 +59,7 @@ class TextFileData(name: String, path: String, code: String) :
     })
 
     override fun UiScope.compose() {
-        modifier.backgroundColor(colors.backgroundVariant)
+        modifier.background(RoundRectBackground(colors.backgroundVariant, sizes.smallGap))
 
         Box(Grow.Std, Grow.Std) {
             ScriptTextArea(
