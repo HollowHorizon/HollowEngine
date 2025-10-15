@@ -9,11 +9,11 @@ class Skin(
 ) {
     val joints = HashMap<Int, Node>(jointsIds.size)
 
-    private val skin: Array<Mat4f> = Array(jointsIds.size) { MutableMat4f() }
+    private val cache: Array<Mat4f> = Array(jointsIds.size) { MutableMat4f() }
 
-    fun finalMatrices(node: Node): Array<Mat4f> {
+    fun compute(root: Node): Array<Mat4f> {
         // Получаем и инвертируем глобальную матрицу узла модели
-        val inverseRoot = MutableMat4f(node.globalMatrix)
+        val inverseRoot = MutableMat4f(root.globalMatrix)
         inverseRoot.invert()
 
         // Проходим по всем суставам
@@ -21,8 +21,9 @@ class Skin(
             val jointGlobalMatrix = MutableMat4f(joints[i]!!.globalMatrix)
             val bindMatrix = MutableMat4f(inverseBindMatrices[i])
             val skinMatrix = MutableMat4f(jointGlobalMatrix).mul(bindMatrix)
-            skin[i] = MutableMat4f(inverseRoot).mul(skinMatrix).transpose() // Транспозируем уже для передачи в Minecraft
+            cache[i] = MutableMat4f(inverseRoot).mul(skinMatrix).transpose() // Транспозируем уже для передачи в Minecraft
         }
-        return skin
+        return cache
     }
 }
+

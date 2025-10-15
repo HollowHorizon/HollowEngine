@@ -484,7 +484,7 @@ class Primitive(
     }
 
     private fun computeMatrices(node: Node): FloatBuffer {
-        val matrices = node.skin!!.finalMatrices(node)
+        val matrices = node.skin!!.compute(node)
 
         val buffer = BufferUtils.createFloatBuffer(matrices.size * 16)
         for (m in matrices) {
