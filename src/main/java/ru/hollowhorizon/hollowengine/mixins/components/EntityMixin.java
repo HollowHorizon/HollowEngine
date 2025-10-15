@@ -1,7 +1,6 @@
-package ru.hollowhorizon.hollowengine.mixins.capabilities;
+package ru.hollowhorizon.hollowengine.mixins.components;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -20,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 import ru.hollowhorizon.hollowengine.common.components.Component;
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher;
-import ru.hollowhorizon.hollowengine.common.components.lifecycle.ComponentSavingKt;
+import ru.hollowhorizon.hollowengine.common.components.lifecycle.ComponentSaving;
 import ru.hollowhorizon.hollowengine.common.components.lifecycle.ComponentSyncingKt;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityEvent;
@@ -36,12 +35,12 @@ public class EntityMixin implements ComponentDispatcher {
 
     @Inject(method = "saveWithoutId", at = @At("TAIL"))
     private void serializeExtra(CompoundTag tag, CallbackInfoReturnable<CompoundTag> cir) {
-        tag.put(ComponentSavingKt.COMPONENT_TAG, ComponentSavingKt.save(this));
+        tag.put(ComponentSaving.COMPONENT_TAG, ComponentSaving.save(this));
     }
 
     @Inject(method = "load", at = @At("TAIL"))
     private void deserializeExtra(CompoundTag tag, CallbackInfo ci) {
-        ComponentSavingKt.load(this, tag.getCompound(ComponentSavingKt.COMPONENT_TAG));
+        ComponentSaving.load(this, tag.getCompound(ComponentSaving.COMPONENT_TAG));
     }
 
     @Inject(method = "hurt", at = @At("HEAD"), cancellable = true)

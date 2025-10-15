@@ -8,6 +8,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.serializer
 import net.peanuuutz.tomlkt.TomlTable
+import org.apache.logging.log4j.LogManager
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.config.properties.Properties
 import ru.hollowhorizon.hollowengine.common.utils.ObservableList
@@ -47,13 +48,13 @@ open class Config {
         try {
             if (Files.exists(configFile)) {
                 load()
-                HollowEngine.LOGGER.info("Config loaded: ${configFile.fileName}")
+                LOGGER.info("Config loaded: ${configFile.fileName}")
             } else {
                 save(force = true)
-                HollowEngine.LOGGER.info("Config created: ${configFile.fileName}")
+                LOGGER.info("Config created: ${configFile.fileName}")
             }
         } catch (e: Exception) {
-            HollowEngine.LOGGER.error("Failed to load config ${configFile.fileName}", e)
+            LOGGER.error("Failed to load config ${configFile.fileName}", e)
             createBackupAndRegenerate()
         }
     }
@@ -64,12 +65,12 @@ open class Config {
                 val backupFile =
                     configFile.resolveSibling("${configFile.fileName}.${System.currentTimeMillis()}_backup")
                 Files.copy(configFile, backupFile, StandardCopyOption.REPLACE_EXISTING)
-                HollowEngine.LOGGER.warn("Config backup created: $backupFile")
+                LOGGER.warn("Config backup created: $backupFile")
             }
             save(force = true)
-            HollowEngine.LOGGER.info("Config regenerated after error")
+            LOGGER.info("Config regenerated after error")
         } catch (e: Exception) {
-            HollowEngine.LOGGER.error("Critical: Failed to regenerate config", e)
+            LOGGER.error("Critical: Failed to regenerate config", e)
         }
     }
 
@@ -82,7 +83,7 @@ open class Config {
             )
             configRegistrations[key] = FileWatcherEntry(this, configFile.fileName.toString())
         } catch (e: Exception) {
-            HollowEngine.LOGGER.warn("Failed to register file watcher for ${configFile.fileName}", e)
+            LOGGER.warn("Failed to register file watcher for ${configFile.fileName}", e)
         }
     }
 
@@ -124,9 +125,9 @@ open class Config {
                 Files.move(tempFile, configFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
 
                 lastSaveTime = now
-                HollowEngine.LOGGER.debug("Config saved: {}", configFile.fileName)
+                LOGGER.debug("Config saved: {}", configFile.fileName)
             } catch (e: Exception) {
-                HollowEngine.LOGGER.error("Failed to save config ${configFile.fileName}", e)
+                LOGGER.error("Failed to save config ${configFile.fileName}", e)
                 isDirty.store(true) // Retry later
             }
         }
@@ -137,9 +138,9 @@ open class Config {
             val content = configFile.readText()
             val table = toml.decodeFromString<TomlTable>(content)
             properties.deserialize(table)
-            HollowEngine.LOGGER.info("Config reloaded: ${configFile.fileName}")
+            LOGGER.info("Config reloaded: ${configFile.fileName}")
         } catch (e: Exception) {
-            HollowEngine.LOGGER.error("Error loading config ${configFile.fileName}", e)
+            LOGGER.error("Error loading config ${configFile.fileName}", e)
             throw e
         }
     }
@@ -162,6 +163,7 @@ open class Config {
         )
 
     companion object {
+        private val LOGGER = LogManager.getLogger()
         private const val SAVE_DELAY_MS = 2000L
         private const val MIN_SAVE_INTERVAL_MS = 1000L
 
@@ -196,7 +198,7 @@ open class Config {
                                     delay(100) // Small delay to ensure file is fully written
                                     entry.config.load()
                                 } catch (e: Exception) {
-                                    HollowEngine.LOGGER.warn("Failed to reload config on file change", e)
+                                    LOGGER.warn("Failed to reload config on file change", e)
                                 }
                             }
                         }
@@ -207,7 +209,7 @@ open class Config {
                     } catch (e: InterruptedException) {
                         break
                     } catch (e: Exception) {
-                        HollowEngine.LOGGER.error("Error in config file watcher", e)
+                        LOGGER.error("Error in config file watcher", e)
                     }
                 }
             }

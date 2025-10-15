@@ -1,3 +1,5 @@
+@file:JvmName("ComponentSaving")
+
 package ru.hollowhorizon.hollowengine.common.components.lifecycle
 
 import net.minecraft.nbt.CompoundTag
@@ -7,7 +9,11 @@ import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistr
 import ru.hollowhorizon.hollowengine.common.registry.system.keyOf
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
+import ru.hollowhorizon.hollowengine.common.utils.nbt.loadAsNBT
+import ru.hollowhorizon.hollowengine.common.utils.nbt.save
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import java.io.DataInputStream
+import java.io.File
 
 const val COMPONENT_TAG = "hollowengine:components"
 
@@ -31,6 +37,14 @@ fun ComponentDispatcher.save(): CompoundTag {
     }
     return tag
 }
+
+fun ComponentDispatcher.save(file: File) {
+    val tag = save()
+    file.outputStream().use { tag.save(it) }
+}
+
+fun ComponentDispatcher.load(file: File) =
+    load(file.inputStream().use { DataInputStream(it).loadAsNBT() as CompoundTag })
 
 fun ComponentDispatcher.load(tag: CompoundTag) {
     tag.allKeys.forEach { key ->

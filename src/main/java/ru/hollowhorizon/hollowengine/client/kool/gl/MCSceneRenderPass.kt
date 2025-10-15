@@ -11,12 +11,13 @@ import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.scene.addTextureMesh
 import de.fabmax.kool.util.Viewport
 import net.minecraft.client.Minecraft
+import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.client.kool.ctx
 import ru.hollowhorizon.hollowengine.client.kool.gpuTexture
 import kotlin.math.roundToInt
 
 class MCSceneRenderPass(val numSamples: Int, backend: RenderBackendGl): GlRenderPass(backend) {
-    private val renderFbo: GlFramebuffer get() = GlFramebuffer(Minecraft.getInstance().mainRenderTarget.frameBufferId)
+    private val renderFbo: GlFramebuffer get() = GlFramebuffer(GL30.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING))
     private val resolveFbo: GlFramebuffer by lazy { gl.createFramebuffer() }
 
     private val resolvedColor = Texture2d(TexFormat.RGBA, mipMapping = MipMapping.Off, SamplerSettings().clamped().linear())

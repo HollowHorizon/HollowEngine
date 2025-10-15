@@ -74,15 +74,6 @@ public abstract class MinecraftServerMixin implements ServerDispatcher {
         hollowcore$dispatcher = new SingleThreadDispatcher("MinecraftServer.dispatcher");
         hollowcore$coroutineScope = CoroutineScopeKt.CoroutineScope(SupervisorJob(null).plus(hollowcore$dispatcher));
 
-
-        //? if fabric {
-        var file = storageSource.getIconFile().get().getParent().resolve("server_capability.dat").toFile();
-        //?} else {
-        /*var file = storageSource.getWorldDir().resolve(storageSource.getLevelId()).resolve("server_capability.dat").toFile();
-         *///?}
-        if (file.exists()) {
-            // TODO создать компоненты для уровня сервера
-        }
     }
 
     @Inject(method = "createLevels", at = @At("TAIL"))
@@ -92,15 +83,6 @@ public abstract class MinecraftServerMixin implements ServerDispatcher {
             var level = levels.get(key);
             EventBus.post(new LevelEvent.Load(level));
         }
-    }
-
-    @Inject(method = "stopServer", at = @At("HEAD"))
-    private void onSave(CallbackInfo ci) {
-        //? if fabric {
-        var file = storageSource.getIconFile().get().getParent().resolve("server_capability.dat").toFile();
-        //?} else {
-        /*var file = storageSource.getWorldDir().resolve(storageSource.getLevelId()).resolve("server_capability.dat").toFile();
-         *///?}
     }
 
     @Inject(method = "tickServer", at = @At("HEAD"))

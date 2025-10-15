@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.mixins.capabilities;
+package ru.hollowhorizon.hollowengine.mixins.components;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;

@@ -3,10 +3,12 @@ package ru.hollowhorizon.hollowengine.common.graph
 import kotlinx.coroutines.*
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.IntTag
+import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.ai.util.DefaultRandomPos
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
+import ru.hollowhorizon.hollowengine.common.components.isClientSide
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
@@ -262,7 +264,7 @@ class GraphContext(@PublishedApi internal val graphScope: CoroutineScope) {
 fun CoroutineScope.graph(context: GraphContext.() -> Unit) = GraphContext(this).apply(context).build()
 
 @ComponentMeta("hollowengine:story/example_2")
-class Example : ScriptableComponent<Level>() {
+class Example : ScriptableComponent<MinecraftServer>() {
     init {
         attachGraph {
             val npc by rememberEntity {
@@ -326,27 +328,30 @@ class Example : ScriptableComponent<Level>() {
     }
 }
 
-fun ScriptableComponent<Level>.attachGraph(context: GraphContext.() -> Unit) {
+fun ScriptableComponent<MinecraftServer>.attachGraph(context: GraphContext.() -> Unit) {
     val graph = currentServer.coroutineScope.graph(context)
 
     onAttach {
-        if (owner.isClientSide) return@onAttach
+        if (isClientSide) return@onAttach
         if (!graph.isStarted) graph.start()
     }
     onDetach {
-        if (owner.isClientSide) return@onDetach
+        if (isClientSide) return@onDetach
         graph.stop()
     }
     onUpdate {
-        if (owner.isClientSide) return@onUpdate
-        graph.update()
+        if (isClientSide) return@onUpdate
+        if (enabled) graph.update()
     }
     onSave {
-        if (owner.isClientSide) return@onSave
+        if (isClientSide) return@onSave
         put("graph", graph.serialize())
     }
     onLoad {
-        if (owner.isClientSide) return@onLoad
+        if (isClientSide) return@onLoad
         graph.start(getCompound("graph"))
+    }
+    onDisabled {
+        error("Graph component cannot be disabled!")
     }
 }

@@ -8,6 +8,7 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
+import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
@@ -24,7 +25,14 @@ import kotlin.reflect.full.findAnnotation
 
 fun ComponentDispatcher.attach(component: ResourceLocation): Boolean {
     if (component in `hollowcore$components`) return false
-    `hollowcore$components`[component] = ComponentRegistry[ResourceKey(component)]().apply {
+    val container = ComponentRegistry[ResourceKey(component)]
+
+    if(!container.type.isAssignableFrom(this.javaClass)) {
+        HollowCore.LOGGER.warn("Component '$component' owner is not an instance of ${this.javaClass}")
+        return false
+    }
+
+    `hollowcore$components`[component] = container().apply {
         this.owner = JavaHacks.forceCast(this@attach)
         onAttach()
     }
