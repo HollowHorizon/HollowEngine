@@ -39,7 +39,7 @@ void main() {
         );
 
     vec4 skinnedPos = skinMatrix * vec4(position, 1.0);
-    outPosition = skinnedPos.xyz;
+    outPosition = skinnedPos.xyz / skinnedPos.w;
 
     mat3 normalMatrix = transpose(inverse(mat3(skinMatrix)));
     outNormal = normalize(normalMatrix * normal);
