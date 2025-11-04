@@ -5,7 +5,7 @@
 			"identifier": "snowstorm:rainbow",
 			"basic_render_parameters": {
 				"material": "particles_alpha",
-				"texture": "hollowcore:textures/particle/particles.png"
+				"texture": "hollowengine:textures/particle/particles.png"
 			}
 		},
 		"curves": {

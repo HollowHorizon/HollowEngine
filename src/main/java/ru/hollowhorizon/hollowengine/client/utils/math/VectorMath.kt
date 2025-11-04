@@ -3,7 +3,10 @@ package ru.hollowhorizon.hollowengine.client.utils.math
 import de.fabmax.kool.math.Mat3f
 import de.fabmax.kool.math.MutableVec3f
 import de.fabmax.kool.math.QuatF
+import de.fabmax.kool.math.Vec2d
 import de.fabmax.kool.math.Vec3f
+import net.minecraft.world.phys.Vec2
+import net.minecraft.world.phys.Vec3
 import kotlin.math.sqrt
 
 fun Float.lerp(other: Float, alpha: Float) = this + (other - this) * alpha
@@ -117,3 +120,10 @@ fun QuatF.projectAroundAxis(axis: Vec3f): QuatF {
         QuatF(-projectedAxis.x, -projectedAxis.y, -projectedAxis.z, -w).normed()
     }
 }
+
+val Vec3.xz: Vec2d
+    get() = Vec2d(x, z)
+val Vec3.xy: Vec2d
+    get() = Vec2d(x, y)
+val Vec3.yz: Vec2d
+    get() = Vec2d(y, z)

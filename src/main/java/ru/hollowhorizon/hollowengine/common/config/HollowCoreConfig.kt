@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.config
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.Platform
 import ru.hollowhorizon.hollowengine.common.utils.toml.toml
 
 @ConfigName("hollowcore")
@@ -39,7 +40,7 @@ class Scripting {
 }
 
 private val platformMods = when (HollowCore.platform) {
-    HollowCore.Platform.FABRIC -> arrayOf("fabric-api")
-    HollowCore.Platform.FORGE -> arrayOf("forge", "minecraft")
-    HollowCore.Platform.NEOFORGE -> arrayOf("neoforge", "minecraft")
+    Platform.FABRIC -> arrayOf("fabric-api")
+    Platform.FORGE -> arrayOf("forge", "minecraft")
+    Platform.NEOFORGE -> arrayOf("neoforge", "minecraft")
 }

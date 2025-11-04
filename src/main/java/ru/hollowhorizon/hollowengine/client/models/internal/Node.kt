@@ -58,6 +58,7 @@ class Node(
     val isChestplate = isArmor && name?.contains("chestplate", ignoreCase = true) == true
     val isLeggings = isArmor && name?.contains("leggings", ignoreCase = true) == true
     val isBoots = isArmor && name?.contains("boots", ignoreCase = true) == true
+    var isVisible = true
 
     fun render(
         stack: PoseStack,
@@ -66,6 +67,8 @@ class Node(
         consumer: (ResourceLocation) -> Int,
         light: Int,
     ) {
+        if(!isVisible) return
+
         val entity = data.entity
         var changedTexture = consumer
         if (isArmor) {

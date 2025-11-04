@@ -32,9 +32,6 @@ object HollowCore {
         MolangCompiler
     }
 
-    enum class Platform {
-        FABRIC, FORGE, NEOFORGE
-    }
 }
 
 @Plugin(name = "ConsoleAppender", category = "Core", elementType = Appender.ELEMENT_TYPE)
@@ -71,4 +68,8 @@ class ConsoleAppender : AbstractAppender("ConsoleAppender", null, null, true) {
             logger.level = Level.TRACE
         }
     }
+}
+
+enum class Platform {
+    FABRIC, FORGE, NEOFORGE
 }

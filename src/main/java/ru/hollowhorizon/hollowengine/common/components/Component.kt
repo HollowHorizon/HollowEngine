@@ -27,14 +27,69 @@ abstract class Component<T : Any> {
         component
     }
 
-    open fun onAttach() {}
-    open fun onDetach() {}
-    open fun onTick() {}
-    open fun onEnabled() {}
-    open fun onDisabled() {}
+    private var onAttaches = HashSet<() -> Unit>()
+    private var onDetachs = HashSet<() -> Unit>()
+    private var onTicks = HashSet<() -> Unit>()
+    private var onEnableds = HashSet<() -> Unit>()
+    private var onDisableds = HashSet<() -> Unit>()
+    private var onSaves = HashSet<CompoundTag.() -> Unit>()
+    private var onLoads = HashSet<CompoundTag.() -> Unit>()
 
-    open fun saveExtras(tag: CompoundTag) {}
-    open fun loadExtras(tag: CompoundTag) {}
+    fun onAttach() {
+        onAttaches.forEach { it() }
+    }
+
+    fun onDetach() {
+        onDetachs.forEach { it() }
+    }
+
+    fun onTick() {
+        onTicks.forEach { it() }
+    }
+
+    fun onEnabled() {
+        onEnableds.forEach { it() }
+    }
+
+    fun onDisabled() {
+        onDisableds.forEach { it() }
+    }
+
+    fun saveExtras(tag: CompoundTag) {
+        onSaves.forEach { it(tag) }
+    }
+
+    fun loadExtras(tag: CompoundTag) {
+        onLoads.forEach { it(tag) }
+    }
+
+    fun onAttach(action: () -> Unit) {
+        onAttaches.add(action)
+    }
+
+    fun onDetach(action: () -> Unit) {
+        onDetachs.add(action)
+    }
+
+    fun onUpdate(action: () -> Unit) {
+        onTicks.add(action)
+    }
+
+    fun onEnabled(action: () -> Unit) {
+        onEnableds.add(action)
+    }
+
+    fun onDisabled(action: () -> Unit) {
+        onDisableds.add(action)
+    }
+
+    fun onSave(action: CompoundTag.() -> Unit) {
+        onSaves.add(action)
+    }
+
+    fun onLoad(action: CompoundTag.() -> Unit) {
+        onLoads.add(action)
+    }
 
     fun enable() {
         if (!enabled) {

@@ -10,13 +10,13 @@ import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpola
 
 class Animation(
     val name: String,
-    private val animationData: Map<Node, AnimationData>,
-    val duration: Float = animationData.values.maxOf { it.duration },
+    val nodes: Map<Node, AnimationData>,
+    var duration: Float = nodes.values.maxOf { it.duration },
 ) {
     val temp = TrsTransformF()
 
     fun compute(node: Node, currentTime: Float): TrsTransformF? {
-        return animationData[node]?.let {
+        return nodes[node]?.let {
             val t = it.translation?.compute(currentTime)
             val r = it.rotation?.compute(currentTime)
             val s = it.scale?.compute(currentTime)
@@ -30,7 +30,7 @@ class Animation(
     }
 
     fun computeWeights(node: Node, currentTime: Float): FloatArray? {
-        return animationData[node]?.weights?.compute(currentTime)
+        return nodes[node]?.weights?.compute(currentTime)
     }
 
     override fun toString() = name

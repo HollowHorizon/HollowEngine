@@ -6,12 +6,15 @@ import kotlinx.serialization.Serializable
 import org.apache.logging.log4j.LogManager
 import org.eclipse.lsp4j.InitializeParams
 import ru.hollowhorizon.hollowengine.api.Init
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
 import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageClient
 import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.example.HollowScript
 import ru.hollowhorizon.hollowengine.common.scripting.core.setupScripting
 import ru.hollowhorizon.hollowengine.common.scripting.events.loadEvents
+import ru.hollowhorizon.hollowengine.common.scripting.reload.ScriptingReloadListener
 
 //? if forge
 /*import ru.hollowhorizon.hollowengine.client.render.setupCamera*/
@@ -40,5 +43,10 @@ object HollowEngine {
         KotlinLanguageServer.initialize(InitializeParams().apply {
         })
         KotlinLanguageServer.connect(KotlinLanguageClient)
+    }
+
+    @SubscribeEvent
+    fun onRegisterReloadListeners(event: RegisterReloadListenersEvent.Server) {
+        event.register(ScriptingReloadListener)
     }
 }

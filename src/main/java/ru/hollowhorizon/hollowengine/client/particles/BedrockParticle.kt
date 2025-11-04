@@ -445,8 +445,8 @@ class BedrockParticle(
                     position.y + pos.y,
                     position.z + pos.z
                 )
-                .color(color.r, color.g, color.b, color.a)
                 .uv(u, v)
+                .color(color.r, color.g, color.b, color.a)
                 .uv2(light)
                 .endVertex()
         }

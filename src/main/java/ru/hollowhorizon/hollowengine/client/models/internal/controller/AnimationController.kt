@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.controller
 
+import net.minecraft.client.Minecraft
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import kotlin.math.abs
@@ -26,5 +27,5 @@ fun calculateSpeedViaDeltaMovement(entity: LivingEntity): Float {
     val deltaRot = entity.yBodyRot - entity.yBodyRotO
     
     // 4) переводим блоки/тик → блоки/сек
-    return dot * 20f + deltaRot / 10f
+    return (dot * 20f + deltaRot / 10f) * if(Minecraft.getInstance().isPaused) 0f else 1f
 }

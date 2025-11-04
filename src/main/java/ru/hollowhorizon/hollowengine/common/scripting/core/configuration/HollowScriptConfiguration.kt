@@ -51,7 +51,6 @@ open class HollowScriptConfiguration(body: Builder.() -> Unit = {}) : ScriptComp
     }
 
     ide { acceptedLocations(ScriptAcceptedLocation.Everywhere) }
-
 })
 
 fun classpath(): List<File> {

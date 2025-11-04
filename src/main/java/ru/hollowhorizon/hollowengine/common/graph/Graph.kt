@@ -3,20 +3,10 @@ package ru.hollowhorizon.hollowengine.common.graph
 import kotlinx.coroutines.*
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.IntTag
-import net.minecraft.server.MinecraftServer
-import net.minecraft.world.entity.ai.util.DefaultRandomPos
-import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
-import ru.hollowhorizon.hollowengine.common.components.isClientSide
-import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.common.components.binding.Bindable
 import ru.hollowhorizon.hollowengine.common.events.Event
-import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hollowengine.common.fsm.StateStorage
-import ru.hollowhorizon.hollowengine.common.scripting.components.ScriptableComponent
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.npc
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.pos
-import ru.hollowhorizon.hollowengine.common.utils.currentServer
 
 class Graph(
     coroutineScope: CoroutineScope,
@@ -24,7 +14,7 @@ class Graph(
     private val globalEvents: List<EventHandler<*>>,
     private val rememberVariables: List<Variable<*>>,
     initialState: Int,
-) : CancelableStateControl {
+) : CancelableStateControl, Bindable {
     init {
         require(initialState in states.indices) { "Initial state index is out of bounds!" }
 
@@ -157,6 +147,27 @@ class Graph(
         currentState.await()
     }
 
+
+    override fun onAttach() {
+        if (!isStarted) start()
+    }
+
+    override fun onDetach() {
+        stop()
+    }
+
+    override fun onSave(tag: CompoundTag) {
+        tag.put("graph", serialize())
+    }
+
+    override fun onLoad(tag: CompoundTag) {
+        start(tag.getCompound("graph"))
+    }
+
+    override fun onUpdate() {
+        update()
+    }
+
     override fun transition(nextState: String) {
         currentState.status = Status.EXIT
         currentState.enterJob?.cancel()
@@ -172,6 +183,7 @@ class Graph(
 
     val isCompleted get() = currentState.status == Status.COMPLETE
     val isStarted get() = startJob != null
+
 }
 
 @DslMarker
@@ -214,11 +226,7 @@ class GraphContext(@PublishedApi internal val graphScope: CoroutineScope) {
         require(initialState != null) { "Initial state is missing!" }
         val states = this.states.toTypedArray()
         return Graph(
-            graphScope,
-            states,
-            globalEvents,
-            rememberVariables,
-            states.indexOfFirst { it.name == initialState })
+            graphScope, states, globalEvents, rememberVariables, states.indexOfFirst { it.name == initialState })
     }
 
     @GraphDSL
@@ -262,96 +270,3 @@ class GraphContext(@PublishedApi internal val graphScope: CoroutineScope) {
 
 @GraphDSL
 fun CoroutineScope.graph(context: GraphContext.() -> Unit) = GraphContext(this).apply(context).build()
-
-@ComponentMeta("hollowengine:story/example_2")
-class Example : ScriptableComponent<MinecraftServer>() {
-    init {
-        attachGraph {
-            val npc by rememberEntity {
-                npc(pos(47, -57, -12))
-            }
-
-            initialState("Move to player")
-
-            state("Move to player") {
-                onEnter {
-                    while (true) {
-                        delay(50)
-                        val player = npc.level().getNearestPlayer(npc, 100.0) ?: continue
-                        npc.navigation.moveTo(player, 1.0)
-                    }
-                }
-
-                on<ServerChatEvent> {
-                    val message = it.message.string.lowercase()
-                    when {
-                        "уйди" in message -> transition("Move from player")
-                        "стой" in message -> transition("Stay")
-                    }
-                }
-            }
-
-            state("Move from player") {
-                onEnter {
-                    while (true) {
-                        delay(50)
-                        val player = npc.level().getNearestPlayer(npc, 100.0) ?: continue
-                        val avoidPos = DefaultRandomPos.getPosAway(npc, 16, 7, player.position()) ?: continue
-                        npc.navigation.moveTo(avoidPos.x, avoidPos.y, avoidPos.z, 1.0)
-                    }
-                }
-
-                on<ServerChatEvent> {
-                    val message = it.message.string.lowercase()
-                    when {
-                        "за мной" in message -> transition("Move to player")
-                        "стой" in message -> transition("Stay")
-                    }
-                }
-            }
-
-            state("Stay") {
-                onEnter {
-                    npc.navigation.stop()
-                }
-
-                on<ServerChatEvent> {
-                    val message = it.message.string.lowercase()
-                    when {
-                        "уйди" in message -> transition("Move from player")
-                        "за мной" in message -> transition("Move to player")
-                    }
-                }
-            }
-
-        }
-    }
-}
-
-fun ScriptableComponent<MinecraftServer>.attachGraph(context: GraphContext.() -> Unit) {
-    val graph = currentServer.coroutineScope.graph(context)
-
-    onAttach {
-        if (isClientSide) return@onAttach
-        if (!graph.isStarted) graph.start()
-    }
-    onDetach {
-        if (isClientSide) return@onDetach
-        graph.stop()
-    }
-    onUpdate {
-        if (isClientSide) return@onUpdate
-        if (enabled) graph.update()
-    }
-    onSave {
-        if (isClientSide) return@onSave
-        put("graph", graph.serialize())
-    }
-    onLoad {
-        if (isClientSide) return@onLoad
-        graph.start(getCompound("graph"))
-    }
-    onDisabled {
-        error("Graph component cannot be disabled!")
-    }
-}
