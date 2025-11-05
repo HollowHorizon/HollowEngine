@@ -1,24 +1,31 @@
 package ru.hollowhorizon.hollowengine.client.models.internal
 
 import com.mojang.blaze3d.vertex.PoseStack
+import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.resources.ResourceLocation
 
 data class Mesh(
     val primitives: List<Primitive>,
     val weights: FloatArray,
 ) {
+    val useBatching = primitives.any { it.useBatching }
+
     fun transformSkinning(node: Node) {
-        primitives.filter { it.hasSkinning }.forEach { it.transformSkinning(node) }
+        primitives.asSequence().filter { it.hasSkinning }.forEach { it.transformSkinning(node) }
     }
 
-    fun render(
-        node: Node,
+    fun renderVAO(
         stack: PoseStack,
-        consumer: (ResourceLocation) -> Int,
     ) {
         primitives.forEach {
             it.setWeights(weights)
-            it.render(stack, node, consumer)
+            it.renderVAO(stack)
+        }
+    }
+
+    fun renderBatching(stack: PoseStack, bufferSource: MultiBufferSource, overlayCoords: Int, packedLight: Int) {
+        primitives.asSequence().filter { it.useBatching }.forEach {
+            it.renderBatching(stack, bufferSource, overlayCoords, packedLight)
         }
     }
 

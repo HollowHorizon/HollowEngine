@@ -59,7 +59,7 @@ class AnimatedModel(val model: Model, val animations: Map<String, Animation> = m
         NODE_GLOBAL_TRANSFORMATION_LOOKUP_CACHE.clear()
 
         model.scenes.forEach { scene ->
-            scene.nodes.forEach { node -> node.renderDecorations(stack, visuals, modelData, source, light) }
+            scene.renderBatching(stack, visuals, modelData, source, overlay, light)
         }
 
         val activeTexture = GlStateManager._getActiveTexture()
@@ -94,10 +94,8 @@ class AnimatedModel(val model: Model, val animations: Map<String, Animation> = m
 
         val texture = GlStateManager.TEXTURES[GlStateManager.activeTexture].binding
 
-        drawWithShader(SHADER) {
-            model.scenes.forEach {
-                it.render(stack, visuals, modelData, consumer, light)
-            }
+        drawWithShader {
+            model.scenes.forEach { it.renderVAO(stack) }
         }
 
         GlStateManager._activeTexture(GL33.GL_TEXTURE2)
@@ -124,12 +122,5 @@ class AnimatedModel(val model: Model, val animations: Map<String, Animation> = m
 
     fun destroy() {
         model.walkNodes().mapNotNull { it.mesh }.flatMap { it.primitives }.forEach(Primitive::destroy)
-    }
-
-    companion object {
-        val SHADER
-            get() =
-                if (shouldOverrideShaders()) GameRenderer.getRendertypeEntityCutoutShader()!!
-                else ModShaders.GLTF_ENTITY // Ванильный шейдер не поддерживает матрицу нормалей
     }
 }

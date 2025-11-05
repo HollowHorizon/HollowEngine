@@ -1,24 +1,32 @@
 accessWidener v2 named
 
+# RenderTypes & Shaders
+accessible class net/minecraft/client/renderer/RenderType$CompositeState
+accessible class net/minecraft/client/renderer/RenderType$CompositeRenderType
+accessible class net/minecraft/client/renderer/RenderType$OutlineProperty
+accessible class net/minecraft/client/renderer/RenderStateShard$TextureStateShard
+accessible class net/minecraft/client/renderer/RenderStateShard$EmptyTextureStateShard
+accessible class net/minecraft/client/renderer/RenderStateShard$LightmapStateShard
+accessible class net/minecraft/client/renderer/RenderStateShard$OverlayStateShard
+accessible class net/minecraft/client/renderer/RenderStateShard$LayeringStateShard
+accessible class net/minecraft/client/renderer/RenderStateShard$OutputStateShard
+accessible class net/minecraft/client/renderer/RenderStateShard$TexturingStateShard
+accessible class net/minecraft/client/renderer/RenderStateShard$LineStateShard
+accessible class net/minecraft/client/renderer/RenderStateShard$ShaderStateShard
+
 accessible method net/minecraft/client/resources/language/ClientLanguage <init> (Ljava/util/Map;Z)V
 accessible method net/minecraft/client/renderer/entity/EntityRenderers register (Lnet/minecraft/world/entity/EntityType;Lnet/minecraft/client/renderer/entity/EntityRendererProvider;)V
 accessible field com/mojang/blaze3d/platform/GlStateManager TEXTURES [Lcom/mojang/blaze3d/platform/GlStateManager$TextureState;
 accessible field com/mojang/blaze3d/platform/GlStateManager activeTexture I
 accessible class com/mojang/blaze3d/platform/GlStateManager$TextureState
 
-accessible class net/minecraft/client/renderer/RenderStateShard$OutputStateShard
-accessible field net/minecraft/client/renderer/RenderStateShard PARTICLES_TARGET Lnet/minecraft/client/renderer/RenderStateShard$OutputStateShard;
 accessible field net/minecraft/world/level/pathfinder/PathFinder neighbors [Lnet/minecraft/world/level/pathfinder/Node;
 mutable field net/minecraft/world/level/pathfinder/PathFinder neighbors [Lnet/minecraft/world/level/pathfinder/Node;
 
 accessible method com/mojang/blaze3d/platform/NativeImage <init> (Lcom/mojang/blaze3d/platform/NativeImage$Format;IIZJ)V
 accessible field com/mojang/blaze3d/platform/NativeImage pixels J
-accessible method net/minecraft/client/renderer/entity/EntityRenderers register (Lnet/minecraft/world/entity/EntityType;Lnet/minecraft/client/renderer/entity/EntityRendererProvider;)V
-accessible field com/mojang/blaze3d/platform/GlStateManager TEXTURES [Lcom/mojang/blaze3d/platform/GlStateManager$TextureState;
-accessible field com/mojang/blaze3d/platform/GlStateManager activeTexture I
 accessible class com/mojang/blaze3d/platform/GlStateManager$TextureState
 
-accessible class net/minecraft/client/renderer/RenderStateShard$OutputStateShard
 accessible field net/minecraft/client/renderer/RenderStateShard PARTICLES_TARGET Lnet/minecraft/client/renderer/RenderStateShard$OutputStateShard;
 
 accessible method net/minecraft/client/renderer/GameRenderer getFov (Lnet/minecraft/client/Camera;FZ)D

@@ -46,7 +46,7 @@ class NpcEntity : PathfinderMob {
         if(!level().isClientSide) (this as ComponentDispatcher).apply {
             attach("hollowengine:npcs/main".rl)
             attach("hollowengine:model_renderer".rl)
-            attach("hollowengine:animator".rl)
+            //attach("hollowengine:animator".rl)
         }
     }
 

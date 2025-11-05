@@ -2,7 +2,10 @@ package ru.hollowhorizon.hollowengine.client.models.internal
 
 
 import com.mojang.blaze3d.vertex.PoseStack
-import de.fabmax.kool.math.*
+import de.fabmax.kool.math.Mat4f
+import de.fabmax.kool.math.MutableMat4f
+import de.fabmax.kool.math.MutableQuatF
+import de.fabmax.kool.math.QuatF
 import de.fabmax.kool.scene.TrsTransformF
 import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.resources.ResourceLocation
@@ -28,11 +31,12 @@ class Node(
         scale(transform.scale)
     }
 
-    fun renderDecorations(
+    fun renderBatching(
         stack: PoseStack,
         nodeRenderer: NodeRenderer,
         data: ModelData,
         source: MultiBufferSource,
+        overlayCoords: Int,
         packedLight: Int,
     ) {
         stack.use {
@@ -40,11 +44,12 @@ class Node(
             mulPose(Quaternionf(transform.rotation.x, transform.rotation.y, transform.rotation.z, transform.rotation.w))
             scale(transform.scale.x, transform.scale.y, transform.scale.z)
 
+            mesh?.renderBatching(stack, source, overlayCoords, packedLight)
             data.entity?.let {
                 nodeRenderer(it, this, this@Node, source, packedLight)
             }
 
-            children.forEach { it.renderDecorations(stack, nodeRenderer, data, source, packedLight) }
+            children.forEach { it.renderBatching(stack, nodeRenderer, data, source, overlayCoords, packedLight) }
         }
     }
 
@@ -60,63 +65,18 @@ class Node(
     val isBoots = isArmor && name?.contains("boots", ignoreCase = true) == true
     var isVisible = true
 
-    fun render(
-        stack: PoseStack,
-        nodeRenderer: NodeRenderer,
-        data: ModelData,
-        consumer: (ResourceLocation) -> Int,
-        light: Int,
+    fun renderVAO(
+        stack: PoseStack
     ) {
-        if(!isVisible) return
-
-        val entity = data.entity
-        var changedTexture = consumer
-        if (isArmor) {
-            if (entity == null) return
-            when {
-                !entity.getItemBySlot(EquipmentSlot.HEAD).isEmpty && isHelmet -> {
-                    val armorItem = entity.getItemBySlot(EquipmentSlot.HEAD)
-                    if (armorItem.item is ArmorItem) {
-                        val texture = armorItem.getArmorTexture(entity, EquipmentSlot.HEAD)
-                        changedTexture = { texture.toTexture().id }
-                    }
-                }
-
-                !entity.getItemBySlot(EquipmentSlot.CHEST).isEmpty && isChestplate -> {
-                    val armorItem = entity.getItemBySlot(EquipmentSlot.CHEST)
-                    if (armorItem.item is ArmorItem) {
-                        val texture = armorItem.getArmorTexture(entity, EquipmentSlot.CHEST)
-                        changedTexture = { texture.toTexture().id }
-                    }
-                }
-
-                !entity.getItemBySlot(EquipmentSlot.LEGS).isEmpty && isLeggings -> {
-                    val armorItem = entity.getItemBySlot(EquipmentSlot.LEGS)
-                    if (armorItem.item is ArmorItem) {
-                        val texture = armorItem.getArmorTexture(entity, EquipmentSlot.LEGS)
-                        changedTexture = { texture.toTexture().id }
-                    }
-                }
-
-                !entity.getItemBySlot(EquipmentSlot.FEET).isEmpty && isBoots -> {
-                    val armorItem = entity.getItemBySlot(EquipmentSlot.FEET)
-                    if (armorItem.item is ArmorItem) {
-                        val texture = armorItem.getArmorTexture(entity, EquipmentSlot.FEET)
-                        changedTexture = { texture.toTexture().id }
-                    }
-                }
-
-                else -> return
-            }
-        }
+        if (!isVisible) return
 
         stack.use {
             translate(transform.translation.x, transform.translation.y, transform.translation.z)
             mulPose(Quaternionf(transform.rotation.x, transform.rotation.y, transform.rotation.z, transform.rotation.w))
             scale(transform.scale.x, transform.scale.y, transform.scale.z)
 
-            mesh?.render(this@Node, stack, changedTexture)
-            children.forEach { it.render(stack, nodeRenderer, data, changedTexture, light) }
+            mesh?.renderVAO(stack)
+            children.forEach { it.renderVAO(stack) }
         }
     }
 

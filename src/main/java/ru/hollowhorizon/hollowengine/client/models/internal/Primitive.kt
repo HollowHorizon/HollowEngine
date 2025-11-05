@@ -2,7 +2,12 @@ package ru.hollowhorizon.hollowengine.client.models.internal
 
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
+import com.mojang.blaze3d.vertex.VertexConsumer
 import de.fabmax.kool.math.*
+import de.fabmax.kool.util.Color
+import net.minecraft.client.Minecraft
+import net.minecraft.client.renderer.MultiBufferSource
+import net.minecraft.client.renderer.RenderType
 import net.minecraft.client.renderer.ShaderInstance
 import net.minecraft.resources.ResourceLocation
 import org.joml.Matrix3f
@@ -36,6 +41,9 @@ class Primitive(
     var jointCount = 0
     private val morphCommands = ArrayList<(FloatArray) -> Unit>()
 
+    // Порог для переключения между режимами рендеринга
+    val useBatching = positionsCount < 512 && !hasSkinning && morphTargets.isEmpty()
+
     private var vao = -1
     private var skinningVao = -1
 
@@ -53,12 +61,20 @@ class Primitive(
     private var skinNormalBuffer = -1
     private var jointMatrixBuffer = -1
 
+    // Кэш для RenderType
+    private var cachedRenderType: RenderType? = null
+
     fun setWeights(values: FloatArray) {
         if (values.isEmpty()) return
         weights = values
     }
 
     fun init() {
+        if (useBatching) {
+            // Для батчинга не инициализируем OpenGL буферы
+            return
+        }
+
         val currentVAO = GL33.glGetInteger(GL33.GL_VERTEX_ARRAY_BINDING)
         val currentArrayBuffer = GL33.glGetInteger(GL33.GL_ARRAY_BUFFER_BINDING)
         val currentElementArrayBuffer = GL33.glGetInteger(GL33.GL_ELEMENT_ARRAY_BUFFER_BINDING)
@@ -74,14 +90,12 @@ class Primitive(
     }
 
     private fun initBuffers() {
-
         vao = GL33.glGenVertexArrays()
         GL33.glBindVertexArray(vao)
 
         if (skinningVao == -1) {
             positions?.let { positions ->
                 val buffer = BufferUtils.createFloatBuffer(positions.size * 3)
-
                 positions.forEach { buffer.put(it.x).put(it.y).put(it.z) }
                 buffer.flip()
 
@@ -95,7 +109,6 @@ class Primitive(
                         }
                         buffer.put(i, value)
                     }
-
                     GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, vertexBuffer)
                     GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
                 }
@@ -104,8 +117,8 @@ class Primitive(
                 GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, vertexBuffer)
                 GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
                 GL33.glVertexAttribPointer(0, 3, GL33.GL_FLOAT, false, 0, 0)
-
             }
+
             normals?.let { normals ->
                 val buffer = BufferUtils.createFloatBuffer(normals.size * 3)
                 for (n in normals) buffer.put(n.x).put(n.y).put(n.z)
@@ -132,44 +145,29 @@ class Primitive(
 
                 if (tangents == null) positions?.let { positions ->
                     val tangents = BufferUtils.createFloatBuffer(normals.size * 4)
-
                     MikktspaceTangentGenerator.genTangSpaceDefault(object : MikkTSpaceContext {
-                        override fun getNumFaces(): Int {
-                            return positionsCount / 9
-                        }
-
-                        override fun getNumVerticesOfFace(face: Int): Int {
-                            return 3
-                        }
-
+                        override fun getNumFaces(): Int = positionsCount / 9
+                        override fun getNumVerticesOfFace(face: Int): Int = 3
                         override fun getPosition(posOut: FloatArray, face: Int, vert: Int) {
                             val index = (face * 3) + vert
                             posOut[0] = positions[index].x
                             posOut[1] = positions[index].y
                             posOut[2] = positions[index].z
                         }
-
                         override fun getNormal(normOut: FloatArray, face: Int, vert: Int) {
                             val index = (face * 3) + vert
                             normOut[0] = normals[index].x
                             normOut[1] = normals[index].y
                             normOut[2] = normals[index].z
                         }
-
                         override fun getTexCoord(texOut: FloatArray, face: Int, vert: Int) {
                             val index = (face * 3) + vert
                             texOut[0] = texCoords?.get(index)?.x ?: 0f
                             texOut[1] = texCoords?.get(index)?.y ?: 0f
                         }
-
                         override fun setTSpaceBasic(tangent: FloatArray, sign: Float, face: Int, vert: Int) {
-                            tangents
-                                .put(tangent[0])
-                                .put(tangent[1])
-                                .put(tangent[2])
-                                .put(-sign)
+                            tangents.put(tangent[0]).put(tangent[1]).put(tangent[2]).put(-sign)
                         }
-
                         override fun setTSpace(
                             tangent: FloatArray?,
                             biTangent: FloatArray?,
@@ -178,10 +176,8 @@ class Primitive(
                             isOrientationPreserving: Boolean,
                             face: Int,
                             vert: Int,
-                        ) {
-                        }
+                        ) {}
                     })
-
                     tangents.flip()
                     tangentBuffer = GL33.glGenBuffers()
                     GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, tangentBuffer)
@@ -192,11 +188,8 @@ class Primitive(
 
             tangents?.let { tangents ->
                 val buffer = BufferUtils.createFloatBuffer(tangents.size * 4)
-                for (t in tangents) {
-                    buffer.put(t.x).put(t.y).put(t.z).put(1f)
-                }
+                for (t in tangents) buffer.put(t.x).put(t.y).put(t.z).put(1f)
                 buffer.flip()
-
                 morphCommands += { array ->
                     for (i in 0 until tangents.size * 3) {
                         var value = tangents[i / 3].get(i % 3)
@@ -210,7 +203,6 @@ class Primitive(
                     GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, tangentBuffer)
                     GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
                 }
-
                 tangentBuffer = GL33.glGenBuffers()
                 GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, tangentBuffer)
                 GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
@@ -219,7 +211,6 @@ class Primitive(
         } else {
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, vertexBuffer)
             GL33.glVertexAttribPointer(0, 3, GL33.GL_FLOAT, false, 0, 0)
-
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, normalBuffer)
             GL33.glVertexAttribPointer(5, 3, GL33.GL_FLOAT, false, 0, 0)
         }
@@ -228,7 +219,6 @@ class Primitive(
             val buffer = BufferUtils.createFloatBuffer(texCoords.size * 2)
             for (t in texCoords) buffer.put(t.x).put(t.y)
             buffer.flip()
-
             texCoordsBuffer = GL33.glGenBuffers()
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, texCoordsBuffer)
             GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
@@ -242,7 +232,6 @@ class Primitive(
             val buffer = BufferUtils.createFloatBuffer(midCoords.size * 2)
             for (t in midCoords) buffer.put(t.x).put(t.y)
             buffer.flip()
-
             midCoordsBuffer = GL33.glGenBuffers()
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, midCoordsBuffer)
             GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
@@ -255,7 +244,6 @@ class Primitive(
             val buffer = BufferUtils.createIntBuffer(indexCount)
             for (n in indices) buffer.put(n)
             buffer.flip()
-
             indexBuffer = GL33.glGenBuffers()
             GL33.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER, indexBuffer)
             GL33.glBufferData(GL33.GL_ELEMENT_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
@@ -273,7 +261,6 @@ class Primitive(
             val jointBuffer = BufferUtils.createIntBuffer(joints.size * 4)
             for (n in joints) jointBuffer.put(n.x).put(n.y).put(n.z).put(n.w)
             jointBuffer.flip()
-
             this.jointBuffer = GL33.glGenBuffers()
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, this.jointBuffer)
             GL33.glBufferData(GL33.GL_ARRAY_BUFFER, jointBuffer, GL33.GL_STATIC_DRAW)
@@ -284,7 +271,6 @@ class Primitive(
             val weightsBuffer = BufferUtils.createFloatBuffer(weights.size * 4)
             for (n in weights) weightsBuffer.put(n.x).put(n.y).put(n.z).put(n.w)
             weightsBuffer.flip()
-
             this.weightsBuffer = GL33.glGenBuffers()
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, this.weightsBuffer)
             GL33.glBufferData(GL33.GL_ARRAY_BUFFER, weightsBuffer, GL33.GL_STATIC_DRAW)
@@ -292,11 +278,10 @@ class Primitive(
         }
 
         positions?.let { positions ->
-            posSize = positions.size * 12L //bytes size
+            posSize = positions.size * 12L
             val buffer = BufferUtils.createFloatBuffer(positions.size * 3)
             for (n in positions) buffer.put(n.x).put(n.y).put(n.z)
             buffer.flip()
-
             skinVertexBuffer = GL33.glGenBuffers()
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, skinVertexBuffer)
             GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
@@ -304,16 +289,14 @@ class Primitive(
         }
 
         normals?.let { normals ->
-            norSize = normals.size * 12L //bytes size
+            norSize = normals.size * 12L
             val buffer = BufferUtils.createFloatBuffer(normals.size * 3)
             for (n in normals) buffer.put(n.x).put(n.y).put(n.z)
             buffer.flip()
-
             skinNormalBuffer = GL33.glGenBuffers()
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, skinNormalBuffer)
             GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
             GL33.glVertexAttribPointer(3, 3, GL33.GL_FLOAT, false, 0, 0)
-
         }
 
         vertexBuffer = GL33.glGenBuffers()
@@ -344,50 +327,43 @@ class Primitive(
         tangents = null
         joints = null
         jointWeights = null
+        cachedRenderType = null
     }
 
-    fun render(
+    fun renderVAO(
         stack: PoseStack,
-        node: Node,
-        consumer: (ResourceLocation) -> Int,
     ) {
+        if(useBatching) return
         if (morphTargets.isNotEmpty()) updateMorphTargets()
 
-        val shader = AnimatedModel.SHADER
+        val shader = SHADER
+        val (normal, specular) = applyMaterial(shader, material)
 
-        //Всякие настройки смешивания, материалы и т.п.
-        val (normal, specular) = applyMaterial(consumer, shader, material)
-
-        //Подключение VAO и IBO
         GL33.glBindVertexArray(vao)
         if (indexBuffer != -1) GL33.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER, indexBuffer)
 
-        GL33.glEnableVertexAttribArray(0) // Вершины (или цвет)
-        if (texCoordsBuffer != -1) GL33.glEnableVertexAttribArray(2) // Текстурные координаты
-        if (normalBuffer != -1) GL33.glEnableVertexAttribArray(5) // Нормали
-        if (tangentBuffer != -1) GL33.glEnableVertexAttribArray(9) //Тангенты
-        if (hasShaders) GL20.glEnableVertexAttribArray(8) //координаты для глубины (pbr)
+        GL33.glEnableVertexAttribArray(0)
+        if (texCoordsBuffer != -1) GL33.glEnableVertexAttribArray(2)
+        if (normalBuffer != -1) GL33.glEnableVertexAttribArray(5)
+        if (tangentBuffer != -1) GL33.glEnableVertexAttribArray(9)
+        if (hasShaders) GL20.glEnableVertexAttribArray(8)
 
         val modelView = Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.last().pose())
         shader.MODEL_VIEW_MATRIX?.set(modelView)
-
         shader.MODEL_VIEW_MATRIX?.upload()
 
-        //Нормали
         shader.getUniform("NormalMat")?.let {
             val normal = Matrix3f(stack.last().normal())
             it.set(normal)
             it.upload()
         }
 
-        //Отрисовка
         if (indexBuffer != -1) GL33.glDrawElements(GL33.GL_TRIANGLES, indexCount, GL33.GL_UNSIGNED_INT, 0L)
         else GL33.glDrawArrays(GL33.GL_TRIANGLES, 0, positionsCount)
 
         if (material.doubleSided) RenderSystem.enableCull()
 
         if (hasShaders) {
-            //т.к. Iris использует отличные от Optifine id текстур стоит взять их из самого шейдера
             GL33.glGetUniformLocation(shader.id, "normals").takeIf { it != -1 }?.let {
                 GL33.glActiveTexture(COLOR_MAP_INDEX + GL33.glGetUniformi(shader.id, it))
                 GL33.glBindTexture(GL33.GL_TEXTURE_2D, normal)
@@ -400,17 +376,62 @@ class Primitive(
 
         GL33.glCullFace(GL33.GL_BACK)
 
-        //Отключение параметров выше
         GL33.glDisableVertexAttribArray(0)
         if (texCoordsBuffer != -1) GL33.glDisableVertexAttribArray(2)
         if (normalBuffer != -1) GL33.glDisableVertexAttribArray(5)
         if (tangentBuffer != -1) GL33.glDisableVertexAttribArray(9)
         if (hasShaders) GL20.glDisableVertexAttribArray(8)
+    }
 
+    fun renderBatching(
+        stack: PoseStack,
+        bufferSource: MultiBufferSource,
+        overlayCoords: Int,
+        packedLight: Int,
+    ) {
+
+        val renderType = getRenderType()
+        val vertexConsumer = bufferSource.getBuffer(renderType)
+
+        val pose = stack.last().pose()
+        val normal = stack.last().normal()
+        val color = material.color
+
+        if (indices != null) {
+            for (index in indices) {
+                putVertex(vertexConsumer, pose, normal, index, color, overlayCoords, packedLight)
+            }
+        } else {
+            for (i in 0 until positions!!.size) {
+                putVertex(vertexConsumer, pose, normal, i, color, overlayCoords, packedLight)
+            }
+        }
+    }
+
+    private fun putVertex(
+        consumer: VertexConsumer,
+        pose: Matrix4f,
+        normal: Matrix3f,
+        index: Int,
+        color: Color,
+        overlayCoords: Int,
+        packedLight: Int,
+    ) {
+        consumer
+            .vertex(pose, positions!![index].x, positions!![index].y, positions!![index].z)
+            .color(color.r, color.g, color.b, color.a)
+            .uv(texCoords!![index].x, texCoords!![index].y)
+            .overlayCoords(overlayCoords)
+            .uv2(packedLight)
+            .normal(normal, normals!![index].x, normals!![index].y, normals!![index].z)
+            .endVertex()
+    }
+
+    private fun getRenderType(): RenderType {
+        return batchingRenderType.apply(material)
     }
 
     private fun applyMaterial(
-        consumer: (ResourceLocation) -> Int,
         shader: ShaderInstance,
         material: Material,
     ): Pair<Int, Int> {
@@ -420,7 +441,6 @@ class Primitive(
         var specular = 0
 
         if (areShadersEnabled) {
-            //т.к. Iris использует отличные от Optifine id текстур стоит взять их из самого шейдера
             GL33.glGetUniformLocation(shader.id, "normals").takeIf { it != -1 }?.let {
                 GL33.glActiveTexture(COLOR_MAP_INDEX + GL33.glGetUniformi(shader.id, it))
                 normal = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D)
@@ -434,15 +454,11 @@ class Primitive(
         }
 
         GL13.glActiveTexture(COLOR_MAP_INDEX)
-        val texture = consumer(material.texture)
-        RenderSystem.bindTexture(texture)
+        RenderSystem.bindTexture(Minecraft.getInstance().textureManager.getTexture(material.texture).id)
 
         if (material.doubleSided) RenderSystem.disableCull()
         when (material.blend) {
-            Material.Blend.OPAQUE -> {
-                RenderSystem.disableBlend()
-            }
-
+            Material.Blend.OPAQUE -> RenderSystem.disableBlend()
             Material.Blend.BLEND -> {
                 RenderSystem.enableBlend()
                 RenderSystem.defaultBlendFunc()
@@ -457,6 +473,7 @@ class Primitive(
     }
 
     fun transformSkinning(node: Node) {
+        if (useBatching) return
 
         GL13.glActiveTexture(GL13.GL_TEXTURE0)
         GL33.glBindBuffer(GL33.GL_TEXTURE_BUFFER, jointMatrixBuffer)
@@ -485,42 +502,31 @@ class Primitive(
 
     private fun computeMatrices(node: Node): FloatBuffer {
         val matrices = node.skin!!.compute(node)
-
         val buffer = BufferUtils.createFloatBuffer(matrices.size * 16)
         for (m in matrices) {
-            buffer.put(m.m00)
-            buffer.put(m.m01)
-            buffer.put(m.m02)
-            buffer.put(m.m03)
-            buffer.put(m.m10)
-            buffer.put(m.m11)
-            buffer.put(m.m12)
-            buffer.put(m.m13)
-            buffer.put(m.m20)
-            buffer.put(m.m21)
-            buffer.put(m.m22)
-            buffer.put(m.m23)
-            buffer.put(m.m30)
-            buffer.put(m.m31)
-            buffer.put(m.m32)
-            buffer.put(m.m33)
+            buffer.put(m.m00).put(m.m01).put(m.m02).put(m.m03)
+                .put(m.m10).put(m.m11).put(m.m12).put(m.m13)
+                .put(m.m20).put(m.m21).put(m.m22).put(m.m23)
+                .put(m.m30).put(m.m31).put(m.m32).put(m.m33)
         }
         buffer.flip()
         return buffer
     }
 
     fun destroy() {
-        GL30.glDeleteVertexArrays(vao)
-        GL30.glDeleteVertexArrays(skinningVao)
-
-        GL30.glDeleteBuffers(indexBuffer)
-        GL30.glDeleteBuffers(vertexBuffer)
-        GL30.glDeleteBuffers(texCoordsBuffer)
-        GL30.glDeleteBuffers(normalBuffer)
-        GL30.glDeleteBuffers(midCoordsBuffer)
-
-        GL30.glDeleteBuffers(skinVertexBuffer)
-        GL30.glDeleteBuffers(skinNormalBuffer)
+        if (useBatching) {
+            releaseCpu()
+        } else {
+            GL30.glDeleteVertexArrays(vao)
+            GL30.glDeleteVertexArrays(skinningVao)
+            GL30.glDeleteBuffers(indexBuffer)
+            GL30.glDeleteBuffers(vertexBuffer)
+            GL30.glDeleteBuffers(texCoordsBuffer)
+            GL30.glDeleteBuffers(normalBuffer)
+            GL30.glDeleteBuffers(midCoordsBuffer)
+            GL30.glDeleteBuffers(skinVertexBuffer)
+            GL30.glDeleteBuffers(skinNormalBuffer)
+        }
     }
 }
 

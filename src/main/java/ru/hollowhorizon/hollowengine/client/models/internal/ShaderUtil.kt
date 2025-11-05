@@ -5,24 +5,32 @@ package ru.hollowhorizon.hollowengine.client.models.internal
 /*import com.mojang.blaze3d.vertex.VertexFormat
 import net.minecraft.client.Minecraft
 *///?} else {
-import org.joml.Matrix4f
 //?}
 
 import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.DefaultVertexFormat
+import com.mojang.blaze3d.vertex.VertexFormat
+import net.minecraft.Util
 import net.minecraft.client.renderer.GameRenderer
+import net.minecraft.client.renderer.RenderStateShard
 import net.minecraft.client.renderer.RenderType
 import net.minecraft.client.renderer.ShaderInstance
 import net.minecraft.client.renderer.texture.TextureManager
+import net.minecraft.resources.ResourceLocation
+import org.joml.Matrix4f
 import org.lwjgl.opengl.GL13
 import org.lwjgl.opengl.GL33
+import ru.hollowhorizon.hollowengine.client.utils.shouldOverrideShaders
+import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import ru.hollowhorizon.hollowengine.mixins.client.ShaderInstanceAccessor
+import java.util.function.Function
 
 
 inline fun drawWithShader(
-    shader: ShaderInstance,
     body: () -> Unit,
 ) {
     val state = RenderType.entityCutout(TextureManager.INTENTIONAL_MISSING_TEXTURE)
+    val shader = SHADER
     val accessor = shader as ShaderInstanceAccessor
 
     state.setupRenderState()
@@ -59,6 +67,34 @@ inline fun drawWithShader(
     shader.clear()
     state.clearRenderState()
 }
+
+val batchingRenderType = Util.memoize<Material, RenderType> { material: Material ->
+    val compositeState =
+        RenderType.CompositeState.builder().setShaderState(RenderStateShard.ShaderStateShard { SHADER })
+            .setTextureState(RenderStateShard.TextureStateShard(material.texture, false, false))
+            .setTransparencyState(when(material.blend) {
+                Material.Blend.BLEND -> RenderStateShard.TRANSLUCENT_TRANSPARENCY
+                Material.Blend.OPAQUE -> RenderStateShard.NO_TRANSPARENCY
+            })
+            .setCullState(if(material.doubleSided) RenderStateShard.NO_CULL else RenderStateShard.CULL)
+            .setLightmapState(RenderStateShard.LIGHTMAP)
+            .setOverlayState(RenderStateShard.OVERLAY)
+            .createCompositeState(true)
+    RenderType.create(
+        "hollowengine:entity_cutout",
+        DefaultVertexFormat.NEW_ENTITY,
+        VertexFormat.Mode.TRIANGLES,
+        256,
+        true,
+        false,
+        compositeState
+    )
+}
+
+val SHADER
+    get() =
+        if (shouldOverrideShaders()) GameRenderer.getRendertypeEntityCutoutShader()!!
+        else ModShaders.GLTF_ENTITY // Ванильный шейдер не поддерживает матрицу нормалей
 
 const val COLOR_MAP_INDEX = GL13.GL_TEXTURE0
 const val NORMAL_MAP_INDEX = GL13.GL_TEXTURE1
