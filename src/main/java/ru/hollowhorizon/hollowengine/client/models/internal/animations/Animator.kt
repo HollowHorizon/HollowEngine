@@ -14,51 +14,28 @@ import ru.hollowhorizon.hollowengine.client.handlers.TickHandler.partialTick
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.Node
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
-import ru.hollowhorizon.hollowengine.client.models.internal.controller.calculateSpeedViaDeltaMovement
-import ru.hollowhorizon.hollowengine.client.models.internal.controller.isMoving
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
-import ru.hollowhorizon.hollowengine.client.utils.math.xz
 import ru.hollowhorizon.hollowengine.common.coroutines.dispatcher
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.coroutines.CoroutineContext
 
-open class ModelInstance(private val original: AnimatedModel) {
-    constructor(location: String): this(HollowModelManager.getOrCreate(location.rl))
+open class ModelInstance(val model: AnimatedModel) {
+    constructor(location: String) : this(HollowModelManager.getOrCreate(location.rl))
 
     fun reset() {
-        original.nodes.forEach { node -> node.transform.set(node.baseTransform) }
+        model.nodes.forEach { node -> node.transform.set(node.baseTransform) }
     }
 
-    fun update(dt: Float) {
-        animations.asSequence()
-            .filter { it.duration >= 0 }
-            .filter { it.enabled }
-            .sortedBy { it.priority }
-            .forEach {
-                it.update(dt)
-            }
-    }
-
-    val animations = Animations()
     val nodes = Nodes()
 
-    inner class Animations : Iterable<AnimationInstance> {
-        private val animations = original.animations.mapValues { AnimationInstance(it.value) }
-
-        override fun iterator() = animations.values.iterator()
-
-        operator fun get(name: String) = animations[name] ?: error("Unknown animation $name")
-    }
-
     inner class Nodes : Iterable<NodeInstance> {
-        private val nodes = original.nodes.associateBy { it.fullName }.mapValues { NodeInstance(it.value) }
+        private val nodes = model.nodes.associateBy { it.fullName }.mapValues { NodeInstance(it.value) }
 
         override fun iterator() = nodes.values.iterator()
 
         operator fun get(name: String) = nodes[name] ?: error("Unknown bone $name")
     }
-
 }
 
 open class NodeInstance(val node: Node) {
@@ -134,7 +111,7 @@ class AnimationInstance(private val animation: Animation) {
     }
 
     fun update(dt: Float) {
-        time += if(state == State.PLAYING) speed * dt else dt
+        time += if (state == State.PLAYING) speed * dt else dt
         when (state) {
             State.STARTING -> updateStarting()
             State.PLAYING -> updatePlaying()
@@ -230,15 +207,16 @@ class AnimationInstance(private val animation: Animation) {
             WrapMode.Once -> {
                 if (time >= animation.duration) {
                     endTime = time
-                    if(blendTime.output != 0f) state = State.ENDING
+                    if (blendTime.output != 0f) state = State.ENDING
                     else _enabled = false
                 }
             }
 
             WrapMode.Loop -> {
                 if (time >= animation.duration) time -= animation.duration
-                else if(time < 0) time += animation.duration
+                else if (time < 0) time += animation.duration
             }
+
             WrapMode.ClampForever -> if (time >= animation.duration) time = animation.duration
             WrapMode.PingPong -> {
                 if (time >= animation.duration) {
@@ -270,40 +248,8 @@ class Animator(
     }
 
     fun update(dt: Float) {
-        model.update(dt)
     }
 
     fun NodeInstance.child(name: String) = model.nodes["${node.fullName}.$name"]
 
-}
-
-fun Animator.configure() {
-    model.animations.forEach { animation ->
-        animation.blendTime(input = 0.15f, output = 0.15f)
-        animation.blendCurve = Interpolation.SINE_IN
-        animation.wrapMode = WrapMode.Loop
-    }
-}
-
-fun Animator.onUpdate() {
-    val head = model.nodes["Model.Body.BodyUp.Head"]
-    val leftEye = head.child("GolovaAnimated.Face.Eyes.LeftEye.LeftLib")
-    val rightEye = head.child("GolovaAnimated.Face.Eyes.RightEye.RightLib")
-
-    val localHeadRotY = ((entity.yBodyRot - entity.yHeadRot).coerceIn(-30f, 30f) / 30f + 1f) / 2f * 0.05f
-
-    val isCrouching = entity.isCrouching
-    val isWalking = entity.isMoving()
-    val isSprinting = entity.isSprinting
-
-    model.animations["idle"].enabled = !isWalking && !isCrouching
-    model.animations["walk"].enabled = isWalking && !isCrouching && !isSprinting
-    model.animations["walk"].speed = calculateSpeedViaDeltaMovement(entity) * 0.75f
-    model.animations["run"].enabled = isSprinting && !isCrouching
-    model.animations["run"].speed = calculateSpeedViaDeltaMovement(entity) * 0.75f
-
-    head.transform.rotate(entity.headRotation)
-
-    leftEye.transform.translate(-localHeadRotY, 0f, 0f)
-    rightEye.transform.translate(-localHeadRotY + 0.05f, 0f, 0f)
 }

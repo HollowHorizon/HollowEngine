@@ -333,7 +333,7 @@ class Primitive(
     fun renderVAO(
         stack: PoseStack,
     ) {
-        if(useBatching) return
+        if (useBatching) return
         if (morphTargets.isNotEmpty()) updateMorphTargets()
 
         val shader = SHADER
@@ -417,13 +417,17 @@ class Primitive(
         overlayCoords: Int,
         packedLight: Int,
     ) {
+        val positions = positions!!
+        val texCoords = texCoords!!
+        val normals = normals!!
+
         consumer
-            .vertex(pose, positions!![index].x, positions!![index].y, positions!![index].z)
+            .vertex(pose, positions[index].x, positions[index].y, positions[index].z)
             .color(color.r, color.g, color.b, color.a)
-            .uv(texCoords!![index].x, texCoords!![index].y)
+            .uv(texCoords[index].x, texCoords[index].y)
             .overlayCoords(overlayCoords)
             .uv2(packedLight)
-            .normal(normal, normals!![index].x, normals!![index].y, normals!![index].z)
+            .normal(normal, normals[index].x, normals[index].y, normals[index].z)
             .endVertex()
     }
 

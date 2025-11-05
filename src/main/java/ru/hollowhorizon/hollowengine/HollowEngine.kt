@@ -45,7 +45,7 @@ object HollowEngine {
         KotlinLanguageServer.connect(KotlinLanguageClient)
     }
 
-    @SubscribeEvent
+    // @SubscribeEvent
     fun onRegisterReloadListeners(event: RegisterReloadListenersEvent.Server) {
         event.register(ScriptingReloadListener)
     }

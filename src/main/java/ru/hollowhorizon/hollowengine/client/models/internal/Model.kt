@@ -6,9 +6,13 @@ data class Model(
     val materials: Set<Material>,
 ) {
     var isBlockBench = false
+    var useVAO = false
 
     fun initGl() {
-        walkNodes().forEach { it.mesh?.primitives?.forEach { it.init() } }
+        walkNodes().forEach {
+            it.mesh?.primitives?.forEach { it.init() }
+            useVAO = useVAO || it.mesh?.useBatching == false
+        }
     }
 
     fun walkNodes(): Sequence<Node> {
@@ -24,6 +28,8 @@ data class Model(
     fun findNodeByIndex(index: Int): Node? {
         return walkNodes().find { it.index == index }
     }
+
+    fun node(id: Int) = findNodeByIndex(id) ?: error("Node $id not found")
 
     fun findNodeByName(name: String): Node? {
         return walkNodes().find { it.name == name }

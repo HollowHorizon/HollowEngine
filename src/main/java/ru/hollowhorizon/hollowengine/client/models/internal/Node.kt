@@ -8,13 +8,8 @@ import de.fabmax.kool.math.MutableQuatF
 import de.fabmax.kool.math.QuatF
 import de.fabmax.kool.scene.TrsTransformF
 import net.minecraft.client.renderer.MultiBufferSource
-import net.minecraft.resources.ResourceLocation
-import net.minecraft.world.entity.EquipmentSlot
-import net.minecraft.world.item.ArmorItem
 import org.joml.Quaternionf
-import ru.hollowhorizon.hollowengine.client.utils.toTexture
 import ru.hollowhorizon.hollowengine.client.utils.use
-import ru.hollowhorizon.hollowengine.common.utils.getArmorTexture
 import java.util.*
 
 class Node(
@@ -49,7 +44,9 @@ class Node(
                 nodeRenderer(it, this, this@Node, source, packedLight)
             }
 
-            children.forEach { it.renderBatching(stack, nodeRenderer, data, source, overlayCoords, packedLight) }
+            for (it in children) {
+                it.renderBatching(stack, nodeRenderer, data, source, overlayCoords, packedLight)
+            }
         }
     }
 
@@ -66,7 +63,7 @@ class Node(
     var isVisible = true
 
     fun renderVAO(
-        stack: PoseStack
+        stack: PoseStack,
     ) {
         if (!isVisible) return
 

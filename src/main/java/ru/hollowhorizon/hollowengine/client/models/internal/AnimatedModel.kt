@@ -58,58 +58,60 @@ class AnimatedModel(val model: Model, val animations: Map<String, Animation> = m
 
         NODE_GLOBAL_TRANSFORMATION_LOOKUP_CACHE.clear()
 
-        model.scenes.forEach { scene ->
+        for(scene in model.scenes) {
             scene.renderBatching(stack, visuals, modelData, source, overlay, light)
         }
 
-        val activeTexture = GlStateManager._getActiveTexture()
+        if(model.useVAO) {
+            val activeTexture = GlStateManager._getActiveTexture()
 
-        //Получение текущих VAO и IBO
-        val currentVAO = GL33.glGetInteger(GL33.GL_VERTEX_ARRAY_BINDING)
-        val currentElementArrayBuffer = GL33.glGetInteger(GL33.GL_ELEMENT_ARRAY_BUFFER_BINDING)
+            //Получение текущих VAO и IBO
+            val currentVAO = GL33.glGetInteger(GL33.GL_VERTEX_ARRAY_BINDING)
+            val currentElementArrayBuffer = GL33.glGetInteger(GL33.GL_ELEMENT_ARRAY_BUFFER_BINDING)
 
-        transformSkinning()
+            transformSkinning()
 
-        GL33.glVertexAttrib4f(1, 1.0F, 1.0F, 1.0F, 1.0F) // Цвет
-        GL33.glVertexAttribI2i(
-            3,
-            overlay and '\uffff'.code,
-            overlay shr 16 and '\uffff'.code
-        ) // Оверлей при ударе
-        GL33.glVertexAttribI2i(
-            4,
-            light and '\uffff'.code,
-            light shr 16 and '\uffff'.code
-        ) // Освещение
+            GL33.glVertexAttrib4f(1, 1.0F, 1.0F, 1.0F, 1.0F) // Цвет
+            GL33.glVertexAttribI2i(
+                3,
+                overlay and '\uffff'.code,
+                overlay shr 16 and '\uffff'.code
+            ) // Оверлей при ударе
+            GL33.glVertexAttribI2i(
+                4,
+                light and '\uffff'.code,
+                light shr 16 and '\uffff'.code
+            ) // Освещение
 
-        GlStateManager._activeTexture(GL33.GL_TEXTURE2)
-        val texture2 = GlStateManager.TEXTURES[GlStateManager.activeTexture].binding
-        GlStateManager._bindTexture(HollowModelManager.lightTexture.id)
-        GlStateManager._activeTexture(GL33.GL_TEXTURE1)
-        val texture1 = GlStateManager.TEXTURES[GlStateManager.activeTexture].binding
-        Minecraft.getInstance().gameRenderer.overlayTexture().setupOverlayColor()
-        GlStateManager._bindTexture(RenderSystem.getShaderTexture(1))
-        Minecraft.getInstance().gameRenderer.overlayTexture().teardownOverlayColor()
-        GlStateManager._activeTexture(GL33.GL_TEXTURE0)
+            GlStateManager._activeTexture(GL33.GL_TEXTURE2)
+            val texture2 = GlStateManager.TEXTURES[GlStateManager.activeTexture].binding
+            GlStateManager._bindTexture(HollowModelManager.lightTexture.id)
+            GlStateManager._activeTexture(GL33.GL_TEXTURE1)
+            val texture1 = GlStateManager.TEXTURES[GlStateManager.activeTexture].binding
+            Minecraft.getInstance().gameRenderer.overlayTexture().setupOverlayColor()
+            GlStateManager._bindTexture(RenderSystem.getShaderTexture(1))
+            Minecraft.getInstance().gameRenderer.overlayTexture().teardownOverlayColor()
+            GlStateManager._activeTexture(GL33.GL_TEXTURE0)
 
-        val texture = GlStateManager.TEXTURES[GlStateManager.activeTexture].binding
+            val texture = GlStateManager.TEXTURES[GlStateManager.activeTexture].binding
 
-        drawWithShader {
-            model.scenes.forEach { it.renderVAO(stack) }
+            drawWithShader {
+                model.scenes.forEach { it.renderVAO(stack) }
+            }
+
+            GlStateManager._activeTexture(GL33.GL_TEXTURE2)
+
+            GlStateManager._bindTexture(texture2)
+            GlStateManager._activeTexture(GL33.GL_TEXTURE1)
+            GlStateManager._bindTexture(texture1)
+            GlStateManager._activeTexture(GL33.GL_TEXTURE0)
+            GlStateManager._bindTexture(texture)
+            GlStateManager._activeTexture(activeTexture)
+
+            GL33.glBindVertexArray(currentVAO)
+            GL33.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER, currentElementArrayBuffer)
+            GlStateManager._glUseProgram(0)
         }
-
-        GlStateManager._activeTexture(GL33.GL_TEXTURE2)
-
-        GlStateManager._bindTexture(texture2)
-        GlStateManager._activeTexture(GL33.GL_TEXTURE1)
-        GlStateManager._bindTexture(texture1)
-        GlStateManager._activeTexture(GL33.GL_TEXTURE0)
-        GlStateManager._bindTexture(texture)
-        GlStateManager._activeTexture(activeTexture)
-
-        GL33.glBindVertexArray(currentVAO)
-        GL33.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER, currentElementArrayBuffer)
-        GlStateManager._glUseProgram(0)
     }
 
     private fun transformSkinning() {

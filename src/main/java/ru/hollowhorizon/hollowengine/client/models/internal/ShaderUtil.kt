@@ -70,7 +70,7 @@ inline fun drawWithShader(
 
 val batchingRenderType = Util.memoize<Material, RenderType> { material: Material ->
     val compositeState =
-        RenderType.CompositeState.builder().setShaderState(RenderStateShard.ShaderStateShard { SHADER })
+        RenderType.CompositeState.builder().setShaderState(RenderStateShard.ShaderStateShard(GameRenderer::getRendertypeEntityCutoutShader))
             .setTextureState(RenderStateShard.TextureStateShard(material.texture, false, false))
             .setTransparencyState(when(material.blend) {
                 Material.Blend.BLEND -> RenderStateShard.TRANSLUCENT_TRANSPARENCY

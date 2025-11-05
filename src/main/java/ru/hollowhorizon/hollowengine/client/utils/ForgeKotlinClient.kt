@@ -39,7 +39,11 @@ val registryAccess: RegistryAccess
 
 
 fun ResourceLocation.exists(): Boolean {
-    return mc.resourceManager.getResource(this).isPresent
+    return try {
+        mc.resourceManager.getResource(this).isPresent
+    } catch (e: Exception) {
+        true
+    }
 }
 
 val ResourceLocation.stream: InputStream

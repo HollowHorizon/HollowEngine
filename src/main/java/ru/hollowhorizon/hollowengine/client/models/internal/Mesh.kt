@@ -24,8 +24,10 @@ data class Mesh(
     }
 
     fun renderBatching(stack: PoseStack, bufferSource: MultiBufferSource, overlayCoords: Int, packedLight: Int) {
-        primitives.asSequence().filter { it.useBatching }.forEach {
-            it.renderBatching(stack, bufferSource, overlayCoords, packedLight)
+        for(primitive in primitives) {
+            if(primitive.useBatching) {
+                primitive.renderBatching(stack, bufferSource, overlayCoords, packedLight)
+            }
         }
     }
 

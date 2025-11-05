@@ -2,13 +2,12 @@ package ru.hollowhorizon.hollowengine.client.models.internal
 
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.renderer.MultiBufferSource
-import net.minecraft.resources.ResourceLocation
 
 data class Scene(
     val nodes: List<Node>,
 ) {
     fun renderVAO(
-        stack: PoseStack
+        stack: PoseStack,
     ) {
         nodes.forEach { it.renderVAO(stack) }
     }
@@ -21,7 +20,9 @@ data class Scene(
         overlayCoords: Int,
         light: Int,
     ) {
-        nodes.forEach { it.renderBatching(stack, nodeRenderer, data, bufferSource, overlayCoords, light) }
+        for (node in nodes) {
+            node.renderBatching(stack, nodeRenderer, data, bufferSource, overlayCoords, light)
+        }
     }
 
 

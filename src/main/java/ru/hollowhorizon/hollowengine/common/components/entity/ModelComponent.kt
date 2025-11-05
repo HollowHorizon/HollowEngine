@@ -12,8 +12,6 @@ import ru.hollowhorizon.hollowengine.client.kool.addons.ResourceLocationRenderer
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.ModelData
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animator
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.configure
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.onUpdate
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.utils.toTexture
 import ru.hollowhorizon.hollowengine.common.components.Component
@@ -33,7 +31,7 @@ class ModelComponent : Component<LivingEntity>() {
         .onChange { old, new ->
             if (!isLogicalClient) return@onChange
             internalModel = HollowModelManager.getOrCreate(new.rl)
-            Minecraft.getInstance().player?.let { animator = Animator(internalModel, it) }
+            animator = Animator(internalModel, owner)
         }
 
     internal var internalModel: AnimatedModel by mutableLazy { HollowModelManager.getOrCreate(model.rl) }
@@ -49,14 +47,14 @@ fun loadComponents() {
     Cardinal.on<RenderEntityEvent.Pre, ModelComponent> { model ->
         poseStack.pushPose()
         model.animator.apply {
-            configure()
+            //configure()
             reset()
-            onUpdate()
-            if (IrisHelper.isShadowRendering()) return@apply
-            update(Time.deltaT) // Minecraft.getInstance().deltaFrameTime * 50 / 1000f
+            //onUpdate()
+            if (IrisHelper.isShadowRendering()) update(0.0f)
+            else update(Time.deltaT) // Minecraft.getInstance().deltaFrameTime * 50 / 1000f
         }
 
-        if (model.internalModel.model.isBlockBench) poseStack.mulPose(Quaternionf().rotateY(180f * Mth.DEG_TO_RAD))
+        if (model.internalModel.model.isBlockBench || true) poseStack.mulPose(Quaternionf().rotateY(180f * Mth.DEG_TO_RAD))
         var overlay = OverlayTexture.NO_OVERLAY
         if (entity is LivingEntity) {
             poseStack.mulPose(
