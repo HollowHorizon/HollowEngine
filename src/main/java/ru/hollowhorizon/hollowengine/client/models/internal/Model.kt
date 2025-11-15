@@ -1,17 +1,19 @@
 package ru.hollowhorizon.hollowengine.client.models.internal
 
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
+
 data class Model(
     val scene: Int,
     val scenes: List<Scene>,
     val materials: Set<Material>,
 ) {
     var isBlockBench = false
-    var useVAO = false
+
+    val pipeline = ListRenderPipeline()
 
     fun initGl() {
-        walkNodes().forEach {
-            it.mesh?.primitives?.forEach { it.init() }
-            useVAO = useVAO || it.mesh?.useBatching == false
+        walkNodes().forEach { node ->
+            node.mesh?.primitives?.forEach { it.init() }
         }
     }
 

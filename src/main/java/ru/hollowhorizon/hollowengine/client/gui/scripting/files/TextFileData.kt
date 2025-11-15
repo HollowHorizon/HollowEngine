@@ -25,7 +25,7 @@ class TextFileData(name: String, path: String, code: String) :
     lateinit var area: ScriptTextAreaScope
 
     fun setText(text: String) {
-        surface.triggerUpdate()
+        surface?.triggerUpdate()
     }
 
     override fun save() {
@@ -55,7 +55,7 @@ class TextFileData(name: String, path: String, code: String) :
     }, { diagnostics ->
         modifier.errors.clear()
         modifier.errors.addAll(diagnostics.flatMap { convertDiagnostic(it).map { it.second } })
-        surface.triggerUpdate()
+        surface?.triggerUpdate()
     })
 
     override fun UiScope.compose() {

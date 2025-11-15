@@ -3,15 +3,13 @@ package ru.hollowhorizon.hollowengine.common.scripting.core.configuration
 //? if forge
 /*import net.minecraftforge.fml.loading.FMLEnvironment*/
 import net.minecraft.client.Minecraft
-import ru.hollowhorizon.hollowengine.common.scripting.codegen.models.ModelGenerator
+import ru.hollowhorizon.hollowengine.common.scripting.codegen.AssetCodeGenerator
 import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import ru.hollowhorizon.hollowengine.common.scripting.core.Import
 import ru.hollowhorizon.hollowengine.common.scripting.core.deobfClasspath
 import ru.hollowhorizon.hollowengine.common.scripting.core.scriptingClasspath
-import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.io.File
 import kotlin.script.experimental.api.*
-import kotlin.script.experimental.host.StringScriptSource
 import kotlin.script.experimental.jvm.dependenciesFromCurrentContext
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.updateClasspath
@@ -55,11 +53,12 @@ open class HollowScriptConfiguration(body: Builder.() -> Unit = {}) : ScriptComp
 
     ide { acceptedLocations(ScriptAcceptedLocation.Everywhere) }
 
-    importScripts(ImportModels)
+    importScripts(ImportAssets)
+
 })
 
-object ImportModels: SourceCode {
-    val sources by lazy { ModelGenerator.generateSource("hollowengine:models/entity/player_model.gltf".rl) }
+object ImportAssets: SourceCode {
+    val sources by lazy { AssetCodeGenerator.generateAssetsClass(Minecraft.getInstance().resourceManager) }
     override val text: String
         get() {
             return if(Minecraft.getInstance().level == null) "" else sources

@@ -110,7 +110,6 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
                     if (item.isFolder) {
                         item.toggleExpanded()
                     } else {
-                        val screen = Minecraft.getInstance().screen as? ScriptingEnvironmentScreen ?: return@onClick
                         val file = IdeContent.files[item.treePath]
 
                         if (file == null) IdeContent.openFile(
@@ -118,7 +117,7 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
                             item.treePath.fromReadablePath().readBytes(),
                             ::TextFileData
                         )
-                        else screen.dock.getLeafAtPath("0/1")?.bringToTop(file.dockable)
+                        else ScriptingEnvironmentOverlay.dock.getLeafAtPath("0/1")?.bringToTop(file.dockable)
                     }
                 }
             }

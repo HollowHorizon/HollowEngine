@@ -41,8 +41,9 @@ object HollowModelManager : ResourceManagerReloadListener {
     }
 
     suspend fun loadModel(location: ResourceLocation): AnimatedModel? {
-        val loader = loaders.find { location.path.substringAfter('.') in it.supportedFormats }
-            ?: error("No suitable model loader found for ${location.path}")
+        val extension = location.path.substringAfterLast('.', "")
+        val loader = loaders.find { extension in it.supportedFormats }
+            ?: error("No suitable model loader found for format .$extension")
 
         try {
             return loader.load(location)
@@ -54,7 +55,10 @@ object HollowModelManager : ResourceManagerReloadListener {
 
     private fun createSkinningProgramGL33() {
         val glShader = GL20.glCreateShader(GL20.GL_VERTEX_SHADER)
-        GL20.glShaderSource(glShader, "hollowengine:shaders/core/gltf_skinning.vsh".rl.stream.readBytes().decodeToString())
+        GL20.glShaderSource(
+            glShader,
+            "hollowengine:shaders/core/gltf_skinning.vsh".rl.stream.readBytes().decodeToString()
+        )
         GL20.glCompileShader(glShader)
 
         glProgramSkinning = GL20.glCreateProgram()
@@ -74,9 +78,11 @@ object HollowModelManager : ResourceManagerReloadListener {
             val time = measureTime {
                 val supportedFormats = loaders.flatMap { it.supportedFormats }.toSet()
                 val loaded =
-                    manager.listResources("models") { it.path.substringAfter('.') in supportedFormats }.keys.mapNotNull { location ->
-                        loadModel(location)?.let { location to it }
-                    }.toMap()
+                    manager.listResources("models") { it.path.substringAfter('.') in supportedFormats }.keys
+                        .filter { manager.getResource(it.withSuffix(".hemeta")).isPresent }
+                        .mapNotNull { location ->
+                            loadModel(location)?.let { location to it }
+                        }.toMap()
 
                 models.putAll(loaded)
             }
@@ -115,8 +121,27 @@ object HollowModelManager : ResourceManagerReloadListener {
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL12.GL_TEXTURE_BASE_LEVEL, 0)
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL12.GL_TEXTURE_MAX_LEVEL, 0)
 
+        val defaultSpecularMap = GL11.glGenTextures()
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, defaultSpecularMap)
+        GL11.glTexImage2D(
+            GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA, 2, 2, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, create(
+                byteArrayOf(
+                    0, 0, 0, 0, // Pixel 1: Black color, Max Roughness
+                    0, 0, 0, 0, // Pixel 2
+                    0, 0, 0, 0, // Pixel 3
+                    0, 0, 0, 0  // Pixel 4
+                )
+            )
+        )
+        Minecraft.getInstance().player?.random
+
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL12.GL_TEXTURE_BASE_LEVEL, 0)
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL12.GL_TEXTURE_MAX_LEVEL, 0)
+
+
+
         textureManager.register("${HollowCore.MODID}:default_color_map".rl, GlTexture(defaultColorMap))
-        textureManager.register("${HollowCore.MODID}:default_normal_map".rl, GlTexture(defaultNormalMap))
+        textureManager.register("${HollowCore.MODID}:default_normal_map".rl, GlTexture(0))
         textureManager.register("${HollowCore.MODID}:default_specular_map".rl, GlTexture(0))
 
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, currentTexture)

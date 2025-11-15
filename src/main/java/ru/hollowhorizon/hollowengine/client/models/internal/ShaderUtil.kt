@@ -29,7 +29,7 @@ import java.util.function.Function
 inline fun drawWithShader(
     body: () -> Unit,
 ) {
-    val state = RenderType.entityCutout(TextureManager.INTENTIONAL_MISSING_TEXTURE)
+    val state = RenderType.entityTranslucent(TextureManager.INTENTIONAL_MISSING_TEXTURE)
     val shader = SHADER
     val accessor = shader as ShaderInstanceAccessor
 
@@ -58,9 +58,8 @@ inline fun drawWithShader(
     shader.apply()
 
     accessor.samplerLocations().forEachIndexed { texture, index ->
-        GL33.glUniform1i(index, texture)
+        RenderSystem.glUniform1i(index, texture)
     }
-
 
     body()
 
@@ -68,7 +67,7 @@ inline fun drawWithShader(
     state.clearRenderState()
 }
 
-val batchingRenderType = Util.memoize<Material, RenderType> { material: Material ->
+val batchingRenderType: Function<Material, RenderType> = Util.memoize<Material, RenderType> { material: Material ->
     val compositeState =
         RenderType.CompositeState.builder().setShaderState(RenderStateShard.ShaderStateShard(GameRenderer::getRendertypeEntityCutoutShader))
             .setTextureState(RenderStateShard.TextureStateShard(material.texture, false, false))
@@ -84,7 +83,7 @@ val batchingRenderType = Util.memoize<Material, RenderType> { material: Material
         "hollowengine:entity_cutout",
         DefaultVertexFormat.NEW_ENTITY,
         VertexFormat.Mode.TRIANGLES,
-        256,
+        4096,
         true,
         false,
         compositeState

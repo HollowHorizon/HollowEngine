@@ -1,50 +1,132 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animations
 
-import de.fabmax.kool.math.MutableQuatF
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.deg
+import de.fabmax.kool.math.*
+import de.fabmax.kool.scene.TrsTransformF
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import net.minecraft.client.Minecraft
 import net.minecraft.util.Mth
+import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.item.ItemDisplayContext
+import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler.partialTick
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.Node
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
-import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
 import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
+import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix3f
+import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix4f
 import ru.hollowhorizon.hollowengine.common.coroutines.dispatcher
-import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.coroutines.CoroutineContext
 
-open class ModelInstance(val model: AnimatedModel) {
-    constructor(location: String) : this(HollowModelManager.getOrCreate(location.rl))
 
-    fun reset() {
-        model.nodes.forEach { node -> node.transform.set(node.baseTransform) }
+abstract class NodeInstance(var parent: NodeInstance? = null, val name: String? = null) {
+    val children: MutableList<NodeInstance> = ArrayList<NodeInstance>()
+    open val transform: TrsTransformF = TrsTransformF()
+    open val globalMatrix = MutableMat4f()
+
+    abstract fun collectCommands(pipeline: RenderPipeline)
+
+    operator fun plusAssign(node: NodeInstance) {
+        node.parent = this
+        children += node
     }
 
-    val nodes = Nodes()
+    operator fun minusAssign(node: NodeInstance) {
+        node.parent = null
+        children -= node
+    }
 
-    inner class Nodes : Iterable<NodeInstance> {
-        private val nodes = model.nodes.associateBy { it.fullName }.mapValues { NodeInstance(it.value) }
+    fun add(node: NodeInstance) = plusAssign(node)
+    fun remove(node: NodeInstance) = minusAssign(node)
 
-        override fun iterator() = nodes.values.iterator()
+    class Root: NodeInstance() {
+        override fun collectCommands(pipeline: RenderPipeline) {}
 
-        operator fun get(name: String) = nodes[name] ?: error("Unknown bone $name")
+        val pipeline = ListRenderPipeline()
+
+        fun setup() {
+            collectGlobalCommands(pipeline)
+        }
+
+        fun clear() {
+            pipeline.clear()
+        }
     }
 }
 
-open class NodeInstance(val node: Node) {
-    val transform get() = node.transform
-    var isVisible: Boolean
-        get() = node.isVisible
-        set(value) {
-            node.isVisible = value
+operator fun NodeInstance.get(path: String): NodeInstance? {
+    val parts = path.split(".")
+    var current: NodeInstance = this
+    for (part in parts) {
+        val next = current.children.find { it.name == part } ?: return null
+        current = next
+    }
+    return current
+}
+
+fun NodeInstance.collectGlobalCommands(pipeline: RenderPipeline) {
+    val parent = this.parent
+    if (parent == null) {
+        pipeline.addInitializable {
+            globalMatrix.set(transform.matrixF)
         }
+    } else {
+        pipeline.addInitializable {
+            globalMatrix.set(parent.globalMatrix)
+            globalMatrix.mul(transform.matrixF)
+        }
+    }
+    children.forEach { it.collectGlobalCommands(pipeline) }
+    collectCommands(pipeline)
+}
+
+open class NodeImpl(parent: NodeInstance? = null, val node: Node) : NodeInstance(parent, node.name) {
+    init {
+        children += node.children.map { NodeImpl(this, it) }
+    }
+
+    override val transform get() = node.transform
+    override val globalMatrix get() = node.globalMatrix
+
+    override fun collectCommands(pipeline: RenderPipeline) {
+        node.mesh?.primitives?.forEach { it.setupPipeline(node, pipeline) }
+    }
+}
+
+class ItemNode(val entity: LivingEntity, val slot: EquipmentSlot) : NodeInstance() {
+    override fun collectCommands(pipeline: RenderPipeline) {
+        pipeline.addBatchedRenderable {
+            stack.pushPose()
+
+            stack.mulPoseMatrix(globalMatrix.asMatrix4f())
+            stack.last().normal().mul(globalMatrix.getUpperLeft(MutableMat3f()).asMatrix3f())
+
+            stack.mulPose(Quaternionf().rotateX(-90 * Mth.DEG_TO_RAD))
+
+            Minecraft.getInstance().itemRenderer.renderStatic(
+                entity,
+                entity.getItemBySlot(slot),
+                when (slot) {
+                    EquipmentSlot.MAINHAND -> ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
+                    EquipmentSlot.OFFHAND -> ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
+                    EquipmentSlot.HEAD -> ItemDisplayContext.HEAD
+                    else -> ItemDisplayContext.FIXED
+                },
+                slot == EquipmentSlot.OFFHAND,
+                stack,
+                source,
+                entity.level(),
+                light, overlay, 0
+            )
+
+            stack.popPose()
+        }
+    }
 }
 
 private val LivingEntity.headRotation: QuatF
@@ -234,22 +316,4 @@ class AnimationInstance(private val animation: Animation) {
     enum class State {
         STARTING, PLAYING, ENDING
     }
-}
-
-class Animator(
-    model: AnimatedModel,
-    val entity: LivingEntity,
-) : CoroutineScope {
-    val model = ModelInstance(model)
-    override val coroutineContext: CoroutineContext = SupervisorJob(null) + Minecraft.getInstance().dispatcher + Job()
-
-    fun reset() {
-        model.reset()
-    }
-
-    fun update(dt: Float) {
-    }
-
-    fun NodeInstance.child(name: String) = model.nodes["${node.fullName}.$name"]
-
 }

@@ -3,17 +3,21 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar
 import de.fabmax.kool.KeyValueStore
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
+import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
+import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverFactor
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -25,13 +29,25 @@ import ru.hollowhorizon.hollowengine.common.utils.literal
 
 @SubscribeEvent
 fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
-    Image("hollowengine:textures/gui/icons/logo.png") {
-        modifier.size(24.dp, 24.dp).alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap)
+    Box(24.dp, 24.dp) {
+        modifier.alignY(AlignmentY.Center)
+        Image("hollowengine:textures/gui/icons/logo.png") {
+            val factor by hoverFactor()
+            val size = 22.dp + 2.dp * factor
+            modifier.size(size, size).align(AlignmentX.Center, AlignmentY.Center)
+
+            modifier.tint(Color.WHITE.withAlpha(0.33f + 0.77f * factor))
+            modifier.onClick {
+                ScriptingEnvironmentOverlay.isCollapsed = !ScriptingEnvironmentOverlay.isCollapsed
+            }
+        }
     }
+
+    if (ScriptingEnvironmentOverlay.isCollapsed) return@append
 
     val overlay = remember { ItemPopupMenu<Unit>("Title-File-Overlay") }
     overlay()
-    TextButton("File") {
+    TextButton("Файл") {
         overlay.hide()
         overlay.show(Vec2f(it.screenPosition), SubMenuItem {
             item("Новый проект") {
@@ -58,9 +74,22 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
             }
         }, Unit)
     }
-    TextButton("Edit")
-    TextButton("Search")
-    TextButton("Settings")
+    TextButton("Правка")
+    val windowOverlay = remember { ItemPopupMenu<Unit>("Title-Window-Overlay") }
+    windowOverlay()
+    TextButton("Окна") {
+        windowOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
+            val size = LayoutLoader.LAYOUTS.size
+            LayoutLoader.LAYOUTS.values.forEachIndexed { i, window ->
+                item(window.name) {
+                    window.open()
+                }
+                if (i != size - 1) divider()
+            }
+        }, Unit)
+    }
+    TextButton("Поиск")
+    TextButton("Настройки")
 }
 
 fun UiScope.TextButton(text: String, onClick: (PointerEvent) -> Unit = {}) {
@@ -87,7 +116,7 @@ fun UiScope.TextButton(text: String, onClick: (PointerEvent) -> Unit = {}) {
 
 @SubscribeEvent
 fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
-    if (IdeContent.files.isEmpty()) return@append
+    if (IdeContent.files.isEmpty() || ScriptingEnvironmentOverlay.isCollapsed) return@append
 
     val items = IdeContent.files.filter { it.value is TextFileData }.map { (key, file) ->
         key to Composable {

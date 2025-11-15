@@ -117,13 +117,8 @@ fun RenderTickEvent.Pre.handle() {
     Input.poll(KoolManager.context)
 
     KoolHooks.executeCoroutineTasks()
-}
-
-fun Scene.render(recordState: Boolean = true) {
-    if (recordState) GlContext.setupState()
 
     KoolManager.context.apply {
-
         onRender.update()
         for (i in onRender.indices) {
             onRender[i](this)
@@ -132,7 +127,13 @@ fun Scene.render(recordState: Boolean = true) {
         if (!backgroundScene.isEmpty) {
             backgroundScene.renderScene(this)
         }
+    }
+}
 
+fun Scene.render(recordState: Boolean = true) {
+    if (recordState) GlContext.setupState()
+
+    KoolManager.context.apply {
         renderScene(this)
         backend.apply {
             mcSceneRenderer.applySize(windowWidth, windowHeight)

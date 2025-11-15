@@ -20,18 +20,22 @@ object ModelGenerator {
             val nodes = model.model.scenes.flatMap { it.nodes }
 
             """
+                package hollowengine.assets
+                
                 import ru.hollowhorizon.hollowengine.client.models.internal.animations.*
                 
-                val ${name.uppercase()} = ${name.replaceFirstChar { it.uppercase() }}()
-                
-                class ${name.replaceFirstChar { it.uppercase() }}: ModelInstance("$location") {
-                    val animations = Animations()
+                object Assets {
+                    val ${name.uppercase()} = ${name.replaceFirstChar { it.uppercase() }}()
                     
-                    inner class Animations {
-                        ${generateAnimations(model, 24)}
+                    class ${name.replaceFirstChar { it.uppercase() }}: ModelInstance("$location") {
+                        val animations = Animations()
+                        
+                        inner class Animations {
+                            ${generateAnimations(model, 24)}
+                        }
+                        
+                        ${generateNodes(nodes)}
                     }
-                    
-                    ${generateNodes(nodes)}
                 }
             """.trimIndent()
         }

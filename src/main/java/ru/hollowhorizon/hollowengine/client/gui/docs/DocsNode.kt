@@ -27,8 +27,7 @@ class DocsNode(name: String, path: String, var page: Composable? = null) : FileN
             if (evt.pointer.isLeftButtonClicked && evt.pointer.leftButtonRepeatedClickCount == 2) {
                 if (item.isFolder)
                     item.toggleExpanded()
-                else
-                    IdeContent.openDocFile(item)
+
             }
         }
 

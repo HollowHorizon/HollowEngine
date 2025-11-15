@@ -7,13 +7,14 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentScreenKt;
 import ru.hollowhorizon.hollowengine.client.kool.PointerInputSetup;
 
 import static ru.hollowhorizon.hollowengine.client.kool.HelperKt.KEY_CODE_MAP;
 
 @Mixin(KeyboardHandler.class)
 public class KeyboardHandlerMixin {
-    @Inject(method = "keyPress", at = @At("HEAD"))
+    @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
     private void onKey(long windowPointer, int key, int scanCode, int action, int modifiers, CallbackInfo ci) {
         int event = switch (action) {
             case GLFW.GLFW_PRESS -> KeyboardInput.KEY_EV_DOWN;
@@ -29,10 +30,13 @@ public class KeyboardHandlerMixin {
 
             KeyboardInput.INSTANCE.handleKeyEvent(new KeyEvent(keyCode, localKeyCode, event, keyMod, Character.MIN_VALUE));
         }
+
+        if(ScriptingEnvironmentScreenKt.isAnyFocusNodeInput()) ci.cancel();
     }
 
-    @Inject(method = "charTyped", at = @At("HEAD"))
+    @Inject(method = "charTyped", at = @At("HEAD"), cancellable = true)
     private void onChar(long windowPointer, int codePoint, int modifiers, CallbackInfo ci) {
         KeyboardInput.INSTANCE.handleCharTyped((char) codePoint);
+        if(ScriptingEnvironmentScreenKt.isAnyFocusNodeInput()) ci.cancel();
     }
 }

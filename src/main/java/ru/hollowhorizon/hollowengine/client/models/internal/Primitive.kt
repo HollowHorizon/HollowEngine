@@ -6,19 +6,21 @@ import com.mojang.blaze3d.vertex.VertexConsumer
 import de.fabmax.kool.math.*
 import de.fabmax.kool.util.Color
 import net.minecraft.client.Minecraft
-import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.RenderType
 import net.minecraft.client.renderer.ShaderInstance
-import net.minecraft.resources.ResourceLocation
 import org.joml.Matrix3f
 import org.joml.Matrix4f
 import org.lwjgl.BufferUtils
 import org.lwjgl.opengl.*
-import ru.hollowhorizon.hollowengine.client.models.gltf.*
+import ru.hollowhorizon.hollowengine.client.kool.gl.MCGlApi
+import ru.hollowhorizon.hollowengine.client.models.gltf.GltfMesh
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
 import ru.hollowhorizon.hollowengine.client.utils.areShadersEnabled
 import ru.hollowhorizon.hollowengine.client.utils.hasShaders
 import ru.hollowhorizon.hollowengine.client.utils.math.MikkTSpaceContext
 import ru.hollowhorizon.hollowengine.client.utils.math.MikktspaceTangentGenerator
+import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix3f
+import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix4f
 import ru.hollowhorizon.hollowengine.client.utils.toTexture
 import java.nio.FloatBuffer
 
@@ -42,7 +44,7 @@ class Primitive(
     private val morphCommands = ArrayList<(FloatArray) -> Unit>()
 
     // Порог для переключения между режимами рендеринга
-    val useBatching = positionsCount < 512 && !hasSkinning && morphTargets.isEmpty()
+    val useBatching = false // positionsCount < 512 && !hasSkinning && morphTargets.isEmpty()
 
     private var vao = -1
     private var skinningVao = -1
@@ -69,12 +71,17 @@ class Primitive(
         weights = values
     }
 
-    fun init() {
+    fun setupPipeline(node: Node, pipeline: RenderPipeline) {
         if (useBatching) {
-            // Для батчинга не инициализируем OpenGL буферы
-            return
+            initBatching(pipeline, node, positions ?: return, texCoords ?: return, normals ?: return)
+        } else {
+            initVAO(pipeline, node)
+            initSkinning(pipeline, node)
         }
+    }
 
+    fun init() {
+        if (useBatching) return
         val currentVAO = GL33.glGetInteger(GL33.GL_VERTEX_ARRAY_BINDING)
         val currentArrayBuffer = GL33.glGetInteger(GL33.GL_ARRAY_BUFFER_BINDING)
         val currentElementArrayBuffer = GL33.glGetInteger(GL33.GL_ELEMENT_ARRAY_BUFFER_BINDING)
@@ -117,6 +124,7 @@ class Primitive(
                 GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, vertexBuffer)
                 GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
                 GL33.glVertexAttribPointer(0, 3, GL33.GL_FLOAT, false, 0, 0)
+                GL33.glEnableVertexAttribArray(0)
             }
 
             normals?.let { normals ->
@@ -142,6 +150,7 @@ class Primitive(
                 GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, normalBuffer)
                 GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
                 GL33.glVertexAttribPointer(5, 3, GL33.GL_FLOAT, false, 0, 0)
+                GL33.glEnableVertexAttribArray(5)
 
                 if (tangents == null) positions?.let { positions ->
                     val tangents = BufferUtils.createFloatBuffer(normals.size * 4)
@@ -154,20 +163,24 @@ class Primitive(
                             posOut[1] = positions[index].y
                             posOut[2] = positions[index].z
                         }
+
                         override fun getNormal(normOut: FloatArray, face: Int, vert: Int) {
                             val index = (face * 3) + vert
                             normOut[0] = normals[index].x
                             normOut[1] = normals[index].y
                             normOut[2] = normals[index].z
                         }
+
                         override fun getTexCoord(texOut: FloatArray, face: Int, vert: Int) {
                             val index = (face * 3) + vert
                             texOut[0] = texCoords?.get(index)?.x ?: 0f
                             texOut[1] = texCoords?.get(index)?.y ?: 0f
                         }
+
                         override fun setTSpaceBasic(tangent: FloatArray, sign: Float, face: Int, vert: Int) {
                             tangents.put(tangent[0]).put(tangent[1]).put(tangent[2]).put(-sign)
                         }
+
                         override fun setTSpace(
                             tangent: FloatArray?,
                             biTangent: FloatArray?,
@@ -176,13 +189,15 @@ class Primitive(
                             isOrientationPreserving: Boolean,
                             face: Int,
                             vert: Int,
-                        ) {}
+                        ) {
+                        }
                     })
                     tangents.flip()
                     tangentBuffer = GL33.glGenBuffers()
                     GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, tangentBuffer)
                     GL33.glBufferData(GL33.GL_ARRAY_BUFFER, tangents, GL33.GL_STATIC_DRAW)
                     GL33.glVertexAttribPointer(9, 4, GL33.GL_FLOAT, false, 0, 0)
+                    GL33.glEnableVertexAttribArray(9)
                 }
             }
 
@@ -207,12 +222,15 @@ class Primitive(
                 GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, tangentBuffer)
                 GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
                 GL33.glVertexAttribPointer(9, 4, GL33.GL_FLOAT, false, 0, 0)
+                GL33.glEnableVertexAttribArray(9)
             }
         } else {
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, vertexBuffer)
             GL33.glVertexAttribPointer(0, 3, GL33.GL_FLOAT, false, 0, 0)
+            GL33.glEnableVertexAttribArray(0)
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, normalBuffer)
             GL33.glVertexAttribPointer(5, 3, GL33.GL_FLOAT, false, 0, 0)
+            GL33.glEnableVertexAttribArray(5)
         }
 
         texCoords?.let { texCoords ->
@@ -223,8 +241,10 @@ class Primitive(
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, texCoordsBuffer)
             GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
             GL33.glVertexAttribPointer(2, 2, GL33.GL_FLOAT, false, 0, 0)
+            GL33.glEnableVertexAttribArray(2)
             if (midCoords == null) {
                 GL33.glVertexAttribPointer(8, 2, GL33.GL_FLOAT, false, 0, 0)
+                GL33.glEnableVertexAttribArray(8)
             }
         }
 
@@ -236,9 +256,10 @@ class Primitive(
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, midCoordsBuffer)
             GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
             GL33.glVertexAttribPointer(8, 2, GL33.GL_FLOAT, false, 0, 0)
+            GL33.glEnableVertexAttribArray(8)
         }
 
-        GL20.glVertexAttribPointer(1, 4, GL33.GL_FLOAT, false, 0, 0)
+        GL33.glDisableVertexAttribArray(1)
 
         if (indices != null) {
             val buffer = BufferUtils.createIntBuffer(indexCount)
@@ -265,6 +286,7 @@ class Primitive(
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, this.jointBuffer)
             GL33.glBufferData(GL33.GL_ARRAY_BUFFER, jointBuffer, GL33.GL_STATIC_DRAW)
             GL33.glVertexAttribPointer(0, 4, GL33.GL_INT, false, 0, 0)
+            GL33.glEnableVertexAttribArray(0)
         }
 
         jointWeights?.let { weights ->
@@ -275,6 +297,7 @@ class Primitive(
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, this.weightsBuffer)
             GL33.glBufferData(GL33.GL_ARRAY_BUFFER, weightsBuffer, GL33.GL_STATIC_DRAW)
             GL33.glVertexAttribPointer(1, 4, GL33.GL_FLOAT, false, 0, 0)
+            GL33.glEnableVertexAttribArray(1)
         }
 
         positions?.let { positions ->
@@ -286,6 +309,7 @@ class Primitive(
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, skinVertexBuffer)
             GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
             GL33.glVertexAttribPointer(2, 3, GL33.GL_FLOAT, false, 0, 0)
+            GL33.glEnableVertexAttribArray(2)
         }
 
         normals?.let { normals ->
@@ -297,6 +321,7 @@ class Primitive(
             GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, skinNormalBuffer)
             GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
             GL33.glVertexAttribPointer(3, 3, GL33.GL_FLOAT, false, 0, 0)
+            GL33.glEnableVertexAttribArray(3)
         }
 
         vertexBuffer = GL33.glGenBuffers()
@@ -330,30 +355,41 @@ class Primitive(
         cachedRenderType = null
     }
 
-    fun renderVAO(
-        stack: PoseStack,
+
+    private fun initVAO(
+        pipeline: RenderPipeline,
+        node: Node,
     ) {
         if (useBatching) return
-        if (morphTargets.isNotEmpty()) updateMorphTargets()
+        if (morphTargets.isNotEmpty()) {
+            pipeline.addVAORenderable {
+                updateMorphTargets()
+            }
+        }
+        pipeline.addVAORenderable {
+            renderVAO(node, stack)
+        }
+    }
+
+    fun renderVAO(
+        node: Node,
+        stack: PoseStack,
+    ) {
 
         val shader = SHADER
         val (normal, specular) = applyMaterial(shader, material)
 
-        GL33.glBindVertexArray(vao)
-        if (indexBuffer != -1) GL33.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER, indexBuffer)
-
-        GL33.glEnableVertexAttribArray(0)
-        if (texCoordsBuffer != -1) GL33.glEnableVertexAttribArray(2)
-        if (normalBuffer != -1) GL33.glEnableVertexAttribArray(5)
-        if (tangentBuffer != -1) GL33.glEnableVertexAttribArray(9)
-        if (hasShaders) GL20.glEnableVertexAttribArray(8)
+        RenderSystem.glBindVertexArray(::vao)
+        if (indexBuffer != -1) RenderSystem.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER, ::indexBuffer)
 
         val modelView = Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.last().pose())
+        modelView.mul(node.globalMatrix.asMatrix4f())
         shader.MODEL_VIEW_MATRIX?.set(modelView)
         shader.MODEL_VIEW_MATRIX?.upload()
 
         shader.getUniform("NormalMat")?.let {
             val normal = Matrix3f(stack.last().normal())
+            normal.mul(node.globalMatrix.getUpperLeft(MutableMat3f()).asMatrix3f())
             it.set(normal)
             it.upload()
         }
@@ -361,73 +397,80 @@ class Primitive(
         if (indexBuffer != -1) GL33.glDrawElements(GL33.GL_TRIANGLES, indexCount, GL33.GL_UNSIGNED_INT, 0L)
         else GL33.glDrawArrays(GL33.GL_TRIANGLES, 0, positionsCount)
 
-        if (material.doubleSided) RenderSystem.enableCull()
-
         if (hasShaders) {
             GL33.glGetUniformLocation(shader.id, "normals").takeIf { it != -1 }?.let {
-                GL33.glActiveTexture(COLOR_MAP_INDEX + GL33.glGetUniformi(shader.id, it))
-                GL33.glBindTexture(GL33.GL_TEXTURE_2D, normal)
+                RenderSystem.activeTexture(COLOR_MAP_INDEX + GL33.glGetUniformi(shader.id, it))
+                RenderSystem.bindTexture(normal)
             }
             GL33.glGetUniformLocation(shader.id, "specular").takeIf { it != -1 }?.let {
-                GL33.glActiveTexture(COLOR_MAP_INDEX + GL33.glGetUniformi(shader.id, it))
-                GL33.glBindTexture(GL33.GL_TEXTURE_2D, specular)
+                RenderSystem.activeTexture(COLOR_MAP_INDEX + GL33.glGetUniformi(shader.id, it))
+                RenderSystem.bindTexture(specular)
             }
         }
-
-        GL33.glCullFace(GL33.GL_BACK)
-
-        GL33.glDisableVertexAttribArray(0)
-        if (texCoordsBuffer != -1) GL33.glDisableVertexAttribArray(2)
-        if (normalBuffer != -1) GL33.glDisableVertexAttribArray(5)
-        if (tangentBuffer != -1) GL33.glDisableVertexAttribArray(9)
-        if (hasShaders) GL20.glDisableVertexAttribArray(8)
     }
 
-    fun renderBatching(
-        stack: PoseStack,
-        bufferSource: MultiBufferSource,
-        overlayCoords: Int,
-        packedLight: Int,
+    fun initBatching(
+        pipeline: RenderPipeline,
+        node: Node,
+        positions: Array<Vec3f>,
+        texCoords: Array<Vec2f>,
+        normals: Array<Vec3f>,
     ) {
-
-        val renderType = getRenderType()
-        val vertexConsumer = bufferSource.getBuffer(renderType)
-
-        val pose = stack.last().pose()
-        val normal = stack.last().normal()
         val color = material.color
 
+        val renderType = getRenderType()
         if (indices != null) {
-            for (index in indices) {
-                putVertex(vertexConsumer, pose, normal, index, color, overlayCoords, packedLight)
+            pipeline.addBatchedRenderable {
+                val vertexConsumer = source.getBuffer(renderType)
+                val pose = stack.last().pose()
+                val normal = stack.last().normal()
+
+                for (index in indices) {
+                    putVertex(
+                        node, positions, texCoords, normals, vertexConsumer, pose,
+                        normal, index, color, overlay, light
+                    )
+                }
             }
         } else {
-            for (i in 0 until positions!!.size) {
-                putVertex(vertexConsumer, pose, normal, i, color, overlayCoords, packedLight)
+            pipeline.addBatchedRenderable {
+                val vertexConsumer = source.getBuffer(renderType)
+                val pose = stack.last().pose()
+                val normal = stack.last().normal()
+                for (i in 0 until positions.size) {
+                    putVertex(
+                        node, positions, texCoords, normals, vertexConsumer, pose,
+                        normal, i, color, overlay, light
+                    )
+                }
             }
         }
     }
 
     private fun putVertex(
+        node: Node,
+        positions: Array<Vec3f>,
+        texCoords: Array<Vec2f>,
+        normals: Array<Vec3f>,
         consumer: VertexConsumer,
         pose: Matrix4f,
-        normal: Matrix3f,
+        normalMat: Matrix3f,
         index: Int,
         color: Color,
         overlayCoords: Int,
         packedLight: Int,
     ) {
-        val positions = positions!!
-        val texCoords = texCoords!!
-        val normals = normals!!
+        val global = node.globalMatrix
+        val pos = global.transform(positions[index], 1f, MutableVec3f())
+        val normal = global.getUpperLeft(MutableMat3f()).transform(normals[index], MutableVec3f())
 
         consumer
-            .vertex(pose, positions[index].x, positions[index].y, positions[index].z)
+            .vertex(pose, pos.x, pos.y, pos.z)
             .color(color.r, color.g, color.b, color.a)
             .uv(texCoords[index].x, texCoords[index].y)
             .overlayCoords(overlayCoords)
             .uv2(packedLight)
-            .normal(normal, normals[index].x, normals[index].y, normals[index].z)
+            .normal(normalMat, normal.x, normal.y, normal.z)
             .endVertex()
     }
 
@@ -446,21 +489,23 @@ class Primitive(
 
         if (areShadersEnabled) {
             GL33.glGetUniformLocation(shader.id, "normals").takeIf { it != -1 }?.let {
-                GL33.glActiveTexture(COLOR_MAP_INDEX + GL33.glGetUniformi(shader.id, it))
+                RenderSystem.activeTexture(COLOR_MAP_INDEX + GL33.glGetUniformi(shader.id, it))
                 normal = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D)
-                GL33.glBindTexture(GL33.GL_TEXTURE_2D, material.normalTexture.toTexture().id)
+                RenderSystem.bindTexture(material.normalTexture.toTexture().id)
             }
             GL33.glGetUniformLocation(shader.id, "specular").takeIf { it != -1 }?.let {
-                GL33.glActiveTexture(COLOR_MAP_INDEX + GL33.glGetUniformi(shader.id, it))
+                RenderSystem.activeTexture(COLOR_MAP_INDEX + GL33.glGetUniformi(shader.id, it))
                 specular = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D)
-                GL33.glBindTexture(GL33.GL_TEXTURE_2D, material.specularTexture.toTexture().id)
+                RenderSystem.bindTexture(material.specularTexture.toTexture().id)
             }
         }
 
-        GL13.glActiveTexture(COLOR_MAP_INDEX)
+        RenderSystem.activeTexture(COLOR_MAP_INDEX)
         RenderSystem.bindTexture(Minecraft.getInstance().textureManager.getTexture(material.texture).id)
 
         if (material.doubleSided) RenderSystem.disableCull()
+        else RenderSystem.enableCull()
+
         when (material.blend) {
             Material.Blend.OPAQUE -> RenderSystem.disableBlend()
             Material.Blend.BLEND -> {
@@ -476,9 +521,13 @@ class Primitive(
         morphCommands.forEach { it(weights) }
     }
 
-    fun transformSkinning(node: Node) {
-        if (useBatching) return
+    private fun initSkinning(pipeline: RenderPipeline, node: Node) {
+        if(hasSkinning) {
+            pipeline.addSkinnable { transformSkinning(node) }
+        }
+    }
 
+    fun transformSkinning(node: Node) {
         GL13.glActiveTexture(GL13.GL_TEXTURE0)
         GL33.glBindBuffer(GL33.GL_TEXTURE_BUFFER, jointMatrixBuffer)
         GL33.glBufferSubData(GL33.GL_TEXTURE_BUFFER, 0, computeMatrices(node))
@@ -491,15 +540,7 @@ class Primitive(
         GL30.glBeginTransformFeedback(GL11.GL_POINTS)
         GL30.glBindVertexArray(skinningVao)
 
-        GL33.glEnableVertexAttribArray(0)
-        GL33.glEnableVertexAttribArray(1)
-        GL33.glEnableVertexAttribArray(2)
-        GL33.glEnableVertexAttribArray(3)
         GL11.glDrawArrays(GL11.GL_POINTS, 0, positionsCount)
-        GL33.glDisableVertexAttribArray(0)
-        GL33.glDisableVertexAttribArray(1)
-        GL33.glDisableVertexAttribArray(2)
-        GL33.glDisableVertexAttribArray(3)
 
         GL30.glEndTransformFeedback()
     }

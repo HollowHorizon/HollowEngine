@@ -111,7 +111,7 @@ fun UiScope.FileDockingTabsBar(
     if (dockNode != null && nodeCount > 1) {
 
         Row(width = Grow.Std) {
-
+            modifier.margin(vertical=sizes.smallGap)
             LazyList(
                 height = FitContent,
                 isScrollByDrag = true,
@@ -126,6 +126,7 @@ fun UiScope.FileDockingTabsBar(
                 items(dockNode.dockedItems.filter { !it.isHidden }) { item ->
                     Row {
                         val (isHovered, anim) = hoverListener { !dockNode.isOnTop(item) }
+
 
                         modifier
                             .margin(horizontal = sizes.smallGap)
@@ -257,6 +258,7 @@ fun UiScope.FileTitleBar(
             )
         }
         Row(Grow.Std) {
+            if(windowDockable.isDocked.use()) modifier.margin(sizes.smallGap)
             modifier
                 .onClick {
                     if (it.pointer.isMiddleButtonReleased) {
@@ -295,7 +297,8 @@ fun UiScope.FileTitleBar(
 
 
             drawAlignLeft?.let {
-                Box(sizes.borderWidth, Grow.Std) {
+
+                if(false) Box(sizes.borderWidth, Grow.Std) {
                     modifier.backgroundColor(borderColor)
                 }
                 it()
@@ -303,7 +306,7 @@ fun UiScope.FileTitleBar(
 
             Box(Grow.Std) {}
 
-            if(drawAlignRight != null || onCloseAction != null) Box(sizes.borderWidth, Grow.Std) {
+            if((drawAlignRight != null || onCloseAction != null) && false) Box(sizes.borderWidth, Grow.Std) {
                 modifier.backgroundColor(borderColor)
                     .margin(horizontal = sizes.smallGap)
             }

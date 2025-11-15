@@ -9,9 +9,8 @@ import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterKeyBindingsEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
-import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentScreen
 
-val HOLLOW_ENGINE_KEY = KeyMapping("key.hollowengine.menu", GLFW.GLFW_KEY_F12, "key.hollowengine")
+val HOLLOW_ENGINE_KEY = KeyMapping("key.hollowengine.menu", GLFW.GLFW_KEY_F10, "key.hollowengine")
 
 @SubscribeEvent
 fun onRegisterKeys(event: RegisterKeyBindingsEvent) {
@@ -21,6 +20,6 @@ fun onRegisterKeys(event: RegisterKeyBindingsEvent) {
 @SubscribeEvent
 fun onTick(event: TickEvent.Client) {
     if (HOLLOW_ENGINE_KEY.isDown) {
-        ScriptingEnvironmentScreen().open()
+
     }
 }

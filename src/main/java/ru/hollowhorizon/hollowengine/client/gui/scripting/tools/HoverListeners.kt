@@ -50,6 +50,16 @@ fun UiScope.hoverColors(
     return colors.mapIndexed { i, color -> color.mix(hoverColors[i], factor) }
 }
 
+fun UiScope.hoverFactor(): MutableStateValue<Float> {
+    val (isHovered, anim) = hoverListener()
+
+    return remember(0f).apply {
+        var factor = Easing.quadRev(anim.progressAndUse())
+        if (!isHovered.use()) factor = 1f - factor
+        set(factor)
+    }
+}
+
 class AnimatedFloat(var duration: Float, initValue: Float = 1f) : AnimatedState<Float>(initValue) {
     override var isActive = false
         private set

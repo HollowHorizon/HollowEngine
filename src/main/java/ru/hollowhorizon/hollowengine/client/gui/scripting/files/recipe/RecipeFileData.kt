@@ -12,13 +12,11 @@ import net.minecraft.world.item.crafting.RecipeType
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.textLine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
-import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentScreen
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 
 class RecipeFileData(name: String, path: String) : FileData(name, path) {
-    val screen = (Minecraft.getInstance().screen as ScriptingEnvironmentScreen)
 
     override fun save() {}
 
@@ -29,7 +27,6 @@ class RecipeFileData(name: String, path: String) : FileData(name, path) {
             Minecraft.getInstance().connection?.recipeManager?.getAllRecipesFor(RecipeType.CRAFTING)?.chunked(3)
                 ?: return
 
-        screen.overlay = {}
 
         LazyColumn {
             items(recipes) { chunk ->
@@ -82,7 +79,7 @@ class RecipeFileData(name: String, path: String) : FileData(name, path) {
             val state = remember { TooltipState(0.0) }
             modifier.hoverListener(state)
 
-            if (!stack.isEmpty && state.use()) screen.overlay = {
+            if (!stack.isEmpty && state.use()) surface.popup().apply {
                 surface.popup().apply {
                     modifier
                         .margin(

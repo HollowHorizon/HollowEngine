@@ -206,6 +206,8 @@ class KotlinTextDocumentService(
         )
     }
 
+    fun format(code: String) = formattingService.formatKotlinCode(code)
+
     override fun didChange(params: DidChangeTextDocumentParams) {
         val uri = parseFile(params.textDocument.uri)
         sf.edit(uri, params.textDocument.version, params.contentChanges)
