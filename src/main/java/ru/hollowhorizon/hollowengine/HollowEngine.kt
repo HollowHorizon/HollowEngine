@@ -4,8 +4,10 @@ import kotlinx.coroutines.runBlocking
 import org.apache.logging.log4j.LogManager
 import org.eclipse.lsp4j.InitializeParams
 import ru.hollowhorizon.hollowengine.api.Init
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageClient
 import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
+import ru.hollowhorizon.hollowengine.common.scripting.components.ServerComponent
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.example.HollowScript
 import ru.hollowhorizon.hollowengine.common.scripting.core.setupScripting

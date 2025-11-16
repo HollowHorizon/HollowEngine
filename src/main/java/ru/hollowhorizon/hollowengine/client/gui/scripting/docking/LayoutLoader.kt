@@ -31,27 +31,8 @@ object LayoutLoader {
             else LAYOUTS[name]?.dockable
         }
 
-        val layoutLoaded = DockLayout.loadLayout(IDE_LAYOUT, dock, layoutLoader)
+        DockLayout.loadLayout(IDE_LAYOUT, dock, layoutLoader)
 
-        if (!layoutLoaded) {
-            dock.createNodeLayout(listOf("0:leaf"))
-
-            layoutLoader("hollowengine.gui.ide.project_tree")?.let {
-                dock.getLeafAtPath("0")?.dock(it)
-            }
-            layoutLoader("hollowengine.gui.ide.files")?.let {
-                dock.getLeafAtPath("0")?.dock(it)
-            }
-            layoutLoader("hollowengine.gui.ide.recipes")?.let {
-                dock.getLeafAtPath("0")?.dock(it)
-            }
-            layoutLoader("hollowengine.gui.ide.console")?.let {
-                dock.getLeafAtPath("0")?.dock(it)
-            }
-            layoutLoader("hollowengine.gui.ide.autoruns")?.let {
-                dock.getLeafAtPath("0")?.dock(it)
-            }
-        }
     }
 
     @JvmStatic

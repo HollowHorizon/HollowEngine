@@ -40,7 +40,7 @@ object CoreInitializationFabric {
         getSubTypes =
             {
                 graph.getSubclasses(it)
-                    .filter { isClient || !it.annotationInfo.all { it.name != ClientOnly::class.java.name } }
+                    .filter { isClient || it.annotationInfo.all { it.name != ClientOnly::class.java.name } }
                     .safeClasses().toSet()
             }
         getAnnotatedClasses =
