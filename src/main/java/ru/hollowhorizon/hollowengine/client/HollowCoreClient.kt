@@ -41,7 +41,6 @@ import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListen
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
-import ru.hollowhorizon.hollowengine.common.scripting.codegen.AssetCodeGenerator
 
 @ClientOnly
 object HollowCoreClient {

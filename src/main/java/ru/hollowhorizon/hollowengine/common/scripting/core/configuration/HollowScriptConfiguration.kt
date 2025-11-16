@@ -2,8 +2,6 @@ package ru.hollowhorizon.hollowengine.common.scripting.core.configuration
 
 //? if forge
 /*import net.minecraftforge.fml.loading.FMLEnvironment*/
-import net.minecraft.client.Minecraft
-import ru.hollowhorizon.hollowengine.common.scripting.codegen.AssetCodeGenerator
 import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import ru.hollowhorizon.hollowengine.common.scripting.core.Import
 import ru.hollowhorizon.hollowengine.common.scripting.core.deobfClasspath
@@ -53,19 +51,8 @@ open class HollowScriptConfiguration(body: Builder.() -> Unit = {}) : ScriptComp
 
     ide { acceptedLocations(ScriptAcceptedLocation.Everywhere) }
 
-    importScripts(ImportAssets)
-
 })
 
-object ImportAssets: SourceCode {
-    val sources by lazy { AssetCodeGenerator.generateAssetsClass(Minecraft.getInstance().resourceManager) }
-    override val text: String
-        get() {
-            return if(Minecraft.getInstance().level == null) "" else sources
-        }
-    override val name = "ImportModels.kts"
-    override val locationId: String? = name
-}
 
 fun classpath(): List<File> {
     val files = ArrayList<File>()
