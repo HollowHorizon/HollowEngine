@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.core.configuration
 
-import org.jetbrains.kotlin.com.intellij.testFramework.LightVirtualFile
-import org.jetbrains.kotlin.com.intellij.testFramework.LightVirtualFileBase
+import com.intellij.testFramework.LightVirtualFile
+import com.intellij.testFramework.LightVirtualFileBase
 import org.jetbrains.kotlin.scripting.resolve.VirtualFileScriptSource
 import ru.hollowhorizon.hollowengine.common.scripting.core.Import
 import java.io.File

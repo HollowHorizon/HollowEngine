@@ -1,24 +1,17 @@
+
 import dev.kikugie.stonecutter.build.StonecutterBuildExtension
 import net.fabricmc.loom.api.LoomGradleExtensionAPI
-import org.gradle.api.Project
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.kotlin.dsl.DependencyHandlerScope
-import org.gradle.kotlin.dsl.exclude
-import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.named
 
 var isForgelike = false
 
 fun DependencyHandlerScope.install(path: String, includeInJar: Boolean = true, isMod: Boolean = false) {
     val dependency = if (isMod) modImplementation(path) else "implementation"(path) {
-        exclude("org.jetbrains.kotlin")
-        exclude("org.lwjgl")
-        exclude("org.ow2.asm")
-        exclude("net.sourceforge.jaad.aac")
-        exclude("org.slf4j")
-        exclude("commons-logging")
+        isTransitive = false
     }
 
     dependency.takeIf { isForgelike && !isMod }?.let { "forgeRuntimeLibrary"(it) }

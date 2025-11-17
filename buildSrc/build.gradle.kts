@@ -1,7 +1,7 @@
 plugins {
+    kotlin("jvm") version "2.3.0-Beta2"
+    kotlin("plugin.serialization") version "2.3.0-Beta2"
     `kotlin-dsl`
-    kotlin("jvm") version "2.2.0"
-    kotlin("plugin.serialization") version "2.2.0"
 }
 
 repositories {
@@ -18,7 +18,7 @@ dependencies {
     implementation("dev.architectury:architectury-loom:1.9-SNAPSHOT")
     implementation("net.fabricmc:tiny-remapper:0.10.4")
     implementation("dev.kikugie:stonecutter:0.7.10")
-    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.0")
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.0-Beta2")
     implementation("me.fallenbreath.yamlang:me.fallenbreath.yamlang.gradle.plugin:1.4.1")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.9.0")
@@ -28,5 +28,12 @@ dependencies {
 sourceSets {
     main {
         kotlin.srcDir("src/main/kotlin")
+    }
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    compilerOptions {
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_1)
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_1)
     }
 }

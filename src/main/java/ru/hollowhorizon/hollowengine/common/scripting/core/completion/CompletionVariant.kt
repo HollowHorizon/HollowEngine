@@ -3,16 +3,11 @@ package ru.hollowhorizon.hollowengine.common.scripting.core.completion
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.TextCaretNavigation
-import org.eclipse.lsp4j.CompletionItemKind
-import org.eclipse.lsp4j.Position
-import org.jetbrains.kotlin.psi.psiUtil.endOffset
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.fullText
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.CompiledFileProvider
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextAreaNode
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.setSelectionRange
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
-import ru.hollowhorizon.hollowengine.common.project.kt.position.position
 
 data class CompletionVariant(
     val insertText: String,
@@ -20,7 +15,7 @@ data class CompletionVariant(
     val tail: String,
     val icon: Icon,
     val matchIndices: List<Int> = emptyList(), // Индексы совпадающих символов для подсветки
-    val textEdits: List<Pair<Position, String>> = emptyList(),
+    val textEdits: List<Pair<Int, String>> = emptyList(),
     val isLambda: Boolean,
 ) {
     override fun toString() = displayText
@@ -93,7 +88,7 @@ data class CompletionVariant(
         // Добавление импортов
         if (textEdits.isNotEmpty()) {
             textEdits.forEach { (position, text) ->
-                lineIndex += provider.insertText(position.line, position.character, text).y - position.line
+                //TODO lineIndex += provider.insertText(position.line, position.character, text).y - position.line
             }
         }
 
@@ -170,14 +165,6 @@ data class CompletionVariant(
     enum class Icon {
         PACKAGE, CLASS, METHOD, VARIABLE, UNKNOWN;
 
-        companion object {
-            fun fromKind(kind: CompletionItemKind) = when (kind) {
-                CompletionItemKind.File, CompletionItemKind.Folder -> PACKAGE
-                CompletionItemKind.Class, CompletionItemKind.Enum, CompletionItemKind.Interface -> CLASS
-                CompletionItemKind.Method, CompletionItemKind.Function, CompletionItemKind.Operator, CompletionItemKind.Constructor -> METHOD
-                CompletionItemKind.Field, CompletionItemKind.Variable, CompletionItemKind.Property, CompletionItemKind.Value -> VARIABLE
-                else -> UNKNOWN
-            }
-        }
+        companion object
     }
 }

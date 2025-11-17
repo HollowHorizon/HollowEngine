@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.mixins.scripting;
 
-import org.jetbrains.kotlin.com.intellij.util.containers.FList;
+import com.intellij.util.containers.FList;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 

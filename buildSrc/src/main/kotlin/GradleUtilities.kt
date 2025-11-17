@@ -43,7 +43,6 @@ fun Project.setupEnviroment(
             flatDir { dirs(rootDir.resolve("libs")) }
 
             maven("https://repo.spongepowered.org/repository/maven-public/")
-            maven("https://maven.0mods.team/releases")
             maven("https://maven.parchmentmc.org")
             maven("https://maven.architectury.dev/")
             maven("https://jitpack.io")
@@ -55,14 +54,6 @@ fun Project.setupEnviroment(
         dependencies {
             "compileOnly"("org.spongepowered:mixin:0.8.7")
 
-            install("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion", includeKotlin)
-            install("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion", includeKotlin)
-            install("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion", includeKotlin)
-            install("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion", includeKotlin)
-            install("org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.0", includeKotlin)
-            install("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0", includeKotlin)
-            install("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0", includeKotlin)
-            install("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1", includeKotlin)
 
             "implementation"("org.ow2.asm:asm:9.7")
             "implementation"("org.ow2.asm:asm-tree:9.7")

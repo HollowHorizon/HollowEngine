@@ -4,8 +4,9 @@ import org.objectweb.asm.commons.Remapper
 import kotlin.metadata.*
 import kotlin.metadata.jvm.*
 
-@OptIn(ExperimentalContextReceivers::class)
+@OptIn(ExperimentalContextParameters::class)
 class KotlinClassRemapper(private val remapper: Remapper) {
+    @OptIn(ExperimentalContextReceivers::class)
     fun remap(clazz: KmClass): KmClass {
         clazz.name = remap(clazz.name)
         clazz.typeParameters.replaceAll(this::remap)
@@ -16,7 +17,6 @@ class KotlinClassRemapper(private val remapper: Remapper) {
         clazz.constructors.replaceAll(this::remap)
         clazz.nestedClasses.replaceAll(this::remap)
         clazz.sealedSubclasses.replaceAll(this::remap)
-        clazz.contextReceiverTypes.replaceAll(this::remap)
         clazz.localDelegatedProperties.replaceAll(this::remap)
         return clazz
     }
@@ -54,7 +54,7 @@ class KotlinClassRemapper(private val remapper: Remapper) {
     private fun remap(function: KmFunction): KmFunction {
         function.typeParameters.replaceAll(this::remap)
         function.receiverParameterType = function.receiverParameterType?.let { remap(it) }
-        function.contextReceiverTypes.replaceAll(this::remap)
+        function.contextParameters.replaceAll(this::remap)
         function.valueParameters.replaceAll(this::remap)
         function.returnType = remap(function.returnType)
         function.signature = function.signature?.let { remap(it) }
@@ -63,7 +63,7 @@ class KotlinClassRemapper(private val remapper: Remapper) {
     private fun remap(property: KmProperty): KmProperty {
         property.typeParameters.replaceAll(this::remap)
         property.receiverParameterType = property.receiverParameterType?.let { remap(it) }
-        property.contextReceiverTypes.replaceAll(this::remap)
+        property.contextParameters.replaceAll(this::remap)
         property.setterParameter = property.setterParameter?.let { remap(it) }
         property.returnType = remap(property.returnType)
         property.fieldSignature = property.fieldSignature?.let { remap(it) }

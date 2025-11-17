@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.mixins.scripting;
 
-import org.jetbrains.kotlin.com.intellij.util.keyFMap.KeyFMap;
+import com.intellij.util.keyFMap.KeyFMap;
 import org.jetbrains.kotlin.util.slicedMap.SlicedMapImpl;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;

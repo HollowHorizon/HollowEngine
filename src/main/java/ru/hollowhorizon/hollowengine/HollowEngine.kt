@@ -2,12 +2,9 @@ package ru.hollowhorizon.hollowengine
 
 import kotlinx.coroutines.runBlocking
 import org.apache.logging.log4j.LogManager
-import org.eclipse.lsp4j.InitializeParams
 import ru.hollowhorizon.hollowengine.api.Init
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
-import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageClient
-import ru.hollowhorizon.hollowengine.common.project.kt.KotlinLanguageServer
-import ru.hollowhorizon.hollowengine.common.scripting.components.ServerComponent
+import ru.hollowhorizon.hollowengine.common.ide.structure.ProjectStructure
+import ru.hollowhorizon.hollowengine.common.ide.structure.ProjectStructureInitiator
 import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
 import ru.hollowhorizon.hollowengine.common.scripting.core.example.HollowScript
 import ru.hollowhorizon.hollowengine.common.scripting.core.setupScripting
@@ -22,10 +19,11 @@ import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
 object HollowEngine {
     const val MODID = "hollowengine"
     val LOGGER = LogManager.getLogger()
+    val projectStructure: ProjectStructure
 
     init {
-
         setupScripting()
+        projectStructure = ProjectStructureInitiator.initiateProjectStructure()
 
         runBlocking {
             ScriptingCompiler.compileText<HollowScript>("ru.hollowhorizon.hc.LOGGER.info(\"Scripting engine loaded!\")")
@@ -39,9 +37,5 @@ object HollowEngine {
         //? if forge {
         /*if (isPhysicalClient) setupCamera()
         *///?}
-
-        KotlinLanguageServer.initialize(InitializeParams().apply {
-        })
-        KotlinLanguageServer.connect(KotlinLanguageClient)
     }
 }

@@ -67,6 +67,18 @@ object StonecutterSetup {
 
             kotlin.apply {
                 jvmToolchain(if (j21) 21 else 17)
+
+                compilerOptions {
+                    optIn.add("org.jetbrains.kotlin.analysis.api.KaPlatformInterface")
+                    optIn.add("org.jetbrains.kotlin.analysis.api.KaImplementationDetail")
+                    optIn.add("org.jetbrains.kotlin.analysis.api.KaExperimentalApi")
+                    optIn.add("org.jetbrains.kotlin.analysis.api.KaIdeApi")
+                    optIn.add("org.jetbrains.kotlin.analysis.api.KaContextParameterApi")
+                    optIn.add("kotlin.ExperimentalUnsignedTypes")
+                    optIn.add("kotlin.contracts.ExperimentalContracts")
+                    freeCompilerArgs.add("-Xcontext-receivers")
+                    freeCompilerArgs.add("-Xwhen-guards")
+                }
             }
         }
     }

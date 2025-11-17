@@ -4,7 +4,7 @@ import kotlin.Unit;
 import kotlin.script.experimental.api.ScriptCompilationConfiguration;
 import kotlin.script.experimental.host.ScriptingHostConfiguration;
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector;
-import org.jetbrains.kotlin.com.intellij.openapi.Disposable;
+import com.intellij.openapi.Disposable;
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar;
 import org.jetbrains.kotlin.config.CompilerConfiguration;
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.CompilationContextKt;

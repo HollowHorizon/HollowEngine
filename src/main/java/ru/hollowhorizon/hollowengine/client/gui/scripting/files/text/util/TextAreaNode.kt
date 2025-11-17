@@ -18,15 +18,13 @@ import de.fabmax.kool.scene.addTriangulatedLineMesh
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import net.minecraft.client.Minecraft
-import org.eclipse.lsp4j.Diagnostic
-import org.eclipse.lsp4j.DiagnosticSeverity
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
+import org.jetbrains.kotlin.diagnostics.Diagnostic
 import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys.toEngine
 import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
-import ru.hollowhorizon.hollowengine.common.scripting.core.completion.SyntaxHighlight
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -382,9 +380,9 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                 val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp
 
 
-                errors.filter { it.range.start.line == lineIndex }.forEach { error ->
-                    setupError(error, font, line.text, maxWidth)
-                }
+//                errors.filter { it.range.start.line == lineIndex }.forEach { error ->
+//                    setupError(error, font, line.text, maxWidth)
+//                }
 
                 Box(maxWidth) {
                     modifier.margin(horizontal = sizes.smallGap).alignY(AlignmentY.Center)
@@ -415,9 +413,9 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     }
 
     private fun UiScope.setupError(error: Diagnostic, font: MsdfFont, text: String, maxWidth: Dp) {
-        val column = error.range.start.character
+        val column = 0//error.range.start.character
         if (column > text.length) return
-        val column2 = error.range.end.character
+        val column2 = 0//error.range.end.character
         if (column2 > text.length) return
         val startPos = if (text.isEmpty()) 0f else font.textDimensions(
             text.substring(0, column.coerceAtMost(text.length))
@@ -428,10 +426,10 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         getUiPrimitives(50).addTriangulatedLineMesh {
             this.width = 3f
-            this.color =
-                if (error.severity == DiagnosticSeverity.Error) SyntaxHighlight.ERROR_ELEMENT else SyntaxHighlight.KEYWORD.mix(
-                    SyntaxHighlight.ANNOTATION, 0.5f
-                )
+//            this.color =
+//                if (error.severity == DiagnosticSeverity.Error) SyntaxHighlight.ERROR_ELEMENT else SyntaxHighlight.KEYWORD.mix(
+//                    SyntaxHighlight.ANNOTATION, 0.5f
+//                )
 
             val leftPos = uiNode.leftPx + maxWidth.px + sizes.smallGap.px * 3f + sizes.borderWidth.px
             for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).toInt()).step(5)) {
@@ -444,7 +442,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             val mouse = PointerInput.primaryPointer
 
             if (mouse.pos.x in leftPos + startPos..leftPos + endPos && mouse.pos.y in uiNode.topPx..uiNode.bottomPx) {
-                errorMessage = error.message
+                //errorMessage = error.message
             }
         }
     }

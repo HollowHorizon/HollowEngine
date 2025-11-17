@@ -6,14 +6,11 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.logE
-import org.eclipse.lsp4j.DiagnosticSeverity
-import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.project.kt.diagnostic.convertDiagnostic
-import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
 
 
 class TextFileData(name: String, path: String, code: String) :
@@ -31,32 +28,7 @@ class TextFileData(name: String, path: String, code: String) :
     override fun save() {
     }
 
-    private val provider = CompiledFileProvider(filePath.fromReadablePath(), { it, query ->
-        modifier.completions.clear()
-        val completions = it.items.map { completion ->
-            val chars = query.toMutableList()
-            val isLambda = completion.insertText?.lastOrNull() == '{'
-            CompletionVariant(
-                completion.insertText?.let { if(isLambda) it.dropLast(1) else it } ?: completion.label,
-                completion.label,
-                completion.detail ?: "",
-                CompletionVariant.Icon.fromKind(completion.kind),
-                completion.label.mapIndexedNotNull { index, char ->
-                    if (char == chars.firstOrNull()) {
-                        if(chars.isNotEmpty()) chars.removeAt(0)
-                        index
-                    } else null
-                },
-                completion.additionalTextEdits?.map { it.range.start to it.newText } ?: emptyList(),
-                isLambda
-            )
-        }
-        modifier.completions += completions
-    }, { diagnostics ->
-        modifier.errors.clear()
-        modifier.errors.addAll(diagnostics.flatMap { convertDiagnostic(it).map { it.second } })
-        surface?.triggerUpdate()
-    })
+    private val provider = CompiledFileProvider(filePath.fromReadablePath())
 
     override fun UiScope.compose() {
         modifier.background(RoundRectBackground(colors.backgroundVariant, sizes.smallGap))
@@ -71,7 +43,7 @@ class TextFileData(name: String, path: String, code: String) :
                 this@TextFileData.area = this
                 installSelectionHandler(provider) { startLine, caretLine, startChar, caretChar ->
                     modifier.completions.clear()
-                    if (!provider.isRecompiling) provider.recolorize(startLine, caretLine, startChar, caretChar, false)
+                    // if (!provider.isRecompiling) provider.recolorize(startLine, caretLine, startChar, caretChar, false)
                 }
 
                 modifier.editorHandler(provider)
@@ -81,8 +53,8 @@ class TextFileData(name: String, path: String, code: String) :
                     .margin(end = sizes.smallGap * 2f)
                     .zLayer(5)
 
-                val errors = this@TextFileData.modifier.errors.count { it.severity == DiagnosticSeverity.Error }
-                val warnings = this@TextFileData.modifier.errors.count { it.severity == DiagnosticSeverity.Warning }
+                val errors = 0 //this@TextFileData.modifier.errors.count { it.severity == DiagnosticSeverity.Error }
+                val warnings = 0 // this@TextFileData.modifier.errors.count { it.severity == DiagnosticSeverity.Warning }
 
                 if (errors > 0) {
                     Row {
