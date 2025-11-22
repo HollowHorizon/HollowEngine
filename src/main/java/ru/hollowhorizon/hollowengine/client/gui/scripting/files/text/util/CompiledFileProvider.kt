@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHan
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoableAction
 import ru.hollowhorizon.hollowengine.client.utils.offset
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
 import java.io.File
@@ -17,7 +18,8 @@ import java.util.*
 
 class CompiledFileProvider(
     val file: File,
-    val onDiagnose: (List<Diagnostic>) -> Unit
+    val onDiagnose: (List<Diagnostic>) -> Unit,
+    val onCompletions: (List<CompletionItem>) -> Unit,
 ) : TextLineProvider, TextEditorHandler, UndoRedoHandler {
     val font = MsdfFont(HACK_FONT, 18f)
     val lines = ArrayList<TextLine>()
@@ -76,6 +78,7 @@ class CompiledFileProvider(
 
         ScriptingEnvironment.INSTANCE.analyzer.apply {
             highlightCode(selectionStartLine, selectionStartChar)
+            onCompletions(completions(file.name, currentText, offset(currentText,selectionStartLine, selectionStartChar)))
             onDiagnose(diagnostic(file.name, currentText))
         }
 

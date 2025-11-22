@@ -26,9 +26,12 @@ class TextFileData(name: String, path: String) :
     override fun save() {
     }
 
-    private val provider = CompiledFileProvider(filePath.fromReadablePath()) {
+    private val provider = CompiledFileProvider(filePath.fromReadablePath(), {
         modifier.errors.clear()
         modifier.errors.addAll(it)
+    }) {
+        modifier.completions.clear()
+        modifier.completions.addAll(it)
     }
 
     override fun UiScope.compose() {
@@ -43,7 +46,7 @@ class TextFileData(name: String, path: String) :
                 this@TextFileData.modifier = modifier
                 this@TextFileData.area = this
                 installSelectionHandler(provider) { startLine, caretLine, startChar, caretChar ->
-                    modifier.completions.clear()
+                    //modifier.completions.clear()
                     provider.lines.clear()
                     val code = ScriptingEnvironment.INSTANCE.analyzer.highlight(name, provider.currentText, offset(provider.currentText, startLine, startChar))
                     provider.lines.addAll(code.map { it.toKool(provider.font) })

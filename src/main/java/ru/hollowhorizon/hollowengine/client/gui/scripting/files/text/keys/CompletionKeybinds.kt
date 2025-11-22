@@ -41,12 +41,12 @@ fun onCompletions(event: ScriptAreaKeyEvent) {
 
         KeyboardInput.KEY_CURSOR_DOWN -> {
             if (!event.isPressed) return
-//            if (modifier.completionIndex < modifier.completions - 1) {
-//                event.area.completionsList.scrollToItem.set(modifier.completionIndex + 1)
-//                modifier.setCompletionIndex(modifier.completionIndex + 1)
-//            } else {
-//                modifier.setCompletionIndex(0)
-//            }
+            if (modifier.completionIndex < modifier.completions.size - 1) {
+                event.area.completionsList.scrollToItem.set(modifier.completionIndex + 1)
+                modifier.setCompletionIndex(modifier.completionIndex + 1)
+            } else {
+                modifier.setCompletionIndex(0)
+            }
             event.isCanceled = true
         }
 

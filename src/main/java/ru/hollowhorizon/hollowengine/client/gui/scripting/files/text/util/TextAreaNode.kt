@@ -21,6 +21,7 @@ import ru.hollowhorizon.hollowengine.client.HighlightTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys.toEngine
 import ru.hollowhorizon.hollowengine.common.events.EventBus
+import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
@@ -72,7 +73,7 @@ open class ScriptTextAreaModifier(surface: UiSurface) : UiModifier(surface) {
     var selectionCaretChar: Int by property(0)
     var onSelectionChanged: ((Int, Int, Int, Int) -> Unit)? by property(null)
 
-    val completions by property(mutableListOf<String>())
+    val completions by property(mutableListOf<CompletionItem>())
     val errors by property(mutableListOf<Diagnostic>())
 
     var completionIndex by property(0)
@@ -199,6 +200,7 @@ fun UiScope.ScriptTextArea(
 
                         textArea.completionsList = (this as LazyListNode).state
                         itemsIndexed(completions) { index, completion ->
+                            CompletionRenderer.renderCompletion(completion, textArea, this@setupContent.modifier.completionIndex == index)
                             //completion.apply { create(textArea, this@setupContent.modifier.completionIndex == index) }
                         }
                     }

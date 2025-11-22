@@ -4,10 +4,12 @@ import com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreProjectEnvironment
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtPsiFactory
+import ru.hollowhorizon.hollowengine.common.ide.session.completion.createCompletions
 import ru.hollowhorizon.hollowengine.common.ide.session.diagnostic.diagnosticCode
 import ru.hollowhorizon.hollowengine.common.ide.session.highlight.highlightCode
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaRekotLibraryModule
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaScriptModule
+import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
@@ -22,7 +24,23 @@ class ScriptingAnalyzerImpl(
         get() = kotlinCoreProjectEnvironment.project
     private val factory = KtPsiFactory(project, eventSystemEnabled = true)
 
-    fun createFile(name: String, text: String): KtFile {
+    private val fileCache = object : LinkedHashMap<String, CachedFile>(5, 0.75f, true) {
+        override fun removeEldestEntry(p0: MutableMap.MutableEntry<String, CachedFile>?): Boolean {
+            return size > 5 // Храним максимум 5 файлов, чтобы память не текла
+        }
+    }
+
+    private data class CachedFile(val textHash: Int, val textLength: Int, val file: KtFile)
+
+    private fun getOrCreateFile(name: String, text: String): KtFile {
+        val textHash = text.hashCode()
+        val textLength = text.length
+
+        val cached = fileCache[name]
+        if (cached != null && cached.textLength == textLength && cached.textHash == textHash) {
+            return cached.file
+        }
+
         val file = factory.createFile(name, text)
         projectStructureProvider.setModule(file, KaScriptModule(
             file, project, buildList {
@@ -30,6 +48,9 @@ class ScriptingAnalyzerImpl(
                 add(builtins.kaModule)
             }
         ))
+
+        fileCache[name] = CachedFile(textHash, textLength, file)
+
         return file
     }
 
@@ -38,12 +59,17 @@ class ScriptingAnalyzerImpl(
         text: String,
         offset: Int
     ): List<TextLine> {
-        val file = createFile(name, text)
+        val file = getOrCreateFile(name, text)
         return highlightCode(file, offset)
     }
 
+    override fun completions(name: String, text: String, offset: Int): List<CompletionItem> {
+        val file = getOrCreateFile(name, text)
+        return createCompletions(file, offset)
+    }
+
     override fun diagnostic(name: String, text: String): List<Diagnostic> {
-        val file = createFile(name, text)
+        val file = getOrCreateFile(name, text)
         return diagnosticCode(file)
     }
 }

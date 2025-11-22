@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.ide.session.highlight
 
-import com.intellij.lang.ASTNode
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
@@ -13,7 +12,6 @@ import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
-import org.jetbrains.kotlin.psi.psiUtil.children
 import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 import ru.hollowhorizon.hollowengine.common.scripting.ide.SpanStyle
@@ -45,17 +43,23 @@ class LineBuilder(val lines: MutableList<TextLine>) {
 fun highlightCode(file: KtFile, offset: Int): List<TextLine> {
     val code = file.text
     val lineCount = code.lines().size
-
     val builder = LineBuilder(arrayListOf())
 
     val elementAtCaret = file.findElementAt(offset).takeIfSelectable()
         ?: file.findElementAt(offset - 1).takeIfSelectable()
 
     analyze(file) {
+        // Предварительно вычисляем ключи символов под курсором
+        val caretKeys = elementAtCaret?.let { element ->
+            val expression = element.parentsWithSelf.firstIsInstanceOrNull<KtExpression>()
+            val symbols = expression?.let { resolveSymbolsForHighlight(it) } ?: emptyList()
+            symbols.map { normalizeToKey(it) }.toSet()
+        } ?: emptySet()
+
         for (i in 0 until lineCount) {
             builder.append {
                 for (element in getElementsAtLine(file, i)) {
-                    renderPsiElement(element, elementAtCaret, offset)
+                    renderPsiElement(element, elementAtCaret, caretKeys)
                 }
             }
         }
@@ -72,7 +76,11 @@ private val selectable: List<IElementType> = buildList {
 private fun PsiElement?.takeIfSelectable() = takeIf { it !is PsiWhiteSpace && it?.node?.elementType !in selectable }
 
 context(session: KaSession)
-private fun LineBuilder.SpanBuilder.renderPsiElement(element: Element, elementAtCaret: PsiElement?, offset: Int) {
+private fun LineBuilder.SpanBuilder.renderPsiElement(
+    element: Element,
+    elementAtCaret: PsiElement?,
+    caretKeys: Set<KaSymbol>,
+) {
     with(session) {
         val psi = element.psiElement
         val parent = psi.parent
@@ -85,36 +93,25 @@ private fun LineBuilder.SpanBuilder.renderPsiElement(element: Element, elementAt
 
         when {
             psi is KtAnnotationEntry -> tokenType = TokenType.ANNOTATION
-            KtTokens.KEYWORDS.contains(elementType) || KtTokens.SOFT_KEYWORDS.contains(elementType) -> tokenType =
-                TokenType.KEYWORD
-
-            elementType in KtTokens.STRINGS || elementType == KtTokens.OPEN_QUOTE || elementType == KtTokens.CLOSING_QUOTE -> tokenType =
-                TokenType.STRING
-
+            elementType in KtTokens.KEYWORDS || elementType in KtTokens.SOFT_KEYWORDS -> tokenType = TokenType.KEYWORD
+            elementType in KtTokens.STRINGS || elementType == KtTokens.OPEN_QUOTE || elementType == KtTokens.CLOSING_QUOTE -> tokenType = TokenType.STRING
             KtTokens.COMMENTS.contains(elementType) -> tokenType = TokenType.COMMENT
-
             parent is KtConstantExpression && !isEnumConstant(parent) -> tokenType = TokenType.NUMERIC_LITERAL
 
             else -> {
-                val symbols = when (parent) {
-                    is KtSimpleNameExpression -> parent.mainReference.resolveToSymbols()
-                    is KtNamedDeclaration -> if (parent.nameIdentifier == psi) listOfNotNull(parent.symbol) else emptyList()
-                    else -> emptyList()
-                }
+                val symbols = resolveSymbolsForHighlight(parent, psi)
 
-                // Выбираем один символ для цвета
                 val bestSymbol = pickBestSymbol(symbols)
 
                 if (bestSymbol != null) {
                     computeSymbolStyle(bestSymbol)
                 } else if (parent is KtConstantExpression && isEnumConstant(parent)) {
-                    // Fallback для Enum констант, если не разрешилось через символ
                     tokenType = TokenType.PROPERTY_IDENTIFIER
                 }
             }
         }
 
-        if (psi.shouldHighlight(elementAtCaret)) {
+        if (shouldHighlight(psi, elementAtCaret, caretKeys)) {
             highlight = true
         }
 
@@ -122,34 +119,99 @@ private fun LineBuilder.SpanBuilder.renderPsiElement(element: Element, elementAt
     }
 }
 
+context(session: KaSession)
+private fun shouldHighlight(
+    current: PsiElement,
+    target: PsiElement?,
+    caretKeys: Set<KaSymbol>,
+): Boolean {
+    with(session) {
+        if (target == null) return false
+
+        if (current == target) return true
+
+        if (current.isOtherParenthesis(target)) return true
+        if (target.isOtherParenthesis(current)) return true
+
+        if (current.node.elementType != target.node.elementType) return false
+
+        if (caretKeys.isEmpty()) return false
+
+        val currentExpression = current.parentsWithSelf.firstIsInstanceOrNull<KtExpression>() ?: return false
+        val currentSymbols = resolveSymbolsForHighlight(currentExpression)
+
+        return currentSymbols.any { symbol ->
+            normalizeToKey(symbol) in caretKeys
+        }
+    }
+}
+
+/**
+ * Главная логика нормализации для сравнения.
+ * Возвращает "Ключ", по которому символы считаются эквивалентными.
+ */
+context(session: KaSession)
+private fun normalizeToKey(symbol: KaSymbol): KaSymbol {
+    with(session) {
+        return when (symbol) {
+            // Конструктор -> ID класса
+            is KaConstructorSymbol -> symbol.containingSymbol ?: symbol
+
+            // Класс -> ID класса
+            is KaClassSymbol -> {
+                // Если это Companion Object, считаем его равным самому классу
+                if (symbol.classKind == KaClassKind.COMPANION_OBJECT) symbol.containingSymbol ?: symbol
+                else symbol
+            }
+
+            // Для остальных символов (функции, переменные) ключом является сам символ (equals/hashCode)
+            else -> symbol
+        }
+    }
+}
+
+context(session: KaSession)
+private fun resolveSymbolsForHighlight(element: PsiElement, specificPsi: PsiElement? = null): List<KaSymbol> {
+    with(session) {
+        return when (element) {
+            is KtSimpleNameExpression -> element.mainReference.resolveToSymbols().toList()
+            is KtNamedDeclaration -> {
+                // Если указан specificPsi (например, идентификатор имени), проверяем, что это он
+                if (specificPsi != null && element.nameIdentifier != specificPsi) return emptyList()
+                listOfNotNull(element.symbol)
+            }
+
+            else -> emptyList()
+        }
+    }
+}
+
+// --- Остальные методы (Стилизация и утилиты) без изменений или с мелкими правками ---
+
 private fun pickBestSymbol(symbols: Collection<KaSymbol>): KaSymbol? {
     if (symbols.isEmpty()) return null
     if (symbols.size == 1) return symbols.first()
 
-    return symbols.firstOrNull { it is KaClassSymbol } // Приоритет 1: Классы/Интерфейсы
-        ?: symbols.firstOrNull { it is KaConstructorSymbol } // Приоритет 2: Конструкторы
-        ?: symbols.firstOrNull { it is KaVariableSymbol } // Приоритет 3: Переменные
-        ?: symbols.firstOrNull { it is KaFunctionSymbol } // Приоритет 4: Функции
-        ?: symbols.first() // Fallback
+    return symbols.firstOrNull { it is KaClassSymbol }
+        ?: symbols.firstOrNull { it is KaConstructorSymbol }
+        ?: symbols.firstOrNull { it is KaVariableSymbol }
+        ?: symbols.firstOrNull { it is KaFunctionSymbol }
+        ?: symbols.first()
 }
 
 context(session: KaSession)
 private fun LineBuilder.SpanBuilder.computeSymbolStyle(symbol: KaSymbol) {
     with(session) {
-        // 1. Определяем базовый цвет на основе типа символа
         tokenType = when (symbol) {
-            is KaPackageSymbol -> TokenType.DEFAULT // Кто-нибудь вообще красит пакеты?
-
+            is KaPackageSymbol -> TokenType.DEFAULT
             is KaTypeAliasSymbol -> {
-                // Рекурсивно ищем, на что ссылается алиас
                 symbol.expandedType.expandedSymbol?.let {
                     computeSymbolStyle(it)
-                    tokenType // Немного костыльный способ, но по сути тут сейчас находится нужный цвет
+                    tokenType
                 } ?: TokenType.CLASS
             }
 
             is KaTypeParameterSymbol -> TokenType.PARAMETER
-
             is KaClassSymbol -> when (symbol.classKind) {
                 KaClassKind.CLASS -> TokenType.CLASS
                 KaClassKind.ENUM_CLASS -> TokenType.ENUM
@@ -168,7 +230,7 @@ private fun LineBuilder.SpanBuilder.computeSymbolStyle(symbol: KaSymbol) {
             }
 
             is KaFunctionSymbol -> when (symbol) {
-                is KaConstructorSymbol -> TokenType.CLASS // Конструкторы обычно красят как классы
+                is KaConstructorSymbol -> TokenType.CLASS
                 is KaNamedFunctionSymbol -> {
                     if (symbol.isExtension) TokenType.EXTENSION_RECEIVER
                     else if (symbol.location == KaSymbolLocation.TOP_LEVEL) TokenType.TOP_LEVEL
@@ -181,8 +243,6 @@ private fun LineBuilder.SpanBuilder.computeSymbolStyle(symbol: KaSymbol) {
 
             else -> TokenType.DEFAULT
         }
-
-        // 2. Применяем модификаторы (Static, Abstract, Deprecated)
         applyModifiers(symbol)
     }
 }
@@ -191,14 +251,11 @@ context(session: KaSession)
 private fun LineBuilder.SpanBuilder.applyModifiers(symbol: KaSymbol) {
     with(session) {
         if (symbol is KaCallableSymbol) {
-            // Статические методы/поля часто выделяют курсивом
             if (symbol.location == KaSymbolLocation.TOP_LEVEL || (symbol is KaNamedFunctionSymbol && symbol.isStatic)) {
                 italic = true
             }
         }
-
         if (symbol is KaDeclarationSymbol) {
-            // Abstract
             if (symbol.modality == KaSymbolModality.ABSTRACT) {
                 italic = true
             }
@@ -208,12 +265,9 @@ private fun LineBuilder.SpanBuilder.applyModifiers(symbol: KaSymbol) {
 
 fun getElementsAtLine(psiFile: PsiFile, lineNumber: Int): List<Element> {
     val elements = mutableListOf<Element>()
-
     val document = psiFile.fileDocument
 
-    if (lineNumber < 0 || lineNumber >= document.lineCount) {
-        return emptyList()
-    }
+    if (lineNumber < 0 || lineNumber >= document.lineCount) return emptyList()
 
     val lineStartOffset = document.getLineStartOffset(lineNumber)
     val lineEndOffset = document.getLineEndOffset(lineNumber)
@@ -226,7 +280,6 @@ fun getElementsAtLine(psiFile: PsiFile, lineNumber: Int): List<Element> {
         elements.add(Element(currentElement, document.getText(intersection)))
         currentElement = PsiTreeUtil.nextLeaf(currentElement)
     }
-
     return elements
 }
 
@@ -239,90 +292,19 @@ private fun isEnumConstant(element: KtElement): Boolean {
     }
 }
 
-operator fun ASTNode.contains(other: PsiElement): Boolean {
-    val stack = ArrayDeque<ASTNode>()
-    stack.add(this)
-
-    while (stack.isNotEmpty()) {
-        val currentNode = stack.removeLast()
-        if (currentNode == other.node) {
-            return true
-        }
-        currentNode.children().forEach { stack.add(it) }
-    }
-
-    return false
-}
-
-context(session: KaSession)
-fun PsiElement.shouldHighlight(other: PsiElement?): Boolean {
-    with(session) {
-        if (other == null) return false
-
-        val otherType = other.node.elementType
-        when (otherType) {
-            in KtTokens.WHITE_SPACE_OR_COMMENT_BIT_SET -> return false
-            KtTokens.LPAR, KtTokens.RPAR, KtTokens.LBRACE, KtTokens.RBRACE, KtTokens.LBRACKET, KtTokens.RBRACKET ->
-                return this@shouldHighlight == other || isOtherParenthesis(other)
-
-            KtTokens.CLOSING_QUOTE, KtTokens.OPEN_QUOTE -> return this@shouldHighlight in other.parent.node
-        }
-
-        if (this@shouldHighlight == other) return true
-
-        val selfExpression = this@shouldHighlight.parentsWithSelf.firstIsInstanceOrNull<KtExpression>() ?: return false
-        val otherExpression = other.parentsWithSelf.firstIsInstanceOrNull<KtExpression>() ?: return false
-
-
-        val symbols1 = resolveSymbolsForHighlight(selfExpression)
-        val symbols2 = resolveSymbolsForHighlight(otherExpression)
-
-        return symbols1.any { s1 ->
-            symbols2.any { s2 -> areSymbolsRelated(s1, s2) }
-        } && node.elementType == other.node.elementType
-    }
-}
-
-context(session: KaSession)
-private fun resolveSymbolsForHighlight(expression: KtExpression): List<KaSymbol> {
-    with(session) {
-        return when (expression) {
-            is KtReferenceExpression -> expression.mainReference.resolveToSymbols().toList()
-            is KtNamedDeclaration -> listOfNotNull(expression.symbol)
-            else -> emptyList()
-        }
-    }
-}
-
 private fun PsiElement.isOtherParenthesis(other: PsiElement): Boolean {
     val matchingPairs = mapOf(
         KtTokens.LPAR to KtTokens.RPAR,
         KtTokens.LBRACE to KtTokens.RBRACE,
         KtTokens.LBRACKET to KtTokens.RBRACKET
     )
-
     val thisType = this.node.elementType
     val otherType = other.node.elementType
 
-    if (matchingPairs[thisType] != otherType && matchingPairs[otherType] != thisType) {
-        return false
-    }
-
+    if (matchingPairs[thisType] != otherType && matchingPairs[otherType] != thisType) return false
     val commonParent = PsiTreeUtil.findCommonParent(this, other) ?: return false
-
     return commonParent.firstChild == this && commonParent.lastChild == other ||
             commonParent.firstChild == other && commonParent.lastChild == this
-}
-
-context(session: KaSession)
-private fun areSymbolsRelated(s1: KaSymbol, s2: KaSymbol): Boolean {
-    if (s1 == s2) return true
-
-    // Нормализация конструкторов к их классам
-    val n1 = if (s1 is KaConstructorSymbol) s1.containingClassId?.let { findClass(it) } ?: s1 else s1
-    val n2 = if (s2 is KaConstructorSymbol) s2.containingClassId?.let { findClass(it) } ?: s2 else s2
-
-    return n1 == n2
 }
 
 class Element(val psiElement: PsiElement, val text: String)

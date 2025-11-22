@@ -3,21 +3,13 @@ package ru.hollowhorizon.hollowengine.common.scripting.ide
 import ru.hollowhorizon.hollowengine.client.HighlightTheme
 
 enum class TokenType {
-    COMMENT,
-    KEYWORD,
-    STRING,
-    PROPERTY_IDENTIFIER,
-    EXTENSION_RECEIVER,
-    ANNOTATION,
-    VALUE_ARGUMENT_NAME,
-    NAME_REFERENCE,
-    NUMERIC_LITERAL,
-    TOP_LEVEL,
-    DEFAULT,
-
+    COMMENT, KEYWORD, STRING, ANNOTATION, NUMERIC_LITERAL,
+    PROPERTY_IDENTIFIER, FIELD, VARIABLE,
+    EXTENSION_RECEIVER, VALUE_ARGUMENT_NAME, PARAMETER,
+    NAME_REFERENCE, TOP_LEVEL,
     CLASS, INTERFACE, ENUM, OBJECT,
     FUNCTION, METHOD,
-    PARAMETER, FIELD, VARIABLE;
+    DEFAULT;
 
     fun toKool() = when (this) {
         COMMENT -> HighlightTheme.COMMENT

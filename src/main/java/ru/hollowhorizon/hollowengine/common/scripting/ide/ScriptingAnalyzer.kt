@@ -6,6 +6,7 @@ import de.fabmax.kool.modules.ui2.TextLine as KoolLine
 
 interface ScriptingAnalyzer {
     fun highlight(name: String, text: String, offset: Int): List<TextLine>
+    fun completions(name: String, text: String, offset: Int): List<CompletionItem>
     fun diagnostic(name: String, text: String): List<Diagnostic>
 }
 

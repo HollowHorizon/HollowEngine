@@ -75,7 +75,6 @@ dependencies {
     //    implementation("org.jetbrains.intellij.deps.jna:jna:5.9.0.26") { isTransitive = false }
 //    implementation("org.jetbrains.intellij.deps.jna:jna-platform:5.9.0.26") { isTransitive = false }
 //    implementation("org.jetbrains.intellij.deps:log4j:1.2.17.2") { isTransitive = false }
-//    implementation("org.jetbrains.intellij.deps:jdom:2.0.6") { isTransitive = false }
 //    implementation("org.jetbrains:annotations:24.1.0")
     // install("io.javaslang:javaslang:2.0.6")
 }

@@ -49,6 +49,7 @@ dependencies {
         "com.jetbrains.intellij.platform:diagnostic-telemetry",
         "com.jetbrains.intellij.platform:util-progress",
         "com.jetbrains.intellij.platform:util-coroutines",
+        "com.jetbrains.intellij.platform:analysis"
     )
         .forEach {
             implementation("$it:$intellijVersion") { isTransitive = false }
@@ -92,6 +93,7 @@ dependencies {
     implementation("io.vavr:vavr:0.10.7") { isTransitive = false }
 
     implementation("org.jetbrains.intellij.deps.fastutil:intellij-deps-fastutil:8.5.13-jb4") { isTransitive = false }
+    implementation("org.jetbrains.intellij.deps:jdom:2.0.6") { isTransitive = false }
 
     implementation("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion") { isTransitive = false }
     compileOnly("org.ow2.asm:asm:9.7") { isTransitive = false }
