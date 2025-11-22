@@ -13,7 +13,14 @@ object HighlightTheme {
     val NAME_REFERENCE = Color("BCBEC4")
     val NUMERIC_LITERAL = Color("2AACB8")
     val ERROR_ELEMENT = Color("F75464")
-    val GRAPH = Color("0DA19E")
+    val PARAMETER = Color("A9B7C6")
     val TOP_LEVEL = Color("F2F4F2")
+
+    val VARIABLE = Color("A9B7C6")
+    val CLASS = Color("A9B7C6")
+    val INTERFACE = Color("A9B7C6")
+    val FUNCTION = Color("FFC66D")
+    val METHOD = Color("FFC66D")
+
     val DEFAULT = Color.Companion.WHITE
 }

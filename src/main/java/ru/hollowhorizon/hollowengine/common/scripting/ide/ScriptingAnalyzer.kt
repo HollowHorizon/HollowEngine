@@ -16,7 +16,7 @@ data class TextLine(val spans: List<Pair<String, SpanStyle>>) {
 }
 
 data class SpanStyle(
-    val color: SymbolColor,
+    val color: TokenType,
     val italic: Boolean,
     val bold: Boolean,
     val highlight: Boolean,
