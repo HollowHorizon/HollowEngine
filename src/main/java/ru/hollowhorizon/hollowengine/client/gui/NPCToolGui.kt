@@ -21,20 +21,15 @@ import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
 import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.utils.lang
-import ru.hollowhorizon.hollowengine.common.coroutines.scopeSync
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
-import ru.hollowhorizon.hollowengine.common.scripting.inline.InlineScript
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
-import kotlin.script.experimental.api.ResultValue
-import kotlin.script.experimental.api.valueOrNull
 
 class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
     var model = ""
@@ -307,19 +302,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                                     }
                                 }
                                 .onEnterPressed {
-                                    scopeSync {
-                                        val result = ScriptingCompiler.compileText<InlineScript>(tempText)
-                                            .execute()
-                                        result.valueOrNull()?.let {
-                                            (it.returnValue as? ResultValue.Value)?.let {
-                                                (it.value as? Number)?.let {
-                                                    attributeInstance.baseValue = it.toDouble()
-                                                    UpdateAttributePacket(location, it.toDouble(), npc.id).send()
-                                                    tempText = attributeInstance.baseValue.toString()
-                                                }
-                                            }
-                                        }
-                                    }
+
                                 }
                                 .alignY(AlignmentY.Center)
                         }

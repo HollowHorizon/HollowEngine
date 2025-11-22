@@ -11,7 +11,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.scripting.ScriptTypes
 import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
 
 class FilePopup : Composable {
@@ -71,15 +70,7 @@ class FilePopup : Composable {
                     }
                     if (node.treePath.startsWith("scripts")) {
                         subMenu(ACTIONS("create.script"), "hollowengine:textures/gui/icons/create_file.png") {
-                            ScriptTypes.SCRIPTS.keys.forEach { script ->
-                                item(
-                                    ACTIONS("create.script.${script.fileExtension.substringBeforeLast('.')}"),
-                                    "hollowengine:textures/gui/icons/file_kts.png"
-                                ) {
-                                    fileExtension = '.' + script.fileExtension
-                                    createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
-                                }
-                            }
+
                         }
                     }
                 }

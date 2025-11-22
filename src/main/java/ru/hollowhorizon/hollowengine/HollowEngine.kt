@@ -1,14 +1,9 @@
 package ru.hollowhorizon.hollowengine
 
-import kotlinx.coroutines.runBlocking
 import org.apache.logging.log4j.LogManager
 import ru.hollowhorizon.hollowengine.api.Init
-import ru.hollowhorizon.hollowengine.common.ide.structure.ProjectStructure
-import ru.hollowhorizon.hollowengine.common.ide.structure.ProjectStructureInitiator
-import ru.hollowhorizon.hollowengine.common.scripting.core.ScriptingCompiler
-import ru.hollowhorizon.hollowengine.common.scripting.core.example.HollowScript
-import ru.hollowhorizon.hollowengine.common.scripting.core.setupScripting
-import ru.hollowhorizon.hollowengine.common.scripting.events.loadEvents
+import ru.hollowhorizon.hollowengine.common.scripting.CompilerLoader
+import java.io.File
 
 //? if forge {
 /*import ru.hollowhorizon.hollowengine.client.render.setupCamera
@@ -19,20 +14,19 @@ import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
 object HollowEngine {
     const val MODID = "hollowengine"
     val LOGGER = LogManager.getLogger()
-    val projectStructure: ProjectStructure
 
     init {
-        setupScripting()
-        projectStructure = ProjectStructureInitiator.initiateProjectStructure()
-
-        runBlocking {
-            ScriptingCompiler.compileText<HollowScript>("ru.hollowhorizon.hc.LOGGER.info(\"Scripting engine loaded!\")")
-                .execute()
-        }
 
         LOGGER.info("Initializing Hollow Engine 2.0!")
 
-        loadEvents()
+        val loader =
+            CompilerLoader(File("C:\\Users\\Artem\\Modding\\HollowEngine\\merged\\HollowEngineCompiler-1.0.0.jar"))
+        loader.initialize(
+            File(System.getProperty("java.home")),
+            System.getProperty("java.class.path")
+                .split(File.pathSeparator)
+                .map(::File)
+        )
 
         //? if forge {
         /*if (isPhysicalClient) setupCamera()

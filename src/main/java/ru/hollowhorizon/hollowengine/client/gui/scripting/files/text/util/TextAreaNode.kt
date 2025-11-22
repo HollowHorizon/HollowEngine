@@ -17,14 +17,11 @@ import de.fabmax.kool.scene.TriangulatedLineMesh
 import de.fabmax.kool.scene.addTriangulatedLineMesh
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
-import net.minecraft.client.Minecraft
-import org.jetbrains.kotlin.backend.common.pop
-import org.jetbrains.kotlin.backend.common.push
-import org.jetbrains.kotlin.diagnostics.Diagnostic
-import ru.hollowhorizon.hollowengine.common.events.EventBus
+import ru.hollowhorizon.hollowengine.client.HighlightTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys.toEngine
-import ru.hollowhorizon.hollowengine.common.scripting.core.completion.CompletionVariant
+import ru.hollowhorizon.hollowengine.common.events.EventBus
+import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -75,7 +72,7 @@ open class ScriptTextAreaModifier(surface: UiSurface) : UiModifier(surface) {
     var selectionCaretChar: Int by property(0)
     var onSelectionChanged: ((Int, Int, Int, Int) -> Unit)? by property(null)
 
-    val completions by property(mutableListOf<CompletionVariant>())
+    val completions by property(mutableListOf<String>())
     val errors by property(mutableListOf<Diagnostic>())
 
     var completionIndex by property(0)
@@ -202,7 +199,7 @@ fun UiScope.ScriptTextArea(
 
                         textArea.completionsList = (this as LazyListNode).state
                         itemsIndexed(completions) { index, completion ->
-                            completion.apply { create(textArea, this@setupContent.modifier.completionIndex == index) }
+                            //completion.apply { create(textArea, this@setupContent.modifier.completionIndex == index) }
                         }
                     }
                 }
@@ -210,10 +207,10 @@ fun UiScope.ScriptTextArea(
         }) {
         this.block()
 
-        val pos = Minecraft.getInstance().mouseHandler
         if (errorMessage.isNotEmpty()) {
             surface.triggerUpdate()
-            Popup(pos.xpos().toFloat(), pos.ypos().toFloat()) {
+            val pos = PointerInput.primaryPointer.pos
+            Popup(pos.x, pos.y) {
                 modifier.background(UiRenderer { node ->
                     node.apply {
                         getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRoundRect(
@@ -223,7 +220,7 @@ fun UiScope.ScriptTextArea(
                             0f, 0f, widthPx, heightPx, sizes.smallGap.px, sizes.borderWidth.px, colors.primaryVariant
                         )
                     }
-                }).zLayer(700)
+                }).zLayer(300)
 
                 modifier.width(Grow(1f, max = FitContent))
 
@@ -351,11 +348,11 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             indentIndex.let {
                 if (it == -1 && line.length != 0) return@let
                 while (it <= (indentStack.lastOrNull() ?: 0) && indentStack.isNotEmpty()) {
-                    indentStack.pop()
+                    indentStack.removeLastOrNull()
                     if (line.length == 0) break
                 }
                 if (it > 0 && it != indentStack.lastOrNull()) {
-                    indentStack.push(it)
+                    indentStack.add(it)
                 }
             }
         }
@@ -367,7 +364,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             indentIndex.let {
                 if (it == -1 && line.length != 0) return@let
                 while (it <= (indentStack.lastOrNull() ?: 0) && indentStack.isNotEmpty()) {
-                    indentStack.pop()
+                    indentStack.removeLastOrNull()
                     if (line.length == 0) break
                 }
             }
@@ -379,10 +376,9 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             with(lineItem) {
                 val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp
 
-
-//                errors.filter { it.range.start.line == lineIndex }.forEach { error ->
-//                    setupError(error, font, line.text, maxWidth)
-//                }
+                errors.filter { it.range.start.line == lineIndex }.forEach { error ->
+                    setupError(error, font, line.text, maxWidth)
+                }
 
                 Box(maxWidth) {
                     modifier.margin(horizontal = sizes.smallGap).alignY(AlignmentY.Center)
@@ -406,16 +402,16 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
             indentIndex.let {
                 if (it > 0 && it != indentStack.lastOrNull()) {
-                    indentStack.push(it)
+                    indentStack.add(it)
                 }
             }
         }
     }
 
     private fun UiScope.setupError(error: Diagnostic, font: MsdfFont, text: String, maxWidth: Dp) {
-        val column = 0//error.range.start.character
+        val column = error.range.start.column
         if (column > text.length) return
-        val column2 = 0//error.range.end.character
+        val column2 = error.range.end.column
         if (column2 > text.length) return
         val startPos = if (text.isEmpty()) 0f else font.textDimensions(
             text.substring(0, column.coerceAtMost(text.length))
@@ -426,10 +422,10 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         getUiPrimitives(50).addTriangulatedLineMesh {
             this.width = 3f
-//            this.color =
-//                if (error.severity == DiagnosticSeverity.Error) SyntaxHighlight.ERROR_ELEMENT else SyntaxHighlight.KEYWORD.mix(
-//                    SyntaxHighlight.ANNOTATION, 0.5f
-//                )
+            this.color =
+                if (error.severity.isError()) HighlightTheme.ERROR_ELEMENT else HighlightTheme.KEYWORD.mix(
+                    HighlightTheme.ANNOTATION, 0.5f
+                )
 
             val leftPos = uiNode.leftPx + maxWidth.px + sizes.smallGap.px * 3f + sizes.borderWidth.px
             for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).toInt()).step(5)) {
@@ -442,7 +438,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             val mouse = PointerInput.primaryPointer
 
             if (mouse.pos.x in leftPos + startPos..leftPos + endPos && mouse.pos.y in uiNode.topPx..uiNode.bottomPx) {
-                //errorMessage = error.message
+                errorMessage = error.message
             }
         }
     }

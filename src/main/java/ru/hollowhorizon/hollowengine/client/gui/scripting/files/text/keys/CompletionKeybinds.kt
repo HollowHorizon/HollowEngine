@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys
 
 import de.fabmax.kool.input.KeyboardInput
-import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextAreaModifier
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 
 
 @SubscribeEvent
@@ -41,12 +41,12 @@ fun onCompletions(event: ScriptAreaKeyEvent) {
 
         KeyboardInput.KEY_CURSOR_DOWN -> {
             if (!event.isPressed) return
-            if (modifier.completionIndex < modifier.completions.size - 1) {
-                event.area.completionsList.scrollToItem.set(modifier.completionIndex + 1)
-                modifier.setCompletionIndex(modifier.completionIndex + 1)
-            } else {
-                modifier.setCompletionIndex(0)
-            }
+//            if (modifier.completionIndex < modifier.completions - 1) {
+//                event.area.completionsList.scrollToItem.set(modifier.completionIndex + 1)
+//                modifier.setCompletionIndex(modifier.completionIndex + 1)
+//            } else {
+//                modifier.setCompletionIndex(0)
+//            }
             event.isCanceled = true
         }
 
@@ -61,6 +61,6 @@ private fun applyCompletion(
     if (modifier.completionIndex == -1) return
     if (modifier.completionIndex >= modifier.completions.size) return
 
-    modifier.completions[modifier.completionIndex].use(event.area)
+    //modifier.completions[modifier.completionIndex].use(event.area)
     event.isCanceled = true
 }

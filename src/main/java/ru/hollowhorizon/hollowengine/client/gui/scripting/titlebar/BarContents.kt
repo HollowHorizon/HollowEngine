@@ -23,8 +23,6 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.scripting.startScript
-import ru.hollowhorizon.hollowengine.common.scripting.stopScript
 import ru.hollowhorizon.hollowengine.common.utils.literal
 
 @SubscribeEvent
@@ -188,7 +186,7 @@ class StartScriptPacket(val path: String) : HollowPacket {
         } else {
             val file = path.fromReadablePath()
 
-            startScript(file)
+            //startScript(file)
             CloseScreenPacket().send(player as ServerPlayer)
         }
     }
@@ -212,7 +210,7 @@ class StopScriptPacket(val path: String) : HollowPacket {
         } else {
             val file = path.fromReadablePath()
 
-            stopScript(file)
+            //stopScript(file)
 
             player.sendToast("Скрипт успешно остановлен.".literal)
         }

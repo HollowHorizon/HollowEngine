@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.components.binding
 
 import net.minecraft.nbt.CompoundTag
-import org.jetbrains.kotlin.container.ComponentProvider
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.isClientSide
 

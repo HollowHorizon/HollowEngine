@@ -6,16 +6,10 @@ import net.minecraft.client.gui.components.toasts.SystemToast
 import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
-import org.apache.commons.io.FileUtils
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForTextComponent
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.scripting.startScript
-import ru.hollowhorizon.hollowengine.common.scripting.stopScript
-import java.io.File
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable

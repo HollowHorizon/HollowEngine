@@ -26,7 +26,7 @@ fun Project.setupEnviroment(
         isForgelike = modPlatform == "forge" || modPlatform == "neoforge"
 
         LoomSetup.setup(project, container, minecraftVersion, modPlatform)
-        StonecutterSetup.setup(this@setupEnviroment, this)
+        StonecutterSetup.setup(this@setupEnviroment)
         ResourcesSetup.setupResources(this@setupEnviroment, this, minecraftVersion, modPlatform)
         if(publications.isNotEmpty()) PublishingSetup.setupPublishing(this@setupEnviroment, this, minecraftVersion, modPlatform, *publications)
 

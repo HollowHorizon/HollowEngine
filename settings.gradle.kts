@@ -25,17 +25,22 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
 
+include("compiler")
+
 stonecutter {
 
     kotlinController = true
     centralScript = "build.gradle.kts"
-    shared {
+//    shared {
+//    }
+    create(rootProject) {
+
         rootProject.projectDir.resolve("versions")
             .listFiles()
             .filter { !it.isFile }
             .forEach { version(it.name) }
+        branch("compiler")
     }
-    create(rootProject)
 }
 
 val modName: String by settings

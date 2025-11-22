@@ -15,13 +15,13 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 object StonecutterSetup {
     fun setup(
         project: Project,
-        modProject: ModProject,
+        setupLoom: Boolean = true
     ) {
         val stonecutter = project.extensions["stonecutter"] as StonecutterBuildExtension
         val java = project.extensions["java"] as JavaPluginExtension
         val kotlin = project.extensions["kotlin"] as KotlinJvmProjectExtension
 
-        project.afterEvaluate {
+        if(setupLoom) project.afterEvaluate {
             val loom = project.extensions["loom"] as LoomGradleExtensionImpl
             val platform = loom.platform.get().id()
 
@@ -34,19 +34,23 @@ object StonecutterSetup {
 
         val buildAndCollect = project.tasks.register<Copy>("buildAndCollect") {
             group = "build"
-            from(project.tasks.named<Jar>("remapJar").map { it.archiveFile.get().asFile })
+            if(setupLoom) {
+                from(project.tasks.named<Jar>("remapJar").map { it.archiveFile.get().asFile })
+            } else {
+                from(project.tasks.named<Jar>("shadowJar").map { it.archiveFile.get().asFile })
+            }
             into(project.rootProject.layout.buildDirectory.file("../merged"))
 
             dependsOn("build")
         }
 
         if (stonecutter.current.isActive) {
-            project.rootProject.tasks.register("buildActive") {
+            project.tasks.register("buildActive") {
                 group = "project"
                 dependsOn(buildAndCollect)
             }
 
-            project.rootProject.tasks.register("runActive") {
+            if(setupLoom) project.tasks.register("runActive") {
                 group = "project"
                 dependsOn(project.tasks.named("runClient"))
             }
@@ -76,7 +80,7 @@ object StonecutterSetup {
                     optIn.add("org.jetbrains.kotlin.analysis.api.KaContextParameterApi")
                     optIn.add("kotlin.ExperimentalUnsignedTypes")
                     optIn.add("kotlin.contracts.ExperimentalContracts")
-                    freeCompilerArgs.add("-Xcontext-receivers")
+                    freeCompilerArgs.add("-Xcontext-parameters")
                     freeCompilerArgs.add("-Xwhen-guards")
                 }
             }

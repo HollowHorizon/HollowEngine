@@ -10,25 +10,26 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.client.utils.offset
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
 
-
-class TextFileData(name: String, path: String, code: String) :
+class TextFileData(name: String, path: String) :
     FileData(name, path) {
 
-    constructor(path: String, code: ByteArray) : this(path.substringAfterLast('/'), path, String(code))
+    constructor(path: String, ignored: ByteArray) : this(path.substringAfterLast('/'), path)
 
     lateinit var modifier: ScriptTextAreaModifier
     lateinit var area: ScriptTextAreaScope
 
-    fun setText(text: String) {
-        surface?.triggerUpdate()
-    }
-
     override fun save() {
     }
 
-    private val provider = CompiledFileProvider(filePath.fromReadablePath())
+    private val provider = CompiledFileProvider(filePath.fromReadablePath()) {
+        modifier.errors.clear()
+        modifier.errors.addAll(it)
+    }
 
     override fun UiScope.compose() {
         modifier.background(RoundRectBackground(colors.backgroundVariant, sizes.smallGap))
@@ -43,7 +44,9 @@ class TextFileData(name: String, path: String, code: String) :
                 this@TextFileData.area = this
                 installSelectionHandler(provider) { startLine, caretLine, startChar, caretChar ->
                     modifier.completions.clear()
-                    // if (!provider.isRecompiling) provider.recolorize(startLine, caretLine, startChar, caretChar, false)
+                    provider.lines.clear()
+                    val code = ScriptingEnvironment.INSTANCE.analyzer.highlight(name, provider.currentText, offset(provider.currentText, startLine, startChar))
+                    provider.lines.addAll(code.map { it.toKool(provider.font) })
                 }
 
                 modifier.editorHandler(provider)
@@ -53,8 +56,8 @@ class TextFileData(name: String, path: String, code: String) :
                     .margin(end = sizes.smallGap * 2f)
                     .zLayer(5)
 
-                val errors = 0 //this@TextFileData.modifier.errors.count { it.severity == DiagnosticSeverity.Error }
-                val warnings = 0 // this@TextFileData.modifier.errors.count { it.severity == DiagnosticSeverity.Warning }
+                val errors = this@TextFileData.modifier.errors.count { it.severity == Severity.ERROR }
+                val warnings = this@TextFileData.modifier.errors.count { it.severity == Severity.WARNING }
 
                 if (errors > 0) {
                     Row {

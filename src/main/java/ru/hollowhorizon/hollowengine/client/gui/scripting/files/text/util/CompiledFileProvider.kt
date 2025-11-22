@@ -8,28 +8,29 @@ import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoableAction
-import ru.hollowhorizon.hollowengine.common.ide.highlight.highlightCode
+import ru.hollowhorizon.hollowengine.client.utils.offset
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
+import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
 import java.io.File
 import java.util.*
 
 class CompiledFileProvider(
     val file: File,
+    val onDiagnose: (List<Diagnostic>) -> Unit
 ) : TextLineProvider, TextEditorHandler, UndoRedoHandler {
     val font = MsdfFont(HACK_FONT, 18f)
-    val lines = ArrayList<TextLine>().apply {
-        file.useLines { lines ->
-            lines.forEach { line ->
-                add(TextLine(listOf(line to TextAttributes(font, Color.WHITE))))
-            }
-        }
+    val lines = ArrayList<TextLine>()
+    var currentText: String = file.readText()
+        private set
+    init {
+        ScriptingEnvironment.INSTANCE.analyzer.highlightCode(0, 0)
     }
 
     override val size get() = lines.size
 
     private val undoStack: Stack<UndoableAction> = Stack()
     private val redoStack: Stack<UndoableAction> = Stack()
-
-    private var currentText: String = ""
 
     override fun get(index: Int): TextLine {
         if (index < 0 || index >= size) {
@@ -54,18 +55,11 @@ class CompiledFileProvider(
             oldLinesList.add(lines[i])
         }
 
-
-        // 2. Обновление текста (модификация lines)
-
-        // A. Формируем новую строку для замены
         val lineBefore = lines[selectionStartLine].text.substring(0, selectionStartChar)
         val lineAfter = lines[selectionEndLine].text.substring(selectionEndChar)
         val newTextFull = lineBefore + replacement + lineAfter
         val newLinesRaw = newTextFull.split('\n')
-        val offset = lines.subList(0, (selectionStartLine-1).coerceAtLeast(0)).sumOf(TextLine::length) + selectionStartChar
 
-        // B. Удаляем старые линии
-        // Количество линий для удаления: selectionEndLine - selectionStartLine + 1
         val numLinesToRemove = selectionEndLine - selectionStartLine + 1
         lines.subList(selectionStartLine, selectionStartLine + numLinesToRemove).clear()
 
@@ -79,8 +73,11 @@ class CompiledFileProvider(
 
         // 3. Обновление currentText для синхронизации
         currentText = lines.joinToString("\n") { it.text }
-        lines.clear()
-        lines.addAll(highlightCode(font, file.name, currentText, offset))
+
+        ScriptingEnvironment.INSTANCE.analyzer.apply {
+            highlightCode(selectionStartLine, selectionStartChar)
+            onDiagnose(diagnostic(file.name, currentText))
+        }
 
         // 4. Расчет новой позиции каретки (caret)
         val newCaretLine = selectionStartLine + newLinesRaw.lastIndex
@@ -102,6 +99,12 @@ class CompiledFileProvider(
 
         // 6. Возвращаем новую позицию каретки
         return Vec2i(newCaretChar, newCaretLine)
+    }
+
+    fun ScriptingAnalyzer.highlightCode(selectionStartLine: Int, selectionStartChar: Int) {
+        val colored = highlight(file.name, currentText, offset(currentText, selectionStartLine, selectionStartChar))
+        lines.clear()
+        lines.addAll(colored.map { it.toKool(font) })
     }
 
     fun setText(text: String) {
