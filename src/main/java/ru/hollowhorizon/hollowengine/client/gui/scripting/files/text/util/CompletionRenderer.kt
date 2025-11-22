@@ -34,19 +34,21 @@ object CompletionRenderer {
 
 
                 //Text(completion.name.substringBefore(completion.insert)) { modifier.textColor(Color("98C6FFFF")) }
-                Text(completion.insert) {  }
+                Text(completion.show + ((completion as? CompletionItem.Declaration)?.middle ?: "")) {  }
 
             }
 
-//            Box {
-//                modifier.width(Grow.Std).alignY(AlignmentY.Center)
-//
-//                Text(tail) {
-//                    modifier.align(AlignmentX.End, AlignmentY.Center)
-//                        .margin(horizontal = sizes.smallGap)
-//                        .textColor(Color.LIGHT_GRAY)
-//                }
-//            }
+            if(completion is CompletionItem.Declaration) {
+                Box {
+                    modifier.width(Grow.Std).alignY(AlignmentY.Center)
+
+                    Text(completion.tail ?: "") {
+                        modifier.align(AlignmentX.End, AlignmentY.Center)
+                            .margin(horizontal = sizes.smallGap)
+                            .textColor(Color.LIGHT_GRAY)
+                    }
+                }
+            }
         }
     }
 

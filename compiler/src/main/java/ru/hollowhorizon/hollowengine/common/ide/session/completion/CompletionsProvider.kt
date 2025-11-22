@@ -22,9 +22,12 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.getCallNameExpression
+import org.jetbrains.kotlin.types.Variance
 import ru.hollowhorizon.hollowengine.common.ide.session.completion.util.KeywordCompletion
 import ru.hollowhorizon.hollowengine.common.ide.session.kaModule
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
+import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
+import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.keywordCompletionItem
 import ru.hollowhorizon.hollowengine.logE
 
@@ -110,6 +113,9 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
                 is CompletionPosition.Identifier -> {
                     collector.add(completeKeywords(parentKtElement, position))
                     completeIdentifier(ktFile, parentKtElement)
+
+                    // Добавляем completion для "this" с информацией о типе
+                    completeThisKeyword(ktFile, parentKtElement)
                 }
 
                 is CompletionPosition.Type -> completeType(ktFile, parentKtElement, filter)
@@ -127,6 +133,72 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
         if (elements.isEmpty()) return null
         return elements
     }
+
+context(kaSession: KaSession)
+private fun CompletionItemsCollector.completeThisKeyword(file: KtFile, element: KtElement) = with(kaSession) {
+    val scopeContext = file.scopeContext(element)
+
+    var first = true
+    // Получаем все неявные получатели (implicit receivers)
+    for (implicitReceiver in scopeContext.implicitReceivers) {
+        val receiverType = implicitReceiver.type
+        val typeText = receiverType.render(position = Variance.IN_VARIANCE)
+        val className = implicitReceiver.ownerSymbol.name?.asString() ?: "Unknown"
+
+        val thisName = if(first) "this" else "this@$className"
+
+        // Создаем completion item для "this" с информацией о типе
+        add(listOf(declarationCompletionItem {
+            show = thisName
+            name = thisName
+            insert = thisName
+            tail = typeText
+            tag = CompletionItemTag.KEYWORD
+            import = false
+        }))
+
+        first = false
+    }
+
+    // Также добавляем completion для квалифицированного this (this@ClassName)
+    completeQualifiedThis(file, element)
+}
+
+context(kaSession: KaSession)
+private fun CompletionItemsCollector.completeQualifiedThis(file: KtFile, element: KtElement) = with(kaSession) {
+    // Находим все родительские declaration'ы, которые могут иметь this
+    var current: PsiElement? = element
+    while (current != null) {
+        when (current) {
+            is KtClassOrObject -> {
+                val classSymbol = current.symbol as? KaClassSymbol
+                classSymbol?.let { symbol ->
+                    val className = symbol.name?.asString() ?: "Unknown"
+                    val typeText = symbol.defaultType.render(position = Variance.IN_VARIANCE)
+
+                    add(listOf(declarationCompletionItem {
+                        show = "this@$className"
+                        name = "this@$className"
+                        insert = "this@$className"
+                        tail = typeText
+                        import = false
+                    }))
+                }
+            }
+            is KtFunction -> {
+                val functionName = current.name ?: "lambda"
+                add(listOf(declarationCompletionItem {
+                    show = "this@$functionName"
+                    name = "this@$functionName"
+                    insert = "this@$functionName"
+                    import = false
+                    tail = " (qualified this for function $functionName)"
+                }))
+            }
+        }
+        current = current.parent
+    }
+}
 
 private fun completeKeywords(
     element: PsiElement,
@@ -152,6 +224,14 @@ private fun completeKeywords(
         ) { lookupElement ->
             val presentation = LookupElementPresentation().also { lookupElement.renderElement(it) }
             val text = presentation.itemText ?: lookupElement.lookupString
+
+            // Добавляем специальную обработку для ключевого слова "this"
+            if (text == "this") {
+                // Для "this" мы будем использовать declaration completion вместо keyword completion
+                // чтобы показать дополнительную информацию о типе
+                return@complete
+            }
+
             result += keywordCompletionItem {
                 textToShow = text.trim()
                 name = text.trim()
@@ -193,6 +273,11 @@ private fun CompletionItemsCollector.completeAfterDot(
                 symbol is KaCallableSymbol && symbol.isExtension
             }) { withImport() }
         }
+    }
+
+    // Добавляем completion для this после точки (например, this.someMethod)
+    if (position.prefix.isNullOrEmpty() || "this".startsWith(position.prefix!!)) {
+        completeThisKeyword(file, element)
     }
 }
 
