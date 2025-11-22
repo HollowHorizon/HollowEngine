@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.common.compiler.configuration
 import com.intellij.testFramework.LightVirtualFile
 import com.intellij.testFramework.LightVirtualFileBase
 import org.jetbrains.kotlin.scripting.resolve.VirtualFileScriptSource
-import ru.hollowhorizon.hollowengine.common.compiler.Import
+import ru.hollowhorizon.hollowengine.common.scripting.Import
 import java.io.File
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.host.FileBasedScriptSource

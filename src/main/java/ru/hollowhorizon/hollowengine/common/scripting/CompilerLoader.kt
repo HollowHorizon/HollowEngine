@@ -22,7 +22,9 @@ class CompilerLoader(
             currentThread.contextClassLoader = classLoader
             val implClass = Class.forName(implementationClassName, true, classLoader)
             val initializer = implClass.getDeclaredConstructor().newInstance() as ScriptingEnvironmentInitializer
-            initializer.initialize(javaHome, classpath)
+            initializer.initialize(javaHome, classpath, mapOf(
+                "server-component.kts" to "ru.hollowhorizon.hollowengine.common.scripting.types.ServerComponent"
+            ))
 
             println("HollowEngine Compiler loaded successfully from ${compilerJar.name}")
 

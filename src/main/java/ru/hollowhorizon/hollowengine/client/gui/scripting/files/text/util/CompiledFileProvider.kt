@@ -5,6 +5,7 @@ import de.fabmax.kool.modules.ui2.TextAttributes
 import de.fabmax.kool.modules.ui2.TextLine
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoableAction
@@ -15,6 +16,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
 import java.io.File
 import java.util.*
+import kotlin.system.measureTimeMillis
 
 class CompiledFileProvider(
     val file: File,
@@ -78,7 +80,16 @@ class CompiledFileProvider(
 
         ScriptingEnvironment.INSTANCE.analyzer.apply {
             highlightCode(selectionStartLine, selectionStartChar)
-            onCompletions(completions(file.name, currentText, offset(currentText,selectionStartLine, selectionStartChar)))
+            val time = measureTimeMillis {
+                onCompletions(
+                    completions(
+                        file.name,
+                        currentText,
+                        offset(currentText, selectionStartLine, selectionStartChar)
+                    )
+                )
+            }
+            HollowEngine.LOGGER.info("Поиск подсказок занял {}мс", time)
             onDiagnose(diagnostic(file.name, currentText))
         }
 

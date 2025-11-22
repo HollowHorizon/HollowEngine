@@ -19,9 +19,10 @@ fun createKeywordConstructLookupElement(
     project: Project,
     keyword: String,
     fileTextToReformat: String,
+    fileName: String,
     trimSpacesAroundCaret: Boolean = false
 ): LookupElement {
-    val file = KtPsiFactory(project).createFile(fileTextToReformat)
+    val file = KtPsiFactory(project).createFile(fileName, fileTextToReformat)
     CodeStyleManager.getInstance(project).reformat(file)
     val newFileText = file.text
 

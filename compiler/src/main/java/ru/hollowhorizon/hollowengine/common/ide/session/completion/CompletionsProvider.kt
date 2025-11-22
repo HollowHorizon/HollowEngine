@@ -41,7 +41,7 @@ fun createCompletions(file: KtFile, offset: Int): List<CompletionItem> {
 private fun createFileForCompletion(original: KtFile, offset: Int): KtFile {
     val textWithInsertedFakeIdentifier = original.text.replaceRange(offset, offset, COMPLETION_FAKE_IDENTIFIER)
     val copyKtFile =
-        KtPsiFactory(original.project, markGenerated = true, eventSystemEnabled = true).createFile(textWithInsertedFakeIdentifier)
+        KtPsiFactory(original.project, markGenerated = true, eventSystemEnabled = true).createFile(original.name, textWithInsertedFakeIdentifier)
     copyKtFile.contextModule = original.virtualFile.kaModule
     copyKtFile.virtualFile.kaModule = copyKtFile.contextModule
     copyKtFile.originalFile = original

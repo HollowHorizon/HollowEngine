@@ -4,7 +4,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
 import java.io.File
 
 interface ScriptingEnvironmentInitializer {
-    fun initialize(javaHome: File, classpath: List<File>)
+    fun initialize(javaHome: File, classpath: List<File>, scriptTypes: Map<String, String>)
 }
 
 interface ScriptingEnvironment {

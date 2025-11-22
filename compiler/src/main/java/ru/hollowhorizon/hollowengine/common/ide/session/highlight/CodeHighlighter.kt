@@ -255,11 +255,6 @@ private fun LineBuilder.SpanBuilder.applyModifiers(symbol: KaSymbol) {
                 italic = true
             }
         }
-        if (symbol is KaDeclarationSymbol) {
-            if (symbol.modality == KaSymbolModality.ABSTRACT) {
-                italic = true
-            }
-        }
     }
 }
 

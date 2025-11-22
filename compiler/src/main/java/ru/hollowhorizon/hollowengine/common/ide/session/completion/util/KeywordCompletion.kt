@@ -139,16 +139,17 @@ class KeywordCompletion {
         if (!parserFilter(keywordToken)) return
 
         val constructText = KEYWORD_CONSTRUCTS[keywordToken]
+        val fileName = position.parentOfType<KtFile>(withSelf = true)?.name ?: "dummy.kt"
         if (constructText != null && !applicableAsCompound) {
-            val element = createKeywordConstructLookupElement(position.project, keyword, constructText)
+            val element = createKeywordConstructLookupElement(position.project, keyword, constructText, fileName)
             consumer(element)
         } else {
-            handleTopLevelClassName(position, keyword, consumer)
+            handleTopLevelClassName(position, keyword, consumer, fileName)
             consumer(createLookupElementBuilder(keyword, position))
         }
     }
 
-    private fun handleTopLevelClassName(position: PsiElement, keyword: String, consumer: (LookupElement) -> Unit) {
+    private fun handleTopLevelClassName(position: PsiElement, keyword: String, consumer: (LookupElement) -> Unit, fileName: String) {
         val topLevelClassName = getTopLevelClassName(position)
         fun consumeClassNameWithoutBraces() {
             consumer(createLookupElementBuilder("$keyword $topLevelClassName", position))
@@ -159,7 +160,7 @@ class KeywordCompletion {
             }
             if (keyword.endsWith(CLASS_KEYWORD.value)) {
                 if (keyword.startsWith(DATA_KEYWORD.value)) {
-                    consumer(createKeywordConstructLookupElement(position.project, keyword, "$keyword $topLevelClassName(caret)"))
+                    consumer(createKeywordConstructLookupElement(position.project, keyword, "$keyword $topLevelClassName(caret)", fileName))
                 } else {
                     consumeClassNameWithoutBraces()
                 }
@@ -412,6 +413,7 @@ class KeywordCompletion {
     }
 
     private fun buildFilterByText(prefixText: String, position: PsiElement): (KtKeywordToken) -> Boolean {
+        val fileName = position.parentOfType<KtFile>(withSelf = true)?.name ?: "dummy.kt"
         val psiFactory = KtPsiFactory(position.project)
 
         fun PsiElement.isSecondaryConstructorInObjectDeclaration(): Boolean {
@@ -534,7 +536,7 @@ class KeywordCompletion {
         }
 
         return fun(keywordTokenType): Boolean {
-            val files = buildFilesWithKeywordApplication(keywordTokenType, prefixText, psiFactory)
+            val files = buildFilesWithKeywordApplication(keywordTokenType, prefixText, psiFactory, fileName)
             return files.any { file -> isKeywordCorrectlyApplied(keywordTokenType, file); }
         }
     }
@@ -542,15 +544,17 @@ class KeywordCompletion {
     private fun buildFilesWithKeywordApplication(
         keywordTokenType: KtKeywordToken,
         prefixText: String,
-        psiFactory: KtPsiFactory
+        psiFactory: KtPsiFactory,
+        fileName: String,
     ): Sequence<KtFile> {
         return computeKeywordApplications(prefixText, keywordTokenType)
-            .map { application -> psiFactory.createFile(prefixText + application) }
+            .map { application -> psiFactory.createFile(fileName, prefixText + application) }
     }
 
     private fun computeKeywordApplications(prefixText: String, keyword: KtKeywordToken): Sequence<String> = when (keyword) {
         SUSPEND_KEYWORD -> sequenceOf("suspend () -> Unit>", "suspend X")
         CONTEXT_KEYWORD -> sequenceOf("context", "context(X) fun")
+        LATEINIT_KEYWORD -> sequenceOf("lateinit var X")
         else -> {
             if (prefixText.endsWith("@"))
                 sequenceOf(keyword.value + ":X Y.Z")
