@@ -681,20 +681,148 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
     fun applyCompletion(item: CompletionItem) {
         val handler = modifier.editorHandler ?: return
-        val lineIdx = modifier.selectionCaretLine
-        val charIdx = modifier.selectionCaretChar
+
+        // 1. Сохраняем текущее состояние
+        // Используем var, так как индекс строки может измениться
+        var lineIdx = modifier.selectionCaretLine
+        var charIdx = modifier.selectionCaretChar
+
+        // 2. Обработка авто-импорта
+        // Эта операция может сдвинуть строки вниз, поэтому делаем её ПЕРВОЙ
+        if (item is CompletionItem.Declaration && item.import && !item.fqName.isNullOrBlank()) {
+            val linesAdded = ensureImport(item.fqName, handler)
+
+            // Корректируем индекс строки, если был добавлен импорт
+            lineIdx += linesAdded
+        }
+
+        // 3. Замена текста автодополнения
+        // Важно: Теперь мы работаем с lineIdx, который мог увеличиться
         val lineText = lineProvider[lineIdx].text
 
-        // Find start of the word being replaced
-        val startIdx = TextCaretNavigation.startOfExpression(lineText, charIdx-1)
+        // Находим начало слова для замены (используем typedPrefix или ищем начало выражения)
+        // Вариант А: Ищем по выражению (как было у тебя)
+        val startIdx = runCatching { lineText.substring(0, charIdx).indexOfLast { !it.isLetterOrDigit() } + 1 }.getOrElse { charIdx }
         val replaceStart = if (startIdx == -1) charIdx else startIdx
 
+        // Вариант Б: Если ты уверен в item.typedPrefix, можно так:
+        // val replaceStart = charIdx - item.typedPrefix.length
+
+        // Выполняем замену
         val newPos = handler.replaceText(lineIdx, lineIdx, replaceStart, charIdx, item.insert)
 
-        selectionHandler.selectionChanged(newPos.y, newPos.y, newPos.x, newPos.x)
+        // 4. Финальная установка каретки
+        // Если у CompletionItem есть свой сдвиг каретки (например, внутрь скобок метода)
+        if (item.moveCaret != 0) {
+            // newPos.x уже указывает на конец вставленного слова.
+            // Сдвигаем относительно этой позиции.
+            val customCaretX = newPos.x + item.moveCaret
+            selectionHandler.selectionChanged(newPos.y, newPos.y, customCaretX, customCaretX)
+        } else {
+            selectionHandler.selectionChanged(newPos.y, newPos.y, newPos.x, newPos.x)
+        }
 
         modifier.completions.clear()
         surface.requestFocus(this)
+    }
+
+    /**
+     * Вставляет импорт в правильное место файла.
+     * @return Количество добавленных строк (1 если добавили, 0 если уже был или ошибка).
+     */
+    private fun ensureImport(fqName: String, handler: TextEditorHandler): Int {
+        val importLine = "import $fqName"
+
+        // 1. Анализируем файл, чтобы найти место для вставки
+        var packageEndIndex = -1
+        var lastImportIndex = -1
+        var insertIndex = 0
+
+        // Флаг, чтобы не добавлять дубликаты
+        var alreadyImported = false
+
+        for (i in 0 until lineProvider.size) {
+            val text = lineProvider[i].text.trim()
+
+            if (text.startsWith("package ")) {
+                packageEndIndex = i
+                // Если есть пакет, вставлять будем как минимум после него (+1, или +2 если там пустая строка)
+                insertIndex = i + 1
+            } else if (text.startsWith("import ")) {
+                lastImportIndex = i
+
+                // Проверка на дубликат
+                if (text == importLine) {
+                    alreadyImported = true
+                    break
+                }
+
+                // Сортировка: ищем первую строку импорта, которая лексикографически БОЛЬШЕ нашей.
+                // Мы должны вставить ПЕРЕД ней.
+                // Но только если мы еще не нашли место среди импортов.
+                // Примечание: insertIndex меняем только пока мы внутри блока импортов
+                if (importLine < text && (insertIndex <= packageEndIndex || insertIndex == lastImportIndex)) { // logic refinement below
+                    insertIndex = i
+                    // Прерываем цикл? Нет, нужно проверить нет ли дальше точного дубликата (хотя в сортированном списке это вряд ли)
+                    // Для простоты: если нашли место для сортировки, запомним его, но продолжим проверку на дубликат
+                    // Но проще проверить дубликат заранее или считать что список валиден.
+                }
+            } else if (text.isNotEmpty() && lastImportIndex != -1) {
+                // Мы встретили код после импортов. Дальше искать нет смысла.
+                break
+            }
+        }
+
+        if (alreadyImported) return 0
+
+        // Переосмысление логики поиска позиции для алфавитной вставки:
+        // Проще пройтись еще раз или сделать это аккуратнее.
+
+        // Поиск точного места вставки:
+        insertIndex = 0
+        if (packageEndIndex != -1) insertIndex = packageEndIndex + 1
+
+        // Пропуск пустых строк после package
+        while (insertIndex < lineProvider.size && lineProvider[insertIndex].text.isBlank()) {
+            insertIndex++
+        }
+
+        // Теперь мы либо на первом импорте, либо на начале кода.
+        // Идем по импортам и ищем место
+        var insertionPointFound = false
+
+        // Копия индекса для итерации, чтобы не ломать insertIndex, если импортов нет вообще
+        var scanIdx = insertIndex
+
+        while (scanIdx < lineProvider.size) {
+            val line = lineProvider[scanIdx].text.trim()
+            if (line.startsWith("import ")) {
+                if (line == importLine) return 0 // Дубликат найден
+
+                if (!insertionPointFound && importLine < line) {
+                    insertIndex = scanIdx
+                    insertionPointFound = true
+                }
+                // Если importLine > line, мы просто идем дальше, insertIndex будет указывать на следующую строку
+                if (!insertionPointFound) {
+                    insertIndex = scanIdx + 1
+                }
+            } else if (line.isBlank()) {
+                // Пустая строка внутри или после импортов - игнорируем или останавливаемся?
+                // Обычно импорты идут блоком.
+                if (scanIdx > lastImportIndex && lastImportIndex != -1) break
+            } else {
+                // Начался код
+                break
+            }
+            scanIdx++
+        }
+
+        // Вставляем строку
+        // Важно добавить перенос строки
+        handler.insertText(insertIndex, 0, "$importLine\n")
+
+        return 1
     }
 
     private fun handleKeyRelease(keyEvent: KeyEvent) {
