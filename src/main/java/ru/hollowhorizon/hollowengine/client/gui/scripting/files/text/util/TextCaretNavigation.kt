@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util
 
-import de.fabmax.kool.math.clamp
-
 object TextCaretNavigation {
     private enum class CharCategory {
         LETTER, DIGIT, WHITESPACE, PUNCTUATION, OTHER

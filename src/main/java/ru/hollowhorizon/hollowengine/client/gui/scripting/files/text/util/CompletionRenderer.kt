@@ -33,7 +33,8 @@ object CompletionRenderer {
                 modifier.align(AlignmentX.Start, AlignmentY.Center).margin(horizontal = sizes.smallGap)
 
 
-                //Text(completion.name.substringBefore(completion.insert)) { modifier.textColor(Color("98C6FFFF")) }
+
+                // TODO: в интерфейсе набранные символы должны подсвечиваться как 98C6FFFF
                 Text(completion.show + ((completion as? CompletionItem.Declaration)?.middle ?: "")) {  }
 
             }

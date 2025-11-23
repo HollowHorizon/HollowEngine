@@ -23,7 +23,9 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.scripting.CompilerLoader
 import ru.hollowhorizon.hollowengine.common.utils.literal
+import java.io.File
 
 @SubscribeEvent
 fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
@@ -87,7 +89,27 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
         }, Unit)
     }
     TextButton("Поиск")
-    TextButton("Настройки")
+
+    val settingsOverlay = remember { ItemPopupMenu<Unit>("Title-Settings-Overlay") }
+    settingsOverlay()
+    TextButton("Настройки") {
+        settingsOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
+            item("Создать окружение") {
+                loader.initialize(
+                    File(System.getProperty("java.home")),
+                    System.getProperty("java.class.path")
+                        .split(File.pathSeparator)
+                        .map(::File)
+                )
+            }
+            item("Сбросить окружение") {
+                loader.close()
+            }
+        }, Unit)
+    }
+}
+private val loader by lazy {
+    CompilerLoader(File("C:\\Users\\Artem\\Modding\\HollowEngine\\merged\\HollowEngineCompiler-1.0.0.jar"))
 }
 
 fun UiScope.TextButton(text: String, onClick: (PointerEvent) -> Unit = {}) {

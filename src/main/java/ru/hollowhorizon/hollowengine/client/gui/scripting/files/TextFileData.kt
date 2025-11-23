@@ -46,7 +46,6 @@ class TextFileData(name: String, path: String) :
                 this@TextFileData.modifier = modifier
                 this@TextFileData.area = this
                 installSelectionHandler(provider) { startLine, caretLine, startChar, caretChar ->
-                    //modifier.completions.clear()
                     provider.lines.clear()
                     val code = ScriptingEnvironment.INSTANCE.analyzer.highlight(name, provider.currentText, offset(provider.currentText, startLine, startChar))
                     provider.lines.addAll(code.map { it.toKool(provider.font) })
