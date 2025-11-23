@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileResoluti
 import org.jetbrains.kotlin.analysis.api.projectStructure.contextModule
 import org.jetbrains.kotlin.analysis.api.scopes.KaScope
 import org.jetbrains.kotlin.analysis.api.scopes.KaTypeScope
+import org.jetbrains.kotlin.analysis.api.signatures.KaCallableSignature
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KaDeclarationContainerSymbol
 import org.jetbrains.kotlin.idea.references.mainReference
@@ -23,6 +24,7 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.getCallNameExpression
 import org.jetbrains.kotlin.types.Variance
+import ru.hollowhorizon.hollowengine.common.ide.session.ScriptingAnalyzerImpl
 import ru.hollowhorizon.hollowengine.common.ide.session.completion.util.KeywordCompletion
 import ru.hollowhorizon.hollowengine.common.ide.session.kaModule
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
@@ -31,13 +33,17 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionI
 import ru.hollowhorizon.hollowengine.common.scripting.ide.keywordCompletionItem
 import ru.hollowhorizon.hollowengine.logE
 
-fun createCompletions(file: KtFile, offset: Int): List<CompletionItem> {
+fun ScriptingAnalyzerImpl.createCompletions(file: KtFile, offset: Int): List<CompletionItem> {
     val file = createFileForCompletion(file, offset + 1)
     val element = file.findElementAt(offset) ?: return emptyList()
     val ktElement = element.parentOfType<KtElement>(withSelf = true) ?: return emptyList()
 
-    return analyzeCopy(file, KaDanglingFileResolutionMode.PREFER_SELF) {
-        createItems(file, element, ktElement) ?: emptyList()
+    try {
+        return analyzeCopy(file, KaDanglingFileResolutionMode.PREFER_SELF) {
+            createItems(file, element, ktElement) ?: emptyList()
+        }
+    } finally {
+        cleanupFile(file)
     }
 }
 
@@ -92,7 +98,11 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
                 is CompletionPosition.NestedType -> createUseSiteVisibilityChecker(ktFile.symbol, null, parentKtElement)
 
                 is CompletionPosition.Type -> createUseSiteVisibilityChecker(ktFile.symbol, null, parentKtElement)
+
+                // Для пакетов проверка видимости не актуальна в том же смысле
+                is CompletionPosition.Package -> null
             }
+
         val symbolFilter: CompletionItemsCollector.SymbolFilter = when (position) {
             is CompletionPosition.Type if position.isAnnotation -> CompletionItemsCollector.SymbolFilter { symbol ->
                 with(contextOf<KaSession>()) {
@@ -103,23 +113,24 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
                     }
                 }
             }
-
             else -> CompletionItemsCollector.SymbolFilter { true }
         }
+
         val collector = CompletionItemsCollector(applicabilityChecker, visibilityChecker, filter, symbolFilter)
         with(collector) {
             when (position) {
-                is CompletionPosition.AfterDot -> completeAfterDot(position, ktFile, parentKtElement)
+                is CompletionPosition.AfterDot -> completeAfterDot(position, ktFile, parentKtElement, element.parentOfType<KtPackageDirective>(withSelf = true) != null)
                 is CompletionPosition.Identifier -> {
                     collector.add(completeKeywords(parentKtElement, position))
                     completeIdentifier(ktFile, parentKtElement)
 
                     // Добавляем completion для "this" с информацией о типе
-                    completeThisKeyword(ktFile, parentKtElement)
+                    if("this".startsWith(position.prefix)) completeThisKeyword(ktFile, parentKtElement)
                 }
 
                 is CompletionPosition.Type -> completeType(ktFile, parentKtElement, filter)
                 is CompletionPosition.NestedType -> completeNestedType(position)
+                is CompletionPosition.Package -> completePackage(ktFile, position.fqName, filter, position.onlyPackages)
             }
         }
 
@@ -143,7 +154,7 @@ private fun CompletionItemsCollector.completeThisKeyword(file: KtFile, element: 
     for (implicitReceiver in scopeContext.implicitReceivers) {
         val receiverType = implicitReceiver.type
         val typeText = receiverType.render(position = Variance.IN_VARIANCE)
-        val className = receiverType.expandedSymbol?.name?.asString() ?: "Unknown"
+        val className = implicitReceiver.ownerSymbol.name?.asString() ?: "Unknown"
 
         val thisName = if(first) "this" else "this@$className"
 
@@ -231,8 +242,6 @@ private fun completeKeywords(
 
             // Добавляем специальную обработку для ключевого слова "this"
             if (text == "this") {
-                // Для "this" мы будем использовать declaration completion вместо keyword completion
-                // чтобы показать дополнительную информацию о типе
                 return@complete
             }
 
@@ -253,14 +262,29 @@ private fun CompletionItemsCollector.completeAfterDot(
     position: CompletionPosition.AfterDot,
     file: KtFile,
     element: KtElement,
+    onlyPackages: Boolean
 ) = with(kaSession) {
-    when (val receiverTarget = position.receiver.mainReference?.resolveToSymbol()) {
+    val receiverTarget = when (val receiver = position.receiver) {
+        is KtDotQualifiedExpression -> receiver.selectorExpression?.mainReference?.resolveToSymbol()
+        else -> receiver.mainReference?.resolveToSymbol()
+    }
+
+    when (receiverTarget) {
         is KaClassSymbol -> {
             completeStaticMembers(receiverTarget)
+
+            if (receiverTarget.classKind == KaClassKind.OBJECT) {
+                completeScope(receiverTarget.combinedMemberScope)
+            }
+
             receiverTarget.staticDeclaredMemberScope.classifiers
                 .filterIsInstance<KaClassSymbol>()
                 .firstOrNull { it.classKind == KaClassKind.COMPANION_OBJECT }
                 ?.let { completeScope(it.combinedMemberScope) }
+        }
+
+        is KaPackageSymbol -> {
+            completePackage(file, receiverTarget.fqName, nameFilter, onlyPackages)
         }
 
         else -> {
@@ -269,7 +293,7 @@ private fun CompletionItemsCollector.completeAfterDot(
             if (position.prefix != null) {
                 val scopeContext = file.scopeContext(element)
                 for (scope in scopeContext.scopes) {
-                    add(scope.scope.callables(nameFilter).filter { it.isExtension })
+                    add(scope.scope.callables(nameFilter).filterShadowedJavaFields().filter { it.isExtension })
                 }
             }
 
@@ -278,16 +302,11 @@ private fun CompletionItemsCollector.completeAfterDot(
             }) { withImport() }
         }
     }
-
-    // Добавляем completion для this после точки (например, this.someMethod)
-    if (position.prefix.isNullOrEmpty() || "this".startsWith(position.prefix!!)) {
-        completeThisKeyword(file, element)
-    }
 }
 
 context(kaSession: KaSession)
 private fun CompletionItemsCollector.completeStaticMembers(kaClassSymbol: KaClassSymbol) = with(kaSession) {
-    add(kaClassSymbol.staticDeclaredMemberScope.callables(nameFilter))
+    add(kaClassSymbol.staticDeclaredMemberScope.callables(nameFilter).filterShadowedJavaFields())
 }
 
 context(_: KaSession)
@@ -302,7 +321,7 @@ context(kaSession: KaSession)
 private fun CompletionItemsCollector.completeScopeContext(file: KtFile, element: KtElement) = with(kaSession) {
     val scopeContext = file.scopeContext(element)
     for (scope in scopeContext.scopes) {
-        add(scope.scope.callables(nameFilter))
+        add(scope.scope.callables(nameFilter).filterShadowedJavaFields())
         add(scope.scope.classifiers(nameFilter))
     }
     for (implicitReceiver in scopeContext.implicitReceivers) {
@@ -339,6 +358,73 @@ private fun getKotlinDeclarationsFromIndex(ktFile: KtFile, filter: (Name) -> Boo
     }
 }
 
+// --- Логика для пакетов ---
+
+context(kaSession: KaSession)
+private fun CompletionItemsCollector.completePackage(ktFile: KtFile, fqName: FqName, filter: (Name) -> Boolean, onlyPackages: Boolean) = with(kaSession) {
+    val declarationProvider = KotlinDeclarationProviderFactory.getInstance(ktFile.project)
+        .createDeclarationProvider(analysisScope, useSiteModule)
+
+    // 1. Предлагаем под-пакеты
+    val allPackages = (declarationProvider.computePackageNamesWithTopLevelCallables().orEmpty() +
+            declarationProvider.computePackageNamesWithTopLevelClassifiers().orEmpty()).toSet()
+
+    val parentSegmentsSize = fqName.pathSegments().size
+
+    val subPackages = allPackages
+        .asSequence()
+        .map { FqName(it) }
+        .filter { candidate ->
+            // Отсекаем сам пакет, если он есть в списке, и оставляем только те, что начинаются с fqName
+            candidate != fqName && !candidate.isRoot && (fqName.isRoot || candidate.startsWith(fqName))
+        }
+        .mapNotNull { candidate ->
+            val candidateSegments = candidate.pathSegments()
+            // Если у кандидата сегментов больше, чем у родителя, берем следующий сегмент
+            if (candidateSegments.size > parentSegmentsSize) {
+                candidateSegments[parentSegmentsSize]
+            } else {
+                null
+            }
+        }
+        .filter { filter(it) } // Фильтруем по введенному префиксу
+        .distinct()
+        .toList()
+
+    for (subPackageName in subPackages) {
+        add(listOf(declarationCompletionItem {
+            name = subPackageName.asString()
+            show = subPackageName.asString()
+            insert = subPackageName.asString()
+            tag = CompletionItemTag.KEYWORD
+            import = false
+        }))
+    }
+
+    // 2. Предлагаем классы в этом пакете
+    if (!fqName.isRoot && !onlyPackages) {
+        val classNames = declarationProvider.getTopLevelKotlinClassLikeDeclarationNamesInPackage(fqName)
+        for (name in classNames) {
+            if (!filter(name)) continue
+            val classId = ClassId(fqName, name)
+            declarationProvider.getClassLikeDeclarationByClassId(classId)?.let {
+                add(it.symbol) { import = false }
+            }
+        }
+        val callableNames = declarationProvider.getTopLevelCallableNamesInPackage(fqName)
+        for (name in callableNames) {
+            if (!filter(name)) continue
+            val callableId = CallableId(fqName, name)
+            declarationProvider.getTopLevelFunctions(callableId).forEach {
+                add(it.symbol) { import = false }
+            }
+            declarationProvider.getTopLevelProperties(callableId).forEach {
+                add(it.symbol) { import = false }
+            }
+        }
+    }
+}
+
 
 context(kaSession: KaSession)
 private fun CompletionItemsCollector.completeType(file: KtFile, element: KtElement, nameFilter: (Name) -> Boolean) =
@@ -354,6 +440,11 @@ private fun CompletionItemsCollector.completeNestedType(position: CompletionPosi
         when (val symbol = position.receiver.referenceExpression?.mainReference?.resolveToSymbol()) {
             is KaTypeAliasSymbol -> symbol.expandedType.scope?.getClassifierSymbols(nameFilter)
             is KaDeclarationContainerSymbol -> symbol.combinedMemberScope.classifiers(nameFilter)
+            // Поддержка вложенных типов через полное имя пакета в UserType
+            is KaPackageSymbol -> {
+                completePackage(position.receiver.containingKtFile, symbol.fqName, nameFilter, false)
+                return
+            }
             else -> null
         } ?: return
     add(classifiers)
@@ -361,19 +452,41 @@ private fun CompletionItemsCollector.completeNestedType(position: CompletionPosi
 
 context(_: KaSession)
 private fun CompletionItemsCollector.completeTypeScope(scope: KaTypeScope) {
-    add(scope.getCallableSignatures(nameFilter))
+    add(scope.getCallableSignatures(nameFilter).filterShadowedJavaFieldsInSignatures())
     add(scope.getClassifierSymbols(nameFilter))
 }
 
 context(_: KaSession)
 private fun CompletionItemsCollector.completeScope(scope: KaScope) {
-    add(scope.callables(nameFilter))
+    add(scope.callables(nameFilter).filterShadowedJavaFields())
     add(scope.classifiers(nameFilter))
 }
 
 context(_: KaSession)
-private fun getPosition(element: KtElement): CompletionPosition? =
-    when (element) {
+private fun getPosition(element: KtElement): CompletionPosition? {
+    // Проверка, находимся ли мы в директиве package или import
+    val importDirective = element.parentOfType<KtImportDirective>(withSelf = true)
+    val packageDirective = element.parentOfType<KtPackageDirective>(withSelf = true)
+
+    if (importDirective != null || packageDirective != null) {
+        // Получаем текущий контекст квалификатора
+        var current: PsiElement? = element
+        while (current != null && current !is KtDotQualifiedExpression && current !is KtPackageDirective && current !is KtImportDirective) {
+            current = current.parent
+        }
+
+        val prefix = if (element is KtSimpleNameExpression) element.getReferencedName().removeSuffix(COMPLETION_FAKE_IDENTIFIER) else null
+
+        val fqName = if (current is KtDotQualifiedExpression) {
+            current.receiverExpression.text.let(::FqName)
+        } else {
+            FqName.ROOT
+        }
+
+        return CompletionPosition.Package(prefix, fqName, packageDirective != null)
+    }
+
+    return when (element) {
         is KtNameReferenceExpression -> {
             when (val parent = element.parent) {
                 is KtDotQualifiedExpression if parent.selectorExpression == element -> getPosition(parent)
@@ -398,6 +511,61 @@ private fun getPosition(element: KtElement): CompletionPosition? =
 
         else -> null
     }
+}
+
+private fun Sequence<KaCallableSymbol>.filterShadowedJavaFields(): Sequence<KaCallableSymbol> = sequence {
+    val bufferedJavaFields = mutableListOf<KaJavaFieldSymbol>()
+    val syntheticPropertyNames = hashSetOf<Name>()
+
+    for (symbol in this@filterShadowedJavaFields) {
+        when (symbol) {
+            is KaSyntheticJavaPropertySymbol -> {
+                syntheticPropertyNames.add(symbol.name)
+                yield(symbol)
+            }
+            is KaJavaFieldSymbol -> {
+                bufferedJavaFields.add(symbol)
+            }
+            else -> {
+                yield(symbol)
+            }
+        }
+    }
+
+    for (field in bufferedJavaFields) {
+        if (field.name !in syntheticPropertyNames) {
+            yield(field)
+        }
+    }
+}
+
+private fun Sequence<KaCallableSignature<*>>.filterShadowedJavaFieldsInSignatures(): Sequence<KaCallableSignature<*>> = sequence {
+    val bufferedJavaFields = mutableListOf<KaCallableSignature<*>>()
+    val syntheticPropertyNames = hashSetOf<Name>()
+
+    for (signature in this@filterShadowedJavaFieldsInSignatures) {
+        val symbol = signature.symbol
+        when (symbol) {
+            is KaSyntheticJavaPropertySymbol -> {
+                syntheticPropertyNames.add(symbol.name)
+                yield(signature)
+            }
+            is KaJavaFieldSymbol -> {
+                bufferedJavaFields.add(signature)
+            }
+            else -> {
+                yield(signature)
+            }
+        }
+    }
+
+    for (fieldSignature in bufferedJavaFields) {
+        if (fieldSignature.symbol.name !in syntheticPropertyNames) {
+            yield(fieldSignature)
+        }
+    }
+}
+
 
 private fun getPositionByUserType(element: KtUserType) =
     when (val qualifier = element.qualifier) {
@@ -436,6 +604,9 @@ private sealed interface CompletionPosition {
     class Type(override val prefix: String, val isAnnotation: Boolean) : CompletionPosition
 
     class NestedType(override val prefix: String?, val receiver: KtUserType) : CompletionPosition
+
+    // Новая позиция для автодополнения пакетов (в import, package или при вводе полных путей)
+    class Package(override val prefix: String?, val fqName: FqName, val onlyPackages: Boolean) : CompletionPosition
 }
 
 private val javaInternalPackages = listOf(

@@ -56,6 +56,13 @@ class ScriptingEnvironmentImpl(
     override val analyzer = environment.analyzer
 
     override fun close() {
+        analyzer.fileCache.forEach { file ->
+            analyzer.cleanupFile(file.value.file)
+        }
+        analyzer.fileCache.clear()
+        analyzer.libraries.forEach {
+            it
+        }
         environment.dispose()
     }
 }

@@ -251,7 +251,7 @@ context(session: KaSession)
 private fun LineBuilder.SpanBuilder.applyModifiers(symbol: KaSymbol) {
     with(session) {
         if (symbol is KaCallableSymbol) {
-            if (symbol.location == KaSymbolLocation.TOP_LEVEL || (symbol is KaNamedFunctionSymbol && symbol.isStatic)) {
+            if (symbol.location == KaSymbolLocation.TOP_LEVEL && (symbol is KaNamedFunctionSymbol && symbol.isStatic)) {
                 italic = true
             }
         }

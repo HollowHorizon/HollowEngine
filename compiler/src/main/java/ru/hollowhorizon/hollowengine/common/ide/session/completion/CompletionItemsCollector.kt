@@ -7,7 +7,6 @@ import org.jetbrains.kotlin.analysis.api.components.KaUseSiteVisibilityChecker
 import org.jetbrains.kotlin.analysis.api.signatures.KaCallableSignature
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin
 import org.jetbrains.kotlin.analysis.api.symbols.name
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtDeclaration
@@ -19,13 +18,14 @@ import kotlin.contracts.contract
 
 internal class CompletionItemsCollector(
     private val applicabilityChecker: KaCompletionExtensionCandidateChecker?,
-    private val visibilityChecker: KaUseSiteVisibilityChecker,
+    private val visibilityChecker: KaUseSiteVisibilityChecker?,
     val nameFilter: (Name) -> Boolean,
-    val symbolFilter:  SymbolFilter,
+    val symbolFilter: SymbolFilter,
 ) {
     fun interface SymbolFilter {
         context(_: KaSession) fun accepts(symbol: KaDeclarationSymbol): Boolean
     }
+
     private val factory: CompletionItemFactory = CompletionItemFactory
 
     private val items = mutableListOf<CompletionItem>()
@@ -122,11 +122,8 @@ internal class CompletionItemsCollector(
         runCatching {
             if (symbol == null) return false
             if (symbol in symbols) return false
-            if (symbol.origin !in setOf(KaSymbolOrigin.JAVA_LIBRARY)) {
-                if (!visibilityChecker.isVisible(symbol)) {
-                    return false
-                }
-            }
+            if (visibilityChecker?.isVisible(symbol) == false) return false
+
             if (symbol.name?.asString()?.contains(COMPLETION_FAKE_IDENTIFIER) == true) return false
             if (!symbolFilter.accepts(symbol)) return false
 

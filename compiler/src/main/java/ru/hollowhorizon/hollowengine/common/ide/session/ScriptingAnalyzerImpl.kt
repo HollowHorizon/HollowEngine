@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.ide.session
 
 import com.intellij.openapi.project.Project
+import com.intellij.psi.impl.PsiFileEx
+import com.intellij.psi.impl.PsiManagerEx
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreProjectEnvironment
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtPsiFactory
@@ -19,45 +21,62 @@ class ScriptingAnalyzerImpl(
     val libraries: List<KaRekotLibraryModule>,
     val builtins: Builtins,
     val projectStructureProvider: ProjectStructureProviderImpl,
-): ScriptingAnalyzer {
+) : ScriptingAnalyzer {
     val project: Project
         get() = kotlinCoreProjectEnvironment.project
     private val factory = KtPsiFactory(project, eventSystemEnabled = true)
 
-    private val fileCache = object : LinkedHashMap<String, CachedFile>(5, 0.75f, true) {
-        override fun removeEldestEntry(p0: MutableMap.MutableEntry<String, CachedFile>?): Boolean {
-            return size > 5 // Храним максимум 5 файлов, чтобы память не текла
+    internal val fileCache = object : LinkedHashMap<String, CachedFile>(5, 0.75f, true) {
+        override fun removeEldestEntry(entry: MutableMap.MutableEntry<String, CachedFile>?): Boolean {
+            val shouldRemove = size > 5
+            if (shouldRemove && entry != null) {
+                cleanupFile(entry.value.file)
+            }
+            return shouldRemove
         }
     }
 
-    private data class CachedFile(val textHash: Int, val textLength: Int, val file: KtFile)
+    internal data class CachedFile(val textHash: Int, val textLength: Int, val file: KtFile)
 
     private fun getOrCreateFile(name: String, text: String): KtFile {
         val textHash = text.hashCode()
         val textLength = text.length
 
         val cached = fileCache[name]
-        if (cached != null && cached.textLength == textLength && cached.textHash == textHash) {
-            return cached.file
+
+        if (cached != null) {
+            if (cached.textLength == textLength && cached.textHash == textHash) {
+                return cached.file
+            }
+
+            cleanupFile(cached.file)
         }
 
         val file = factory.createFile(name, text)
-        projectStructureProvider.setModule(file, KaScriptModule(
-            file, project, buildList {
-                addAll(libraries)
-                add(builtins.kaModule)
-            }
-        ))
+        projectStructureProvider.setModule(
+            file, KaScriptModule(
+                file, project, buildList {
+                    addAll(libraries)
+                    add(builtins.kaModule)
+                }
+            )
+        )
 
         fileCache[name] = CachedFile(textHash, textLength, file)
 
         return file
     }
 
+    internal fun cleanupFile(file: KtFile) {
+        projectStructureProvider.removeModule(file)
+        (file as? PsiFileEx)?.markInvalidated()
+        removeFromPsiManager(file)
+    }
+
     override fun highlight(
         name: String,
         text: String,
-        offset: Int
+        offset: Int,
     ): List<TextLine> {
         val file = getOrCreateFile(name, text)
         return highlightCode(file, offset)
@@ -72,4 +91,10 @@ class ScriptingAnalyzerImpl(
         val file = getOrCreateFile(name, text)
         return diagnosticCode(file)
     }
+}
+
+private fun removeFromPsiManager(file: KtFile) {
+    val psiManager = com.intellij.psi.PsiManager.getInstance(file.project) as? PsiManagerEx ?: return
+    val fileManager = psiManager.fileManager
+    fileManager.setViewProvider(file.virtualFile, null)
 }

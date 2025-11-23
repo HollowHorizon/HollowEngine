@@ -37,6 +37,7 @@ class CompilerLoader(
 
     override fun close() {
         try {
+            ScriptingEnvironment.INSTANCE.close()
             classLoader?.close()
         } catch (e: Exception) {
             e.printStackTrace()

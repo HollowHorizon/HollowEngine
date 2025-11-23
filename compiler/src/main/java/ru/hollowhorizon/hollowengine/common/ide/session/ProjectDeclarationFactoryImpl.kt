@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.ide.session
 
+import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.psi.impl.PsiManagerEx
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.impl.base.util.LibraryUtils
@@ -18,24 +20,31 @@ import java.nio.file.Path
 class SimpleDeclarationProviderFactory(
     private val projectEnvironment: KotlinCoreProjectEnvironment,
     private val builtins: Builtins,
-    private val binaryRoots: List<Path>
+    private val binaryRoots: List<Path>,
 ) : KotlinDeclarationProviderFactory {
 
     // Храним список активных скриптов, чтобы искать в них объявления
     private val registeredScripts = mutableListOf<KtFile>()
 
     private val jdkHome = Path.of(System.getProperty("java.home"))
+
     @OptIn(KaImplementationDetail::class)
     private val jdkClasses = LibraryUtils.findClassesFromJdkHome(jdkHome, isJre = true)
         .ifEmpty { LibraryUtils.findClassesFromJdkHome(jdkHome, isJre = false) }
 
-    // 1. Стандартная фабрика JetBrains для поиска в JAR-файлах (in-memory индекс)
-    // Она просканирует переданные binaryRoots при создании
+    private val virtualFiles = getVirtualFilesByRoots(jdkClasses + binaryRoots, projectEnvironment)
+
+    init {
+        Disposer.register(projectEnvironment.parentDisposable) {
+            dispose()
+        }
+    }
+
     private val binaryFactory = KotlinStandaloneDeclarationProviderFactory(
         projectEnvironment.project,
         projectEnvironment.environment,
         sourceKtFiles = emptyList(), // Сюда ничего не передаем, исходники обрабатываем вручную ниже
-        binaryRoots = getVirtualFilesByRoots(jdkClasses + binaryRoots, projectEnvironment),
+        binaryRoots = virtualFiles,
         shouldBuildStubsForBinaryLibraries = true, // Важно для скорости и корректности
         skipBuiltins = true
     )
@@ -46,7 +55,7 @@ class SimpleDeclarationProviderFactory(
 
     override fun createDeclarationProvider(
         scope: GlobalSearchScope,
-        contextualModule: KaModule?
+        contextualModule: KaModule?,
     ): KotlinDeclarationProvider {
         val providers = mutableListOf<KotlinDeclarationProvider>()
 
@@ -63,6 +72,24 @@ class SimpleDeclarationProviderFactory(
 
         return KotlinCompositeDeclarationProvider.create(providers)
     }
+
+    fun dispose() {
+        virtualFiles.forEach {
+            cleanPsiForVirtualFile(it)
+        }
+    }
+
+    private fun cleanPsiForVirtualFile(file: VirtualFile) {
+        file.kaModule = null
+        removeFromPsiManager(file)
+    }
+
+    // Перегрузка removeFromPsiManager для VirtualFile (ранее была для KtFile)
+    private fun removeFromPsiManager(virtualFile: VirtualFile) {
+        val psiManager = com.intellij.psi.PsiManager.getInstance(projectEnvironment.project) as? PsiManagerEx ?: return
+        val fileManager = psiManager.fileManager
+        fileManager.setViewProvider(virtualFile, null)
+    }
 }
 
 private const val JAR_SEPARATOR = "!/"
@@ -71,6 +98,7 @@ fun getVirtualFilesByRoots(
     roots: List<Path>,
     kotlinCoreProjectEnvironment: KotlinCoreProjectEnvironment,
 ): List<VirtualFile> =
-    StandaloneProjectFactory.getVirtualFilesForLibraryRoots(roots, kotlinCoreProjectEnvironment.environment).distinct().flatMap {
-        LibraryUtils.getAllVirtualFilesFromRoot(it, includeRoot = true)
-    }
+    StandaloneProjectFactory.getVirtualFilesForLibraryRoots(roots, kotlinCoreProjectEnvironment.environment).distinct()
+        .flatMap {
+            LibraryUtils.getAllVirtualFilesFromRoot(it, includeRoot = true)
+        }

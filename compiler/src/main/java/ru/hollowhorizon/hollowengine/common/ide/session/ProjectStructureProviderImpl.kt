@@ -6,6 +6,8 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinProjectStructureProvider
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
+import org.jetbrains.kotlin.analysis.api.projectStructure.contextModule
+import org.jetbrains.kotlin.psi.KtFile
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaJarLibraryModuleImpl
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaJdkLibraryModuleImpl
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaRekotLibraryModule
@@ -49,6 +51,11 @@ class ProjectStructureProviderImpl() : KotlinProjectStructureProvider {
 
     fun setModule(file: PsiFile, module: KaModule) {
         setModule(file.virtualFile, module)
+    }
+
+    fun removeModule(file: PsiFile) {
+        (file as? KtFile)?.contextModule = null
+        file.virtualFile?.kaModule = null
     }
 
     fun registerLibraryModule(module: KaRekotLibraryModule) {
