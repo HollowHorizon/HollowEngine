@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.ide
 
 sealed interface CompletionItem {
+    val typedPrefix: String
     val show: String
     val insert: String
     val tag: CompletionItemTag
@@ -16,14 +17,14 @@ sealed interface CompletionItem {
         val import: Boolean = false,
         val fqName: String?,
         val tail: String?,
-        val middle: String?,
+        val middle: String?, override val typedPrefix: String,
     ) : CompletionItem
 
     data class Keyword(
         override val show: String,
         override val insert: String = show,
         override val name: String,
-        override val moveCaret: Int = 0,
+        override val moveCaret: Int = 0, override val typedPrefix: String,
     ) : CompletionItem {
         override val tag: CompletionItemTag
             get() = CompletionItemTag.KEYWORD
@@ -35,6 +36,7 @@ class KeywordItemBuilder {
     lateinit var textToInsert: String
     var moveCaret: Int = 0
     lateinit var name: String
+    var typedPrefix: String = ""
 
     fun with(completionItem: CompletionItem.Keyword) {
         textToShow = completionItem.show
@@ -47,7 +49,7 @@ class KeywordItemBuilder {
         textToInsert += " "
     }
 
-    fun build() = CompletionItem.Keyword(textToShow, textToInsert, name, moveCaret)
+    fun build() = CompletionItem.Keyword(textToShow, textToInsert, name, moveCaret, typedPrefix)
 }
 
 class DeclarationCompletionItemBuilder {
@@ -60,6 +62,7 @@ class DeclarationCompletionItemBuilder {
     var name: String? = null
     var tail: String? = null
     var middle: String? = null
+    var typedPrefix: String = ""
 
     fun withImport() {
         import = true
@@ -88,6 +91,7 @@ class DeclarationCompletionItemBuilder {
             fqName = fqName,
             tail = tail,
             middle = middle,
+            typedPrefix = typedPrefix
         )
 }
 

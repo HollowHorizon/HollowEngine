@@ -19,8 +19,7 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hollowengine.client.HighlightTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys.toEngine
-import ru.hollowhorizon.hollowengine.common.events.EventBus
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import kotlin.contracts.ExperimentalContracts
@@ -200,7 +199,10 @@ fun UiScope.ScriptTextArea(
 
                         textArea.completionsList = (this as LazyListNode).state
                         itemsIndexed(completions) { index, completion ->
-                            CompletionRenderer.renderCompletion(completion, textArea, this@setupContent.modifier.completionIndex == index)
+                            CompletionRenderer.renderCompletion(
+                                completion,
+                                this@setupContent.modifier.completionIndex == index
+                            )
                             //completion.apply { create(textArea, this@setupContent.modifier.completionIndex == index) }
                         }
                     }
@@ -490,117 +492,219 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     }
 
     override fun onKeyEvent(keyEvent: KeyEvent) {
-        val event = keyEvent.toEngine(this)
-        EventBus.post(event)
-        if (event.isCanceled) return
 
         if (keyEvent.isCharTyped) {
-            val closing = bracketPairs[keyEvent.localKeyCode.code.toChar()]
-
-            if (closing == null) {
-                editText(keyEvent.typedChar.toString())
-            } else {
-                applyBrackets(keyEvent.typedChar.toString(), closing)
-            }
+            handleCharTyped(keyEvent)
         } else if (keyEvent.isPressed) {
-            when (keyEvent.keyCode) {
-                KeyboardInput.KEY_BACKSPACE -> {
-                    if (selectionHandler.isEmptySelection) {
-                        selectionHandler.moveCaretLeft(wordWise = keyEvent.isCtrlDown, select = true)
-                    }
-                    val startChar = selectionHandler.caretLine?.text?.getOrNull(modifier.selectionCaretChar)
-                    editText("")
-                    val nextChar = selectionHandler.caretLine?.text?.getOrNull(modifier.selectionCaretChar)
-                    bracketPairs[startChar]?.let {
-                        if (nextChar != it) return@let
-                        if (selectionHandler.isEmptySelection) {
-                            selectionHandler.moveCaretRight(wordWise = keyEvent.isCtrlDown, select = true)
-                        }
-                        editText("")
-                    }
-                }
-
-                KeyboardInput.KEY_DEL -> {
-                    if (selectionHandler.isEmptySelection) {
-                        selectionHandler.moveCaretRight(wordWise = keyEvent.isCtrlDown, select = true)
-                    }
-                    editText("")
-                }
-
-                KeyboardInput.KEY_ENTER, KeyboardInput.KEY_NP_ENTER -> {
-                    try {
-                        var whitespaces = selectionHandler.caretLine?.text?.let {
-                            var whitespaces = 0
-                            for (c in it) {
-                                if (c == ' ' && whitespaces < selectionHandler.selectionCaretChar) whitespaces++
-                                else break
-                            }
-                            whitespaces
-                        } ?: 0
-
-                        val line = selectionHandler.caretLine ?: return
-                        val caretChar = selectionHandler.selectionCaretChar.coerceAtLeast(0)
-                        val isLPar = line.text.substring(0, caretChar).trim().endsWith("{")
-                        val isRPar = line.text.trim().endsWith("}")
-
-                        if (isLPar) whitespaces += 4
-                        if (isLPar && isRPar) whitespaces -= 4
-
-                        editText("\n" + " ".repeat(whitespaces.coerceAtLeast(0)))
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
-
-                KeyboardInput.KEY_CURSOR_LEFT -> selectionHandler.moveCaretLeft(
-                    wordWise = keyEvent.isCtrlDown, select = keyEvent.isShiftDown
-                )
-
-                KeyboardInput.KEY_CURSOR_RIGHT -> selectionHandler.moveCaretRight(
-                    wordWise = keyEvent.isCtrlDown, select = keyEvent.isShiftDown
-                )
-
-                KeyboardInput.KEY_CURSOR_UP -> selectionHandler.moveCaretLineUp(select = keyEvent.isShiftDown)
-                KeyboardInput.KEY_CURSOR_DOWN -> selectionHandler.moveCaretLineDown(select = keyEvent.isShiftDown)
-                KeyboardInput.KEY_PAGE_UP -> selectionHandler.moveCaretPageUp(select = keyEvent.isShiftDown)
-                KeyboardInput.KEY_PAGE_DOWN -> selectionHandler.moveCaretPageDown(select = keyEvent.isShiftDown)
-                KeyboardInput.KEY_HOME -> selectionHandler.moveCaretLineStart(select = keyEvent.isShiftDown)
-                KeyboardInput.KEY_END -> selectionHandler.moveCaretLineEnd(select = keyEvent.isShiftDown)
-                KeyboardInput.KEY_ESC -> {
-                    selectionHandler.clearSelection()
-                    surface.requestFocus(null)
-                }
-
-                else -> {
-                    if (keyEvent.isCtrlDown) {
-                        when (keyEvent.keyCode) {
-                            KEY_CODE_SELECT_ALL -> selectionHandler.selectAll()
-                            KEY_CODE_PASTE -> Clipboard.getStringFromClipboard { paste -> paste?.let { editText(it) } }
-                            KEY_CODE_COPY -> selectionHandler.copySelection()?.let { Clipboard.copyToClipboard(it) }
-                            KEY_CODE_CUT -> {
-                                selectionHandler.copySelection()?.let {
-                                    Clipboard.copyToClipboard(it)
-                                    editText("")
-                                }
-                            }
-
-                            else -> {}
-                        }
-                    }
-                }
-            }
+            handleKeyPress(keyEvent)
         } else if (keyEvent.isReleased) {
+            handleKeyRelease(keyEvent)
+        }
+    }
+
+    private fun handleCharTyped(keyEvent: KeyEvent) {
+        val char = keyEvent.typedChar.toString()
+        val closing = bracketPairs[keyEvent.localKeyCode.code.toChar()]
+
+        if (closing == null) {
+            editText(char)
+        } else {
+            applyBrackets(char, closing)
+        }
+    }
+
+    private fun handleKeyPress(keyEvent: KeyEvent) {
+        // Navigation & Deletion
+        when (keyEvent.keyCode) {
+            KeyboardInput.KEY_BACKSPACE -> handleBackspace(keyEvent)
+            KeyboardInput.KEY_DEL -> handleDelete(keyEvent)
+            KeyboardInput.KEY_ENTER, KeyboardInput.KEY_NP_ENTER -> handleEnter()
+            KeyboardInput.KEY_ESC -> {
+                selectionHandler.clearSelection()
+                surface.requestFocus(null)
+                // Clear completions
+                modifier.completions.clear()
+            }
+            // Navigation arrows
+            KeyboardInput.KEY_CURSOR_LEFT, KeyboardInput.KEY_CURSOR_RIGHT,
+            KeyboardInput.KEY_CURSOR_UP, KeyboardInput.KEY_CURSOR_DOWN,
+            KeyboardInput.KEY_PAGE_UP, KeyboardInput.KEY_PAGE_DOWN,
+            KeyboardInput.KEY_HOME, KeyboardInput.KEY_END,
+            KeyboardInput.KEY_TAB,
+                -> handleNavigation(keyEvent)
+
+            else -> handleShortcuts(keyEvent)
+        }
+    }
+
+    private fun handleShortcuts(keyEvent: KeyEvent) {
+        if (keyEvent.isCtrlDown) {
             when (keyEvent.keyCode) {
-                KeyboardInput.KEY_TAB -> {
+                UniversalKeyCode('A') -> selectionHandler.selectAll()
+                UniversalKeyCode('V') -> Clipboard.getStringFromClipboard { it?.let { editText(it) } }
+                UniversalKeyCode('C') -> selectionHandler.copySelection()?.let { Clipboard.copyToClipboard(it) }
+                UniversalKeyCode('X') -> selectionHandler.copySelection()?.let {
+                    Clipboard.copyToClipboard(it)
+                    editText("")
+                }
+
+                UniversalKeyCode('Z') -> {
                     if (keyEvent.isShiftDown) {
-                        unindentSelection()
+                        (lineProvider as? UndoRedoHandler)?.redo { sl, el, sc, ec ->
+                            selectionHandler.selectionChanged(sl, el, sc, ec)
+                        }
                     } else {
-                        indentSelection()
+                        (lineProvider as? UndoRedoHandler)?.undo { sl, el, sc, ec ->
+                            selectionHandler.selectionChanged(sl, el, sc, ec)
+                        }
                     }
                 }
 
                 else -> {}
             }
+        } else {
+            // Autocomplete navigation
+            if (modifier.completions.isNotEmpty()) {
+                when (keyEvent.keyCode) {
+                    UniversalKeyCode(' ') -> { /* Could trigger completion confirm if Ctrl+Space logic exists */
+                    }
+
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    private fun handleBackspace(keyEvent: KeyEvent) {
+        if (selectionHandler.isEmptySelection) {
+            selectionHandler.moveCaretLeft(wordWise = keyEvent.isCtrlDown, select = true)
+        }
+        // Smart bracket deletion logic
+        val startChar = selectionHandler.caretLine?.text?.getOrNull(modifier.selectionCaretChar)
+        editText("") // Delete content
+        val nextChar = selectionHandler.caretLine?.text?.getOrNull(modifier.selectionCaretChar)
+
+        // If we deleted an opening bracket and the next char is the closing one, delete it too
+        bracketPairs[startChar]?.let { closing ->
+            if (nextChar == closing) {
+                // Just delete the next char
+                modifier.editorHandler?.replaceText(
+                    selectionHandler.selectionCaretLine, selectionHandler.selectionCaretLine,
+                    selectionHandler.selectionCaretChar, selectionHandler.selectionCaretChar + 1,
+                    ""
+                )
+            }
+        }
+    }
+
+    private fun handleDelete(keyEvent: KeyEvent) {
+        if (selectionHandler.isEmptySelection) {
+            selectionHandler.moveCaretRight(wordWise = keyEvent.isCtrlDown, select = true)
+        }
+        editText("")
+    }
+
+    private fun handleEnter() {
+        if(modifier.completions.isNotEmpty()) {
+            applyCompletion(modifier.completions.getOrNull(modifier.completionIndex) ?: return)
+            return
+        }
+
+        val line = selectionHandler.caretLine ?: return
+        val text = line.text
+        val caretPos = selectionHandler.selectionCaretChar.coerceAtMost(text.length)
+
+        // Smart Indentation
+        var whitespaces = text.takeWhile { it == ' ' }.length
+
+        val isLPar = text.substring(0, caretPos).trimEnd().endsWith("{")
+        val isRPar = text.substring(caretPos).trimStart().startsWith("}")
+
+        if (isLPar) whitespaces += 4
+
+        // If hitting enter between {} ->
+        // {
+        //     |
+        // }
+        if (isLPar && isRPar) {
+            val baseIndent = (whitespaces - 4).coerceAtLeast(0)
+            val indentStr = " ".repeat(whitespaces)
+            val closeIndentStr = " ".repeat(baseIndent)
+
+            editText("\n$indentStr\n$closeIndentStr")
+            // Move caret back up to the middle line
+            selectionHandler.moveCaretLineUp(select = false)
+            selectionHandler.moveCaretLineEnd(select = false)
+        } else {
+            editText("\n" + " ".repeat(whitespaces))
+        }
+    }
+
+    private fun handleNavigation(keyEvent: KeyEvent) {
+        val isShift = keyEvent.isShiftDown
+        val isCtrl = keyEvent.isCtrlDown
+
+        // If completions are visible, Up/Down/Enter controls the popup
+        if (modifier.completions.isNotEmpty() && !isCtrl) {
+            when (keyEvent.keyCode) {
+                KeyboardInput.KEY_CURSOR_UP -> {
+                    modifier.setCompletionIndex((modifier.completionIndex - 1 + modifier.completions.size) % modifier.completions.size)
+                    return
+                }
+
+                KeyboardInput.KEY_CURSOR_DOWN -> {
+                    modifier.setCompletionIndex((modifier.completionIndex + 1) % modifier.completions.size)
+                    return
+                }
+
+                KeyboardInput.KEY_ENTER, KeyboardInput.KEY_NP_ENTER -> {
+                    applyCompletion(modifier.completions[modifier.completionIndex])
+                    return
+                }
+
+                else -> {}
+            }
+        }
+
+        when (keyEvent.keyCode) {
+            KeyboardInput.KEY_CURSOR_LEFT -> selectionHandler.moveCaretLeft(wordWise = isCtrl, select = isShift)
+            KeyboardInput.KEY_CURSOR_RIGHT -> selectionHandler.moveCaretRight(wordWise = isCtrl, select = isShift)
+            KeyboardInput.KEY_CURSOR_UP -> selectionHandler.moveCaretLineUp(select = isShift)
+            KeyboardInput.KEY_CURSOR_DOWN -> selectionHandler.moveCaretLineDown(select = isShift)
+            KeyboardInput.KEY_PAGE_UP -> selectionHandler.moveCaretPageUp(select = isShift)
+            KeyboardInput.KEY_PAGE_DOWN -> selectionHandler.moveCaretPageDown(select = isShift)
+            KeyboardInput.KEY_HOME -> selectionHandler.moveCaretLineStart(select = isShift)
+            KeyboardInput.KEY_END -> selectionHandler.moveCaretLineEnd(select = isShift)
+            else -> {}
+        }
+    }
+
+    fun applyCompletion(item: CompletionItem) {
+        val handler = modifier.editorHandler ?: return
+        val lineIdx = modifier.selectionCaretLine
+        val charIdx = modifier.selectionCaretChar
+        val lineText = lineProvider[lineIdx].text
+
+        // Find start of the word being replaced
+        val startIdx = TextCaretNavigation.startOfExpression(lineText, charIdx-1)
+        val replaceStart = if (startIdx == -1) charIdx else startIdx
+
+        val newPos = handler.replaceText(lineIdx, lineIdx, replaceStart, charIdx, item.insert)
+
+        selectionHandler.selectionChanged(newPos.y, newPos.y, newPos.x, newPos.x)
+
+        modifier.completions.clear()
+        surface.requestFocus(this)
+    }
+
+    private fun handleKeyRelease(keyEvent: KeyEvent) {
+        if (keyEvent.keyCode == KeyboardInput.KEY_TAB) {
+            if (modifier.completions.isNotEmpty()) {
+                applyCompletion(modifier.completions.getOrNull(modifier.completionIndex) ?: return)
+                return
+            }
+
+            if (keyEvent.isShiftDown) unindentSelection() else indentSelection()
         }
     }
 

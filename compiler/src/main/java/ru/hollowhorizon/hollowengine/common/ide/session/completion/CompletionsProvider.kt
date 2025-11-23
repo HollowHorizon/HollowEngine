@@ -261,6 +261,7 @@ private fun completeKeywords(
                 textToShow = text.trim()
                 name = text.trim()
                 textToInsert = text
+                typedPrefix = position?.prefix ?: ""
             }
         }
         return result
