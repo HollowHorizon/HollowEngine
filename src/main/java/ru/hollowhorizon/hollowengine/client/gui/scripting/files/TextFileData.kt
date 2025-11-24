@@ -6,6 +6,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.logE
+import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
@@ -35,19 +36,40 @@ class TextFileData(name: String, path: String) :
     }
 
     override fun UiScope.compose() {
-        modifier.background(RoundRectBackground(colors.backgroundVariant, sizes.smallGap))
+        modifier.background(RoundRectBackground(EditorTheme.bg, sizes.smallGap))
 
         Box(Grow.Std, Grow.Std) {
             ScriptTextArea(
                 provider,
-                vScrollbarModifier = { it.width(sizes.smallGap).margin(end = sizes.smallGap) },
-                hScrollbarModifier = { it.height(sizes.smallGap).margin(bottom = sizes.smallGap) },
+                vScrollbarModifier = {
+                    it.width(sizes.smallGap)
+                        .colors(
+                            trackColor = EditorTheme.Scrollbar.trackColor,
+                            trackHoverColor = EditorTheme.Scrollbar.trackHover,
+                            color = EditorTheme.Scrollbar.color,
+                            hoverColor = EditorTheme.Scrollbar.hoverColor,
+                        )
+                        .margin(sizes.smallGap)
+                },
+                hScrollbarModifier = {
+                    it.height(sizes.smallGap).margin(sizes.smallGap)
+                        .colors(
+                            trackColor = EditorTheme.Scrollbar.trackColor,
+                            trackHoverColor = EditorTheme.Scrollbar.trackHover,
+                            color = EditorTheme.Scrollbar.color,
+                            hoverColor = EditorTheme.Scrollbar.hoverColor,
+                        )
+                },
             ) {
                 this@TextFileData.modifier = modifier
                 this@TextFileData.area = this
                 installSelectionHandler(provider) { startLine, caretLine, startChar, caretChar ->
                     provider.lines.clear()
-                    val code = ScriptingEnvironment.INSTANCE.analyzer.highlight(name, provider.currentText, offset(provider.currentText, startLine, startChar))
+                    val code = ScriptingEnvironment.INSTANCE.analyzer.highlight(
+                        name,
+                        provider.currentText,
+                        offset(provider.currentText, startLine, startChar)
+                    )
                     provider.lines.addAll(code.map { it.toKool(provider.font) })
                 }
 

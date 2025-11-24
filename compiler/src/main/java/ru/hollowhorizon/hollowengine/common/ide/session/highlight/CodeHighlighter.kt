@@ -14,11 +14,14 @@ import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.InlayHint
+import ru.hollowhorizon.hollowengine.common.ide.session.inlays.provideHints
 import ru.hollowhorizon.hollowengine.common.scripting.ide.SpanStyle
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
 
 class LineBuilder(val lines: MutableList<TextLine>) {
+
     fun append(builder: SpanBuilder.() -> Unit) {
         lines.add(SpanBuilder(arrayListOf()).apply(builder).build())
     }
@@ -28,6 +31,8 @@ class LineBuilder(val lines: MutableList<TextLine>) {
         var italic = false
         var bold = false
         var highlight = false
+        private val hints = ArrayList<InlayHint>()
+
 
         fun append(text: String) {
             spans.add(text to SpanStyle(tokenType, italic, bold, highlight))
@@ -36,7 +41,11 @@ class LineBuilder(val lines: MutableList<TextLine>) {
             highlight = false
         }
 
-        fun build() = TextLine(spans)
+        fun appendHint(hint: InlayHint) {
+            hints.add(hint)
+        }
+
+        fun build() = TextLine(spans, hints)
     }
 }
 
@@ -49,6 +58,8 @@ fun highlightCode(file: KtFile, offset: Int): List<TextLine> {
         ?: file.findElementAt(offset - 1).takeIfSelectable()
 
     analyze(file) {
+        val hints = provideHints(file)
+
         // Предварительно вычисляем ключи символов под курсором
         val caretKeys = elementAtCaret?.let { element ->
             val expression = element.parentsWithSelf.firstIsInstanceOrNull<KtExpression>()
@@ -61,6 +72,11 @@ fun highlightCode(file: KtFile, offset: Int): List<TextLine> {
                 for (element in getElementsAtLine(file, i)) {
                     renderPsiElement(element, elementAtCaret, caretKeys)
                 }
+
+                val document = file.fileDocument
+                val lineStartOffset = document.getLineStartOffset(i)
+                val lineEndOffset = document.getLineEndOffset(i)
+                hints.filter { it.index in lineStartOffset .. lineEndOffset }.forEach { appendHint(it.copy(index = it.index - lineStartOffset)) }
             }
         }
     }

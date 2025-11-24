@@ -9,15 +9,14 @@ import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.input.UniversalKeyCode
 import de.fabmax.kool.math.MutableVec2f
+import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.math.Vec2i
-import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.math.clamp
 import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.scene.TriangulatedLineMesh
-import de.fabmax.kool.scene.addTriangulatedLineMesh
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hollowengine.client.HighlightTheme
+import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
@@ -173,12 +172,18 @@ fun UiScope.ScriptTextArea(
             val completions = textArea.modifier.completions
             if (completions.isNotEmpty()) {
 
-                Popup(
-                    modifier.completionX, modifier.completionY
-                ) {
-                    modifier.padding(sizes.smallGap * 0.5f).height(
-                        (24.dp + sizes.smallGap) * completions.size.coerceAtMost(10) + sizes.smallGap
-                    ).width(Grow(1f, max = FitContent)).background(null).border(null).zLayer(500)
+                Popup(modifier.completionX, modifier.completionY) {
+                    modifier
+                        .background(RoundRectBackground(EditorTheme.Popup.bg, 8.dp))
+                        .border(RoundRectBorder(EditorTheme.Popup.border, 8.dp, sizes.borderWidth))
+                        .padding(sizes.smallGap * 0.5f)
+                        .height(
+                            (24.dp + sizes.smallGap) * completions.size.coerceAtMost(10) + sizes.smallGap
+                        )
+                        .width(Grow(1f, max = FitContent))
+                        .background(null)
+                        .border(null)
+                        .zLayer(500)
 
                     LazyColumn(
                         withVerticalScrollbar = true,
@@ -243,11 +248,6 @@ fun UiScope.ScriptTextArea(
         }
 
         errorMessage = ""
-        val primitives = surface.getUiPrimitives(modifier.zLayer + 50)
-        primitives.children.filterIsInstance<TriangulatedLineMesh>().forEach {
-            primitives.removeNode(it)
-            it.release()
-        }
     }
 }
 
@@ -264,31 +264,67 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     val selectionHandler = SelectionHandler()
 
     private inner class LineItem(parent: UiNode?, surface: UiSurface) : RowNode(parent, surface) {
+        var lineIndex = -1
         lateinit var indents: IntArray
 
         val font = MsdfFont(HACK_FONT, 18f)
 
-        private val guideColor = Color("3C3C4AFF").withAlpha(0.5f)
-
         override fun render(ctx: KoolContext) {
+            if (lineIndex == this@TextAreaNode.modifier.selectionCaretLine && isFocused.use()) {
+                getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRect(
+                    0f, 0f, widthPx, heightPx, EditorTheme.currentLineBg
+                )
+            }
             super.render(ctx)
+
+            val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp + sizes.smallGap * 2f
+            this@TextAreaNode.modifier.errors.filter { lineIndex in it.range.start.line..it.range.end.line }
+                .forEach { error ->
+                    val text = lineProvider[lineIndex].text
+                    val (startPos, endPos) = if (text.isEmpty()) {
+                        0f to widthPx
+                    } else {
+                        val startIdx = error.range.start.column.takeIf { it in text.indices } ?: return
+                        val endIdx = error.range.end.column.takeIf { it in text.indices } ?: return
+                        val start = font.textDimensions(text.substring(0, startIdx)).width.dp.px
+                        val end = font.textDimensions(text.substring(0, endIdx)).width.dp.px
+                        start to end
+                    }
+
+                    val color =
+                        if (error.severity.isError()) HighlightTheme.ERROR_ELEMENT
+                        else HighlightTheme.KEYWORD.mix(HighlightTheme.ANNOTATION, 0.5f)
+                    getPlainBuilder(UiSurface.LAYER_FLOATING).configured(color) {
+                        val leftPos = maxWidth.px + sizes.borderWidth.px + sizes.smallGap.px
+                        for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).toInt()).step(5)) {
+                            val offset = if (i % 2 == 0) 5 else -5
+                            line(
+                                Vec2f(i.toFloat(), heightPx - 5 + offset), Vec2f(i + 5f, heightPx - 5 - offset), 3f
+                            )
+                        }
+
+                        val mouse = PointerInput.primaryPointer
+
+                        if (mouse.pos.x in leftPx+leftPos + startPos..leftPx+leftPos + endPos && mouse.pos.y in topPx..bottomPx) {
+                            errorMessage = error.message
+                        }
+                    }
+                }
 
             val textNode = children.getOrNull(2)
             if (indents.isNotEmpty() && textNode != null) {
                 val spaceWidth = font.charWidth(' ').dp.px
-                val prims = getUiPrimitives(UiSurface.LAYER_BACKGROUND)
-                val textNodeXInRow = textNode.leftPx - this.leftPx
-                val guideStartX = textNodeXInRow + textNode.paddingStartPx
+                val guideStartX = textNode.leftPx - this.leftPx + textNode.paddingStartPx
 
                 for (i in indents) {
                     val x = guideStartX + i * spaceWidth - sizes.smallGap.px * 0.5f
-                    prims.localRect(
-                        x,
-                        0f,
-                        2f,
-                        heightPx,
-                        guideColor.withAlpha(if (selectionHandler.selectionCaretChar == i) 1f else 0.5f)
-                    )
+                    val color =
+                        if (selectionHandler.selectionCaretChar == i && lineIndex == this@TextAreaNode.modifier.selectionCaretLine)
+                            EditorTheme.indentGuide.withAlpha(0.8f)
+                        else
+                            EditorTheme.indentGuide.withAlpha(0.3f)
+
+                    getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRect(x, 0f, 1.dp.px, heightPx, color)
                 }
             }
         }
@@ -383,32 +419,35 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             val font = MsdfFont(HACK_FONT, 18f)
 
             val lineItem = uiNode.createChild(null, LineItem::class, lineItemFactory)
+            lineItem.lineIndex = lineIndex
             lineItem.indents = indentStack.toIntArray()
             lineItem.modifier.width(Grow.Std).layout(RowLayout)
             with(lineItem) {
-                val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp
-
-                errors.filter { it.range.start.line == lineIndex }.forEach { error ->
-                    setupError(error, font, line.text, maxWidth)
-                }
+                val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp + sizes.smallGap * 2f
 
                 Box(maxWidth) {
-                    modifier.margin(horizontal = sizes.smallGap).alignY(AlignmentY.Center)
+                    modifier
+                        .background(RectBackground(EditorTheme.gutterBg))
+                        .height(Grow.Std)
+                        .padding(horizontal = sizes.smallGap)
+                        .alignY(AlignmentY.Center)
+
                     Text((lineIndex + 1).toString()) {
-                        modifier.font(font).textColor(Color("717888FF")).align(AlignmentX.End, AlignmentY.Center)
+                        val textColor = if (lineIndex == this@TextAreaNode.modifier.selectionCaretLine)
+                            EditorTheme.gutterText.mix(Color.WHITE, 0.75f)
+                        else
+                            EditorTheme.gutterText
+
+                        modifier.font(font).textColor(textColor).align(AlignmentX.End, AlignmentY.Center)
                     }
                 }
 
-                Box(sizes.borderWidth, Grow.Std) {
-                    modifier.backgroundColor(Color("3C3C4AFF")).alignY(AlignmentY.Center)
-                }
+                Box(sizes.borderWidth, Grow.Std) { modifier.backgroundColor(EditorTheme.Popup.border) }
 
                 setupTextLine(line, lineIndex, textAreaMod, lineProvider).apply {
-                    modifier.alignY(AlignmentY.Center).margin(start = sizes.smallGap * 0.5f).alignY(AlignmentY.Top)
-                    modifier.height(18.dp + sizes.smallGap).padding(start = sizes.smallGap * 0.5f)
-                    if (lineIndex == this@TextAreaNode.modifier.selectionStartLine) {
-                        modifier.border(RoundRectBorder(Color("3C3C4AFF"), sizes.smallGap, sizes.borderWidth))
-                    }
+                    modifier
+                        .alignY(AlignmentY.Center)
+                        .padding(start = sizes.smallGap)
                 }
             }
 
@@ -420,48 +459,13 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         }
     }
 
-    private fun UiScope.setupError(error: Diagnostic, font: MsdfFont, text: String, maxWidth: Dp) {
-        val column = error.range.start.column
-        if (column > text.length) return
-        val column2 = error.range.end.column
-        if (column2 > text.length) return
-        val startPos = if (text.isEmpty()) 0f else font.textDimensions(
-            text.substring(0, column.coerceAtMost(text.length))
-        ).width.dp.px
-        val endPos = if (text.isEmpty()) 0f else font.textDimensions(
-            text.substring(0, column2.coerceAtMost(text.length))
-        ).width.dp.px
-
-        getUiPrimitives(50).addTriangulatedLineMesh {
-            this.width = 3f
-            this.color =
-                if (error.severity.isError()) HighlightTheme.ERROR_ELEMENT else HighlightTheme.KEYWORD.mix(
-                    HighlightTheme.ANNOTATION, 0.5f
-                )
-
-            val leftPos = uiNode.leftPx + maxWidth.px + sizes.smallGap.px * 3f + sizes.borderWidth.px
-            for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).toInt()).step(5)) {
-                val offset = if (i % 2 == 0) 5 else -5
-                addLine(
-                    Vec3f(i + 0f, uiNode.bottomPx + offset, 0f), Vec3f(i + 5f, uiNode.bottomPx - offset, 0f)
-                )
-            }
-
-            val mouse = PointerInput.primaryPointer
-
-            if (mouse.pos.x in leftPos + startPos..leftPos + endPos && mouse.pos.y in uiNode.topPx..uiNode.bottomPx) {
-                errorMessage = error.message
-            }
-        }
-    }
-
     protected open fun UiScope.setupTextLine(
-        line: TextLine,
+        line: ScriptTextLine,
         lineIndex: Int,
         textAreaMod: ScriptTextAreaModifier,
         lineProvider: TextLineProvider,
     ): UiScope = AttributedText(line) {
-        modifier.width(Grow.MinFit)
+        modifier.width(Grow.Std)
 
         modifier.onPositioned {
             val areaModifier = this@TextAreaNode.modifier
@@ -613,7 +617,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     }
 
     private fun handleEnter() {
-        if(modifier.completions.isNotEmpty()) {
+        if (modifier.completions.isNotEmpty()) {
             applyCompletion(modifier.completions.getOrNull(modifier.completionIndex) ?: return)
             return
         }
@@ -689,41 +693,25 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
     fun applyCompletion(item: CompletionItem) {
         val handler = modifier.editorHandler ?: return
-
-        // 1. Сохраняем текущее состояние
-        // Используем var, так как индекс строки может измениться
         var lineIdx = modifier.selectionCaretLine
-        var charIdx = modifier.selectionCaretChar
+        val charIdx = modifier.selectionCaretChar
 
-        // 2. Обработка авто-импорта
-        // Эта операция может сдвинуть строки вниз, поэтому делаем её ПЕРВОЙ
         if (item is CompletionItem.Declaration && item.import && !item.fqName.isNullOrBlank()) {
             val linesAdded = ensureImport(item.fqName, handler)
-
-            // Корректируем индекс строки, если был добавлен импорт
             lineIdx += linesAdded
         }
 
-        // 3. Замена текста автодополнения
-        // Важно: Теперь мы работаем с lineIdx, который мог увеличиться
         val lineText = lineProvider[lineIdx].text
 
-        // Находим начало слова для замены (используем typedPrefix или ищем начало выражения)
-        // Вариант А: Ищем по выражению (как было у тебя)
-        val startIdx = runCatching { lineText.substring(0, charIdx).indexOfLast { !it.isLetterOrDigit() } + 1 }.getOrElse { charIdx }
+        val startIdx = runCatching {
+            lineText.substring(0, charIdx).indexOfLast { !it.isLetterOrDigit() } + 1
+        }.getOrElse { charIdx }
+
         val replaceStart = if (startIdx == -1) charIdx else startIdx
 
-        // Вариант Б: Если ты уверен в item.typedPrefix, можно так:
-        // val replaceStart = charIdx - item.typedPrefix.length
-
-        // Выполняем замену
         val newPos = handler.replaceText(lineIdx, lineIdx, replaceStart, charIdx, item.insert)
 
-        // 4. Финальная установка каретки
-        // Если у CompletionItem есть свой сдвиг каретки (например, внутрь скобок метода)
         if (item.moveCaret != 0) {
-            // newPos.x уже указывает на конец вставленного слова.
-            // Сдвигаем относительно этой позиции.
             val customCaretX = newPos.x + item.moveCaret
             selectionHandler.selectionChanged(newPos.y, newPos.y, customCaretX, customCaretX)
         } else {
@@ -734,101 +722,37 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         surface.requestFocus(this)
     }
 
-    /**
-     * Вставляет импорт в правильное место файла.
-     * @return Количество добавленных строк (1 если добавили, 0 если уже был или ошибка).
-     */
     private fun ensureImport(fqName: String, handler: TextEditorHandler): Int {
         val importLine = "import $fqName"
 
-        // 1. Анализируем файл, чтобы найти место для вставки
-        var packageEndIndex = -1
-        var lastImportIndex = -1
+        val textLines = (0 until lineProvider.size).map { lineProvider[it].text }
+
+        if (textLines.any { it.trim() == importLine }) return 0
+
         var insertIndex = 0
+        var foundPackage = false
+        var lastImportIndex = -1
 
-        // Флаг, чтобы не добавлять дубликаты
-        var alreadyImported = false
-
-        for (i in 0 until lineProvider.size) {
-            val text = lineProvider[i].text.trim()
-
-            if (text.startsWith("package ")) {
-                packageEndIndex = i
-                // Если есть пакет, вставлять будем как минимум после него (+1, или +2 если там пустая строка)
+        for ((i, line) in textLines.withIndex()) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("package ")) {
+                foundPackage = true
                 insertIndex = i + 1
-            } else if (text.startsWith("import ")) {
+            } else if (trimmed.startsWith("import ")) {
                 lastImportIndex = i
-
-                // Проверка на дубликат
-                if (text == importLine) {
-                    alreadyImported = true
-                    break
-                }
-
-                // Сортировка: ищем первую строку импорта, которая лексикографически БОЛЬШЕ нашей.
-                // Мы должны вставить ПЕРЕД ней.
-                // Но только если мы еще не нашли место среди импортов.
-                // Примечание: insertIndex меняем только пока мы внутри блока импортов
-                if (importLine < text && (insertIndex <= packageEndIndex || insertIndex == lastImportIndex)) { // logic refinement below
+                if (importLine < trimmed) {
                     insertIndex = i
-                    // Прерываем цикл? Нет, нужно проверить нет ли дальше точного дубликата (хотя в сортированном списке это вряд ли)
-                    // Для простоты: если нашли место для сортировки, запомним его, но продолжим проверку на дубликат
-                    // Но проще проверить дубликат заранее или считать что список валиден.
+                    break
+                } else {
+                    insertIndex = i + 1
                 }
-            } else if (text.isNotEmpty() && lastImportIndex != -1) {
-                // Мы встретили код после импортов. Дальше искать нет смысла.
+            } else if (trimmed.isNotBlank() && lastImportIndex != -1) {
                 break
             }
         }
 
-        if (alreadyImported) return 0
-
-        // Переосмысление логики поиска позиции для алфавитной вставки:
-        // Проще пройтись еще раз или сделать это аккуратнее.
-
-        // Поиск точного места вставки:
-        insertIndex = 0
-        if (packageEndIndex != -1) insertIndex = packageEndIndex + 1
-
-        // Пропуск пустых строк после package
-        while (insertIndex < lineProvider.size && lineProvider[insertIndex].text.isBlank()) {
-            insertIndex++
-        }
-
-        // Теперь мы либо на первом импорте, либо на начале кода.
-        // Идем по импортам и ищем место
-        var insertionPointFound = false
-
-        // Копия индекса для итерации, чтобы не ломать insertIndex, если импортов нет вообще
-        var scanIdx = insertIndex
-
-        while (scanIdx < lineProvider.size) {
-            val line = lineProvider[scanIdx].text.trim()
-            if (line.startsWith("import ")) {
-                if (line == importLine) return 0 // Дубликат найден
-
-                if (!insertionPointFound && importLine < line) {
-                    insertIndex = scanIdx
-                    insertionPointFound = true
-                }
-                // Если importLine > line, мы просто идем дальше, insertIndex будет указывать на следующую строку
-                if (!insertionPointFound) {
-                    insertIndex = scanIdx + 1
-                }
-            } else if (line.isBlank()) {
-                // Пустая строка внутри или после импортов - игнорируем или останавливаемся?
-                // Обычно импорты идут блоком.
-                if (scanIdx > lastImportIndex && lastImportIndex != -1) break
-            } else {
-                // Начался код
-                break
-            }
-            scanIdx++
-        }
-
-        // Вставляем строку
-        // Важно добавить перенос строки
-        handler.insertText(insertIndex, 0, "$importLine\n")
+        val textToInsert = if (insertIndex == 0 && !foundPackage) "$importLine\n" else "$importLine\n"
+        handler.insertText(insertIndex, 0, textToInsert)
 
         return 1
     }
@@ -981,7 +905,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         var selectionStartChar = 0
         var selectionCaretChar = 0
 
-        val caretLine: TextLine?
+        val caretLine: ScriptTextLine?
             get() = if (selectionCaretLine in 0 until lineProvider.size) lineProvider[selectionCaretLine] else null
         var caretLineScope: AttributedTextScope? = null
 
@@ -1015,7 +939,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             caretLineScope = null
         }
 
-        fun applySelectionRange(attributedText: AttributedTextScope, line: TextLine, lineIndex: Int) {
+        fun applySelectionRange(attributedText: AttributedTextScope, line: ScriptTextLine, lineIndex: Int) {
             val from = selectionFromLine
             val to = selectionToLine
 
@@ -1060,7 +984,15 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                 caretLineScope = attributedText
             }
 
-            attributedText.modifier.selectionRange(selStartPos, selCaretPos)
+            val isMultiLineSelection = from != to
+            val hasSelection = (selStartPos != selCaretPos) ||
+                    (lineIndex in (from + 1) until to) ||
+                    (isMultiLineSelection && lineIndex == from)
+
+            attributedText.modifier.selectionColor = EditorTheme.selection
+            attributedText.modifier.caretColor = EditorTheme.caret
+
+            attributedText.modifier.selectionRange(selStartPos, selCaretPos, hasSelection, isMultiLineSelection)
                 .isCaretVisible(isFocused.use() && lineIndex == selectionCaretLine)
         }
 
@@ -1311,10 +1243,10 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 interface TextLineProvider {
     val size: Int
     val lastIndex: Int get() = size - 1
-    operator fun get(index: Int): TextLine
+    operator fun get(index: Int): ScriptTextLine
 }
 
-class ListTextLineProvider(val lines: MutableList<TextLine> = mutableStateListOf()) : TextLineProvider {
+class ListTextLineProvider(val lines: MutableList<ScriptTextLine> = mutableStateListOf()) : TextLineProvider {
     override val size: Int get() = lines.size
     override operator fun get(index: Int) = lines[index]
 }

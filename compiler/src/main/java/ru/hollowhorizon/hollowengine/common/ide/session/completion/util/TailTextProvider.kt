@@ -181,7 +181,6 @@ internal fun KaType.renderVerbose(): String = with(session) {
         renderer = CompletionShortNamesRenderer.rendererVerbose,
         position = Variance.INVARIANT,
     )
-
 }
 
 context(_: KaSession)

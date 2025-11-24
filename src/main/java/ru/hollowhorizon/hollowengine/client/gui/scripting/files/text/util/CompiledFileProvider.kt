@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util
 
 import de.fabmax.kool.math.Vec2i
-import de.fabmax.kool.modules.ui2.TextAttributes
-import de.fabmax.kool.modules.ui2.TextLine
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.RenderLoopCoroutineDispatcher
@@ -30,7 +28,7 @@ class CompiledFileProvider(
 ) : TextLineProvider, TextEditorHandler, UndoRedoHandler {
 
     val font = MsdfFont(HACK_FONT, 18f)
-    val lines = ArrayList<TextLine>()
+    val lines = ArrayList<ScriptTextLine>()
     var currentText: String = file.readText()
         private set
 
@@ -51,7 +49,7 @@ class CompiledFileProvider(
         // Initial setup
         val initialLines = currentText.lines().map {
             // Simple initial highlight, will be overwritten by analyzer shortly
-            TextLine(listOf(it to TextAttributes(font, Color.WHITE)))
+            ScriptTextLine(listOf(it to TextAttributes(font, Color.WHITE)))
         }
         lines.addAll(initialLines)
 
@@ -79,7 +77,7 @@ class CompiledFileProvider(
 
     override val size get() = lines.size
 
-    override fun get(index: Int): TextLine {
+    override fun get(index: Int): ScriptTextLine {
         if (index !in lines.indices) throw IndexOutOfBoundsException("Index $index out of bounds (size: $size)")
         return lines[index]
     }
@@ -109,7 +107,7 @@ class CompiledFileProvider(
 
         // Create new visual lines (temporarily plain white until highlighted)
         val newTextLines = newLinesRaw.map {
-            TextLine(listOf(it to TextAttributes(font, Color.WHITE)))
+            ScriptTextLine(listOf(it to TextAttributes(font, Color.WHITE)))
         }
 
         // 3. Apply to Data Structure
@@ -140,7 +138,7 @@ class CompiledFileProvider(
 
     private fun handleHistoryUpdate(
         startLine: Int, startChar: Int,
-        oldLines: List<TextLine>, newLines: List<TextLine>,
+        oldLines: List<ScriptTextLine>, newLines: List<ScriptTextLine>,
         replacement: String, currentTime: Long
     ) {
         val isSingleCharInsert = replacement.length == 1 && oldLines.size == 1 && oldLines[0].text.length + 1 == newLines[0].text.length

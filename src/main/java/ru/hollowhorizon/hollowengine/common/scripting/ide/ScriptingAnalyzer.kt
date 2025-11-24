@@ -1,8 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.scripting.ide
 
-import de.fabmax.kool.modules.ui2.TextAttributes
 import de.fabmax.kool.util.MsdfFont
-import de.fabmax.kool.modules.ui2.TextLine as KoolLine
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.InlayHint
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextAttributes
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextLine as KoolLine
 
 interface ScriptingAnalyzer {
     fun highlight(name: String, text: String, offset: Int): List<TextLine>
@@ -10,9 +11,11 @@ interface ScriptingAnalyzer {
     fun diagnostic(name: String, text: String): List<Diagnostic>
 }
 
-data class TextLine(val spans: List<Pair<String, SpanStyle>>) {
+data class TextLine(val spans: List<Pair<String, SpanStyle>>, val hints: ArrayList<InlayHint>) {
+
+
     fun toKool(font: MsdfFont): KoolLine {
-        return KoolLine(spans.map { it.first to it.second.toKool(font) })
+        return KoolLine(spans.map { it.first to it.second.toKool(font) }, hints)
     }
 }
 

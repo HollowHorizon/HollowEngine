@@ -1,14 +1,15 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text
 
-import de.fabmax.kool.modules.ui2.TextLine
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextLine
+
 
 data class UndoableAction(
     val startLine: Int,
     val startChar: Int,
     val caretLine: Int,
     var caretChar: Int,
-    val oldLines: List<TextLine>,
-    var newLines: List<TextLine>,
+    val oldLines: List<ScriptTextLine>,
+    var newLines: List<ScriptTextLine>,
     val canMerge: Boolean
 )
 
