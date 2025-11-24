@@ -261,7 +261,6 @@ private fun completeKeywords(
                 textToShow = text.trim()
                 name = text.trim()
                 textToInsert = text
-                typedPrefix = position?.prefix ?: ""
             }
         }
         return result
@@ -301,7 +300,11 @@ private fun CompletionItemsCollector.completeAfterDot(
         }
 
         else -> {
-            position.receiver.expressionType?.scope?.let { completeTypeScope(it) }
+            val receiverType = position.receiver.expressionType
+
+            if(receiverType == null || receiverType is org.jetbrains.kotlin.analysis.api.types.KaErrorType) return@with
+
+            receiverType.scope?.let { completeTypeScope(it) }
 
             if (position.prefix != null) {
                 val scopeContext = file.scopeContext(element)

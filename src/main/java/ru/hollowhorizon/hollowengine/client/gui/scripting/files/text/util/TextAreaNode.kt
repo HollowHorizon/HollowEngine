@@ -198,12 +198,20 @@ fun UiScope.ScriptTextArea(
                         modifier.margin(end = sizes.gap)
 
                         textArea.completionsList = (this as LazyListNode).state
+
+                        val currentLine = lineProvider[textArea.modifier.selectionCaretLine].text
+                        val currentCharIdx = textArea.modifier.selectionCaretChar
+                        val prefixStart = TextCaretNavigation.startOfExpression(currentLine, currentCharIdx)
+                        val typedPrefix = if (prefixStart != -1 && prefixStart < currentCharIdx) {
+                            currentLine.substring(prefixStart, currentCharIdx)
+                        } else ""
+
                         itemsIndexed(completions) { index, completion ->
                             CompletionRenderer.renderCompletion(
                                 completion,
-                                this@setupContent.modifier.completionIndex == index
-                            )
-                            //completion.apply { create(textArea, this@setupContent.modifier.completionIndex == index) }
+                                this@setupContent.modifier.completionIndex == index,
+                                typedPrefix
+                            ) { textArea.applyCompletion(it) }
                         }
                     }
                 }

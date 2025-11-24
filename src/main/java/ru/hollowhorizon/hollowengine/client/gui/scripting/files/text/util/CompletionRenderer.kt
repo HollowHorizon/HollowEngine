@@ -12,9 +12,10 @@ object CompletionRenderer {
     fun renderCompletion(
         completion: CompletionItem,
         isFocused: Boolean,
+        typedPrefix: String,
+        onClick: (CompletionItem) -> Unit,
     ): Unit = with(scope) {
         Row(Grow.Std) {
-            val typedPrefix = completion.typedPrefix
             val (bgColor, iconBg, iconTint) = hoverColors(
                 0.5f,
                 listOf(Color("1B1E23FF"), Color("394450FF"), Color("6DA1E2FF")),
@@ -31,6 +32,9 @@ object CompletionRenderer {
             }
 
             modifier.background(RectBackground(bgColor))
+            modifier.onClick {
+                onClick(completion)
+            }
             renderTag(completion.tag, iconBg, iconTint)
 
             // Текст с подсветкой совпадений
