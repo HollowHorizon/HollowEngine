@@ -284,8 +284,8 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                     val (startPos, endPos) = if (text.isEmpty()) {
                         0f to widthPx
                     } else {
-                        val startIdx = error.range.start.column.takeIf { it in text.indices } ?: return
-                        val endIdx = error.range.end.column.takeIf { it in text.indices } ?: return
+                        val startIdx = error.range.start.column.coerceIn(0, text.length)
+                        val endIdx = error.range.end.column.coerceIn(0, text.length)
                         val start = font.textDimensions(text.substring(0, startIdx)).width.dp.px
                         val end = font.textDimensions(text.substring(0, endIdx)).width.dp.px
                         start to end
@@ -386,7 +386,6 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
     private fun setText(lineProvider: TextLineProvider) {
         val textAreaMod = this@TextAreaNode.modifier
-        val errors = modifier.errors
 
         val indentStack = mutableListOf<Int>()
         for (i in 0..<linesHolder.state.itemsFrom.use().coerceAtMost(lineProvider.size)) {

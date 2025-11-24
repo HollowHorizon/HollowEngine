@@ -20,7 +20,7 @@ fun diagnosticCode(file: KtFile): List<Diagnostic> {
                     KaSeverity.ERROR -> Severity.ERROR
                     KaSeverity.WARNING -> Severity.WARNING
                 }
-                val range = it.psi.textRange
+                val range = it.textRanges.firstOrNull() ?: it.psi.textRange
                 val startLine = document.getLineNumber(range.startOffset)
                 val startColumn = range.startOffset - document.getLineStartOffset(startLine)
                 val endLine = document.getLineNumber(range.endOffset)
