@@ -19,7 +19,7 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEv
 public class BossHealthOverlayMixin {
     //? if fabric {
 
-    @Shadow @Final private Minecraft minecraft;
+    /*@Shadow @Final private Minecraft minecraft;
 
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
     private void onRenderPre(GuiGraphics guiGraphics, CallbackInfo ci) {
@@ -36,5 +36,5 @@ public class BossHealthOverlayMixin {
         EventBus.post(event);
     }
 
-    //?}
+    *///?}
 }

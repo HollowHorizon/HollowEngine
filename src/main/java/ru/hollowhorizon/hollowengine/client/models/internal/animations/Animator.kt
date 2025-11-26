@@ -2,9 +2,6 @@ package ru.hollowhorizon.hollowengine.client.models.internal.animations
 
 import de.fabmax.kool.math.*
 import de.fabmax.kool.scene.TrsTransformF
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import net.minecraft.client.Minecraft
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.EquipmentSlot
@@ -12,7 +9,6 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.item.ItemDisplayContext
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler.partialTick
-import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.Node
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
@@ -20,8 +16,6 @@ import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipe
 import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix3f
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix4f
-import ru.hollowhorizon.hollowengine.common.coroutines.dispatcher
-import kotlin.coroutines.CoroutineContext
 
 
 abstract class NodeInstance(var parent: NodeInstance? = null, val name: String? = null) {
@@ -43,19 +37,19 @@ abstract class NodeInstance(var parent: NodeInstance? = null, val name: String? 
 
     fun add(node: NodeInstance) = plusAssign(node)
     fun remove(node: NodeInstance) = minusAssign(node)
+}
 
-    class Root: NodeInstance() {
-        override fun collectCommands(pipeline: RenderPipeline) {}
+class ModelNode: NodeInstance() {
+    override fun collectCommands(pipeline: RenderPipeline) {}
 
-        val pipeline = ListRenderPipeline()
+    val pipeline = ListRenderPipeline()
 
-        fun setup() {
-            collectGlobalCommands(pipeline)
-        }
+    fun setup() {
+        collectGlobalCommands(pipeline)
+    }
 
-        fun clear() {
-            pipeline.clear()
-        }
+    fun clear() {
+        pipeline.clear()
     }
 }
 

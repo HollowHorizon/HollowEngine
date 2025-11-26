@@ -1,24 +1,29 @@
 package ru.hollowhorizon.hollowengine.common.utils
 
 //? if fabric {
-import net.fabricmc.loader.api.FabricLoader
+/*import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.loader.api.metadata.ModOrigin
-import java.io.FileNotFoundException
 import java.util.jar.JarFile
 import kotlin.jvm.optionals.getOrNull
-//?} elif forge {
-/*import net.minecraftforge.fml.ModList
-import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.io.path.absolutePathString
-*///?} elif neoforge {
+
+*///?} elif forge {
+import net.minecraftforge.fml.ModList
+//?} elif neoforge {
 /*import net.neoforged.fml.ModList
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.absolutePathString
 *///?}
+
+
+import ru.hollowhorizon.hollowengine.common.scripting.deobf.collectModJars
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.FileOutputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.io.path.absolutePathString
+
 
 /**
  * Utility object for managing loaded mods.
@@ -34,10 +39,10 @@ object ModList {
      */
     fun isLoaded(modId: String): Boolean {
         //? if fabric {
-        return FabricLoader.getInstance().isModLoaded(modId)
-        //?} elif forge || neoforge {
-        /*return ModList.get().isLoaded(modId)
-        *///?}
+        /*return FabricLoader.getInstance().isModLoaded(modId)
+        *///?} elif forge || neoforge {
+        return ModList.get().isLoaded(modId)
+        //?}
     }
 
     /**
@@ -49,12 +54,19 @@ object ModList {
      */
     fun getFile(modId: String): File {
         //? if fabric {
-        return FabricLoader.getInstance().getModFile(modId)
-        //?} elif forge || neoforge {
-        /*// Неужели так сложно просто дать нормальный путь к файлу...
-        val path = ModList.get().getModFileById(modId).file.filePath
-        return getAsFile(path, modId).first()
-        *///?}
+        /*return FabricLoader.getInstance().getModFile(modId)
+        *///?} elif forge || neoforge {
+        // Неужели так сложно просто дать нормальный путь к файлу...
+        return getModFile(modId)
+        //?}
+    }
+
+    fun getAllFiles(modId: String): List<File> {
+        //? if fabric {
+        /*return FabricLoader.getInstance().getAllMods(modId)
+        *///?} elif forge || neoforge {
+        return getAllMods(modId)
+        //?}
     }
 
     /**
@@ -65,16 +77,16 @@ object ModList {
     val mods: List<String>
         get() {
             //? if fabric {
-            return FabricLoader.getInstance().allMods.map { it.metadata.id }
-            //?} elif forge || neoforge {
-            /*return ModList.get().mods.map { it.modId }
-            *///?}
+            /*return FabricLoader.getInstance().allMods.map { it.metadata.id }
+            *///?} elif forge || neoforge {
+            return ModList.get().mods.map { it.modId }
+            //?}
         }
 
 }
 
 //? if fabric {
-fun FabricLoader.getModFile(modId: String): File {
+/*fun FabricLoader.getModFile(modId: String): File {
     val modContainer = getModContainer(modId).getOrNull()
         ?: throw FileNotFoundException("Mod Not Found: $modId")
     val origin = modContainer.origin
@@ -84,6 +96,12 @@ fun FabricLoader.getModFile(modId: String): File {
         ModOrigin.Kind.NESTED -> getNestedModFile(origin)
         else -> throw IllegalStateException("Unsupported kind: $kind")
     }
+}
+
+fun FabricLoader.getAllMods(modId: String): List<File> {
+    val mods = (getModContainer(modId).getOrNull()?.containedMods?.flatMap { getAllMods(it.metadata.id) } ?: emptyList()).toMutableList()
+    mods += getModFile(modId)
+    return mods
 }
 
 fun FabricLoader.getNestedModFile(origin: ModOrigin): File {
@@ -96,7 +114,7 @@ fun FabricLoader.getNestedModFile(origin: ModOrigin): File {
     val nestedJarEntry = parentJar.getJarEntry(subLocation)
 
     val fileName = subLocation.split('/').last()
-    val newFile = File("hollowengine/embed_mods/$fileName").apply {
+    val newFile = File("hollowengine/.cache/mods/$fileName").apply {
         if (!this.parentFile.exists()) this.parentFile.mkdirs()
     }
 
@@ -111,19 +129,23 @@ fun FabricLoader.getNestedModFile(origin: ModOrigin): File {
 
     return newFile
 }
-//?} else {
-/*fun getAsFile(path: Path, modId: String): List<File> {
+*///?} else {
+fun getAllMods(modId: String): List<File> {
+    return collectModJars(getModFile(modId))
+}
+fun getModFile(modId: String): File {
+    val path = ModList.get().getModFileById(modId).file.filePath
     try {
         var fileName = path.fileName.toString()
         if (!fileName.endsWith(".jar")) fileName = "$modId.jar"
 
         val copy = Files.newInputStream(path)
 
-        val newFile = File("hollowengine/embed_mods/$fileName").apply {
+        val newFile = File("hollowengine/.cache/mods/$fileName").apply {
             if (!this.parentFile.exists()) this.parentFile.mkdirs()
         }
 
-        if (newFile.exists()) return listOf(newFile)
+        if (newFile.exists()) return newFile
         else newFile.createNewFile()
 
         FileOutputStream(newFile).use { jarOutput ->
@@ -132,17 +154,17 @@ fun FabricLoader.getNestedModFile(origin: ModOrigin): File {
             }
         }
 
-        return listOf(newFile)
+        return newFile
     } catch (e: AccessDeniedException) {
-        return listOf(e.file)
+        return e.file
     } catch (e: Exception) {
         if (path.fileSystem::class.java.name == "cpw.mods.niofs.union.UnionFileSystem") {
             val system = path.fileSystem::class.java.getDeclaredField("basepaths")
             system.isAccessible = true
-            return (system.get(path.fileSystem) as List<Path>).map { it.toFile() }
+            return (system.get(path.fileSystem) as List<Path>).map { it.toFile() }.first()
         }
 
-        return listOf(File(path.absolutePathString()))
+        return File(path.absolutePathString())
     }
 }
-*///?}
+//?}

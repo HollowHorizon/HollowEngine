@@ -10,6 +10,7 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.Font
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.Time
+import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 import kotlin.math.abs
@@ -147,11 +148,8 @@ open class AttributedTextNode(parent: UiNode?, surface: UiSurface)
 
     private val textCache = mutableListOf<CachedTextGeometry>()
 
-    // --- Layout ---
     private inner class TextLayout {
-        // Начало логического блока i (Hint + Char)
         var charPositions = FloatArray(0)
-        // Начало самого символа i (после Hint)
         var glyphPositions = FloatArray(0)
 
         var totalWidth = 0f
@@ -179,20 +177,25 @@ open class AttributedTextNode(parent: UiNode?, surface: UiSurface)
                 maxB = max(maxB, fontMetrics.ascentPx)
 
                 for (char in txt) {
-                    charPositions[globalCharIndex] = x // Старт блока
+                    charPositions[globalCharIndex] = x
 
-                    // Добавление ширины хинта к x
                     hintsByIndex[globalCharIndex]?.forEach { hint ->
                         val hintW = attr.font.derive(attr.font.sizePts*(0.75f * UiScale.windowScale.use())).textDimensions(hint.text).width + hint.padding * 2
                         x += hintW
                     }
 
-                    glyphPositions[globalCharIndex] = x // Старт символа (после хинта)
+                    glyphPositions[globalCharIndex] = x
 
-                    // Добавление ширины символа
                     x += attr.font.charWidth(char)
                     globalCharIndex++
                 }
+            }
+
+            if (maxH == 0f) {
+                val fallbackFont = MsdfFont(HACK_FONT, 18f)
+                surface.applyFontScale(fallbackFont, ctx)
+                maxH = fallbackFont.lineHeight
+                maxB = fallbackFont.textDimensions("W").ascentPx
             }
 
             // Обработка конца строки
@@ -202,7 +205,7 @@ open class AttributedTextNode(parent: UiNode?, surface: UiSurface)
                 val hintW = font.derive(font.sizePts*(0.75f * UiScale.windowScale.use())).textDimensions(hint.text).width + hint.padding * 2
                 x += hintW
             }
-            glyphPositions[globalCharIndex] = x // Курсор в конце строки ставится после всех хинтов
+            glyphPositions[globalCharIndex] = x
 
             totalWidth = x
             totalHeight = maxH

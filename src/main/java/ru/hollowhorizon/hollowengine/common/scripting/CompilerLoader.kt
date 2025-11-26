@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting
 
+import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
 import java.io.File
 import java.net.URLClassLoader
 
@@ -10,7 +11,7 @@ class CompilerLoader(
 
     private var classLoader: URLClassLoader? = null
 
-    fun initialize(javaHome: File, classpath: List<File>) {
+    fun initialize(javaHome: File, classpath: List<File>, mappings: Mappings) {
         val jarUrl = compilerJar.toURI().toURL()
 
         val parentLoader = ScriptingEnvironmentInitializer::class.java.classLoader
@@ -22,9 +23,10 @@ class CompilerLoader(
             currentThread.contextClassLoader = classLoader
             val implClass = Class.forName(implementationClassName, true, classLoader)
             val initializer = implClass.getDeclaredConstructor().newInstance() as ScriptingEnvironmentInitializer
-            initializer.initialize(javaHome, classpath, mapOf(
-                "server-component.kts" to "ru.hollowhorizon.hollowengine.common.scripting.types.ServerComponent"
-            ))
+            initializer.initialize(javaHome, classpath, listOf(
+                ScriptClassProvider("server-component.kts", "ru.hollowhorizon.hollowengine.common.scripting.types.ServerComponent"),
+                ScriptClassProvider(".kts", "kotlin.Any"),
+            ), mappings)
 
             println("HollowEngine Compiler loaded successfully from ${compilerJar.name}")
 

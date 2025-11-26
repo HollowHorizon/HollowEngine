@@ -10,8 +10,8 @@ import net.minecraft.world.entity.LivingEntity
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.api.Init
 import ru.hollowhorizon.hollowengine.client.kool.addons.ResourceLocationRenderer
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.ModelNode
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.NodeImpl
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.NodeInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.common.components.Component
@@ -34,12 +34,12 @@ class ModelComponent : Component<LivingEntity>() {
 
         }
 
-    internal var root: NodeInstance.Root by mutableLazy { createRootNode(model.rl) }
+    internal var root: ModelNode by mutableLazy { createRootNode(model.rl) }
 
-    private fun createRootNode(location: ResourceLocation): NodeInstance.Root {
+    private fun createRootNode(location: ResourceLocation): ModelNode {
         val model = HollowModelManager.getOrCreate(location)
 
-        return NodeInstance.Root().apply {
+        return ModelNode().apply {
             if (model.model.isBlockBench) transform.rotate(90f.deg, Vec3f.Y_AXIS)
             children += model.model.scenes.flatMap { it.nodes.map { NodeImpl(this, it) } }
         }

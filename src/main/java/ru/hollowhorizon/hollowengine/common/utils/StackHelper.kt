@@ -97,17 +97,17 @@ fun ItemStack.shrink(amount: Int, container: Boolean): ItemStack {
  * Checks if the ItemStack has a crafting remainder.
  */
 val ItemStack.hasCraftingRemainder get() = //? if fabric {
-    this.recipeRemainder != ItemStack.EMPTY
- //?} elif forge || neoforge {
-    /*this.hasCraftingRemainingItem()
-*///?}
+    /*this.recipeRemainder != ItemStack.EMPTY
+ *///?} elif forge || neoforge {
+    this.hasCraftingRemainingItem()
+//?}
 
 /**
 * Gets the crafting remainder of the ItemStack.
 */
 val ItemStack.craftingRemainder
 get() = //? if fabric {
-    this.recipeRemainder
-//?} elif forge || neoforge {
-    /*this.craftingRemainingItem
-*///?}
+    /*this.recipeRemainder
+*///?} elif forge || neoforge {
+    this.craftingRemainingItem
+//?}

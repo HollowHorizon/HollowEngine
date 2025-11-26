@@ -30,7 +30,10 @@ class CompiledFileProvider(
     val font = MsdfFont(HACK_FONT, 18f)
     val lines = ArrayList<ScriptTextLine>()
     var currentText: String = file.readText()
-        private set
+        private set(value) {
+            field = value
+            file.writeText(value)
+        }
 
     // --- Async & Debounce Setup ---
     private val scope = CoroutineScope(RenderLoopCoroutineDispatcher + SupervisorJob())

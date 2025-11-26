@@ -7,7 +7,7 @@ import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 //? if fabric {
-import com.llamalad7.mixinextras.sugar.Local;
+/*import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.server.level.ServerLevel;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Shadow;
@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.entity.BabySpawnEvent;
-//?}
+*///?}
 
 @Mixin(Animal.class)
 public abstract class AnimalMixin extends AgeableMob{
@@ -26,7 +26,7 @@ public abstract class AnimalMixin extends AgeableMob{
     }
 
     //? if fabric {
-    @Shadow public abstract void resetLove();
+    /*@Shadow public abstract void resetLove();
 
     @Shadow public abstract void finalizeSpawnChildFromBreeding(ServerLevel level, Animal animal, @Nullable AgeableMob baby);
 
@@ -59,5 +59,5 @@ public abstract class AnimalMixin extends AgeableMob{
             ci.cancel();
         }
     }
-    //?}
+    *///?}
 }

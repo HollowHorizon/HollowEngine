@@ -26,7 +26,7 @@ import java.util.Map;
 @Mixin(EntityRenderDispatcher.class)
 public class EntityRenderDispatcherMixin {
     @Shadow
-    private Map<EntityType<?>, EntityRenderer<?>> renderers;
+    public Map<EntityType<?>, EntityRenderer<?>> renderers;
 
     @Shadow
     private Map<String, EntityRenderer<? extends Player>> playerRenderers;
@@ -40,7 +40,7 @@ public class EntityRenderDispatcherMixin {
     }
 
     @WrapOperation(
-            method = "render",
+            method = {"render"},
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/EntityRenderer;render(Lnet/minecraft/world/entity/Entity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V")
     )
     public <T extends Entity> void onRenderEntity(EntityRenderer<T> instance, T entity, float entityYaw, float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight, Operation<Void> original) {

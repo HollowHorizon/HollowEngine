@@ -70,7 +70,10 @@ class FilePopup : Composable {
                     }
                     if (node.treePath.startsWith("scripts")) {
                         subMenu(ACTIONS("create.script"), "hollowengine:textures/gui/icons/create_file.png") {
-
+                            item("Простой скрипт", "hollowengine:textures/gui/icons/file_kts.png") {
+                                fileExtension = ".kts"
+                                createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
+                            }
                         }
                     }
                 }

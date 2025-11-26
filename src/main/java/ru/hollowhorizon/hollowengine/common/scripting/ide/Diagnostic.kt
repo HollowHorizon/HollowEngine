@@ -9,3 +9,6 @@ enum class Severity {
 }
 
 data class Diagnostic(val range: Range, val severity: Severity, val message: String)
+
+class ScriptCompilationException(name: String, val reports: List<Diagnostic>): RuntimeException("Script '$name' compilation failed!\nReports:${reports.joinToString("\n\t", "\n\t")}")
+class ScriptEvaluationException(name: String, val reports: List<Diagnostic>): RuntimeException("Script '$name' evaluation failed!\nReports:${reports.joinToString("\n\t", "\n\t")}")

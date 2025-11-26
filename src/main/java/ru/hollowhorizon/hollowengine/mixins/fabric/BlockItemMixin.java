@@ -15,7 +15,7 @@ import ru.hollowhorizon.hollowengine.common.events.blocks.BlockEvent;
 @Mixin(BlockItem.class)
 public class BlockItemMixin {
     //? if fabric {
-    @Inject(method = "place", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/context/BlockPlaceContext;getClickedPos()Lnet/minecraft/core/BlockPos;"), locals = LocalCapture.CAPTURE_FAILHARD, cancellable = true)
+    /*@Inject(method = "place", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/context/BlockPlaceContext;getClickedPos()Lnet/minecraft/core/BlockPos;"), locals = LocalCapture.CAPTURE_FAILHARD, cancellable = true)
     private void onPlace(BlockPlaceContext context, CallbackInfoReturnable<InteractionResult> cir, BlockPlaceContext blockPlaceContext, BlockState blockState) {
         var player = context.getPlayer();
         if(player == null) return;
@@ -23,5 +23,5 @@ public class BlockItemMixin {
         EventBus.post(event);
         if(event.isCanceled()) cir.setReturnValue(InteractionResult.FAIL);
     }
-    //?}
+    *///?}
 }

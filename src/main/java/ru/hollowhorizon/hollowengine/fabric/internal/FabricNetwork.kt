@@ -70,7 +70,7 @@ fun <T : HollowPacket> registerPacket(type: Class<T>) {
 
 *///?} elif fabric {
 
-import net.fabricmc.api.EnvType
+/*import net.fabricmc.api.EnvType
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.fabricmc.loader.api.FabricLoader
@@ -140,4 +140,4 @@ fun <T : HollowPacket> registerPacket(type: Class<T>) {
         }
     }
 }
-//?}
+*///?}

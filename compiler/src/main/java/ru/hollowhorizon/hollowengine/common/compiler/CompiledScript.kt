@@ -1,64 +1,29 @@
 package ru.hollowhorizon.hollowengine.common.compiler
 
 import kotlinx.coroutines.runBlocking
-import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
-import ru.hollowhorizon.hollowengine.client.gui.overlay.UpdateStatusPacket
-import ru.hollowhorizon.hollowengine.common.compiler.ScriptingCompiler.saveScriptToJar
-import ru.hollowhorizon.hollowengine.logW
-import java.io.File
-import kotlin.script.experimental.api.EvaluationResult
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
+import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptEvaluationException
 import kotlin.script.experimental.api.ResultWithDiagnostics
-import kotlin.script.experimental.api.ScriptDiagnostic
 import kotlin.script.experimental.api.ScriptEvaluationConfiguration
-import kotlin.script.experimental.jvm.impl.KJvmCompiledScript
 
-data class CompiledScript(
-    val scriptName: String,
-    val hash: String,
-    val script: kotlin.script.experimental.api.CompiledScript?,
-    val scriptFile: File?,
-) {
-    var errors: List<ScriptError>? = null
+data class CompiledScriptImpl(
+    override val name: String,
+    val script: kotlin.script.experimental.api.CompiledScript,
+    val evalConfiguration: ScriptEvaluationConfiguration,
+) : CompiledScript {
 
-    fun save(file: File) {
-        if (script == null) return
-        runBlocking {
-            (script as? KJvmCompiledScript)?.saveScriptToJar(file, hash)
-        }
-    }
-
-    suspend fun execute(body: ScriptEvaluationConfiguration.Builder.() -> Unit = {}): ResultWithDiagnostics<EvaluationResult> {
-        if (script == null) {
-            return ResultWithDiagnostics.Failure(
-                arrayListOf(
-                    ScriptDiagnostic(-1, "Script not compiled!", ScriptDiagnostic.Severity.FATAL)
-                )
-            )
-        }
-
-        UpdateStatusPacket(scriptName, CompilationStatus.Status.EXECUTE).sendToOperators()
-
-        val evalConfig = ScriptEvaluationConfiguration { body() }
+    @Suppress("UNCHECKED_CAST")
+    override fun <T> execute(): Result<T> {
         val evaluator = HollowEngineScriptEvaluator()
-        val result = evaluator(script, evalConfig)
 
-        if (result is ResultWithDiagnostics.Failure) {
-            result.reports.map {
-                ScriptError(
-                    ScriptError.Severity.entries[it.severity.ordinal],
-                    it.message,
-                    it.sourcePath ?: "",
-                    it.location?.start?.line ?: 0,
-                    it.location?.start?.col ?: 0,
-                    it.exception
-                )
-            }.forEach {
-                logW(it.toString())
-            }
+        val result = runBlocking {
+            evaluator(script, evalConfiguration)
         }
 
-        UpdateStatusPacket(scriptName, null).sendToOperators()
-
-        return result
+        return if (result is ResultWithDiagnostics.Success) {
+            Result.success(result.value.returnValue.scriptInstance as T)
+        } else {
+            Result.failure(ScriptEvaluationException(name, result.reports.map { it.convert() }))
+        }
     }
 }

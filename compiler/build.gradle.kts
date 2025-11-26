@@ -95,10 +95,10 @@ dependencies {
     implementation("org.jetbrains.intellij.deps.fastutil:intellij-deps-fastutil:8.5.13-jb4") { isTransitive = false }
     implementation("org.jetbrains.intellij.deps:jdom:2.0.6") { isTransitive = false }
 
-    implementation("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion") { isTransitive = false }
-    compileOnly("org.ow2.asm:asm:9.7") { isTransitive = false }
-    compileOnly("org.ow2.asm:asm-commons:9.7") { isTransitive = false }
-    compileOnly("org.ow2.asm:asm-tree:9.7") { isTransitive = false }
+
+//    compileOnly("org.ow2.asm:asm:9.7") { isTransitive = false }
+//    compileOnly("org.ow2.asm:asm-commons:9.7") { isTransitive = false }
+//    compileOnly("org.ow2.asm:asm-tree:9.7") { isTransitive = false }
 }
 
 StonecutterSetup.setup(project, false)

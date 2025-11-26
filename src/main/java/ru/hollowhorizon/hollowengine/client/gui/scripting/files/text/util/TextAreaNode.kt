@@ -181,8 +181,6 @@ fun UiScope.ScriptTextArea(
                             (24.dp + sizes.smallGap) * completions.size.coerceAtMost(10) + sizes.smallGap
                         )
                         .width(Grow(1f, max = FitContent))
-                        .background(null)
-                        .border(null)
                         .zLayer(500)
 
                     LazyColumn(
@@ -192,10 +190,22 @@ fun UiScope.ScriptTextArea(
                         vScrollbarModifier = {
                             it.width(sizes.smallGap).margin(sizes.smallGap * 0.5f)
                                 .zLayer(UiSurface.LAYER_POPUP + UiSurface.LAYER_FLOATING)
+                                .colors(
+                                    trackColor = EditorTheme.Scrollbar.trackColor,
+                                    trackHoverColor = EditorTheme.Scrollbar.trackHover,
+                                    color = EditorTheme.Scrollbar.color,
+                                    hoverColor = EditorTheme.Scrollbar.hoverColor,
+                                )
                         },
                         hScrollbarModifier = {
                             it.height(sizes.smallGap).margin(sizes.smallGap * 0.5f)
                                 .zLayer(UiSurface.LAYER_POPUP + UiSurface.LAYER_FLOATING)
+                                .colors(
+                                    trackColor = EditorTheme.Scrollbar.trackColor,
+                                    trackHoverColor = EditorTheme.Scrollbar.trackHover,
+                                    color = EditorTheme.Scrollbar.color,
+                                    hoverColor = EditorTheme.Scrollbar.hoverColor,
+                                )
                         },
                         scrollPaneModifier = {
                             it.allowOverscrollY = false
@@ -475,11 +485,12 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
             var dotIndex = TextCaretNavigation.startOfExpression(line.text, selectionIndex)
             if (dotIndex == -1) dotIndex = selectionIndex
-            areaModifier.setCompletionX(it.leftPx + line.charIndexToPx(dotIndex))
+            areaModifier.setCompletionX(it.leftPx + line.charIndexToPx(dotIndex) + sizes.smallGap.px)
 
             val sizeY = (24.dp + sizes.smallGap).px * areaModifier.completions.size.coerceAtMost(10) + 24.dp.px
-            if (it.bottomPx + sizeY > bottomPx) {
-                areaModifier.setCompletionY(it.bottomPx - sizeY)
+            val viewportBottom = surface.viewport.bottomPx
+            if (it.bottomPx + sizeY > viewportBottom) {
+                areaModifier.setCompletionY(it.topPx - sizeY)
             } else {
                 areaModifier.setCompletionY(it.bottomPx)
             }

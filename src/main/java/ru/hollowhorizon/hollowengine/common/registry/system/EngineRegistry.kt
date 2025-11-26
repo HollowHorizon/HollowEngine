@@ -5,9 +5,9 @@ package ru.hollowhorizon.hollowengine.common.registry.system
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.common.utils.rl
 //? if fabric
-import ru.hollowhorizon.hollowengine.fabric.internal.FabricRegistry as VanillaRegistry
+/*import ru.hollowhorizon.hollowengine.fabric.internal.FabricRegistry as VanillaRegistry*/
 //? if forge
-/*import ru.hollowhorizon.hollowengine.forge.internal.ForgeRegistry as VanillaRegistry*/
+import ru.hollowhorizon.hollowengine.forge.internal.ForgeRegistry as VanillaRegistry
 import java.util.IdentityHashMap
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger

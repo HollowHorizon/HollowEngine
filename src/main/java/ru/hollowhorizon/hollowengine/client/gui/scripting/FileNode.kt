@@ -6,7 +6,6 @@ import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_RIGHT
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
@@ -51,6 +50,7 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
 
         // Открываем / Закрываем папку
         isExpanded.set(!isExpanded.value)
+        if(isExpanded.value) update()
     }
 
     fun update() {

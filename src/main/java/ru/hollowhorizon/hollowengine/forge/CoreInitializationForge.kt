@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.forge
 //? if forge {
 
-/*import net.minecraftforge.fml.ModList
+import net.minecraftforge.fml.ModList
 import net.minecraftforge.fml.loading.FMLEnvironment
 import net.minecraftforge.fml.loading.FMLLoader
 import net.minecraftforge.forgespi.language.ModFileScanData
@@ -90,4 +90,4 @@ object CoreInitializationForge {
 private fun Type.hasAnnotation(java: Class<out Annotation>): Boolean {
     return Class.forName(className, false, HollowCore::class.java.classLoader).isAnnotationPresent(java)
 }
-*///?}
+//?}

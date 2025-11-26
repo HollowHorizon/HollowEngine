@@ -6,8 +6,8 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
-import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
@@ -23,9 +23,9 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.scripting.CompilerLoader
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.start
 import ru.hollowhorizon.hollowengine.common.utils.literal
-import java.io.File
 
 @SubscribeEvent
 fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
@@ -94,22 +94,9 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
     settingsOverlay()
     TextButton("Настройки") {
         settingsOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
-            item("Создать окружение") {
-                loader.initialize(
-                    File(System.getProperty("java.home")),
-                    System.getProperty("java.class.path")
-                        .split(File.pathSeparator)
-                        .map(::File)
-                )
-            }
-            item("Сбросить окружение") {
-                loader.close()
-            }
+
         }, Unit)
     }
-}
-private val loader by lazy {
-    CompilerLoader(File("C:\\Users\\Artem\\Modding\\HollowEngine\\merged\\HollowEngineCompiler-1.0.0.jar"))
 }
 
 fun UiScope.TextButton(text: String, onClick: (PointerEvent) -> Unit = {}) {
@@ -208,8 +195,12 @@ class StartScriptPacket(val path: String) : HollowPacket {
         } else {
             val file = path.fromReadablePath()
 
-            //startScript(file)
-            CloseScreenPacket().send(player as ServerPlayer)
+            val result = ScriptingEnvironment.INSTANCE.compiler.compile(file)
+            if (result.isFailure) {
+                HollowEngine.LOGGER.info(result.exceptionOrNull())
+            } else {
+                result.getOrThrow().start()
+            }
         }
     }
 }

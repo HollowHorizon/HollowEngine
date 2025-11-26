@@ -6,7 +6,7 @@ package ru.hollowhorizon.hollowengine.forge
 
 //? if forge {
 
-/*import net.minecraft.client.Minecraft
+import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.ShaderInstance
 import net.minecraftforge.client.event.EntityRenderersEvent
 import net.minecraftforge.client.event.RegisterClientReloadListenersEvent
@@ -75,8 +75,8 @@ object ForgeClientEvents {
             event.itemStack,
             event.toolTip,
             //? if >=1.21 {
-            /^Item.TooltipContext.of(Minecraft.getInstance().level)
-            ^///?}
+            /*Item.TooltipContext.of(Minecraft.getInstance().level)
+            *///?}
         ).post()
     }
 
@@ -101,7 +101,7 @@ object ForgeClientEvents {
         event.roll = hcEvent.roll
     }
 }
-*///?}
+//?}
 
 //? if forge && <=1.19.2 {
 /*val net.minecraftforge.client.event.RegisterShadersEvent.resourceProvider get() = resourceManager

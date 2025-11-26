@@ -103,7 +103,7 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
 
                 is CompletionPosition.Type -> createUseSiteVisibilityChecker(ktFile.symbol, null, parentKtElement)
 
-                // Для пакетов проверка видимости не актуальна в том же смысле
+                // Для пакетов проверка видимости не актуальна
                 is CompletionPosition.Package -> null
             }
 
@@ -135,7 +135,6 @@ private fun createItems(ktFile: KtFile, element: PsiElement, parentKtElement: Kt
                     collector.add(completeKeywords(parentKtElement, position))
                     completeIdentifier(ktFile, parentKtElement)
 
-                    // Добавляем completion для "this" с информацией о типе
                     if ("this".startsWith(position.prefix)) completeThisKeyword(ktFile, parentKtElement)
                 }
 
@@ -161,7 +160,6 @@ private fun CompletionItemsCollector.completeThisKeyword(file: KtFile, element: 
     val scopeContext = file.scopeContext(element)
 
     var first = true
-    // Получаем все неявные получатели (implicit receivers)
     for (implicitReceiver in scopeContext.implicitReceivers) {
         val receiverType = implicitReceiver.type
         val typeText = receiverType.render(position = Variance.IN_VARIANCE)
@@ -169,7 +167,6 @@ private fun CompletionItemsCollector.completeThisKeyword(file: KtFile, element: 
 
         val thisName = if (first) "this" else "this@$className"
 
-        // Создаем completion item для "this" с информацией о типе
         add(listOf(declarationCompletionItem {
             show = thisName
             name = thisName
@@ -182,7 +179,6 @@ private fun CompletionItemsCollector.completeThisKeyword(file: KtFile, element: 
         first = false
     }
 
-    // Также добавляем completion для квалифицированного this (this@ClassName)
     completeQualifiedThis(file, element)
 }
 
@@ -376,7 +372,6 @@ private fun getKotlinDeclarationsFromIndex(ktFile: KtFile, filter: (Name) -> Boo
     }
 }
 
-// --- Логика для пакетов ---
 
 context(kaSession: KaSession)
 private fun CompletionItemsCollector.completePackage(
@@ -398,7 +393,6 @@ private fun CompletionItemsCollector.completePackage(
         }
     }
 
-    // Б) Через Kotlin Declaration Provider (для Kotlin-пакетов, которых нет в Java)
     val declarationProvider = KotlinDeclarationProviderFactory.getInstance(ktFile.project)
         .createDeclarationProvider(analysisScope, useSiteModule)
 
@@ -406,8 +400,6 @@ private fun CompletionItemsCollector.completePackage(
             declarationProvider.computePackageNamesWithTopLevelClassifiers().orEmpty())
 
     val parentSegmentsSize = fqName.pathSegments().size
-
-    // Фильтруем список всех пакетов, ищем прямых потомков текущего fqName
     allKotlinPackages.asSequence()
         .map { FqName(it) }
         .filter { it != fqName && !it.isRoot && (fqName.isRoot || it.startsWith(fqName)) }
@@ -415,7 +407,6 @@ private fun CompletionItemsCollector.completePackage(
         .filter { filter(Name.identifier(it)) }
         .forEach { subPackageNames.add(it) }
 
-    // Добавляем найденные пакеты
     for (pkgName in subPackageNames) {
         add(listOf(declarationCompletionItem {
             name = pkgName

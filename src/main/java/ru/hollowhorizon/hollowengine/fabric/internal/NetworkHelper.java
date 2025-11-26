@@ -1,5 +1,5 @@
 //? if fabric {
-package ru.hollowhorizon.hollowengine.fabric.internal;
+/*package ru.hollowhorizon.hollowengine.fabric.internal;
 
 import kotlin.Unit;
 import net.minecraft.client.Minecraft;
@@ -24,4 +24,4 @@ public class NetworkHelper {
         HollowPacketKt.registerPackets.invoke();
     }
 }
-//?}
+*///?}

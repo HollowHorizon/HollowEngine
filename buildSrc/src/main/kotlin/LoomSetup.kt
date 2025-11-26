@@ -72,6 +72,7 @@ object LoomSetup {
         "mappings"(loom.setupMappings(version))
 
         "compileOnly"("io.github.llamalad7:mixinextras-common:0.4.1")
+        "annotationProcessor"("io.github.llamalad7:mixinextras-common:0.4.1")
 
         when (loader) {
             "fabric" -> FabricSetup

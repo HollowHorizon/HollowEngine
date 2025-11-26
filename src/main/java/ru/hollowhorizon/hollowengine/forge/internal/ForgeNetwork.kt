@@ -80,7 +80,7 @@ fun <T : HollowPacket> registerPacket(type: Class<T>) {
     }
 }
 *///?} elif forge {
-/*import net.minecraft.client.Minecraft
+import net.minecraft.client.Minecraft
 import net.minecraft.network.FriendlyByteBuf
 import net.minecraftforge.network.NetworkDirection
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
@@ -142,4 +142,4 @@ fun <T : HollowPacket> registerPacket(type: Class<T>) {
         }
     }
 }
-//}*/
+//}

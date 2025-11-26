@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.utils
 
 //? if forge {
-/*import net.minecraftforge.fml.loading.FMLConfig
-*///?} else if neoforge {
+import net.minecraftforge.fml.loading.FMLConfig
+//?} else if neoforge {
 /*import net.neoforged.fml.loading.FMLConfig
 *///?}
 
@@ -26,9 +26,9 @@ object HollowCoreLoader : Config() {
         if (!enableRenderDoc) return false
 
         //? if fabric {
-        return true
-        //?} else {
-        /*return !FMLConfig.getBoolConfigValue(FMLConfig.ConfigValue.EARLY_WINDOW_CONTROL)
-        *///?}
+        /*return true
+        *///?} else {
+        return !FMLConfig.getBoolConfigValue(FMLConfig.ConfigValue.EARLY_WINDOW_CONTROL)
+        //?}
     }
 }

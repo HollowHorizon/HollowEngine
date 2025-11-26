@@ -1,10 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util
 
 import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
@@ -18,7 +18,9 @@ object CompletionRenderer {
         onClick: (CompletionItem) -> Unit,
     ): Unit = with(scope) {
         Row(Grow.Std) {
-            val backgroundColor = if (isSelected) EditorTheme.Popup.selectedBg else Color(0f, 0f, 0f, 0f)
+            val hoverColor = hoverColors(0.3f, EditorTheme.Popup.bg, EditorTheme.Popup.selectedBg)
+
+            val backgroundColor = if (isSelected) EditorTheme.Popup.selectedBg else hoverColor
             modifier
                 .background(RectBackground(backgroundColor))
                 .onClick { onClick(completion) }

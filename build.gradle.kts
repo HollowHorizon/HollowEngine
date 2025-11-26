@@ -68,14 +68,7 @@ dependencies {
     install("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
     install("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     install("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+    install("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
 
-
-
-
-    //    implementation("org.jetbrains.intellij.deps.jna:jna:5.9.0.26") { isTransitive = false }
-//    implementation("org.jetbrains.intellij.deps.jna:jna-platform:5.9.0.26") { isTransitive = false }
-//    implementation("org.jetbrains.intellij.deps:log4j:1.2.17.2") { isTransitive = false }
-//    implementation("org.jetbrains:annotations:24.1.0")
-    // install("io.javaslang:javaslang:2.0.6")
 }
 

@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.forge.internal
 
 //? if forge {
-/*import net.minecraft.world.level.chunk.ChunkStatus
+import net.minecraft.world.level.chunk.ChunkStatus
 import net.minecraft.commands.synchronization.ArgumentTypeInfo
 import net.minecraft.core.Registry
 import net.minecraft.core.particles.ParticleType
@@ -231,8 +231,8 @@ class RegistryHolderForge<T : Any>(
             Instrument::class.isAssigned() -> liteRegister(Registries.INSTRUMENT)
             CreativeModeTab::class.isAssigned() -> liteRegister(Registries.CREATIVE_MODE_TAB)
             //? if >=1.21 {
-            /^DataComponentType::class.isAssigned() -> liteRegister(BuiltInRegistries.DATA_COMPONENT_TYPE.key())
-            ^///?}
+            /*DataComponentType::class.isAssigned() -> liteRegister(BuiltInRegistries.DATA_COMPONENT_TYPE.key())
+            *///?}
 
             registry != null -> liteRegister(registry.key())
 
@@ -282,4 +282,4 @@ class RegistryHolderForge<T : Any>(
         return result.get()
     }
 }
-*///?}
+//?}
