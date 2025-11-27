@@ -3,7 +3,9 @@ package ru.hollowhorizon.hollowengine.client.kool.window
 import de.fabmax.kool.input.CursorMode
 import de.fabmax.kool.input.CursorShape
 import de.fabmax.kool.input.PlatformInput
+import de.fabmax.kool.platform.glfw.GlfwPlatform
 import de.fabmax.kool.util.BackendScope
+import de.fabmax.kool.util.logE
 import kotlinx.coroutines.launch
 import org.lwjgl.glfw.GLFW.*
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
@@ -11,9 +13,11 @@ import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 
 class MCInput : PlatformInput {
     private val cursorShapes = mutableMapOf<CursorShape, Long>()
+
     init {
         createStandardCursors()
     }
+
     private var currentCursorShape = CursorShape.DEFAULT
 
     val window get() = KoolManager.context.window
@@ -53,6 +57,17 @@ class MCInput : PlatformInput {
         cursorShapes[CursorShape.RESIZE_N] = glfwCreateStandardCursor(GLFW_RESIZE_NS_CURSOR)
         cursorShapes[CursorShape.RESIZE_S] = glfwCreateStandardCursor(GLFW_RESIZE_NS_CURSOR)
         cursorShapes[CursorShape.MOVE] = glfwCreateStandardCursor(GLFW_RESIZE_ALL_CURSOR)
+        val glfwPlatform = glfwGetPlatform()
+        val platform = GlfwPlatform.entries.find { it.value == glfwPlatform } ?: GlfwPlatform.Unknown.also {
+            logE { "Unknown GLFW platform: $glfwPlatform" }
+        }
+        if (platform != GlfwPlatform.LinuxWayland) {
+            cursorShapes[CursorShape.NOT_ALLOWED] = glfwCreateStandardCursor(GLFW_NOT_ALLOWED_CURSOR)
+            cursorShapes[CursorShape.RESIZE_NE] = glfwCreateStandardCursor(GLFW_RESIZE_NESW_CURSOR)
+            cursorShapes[CursorShape.RESIZE_SW] = glfwCreateStandardCursor(GLFW_RESIZE_NESW_CURSOR)
+            cursorShapes[CursorShape.RESIZE_NW] = glfwCreateStandardCursor(GLFW_RESIZE_NWSE_CURSOR)
+            cursorShapes[CursorShape.RESIZE_SE] = glfwCreateStandardCursor(GLFW_RESIZE_NWSE_CURSOR)
+        }
     }
 
     private val CursorMode.glfwMode: Int

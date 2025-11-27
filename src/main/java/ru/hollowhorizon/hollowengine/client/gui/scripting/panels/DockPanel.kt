@@ -5,6 +5,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.Color
+import de.fabmax.kool.util.releaseDelayed
 import ru.hollowhorizon.hollowengine.client.gui.kool.UiColors
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.Layout
@@ -80,7 +81,7 @@ abstract class DockPanel(final override val name: String, val dock: Dock) : Layo
     override fun close() {
         surface?.let {
             dock.removeDockableSurface(it)
-            it.release()
+            it.releaseDelayed(1)
         }
         surface = null
     }

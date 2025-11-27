@@ -6,9 +6,10 @@ import de.fabmax.kool.KoolContext
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.util.BackendScope
+import kotlinx.coroutines.launch
 import org.joml.Matrix4f
 import org.lwjgl.opengl.GL33
-import ru.hollowhorizon.hollowengine.client.utils.*
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -114,11 +115,13 @@ open class GlCanvasNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, su
         setContentSize(measuredWidth, measuredHeight)
 
         surface.onEachFrame {
-            drawGlCanvas(
-                leftPx, topPx,
-                rightPx, bottomPx,
-                modifier.zLayer
-            )
+            BackendScope.launch {
+                drawGlCanvas(
+                    leftPx, topPx,
+                    rightPx, bottomPx,
+                    modifier.zLayer
+                )
+            }
         }
     }
 
@@ -211,11 +214,6 @@ open class GlCanvasNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, su
             }
             imgMesh.applyShader(it, modifier.customShader)
         }
-        drawGlCanvas(
-            leftPx, topPx,
-            rightPx, bottomPx,
-            modifier.zLayer
-        )
     }
 
     private fun drawGlCanvas(

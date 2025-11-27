@@ -1,9 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.kool.gl
 
-import de.fabmax.kool.FrameData
-import de.fabmax.kool.KoolContext
-import de.fabmax.kool.KoolSystem
-import de.fabmax.kool.configJvm
+import de.fabmax.kool.*
 import de.fabmax.kool.pipeline.GpuBuffer
 import de.fabmax.kool.pipeline.backend.BackendFeatures
 import de.fabmax.kool.pipeline.backend.DeviceCoordinates
@@ -12,6 +9,7 @@ import de.fabmax.kool.pipeline.backend.gl.GpuBufferGl
 import de.fabmax.kool.pipeline.backend.gl.RenderBackendGl
 import de.fabmax.kool.pipeline.backend.gl.TimeQuery
 import de.fabmax.kool.pipeline.backend.stats.BackendStats
+import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Buffer
 import de.fabmax.kool.util.Color
 import kotlinx.coroutines.CompletableDeferred
@@ -23,6 +21,8 @@ class MCRenderBackendGl(ctx: KoolContext) : RenderBackendGl(KoolSystem.configJvm
     override val features: BackendFeatures
     val mcSceneRenderer = MCSceneRenderPass(numSamples, this)
     override val name = "Minecraft OpenGL"
+
+    private val pendingScreenPasses = mutableMapOf<Scene, PassData>()
 
     init {
         gl.initOpenGl(this)
@@ -59,30 +59,61 @@ class MCRenderBackendGl(ctx: KoolContext) : RenderBackendGl(KoolSystem.configJvm
         }
 
         timer.timedScope {
-            renderMCFrame(frameData, ctx)
+            prepareMCFrame(frameData, ctx)
         }
     }
 
     private val awaitedStorageBuffers = mutableListOf<ReadbackStorageBuffer>()
     lateinit var currentFrameData: FrameData
 
-    fun renderMCFrame(frameData: FrameData, ctx: KoolContext) {
+    fun prepareMCFrame(frameData: FrameData, ctx: KoolContext) {
         BackendStats.resetPerFrameCounts()
         currentFrameData = frameData
 
+        pendingScreenPasses.clear()
+
         mcSceneRenderer.applySize(ctx.window.size.x, ctx.window.size.y)
         frameData.forEachPass { passData ->
-            passData.executePass()
-        }
-
-        if (useFloatDepthBuffer) {
-            mcSceneRenderer.resolve(gl.DEFAULT_FRAMEBUFFER, gl.COLOR_BUFFER_BIT)
+            val pass = passData.gpuPass
+            if (pass is Scene.ScreenPass) {
+                // Если это экранный проход (обычная сцена), сохраняем его, но НЕ выполняем
+                pass.parentScene?.let { scene ->
+                    pendingScreenPasses[scene] = passData
+                }
+            } else {
+                passData.executePass()
+            }
         }
 
         if (awaitedStorageBuffers.isNotEmpty()) {
             readbackStorageBuffers()
         }
     }
+
+    fun renderScene(scene: Scene) {
+        val passData = pendingScreenPasses[scene] ?: return
+        mcSceneRenderer.draw(passData)
+        pendingScreenPasses.remove(scene)
+        mcSceneRenderer.resolve(gl.DEFAULT_FRAMEBUFFER, gl.COLOR_BUFFER_BIT)
+    }
+
+//    fun renderMCFrame(frameData: FrameData, ctx: KoolContext) {
+//        BackendStats.resetPerFrameCounts()
+//        currentFrameData = frameData
+//
+//        mcSceneRenderer.applySize(ctx.window.size.x, ctx.window.size.y)
+//        frameData.forEachPass { passData ->
+//            passData.executePass()
+//        }
+//
+//        if (useFloatDepthBuffer) {
+//            mcSceneRenderer.resolve(gl.DEFAULT_FRAMEBUFFER, gl.COLOR_BUFFER_BIT)
+//        }
+//
+//        if (awaitedStorageBuffers.isNotEmpty()) {
+//            readbackStorageBuffers()
+//        }
+//    }
     fun readbackStorageBuffers() {
         gl.memoryBarrier(gl.SHADER_STORAGE_BARRIER_BIT)
         awaitedStorageBuffers.forEach { readback ->

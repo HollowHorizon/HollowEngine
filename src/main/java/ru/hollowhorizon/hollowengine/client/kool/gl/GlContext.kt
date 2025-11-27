@@ -10,7 +10,6 @@ import kotlinx.coroutines.runBlocking
 import net.minecraft.client.Minecraft
 import org.lwjgl.opengl.GL30
 import org.lwjgl.opengl.GL33
-import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.kool.KoolHooks
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -110,49 +109,14 @@ object GlContext {
 }
 
 @SubscribeEvent
-fun RenderTickEvent.Post.handle() {
-    runBlocking {
-        KoolManager.context.renderFrame()
-    }
-    return
-    KoolHooks.setDeltaT(TickHandler.deltaFrameTime / 20f)
-    KoolHooks.addGameTime(TickHandler.deltaFrameTime / 20.0)
-    KoolHooks.incrementFrameCount()
-
-    //Input.poll(KoolManager.context)
-
-    //KoolHooks.executeCoroutineTasks()
-
-    KoolManager.context.apply {
-        onRender.update()
-        for (i in onRender.indices) {
-            onRender[i](this)
-        }
-
-        //renderFrame()
-    }
+fun RenderTickEvent.Pre.handle(): Unit = runBlocking {
+    KoolManager.context.renderFrame()
 }
+
 
 fun Scene.render(recordState: Boolean = true) {
     if (recordState) GlContext.setupState()
-
-    KoolManager.context.apply {
-//        renderScene(this)
-//        backend.apply {
-//            mcSceneRenderer.applySize(windowWidth, windowHeight)
-//            backgroundScene.executePasses()
-//
-//            executePasses()
-//
-//            if (useFloatDepthBuffer) {
-//                mcSceneRenderer.resolve(gl.DEFAULT_FRAMEBUFFER, gl.COLOR_BUFFER_BIT)
-//            }
-//
-//            if (awaitedStorageBuffers.isNotEmpty()) {
-//                readbackStorageBuffers()
-//            }
-//        }
-
-    }
+    assert(this in KoolManager.context.scenes) { "Scene ${this.name} must be added in KoolManager.context" }
+    KoolManager.context.backend.renderScene(this)
     if (recordState) GlContext.restoreState()
 }

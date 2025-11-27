@@ -26,6 +26,7 @@ open class KoolScreen : Screen("".literal), HudHideable {
     override fun init() {
         if(!isLoaded) {
             scene.setup()
+            if(scene !in KoolManager.context.scenes) KoolManager.context.addScene(scene)
             isLoaded = true
         }
         super.init()
@@ -46,6 +47,7 @@ open class KoolScreen : Screen("".literal), HudHideable {
     open fun Scene.setup() {}
 
     override fun removed() {
+        KoolManager.context.removeScene(scene)
         scene.release()
     }
 
