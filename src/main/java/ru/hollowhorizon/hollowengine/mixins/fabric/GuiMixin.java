@@ -24,7 +24,7 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEv
 public class GuiMixin {
     //? if fabric {
 
-    /*@Shadow
+    @Shadow
     @Final
     private Minecraft minecraft;
 
@@ -111,14 +111,14 @@ public class GuiMixin {
     }
 
     //? if >= 1.21 {
-    /^@Inject(method = "renderHotbarAndDecorations", at = @At("HEAD"), cancellable = true)
+    /*@Inject(method = "renderHotbarAndDecorations", at = @At("HEAD"), cancellable = true)
     private void onRenderHotbarPre(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
         Window window = minecraft.getWindow();
         RenderOverlayEvent.Pre event = new RenderOverlayEvent.Pre(window, guiGraphics, TickHandler.INSTANCE.getPartialTick(), GuiOverlay.HOTBAR);
         EventBus.post(event);
         if (event.isCanceled()) ci.cancel();
     }
-    ^///?} else {
+    *///?} else {
     @Inject(method = "renderHotbar", at = @At("HEAD"), cancellable = true)
     private void onRenderHotbarPre(float partialTick, GuiGraphics guiGraphics, CallbackInfo ci) {
         Window window = minecraft.getWindow();
@@ -129,13 +129,13 @@ public class GuiMixin {
     //?}
 
     //? if >= 1.21 {
-    /^@Inject(method = "renderHotbarAndDecorations", at = @At("RETURN"))
+    /*@Inject(method = "renderHotbarAndDecorations", at = @At("RETURN"))
     private void onRenderPortalPost(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
         Window window = minecraft.getWindow();
         RenderOverlayEvent.Post event = new RenderOverlayEvent.Post(window, guiGraphics, TickHandler.INSTANCE.getPartialTick(), GuiOverlay.HOTBAR);
         EventBus.post(event);
     }
-    ^///?} else {
+    *///?} else {
     @Inject(method = "renderHotbar", at = @At("RETURN"))
     private void onRenderPortalPost(float partialTick, GuiGraphics guiGraphics, CallbackInfo ci) {
         Window window = minecraft.getWindow();
@@ -145,7 +145,7 @@ public class GuiMixin {
     //?}
 
     //? if >= 1.21 {
-    /^@Inject(method = "renderCrosshair", at = @At("HEAD"), cancellable = true)
+    /*@Inject(method = "renderCrosshair", at = @At("HEAD"), cancellable = true)
     private void onRenderCrosshairPre(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
         Window window = minecraft.getWindow();
         RenderOverlayEvent.Pre event = new RenderOverlayEvent.Pre(window, guiGraphics, TickHandler.INSTANCE.getPartialTick(), GuiOverlay.CROSSHAIR);
@@ -159,7 +159,7 @@ public class GuiMixin {
         RenderOverlayEvent.Post event = new RenderOverlayEvent.Post(window, guiGraphics, TickHandler.INSTANCE.getPartialTick(), GuiOverlay.CROSSHAIR);
         EventBus.post(event);
     }
-    ^///?} else {
+    *///?} else {
     
     @Inject(method = "renderCrosshair", at = @At("HEAD"), cancellable = true)
     private void onRenderCrosshairPre(GuiGraphics guiGraphics, CallbackInfo ci) {
@@ -254,7 +254,7 @@ public class GuiMixin {
     }
 
     //? if >= 1.21 {
-    /^@Inject(method = "renderEffects", at = @At("HEAD"), cancellable = true)
+    /*@Inject(method = "renderEffects", at = @At("HEAD"), cancellable = true)
     private void onRenderEffectsPre(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo ci) {
         Window window = minecraft.getWindow();
         RenderOverlayEvent.Pre event = new RenderOverlayEvent.Pre(window, guiGraphics, TickHandler.INSTANCE.getPartialTick(), GuiOverlay.POTION_ICONS);
@@ -268,7 +268,7 @@ public class GuiMixin {
         RenderOverlayEvent.Post event = new RenderOverlayEvent.Post(window, guiGraphics, TickHandler.INSTANCE.getPartialTick(), GuiOverlay.POTION_ICONS);
         EventBus.post(event);
     }
-    ^///?} else {
+    *///?} else {
     
     @Inject(method = "renderEffects", at = @At("HEAD"), cancellable = true)
     private void onRenderEffectsPre(GuiGraphics guiGraphics, CallbackInfo ci) {
@@ -289,5 +289,5 @@ public class GuiMixin {
     //?}
 
 
-    *///?}
+    //?}
 }

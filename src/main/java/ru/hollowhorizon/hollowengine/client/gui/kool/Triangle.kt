@@ -2,9 +2,9 @@ package ru.hollowhorizon.hollowengine.client.gui.kool
 
 import de.fabmax.kool.KoolContext
 import de.fabmax.kool.math.deg
-import de.fabmax.kool.math.rad
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.geometry.MeshBuilder
+import de.fabmax.kool.util.set
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -61,6 +61,7 @@ class TriangleNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, surface
         val rot = modifier.rotation * p + prevRotation * (1f - p)
         val color = if (isHoveredState.use()) modifier.arrowHoverColor else modifier.arrowColor
         getPlainBuilder().configured(color) {
+
             triangleDown(widthPx * 0.5f, heightPx * 0.5f, min(innerWidthPx, innerHeightPx), -90 + rot)
         }
 
@@ -82,7 +83,7 @@ class TriangleNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, surface
     }
 }
 
-fun MeshBuilder.triangleDown(centerX: Float, centerY: Float, size: Float, rotation: Float = 0f) {
+fun MeshBuilder<UiVertexLayout>.triangleDown(centerX: Float, centerY: Float, size: Float, rotation: Float = 0f) {
     val halfSize = size / 2f
     val height = size * sqrt(3f) / 2f
 
@@ -104,9 +105,10 @@ fun MeshBuilder.triangleDown(centerX: Float, centerY: Float, size: Float, rotati
     fun rotateX(x: Float, y: Float) = centerX + cos * x - sin * y
     fun rotateY(x: Float, y: Float) = centerY + sin * x + cos * y
 
-    val i1 = vertex { set(rotateX(x1, y1), rotateY(x1, y1), 0f) }
-    val i2 = vertex { set(rotateX(x2, y2), rotateY(x2, y2), 0f) }
-    val i3 = vertex { set(rotateX(x3, y3), rotateY(x3, y3), 0f) }
+
+    val i1 = vertex { it.position.set(rotateX(x1, y1), rotateY(x1, y1), 0f) }
+    val i2 = vertex { it.position.set(rotateX(x2, y2), rotateY(x2, y2), 0f) }
+    val i3 = vertex { it.position.set(rotateX(x3, y3), rotateY(x3, y3), 0f) }
 
     addTriIndices(i1, i2, i3)
 }

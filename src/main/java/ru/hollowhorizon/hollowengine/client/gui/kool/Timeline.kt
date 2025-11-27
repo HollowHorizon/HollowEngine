@@ -1,14 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.gui.kool
 
-import de.fabmax.kool.KoolApplication
-import de.fabmax.kool.KoolConfigJvm
-import de.fabmax.kool.addScene
-import de.fabmax.kool.math.Vec2i
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
 import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.DebugOverlay
-import de.fabmax.kool.util.debugOverlay
 import kotlin.random.Random
 
 val objects = (0..100).map { Color(Random.nextFloat(), Random.nextFloat(), Random.nextFloat(), 1f) }.toMutableList()
@@ -102,21 +96,3 @@ fun UiScope.Section(id: Int, distance: Float) {
         }
     }
 }
-
-fun main() =
-    KoolApplication(
-        KoolConfigJvm(
-            renderBackend = KoolConfigJvm.Backend.OPEN_GL,
-            maxFrameRate = 500,
-            windowSize = Vec2i(756, 512)
-        )
-    ) {
-        addScene {
-            setupUiScene()
-
-            addPanelSurface {
-                Timeline(3)
-            }
-        }
-        ctx.addScene(debugOverlay(DebugOverlay.Position.LOWER_RIGHT))
-    }

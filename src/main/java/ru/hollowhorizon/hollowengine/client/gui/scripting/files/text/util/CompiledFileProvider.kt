@@ -2,8 +2,8 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util
 
 import de.fabmax.kool.math.Vec2i
 import de.fabmax.kool.util.Color
+import de.fabmax.kool.util.KoolDispatchers
 import de.fabmax.kool.util.MsdfFont
-import de.fabmax.kool.util.RenderLoopCoroutineDispatcher
 import de.fabmax.kool.util.logD
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
@@ -36,7 +36,7 @@ class CompiledFileProvider(
         }
 
     // --- Async & Debounce Setup ---
-    private val scope = CoroutineScope(RenderLoopCoroutineDispatcher + SupervisorJob())
+    private val scope = CoroutineScope(KoolDispatchers.Frontend + SupervisorJob())
     private val analysisRequest = MutableSharedFlow<AnalysisParams>(
         replay = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
@@ -204,7 +204,7 @@ class CompiledFileProvider(
             // 2. Diagnostics
             val diagnostics = ScriptingEnvironment.INSTANCE.analyzer.diagnostic(file.name, txt)
 
-            withContext(RenderLoopCoroutineDispatcher) {
+            withContext(KoolDispatchers.Frontend) {
                 onCompletions(completions)
                 onDiagnose(diagnostics)
             }

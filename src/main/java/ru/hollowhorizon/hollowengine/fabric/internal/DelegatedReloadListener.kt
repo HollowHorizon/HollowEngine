@@ -1,5 +1,5 @@
 //? if fabric {
-/*package ru.hollowhorizon.hollowengine.fabric.internal
+package ru.hollowhorizon.hollowengine.fabric.internal
 
 import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener
 import net.minecraft.resources.ResourceLocation
@@ -16,4 +16,4 @@ class DelegatedReloadListener(private val eventListener: PreparableReloadListene
         return eventListener.name
     }
 }
-*///?}
+//?}

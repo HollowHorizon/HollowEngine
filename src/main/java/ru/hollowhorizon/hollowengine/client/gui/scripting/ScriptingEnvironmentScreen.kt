@@ -32,7 +32,15 @@ val HACK_FONT by lazy {
 }
 
 object ScriptingEnvironmentOverlay {
-    val dock = Dock()
+    val dock: Dock
+    val scene = Scene("IDE Overlay").apply {
+        setupUiScene()
+        clearColor = ClearColorDontCare
+        clearDepth = ClearDepthDontCare
+        depthMode = DepthMode.Legacy
+        dock = Dock(this)
+        setup()
+    }
     var overlay: UiScope.() -> Unit = {}
     var titleBarHeight = 0f
     var isCollapsed = true
@@ -40,13 +48,6 @@ object ScriptingEnvironmentOverlay {
             field = value
             dock.isVisible = !value
         }
-
-    val scene = Scene("IDE Overlay").apply {
-        setupUiScene()
-        clearColor = ClearColorDontCare
-        clearDepth = ClearDepthDontCare
-        setup()
-    }
 
 
     fun Scene.setup() {

@@ -1,5 +1,5 @@
 //? if fabric {
-/*package ru.hollowhorizon.hollowengine.fabric
+package ru.hollowhorizon.hollowengine.fabric
 
 import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.loader.impl.launch.FabricLauncherBase
@@ -43,4 +43,4 @@ object HCFabric {
 
     }
 }
-*///?}
+//?}

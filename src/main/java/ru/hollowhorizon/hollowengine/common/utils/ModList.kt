@@ -1,14 +1,14 @@
 package ru.hollowhorizon.hollowengine.common.utils
 
 //? if fabric {
-/*import net.fabricmc.loader.api.FabricLoader
+import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.loader.api.metadata.ModOrigin
 import java.util.jar.JarFile
 import kotlin.jvm.optionals.getOrNull
 
-*///?} elif forge {
-import net.minecraftforge.fml.ModList
-//?} elif neoforge {
+//?} elif forge {
+/*import net.minecraftforge.fml.ModList
+*///?} elif neoforge {
 /*import net.neoforged.fml.ModList
 import java.nio.file.Files
 import java.nio.file.Path
@@ -39,10 +39,10 @@ object ModList {
      */
     fun isLoaded(modId: String): Boolean {
         //? if fabric {
-        /*return FabricLoader.getInstance().isModLoaded(modId)
-        *///?} elif forge || neoforge {
-        return ModList.get().isLoaded(modId)
-        //?}
+        return FabricLoader.getInstance().isModLoaded(modId)
+        //?} elif forge || neoforge {
+        /*return ModList.get().isLoaded(modId)
+        *///?}
     }
 
     /**
@@ -54,19 +54,19 @@ object ModList {
      */
     fun getFile(modId: String): File {
         //? if fabric {
-        /*return FabricLoader.getInstance().getModFile(modId)
-        *///?} elif forge || neoforge {
-        // Неужели так сложно просто дать нормальный путь к файлу...
+        return FabricLoader.getInstance().getModFile(modId)
+        //?} elif forge || neoforge {
+        /*// Неужели так сложно просто дать нормальный путь к файлу...
         return getModFile(modId)
-        //?}
+        *///?}
     }
 
     fun getAllFiles(modId: String): List<File> {
         //? if fabric {
-        /*return FabricLoader.getInstance().getAllMods(modId)
-        *///?} elif forge || neoforge {
-        return getAllMods(modId)
-        //?}
+        return FabricLoader.getInstance().getAllMods(modId)
+        //?} elif forge || neoforge {
+        /*return getAllMods(modId)
+        *///?}
     }
 
     /**
@@ -77,16 +77,16 @@ object ModList {
     val mods: List<String>
         get() {
             //? if fabric {
-            /*return FabricLoader.getInstance().allMods.map { it.metadata.id }
-            *///?} elif forge || neoforge {
-            return ModList.get().mods.map { it.modId }
-            //?}
+            return FabricLoader.getInstance().allMods.map { it.metadata.id }
+            //?} elif forge || neoforge {
+            /*return ModList.get().mods.map { it.modId }
+            *///?}
         }
 
 }
 
 //? if fabric {
-/*fun FabricLoader.getModFile(modId: String): File {
+fun FabricLoader.getModFile(modId: String): File {
     val modContainer = getModContainer(modId).getOrNull()
         ?: throw FileNotFoundException("Mod Not Found: $modId")
     val origin = modContainer.origin
@@ -129,8 +129,8 @@ fun FabricLoader.getNestedModFile(origin: ModOrigin): File {
 
     return newFile
 }
-*///?} else {
-fun getAllMods(modId: String): List<File> {
+//?} else {
+/*fun getAllMods(modId: String): List<File> {
     return collectModJars(getModFile(modId))
 }
 fun getModFile(modId: String): File {
@@ -167,4 +167,4 @@ fun getModFile(modId: String): File {
         return File(path.absolutePathString())
     }
 }
-//?}
+*///?}

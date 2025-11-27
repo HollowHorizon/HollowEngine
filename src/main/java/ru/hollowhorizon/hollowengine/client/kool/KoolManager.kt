@@ -10,6 +10,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import net.minecraft.resources.ResourceLocation
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.MCAssetLoader
 import ru.hollowhorizon.hollowengine.client.utils.stream
@@ -32,6 +33,7 @@ object KoolManager {
         KoolSystem.initialize(KoolConfigJvm(defaultAssetLoader = MCAssetLoader))
 
         context = MCKoolContext()
+        context.addScene(ScriptingEnvironmentOverlay.scene)
 
         val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/monocraft.json".rl.stream)
         val msdfMap = Texture2d(TexFormat.RGBA, MipMapping.Off, SamplerSettings(), "MsdfFont:${fontInfo.name}") {

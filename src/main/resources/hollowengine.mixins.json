@@ -35,7 +35,7 @@
     "kool.DockNodeMixin",
     "kool.DragAndDropContextAccessor",
     "kool.MixinLeafSlots",
-    "kool.PlatformInputJvmMixin",
+    "kool.PlatformInputMixin",
     "kool.UiDockableAccessor",
     "loot.LootDataManagerMixin",
     "tags.TagEntryAccessor",

@@ -34,7 +34,7 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
 class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
     var model = ""
     var position = Vec2f.ZERO
-    val dock = Dock()
+    val dock = Dock(scene)
 
     override fun Scene.setup() {
         val options = HashSet<NpcOption>()

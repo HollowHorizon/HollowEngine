@@ -54,10 +54,10 @@ class NpcEntity : PathfinderMob {
 
     val fakePlayer: ServerPlayer by lazy {
         //? if fabric {
-        /*val player = net.fabricmc.fabric.api.entity.FakePlayer.get(level() as ServerLevel)
-        *///?} elif forge {
-        val player = net.minecraftforge.common.util.FakePlayerFactory.getMinecraft(level() as ServerLevel)
-        //?}
+        val player = net.fabricmc.fabric.api.entity.FakePlayer.get(level() as ServerLevel)
+        //?} elif forge {
+        /*val player = net.minecraftforge.common.util.FakePlayerFactory.getMinecraft(level() as ServerLevel)
+        *///?}
         player.setGameMode(GameType.CREATIVE)
         player
     }

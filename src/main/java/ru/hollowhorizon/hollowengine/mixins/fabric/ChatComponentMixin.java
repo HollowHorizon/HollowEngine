@@ -38,7 +38,7 @@ public class ChatComponentMixin {
 
     *///?} elif fabric {
 
-    /*@Shadow @Final private Minecraft minecraft;
+    @Shadow @Final private Minecraft minecraft;
 
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
     private void onRenderPre(GuiGraphics guiGraphics, int tickCount, int mouseX, int mouseY, CallbackInfo ci) {
@@ -55,5 +55,5 @@ public class ChatComponentMixin {
         EventBus.post(event);
     }
 
-    *///?}
+    //?}
 }

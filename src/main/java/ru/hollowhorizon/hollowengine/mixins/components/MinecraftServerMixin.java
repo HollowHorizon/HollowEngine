@@ -35,10 +35,10 @@ public class MinecraftServerMixin implements ComponentDispatcher {
     @Inject(method = "<init>", at = @At("TAIL"))
     private void onInit(Thread serverThread, LevelStorageSource.LevelStorageAccess storageSource, PackRepository packRepository, WorldStem worldStem, Proxy proxy, DataFixer fixerUpper, Services services, ChunkProgressListenerFactory progressListenerFactory, CallbackInfo ci) {
         //? if fabric {
-        /*var file = storageSource.getIconFile().get().getParent().resolve("server-components.dat").toFile();
-        *///?} else {
-        var file = storageSource.getWorldDir().resolve(storageSource.getLevelId()).resolve("server_capability.dat").toFile();
-         //?}
+        var file = storageSource.getIconFile().get().getParent().resolve("server-components.dat").toFile();
+        //?} else {
+        /*var file = storageSource.getWorldDir().resolve(storageSource.getLevelId()).resolve("server_capability.dat").toFile();
+         *///?}
 
         if (file.exists()) {
             ComponentSaving.save(this, file);
@@ -48,10 +48,10 @@ public class MinecraftServerMixin implements ComponentDispatcher {
     @Inject(method = "stopServer", at = @At("HEAD"))
     private void onSave(CallbackInfo ci) {
         //? if fabric {
-        /*var file = storageSource.getIconFile().get().getParent().resolve("server-components.dat").toFile();
-        *///?} else {
-        var file = storageSource.getWorldDir().resolve(storageSource.getLevelId()).resolve("server_capability.dat").toFile();
-         //?}
+        var file = storageSource.getIconFile().get().getParent().resolve("server-components.dat").toFile();
+        //?} else {
+        /*var file = storageSource.getWorldDir().resolve(storageSource.getLevelId()).resolve("server_capability.dat").toFile();
+         *///?}
 
         ComponentSaving.save(this, file);
     }

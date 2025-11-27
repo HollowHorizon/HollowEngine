@@ -28,10 +28,10 @@ object CommonEnvironment {
     private fun setupMappings(): Mappings {
         JarFile(compiler).use { jar ->
             //? if forge {
-            val file = jar.getJarEntry("mappings-1.20.1.tsrg")
-            //?} else {
-            /*val file = jar.getJarEntry("mappings-1.20.1.tiny")
-            *///?}
+            /*val file = jar.getJarEntry("mappings-1.20.1.tsrg")
+            *///?} else {
+            val file = jar.getJarEntry("mappings-1.20.1.tiny")
+            //?}
             return MappingsLoader.loadMappings(jar.getInputStream(file))
         }
     }
@@ -39,10 +39,10 @@ object CommonEnvironment {
     //@formatter:off
     fun setupPlatform(mappings: Mappings, outputDir: File): List<File> =
         //? if forge {
-        ForgeEnvironmentSetup.setup(mappings, outputDir)
-        //?} else {
-        /*FabricEnvironmentSetup.setup(mappings, outputDir)
-        *///?}
+        /*ForgeEnvironmentSetup.setup(mappings, outputDir)
+        *///?} else {
+        FabricEnvironmentSetup.setup(mappings, outputDir)
+        //?}
     //@formatter:on
 
 }

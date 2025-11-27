@@ -5,7 +5,6 @@ import de.fabmax.kool.modules.ui2.UiScale
 import de.fabmax.kool.modules.ui2.setupUiScene
 import de.fabmax.kool.pipeline.ClearColorDontCare
 import de.fabmax.kool.pipeline.ClearDepthDontCare
-import de.fabmax.kool.pipeline.ClearDepthLoad
 import de.fabmax.kool.scene.OrthographicCamera
 import de.fabmax.kool.scene.Scene
 import net.minecraft.client.gui.GuiGraphics
@@ -35,8 +34,8 @@ open class KoolScreen : Screen("".literal), HudHideable {
     override fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
         val oldScale = UiScale.uiScale.value
         uiSize?.let {
-            val w = KoolManager.context.windowWidth / it.x.toFloat()
-            val h = KoolManager.context.windowHeight / it.y.toFloat()
+            val w = KoolManager.context.window.size.x / it.x.toFloat()
+            val h = KoolManager.context.window.size.y / it.y.toFloat()
             UiScale.uiScale.set(min(w, h) / UiScale.windowScale.value)
         }
         scene.render()

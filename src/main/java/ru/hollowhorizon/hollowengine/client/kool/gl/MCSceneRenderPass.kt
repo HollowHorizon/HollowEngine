@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.kool.gl
 
+import de.fabmax.kool.PassData
 import de.fabmax.kool.math.MutableVec2i
 import de.fabmax.kool.math.Vec2i
 import de.fabmax.kool.modules.ksl.KslUnlitShader
@@ -10,24 +11,21 @@ import de.fabmax.kool.pipeline.backend.gl.*
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.scene.addTextureMesh
 import de.fabmax.kool.util.Viewport
-import net.minecraft.client.Minecraft
 import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.client.kool.ctx
-import ru.hollowhorizon.hollowengine.client.kool.gpuTexture
-import kotlin.math.roundToInt
 
-class MCSceneRenderPass(val numSamples: Int, backend: RenderBackendGl): GlRenderPass(backend) {
+class MCSceneRenderPass(val numSamples: Int, backend: RenderBackendGl) : GlRenderPass(backend) {
     private val renderFbo: GlFramebuffer get() = GlFramebuffer(GL30.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING))
-    private val resolveFbo: GlFramebuffer by lazy { gl.createFramebuffer() }
 
-    private val resolvedColor = Texture2d(TexFormat.RGBA, mipMapping = MipMapping.Off, SamplerSettings().clamped().linear())
+
+    private val resolveFbo: GlFramebuffer by lazy { gl.createFramebuffer() }
+    private val resolvedColor =
+        Texture2d(TexFormat.RGBA, mipMapping = MipMapping.Off, SamplerSettings().clamped().linear())
     private val resolveDepth: GlRenderbuffer by lazy { gl.createRenderbuffer() }
 
+
     private val copyFbo: GlFramebuffer by lazy { gl.createFramebuffer() }
-
     private val renderSize = MutableVec2i()
-    private val outputSize = MutableVec2i()
-
     internal var resolveDirect = true
 
     private val blitScene: Scene by lazy {
@@ -44,14 +42,14 @@ class MCSceneRenderPass(val numSamples: Int, backend: RenderBackendGl): GlRender
             mainRenderPass.defaultView.isFillFramebuffer = false
             onUpdate {
                 val ctx = backend.ctx
-                val w = (ctx.windowWidth / ctx.renderScale).roundToInt()
-                val h = (ctx.windowHeight / ctx.renderScale).roundToInt()
-                mainRenderPass.defaultView.viewport = Viewport(0, ctx.windowHeight - h, w, h)
+                val w = ctx.window.framebufferSize.x
+                val h = ctx.window.framebufferSize.y
+                mainRenderPass.defaultView.viewport = Viewport(0, ctx.window.size.y - h, w, h)
             }
         }
     }
 
-    override fun setupFramebuffer(viewIndex: Int, mipLevel: Int) {
+    override fun setupFramebuffer(mipLevel: Int, layer: Int) {
         if (backend.useFloatDepthBuffer) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, renderFbo)
         } else {
@@ -59,7 +57,7 @@ class MCSceneRenderPass(val numSamples: Int, backend: RenderBackendGl): GlRender
         }
     }
 
-    fun draw(screenPass: Scene.ScreenPass) = renderViews(screenPass)
+    fun draw(passData: PassData) = renderViews(passData)
 
     override fun copy(frameCopy: FrameCopy) {
         val width = renderSize.x
@@ -83,8 +81,8 @@ class MCSceneRenderPass(val numSamples: Int, backend: RenderBackendGl): GlRender
     }
 
     fun resolve(targetFbo: GlFramebuffer, blitMask: Int) {
-        if ((resolveDirect && backend.ctx.renderScale == 1f) || targetFbo != gl.DEFAULT_FRAMEBUFFER) {
-            blitFramebuffers(renderFbo, targetFbo, blitMask, renderSize, outputSize)
+        if ((resolveDirect && backend.ctx.window.renderScale == 1f) || targetFbo != gl.DEFAULT_FRAMEBUFFER) {
+            blitFramebuffers(renderFbo, targetFbo, blitMask, renderSize, renderSize)
         } else {
             // on WebGL trying to resolve a multi-sampled framebuffer into the default framebuffer fails with
             // "GL_INVALID_OPERATION: Invalid operation on multi-sampled framebuffer". As a work-around we resolve
@@ -93,12 +91,31 @@ class MCSceneRenderPass(val numSamples: Int, backend: RenderBackendGl): GlRender
             blitFramebuffers(renderFbo, resolveFbo, blitMask, renderSize, renderSize)
 
             gl.bindFramebuffer(gl.FRAMEBUFFER, targetFbo)
-            blitScene.mainRenderPass.update(backend.ctx)
-            renderView(blitScene.mainRenderPass.defaultView, 0, 0)
+            val passData = (backend as MCRenderBackendGl).currentFrameData.acquirePassData(blitScene.mainRenderPass)
+            blitScene.mainRenderPass.collect(passData, backend.ctx)
+            passData.updatePipelineData()
+            passData.forEachView { viewData -> renderView(viewData, 0, 0) }
         }
     }
 
-    private fun blitFramebuffers(src: GlFramebuffer, dst: GlFramebuffer, blitMask: Int, srcSize: Vec2i, dstSize: Vec2i) {
+    private fun PassData.updatePipelineData() {
+        for (vi in viewData.indices) {
+            val viewData = viewData[vi]
+            viewData.drawQueue.forEach {
+                it.updatePipelineData()
+                it.captureData()
+            }
+            viewData.drawQueue.view.viewPipelineData.captureBuffer()
+        }
+    }
+
+    private fun blitFramebuffers(
+        src: GlFramebuffer,
+        dst: GlFramebuffer,
+        blitMask: Int,
+        srcSize: Vec2i,
+        dstSize: Vec2i,
+    ) {
         gl.bindFramebuffer(gl.READ_FRAMEBUFFER, src)
         gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, dst)
         gl.blitFramebuffer(
@@ -108,42 +125,15 @@ class MCSceneRenderPass(val numSamples: Int, backend: RenderBackendGl): GlRender
         )
     }
 
-    private fun bindTargetTex(dst: Texture2d, width: Int, height: Int, isColor: Boolean) {
-        if (dst.gpuTexture == null) {
-            dst.gpuTexture = LoadedTextureGl(
-                target = gl.TEXTURE_2D,
-                glTexture = gl.createTexture(),
-                backend = backend,
-                texture = dst,
-                estimatedSize = width * height * 4L
-            )
-        }
-        val tex = dst.gpuTexture as LoadedTextureGl
-        tex.bind()
-
-        if (tex.width != width || tex.height != height) {
-            tex.setSize(width, height, 1)
-            tex.applySamplerSettings(dst.samplerSettings)
-
-            val internalFormat = if (isColor) gl.RGBA8 else gl.DEPTH_COMPONENT32F
-            val format = if (isColor) gl.RGBA else gl.DEPTH_COMPONENT
-            val type = if (isColor) gl.UNSIGNED_BYTE else gl.FLOAT
-            gl.texImage2d(tex.target, 0, internalFormat, width, height, 0, format, type, null)
-        }
-    }
-
     fun applySize(width: Int, height: Int) {
         if (width <= 0 || height <= 0 || (width == renderSize.x && height == renderSize.y)) {
             return
         }
         renderSize.set(width, height)
-        outputSize.set((width / backend.ctx.renderScale).roundToInt(), (height / backend.ctx.renderScale).roundToInt())
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, renderFbo)
 
-        if (!resolveDirect) {
-            makeResolveFbo(width, height)
-        }
+        makeResolveFbo(width, height)
     }
 
     private fun makeResolveFbo(width: Int, height: Int) {
@@ -173,4 +163,9 @@ class MCSceneRenderPass(val numSamples: Int, backend: RenderBackendGl): GlRender
         )
         gl.drawBuffers(intArrayOf(gl.COLOR_ATTACHMENT0))
     }
+
+    override fun doRelease() {
+    }
+
+
 }

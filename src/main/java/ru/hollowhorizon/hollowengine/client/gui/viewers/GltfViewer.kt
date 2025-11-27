@@ -16,6 +16,7 @@ import de.fabmax.kool.pipeline.deferred.deferredKslPbrShader
 import de.fabmax.kool.pipeline.ibl.EnvironmentMap
 import de.fabmax.kool.scene.*
 import de.fabmax.kool.scene.geometry.MeshBuilder
+import de.fabmax.kool.scene.geometry.generateNormals
 import de.fabmax.kool.util.Time
 import de.fabmax.kool.util.launchOnMainThread
 import net.minecraft.util.Mth.cos
@@ -95,7 +96,7 @@ class GltfViewer : KoolScreen() {
         Assets.loadImage2d("hollowengine:textures/materials/$name.jpg").getOrThrow()
     }
 
-    private fun MeshBuilder.roundCylinder(radius: Float, height: Float) {
+    private fun MeshBuilder<TextureMeshLayout>.roundCylinder(radius: Float, height: Float) {
         val nCorner = 20
         val cornerR = height / 2
         val cornerPts = mutableListOf<Vec3f>()

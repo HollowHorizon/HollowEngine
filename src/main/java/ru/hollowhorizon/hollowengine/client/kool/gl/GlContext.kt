@@ -2,12 +2,11 @@ package ru.hollowhorizon.hollowengine.client.kool.gl
 
 import com.mojang.blaze3d.platform.GlStateManager
 import com.mojang.blaze3d.systems.RenderSystem
-import de.fabmax.kool.input.Input
 import de.fabmax.kool.pipeline.CullMethod
 import de.fabmax.kool.pipeline.DepthCompareOp
-import de.fabmax.kool.pipeline.backend.gl.GlRenderPass
 import de.fabmax.kool.pipeline.backend.gl.glOp
 import de.fabmax.kool.scene.Scene
+import kotlinx.coroutines.runBlocking
 import net.minecraft.client.Minecraft
 import org.lwjgl.opengl.GL30
 import org.lwjgl.opengl.GL33
@@ -53,14 +52,14 @@ object GlContext {
         cullState = GL30.glIsEnabled(GL30.GL_CULL_FACE)
         cullMode = GL30.glGetInteger(GL30.GL_CULL_FACE_MODE)
 
-        MCGlApi.depthMask(GlRenderPass.GlState.actIsWriteDepth)
-        if (GlRenderPass.GlState.actDepthTest == DepthCompareOp.ALWAYS) {
+        MCGlApi.depthMask(KoolHooks.getGlStateIsWriteDepth())
+        if (KoolHooks.getGlStateDepthTest() == DepthCompareOp.ALWAYS) {
             MCGlApi.disable(MCGlApi.DEPTH_TEST)
         } else {
             MCGlApi.enable(MCGlApi.DEPTH_TEST)
-            GlRenderPass.GlState.actDepthTest?.glOp(MCGlApi)?.let(MCGlApi::depthFunc)
+            KoolHooks.getGlStateDepthTest()?.glOp(MCGlApi)?.let(MCGlApi::depthFunc)
         }
-        when (GlRenderPass.GlState.actCullMethod) {
+        when (KoolHooks.getGlStateCullMethod()) {
             CullMethod.CULL_BACK_FACES -> {
                 MCGlApi.enable(MCGlApi.CULL_FACE)
                 MCGlApi.cullFace(MCGlApi.BACK)
@@ -73,7 +72,9 @@ object GlContext {
 
             else -> MCGlApi.disable(MCGlApi.CULL_FACE)
         }
-        if (GlRenderPass.GlState.lineWidth != 0f) MCGlApi.lineWidth(GlRenderPass.GlState.lineWidth)
+        KoolHooks.getGlStateLineWidth().takeIf { it != 0f }?.let {
+            MCGlApi.lineWidth(it)
+        }
         KoolHooks.resetShaders(KoolManager.context)
     }
 
@@ -109,14 +110,18 @@ object GlContext {
 }
 
 @SubscribeEvent
-fun RenderTickEvent.Pre.handle() {
+fun RenderTickEvent.Post.handle() {
+    runBlocking {
+        KoolManager.context.renderFrame()
+    }
+    return
     KoolHooks.setDeltaT(TickHandler.deltaFrameTime / 20f)
     KoolHooks.addGameTime(TickHandler.deltaFrameTime / 20.0)
     KoolHooks.incrementFrameCount()
 
-    Input.poll(KoolManager.context)
+    //Input.poll(KoolManager.context)
 
-    KoolHooks.executeCoroutineTasks()
+    //KoolHooks.executeCoroutineTasks()
 
     KoolManager.context.apply {
         onRender.update()
@@ -124,9 +129,7 @@ fun RenderTickEvent.Pre.handle() {
             onRender[i](this)
         }
 
-        if (!backgroundScene.isEmpty) {
-            backgroundScene.renderScene(this)
-        }
+        //renderFrame()
     }
 }
 
@@ -134,21 +137,21 @@ fun Scene.render(recordState: Boolean = true) {
     if (recordState) GlContext.setupState()
 
     KoolManager.context.apply {
-        renderScene(this)
-        backend.apply {
-            mcSceneRenderer.applySize(windowWidth, windowHeight)
-            backgroundScene.executePasses()
-
-            executePasses()
-
-            if (useFloatDepthBuffer) {
-                mcSceneRenderer.resolve(gl.DEFAULT_FRAMEBUFFER, gl.COLOR_BUFFER_BIT)
-            }
-
-            if (awaitedStorageBuffers.isNotEmpty()) {
-                readbackStorageBuffers()
-            }
-        }
+//        renderScene(this)
+//        backend.apply {
+//            mcSceneRenderer.applySize(windowWidth, windowHeight)
+//            backgroundScene.executePasses()
+//
+//            executePasses()
+//
+//            if (useFloatDepthBuffer) {
+//                mcSceneRenderer.resolve(gl.DEFAULT_FRAMEBUFFER, gl.COLOR_BUFFER_BIT)
+//            }
+//
+//            if (awaitedStorageBuffers.isNotEmpty()) {
+//                readbackStorageBuffers()
+//            }
+//        }
 
     }
     if (recordState) GlContext.restoreState()

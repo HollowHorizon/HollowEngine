@@ -3,11 +3,9 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.modules.ui2.colors
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.Color
-import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.Layout
@@ -40,7 +38,7 @@ abstract class FileData(
 
     override fun open() {
         if(surface != null) return
-        surface = WindowSurface(dockable, IdeTheme.colors, IdeTheme.sizes) {
+        surface = WindowSurface(ScriptingEnvironmentOverlay.scene, dockable, IdeTheme.colors, IdeTheme.sizes) {
             val (isHovered, anim) = hoverListener { !surface.isFocused.use() }
 
             var factor = Easing.quadRev(anim.progressAndUse())

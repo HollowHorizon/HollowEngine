@@ -144,7 +144,7 @@ class ComponentEditorScreen(val provider: ComponentDispatcher) : KoolScreen() {
             modifier
                 .onEnter { isSplitterHovered.value = true }
                 .onExit { isSplitterHovered.value = false }
-                .onHover { PointerInput.cursorShape = CursorShape.RESIZE_EW }
+                .onHover { PointerInput.cursorShape = CursorShape.RESIZE_E }
                 .onDragStart {
                     dragStartWidth.value = entityPreviewWidth.value.px
                 }

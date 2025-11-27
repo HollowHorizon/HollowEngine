@@ -1,10 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.kool.minecraft
 
+import de.fabmax.kool.ViewData
 import de.fabmax.kool.math.MutableMat4f
 import de.fabmax.kool.math.QuatF
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.math.deg
-import de.fabmax.kool.pipeline.RenderPass
 import de.fabmax.kool.scene.PerspectiveCamera
 import de.fabmax.kool.scene.Scene
 import net.minecraft.client.Minecraft
@@ -13,13 +13,12 @@ import net.minecraft.world.effect.MobEffects
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
-import java.io.File
 import kotlin.math.abs
 import kotlin.math.min
 
 class MinecraftCamera : PerspectiveCamera() {
-    override fun updateProjectionMatrix(updateEvent: RenderPass.UpdateEvent) {
-        super.updateProjectionMatrix(updateEvent)
+    override fun updateProjectionMatrix(viewData: ViewData) {
+        super.updateProjectionMatrix(viewData)
 
         if (Minecraft.getInstance().player == null || Minecraft.getInstance().level == null) return
 

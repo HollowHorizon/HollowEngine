@@ -1,13 +1,13 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
 import de.fabmax.kool.Assets
+import de.fabmax.kool.MimeType
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.pipeline.MipMapping
 import de.fabmax.kool.pipeline.SamplerSettings
 import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.util.toBuffer
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 
 class ImageFileData(name: String, path: String, var image: ByteArray) :
     FileData(name, path) {
@@ -22,7 +22,7 @@ class ImageFileData(name: String, path: String, var image: ByteArray) :
 
         Image(remember {
             Texture2d(mipMapping = MipMapping.Off, samplerSettings = SamplerSettings().nearest()) {
-                Assets.loadImageFromBuffer(image.toBuffer(), "image/png")
+                Assets.loadImageFromBuffer(image.toBuffer(), MimeType.IMAGE_PNG)
             }
         }) {
             modifier.imageSize(ImageSize.FitContent)

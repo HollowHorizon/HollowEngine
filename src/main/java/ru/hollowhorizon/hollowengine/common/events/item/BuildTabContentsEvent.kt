@@ -6,7 +6,7 @@ import net.minecraft.world.item.CreativeModeTab.TabVisibility
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ItemLike
 //? if forge
-import net.minecraftforge.common.util.MutableHashedLinkedMap
+/*import net.minecraftforge.common.util.MutableHashedLinkedMap*/
 import ru.hollowhorizon.hollowengine.common.events.Event
 
 class BuildTabContentsEvent(

@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.forge
 //? if forge {
 
-import net.minecraft.server.level.ServerPlayer
+/*import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.InteractionResultHolder
 import net.minecraft.world.entity.player.Player
@@ -160,4 +160,4 @@ object ForgeEvents {
         if(event.isCanceled) e.isCanceled = true
     }
 }
-//?}
+*///?}

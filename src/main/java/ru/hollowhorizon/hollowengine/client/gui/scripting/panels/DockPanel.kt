@@ -49,7 +49,7 @@ abstract class DockPanel(final override val name: String, val dock: Dock) : Layo
         dockable.floatingX.set(Dp(5f))
         dockable.floatingY.set(Dp.fromPx(ScriptingEnvironmentOverlay.titleBarHeight) + Dp(5f))
 
-        surface = WindowSurface(dockable, dock.dockingSurface.colors, dock.dockingSurface.sizes) {
+        surface = WindowSurface(dock.dockingSurface.parentScene, dockable, dock.dockingSurface.colors, dock.dockingSurface.sizes) {
             modifier.border(null)
             if (!showOnToolbar) {
                 panelContent()

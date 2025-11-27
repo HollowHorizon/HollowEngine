@@ -37,7 +37,7 @@ setupEnviroment(container, kotlinVersion, includeKotlin = false)
 repositories {
     maven("https://jitpack.io")
     maven("https://maven.blamejared.com/")
-
+    mavenLocal()
     flatDir { dirs(rootProject.file("libs")) }
 }
 
@@ -69,6 +69,7 @@ dependencies {
     install("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     install("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
     install("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
+    install("org.jetbrains.kotlinx:atomicfu:0.30.0-beta")
 
 }
 

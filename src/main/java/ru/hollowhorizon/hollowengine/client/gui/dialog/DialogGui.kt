@@ -13,19 +13,17 @@ import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
-import net.minecraft.world.item.Items
+import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverListener
 import ru.hollowhorizon.hollowengine.client.kool.Entity
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.kool.scale
 import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
-import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverListener
 import ru.hollowhorizon.hollowengine.common.npcs.dialogues.DialogChoice
 import ru.hollowhorizon.hollowengine.common.npcs.dialogues.DialogueScene
 import ru.hollowhorizon.hollowengine.common.npcs.dialogues.DialogueUpdateEvent
-import kotlin.math.min
 
 class DialogGui : KoolScreen() {
     var text = ""
@@ -188,13 +186,13 @@ class DialogGui : KoolScreen() {
             itemsIndexed(choices) { i, choice ->
                 if (i == 0) {
                     Box {
-                        modifier.height(Dp.fromPx(KoolManager.context.windowHeight / 2f) - 24.dp)
+                        modifier.height(Dp.fromPx(KoolManager.context.window.size.y / 2f) - 24.dp)
                     }
                     return@itemsIndexed
                 }
                 if (i == choices.lastIndex) {
                     Box {
-                        modifier.height(Dp.fromPx(KoolManager.context.windowHeight / 3f) + 24.dp)
+                        modifier.height(Dp.fromPx(KoolManager.context.window.size.y / 3f) + 24.dp)
                     }
                     return@itemsIndexed
                 }

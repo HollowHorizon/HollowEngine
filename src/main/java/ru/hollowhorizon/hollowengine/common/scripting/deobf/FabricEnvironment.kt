@@ -1,6 +1,6 @@
 //? if fabric {
 
-/*package ru.hollowhorizon.hollowengine.common.scripting.deobf
+package ru.hollowhorizon.hollowengine.common.scripting.deobf
 
 import net.fabricmc.loader.api.FabricLoader
 import net.fabricmc.loader.impl.FabricLoaderImpl
@@ -37,4 +37,4 @@ object FabricEnvironmentSetup : EnvironmentSetup {
     }
 }
 
-*///?}
+//?}

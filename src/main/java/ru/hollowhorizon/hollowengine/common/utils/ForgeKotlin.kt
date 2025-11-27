@@ -24,10 +24,10 @@ val isProduction: Boolean
         //? if neoforge {
         /*return net.neoforged.fml.loading.FMLLoader.isProduction()
         *///?} elif forge {
-        return net.minecraftforge.fml.loading.FMLLoader.isProduction()
-        //?} else {
-        /*return !net.fabricmc.loader.api.FabricLoader.getInstance().isDevelopmentEnvironment
-        *///?}
+        /*return net.minecraftforge.fml.loading.FMLLoader.isProduction()
+        *///?} else {
+        return !net.fabricmc.loader.api.FabricLoader.getInstance().isDevelopmentEnvironment
+        //?}
     }
 /**
  * Checks if the current thread is the logical client thread.
@@ -45,10 +45,10 @@ val isPhysicalClient: Boolean
         //? if neoforge {
         /*return net.neoforged.fml.loading.FMLLoader.getDist().isClient
         *///?} elif forge {
-        return net.minecraftforge.fml.loading.FMLLoader.getDist().isClient
-        //?} else {
-        /*return net.fabricmc.loader.api.FabricLoader.getInstance().environmentType == net.fabricmc.api.EnvType.CLIENT
-        *///?}
+        /*return net.minecraftforge.fml.loading.FMLLoader.getDist().isClient
+        *///?} else {
+        return net.fabricmc.loader.api.FabricLoader.getInstance().environmentType == net.fabricmc.api.EnvType.CLIENT
+        //?}
     }
 
 val RANDOM = RandomSource.create()

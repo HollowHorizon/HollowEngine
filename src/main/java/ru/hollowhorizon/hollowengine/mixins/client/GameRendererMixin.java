@@ -31,7 +31,7 @@ public abstract class GameRendererMixin {
         //poseStack.mulPose(Axis.ZP.rotationDegrees(event.getRoll()));
     }
     *///?} elif fabric {
-    /*@Inject(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V", shift = At.Shift.AFTER), locals = LocalCapture.CAPTURE_FAILHARD)
+    @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V", shift = At.Shift.AFTER), locals = LocalCapture.CAPTURE_FAILHARD)
     public void hollowcore$callCameraMove(float partialTicks, long finishTimeNano, PoseStack poseStack, CallbackInfo ci, boolean bl, Camera camera, PoseStack poseStack2, double d, float f, float g, Matrix4f matrix4f) {
         var event = new CameraSetupEvent((GameRenderer) (Object) this, camera, partialTicks, camera.getYRot(), camera.getXRot(), 0);
         EventBus.post(event);
@@ -40,5 +40,5 @@ public abstract class GameRendererMixin {
 
         poseStack.mulPose(Axis.ZP.rotationDegrees(event.getRoll()));
     }
-    *///?}
+    //?}
 }

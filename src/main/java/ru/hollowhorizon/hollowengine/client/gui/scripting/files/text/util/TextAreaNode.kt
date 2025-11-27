@@ -304,12 +304,12 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                     val color =
                         if (error.severity.isError()) HighlightTheme.ERROR_ELEMENT
                         else HighlightTheme.KEYWORD.mix(HighlightTheme.ANNOTATION, 0.5f)
-                    getPlainBuilder(UiSurface.LAYER_FLOATING).configured(color) {
+                    getPlainBuilder(UiSurface.LAYER_FLOATING).configured(color, clipped = false) {
                         val leftPos = maxWidth.px + sizes.borderWidth.px + sizes.smallGap.px
                         for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).toInt()).step(5)) {
                             val offset = if (i % 2 == 0) 5 else -5
                             line(
-                                Vec2f(i.toFloat(), heightPx - 5 + offset), Vec2f(i + 5f, heightPx - 5 - offset), 3f
+                                Vec2f(i.toFloat(), heightPx + offset), Vec2f(i + 5f, heightPx - offset), 3f
                             )
                         }
 

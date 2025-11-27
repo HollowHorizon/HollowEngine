@@ -22,7 +22,7 @@ import ru.hollowhorizon.hollowengine.common.events.item.ArrowEvent;
 @Mixin(BowItem.class)
 public class BowItemMixin {
     //? if fabric {
-    /*@Redirect(
+    @Redirect(
             method = "releaseUsing",
             at = @At(
                     value = "INVOKE",
@@ -33,9 +33,9 @@ public class BowItemMixin {
         if (!(entity instanceof Player player)) return BowItem.getPowerForTime(charge);
 
         //? >= 1.21 {
-        /^var enchantment = level.registryAccess().registryOrThrow(Registries.ENCHANTMENT).getHolderOrThrow(Enchantments.INFINITY);
+        /*var enchantment = level.registryAccess().registryOrThrow(Registries.ENCHANTMENT).getHolderOrThrow(Enchantments.INFINITY);
         boolean flag = player.getAbilities().instabuild || EnchantmentHelper.getItemEnchantmentLevel(enchantment, stack) > 0;
-        ^///?} else {
+        *///?} else {
         boolean flag = player.getAbilities().instabuild || EnchantmentHelper.getItemEnchantmentLevel(Enchantments.INFINITY_ARROWS, stack) > 0;
         //?}
 
@@ -54,5 +54,5 @@ public class BowItemMixin {
         EventBus.post(ret);
         if (!itemstack.equals(ret.getStack())) cir.setReturnValue(InteractionResultHolder.pass(itemstack));
     }
-    *///?}
+    //?}
 }

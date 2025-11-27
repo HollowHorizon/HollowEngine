@@ -1,5 +1,5 @@
 //? if forge {
-package ru.hollowhorizon.hollowengine.common.scripting.deobf
+/*package ru.hollowhorizon.hollowengine.common.scripting.deobf
 
 import net.minecraftforge.fml.loading.FMLLoader
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
@@ -30,7 +30,7 @@ object ForgeEnvironmentSetup : EnvironmentSetup {
     }
 
     private fun forgeClasspath(): Set<File> {
-        val obfuscatedMC = Regex("""[/\\]versions[/\\][^/\\]+[/\\][^/\\]+\.jar$""")
+        val obfuscatedMC = Regex("""[/\\]versions[/\\][¹^/\\]+[/\\][¹^/\\]+\.jar$""")
         return System.getProperty("java.class.path")
             .split(File.pathSeparator)
             .map(::File)
@@ -38,4 +38,4 @@ object ForgeEnvironmentSetup : EnvironmentSetup {
             .toSet()
     }
 }
-//?}
+*///?}

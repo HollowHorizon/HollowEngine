@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.forge
 //? if forge {
 
-import net.irisshaders.iris.api.v0.IrisApi
+/*import net.irisshaders.iris.api.v0.IrisApi
 import net.minecraftforge.fml.ModLoadingContext
 import net.minecraftforge.fml.common.Mod
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext
@@ -54,4 +54,4 @@ class HollowCoreForge {
         ForgeClientEvents
         HollowCoreClient
     }
-} //?}
+} *///?}

@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine
 
 //? if forge {
-import ru.hollowhorizon.hollowengine.client.render.setupCamera
-//?}
+/*import ru.hollowhorizon.hollowengine.client.render.setupCamera
+*///?}
 
 import org.apache.logging.log4j.LogManager
 import ru.hollowhorizon.hollowengine.api.Init
@@ -27,7 +27,7 @@ object HollowEngine {
         compilerLoader.initialize(File(System.getProperty("java.home")), classpath, mappings)
 
         //? if forge {
-        if (isPhysicalClient) setupCamera()
-        //?}
+        /*if (isPhysicalClient) setupCamera()
+        *///?}
     }
 }
