@@ -97,23 +97,6 @@ class MCRenderBackendGl(ctx: KoolContext) : RenderBackendGl(KoolSystem.configJvm
         mcSceneRenderer.resolve(gl.DEFAULT_FRAMEBUFFER, gl.COLOR_BUFFER_BIT)
     }
 
-//    fun renderMCFrame(frameData: FrameData, ctx: KoolContext) {
-//        BackendStats.resetPerFrameCounts()
-//        currentFrameData = frameData
-//
-//        mcSceneRenderer.applySize(ctx.window.size.x, ctx.window.size.y)
-//        frameData.forEachPass { passData ->
-//            passData.executePass()
-//        }
-//
-//        if (useFloatDepthBuffer) {
-//            mcSceneRenderer.resolve(gl.DEFAULT_FRAMEBUFFER, gl.COLOR_BUFFER_BIT)
-//        }
-//
-//        if (awaitedStorageBuffers.isNotEmpty()) {
-//            readbackStorageBuffers()
-//        }
-//    }
     fun readbackStorageBuffers() {
         gl.memoryBarrier(gl.SHADER_STORAGE_BARRIER_BIT)
         awaitedStorageBuffers.forEach { readback ->
