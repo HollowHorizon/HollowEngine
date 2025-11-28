@@ -22,7 +22,7 @@ object CompletionRenderer {
             val isHovered by modifier.hoverable()
             val hoverColor by animateColorAsState(if(!isHovered) EditorTheme.Popup.bg else EditorTheme.Popup.selectedBg, tween(easing = Easing.quadRev))
 
-            val backgroundColor = if (isSelected) EditorTheme.Popup.selectedBg else hoverColor
+            val backgroundColor by animateColorAsState(if (isSelected) EditorTheme.Popup.selectedBg else hoverColor, tween(easing = Easing.quadRev))
             modifier
                 .background(RectBackground(backgroundColor))
                 .onClick { onClick(completion) }

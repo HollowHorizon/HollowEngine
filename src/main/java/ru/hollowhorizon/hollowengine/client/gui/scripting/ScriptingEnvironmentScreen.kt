@@ -46,15 +46,15 @@ object ScriptingEnvironmentOverlay {
     var isCollapsed = true
         set(value) {
             field = value
-            dock.isVisible = !value
+            if(value) scene.removeNode(dock)
+            else scene.addNode(dock)
+            //dock.isVisible = !value
         }
 
 
     fun Scene.setup() {
         setupUiScene()
 
-        dock.isVisible = false
-        addNode(dock)
         addPanelSurface(sizes = IdeTheme.sizes, colors = IdeTheme.colors) {
             modifier.size(if (isCollapsed) FitContent else Grow.Std, FitContent)
             if (isCollapsed) modifier.background(null)
