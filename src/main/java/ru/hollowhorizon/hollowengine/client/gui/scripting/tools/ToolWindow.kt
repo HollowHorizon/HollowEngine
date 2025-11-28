@@ -69,8 +69,11 @@ fun UiScope.iconButton(
     Box {
 
         val isHovered by modifier.hoverable()
-        val color by animateColorAsState(if (isHovered) colors.background else IdeTheme.hoveredColors.background, tween(easing = Easing.quadRev))
-        
+        val color by animateColorAsState(
+            if (isHovered) IdeTheme.hoveredColors.background else colors.onBackground,
+            tween(easing = Easing.quadRev)
+        )
+
         modifier
             .margin(sizes.smallGap)
             .padding(sizes.smallGap)

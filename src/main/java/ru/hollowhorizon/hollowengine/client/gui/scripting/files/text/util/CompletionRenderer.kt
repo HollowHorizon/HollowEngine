@@ -20,9 +20,9 @@ object CompletionRenderer {
     ): Unit = with(scope) {
         Row(Grow.Std) {
             val isHovered by modifier.hoverable()
-            val hoverColor by animateColorAsState(if(!isHovered) EditorTheme.Popup.bg else EditorTheme.Popup.selectedBg, tween(easing = Easing.quadRev))
+            val hoverColor by animateColorAsState(if(!isHovered) EditorTheme.Popup.bg else EditorTheme.Popup.selectedBg, tween(0.1f, easing = Easing.quadRev))
 
-            val backgroundColor by animateColorAsState(if (isSelected) EditorTheme.Popup.selectedBg else hoverColor, tween(easing = Easing.quadRev))
+            val backgroundColor by animateColorAsState(if (isSelected) EditorTheme.Popup.selectedBg else hoverColor, tween(0.1f, easing = Easing.quadRev))
             modifier
                 .background(RectBackground(backgroundColor))
                 .onClick { onClick(completion) }

@@ -47,7 +47,7 @@ object ScriptingEnvironmentOverlay {
         set(value) {
             field = value
             if(value) scene.removeNode(dock)
-            else scene.addNode(dock)
+            else scene.addNode(dock, 0)
             //dock.isVisible = !value
         }
 
