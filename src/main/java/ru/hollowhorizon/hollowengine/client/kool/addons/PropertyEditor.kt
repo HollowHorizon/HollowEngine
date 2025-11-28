@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.kool.addons
 
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
@@ -11,7 +12,7 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
@@ -111,7 +112,11 @@ class ResourceLocationRenderer(private val choices: List<String>, var hint: Stri
                     modifier.margin(end = sizes.gap)
                     items(values) { resource ->
                         Box(Grow.Std) {
-                            val color = hoverColors(1f, Color("1B1E23FF"), Color("252930FF"))
+                            val isHovered by modifier.hoverable()
+                            val color by animateColorAsState(
+                                if (isHovered) Color("1B1E23FF") else Color("252930FF"),
+                                tween(easing = Easing.quadRev)
+                            )
                             modifier.backgroundColor(color).padding(sizes.smallGap)
                                 .onClick {
                                     value.set(resource)

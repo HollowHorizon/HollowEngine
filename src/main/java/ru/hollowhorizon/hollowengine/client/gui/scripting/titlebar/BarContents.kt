@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar
 
 import de.fabmax.kool.KeyValueStore
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
@@ -16,8 +17,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverFactor
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -32,7 +32,8 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
     Box(24.dp, 24.dp) {
         modifier.alignY(AlignmentY.Center)
         Image("hollowengine:textures/gui/icons/logo.png") {
-            val factor by hoverFactor()
+            val isHovered by modifier.hoverable()
+            val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
             val size = 22.dp + 2.dp * factor
             modifier.size(size, size).align(AlignmentX.Center, AlignmentY.Center)
 
@@ -102,15 +103,14 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
 fun UiScope.TextButton(text: String, onClick: (PointerEvent) -> Unit = {}) {
     Box {
 
-        modifier.padding(horizontal = sizes.smallGap)
-        modifier.background(
-            RoundRectBackground(
-                hoverColors(
-                    color = colors.background,
-                    hoverColor = IdeTheme.hoveredColors.background
-                ), sizes.smallGap
-            )
+        val isHovered by modifier.hoverable()
+        val color by animateColorAsState(
+            if (isHovered) IdeTheme.hoveredColors.background else colors.background,
+            tween(easing = Easing.quadRev)
         )
+
+        modifier.padding(horizontal = sizes.smallGap)
+        modifier.background(RoundRectBackground(color, sizes.smallGap))
 
         Text(text) {
             modifier.alignY(AlignmentY.Center)
@@ -166,15 +166,14 @@ private fun UiScope.ActionButton(
     icon: String,
     action: () -> Unit,
 ) {
+    val isHovered by modifier.hoverable()
+    val color by animateColorAsState(
+        if (isHovered) colors.background else IdeTheme.hoveredColors.background,
+        tween(easing = Easing.quadRev)
+    )
+
     modifier.padding(horizontal = sizes.smallGap)
-        .background(
-            RoundRectBackground(
-                hoverColors(
-                    color = colors.background,
-                    hoverColor = IdeTheme.hoveredColors.background
-                ), sizes.smallGap
-            )
-        )
+        .background(RoundRectBackground(color, sizes.smallGap))
         .onClick {
             action()
         }

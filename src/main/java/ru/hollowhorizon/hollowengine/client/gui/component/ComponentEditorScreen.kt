@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.gui.component
 
 import de.fabmax.kool.input.CursorShape
 import de.fabmax.kool.input.PointerInput
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
@@ -11,7 +12,7 @@ import de.fabmax.kool.util.Color
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.*
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.components.Component
@@ -113,8 +114,10 @@ class ComponentEditorScreen(val provider: ComponentDispatcher) : KoolScreen() {
             Box(Grow.Std) {}
 
             Image("hollowengine:textures/gui/icons/remove.png") {
-                val hoverListener = hoverColors(0.5f, Color("AAFF5588"), Color.WHITE)
-                modifier.tint(hoverListener)
+                val isHovered by modifier.hoverable()
+                val color by animateColorAsState(if(isHovered) Color("AAFF5588") else Color.WHITE, tween(easing = Easing.quadRev))
+
+                modifier.tint(color)
                     .size(20.dp, 20.dp)
                     .alignY(AlignmentY.Center)
                     .margin(horizontal = sizes.smallGap)

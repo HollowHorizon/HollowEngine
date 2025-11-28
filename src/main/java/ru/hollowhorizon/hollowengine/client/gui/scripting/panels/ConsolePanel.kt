@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.panels
 
 import com.mojang.brigadier.suggestion.Suggestion
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
@@ -13,8 +14,7 @@ import ru.hollowhorizon.hollowengine.ConsoleAppender.Companion.logLock
 import ru.hollowhorizon.hollowengine.ConsoleAppender.Companion.logMessages
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console.ConsoleSuggestionProvider
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console.LogMessage
-import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import kotlin.concurrent.withLock
 import kotlin.time.ExperimentalTime
@@ -113,8 +113,9 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
 
     override fun UiScope.drawHeaderRight() {
         Image("hollowengine:textures/gui/icons/auto_scroll.svg") {
-            val backgroundColor = if (isScrollLock.use()) Color("00b003")
-            else hoverColors(color = colors.background, hoverColor = Color.WHITE)
+            val isHovered by modifier.hoverable()
+            val hoverColor by animateColorAsState(if(isHovered) colors.background else Color.WHITE, tween(easing = Easing.quadRev))
+            val backgroundColor by animateColorAsState(if(isScrollLock.use()) Color("00b003") else hoverColor, tween(easing = Easing.quadRev))
 
             modifier.margin(horizontal = sizes.smallGap)
                 .tint(backgroundColor)
@@ -182,8 +183,10 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
                 modifier.margin(end = sizes.gap)
                 items(suggestions) { resource ->
                     Box(Grow.Std) {
-                        val color = hoverColors(1f, Color("1B1E23FF"), Color("252930FF"))
-                        modifier.backgroundColor(color).padding(sizes.smallGap).onClick {
+                        val isHovered by modifier.hoverable()
+                        val hoverColor by animateColorAsState(if(isHovered) Color("1B1E23FF") else Color("252930FF"), tween(easing = Easing.quadRev))
+
+                        modifier.backgroundColor(hoverColor).padding(sizes.smallGap).onClick {
                             commandInput = resource.apply(commandInput)
                         }
 

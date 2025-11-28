@@ -4,12 +4,12 @@ import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.DockNodeLeaf
 import de.fabmax.kool.modules.ui2.docking.Dockable
-import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.Layout
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader.layoutOrder
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
 fun UiScope.ToolBar(panel: DockPanel, isLeft: Boolean) = Column(height = Grow.Std) {
@@ -67,10 +67,10 @@ fun UiScope.iconButton(
 
 
     Box {
-        val color =
-            hoverColors(color = colors.background, hoverColor = IdeTheme.hoveredColors.background)
-        if (toggleState) color.set(IdeTheme.hoveredColors.background)
 
+        val isHovered by modifier.hoverable()
+        val color by animateColorAsState(if (isHovered) colors.background else IdeTheme.hoveredColors.background, tween(easing = Easing.quadRev))
+        
         modifier
             .margin(sizes.smallGap)
             .padding(sizes.smallGap)

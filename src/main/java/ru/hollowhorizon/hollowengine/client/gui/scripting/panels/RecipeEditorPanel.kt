@@ -1,19 +1,19 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.panels
 
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
-import de.fabmax.kool.util.Color
 import net.minecraft.client.Minecraft
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.Container
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.crafting.Recipe
 import net.minecraft.world.item.crafting.RecipeType
-import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.recipe.RecipeFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
+import ru.hollowhorizon.hollowengine.client.kool.Item
 
 
 class RecipeEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.recipes", dock) {
@@ -27,9 +27,11 @@ class RecipeEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.recipes", 
         LazyColumn {
             items(RECIPE_TYPES) { recipeType ->
                 Box {
+                    val isHovered by modifier.hoverable()
+                    val color by animateColorAsState(if(isHovered) colors.background else IdeTheme.hoveredColors.background, tween(easing = Easing.quadRev))
                     modifier.padding(sizes.smallGap * 0.5f).margin(sizes.smallGap * 0.5f)
                         .width(Grow.Std)
-                        .backgroundColor(hoverColors(0.5f, colors.background, IdeTheme.hoveredColors.background))
+                        .backgroundColor(color)
                         .onClick {
                             IdeContent.openFile(RecipeFileData("Crafting Recipes", "files.recipes"))
                         }

@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui
 
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
@@ -15,7 +16,7 @@ import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader.TOOL_LAYOUT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Entity
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
 import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
@@ -161,7 +162,8 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                         modifier.margin(end = sizes.gap)
                         items(models) { resource ->
                             Box(Grow.Std) {
-                                val color = hoverColors(1f, Color("1B1E23FF"), Color("252930FF"))
+                                val isHovered by modifier.hoverable()
+                                val color by animateColorAsState(if(isHovered) Color("1B1E23FF") else Color("252930FF"), tween(easing = Easing.quadRev))
                                 modifier.backgroundColor(color).padding(sizes.smallGap)
                                     .onClick {
                                         model = resource

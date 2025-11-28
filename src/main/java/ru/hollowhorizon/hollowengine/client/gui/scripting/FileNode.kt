@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
 import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_RIGHT
@@ -9,7 +10,7 @@ import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.DndHandler
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -122,11 +123,9 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
                 }
             }
 
-        val (bgColor, fgColor) = hoverColors(
-            0.5f,
-            listOf(colors.background, Color("9099ACFF")),
-            listOf(IdeTheme.hoveredColors.background, Color("C4CBDAFF"))
-        )
+        val isHovered by modifier.hoverable()
+        val bgColor by animateColorAsState(if(isHovered) IdeTheme.hoveredColors.background else colors.background, tween(easing = Easing.quadRev))
+        val fgColor by animateColorAsState(if(isHovered) Color("C4CBDAFF") else Color("9099ACFF"), tween(easing = Easing.quadRev))
 
         modifier.background(RoundRectBackground(bgColor, sizes.smallGap))
         sceneObjectLabel(item, fgColor)

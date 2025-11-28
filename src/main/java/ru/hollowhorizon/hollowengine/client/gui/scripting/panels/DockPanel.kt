@@ -11,7 +11,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOv
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.Layout
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileTitleBar
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.ToolBar
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverListener
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 
 abstract class DockPanel(final override val name: String, val dock: Dock) : Layout, Composable {
     final override val dockable = UiDockable(name, dock)
@@ -22,10 +22,9 @@ abstract class DockPanel(final override val name: String, val dock: Dock) : Layo
     val isDocked: Boolean get() = dockable.dockedTo.value != null
 
     private fun UiScope.panelContent() {
-        val (isHovered, anim) = hoverListener { !surface.isFocused.use() }
 
-        var factor = Easing.quadRev(anim.progressAndUse())
-        if (!isHovered.use() && !surface.isFocused.use()) factor = 1f - factor
+        val isHovered by modifier.hoverable()
+        val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
 
         val borderColor = Color("3C3C4AFF").mix(Color("586D84FF"), factor)
         if (!isDocked) modifier.border(RoundRectBorder(borderColor, sizes.smallGap, sizes.borderWidth))

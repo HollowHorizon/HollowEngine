@@ -13,7 +13,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.Layout
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverListener
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 
 abstract class FileData(
     val fileName: String,
@@ -40,10 +40,9 @@ abstract class FileData(
     override fun open() {
         if(surface != null) return
         surface = WindowSurface(ScriptingEnvironmentOverlay.scene, dockable, IdeTheme.colors, IdeTheme.sizes) {
-            val (isHovered, anim) = hoverListener { !surface.isFocused.use() }
 
-            var factor = Easing.quadRev(anim.progressAndUse())
-            if (!isHovered.use() && !surface.isFocused.use()) factor = 1f - factor
+            val isHovered by modifier.hoverable()
+            val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
 
             val borderColor = Color("3C3C4AFF").mix(Color("586D84FF"), factor)
             if(!isDocked) {

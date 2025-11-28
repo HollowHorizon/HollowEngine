@@ -1,11 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar
 
 import de.fabmax.kool.KeyValueStore
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import kotlin.math.min
 
 object ComboBox {
@@ -59,9 +60,12 @@ object ComboBox {
         }
 
         Row {
+            val isHovered by modifier.hoverable()
+            val color by animateColorAsState(if(isHovered) colors.background else IdeTheme.hoveredColors.background, tween(easing = Easing.quadRev))
+
             modifier.padding(horizontal = sizes.smallGap)
                 .alignY(AlignmentY.Center)
-            modifier.background(RoundRectBackground(hoverColors(color=colors.background, hoverColor=IdeTheme.hoveredColors.background), sizes.smallGap))
+            modifier.background(RoundRectBackground(color, sizes.smallGap))
 
             if (popupMenu.isVisible.use()) modifier.background(RoundRectBackground(IdeTheme.hoveredColors.background, sizes.smallGap))
 

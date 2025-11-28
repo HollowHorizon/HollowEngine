@@ -1,11 +1,11 @@
 package ru.hollowhorizon.hollowengine.client.gui.docs
 
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.scripting.FileNode
-import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
 class DocsNode(name: String, path: String, var page: Composable? = null) : FileNode(name, path) {
@@ -31,11 +31,9 @@ class DocsNode(name: String, path: String, var page: Composable? = null) : FileN
             }
         }
 
-        val (bgColor, fgColor) = hoverColors(
-            0.5f,
-            listOf(colors.background, Color("9099ACFF")),
-            listOf(IdeTheme.hoveredColors.background, Color("C4CBDAFF"))
-        )
+        val isHovered by modifier.hoverable()
+        val bgColor by animateColorAsState(if(isHovered) colors.background else Color("9099ACFF"), tween(easing = Easing.quadRev))
+        val fgColor by animateColorAsState(if(isHovered) IdeTheme.hoveredColors.background else Color("C4CBDAFF"), tween(easing = Easing.quadRev))
 
         modifier.background(RoundRectBackground(bgColor, sizes.smallGap))
         sceneObjectLabel(item, fgColor)

@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
 import com.facebook.ktfmt.format.Formatter
 import com.facebook.ktfmt.format.Formatter.KOTLINLANG_FORMAT
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.util.Color
@@ -9,7 +10,7 @@ import de.fabmax.kool.util.logE
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.offset
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -85,7 +86,9 @@ class TextFileData(name: String, path: String) :
 
                 if (errors > 0) {
                     Row {
-                        val color = hoverColors(0.5f, Color.BLACK.withAlpha(0f), Color.GRAY.withAlpha(0.5f))
+                        val isHovered by modifier.hoverable()
+                        val color by animateColorAsState(if(isHovered) Color.BLACK.withAlpha(0f) else Color.GRAY.withAlpha(0.5f), tween(easing = Easing.quadRev))
+
                         modifier.background(RoundRectBackground(color, sizes.smallGap))
                             .padding(vertical = sizes.smallGap * 0.5f, horizontal = sizes.smallGap)
 
@@ -101,7 +104,8 @@ class TextFileData(name: String, path: String) :
                 }
                 if (warnings > 0) {
                     Row {
-                        val color = hoverColors(0.5f, Color.BLACK.withAlpha(0f), Color.GRAY.withAlpha(0.5f))
+                        val isHovered by modifier.hoverable()
+                        val color by animateColorAsState(if(isHovered) Color.BLACK.withAlpha(0f) else Color.GRAY.withAlpha(0.5f), tween(easing = Easing.quadRev))
                         modifier.background(RoundRectBackground(color, sizes.smallGap))
                             .padding(vertical = sizes.smallGap * 0.5f, horizontal = sizes.smallGap)
 

@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.dialog
 
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2i
 import de.fabmax.kool.math.clamp
 import de.fabmax.kool.modules.ui2.*
@@ -14,7 +15,7 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverListener
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Entity
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
@@ -129,9 +130,8 @@ class DialogGui : KoolScreen() {
                             .textColor(Color(1f, 1f, 1f, Interpolation.QUAD_IN(progress)))
                     }
                     if (!textAnimator.isActive && choices.isEmpty()) Image("hollowengine:textures/gui/dialogues/cursor.png") {
-                        val (isHovered, anim) = hoverListener()
-                        var factor = anim.progressAndUse()
-                        if (!isHovered.use()) factor = 1f - factor
+                        val isHovered by modifier.hoverable()
+                        val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
 
                         val clickAnimator = remember { AnimatedFloat(0.5f, 0f) }
 
@@ -147,7 +147,7 @@ class DialogGui : KoolScreen() {
 
                         modifier.imageProvider?.let { (it as FlatImageProvider).mirrorX() }
 
-                        toggleAnimator.progress(Time.deltaT / (if (isHovered.use()) 5f else 1f))
+                        toggleAnimator.progress(Time.deltaT / (if (isHovered) 5f else 1f))
                         var t = toggleAnimator.use()
                         t = if (t.toInt() % 2 == 0) Interpolation.SINE_IN_OUT(1f - t % 1f)
                         else Interpolation.SINE_IN_OUT(t % 1f)
@@ -238,10 +238,8 @@ class DialogGui : KoolScreen() {
                     }
                 }
 
-            val (isHovered, anim) = hoverListener()
-
-            var factor = anim.progressAndUse()
-            if (!isHovered.use()) factor = 1f - factor
+            val isHovered by modifier.hoverable()
+            val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
 
             val size = 1f + 0.1f * Interpolation.QUINT_OUT(factor)
             val transparency = 0.25f + 0.75f * Interpolation.QUINT_IN((factor + scale).clamp())

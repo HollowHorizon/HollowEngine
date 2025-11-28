@@ -9,11 +9,9 @@ import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverListener
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.mixins.kool.UiDockableAccessor
-import kotlin.contracts.InvocationKind
-import kotlin.contracts.contract
 
 fun UiScope.LazyList(
     width: Dimension = Grow.Std,
@@ -125,8 +123,8 @@ fun UiScope.FileDockingTabsBar(
                 }) {
                 items(dockNode.dockedItems.filter { !it.isHidden }) { item ->
                     Row {
-                        val (isHovered, anim) = hoverListener { !dockNode.isOnTop(item) }
-
+                        val isHovered by modifier.hoverable()
+                        val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
 
                         modifier
                             .margin(horizontal = sizes.smallGap)
@@ -141,8 +139,6 @@ fun UiScope.FileDockingTabsBar(
                                 }
                             }
 
-                        var factor = Easing.quadRev(anim.progressAndUse())
-                        if (!isHovered.use() && !dockNode.isOnTop(item)) factor = 1f - factor
                         val bgColor = colors.background.mix(Color("394450FF"), factor)
                         val borderColor = Color("3C3C4AFF").mix(Color("586D84FF"), factor)
 
@@ -268,10 +264,9 @@ fun UiScope.FileTitleBar(
                     }
                 }
 
-            val (isHovered, anim) = hoverListener { !surface.isFocused.use() }
 
-            var factor = Easing.quadRev(anim.progressAndUse())
-            if (!isHovered.use() && !surface.isFocused.use()) factor = 1f - factor
+            val isHovered by modifier.hoverable()
+            val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
             val bgColor = colors.background.mix(Color("394450FF"), factor)
             val borderColor = Color("3C3C4AFF").mix(Color("586D84FF"), factor)
 

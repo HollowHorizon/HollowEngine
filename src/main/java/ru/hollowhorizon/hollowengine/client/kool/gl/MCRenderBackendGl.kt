@@ -20,9 +20,9 @@ class MCRenderBackendGl(ctx: KoolContext) : RenderBackendGl(KoolSystem.configJvm
     val gl = MCGlApi
     override val features: BackendFeatures
     val mcSceneRenderer = MCSceneRenderPass(numSamples, this)
-    override val name = "Minecraft OpenGL"
-
     private val pendingScreenPasses = mutableMapOf<Scene, PassData>()
+    private val awaitedStorageBuffers = mutableListOf<ReadbackStorageBuffer>()
+    lateinit var currentFrameData: FrameData
 
     init {
         gl.initOpenGl(this)
@@ -42,6 +42,7 @@ class MCRenderBackendGl(ctx: KoolContext) : RenderBackendGl(KoolSystem.configJvm
         deviceCoordinates = DeviceCoordinates.OPEN_GL
     }
 
+    override val name = "Minecraft OpenGL"
     override var frameGpuTime: Duration = 0.0.seconds
     private val timer = TimeQuery(gl)
 
@@ -63,9 +64,6 @@ class MCRenderBackendGl(ctx: KoolContext) : RenderBackendGl(KoolSystem.configJvm
         }
     }
 
-    private val awaitedStorageBuffers = mutableListOf<ReadbackStorageBuffer>()
-    lateinit var currentFrameData: FrameData
-
     fun prepareMCFrame(frameData: FrameData, ctx: KoolContext) {
         BackendStats.resetPerFrameCounts()
         currentFrameData = frameData
@@ -76,7 +74,6 @@ class MCRenderBackendGl(ctx: KoolContext) : RenderBackendGl(KoolSystem.configJvm
         frameData.forEachPass { passData ->
             val pass = passData.gpuPass
             if (pass is Scene.ScreenPass) {
-                // Если это экранный проход (обычная сцена), сохраняем его, но НЕ выполняем
                 pass.parentScene?.let { scene ->
                     pendingScreenPasses[scene] = passData
                 }
@@ -110,5 +107,9 @@ class MCRenderBackendGl(ctx: KoolContext) : RenderBackendGl(KoolSystem.configJvm
         awaitedStorageBuffers.clear()
     }
 
-    private class ReadbackStorageBuffer(val storage: GpuBuffer, val deferred: CompletableDeferred<Unit>, val resultBuffer: Buffer)
+    private class ReadbackStorageBuffer(
+        val storage: GpuBuffer,
+        val deferred: CompletableDeferred<Unit>,
+        val resultBuffer: Buffer,
+    )
 }

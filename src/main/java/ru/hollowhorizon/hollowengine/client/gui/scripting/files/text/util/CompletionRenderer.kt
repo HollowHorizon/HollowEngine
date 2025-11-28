@@ -1,10 +1,11 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util
 
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverColors
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
@@ -18,7 +19,8 @@ object CompletionRenderer {
         onClick: (CompletionItem) -> Unit,
     ): Unit = with(scope) {
         Row(Grow.Std) {
-            val hoverColor = hoverColors(0.3f, EditorTheme.Popup.bg, EditorTheme.Popup.selectedBg)
+            val isHovered by modifier.hoverable()
+            val hoverColor by animateColorAsState(if(isHovered) EditorTheme.Popup.bg else EditorTheme.Popup.selectedBg, tween(easing = Easing.quadRev))
 
             val backgroundColor = if (isSelected) EditorTheme.Popup.selectedBg else hoverColor
             modifier
