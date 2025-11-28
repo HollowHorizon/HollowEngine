@@ -78,7 +78,7 @@ class TextFileData(name: String, path: String) :
             }
             Row {
                 modifier.align(AlignmentX.End, AlignmentY.Top)
-                    .margin(end = sizes.smallGap * 2f)
+                    .margin(end = sizes.smallGap, top = sizes.smallGap)
                     .zLayer(5)
 
                 val errors = this@TextFileData.modifier.errors.count { it.severity == Severity.ERROR }
@@ -87,7 +87,7 @@ class TextFileData(name: String, path: String) :
                 if (errors > 0) {
                     Row {
                         val isHovered by modifier.hoverable()
-                        val color by animateColorAsState(if(isHovered) Color.BLACK.withAlpha(0f) else Color.GRAY.withAlpha(0.5f), tween(easing = Easing.quadRev))
+                        val color by animateColorAsState(if(!isHovered) Color.BLACK.withAlpha(0f) else Color.GRAY.withAlpha(0.5f), tween(easing = Easing.quadRev))
 
                         modifier.background(RoundRectBackground(color, sizes.smallGap))
                             .padding(vertical = sizes.smallGap * 0.5f, horizontal = sizes.smallGap)
@@ -105,7 +105,7 @@ class TextFileData(name: String, path: String) :
                 if (warnings > 0) {
                     Row {
                         val isHovered by modifier.hoverable()
-                        val color by animateColorAsState(if(isHovered) Color.BLACK.withAlpha(0f) else Color.GRAY.withAlpha(0.5f), tween(easing = Easing.quadRev))
+                        val color by animateColorAsState(if(!isHovered) Color.BLACK.withAlpha(0f) else Color.GRAY.withAlpha(0.5f), tween(easing = Easing.quadRev))
                         modifier.background(RoundRectBackground(color, sizes.smallGap))
                             .padding(vertical = sizes.smallGap * 0.5f, horizontal = sizes.smallGap)
 
