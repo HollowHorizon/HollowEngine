@@ -11,11 +11,10 @@ import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.models.fbx.TransformationComp
 import ru.hollowhorizon.hollowengine.client.models.internal.Mesh
-import ru.hollowhorizon.hollowengine.client.models.internal.Node
+import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition
 import ru.hollowhorizon.hollowengine.client.models.internal.Primitive
 import ru.hollowhorizon.hollowengine.client.models.internal.Scene
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
-import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.io.IOException
 import kotlin.math.abs
 import ru.hollowhorizon.hollowengine.client.models.fbx.FileGlobalSettings.FrameRate as Fr
@@ -67,10 +66,10 @@ fun Document.convert(location: ResourceLocation): InternalModel {
     }
 }
 
-fun Document.convertNodes(parentId: Long, location: ResourceLocation): List<Node> {
+fun Document.convertNodes(parentId: Long, location: ResourceLocation): List<NodeDefinition> {
     val connections = getConnectionsByDestinationSequenced(parentId, "Model")
 
-    val nodes = ArrayList<Node>()
+    val nodes = ArrayList<NodeDefinition>()
 
     for (connection in connections) {
         if (connection.prop.isNotEmpty()) continue
@@ -194,17 +193,17 @@ fun generateTransformationNodeChain(model: Model): TrsTransformF {
     }
 }
 
-fun convertModel(model: Model, transform: TrsTransformF, location: ResourceLocation): Node {
+fun convertModel(model: Model, transform: TrsTransformF, location: ResourceLocation): NodeDefinition {
     val primitives = model.geometry.mapNotNull {
         (it as? MeshGeometry)?.let { convertMesh(it, model, location) }
     }
 
-    return Node(
+    return NodeDefinition(
         model.id.toInt(),
+        name = model.name.substringAfter("::"),
         mutableListOf(),
         transform,
-        Mesh(primitives, floatArrayOf()),
-        name = model.name.substringAfter("::")
+        Mesh(primitives, floatArrayOf())
     )
 }
 

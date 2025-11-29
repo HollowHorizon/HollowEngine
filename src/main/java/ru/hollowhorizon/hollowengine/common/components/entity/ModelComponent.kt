@@ -2,18 +2,23 @@ package ru.hollowhorizon.hollowengine.common.components.entity
 
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.math.deg
+import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.entity.LivingEntityRenderer
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.Mth
+import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.api.Init
 import ru.hollowhorizon.hollowengine.client.kool.addons.ResourceLocationRenderer
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.ModelNode
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.NodeImpl
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.ClientModel
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.ItemNode
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
 import ru.hollowhorizon.hollowengine.common.components.system.Cardinal
@@ -29,20 +34,43 @@ class ModelComponent : Component<LivingEntity>() {
         .copyOnDeath()
         .onChange { old, new ->
             if (!isLogicalClient) return@onChange
-            root = createRootNode(model.rl)
-            root.setup()
+            pipeline = createRootNode(model.rl)
 
         }
 
-    internal var root: ModelNode by mutableLazy { createRootNode(model.rl) }
+    internal var pipeline: RenderPipeline by mutableLazy { createRootNode(model.rl) }
 
-    private fun createRootNode(location: ResourceLocation): ModelNode {
-        val model = HollowModelManager.getOrCreate(location)
-
-        return ModelNode().apply {
-            if (model.model.isBlockBench) transform.rotate(90f.deg, Vec3f.Y_AXIS)
-            children += model.model.scenes.flatMap { it.nodes.map { NodeImpl(this, it) } }
+    private fun createRootNode(location: ResourceLocation): RenderPipeline {
+        val model = HollowModelManager.getOrCreate(location).model
+        val clientModel = ClientModel(model)
+        clientModel.transform.rotate(180f.deg, Vec3f.Y_AXIS)
+        clientModel.animations["idle"]?.apply {
+            enabled = true
+            wrapMode = WrapMode.Loop
         }
+        val pipeline = ListRenderPipeline()
+        val body = clientModel.child("Unnamed_86").child("Model").child("Body").child("BodyUp")
+
+        body.child("RightArm").child("RightHand").child("RightHandItem")
+            .apply {
+                val model = ClientModel(model, this)
+                model.animations["dance2"]?.apply {
+                    enabled = true
+                    wrapMode = WrapMode.Loop
+                }
+                model.transform.scale(0.33f)
+                    .rotate(180f.deg, Vec3f.Y_AXIS)
+                    .rotate(90f.deg, Vec3f.X_AXIS)
+
+                children.add(model)
+            }
+        body.child("LeftArm").child("LeftHand").child("LeftHandItem")
+            .apply {
+                val player = Minecraft.getInstance().player ?: return@apply
+                children.add(ItemNode(player, EquipmentSlot.MAINHAND, this))
+            }
+        clientModel.collectCommands(pipeline)
+        return pipeline
     }
 
 }
@@ -61,7 +89,7 @@ fun loadComponents() {
             overlay = LivingEntityRenderer.getOverlayCoords(entity, 0f)
         }
 
-        model.root.pipeline.render(
+        model.pipeline.render(
             RenderContext(poseStack, buffer, packedLight, overlay)
         )
         poseStack.popPose()

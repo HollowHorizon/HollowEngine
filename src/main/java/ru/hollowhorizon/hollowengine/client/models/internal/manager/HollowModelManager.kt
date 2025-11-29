@@ -156,7 +156,11 @@ object HollowModelManager : ResourceManagerReloadListener {
 interface ModelLoader {
     val supportedFormats: Set<String>
 
-    suspend fun load(location: ResourceLocation): AnimatedModel
+    suspend fun load(location: ResourceLocation, side: ModelSide = ModelSide.CLIENT): AnimatedModel
+}
+
+enum class ModelSide {
+    CLIENT, SERVER
 }
 
 class RegisterModelLoaderEvent(private val loaders: MutableList<ModelLoader>) : ClientEvent {

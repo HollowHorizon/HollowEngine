@@ -6,7 +6,7 @@ import de.fabmax.kool.scene.TrsTransformF
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
 import ru.hollowhorizon.hollowengine.client.models.internal.Mesh
-import ru.hollowhorizon.hollowengine.client.models.internal.Node
+import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition
 import ru.hollowhorizon.hollowengine.client.models.internal.Primitive
 
 class OBJDataMesh {
@@ -19,9 +19,10 @@ class OBJDataMesh {
         normals: MutableList<Vec3f>,
         textures: MutableList<Vec2f>,
         index: Int,
-    ): Node {
-        return Node(
+    ): NodeDefinition {
+        return NodeDefinition(
             index,
+            name = name,
             mutableListOf(),
             TrsTransformF(),
             Mesh(groups.map { (material, faces) ->
@@ -29,8 +30,7 @@ class OBJDataMesh {
                     materials[material] ?: error("Material ${material.name} not found!"),
                     positions, normals, textures, faces
                 )
-            }, floatArrayOf()),
-            name = name
+            }, floatArrayOf())
         )
     }
 

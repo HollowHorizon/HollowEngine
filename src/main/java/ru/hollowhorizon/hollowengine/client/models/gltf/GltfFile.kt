@@ -1,12 +1,17 @@
 package ru.hollowhorizon.hollowengine.client.models.gltf
 
+import de.fabmax.kool.util.Uint8Buffer
+import de.fabmax.kool.util.Uint8BufferImpl
+import de.fabmax.kool.util.decodeToString
+import de.fabmax.kool.util.inflate
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ListOrSingle
-import ru.hollowhorizon.hollowengine.client.utils.stream
+import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.util.*
 
 suspend fun loadGltf(location: ResourceLocation): Result<GltfFile> {
@@ -44,7 +49,7 @@ suspend fun loadGltf(location: ResourceLocation): Result<GltfFile> {
                             } else {
                                 "${location.namespace}:$modelBasePath/$uri"
                             }
-                            it.data = loadBlob(bufferUri)
+                            it.data = Uint8BufferImpl(bufferUri.rl.stream.readBytes())
                         }
                     }.awaitAll()
                     m.images.filter { it.uri != null }.forEach {

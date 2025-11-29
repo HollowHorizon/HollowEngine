@@ -3,8 +3,7 @@ package ru.hollowhorizon.hollowengine.client.models.internal.animations
 import de.fabmax.kool.math.*
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import ru.hollowhorizon.hollowengine.client.models.gltf.*
-import ru.hollowhorizon.hollowengine.client.models.internal.Model
-import ru.hollowhorizon.hollowengine.client.models.internal.Node
+import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.*
 
 
@@ -12,47 +11,46 @@ object AnimationLoader {
 
     @JvmStatic
     @Suppress("UNCHECKED_CAST")
-    fun createAnimation(model: Model, animationModel: ru.hollowhorizon.hollowengine.client.models.internal.Animation): Animation {
-        val animData = animationModel.channels.map { channel ->
-            val node = model.findNodeByIndex(channel.node)
-                ?: throw AnimationException("Node with index ${channel.node} not found!")
+    fun createAnimation(
+        nodes: Map<Int, NodeDefinition>,
+        animationModel: ru.hollowhorizon.hollowengine.client.models.internal.Animation,
+    ): Animation {
+        val animData = animationModel.channels
+            .map { channel ->
+                val node = nodes[channel.node]
+                    ?: throw AnimationException("Node with index ${channel.node} not found!")
 
-            val timeKeys = channel.times.toFloatArray()
-            val target = AnimationTarget.valueOf(channel.path.uppercase())
+                val timeKeys = channel.times.toFloatArray()
+                val target = AnimationTarget.valueOf(channel.path.uppercase())
 
-            val size = if (target == AnimationTarget.WEIGHTS) node.mesh?.weights?.size ?: 0
-            else -1
+                val size = if (target == AnimationTarget.WEIGHTS) node.mesh?.weights?.size ?: 0
+                else -1
 
-            return@map Pair(target, readAnimationData(
-                node,
-                channel.interpolation,
-                target,
-                channel.values,
-                timeKeys,
-                size
-            ).apply {
-                this.node = node
-            })
-        }
+                node.index to (target to readAnimationData(
+                    node, channel.interpolation,
+                    target, channel.values,
+                    timeKeys, size
+                ))
+            }
 
-        val data = animData.groupBy { it.second.node }
-        val result = Object2ObjectOpenHashMap<Node, AnimationData>()
+        val result = Object2ObjectOpenHashMap<Int, AnimationData>()
 
-        data.forEach { (key, values) ->
-            result[key] = AnimationData(
-                key,
-                values.find { it.first == AnimationTarget.TRANSLATION }?.second as? Interpolator<Vec3f>,
-                values.find { it.first == AnimationTarget.ROTATION }?.second as? Interpolator<QuatF>,
-                values.find { it.first == AnimationTarget.SCALE }?.second as? Interpolator<Vec3f>,
-                values.find { it.first == AnimationTarget.WEIGHTS }?.second as? Interpolator<FloatArray>
-            )
+        animData.forEach { (key, pair) ->
+            val (target, interpolator) = pair
+            val data = result.computeIfAbsent(key) { AnimationData(null, null, null, null) }
+            when (target) {
+                AnimationTarget.TRANSLATION -> data.translation = interpolator as Interpolator<Vec3f>
+                AnimationTarget.ROTATION -> data.rotation = interpolator as Interpolator<QuatF>
+                AnimationTarget.SCALE -> data.scale = interpolator as Interpolator<Vec3f>
+                AnimationTarget.WEIGHTS -> data.weights = interpolator as Interpolator<FloatArray>
+            }
         }
 
         return Animation(animationModel.name ?: "Unnamed", result)
     }
 
     private fun readAnimationData(
-        node: Node,
+        node: NodeDefinition,
         interpolation: String,
         target: AnimationTarget,
         outputData: GltfAccessor,
@@ -67,16 +65,30 @@ object AnimationLoader {
     }
 
     private fun loadStep(
-        node: Node,
+        node: NodeDefinition,
         outputData: GltfAccessor,
         keys: FloatArray,
         target: AnimationTarget,
         componentCount: Int = -1,
     ): Interpolator<*> {
         return when (target) {
-            AnimationTarget.TRANSLATION -> Vec3Step(keys, Vec3fAccessor(outputData).list.map { it - node.baseTransform.translation }.toTypedArray())
-            AnimationTarget.ROTATION -> QuatStep(keys, Vec4fAccessor(outputData).list.map { MutableQuatF(node.baseTransform.rotation).inverted().mul(it.toQuatF()) }.toTypedArray())
-            AnimationTarget.SCALE -> Vec3Step(keys, Vec3fAccessor(outputData).list.map { it / node.baseTransform.scale }.toTypedArray())
+            AnimationTarget.TRANSLATION -> Vec3Step(
+                keys,
+                Vec3fAccessor(outputData).list.map { it - node.baseTransform.translation }.toTypedArray()
+            )
+
+            AnimationTarget.ROTATION -> QuatStep(
+                keys,
+                Vec4fAccessor(outputData).list.map {
+                    MutableQuatF(node.baseTransform.rotation).inverted().mul(it.toQuatF())
+                }.toTypedArray()
+            )
+
+            AnimationTarget.SCALE -> Vec3Step(
+                keys,
+                Vec3fAccessor(outputData).list.map { it / node.baseTransform.scale }.toTypedArray()
+            )
+
             AnimationTarget.WEIGHTS -> LinearSingle(
                 keys,
                 splitListByN(FloatAccessor(outputData).list.toList(), componentCount).toTypedArray()
@@ -85,16 +97,30 @@ object AnimationLoader {
     }
 
     private fun loadLinear(
-        node: Node,
+        node: NodeDefinition,
         outputData: GltfAccessor,
         keys: FloatArray,
         target: AnimationTarget,
         componentCount: Int = -1,
     ): Interpolator<*> {
         return when (target) {
-            AnimationTarget.TRANSLATION -> Linear(keys, Vec3fAccessor(outputData).list.map { it - node.baseTransform.translation }.toTypedArray())
-            AnimationTarget.ROTATION -> SphericalLinear(keys, Vec4fAccessor(outputData).list.map { MutableQuatF(node.baseTransform.rotation).inverted().mul(it.toQuatF()) }.toTypedArray())
-            AnimationTarget.SCALE -> Linear(keys, Vec3fAccessor(outputData).list.map { it / node.baseTransform.scale }.toTypedArray())
+            AnimationTarget.TRANSLATION -> Linear(
+                keys,
+                Vec3fAccessor(outputData).list.map { it - node.baseTransform.translation }.toTypedArray()
+            )
+
+            AnimationTarget.ROTATION -> SphericalLinear(
+                keys,
+                Vec4fAccessor(outputData).list.map {
+                    MutableQuatF(node.baseTransform.rotation).inverted().mul(it.toQuatF())
+                }.toTypedArray()
+            )
+
+            AnimationTarget.SCALE -> Linear(
+                keys,
+                Vec3fAccessor(outputData).list.map { it / node.baseTransform.scale }.toTypedArray()
+            )
+
             AnimationTarget.WEIGHTS -> LinearSingle(
                 keys,
                 splitListByN(FloatAccessor(outputData).list.toList(), componentCount).toTypedArray()

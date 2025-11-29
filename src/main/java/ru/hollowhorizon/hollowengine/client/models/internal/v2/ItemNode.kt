@@ -1,0 +1,45 @@
+package ru.hollowhorizon.hollowengine.client.models.internal.v2
+
+import de.fabmax.kool.math.MutableMat3f
+import net.minecraft.client.Minecraft
+import net.minecraft.util.Mth
+import net.minecraft.world.entity.EquipmentSlot
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.item.ItemDisplayContext
+import org.joml.Quaternionf
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
+import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix3f
+import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix4f
+
+class ItemNode(val entity: LivingEntity, val slot: EquipmentSlot, parent: RuntimeNode?): RuntimeNode("Item", parent=parent), RenderNode {
+    override val children: MutableList<RuntimeNode> = mutableListOf()
+
+    override fun collectCommands(pipeline: RenderPipeline) {
+        pipeline.addBatchedRenderable {
+            stack.pushPose()
+
+            stack.mulPoseMatrix(globalMatrix.asMatrix4f())
+            stack.last().normal().mul(globalMatrix.getUpperLeft(MutableMat3f()).asMatrix3f())
+
+            stack.mulPose(Quaternionf().rotateX(-90 * Mth.DEG_TO_RAD))
+
+            Minecraft.getInstance().itemRenderer.renderStatic(
+                entity,
+                entity.getItemBySlot(slot),
+                when (slot) {
+                    EquipmentSlot.MAINHAND -> ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
+                    EquipmentSlot.OFFHAND -> ItemDisplayContext.THIRD_PERSON_RIGHT_HAND
+                    EquipmentSlot.HEAD -> ItemDisplayContext.HEAD
+                    else -> ItemDisplayContext.FIXED
+                },
+                slot == EquipmentSlot.OFFHAND,
+                stack,
+                source,
+                entity.level(),
+                light, overlay, 0
+            )
+
+            stack.popPose()
+        }
+    }
+}

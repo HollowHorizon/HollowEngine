@@ -12,7 +12,6 @@ import org.joml.Matrix3f
 import org.joml.Matrix4f
 import org.lwjgl.BufferUtils
 import org.lwjgl.opengl.*
-import ru.hollowhorizon.hollowengine.client.kool.gl.MCGlApi
 import ru.hollowhorizon.hollowengine.client.models.gltf.GltfMesh
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
 import ru.hollowhorizon.hollowengine.client.utils.areShadersEnabled
@@ -71,12 +70,12 @@ class Primitive(
         weights = values
     }
 
-    fun setupPipeline(node: Node, pipeline: RenderPipeline) {
+    fun setupPipeline(pipeline: RenderPipeline, skinGetter: SkinGetter, matrixGetter: MatrixGetter) {
         if (useBatching) {
-            initBatching(pipeline, node, positions ?: return, texCoords ?: return, normals ?: return)
+            initBatching(pipeline, matrixGetter, positions ?: return, texCoords ?: return, normals ?: return)
         } else {
-            initVAO(pipeline, node)
-            initSkinning(pipeline, node)
+            initVAO(pipeline, matrixGetter)
+            initSkinning(pipeline, skinGetter)
         }
     }
 
@@ -358,7 +357,7 @@ class Primitive(
 
     private fun initVAO(
         pipeline: RenderPipeline,
-        node: Node,
+        node: MatrixGetter,
     ) {
         if (useBatching) return
         if (morphTargets.isNotEmpty()) {
@@ -372,10 +371,10 @@ class Primitive(
     }
 
     fun renderVAO(
-        node: Node,
+        node: MatrixGetter,
         stack: PoseStack,
     ) {
-
+        val matrix = node()
         val shader = SHADER
         val (normal, specular) = applyMaterial(shader, material)
 
@@ -383,13 +382,13 @@ class Primitive(
         if (indexBuffer != -1) RenderSystem.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER, ::indexBuffer)
 
         val modelView = Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.last().pose())
-        modelView.mul(node.globalMatrix.asMatrix4f())
+        modelView.mul(matrix.asMatrix4f())
         shader.MODEL_VIEW_MATRIX?.set(modelView)
         shader.MODEL_VIEW_MATRIX?.upload()
 
         shader.getUniform("NormalMat")?.let {
             val normal = Matrix3f(stack.last().normal())
-            normal.mul(node.globalMatrix.getUpperLeft(MutableMat3f()).asMatrix3f())
+            normal.mul(matrix.getUpperLeft(MutableMat3f()).asMatrix3f())
             it.set(normal)
             it.upload()
         }
@@ -411,7 +410,7 @@ class Primitive(
 
     fun initBatching(
         pipeline: RenderPipeline,
-        node: Node,
+        matrixGetter: MatrixGetter,
         positions: Array<Vec3f>,
         texCoords: Array<Vec2f>,
         normals: Array<Vec3f>,
@@ -427,7 +426,7 @@ class Primitive(
 
                 for (index in indices) {
                     putVertex(
-                        node, positions, texCoords, normals, vertexConsumer, pose,
+                        matrixGetter, positions, texCoords, normals, vertexConsumer, pose,
                         normal, index, color, overlay, light
                     )
                 }
@@ -439,7 +438,7 @@ class Primitive(
                 val normal = stack.last().normal()
                 for (i in 0 until positions.size) {
                     putVertex(
-                        node, positions, texCoords, normals, vertexConsumer, pose,
+                        matrixGetter, positions, texCoords, normals, vertexConsumer, pose,
                         normal, i, color, overlay, light
                     )
                 }
@@ -448,7 +447,7 @@ class Primitive(
     }
 
     private fun putVertex(
-        node: Node,
+        getter: MatrixGetter,
         positions: Array<Vec3f>,
         texCoords: Array<Vec2f>,
         normals: Array<Vec3f>,
@@ -460,7 +459,7 @@ class Primitive(
         overlayCoords: Int,
         packedLight: Int,
     ) {
-        val global = node.globalMatrix
+        val global = getter()
         val pos = global.transform(positions[index], 1f, MutableVec3f())
         val normal = global.getUpperLeft(MutableMat3f()).transform(normals[index], MutableVec3f())
 
@@ -521,13 +520,13 @@ class Primitive(
         morphCommands.forEach { it(weights) }
     }
 
-    private fun initSkinning(pipeline: RenderPipeline, node: Node) {
+    private fun initSkinning(pipeline: RenderPipeline, node: SkinGetter) {
         if(hasSkinning) {
             pipeline.addSkinnable { transformSkinning(node) }
         }
     }
 
-    fun transformSkinning(node: Node) {
+    private fun transformSkinning(node: SkinGetter) {
         GL13.glActiveTexture(GL13.GL_TEXTURE0)
         GL33.glBindBuffer(GL33.GL_TEXTURE_BUFFER, jointMatrixBuffer)
         GL33.glBufferSubData(GL33.GL_TEXTURE_BUFFER, 0, computeMatrices(node))
@@ -545,8 +544,8 @@ class Primitive(
         GL30.glEndTransformFeedback()
     }
 
-    private fun computeMatrices(node: Node): FloatBuffer {
-        val matrices = node.skin!!.compute(node)
+    private fun computeMatrices(node: SkinGetter): FloatBuffer {
+        val matrices = node()
         val buffer = BufferUtils.createFloatBuffer(matrices.size * 16)
         for (m in matrices) {
             buffer.put(m.m00).put(m.m01).put(m.m02).put(m.m03)
@@ -574,6 +573,9 @@ class Primitive(
         }
     }
 }
+
+typealias MatrixGetter = () -> Mat4f
+typealias SkinGetter = () -> Array<Mat4f>
 
 fun Vec3f.get(i: Int): Float {
     return when (i) {

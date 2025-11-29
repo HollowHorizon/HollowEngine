@@ -6,7 +6,7 @@ import de.fabmax.kool.scene.TrsTransformF
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.HollowCore
-import ru.hollowhorizon.hollowengine.client.models.internal.Node
+import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.BlendMode.Additive
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.BlendMode.Override
@@ -62,7 +62,7 @@ enum class BlendMode { Override, Additive }
 @AnimControllerDSL
 data class Mask(val includes: Set<String>, val excludes: Set<String>) {
     @Transient
-    private var bakedNodes: Set<Node>? = null
+    private var bakedNodes: Set<NodeDefinition>? = null
 
     companion object {
         fun full() = Mask(emptySet(), emptySet())
@@ -79,10 +79,10 @@ data class Mask(val includes: Set<String>, val excludes: Set<String>) {
         }
     }
 
-    fun bake(root: Node): Set<Node> {
+    fun bake(root: NodeDefinition): Set<NodeDefinition> {
         bakedNodes?.let { return it }
         val allBones = root.allBones()
-        val result = mutableSetOf<Node>()
+        val result = mutableSetOf<NodeDefinition>()
 
         for (bone in allBones) {
             val path = bone.path
@@ -124,12 +124,12 @@ data class Controller(var layers: MutableList<Layer>) {
         layers.forEach {
             it.stateMachine.uploadAnimations(animations)
             animations[it.referencePose]?.let { animation ->
-                it.referencePoseRef = { animation.compute(it, 0f) }
+                //it.referencePoseRef = { animation.compute(it, 0f) }
             } ?: run { it.referencePoseRef = { TrsTransformF() } }
         }
     }
 
-    fun update(node: Node, context: MolangContext, time: Float) {
+    fun update(node: NodeDefinition, context: MolangContext, time: Float) {
         layers.removeIf { layer ->
             if (node !in layer.mask.bake(node.root)) return@removeIf false
 
@@ -147,7 +147,7 @@ data class Controller(var layers: MutableList<Layer>) {
 
     private fun TrsTransformF.applyAdditiveLayer(
         layer: Layer,
-        node: Node,
+        node: NodeDefinition,
         transform: TrsTransformF,
         time: Float,
     ) {
@@ -171,7 +171,7 @@ data class Controller(var layers: MutableList<Layer>) {
 
     private fun TrsTransformF.applyOverrideLayer(
         layer: Layer,
-        node: Node,
+        node: NodeDefinition,
         transform: TrsTransformF,
     ) {
         val base = node.baseTransform
@@ -254,9 +254,9 @@ data class Layer(
     var referencePose: String = "",
 ) {
     @Transient
-    lateinit var referencePoseRef: (Node) -> TrsTransformF?
+    lateinit var referencePoseRef: (NodeDefinition) -> TrsTransformF?
 
-    fun update(node: Node, context: MolangContext, time: Float): TrsTransformF? {
+    fun update(node: NodeDefinition, context: MolangContext, time: Float): TrsTransformF? {
         return stateMachine.update(node, context, time)
     }
 }
@@ -293,7 +293,7 @@ data class State(
         blendTree?.reset(query, time)
     }
 
-    fun update(node: Node, query: MolangContext, time: Float): TrsTransformF? {
+    fun update(node: NodeDefinition, query: MolangContext, time: Float): TrsTransformF? {
         clip?.let { clip ->
             return clip.update(animations, query, node, time)
         }
@@ -339,7 +339,7 @@ data class Transition(
         toRef?.reset(query, time)
     }
 
-    fun update(node: Node, query: MolangContext, time: Float): TrsTransformF? {
+    fun update(node: NodeDefinition, query: MolangContext, time: Float): TrsTransformF? {
         val from = fromRef?.update(node, query, time)
         val to = toRef?.update(node, query, time)
 
@@ -400,7 +400,7 @@ data class StateMachine(
         currentState = states.firstOrNull { it.name == initialState }
     }
 
-    fun update(node: Node, context: MolangContext, time: Float): TrsTransformF? {
+    fun update(node: NodeDefinition, context: MolangContext, time: Float): TrsTransformF? {
         if (currentTransition == null) {
             transitions.firstOrNull {
                 (it.from == currentState?.name || (it.from == "*" && it.to != currentState?.name)) &&
@@ -522,7 +522,7 @@ data class BlendTree(
         lastFiltered = factor.getFloat(context.query, context.variables)
     }
 
-    fun update(animations: Map<String, Animation>, context: MolangContext, node: Node, time: Float): TrsTransformF? {
+    fun update(animations: Map<String, Animation>, context: MolangContext, node: NodeDefinition, time: Float): TrsTransformF? {
         if (nodes.isEmpty()) return null
         // Сглаживание фактора
         val raw = factor.getFloat(context.query, context.variables)
@@ -590,7 +590,7 @@ class BlendTreeBuilder {
 @Serializable
 @AnimControllerDSL
 data class BlendNode(val clip: ClipNode, val threshold: Float) {
-    fun update(animations: Map<String, Animation>, query: MolangContext, node: Node, time: Float): TrsTransformF? {
+    fun update(animations: Map<String, Animation>, query: MolangContext, node: NodeDefinition, time: Float): TrsTransformF? {
         return clip.update(animations, query, node, time)
     }
 
@@ -644,18 +644,19 @@ data class ClipNode(
         else (time - startTime) * oldSpeed
     }
 
-    fun update(animations: Map<String, Animation>, query: MolangContext, node: Node, time: Float): TrsTransformF? {
+    fun update(animations: Map<String, Animation>, query: MolangContext, node: NodeDefinition, time: Float): TrsTransformF? {
         val rawTime = rawTime(query, time)
 
         val animation = animations[name] ?: return null
 
         val sampleTime = wrap.wrapTime(animation, rawTime)
-        animation.computeWeights(node, sampleTime)?.let { weights ->
-            node.mesh?.weights?.let { nodeWeights ->
-                weights.copyInto(nodeWeights)
-            }
-        }
-        return animation.compute(node, sampleTime)
+        TODO()
+//        animation.computeWeights(node, sampleTime)?.let { weights ->
+//            node.mesh?.weights?.let { nodeWeights ->
+//                weights.copyInto(nodeWeights)
+//            }
+//        }
+//        return animation.compute(node.index, sampleTime)
     }
 
     fun transferFrom(old: ClipNode) {

@@ -2,10 +2,7 @@ package ru.hollowhorizon.hollowengine.client.models.internal
 
 
 import com.mojang.blaze3d.vertex.PoseStack
-import net.minecraft.client.renderer.ItemInHandRenderer
 import net.minecraft.client.renderer.MultiBufferSource
-import net.minecraft.world.entity.LivingEntity
-import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.Controller
@@ -13,19 +10,9 @@ import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderCont
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
 
 
-typealias NodeRenderer = (LivingEntity, PoseStack, Node, MultiBufferSource, Int) -> Unit
-
-class ModelData(
-    val leftHand: ItemStack?,
-    val rightHand: ItemStack?,
-    val itemInHandRenderer: ItemInHandRenderer?,
-    val entity: LivingEntity?,
-)
-
-class AnimatedModel(val model: Model, val animations: Map<String, Animation> = mapOf()) {
-
+class AnimatedModel(val model: Model) {
+    val animations: Map<String, Animation> = model.animations.associateBy { it.name }
     val nodes = model.walkNodes().toList()
-    var visuals: NodeRenderer = { _, _, _, _, _ -> }
 
     fun update(controller: Controller, query: MolangContext, time: Float) {
         try {

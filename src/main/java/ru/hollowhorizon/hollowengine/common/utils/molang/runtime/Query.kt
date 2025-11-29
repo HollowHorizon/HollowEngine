@@ -37,7 +37,7 @@ interface Query {
 
     companion object {
         val EMPTY = object : Query {}
-        val GLFW_TIME = object: Query {
+        val GLFW_TIME = object : Query {
             override val anim_time: Float
                 get() = GLFW.glfwGetTime().toFloat()
         }

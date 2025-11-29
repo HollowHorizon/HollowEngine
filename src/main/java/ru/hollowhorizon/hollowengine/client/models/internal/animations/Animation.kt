@@ -5,18 +5,18 @@ import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.math.Vec4f
 import de.fabmax.kool.scene.TrsTransformF
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
-import ru.hollowhorizon.hollowengine.client.models.internal.Node
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.ClientNode
 
 class Animation(
     val name: String,
-    val nodes: Map<Node, AnimationData>,
+    val nodes: Map<Int, AnimationData>,
     var duration: Float = nodes.values.maxOf { it.duration },
 ) {
     val temp = TrsTransformF()
 
-    fun compute(node: Node, currentTime: Float): TrsTransformF? {
-        return nodes[node]?.let {
+    fun compute(node: ClientNode, currentTime: Float): TrsTransformF? {
+        return nodes[node.definition.index]?.let {
             val t = it.translation?.compute(currentTime)
             val r = it.rotation?.compute(currentTime)
             val s = it.scale?.compute(currentTime)
@@ -29,8 +29,8 @@ class Animation(
         }
     }
 
-    fun computeWeights(node: Node, currentTime: Float): FloatArray? {
-        return nodes[node]?.weights?.compute(currentTime)
+    fun computeWeights(node: ClientNode, currentTime: Float): FloatArray? {
+        return nodes[node.definition.index]?.weights?.compute(currentTime)
     }
 
     override fun toString() = name
@@ -125,18 +125,19 @@ enum class AnimationType {
 }
 
 class AnimationData(
-    val node: Node,
-    val translation: Interpolator<Vec3f>?,
-    val rotation: Interpolator<QuatF>?,
-    val scale: Interpolator<Vec3f>?,
-    val weights: Interpolator<FloatArray>?,
+    var translation: Interpolator<Vec3f>?,
+    var rotation: Interpolator<QuatF>?,
+    var scale: Interpolator<Vec3f>?,
+    var weights: Interpolator<FloatArray>?,
 ) {
-    val duration = maxOf(
-        translation?.duration ?: 0f,
-        rotation?.duration ?: 0f,
-        scale?.duration ?: 0f,
-        weights?.duration ?: 0f
-    )
+    val duration by lazy {
+        maxOf(
+            translation?.duration ?: 0f,
+            rotation?.duration ?: 0f,
+            scale?.duration ?: 0f,
+            weights?.duration ?: 0f
+        )
+    }
 }
 
 enum class AnimationTarget { TRANSLATION, ROTATION, SCALE, WEIGHTS }

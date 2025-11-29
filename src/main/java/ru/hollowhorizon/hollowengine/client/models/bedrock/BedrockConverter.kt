@@ -8,6 +8,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.models.internal.*
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
 import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -16,12 +17,13 @@ object BedrockModelLoader : ModelLoader {
 
     override val supportedFormats = setOf("geo.json")
 
-    override suspend fun load(location: ResourceLocation): AnimatedModel {
+    override suspend fun load(location: ResourceLocation, side: ModelSide): AnimatedModel {
         val model = convert(JsonFormat.decodeFromStream<BedrockFile>(location.stream), location)
 
         val animationFile = location.withPath(location.path.substringBefore('.') + ".animation.json")
         val animations = JsonFormat.decodeFromStream<BedrockAnimationFile>(animationFile.stream)
-        return AnimatedModel(model, BedrockAnimationConverter.convert(model, animations).associate { it.name to it })
+
+        return AnimatedModel(model)
     }
 
     fun convert(file: BedrockFile, location: ResourceLocation): Model {
@@ -32,7 +34,7 @@ object BedrockModelLoader : ModelLoader {
         }
     }
 
-    fun BedrockFile.Geometry.convertNodes(location: ResourceLocation): List<Node> {
+    fun BedrockFile.Geometry.convertNodes(location: ResourceLocation): List<NodeDefinition> {
         val material = Material(
             description.color,
             if (description.texture.contains(':')) description.texture.rl
@@ -45,7 +47,7 @@ object BedrockModelLoader : ModelLoader {
             .map { convertNode(it, material).apply { transform.scale(1 / 16f); baseTransform.scale(1 / 16f) } }
     }
 
-    fun BedrockFile.Geometry.convertNode(bone: BedrockFile.Bone, material: Material): Node {
+    fun BedrockFile.Geometry.convertNode(bone: BedrockFile.Bone, material: Material): NodeDefinition {
         val transform = TrsTransformF()
 
         val parent = bones.find { it.name == bone.parent }?.pivot ?: Vec3f.ZERO
@@ -65,12 +67,12 @@ object BedrockModelLoader : ModelLoader {
             )
         }
 
-        return Node(
+        return NodeDefinition(
             0,
+            name = bone.name,
             bones.filter { it.parent == bone.name }.map { convertNode(it, material) }.toMutableList(),
             transform,
-            mesh = Mesh(primitives, floatArrayOf()),
-            name = bone.name
+            mesh = Mesh(primitives, floatArrayOf())
         )
     }
 

@@ -4,24 +4,25 @@ import de.fabmax.kool.math.MutableMat4f
 import de.fabmax.kool.math.MutableQuatF
 import de.fabmax.kool.math.QuatF
 import de.fabmax.kool.scene.TrsTransformF
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
 
-open class Node(
+open class NodeDefinition(
     val index: Int,
-    val children: MutableList<Node>,
+    val name: String? = null,
+    val children: MutableList<NodeDefinition>,
     val transform: TrsTransformF,
     val mesh: Mesh? = null,
     val skin: Skin? = null,
-    val name: String? = null,
 ) {
+    var parent: NodeDefinition? = null
+    val root: NodeDefinition by lazy { parent?.root ?: this }
+    val path: String get() = parent?.let { it.name + "/" + name } ?: name ?: "Unnamed Bone"
+
     val baseTransform = TrsTransformF().apply {
         translate(transform.translation)
         rotate(transform.rotation)
         scale(transform.scale)
     }
 
-    var parent: Node? = null
-    val root: Node by lazy { parent?.root ?: this }
 
     val localMatrix get() = transform.matrixF
     val globalMatrix = MutableMat4f()
@@ -36,26 +37,12 @@ open class Node(
         }
 
 
-    fun allBones(): Set<Node> = setOf(this) + children.flatMap { it.allBones() }
-    val path: String get() = parent?.let { it.name + "/" + name } ?: name ?: "Unnamed Bone"
+    fun allBones(): Set<NodeDefinition> = buildSet {
+        add(this@NodeDefinition)
+        addAll(children.flatMap { it.allBones() })
+    }
 
     override fun toString(): String {
         return "Node $name [Mesh: $mesh, Skin: $skin]"
-    }
-
-    open fun setupPipeline(pipeline: RenderPipeline) {
-        val parent = parent
-        if (parent == null) {
-            pipeline.addInitializable {
-                globalMatrix.set(localMatrix)
-            }
-        } else {
-            pipeline.addInitializable {
-                globalMatrix.set(parent.globalMatrix)
-                globalMatrix.mul(localMatrix)
-            }
-        }
-        children.forEach { it.setupPipeline(pipeline) }
-        mesh?.primitives?.forEach { it.setupPipeline(this, pipeline) }
     }
 }

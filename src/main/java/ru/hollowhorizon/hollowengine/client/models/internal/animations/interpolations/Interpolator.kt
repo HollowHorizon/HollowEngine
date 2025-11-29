@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations
 
-import ru.hollowhorizon.hollowengine.client.models.internal.Node
 import java.util.*
 
 abstract class Interpolator<T>(val keys: FloatArray, val values: Array<T>) {
@@ -15,6 +14,4 @@ abstract class Interpolator<T>(val keys: FloatArray, val values: Array<T>) {
             return if (index >= 0) index
             else 0.coerceAtLeast(-index - 2)
         }
-
-    lateinit var node: Node
 }

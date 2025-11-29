@@ -11,6 +11,7 @@ import ru.hollowhorizon.hollowengine.HollowCore.MODID
 import ru.hollowhorizon.hollowengine.client.models.internal.*
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
 import ru.hollowhorizon.hollowengine.client.utils.exists
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation as InternalAnimation
@@ -19,22 +20,42 @@ import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 object GltfModelLoader : ModelLoader {
     override val supportedFormats = setOf("gltf", "glb")
 
-    override suspend fun load(model: ResourceLocation): AnimatedModel {
+    override suspend fun load(model: ResourceLocation, side: ModelSide): AnimatedModel {
         val location = if (!model.exists()) "$MODID:models/error.gltf".rl else model
 
         val gltf = loadGltf(location)
-        return load(gltf.getOrThrow(), location)
+        return load(gltf.getOrThrow(), location, side)
     }
 
-    suspend fun load(file: GltfFile, location: ResourceLocation): AnimatedModel {
-        val skins = parseSkins(file)
-        val materials = file.materials.map { material ->
+    suspend fun load(file: GltfFile, location: ResourceLocation, side: ModelSide): AnimatedModel {
+        val skins = if (side == ModelSide.SERVER) emptyList() else parseSkins(file)
+        val materials = if (side == ModelSide.SERVER) emptyList() else file.materials.map { material ->
             material.toMaterial(file, location)
         }
 
-        val scenes = parseScenes(file, skins, materials)
+        val scenes = parseScenes(file, skins, materials, side)
 
-        val model = Model(file.scene, scenes, materials.toSet()).apply {
+        val nodes = mutableListOf<NodeDefinition>()
+
+        fun walkNodes(current: NodeDefinition) {
+            nodes.add(current)
+            for (definition in current.children) {
+                walkNodes(definition)
+            }
+        }
+
+        for (scene in scenes) {
+            for (definition in scene.nodes) {
+                walkNodes(definition)
+            }
+        }
+
+        val animations: List<InternalAnimation> =
+            parseAnimations(file).map {
+                AnimationLoader.createAnimation(nodes.associateBy { it.index }, it)
+            }
+
+        val model = Model(file.scene, scenes, materials.toSet(), animations).apply {
             isBlockBench = file.asset.generator?.contains("blockbench", ignoreCase = true) == true
             for (skin in skins) {
                 for ((i, id) in skin.jointsIds.withIndex()) {
@@ -50,11 +71,8 @@ object GltfModelLoader : ModelLoader {
             }
         }
 
-        val animations: Map<String, InternalAnimation> =
-            parseAnimations(file).associate {
-                (it.name ?: "Unnamed animation") to AnimationLoader.createAnimation(model, it)
-            }
-        return AnimatedModel(model, animations)
+
+        return AnimatedModel(model)
     }
 
 
@@ -68,10 +86,15 @@ object GltfModelLoader : ModelLoader {
     }
 
 
-    private suspend fun parseScenes(file: GltfFile, skins: List<Skin>, materials: List<Material>): List<Scene> {
+    private suspend fun parseScenes(
+        file: GltfFile,
+        skins: List<Skin>,
+        materials: List<Material>,
+        side: ModelSide,
+    ): List<Scene> {
         return file.scenes.map { scene ->
             val nodes = scene.nodes
-            val parsedNodes = nodes.map { parseNode(file, it, file.nodes[it], skins, materials) }
+            val parsedNodes = nodes.map { parseNode(file, it, file.nodes[it], skins, materials, side) }
 
             Scene(parsedNodes.awaitAll())
         }
@@ -83,11 +106,12 @@ object GltfModelLoader : ModelLoader {
         node: GltfNode,
         skins: List<Skin>,
         materials: List<Material>,
-    ): Deferred<Node> {
+        side: ModelSide,
+    ): Deferred<NodeDefinition> {
         return coroutineScope {
             async {
-                val children = node.children.map { parseNode(file, it, file.nodes[it], skins, materials) }
-                val mesh = node.meshRef?.let { mesh ->
+                val children = node.children.map { parseNode(file, it, file.nodes[it], skins, materials, side) }
+                val mesh = node.meshRef?.takeIf { side == ModelSide.CLIENT }?.let { mesh ->
                     val primitives = mesh.primitives.map { prim ->
                         val attributes = prim.attributes.map { it.key to file.accessors[it.value] }.toMap()
                         val positions =
@@ -148,7 +172,7 @@ object GltfModelLoader : ModelLoader {
                 transform.rotate(node.rotation?.let { QuatF(it[0], it[1], it[2], it[3]) } ?: MutableQuatF())
                 transform.scale(node.scale?.let { Vec3f(it[0], it[1], it[2]) } ?: MutableVec3f(1f, 1f, 1f))
 
-                Node(nodeIndex, children.awaitAll().toMutableList(), transform, mesh, skin, node.name).apply {
+                NodeDefinition(nodeIndex, node.name, children.awaitAll().toMutableList(), transform, mesh, skin).apply {
                     this.children.forEach { it.parent = this }
                 }
             }

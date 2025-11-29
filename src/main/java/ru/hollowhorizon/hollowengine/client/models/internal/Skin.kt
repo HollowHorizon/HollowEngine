@@ -7,11 +7,11 @@ class Skin(
     val jointsIds: List<Int>,
     val inverseBindMatrices: Array<Mat4f>,
 ) {
-    val joints = HashMap<Int, Node>(jointsIds.size)
+    val joints = HashMap<Int, NodeDefinition>(jointsIds.size)
 
     private val cache: Array<Mat4f> = Array(jointsIds.size) { MutableMat4f() }
 
-    fun compute(root: Node): Array<Mat4f> {
+    fun compute(root: NodeDefinition): Array<Mat4f> {
         // Получаем и инвертируем глобальную матрицу узла модели
         val inverseRoot = MutableMat4f(root.globalMatrix)
         inverseRoot.invert()
