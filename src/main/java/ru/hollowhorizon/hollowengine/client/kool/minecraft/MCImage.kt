@@ -16,9 +16,11 @@ import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 object ImageManager : ResourceManagerReloadListener {
     private val IMAGES = Object2ObjectOpenHashMap<String, Texture2d>()
 
-    fun load(location: String): Texture2d = IMAGES.getOrPut(location) {
+    fun load(location: String, mode: SamplerMode): Texture2d = IMAGES.getOrPut(location) {
         Texture2d(
-            mipMapping = MipMapping.Off, samplerSettings = SamplerSettings().clamped().nearest()
+            mipMapping = MipMapping.Off, samplerSettings = SamplerSettings().let {
+                if (mode == SamplerMode.NEAREST) it.nearest() else it.linear()
+            }
         ) {
             Assets.loadImage2d(location).getOrThrow()
         }
@@ -34,8 +36,13 @@ object ImageManager : ResourceManagerReloadListener {
     }
 }
 
-fun UiScope.Image(location: String, block: ImageScope.() -> Unit = {}) = Image {
-    modifier.image(ImageManager.load(location))
+fun UiScope.Image(location: String, mode: SamplerMode = SamplerMode.NEAREST, block: ImageScope.() -> Unit = {}) =
+    Image {
+        modifier.image(ImageManager.load(location, mode))
 
-    block()
+        block()
+    }
+
+enum class SamplerMode {
+    NEAREST, LINEAR
 }

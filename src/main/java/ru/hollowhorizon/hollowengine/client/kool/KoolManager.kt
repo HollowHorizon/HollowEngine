@@ -13,6 +13,7 @@ import org.apache.logging.log4j.Logger
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.MCAssetLoader
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
 import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.post
@@ -47,7 +48,7 @@ object KoolManager {
 }
 
 class KoolInitEvent : ClientEvent {
-    fun loadTexture(texture: ResourceLocation) {
-        ImageManager.load(texture.toString())
+    fun loadTexture(texture: ResourceLocation, mode: SamplerMode = SamplerMode.NEAREST) {
+        ImageManager.load(texture.toString(), mode)
     }
 }

@@ -2,10 +2,9 @@ package ru.hollowhorizon.hollowengine.common.components
 
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
+import ru.hollowhorizon.hollowengine.common.components.events.ComponentEventSubscriber
 import ru.hollowhorizon.hollowengine.common.components.property.Property
 import ru.hollowhorizon.hollowengine.common.components.property.Sync
-import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
-import ru.hollowhorizon.hollowengine.common.registry.system.keyOf
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.reflect.full.findAnnotation
 
@@ -34,6 +33,10 @@ abstract class Component<T : Any> {
     private var onDisableds = HashSet<() -> Unit>()
     private var onSaves = HashSet<CompoundTag.() -> Unit>()
     private var onLoads = HashSet<CompoundTag.() -> Unit>()
+
+    init {
+        with(ComponentEventSubscriber) { setupEvents() }
+    }
 
     fun onAttach() {
         onAttaches.forEach { it() }

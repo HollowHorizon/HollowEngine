@@ -19,6 +19,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
@@ -31,17 +32,9 @@ import ru.hollowhorizon.hollowengine.common.utils.literal
 fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
     Box(24.dp, 24.dp) {
         modifier.alignY(AlignmentY.Center)
-        Image("hollowengine:textures/gui/icons/logo.png") {
-            val isHovered by modifier.hoverable()
-            val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
-            val size = 22.dp + 2.dp * factor
-            modifier.size(size, size).align(AlignmentX.Center, AlignmentY.Center)
 
-            modifier.tint(Color.WHITE.withAlpha(0.33f + 0.77f * factor))
-            modifier.onClick {
-                ScriptingEnvironmentOverlay.isCollapsed = !ScriptingEnvironmentOverlay.isCollapsed
-            }
-        }
+        Logo()
+
     }
 
     if (ScriptingEnvironmentOverlay.isCollapsed) return@append
@@ -97,6 +90,23 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
         settingsOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
 
         }, Unit)
+    }
+}
+
+fun UiScope.Logo() {
+    val isHovered by modifier.hoverable()
+    val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
+    val size = 22.dp + 2.dp * factor
+    modifier.onClick {
+        ScriptingEnvironmentOverlay.isCollapsed = !ScriptingEnvironmentOverlay.isCollapsed
+    }
+    Image("hollowengine:textures/gui/logo/logo_hovered.png", SamplerMode.LINEAR) {
+        modifier.size(size, size).align(AlignmentX.Center, AlignmentY.Center)
+        modifier.tint(Color.WHITE.withAlpha(factor))
+    }
+    Image("hollowengine:textures/gui/logo/logo.png", SamplerMode.LINEAR) {
+        modifier.size(size, size).align(AlignmentX.Center, AlignmentY.Center)
+        modifier.tint(Color.WHITE.withAlpha(1f - factor))
     }
 }
 
