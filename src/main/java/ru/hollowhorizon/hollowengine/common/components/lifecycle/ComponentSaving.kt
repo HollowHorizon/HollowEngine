@@ -6,8 +6,7 @@ import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
-import ru.hollowhorizon.hollowengine.common.registry.system.keyOf
-import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
+import ru.hollowhorizon.hollowengine.common.components.registry.create
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 import ru.hollowhorizon.hollowengine.common.utils.nbt.loadAsNBT
 import ru.hollowhorizon.hollowengine.common.utils.nbt.save
@@ -50,11 +49,10 @@ fun ComponentDispatcher.load(tag: CompoundTag) {
     tag.allKeys.forEach { key ->
         val componentTag = tag.getCompound(key)
         val properties = componentTag.getCompound("properties")
-        val factory = ComponentRegistry.getOrNull(keyOf(key.rl))
+        val factory = ComponentRegistry.getOrNull(key.rl)
         if (factory != null) {
-            val component = factory().apply {
-                owner = JavaHacks.forceCast(this@load)
-            }
+            val component = factory.create(this)
+
             `hollowcore$components`[key.rl] = component
             properties.allKeys.forEach { name ->
                 component.properties[name]?.deserialize(NBTFormat, properties.get(name)!!)

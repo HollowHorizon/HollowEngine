@@ -2,12 +2,12 @@
 
 package ru.hollowhorizon.hollowengine.common.registry.system
 
-import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hollowengine.common.utils.rl
 //? if fabric
 import ru.hollowhorizon.hollowengine.fabric.internal.FabricRegistry as VanillaRegistry
 //? if forge
 /*import ru.hollowhorizon.hollowengine.forge.internal.ForgeRegistry as VanillaRegistry*/
+import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.util.IdentityHashMap
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -15,7 +15,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.collections.ArrayDeque
 import kotlin.concurrent.read
 import kotlin.concurrent.write
-import kotlin.system.measureNanoTime
+import kotlin.reflect.KProperty
 
 @JvmInline
 value class Namespace(val value: String) {
@@ -36,15 +36,6 @@ value class Path(val value: String) {
     override fun toString(): String = value
 }
 
-@JvmInline
-value class ResourceKey<T : Any>(val location: ResourceLocation) : Comparable<ResourceKey<*>> {
-    override fun toString(): String = location.toString()
-    override fun compareTo(other: ResourceKey<*>): Int = location.compareTo(other.location)
-}
-
-fun <T : Any> keyOf(ns: String, path: String): ResourceKey<T> = ResourceKey(ResourceLocation("$ns:$path"))
-fun <T : Any> keyOf(location: ResourceLocation): ResourceKey<T> = ResourceKey(location)
-
 enum class RegistryState { CONSTRUCTING, REGISTERING, BAKED, FROZEN }
 
 data class RegistryVersion(val major: Int, val minor: Int, val patch: Int) : Comparable<RegistryVersion> {
@@ -54,12 +45,16 @@ data class RegistryVersion(val major: Int, val minor: Int, val patch: Int) : Com
     override fun toString(): String = "$major.$minor.$patch"
 }
 
-data class Holder<T : Any>(
-    val key: ResourceKey<T>,
-    val id: Int,
+open class Holder<T : Any>(
+    val key: ResourceLocation,
+    var id: Int,
     val flags: Int = 0,
 ) {
-    lateinit var value: T
+    open lateinit var value: T
+
+    operator fun getValue(any: Any?, prop: KProperty<*>): T {
+        return value
+    }
 }
 
 interface Registry<T : Any> : Iterable<Holder<T>> {
@@ -68,22 +63,22 @@ interface Registry<T : Any> : Iterable<Holder<T>> {
     val size: Int
     fun getId(value: T): Int
     fun getIdByLocation(location: ResourceLocation): Int? {
-        val holder = getHolder(keyOf(location)) ?: return null
+        val holder = getHolder(location) ?: return null
         return holder.id
     }
-    fun getLocationById(id: Int): ResourceLocation? = getHolder(id)?.key?.location
+    fun getLocationById(id: Int): ResourceLocation? = getHolder(id)?.key
     fun getById(id: Int): T?
     fun getHolder(id: Int): Holder<T>?
-    operator fun get(key: ResourceKey<T>): T = getOrNull(key) ?: error("No value found for $key")
-    fun getOrNull(key: ResourceKey<T>): T?
-    fun getHolder(key: ResourceKey<T>): Holder<T>?
-    fun contains(key: ResourceKey<T>): Boolean
+    operator fun get(key: ResourceLocation): T = getOrNull(key) ?: error("No value found for $key")
+    fun getOrNull(key: ResourceLocation): T?
+    fun getHolder(key: ResourceLocation): Holder<T>?
+    fun contains(key: ResourceLocation): Boolean
 }
 
 interface MutableRegistry<T : Any> : Registry<T> {
     val version: RegistryVersion
-    fun register(key: ResourceKey<T>, supplier: () -> T): Holder<T>
-    fun unregister(key: ResourceKey<T>): Boolean
+    fun register(key: ResourceLocation, supplier: () -> T): Holder<T>
+    fun unregister(key: ResourceLocation): Boolean
     fun bake()
     fun freeze()
     fun unfreeze()
@@ -137,29 +132,30 @@ class DefaultMutableRegistry<T : Any>(
     private var _state: RegistryState = RegistryState.CONSTRUCTING
     override val state: RegistryState get() = lock.read { _state }
 
-    private val byKey = LinkedHashMap<ResourceKey<T>, Holder<T>>()
+    private val byKey = LinkedHashMap<ResourceLocation, Holder<T>>()
     private val byValueId = IdentityHashMap<T, Int>()
 
-    private val keyToId = HashMap<ResourceKey<T>, Int>()
+    private val keyToId = HashMap<ResourceLocation, Int>()
     private val idToValue = IntObjectTable<T>()
 
-    private val queue = LinkedHashMap<ResourceKey<T>, () -> T>()
+    private val queue = LinkedHashMap<ResourceLocation, Pair<Holder<T>, () -> T>>()
     private val nextId = AtomicInteger(0)
     private val freeIds = ArrayDeque<Int>()
 
     override val size: Int get() = lock.read { byKey.size }
 
-    override fun register(key: ResourceKey<T>, supplier: () -> T): Holder<T> = lock.write {
+    override fun register(key: ResourceLocation, supplier: () -> T): Holder<T> = lock.write {
         check(_state == RegistryState.CONSTRUCTING || _state == RegistryState.REGISTERING) {
             "Cannot register into state $_state"
         }
         _state = RegistryState.REGISTERING
         require(key !in queue && key !in byKey) { "Duplicate key: $key in registry ${this.key}" }
-        queue[key] = supplier
-        Holder(key, -1)
+        val holder = Holder<T>(key, -1)
+        queue[key] = holder to supplier
+        return holder
     }
 
-    override fun unregister(key: ResourceKey<T>): Boolean = lock.write {
+    override fun unregister(key: ResourceLocation): Boolean = lock.write {
         check(_state != RegistryState.FROZEN) { "Cannot unregister from frozen registry" }
         var removed = false
         if (queue.remove(key) != null) removed = true
@@ -188,14 +184,15 @@ class DefaultMutableRegistry<T : Any>(
             _state = RegistryState.BAKED
             return
         }
-        for ((k, supplier) in queue) {
+        for ((k, pair) in queue) {
+            val (holder, supplier) = pair
             val value = supplier()
             val id = keyToId[k] ?: claimId().also { keyToId[k] = it }
             idToValue.set(id, value)
             byValueId[value] = id
-            val h = Holder(k, id)
-            h.value = value
-            byKey[k] = h
+            holder.id = id
+            holder.value = value
+            byKey[k] = holder
         }
         queue.clear()
         _state = RegistryState.BAKED
@@ -220,7 +217,7 @@ class DefaultMutableRegistry<T : Any>(
         }
 
         for ((k, holder) in byKey) {
-            queue[k] = { holder.value }
+            queue[k] = holder to { holder.value }
         }
         byKey.clear()
         byValueId.clear()
@@ -235,14 +232,14 @@ class DefaultMutableRegistry<T : Any>(
     override fun getHolder(id: Int): Holder<T>? = lock.read {
         val v = idToValue.get(id) ?: return null
         val k = byKey.entries.firstOrNull { it.value.id == id }?.key ?: return null
-        Holder(k, id).also { it.value = v }
+        Holder<T>(k, id).also { it.value = v }
     }
 
-    override fun getOrNull(key: ResourceKey<T>): T? = lock.read { byKey[key]?.value }
+    override fun getOrNull(key: ResourceLocation): T? = lock.read { byKey[key]?.value }
 
-    override fun getHolder(key: ResourceKey<T>): Holder<T>? = lock.read { byKey[key] }
+    override fun getHolder(key: ResourceLocation): Holder<T>? = lock.read { byKey[key] }
 
-    override fun contains(key: ResourceKey<T>): Boolean = lock.read { key in byKey || key in queue }
+    override fun contains(key: ResourceLocation): Boolean = lock.read { key in byKey || key in queue }
 
     override fun iterator(): Iterator<Holder<T>> = lock.read { byKey.values.toList().iterator() }
 }
@@ -251,8 +248,8 @@ class DeferredRegister<T : Any>(
     private val registry: MutableRegistry<T>,
     private val namespace: String,
 ) {
-    fun register(path: String, supplier: () -> T): ResourceKey<T> {
-        val k = keyOf<T>(namespace, path)
+    fun register(path: String, supplier: () -> T): ResourceLocation {
+        val k = "$namespace:$path".rl
         registry.register(k, supplier)
         return k
     }
@@ -317,62 +314,3 @@ data class RegistryDiff<T : Any>(
     val removed: List<Holder<T>>,
     val changedIds: List<Holder<T>>,
 )
-
-data class TestItem(val name: String)
-
-fun main() {
-
-    val registry = RegistryManager.create<TestItem>("hollowcore:test".rl)
-
-    val n = 1_000_000 // количество элементов
-    val keys: Array<ResourceKey<TestItem>> = Array(n) { keyOf("test", "item_$it") }
-    val values = Array(n) { TestItem("Item #$it") }
-
-    // --- Benchmark регистрации ---
-    val registerTime = measureNanoTime {
-        for (i in 0 until n) {
-            registry.register(keys[i]) { values[i] }
-        }
-    }
-
-    // bake первый раз
-    val bakeTime = measureNanoTime {
-        registry.bake()
-    }
-
-    // --- Benchmark поиска по ключу ---
-    val lookupKeyTime = measureNanoTime {
-        repeat(n) {
-            registry[keys[it]]
-        }
-    }
-
-    // --- Benchmark поиска по id ---
-    val lookupIdTime = measureNanoTime {
-        repeat(n) {
-            registry.getById(it)
-        }
-    }
-
-    // --- Benchmark перезагрузки ---
-    val reloadTime = measureNanoTime {
-        registry.unbake()
-        registry.bake()
-    }
-
-    println("Results for $n entries:")
-    println(" Register: ${registerTime / 1_000_000} ms")
-    println(" Bake: ${bakeTime / 1_000_000} ms")
-    println(" Lookup by key: ${lookupKeyTime / 1_000_000} ms")
-    println(" Lookup by id: ${lookupIdTime / 1_000_000} ms")
-    println(" Reload (unbake+bake): ${reloadTime / 1_000_000} ms")
-
-    /*
-    Results for 1000000 entries:
-    Register: 161 ms
-    Bake: 455 ms
-    Lookup by key: 39 ms
-    Lookup by id: 20 ms
-    Reload (unbake+bake): 261 ms
-     */
-}

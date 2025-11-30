@@ -5,20 +5,16 @@ import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import org.joml.Quaternionf
-import ru.hollowhorizon.hollowengine.api.Init
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ClientModel
 import ru.hollowhorizon.hollowengine.common.components.Component
-import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
-import ru.hollowhorizon.hollowengine.common.components.system.Cardinal
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
-@ComponentMeta("hollowengine:model_renderer")
-class ModelComponent : Component<LivingEntity>() {
+class ModelComponent(entity: LivingEntity) : Component<LivingEntity>(entity) {
     val model by lazy {
         ClientModel(HollowModelManager.getOrCreate("hollowengine:models/entity/player_model.gltf".rl).model)
     }
@@ -47,12 +43,4 @@ class ModelComponent : Component<LivingEntity>() {
         isCanceled = true
     }
 
-}
-
-@Init
-fun loadComponents() {
-
-    Cardinal.on<RenderEntityEvent.Pre, ModelComponent> { model ->
-
-    }
 }

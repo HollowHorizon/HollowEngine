@@ -317,7 +317,7 @@ private fun copyTargetPositionToClipboard(player: Player) {
     CopyTextPacket("pos($roundedX, $roundedY, $roundedZ)").send(player as ServerPlayer)
 }
 
-private fun getAvailableComponents() = ComponentRegistry.map { it.key.location.toString() }.map { "\"$it\"" }
+private fun getAvailableComponents() = ComponentRegistry.map { it.key.toString() }.map { "\"$it\"" }
 
 private fun getAvailableModels(): Collection<String> {
     val defaultModels = listOf(

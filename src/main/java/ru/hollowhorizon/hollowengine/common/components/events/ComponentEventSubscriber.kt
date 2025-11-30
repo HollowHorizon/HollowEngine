@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.components.events
 
 import ru.hollowhorizon.hollowengine.common.components.Component
-import ru.hollowhorizon.hollowengine.common.components.binding.Side
 import ru.hollowhorizon.hollowengine.common.components.isClientSide
 import ru.hollowhorizon.hollowengine.common.events.*
+import ru.hollowhorizon.hollowengine.common.utils.Side
 import java.lang.invoke.LambdaMetafactory
 import java.lang.invoke.MethodHandles
 import java.lang.invoke.MethodType
@@ -32,7 +32,7 @@ object ComponentEventSubscriber {
 
         onAttach {
             listeners.forEach { instance ->
-                instance.side.whenOn(isClientSide) {
+                instance.side.runIf(isClientSide) {
                     EventBus.registerNoInline(instance.event, instance.handler)
                 }
             }
@@ -40,7 +40,7 @@ object ComponentEventSubscriber {
 
         onDetach {
             listeners.forEach { instance ->
-                instance.side.whenOn(isClientSide) {
+                instance.side.runIf(isClientSide) {
                     EventBus.unregisterNoInline(instance.event, instance.handler)
                 }
             }

@@ -11,6 +11,7 @@ import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.components.isClient
 import ru.hollowhorizon.hollowengine.common.components.registry.ComponentEntry
 import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
+import ru.hollowhorizon.hollowengine.common.components.registry.create
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityTrackingEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
@@ -19,8 +20,7 @@ import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.sendAllInDimension
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.registry.system.Holder
-import ru.hollowhorizon.hollowengine.common.registry.system.ResourceKey
-import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
+import ru.hollowhorizon.hollowengine.common.utils.JavaHacks.forceCast
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForTag
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 
@@ -28,7 +28,7 @@ import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 fun ComponentDispatcher.onTick() {
     `hollowcore$components`.values.forEach { it.onTick() }
 
-    if(isClient) return
+    if (isClient) return
 
     val changedComponents = `hollowcore$components`.mapNotNull { (location, component) ->
         val props = component.properties.mapNotNull { (name, property) ->
@@ -52,8 +52,8 @@ fun ComponentDispatcher.onTick() {
 
 fun ComponentDispatcher.sync(changedComponents: Map<Int, Map<String, @Serializable(ForTag::class) Tag>>) {
     if (changedComponents.isNotEmpty()) {
-        when(this) {
-            is Entity ->SyncEntityComponentsPacket(id, changedComponents).sendTrackingEntityAndSelf(this)
+        when (this) {
+            is Entity -> SyncEntityComponentsPacket(id, changedComponents).sendTrackingEntityAndSelf(this)
             is Level -> SyncLevelComponentsPacket(changedComponents).sendAllInDimension(this)
         }
     }
@@ -100,14 +100,14 @@ fun onPlayerLoggedIn(event: PlayerEvent.Join) {
 fun ComponentDispatcher.transferFrom(old: ComponentDispatcher) {
     old.`hollowcore$components`.forEach { (location, oldComponent) ->
         val newComponent = `hollowcore$components`.getOrPut(location) {
-            ComponentRegistry[ResourceKey(location)]()
+            ComponentRegistry[location].create(this)
         }
 
         oldComponent.properties.asSequence()
             .filter { (_, property) -> property.copyOnDeath }
             .forEach { (name, oldProperty) ->
                 newComponent.properties[name]?.let { newProperty ->
-                    newProperty.set(JavaHacks.forceCast(oldProperty.get()))
+                    newProperty.set(forceCast(oldProperty.get()))
                     newProperty.changed = true
                 }
             }
@@ -127,7 +127,7 @@ class SyncEntityComponentsPacket(
         components.forEach { (componentId, props) ->
             val holder = ComponentRegistry.getHolder(componentId) ?: return@forEach
 
-            val component = dispatcher.getOrAttachComponent(holder, dispatcher)
+            val component = dispatcher.getOrAttachComponent(holder)
 
             props.forEach { (name, tag) ->
                 component.properties[name]?.apply {
@@ -144,14 +144,14 @@ class SyncEntityComponentsPacket(
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 class SyncLevelComponentsPacket(
     val components: Map<Int, Map<String, @Serializable(ForTag::class) Tag>>,
-): HollowPacket {
+) : HollowPacket {
     override fun handle(player: Player) {
         val dispatcher = player.level() as? ComponentDispatcher ?: return
 
         components.forEach { (componentId, props) ->
             val holder = ComponentRegistry.getHolder(componentId) ?: return@forEach
 
-            val component = dispatcher.getOrAttachComponent(holder, dispatcher)
+            val component = dispatcher.getOrAttachComponent(holder)
 
             props.forEach { (name, tag) ->
                 component.properties[name]?.apply {
@@ -164,14 +164,10 @@ class SyncLevelComponentsPacket(
 
 }
 
-private fun <T: ComponentDispatcher> ComponentDispatcher.getOrAttachComponent(
-    holder: Holder<ComponentEntry>,
-    owner: T,
+private fun ComponentDispatcher.getOrAttachComponent(
+    holder: Holder<ComponentEntry<*>>,
 ): Component<*> {
-    return `hollowcore$components`.getOrPut(holder.key.location) {
-        holder.value().apply {
-            this.owner = JavaHacks.forceCast(owner)
-            onAttach()
-        }
+    return `hollowcore$components`.getOrPut(holder.key) {
+        holder.value.create(this).apply { onAttach() }
     }
 }

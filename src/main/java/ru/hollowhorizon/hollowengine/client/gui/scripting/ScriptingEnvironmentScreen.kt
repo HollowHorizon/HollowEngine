@@ -102,6 +102,7 @@ object ScriptingEnvironmentOverlay {
 }
 
 fun isMouseOverDock(x: Float, y: Float): Boolean {
+    if(ScriptingEnvironmentOverlay.isCollapsed) return false
     return (dock.dockables.values.any { it.isInBounds(Vec2f(x, y)) } || y <= ScriptingEnvironmentOverlay.titleBarHeight) && dock.isVisible
 }
 

@@ -4,7 +4,6 @@ import kotlinx.coroutines.*
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.IntTag
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.components.binding.Bindable
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.fsm.StateStorage
 
@@ -14,7 +13,7 @@ class Graph(
     private val globalEvents: List<EventHandler<*>>,
     private val rememberVariables: List<Variable<*>>,
     initialState: Int,
-) : CancelableStateControl, Bindable {
+) : CancelableStateControl {
     init {
         require(initialState in states.indices) { "Initial state index is out of bounds!" }
 
@@ -147,26 +146,26 @@ class Graph(
         currentState.await()
     }
 
-
-    override fun onAttach() {
-        if (!isStarted) start()
-    }
-
-    override fun onDetach() {
-        stop()
-    }
-
-    override fun onSave(tag: CompoundTag) {
-        tag.put("graph", serialize())
-    }
-
-    override fun onLoad(tag: CompoundTag) {
-        start(tag.getCompound("graph"))
-    }
-
-    override fun onUpdate() {
-        update()
-    }
+//
+//    override fun onAttach() {
+//        if (!isStarted) start()
+//    }
+//
+//    override fun onDetach() {
+//        stop()
+//    }
+//
+//    override fun onSave(tag: CompoundTag) {
+//        tag.put("graph", serialize())
+//    }
+//
+//    override fun onLoad(tag: CompoundTag) {
+//        start(tag.getCompound("graph"))
+//    }
+//
+//    override fun onUpdate() {
+//        update()
+//    }
 
     override fun transition(nextState: String) {
         currentState.status = Status.EXIT

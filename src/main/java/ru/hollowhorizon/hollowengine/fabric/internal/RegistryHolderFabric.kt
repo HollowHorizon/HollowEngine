@@ -2,13 +2,13 @@
 package ru.hollowhorizon.hollowengine.fabric.internal
 
 //? if < 1.21
-import net.minecraft.world.level.chunk.ChunkStatus
-import net.minecraft.commands.synchronization.ArgumentTypeInfo
-import net.minecraft.core.Registry
 //? if >= 1.21
 /*import net.minecraft.core.component.DataComponentType*/
+import net.minecraft.commands.synchronization.ArgumentTypeInfo
+import net.minecraft.core.Registry
 import net.minecraft.core.particles.ParticleType
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.resources.ResourceKey
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.sounds.SoundEvent
 import net.minecraft.stats.StatType
@@ -39,6 +39,7 @@ import net.minecraft.world.item.enchantment.Enchantment
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.entity.BannerPattern
 import net.minecraft.world.level.block.entity.BlockEntityType
+import net.minecraft.world.level.chunk.ChunkStatus
 import net.minecraft.world.level.gameevent.GameEvent
 import net.minecraft.world.level.gameevent.PositionSourceType
 import net.minecraft.world.level.levelgen.blockpredicates.BlockPredicateType
@@ -73,8 +74,6 @@ import ru.hollowhorizon.hollowengine.common.registry.IRegistryHolder
 import ru.hollowhorizon.hollowengine.common.registry.system.Holder
 import ru.hollowhorizon.hollowengine.common.registry.system.RegistryState
 import ru.hollowhorizon.hollowengine.common.registry.system.RegistryVersion
-import ru.hollowhorizon.hollowengine.common.registry.system.ResourceKey
-import ru.hollowhorizon.hollowengine.common.registry.system.keyOf
 import kotlin.jvm.optionals.getOrNull
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
@@ -92,31 +91,31 @@ class FabricRegistry<T : Any>(val registry: Registry<T>) :
 
     override fun getHolder(id: Int): Holder<T>? {
         val holder = registry.getHolder(id).getOrNull() ?: return null
-        return Holder<T>(keyOf(holder.key().location().namespace, holder.key().location().path), id).apply {
+        return Holder<T>(holder.key().location(), id).apply {
             this.value = holder.value()
         }
     }
 
-    override fun getOrNull(key: ResourceKey<T>): T? {
-        return registry.get(key.location)
+    override fun getOrNull(key: ResourceLocation): T? {
+        return registry.get(key)
     }
 
-    override fun getHolder(key: ResourceKey<T>): Holder<T>? {
+    override fun getHolder(key: ResourceLocation): Holder<T>? {
         val holder =
-            registry.getHolder(net.minecraft.resources.ResourceKey.create(registry.key(), key.location)).getOrNull()
+            registry.getHolder(ResourceKey.create(registry.key(), key)).getOrNull()
                 ?: return null
-        return Holder(key, registry.getId(holder.value())).apply {
+        return Holder<T>(key, registry.getId(holder.value())).apply {
             this.value = holder.value()
         }
     }
 
-    override fun contains(key: ResourceKey<T>): Boolean {
-        return registry.containsKey(key.location)
+    override fun contains(key: ResourceLocation): Boolean {
+        return registry.containsKey(key)
     }
 
     override fun iterator(): Iterator<Holder<T>> {
         return registry.holders().map {
-            Holder<T>(keyOf(it.key().location().namespace, it.key().location().path), getId(it.value())).apply {
+            Holder<T>(it.key().location(), getId(it.value())).apply {
                 this.value = it.value()
             }
         }.iterator()
@@ -125,17 +124,17 @@ class FabricRegistry<T : Any>(val registry: Registry<T>) :
     override val version: RegistryVersion = RegistryVersion(1, 0, 0)
 
     override fun register(
-        key: ResourceKey<T>,
+        key: ResourceLocation,
         supplier: () -> T,
     ): Holder<T> {
         val item = supplier()
-        Registry.register(registry, key.location, item)
-        return Holder(key, registry.getId(item)).apply {
+        Registry.register(registry, key, item)
+        return Holder<T>(key, registry.getId(item)).apply {
             this.value = item
         }
     }
 
-    override fun unregister(key: ResourceKey<T>): Boolean {
+    override fun unregister(key: ResourceLocation): Boolean {
         throw UnsupportedOperationException("Unregister is not supported in Fabric")
     }
 

@@ -1,16 +1,15 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
 import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.nbt.CompoundTag
-import net.minecraft.network.syncher.EntityDataAccessor
-import net.minecraft.network.syncher.EntityDataSerializers
-import net.minecraft.network.syncher.SynchedEntityData
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.damagesource.DamageSource
-import net.minecraft.world.entity.*
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.PathfinderMob
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.goal.FloatGoal
@@ -21,19 +20,16 @@ import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
-import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
 import ru.hollowhorizon.hollowengine.common.components.lifecycle.attach
-import ru.hollowhorizon.hollowengine.common.components.lifecycle.get
-import ru.hollowhorizon.hollowengine.common.utils.literal
-import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcMoveControl
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcPathNavigation
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
+import ru.hollowhorizon.hollowengine.common.utils.literal
+import ru.hollowhorizon.hollowengine.common.utils.rl
 
-@ComponentMeta("hollowengine:npcs/main")
-class NpcComponent: Component<NpcEntity>() {
+class NpcComponent(owner: NpcEntity): Component<NpcEntity>(owner) {
     var hitboxMode by property { HitboxMode.PULLING }
 }
 
@@ -93,15 +89,17 @@ class NpcEntity : PathfinderMob {
     }
 
     override fun doPush(pEntity: Entity) {
-        if (get<NpcComponent>()?.hitboxMode != HitboxMode.EMPTY) super.doPush(pEntity)
+        //if (get<NpcComponent>()?.hitboxMode != HitboxMode.EMPTY) super.doPush(pEntity)
     }
 
     override fun isPushable(): Boolean {
-        return super.isPushable() && get<NpcComponent>()?.hitboxMode == HitboxMode.PULLING
+        return false
+        //return super.isPushable() && get<NpcComponent>()?.hitboxMode == HitboxMode.PULLING
     }
 
     override fun canBeCollidedWith(): Boolean {
-        return get<NpcComponent>()?.hitboxMode == HitboxMode.BLOCKING && this.isAlive
+        return false
+        //return get<NpcComponent>()?.hitboxMode == HitboxMode.BLOCKING && this.isAlive
     }
 
     override fun aiStep() {
@@ -115,9 +113,9 @@ class NpcEntity : PathfinderMob {
     val pickupDistance get() = pickupReach
 
     var hitboxMode: HitboxMode
-        get() = get<NpcComponent>()?.hitboxMode ?: HitboxMode.PULLING
+        get() = HitboxMode.PULLING // get<NpcComponent>()?.hitboxMode ?: HitboxMode.PULLING
         set(value) {
-            get<NpcComponent>()?.hitboxMode = value
+            //get<NpcComponent>()?.hitboxMode = value
         }
 
     var name: String

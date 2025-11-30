@@ -75,7 +75,6 @@ import ru.hollowhorizon.hollowengine.common.registry.IRegistryHolder
 import ru.hollowhorizon.hollowengine.common.registry.system.Holder
 import ru.hollowhorizon.hollowengine.common.registry.system.RegistryState
 import ru.hollowhorizon.hollowengine.common.registry.system.RegistryVersion
-import ru.hollowhorizon.hollowengine.common.registry.system.keyOf
 import kotlin.jvm.optionals.getOrNull
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
@@ -91,29 +90,29 @@ class ForgeRegistry<T: Any>(val registry: Registry<T>): ru.hollowhorizon.hollowe
 
     override fun getHolder(id: Int): Holder<T>? {
         val holder = registry.getHolder(id).getOrNull() ?: return null
-        return Holder<T>(keyOf(holder.key().location().namespace, holder.key().location().path), id).apply {
+        return Holder<T>(holder.key().location(), id).apply {
             this.value = holder.value()
         }
     }
 
-    override fun getOrNull(key: ru.hollowhorizon.hollowengine.common.registry.system.ResourceKey<T>): T? {
-        return registry.get(key.location)
+    override fun getOrNull(key: ResourceLocation): T? {
+        return registry.get(key)
     }
 
-    override fun getHolder(key: ru.hollowhorizon.hollowengine.common.registry.system.ResourceKey<T>): Holder<T>? {
-        val holder = registry.getHolder(net.minecraft.resources.ResourceKey.create(registry.key(), key.location)).getOrNull() ?: return null
-        return Holder(key, registry.getId(holder.value())).apply {
+    override fun getHolder(key: ResourceLocation): Holder<T>? {
+        val holder = registry.getHolder(ResourceKey.create(registry.key(), key)).getOrNull() ?: return null
+        return Holder<T>(key, registry.getId(holder.value())).apply {
             this.value = holder.value()
         }
     }
 
-    override fun contains(key: ru.hollowhorizon.hollowengine.common.registry.system.ResourceKey<T>): Boolean {
-        return registry.containsKey(key.location)
+    override fun contains(key: ResourceLocation): Boolean {
+        return registry.containsKey(key)
     }
 
     override fun iterator(): Iterator<Holder<T>> {
         return registry.holders().map {
-            Holder<T>(keyOf(it.key().location().namespace, it.key().location().path), getId(it.value())).apply {
+            Holder<T>(it.key().location(), getId(it.value())).apply {
                 this.value = it.value()
             }
         }.iterator()
@@ -122,17 +121,17 @@ class ForgeRegistry<T: Any>(val registry: Registry<T>): ru.hollowhorizon.hollowe
     override val version: RegistryVersion = RegistryVersion(1, 0, 0)
 
     override fun register(
-        key: ru.hollowhorizon.hollowengine.common.registry.system.ResourceKey<T>,
+        key: ResourceLocation,
         supplier: () -> T,
     ): Holder<T> {
         val item = supplier()
-        Registry.register(registry, key.location, item)
-        return Holder(key, registry.getId(item)).apply {
+        Registry.register(registry, key, item)
+        return Holder<T>(key, registry.getId(item)).apply {
             this.value = item
         }
     }
 
-    override fun unregister(key: ru.hollowhorizon.hollowengine.common.registry.system.ResourceKey<T>): Boolean {
+    override fun unregister(key: ResourceLocation): Boolean {
         throw UnsupportedOperationException("Unregister is not supported in Fabric")
     }
 

@@ -3,11 +3,6 @@ package ru.hollowhorizon.hollowengine.common.registry
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.api.Init
 import ru.hollowhorizon.hollowengine.api.utils.Polymorphic
-import ru.hollowhorizon.hollowengine.common.components.Component
-import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
-import ru.hollowhorizon.hollowengine.common.components.generateProvider
-import ru.hollowhorizon.hollowengine.common.components.registry.ComponentEntry
-import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.config.Config
 import ru.hollowhorizon.hollowengine.common.config.ConfigName
 import ru.hollowhorizon.hollowengine.common.events.*
@@ -16,13 +11,10 @@ import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.registerPacket
 import ru.hollowhorizon.hollowengine.common.network.registerPackets
 import ru.hollowhorizon.hollowengine.common.registry.system.RegistryManager
-import ru.hollowhorizon.hollowengine.common.registry.system.keyOf
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBT_TAGS
-import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
-import java.lang.reflect.ParameterizedType
 
 object HollowModProcessor {
     init {
@@ -69,22 +61,6 @@ object HollowModProcessor {
                 val obj = method.declaringClass.kotlin.objectInstance
                     ?: throw IllegalArgumentException("${method.declaringClass.simpleName} must be an object!")
                 method.invoke(obj)
-            }
-        }
-
-        registerClassHandler<ComponentMeta> { klass, meta ->
-            val generator = generateProvider(klass as Class<Component<*>>)
-            val superType =
-                (klass.genericSuperclass as? ParameterizedType)?.actualTypeArguments?.getOrNull(0) as? Class<*> ?: run {
-                    HollowCore.LOGGER.warn("Class ${klass.simpleName} must have a generic superclass!")
-                    return@registerClassHandler
-                }
-            val location = meta.location.rl
-            ComponentRegistry.register(keyOf(location.namespace, location.path)) {
-                ComponentEntry(
-                    generator,
-                    superType
-                )
             }
         }
 

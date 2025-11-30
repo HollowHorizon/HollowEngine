@@ -1,15 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.components
 
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hollowengine.common.components.annotations.ComponentMeta
 import ru.hollowhorizon.hollowengine.common.components.events.ComponentEventSubscriber
 import ru.hollowhorizon.hollowengine.common.components.property.Property
 import ru.hollowhorizon.hollowengine.common.components.property.Sync
-import ru.hollowhorizon.hollowengine.common.utils.rl
-import kotlin.reflect.full.findAnnotation
 
-abstract class Component<T : Any> {
-    lateinit var owner: T
+abstract class Component<T : Any>(val owner: T) {
     val properties: MutableMap<String, Property<*>> = mutableMapOf()
     var enabled by property(ENABLED_KEY) { true }
         .sync(Sync.ON_CHANGE)
@@ -17,14 +13,6 @@ abstract class Component<T : Any> {
 
     inline fun <reified V : Any> property(name: String? = null, noinline initializer: () -> V) =
         Property(this, name, V::class.java, initializer)
-
-    inline fun <reified C : Component<*>> requires(): Lazy<C> = lazy {
-        val location = C::class.findAnnotation<ComponentMeta>()?.location?.rl
-            ?: error("No ComponentMeta annotation found for ${C::class.simpleName}")
-        val component = (owner as ComponentDispatcher).`hollowcore$components`[location] as? C
-            ?: throw IllegalStateException("Required component ${C::class.simpleName} not found")
-        component
-    }
 
     private var onAttaches = HashSet<() -> Unit>()
     private var onDetachs = HashSet<() -> Unit>()
@@ -38,31 +26,31 @@ abstract class Component<T : Any> {
         with(ComponentEventSubscriber) { setupEvents() }
     }
 
-    fun onAttach() {
+    internal open fun onAttach() {
         onAttaches.forEach { it() }
     }
 
-    fun onDetach() {
+    internal open fun onDetach() {
         onDetachs.forEach { it() }
     }
 
-    fun onTick() {
+    internal open fun onTick() {
         onTicks.forEach { it() }
     }
 
-    fun onEnabled() {
+    internal open fun onEnabled() {
         onEnableds.forEach { it() }
     }
 
-    fun onDisabled() {
+    internal open fun onDisabled() {
         onDisableds.forEach { it() }
     }
 
-    fun saveExtras(tag: CompoundTag) {
+    internal open fun saveExtras(tag: CompoundTag) {
         onSaves.forEach { it(tag) }
     }
 
-    fun loadExtras(tag: CompoundTag) {
+    internal open fun loadExtras(tag: CompoundTag) {
         onLoads.forEach { it(tag) }
     }
 
