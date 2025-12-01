@@ -9,8 +9,19 @@ import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
 
-class Property<V : Any>(val component: Component<*>, var name: String?, internal val serializer: Class<V>, private val initializer: () -> V) :
+class Property<V : Any>(
+    val component: Component<*>,
+    name: String?,
+    internal val serializer: Class<V>,
+    private val initializer: () -> V,
+) :
     ReadWriteProperty<Any?, V> {
+    lateinit var name: String
+
+    init {
+        name?.let { this.name = it }
+    }
+
     private var value: V? = null
     private var renderCreator: (() -> Renderer<V>)? = null
     var hasRenderer = false
@@ -24,11 +35,9 @@ class Property<V : Any>(val component: Component<*>, var name: String?, internal
 
     internal var copyOnDeath: Boolean = false
     private var onChange: Set<(V?, V) -> Unit> = hashSetOf()
-    internal var changed: Boolean = false
 
     operator fun provideDelegate(thisRef: Any?, property: KProperty<*>): Property<V> {
-        val name = name ?: property.name
-        this.name = name
+        if (!this::name.isInitialized) this.name = property.name
         component.properties[name] = this
         return this
     }
@@ -41,7 +50,6 @@ class Property<V : Any>(val component: Component<*>, var name: String?, internal
     fun set(value: V) {
         onChange.forEach { it.invoke(this.value, value) }
         this.value = value
-        changed = true
     }
 
     override fun getValue(thisRef: Any?, property: KProperty<*>): V {
@@ -50,6 +58,7 @@ class Property<V : Any>(val component: Component<*>, var name: String?, internal
 
     override fun setValue(thisRef: Any?, property: KProperty<*>, value: V) {
         set(value)
+        if (sync == Sync.ON_CHANGE) component.changedProperties.add(name)
     }
 
     fun sync(sync: Sync) = apply { this.sync = sync }
@@ -71,6 +80,5 @@ class Property<V : Any>(val component: Component<*>, var name: String?, internal
         val newValue = format.deserializeNoInline(tag, serializer)
         onChange.forEach { it.invoke(this.value, newValue) }
         this.value = newValue
-        changed = true
     }
 }

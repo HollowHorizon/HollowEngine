@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.common.commands
 
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
-import com.mojang.brigadier.context.CommandContext
 import de.fabmax.kool.math.Vec3f
 import kotlinx.serialization.Serializable
 import net.minecraft.ChatFormatting
@@ -24,9 +23,6 @@ import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.client.utils.mc
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
-import ru.hollowhorizon.hollowengine.common.components.lifecycle.attach
-import ru.hollowhorizon.hollowengine.common.components.lifecycle.detach
-import ru.hollowhorizon.hollowengine.common.components.lifecycle.edit
 import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
@@ -35,7 +31,6 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.utils.*
-import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
 import java.io.File
 import kotlin.math.pow
@@ -106,31 +101,22 @@ private fun CommandExtension.registerComponentCommands() {
     "components" {
         registerComponentAddCommands()
         registerComponentRemoveCommands()
-        registerComponentEditCommands()
     }
 }
 
 private fun CommandExtension.registerComponentAddCommands() {
     "add" {
-        registerEntityComponentCommand { entity, component -> entity.attach(component) }
-        registerLevelComponentCommand { level, component -> level.attach(component) }
-        registerServerComponentCommand { server, component -> server.attach(component) }
+        registerEntityComponentCommand { entity, component -> entity.container.attach(component) }
+        registerLevelComponentCommand { level, component -> level.container.attach(component) }
+        registerServerComponentCommand { server, component -> server.container.attach(component) }
     }
 }
 
 private fun CommandExtension.registerComponentRemoveCommands() {
     "remove" {
-        registerEntityComponentCommand { entity, component -> entity.detach(component) }
-        registerLevelComponentCommand { level, component -> level.detach(component) }
-        registerServerComponentCommand { server, component -> server.detach(component) }
-    }
-}
-
-private fun CommandExtension.registerComponentEditCommands() {
-    "edit" {
-        registerEntityEditCommand()
-        registerLevelEditCommand()
-        registerServerEditCommand()
+        registerEntityComponentCommand { entity, component -> entity.container.detach(component) }
+        registerLevelComponentCommand { level, component -> level.container.detach(component) }
+        registerServerComponentCommand { server, component -> server.container.detach(component) }
     }
 }
 
@@ -213,74 +199,6 @@ private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSour
             SUCCESS
         }
     }
-}
-
-private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSourceStack>>.registerEntityEditCommand() {
-    "entity"(
-        arg("entity", EntityArgument.entity()),
-        arg("component", StringArgumentType.string()) { getAvailableComponents() },
-        arg("property", StringArgumentType.string()),
-        arg("value", StringArgumentType.greedyString())
-    ) {
-        executes {
-            editComponentProperty(
-                EntityArgument.getEntity(this, "entity") as ComponentDispatcher,
-                StringArgumentType.getString(this, "component").rl,
-                StringArgumentType.getString(this, "property"),
-                StringArgumentType.getString(this, "value").trim()
-            )
-            SUCCESS
-        }
-    }
-}
-
-private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSourceStack>>.registerLevelEditCommand() {
-    "level"(
-        arg("level", DimensionArgument.dimension()),
-        arg("component", StringArgumentType.string()) { getAvailableComponents() },
-        arg("property", StringArgumentType.string()),
-        arg("value", StringArgumentType.greedyString())
-    ) {
-        executes {
-            editComponentProperty(
-                DimensionArgument.getDimension(this, "level") as ComponentDispatcher,
-                StringArgumentType.getString(this, "component").rl,
-                StringArgumentType.getString(this, "property"),
-                StringArgumentType.getString(this, "value").trim()
-            )
-            SUCCESS
-        }
-    }
-}
-
-private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSourceStack>>.registerServerEditCommand() {
-    "server"(
-        arg("component", StringArgumentType.string()) { getAvailableComponents() },
-        arg("property", StringArgumentType.string()),
-        arg("value", StringArgumentType.greedyString())
-    ) {
-        executes {
-            editComponentProperty(
-                source.server as ComponentDispatcher,
-                StringArgumentType.getString(this, "component").rl,
-                StringArgumentType.getString(this, "property"),
-                StringArgumentType.getString(this, "value").trim()
-            )
-            SUCCESS
-        }
-    }
-}
-
-private fun CommandContext<CommandSourceStack>.editComponentProperty(
-    dispatcher: ComponentDispatcher,
-    componentLocation: ResourceLocation,
-    propertyName: String,
-    value: String
-) {
-    dispatcher.edit(componentLocation, propertyName, JsonFormat, JsonFormat.decodeFromString(value))
-    sendSuccess({
-        createEditSuccessMessage(componentLocation, propertyName, value)
-    })
 }
 
 private fun createEditSuccessMessage(componentLocation: ResourceLocation, propertyName: String, value: String) =

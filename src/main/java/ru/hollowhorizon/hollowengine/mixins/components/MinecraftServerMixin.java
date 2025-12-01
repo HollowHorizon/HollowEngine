@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.mixins.components;
 
 import com.mojang.datafixers.DataFixer;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.Services;
 import net.minecraft.server.WorldStem;
@@ -17,20 +15,18 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import ru.hollowhorizon.hollowengine.common.components.Component;
+import ru.hollowhorizon.hollowengine.common.components.ComponentContainer;
+import ru.hollowhorizon.hollowengine.common.components.ComponentContainerKt;
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher;
-import ru.hollowhorizon.hollowengine.common.components.lifecycle.ComponentSaving;
-import ru.hollowhorizon.hollowengine.common.components.lifecycle.ComponentSyncingKt;
 
 import java.net.Proxy;
-import java.util.Map;
 
 
 @Mixin(value = MinecraftServer.class, priority = 999)
 public class MinecraftServerMixin implements ComponentDispatcher {
     @Shadow @Final protected LevelStorageSource.LevelStorageAccess storageSource;
     @Unique
-    private final Map<ResourceLocation, Component<?>> hollowCore$components = new Object2ObjectOpenHashMap<>();
+    private final ComponentContainer hollowengine$container = new ComponentContainer(this);
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void onInit(Thread serverThread, LevelStorageSource.LevelStorageAccess storageSource, PackRepository packRepository, WorldStem worldStem, Proxy proxy, DataFixer fixerUpper, Services services, ChunkProgressListenerFactory progressListenerFactory, CallbackInfo ci) {
@@ -41,7 +37,7 @@ public class MinecraftServerMixin implements ComponentDispatcher {
          *///?}
 
         if (file.exists()) {
-            ComponentSaving.save(this, file);
+            ComponentContainerKt.save(hollowengine$container, file);
         }
     }
 
@@ -53,16 +49,16 @@ public class MinecraftServerMixin implements ComponentDispatcher {
         /*var file = storageSource.getWorldDir().resolve(storageSource.getLevelId()).resolve("server_capability.dat").toFile();
          *///?}
 
-        ComponentSaving.save(this, file);
+        ComponentContainerKt.save(hollowengine$container, file);
     }
 
     @Inject(method = "tickServer", at = @At("HEAD"))
     protected void essential$runTasks(CallbackInfo ci) {
-        ComponentSyncingKt.onTick(this);
+        hollowengine$container.update();
     }
 
     @Override
-    public @NotNull Map<@NotNull ResourceLocation, @NotNull Component<?>> getHollowcore$components() {
-        return hollowCore$components;
+    public @NotNull ComponentContainer getContainer() {
+        return hollowengine$container;
     }
 }

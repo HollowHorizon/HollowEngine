@@ -14,11 +14,14 @@ data class CompiledScriptImpl(
     val script: kotlin.script.experimental.api.CompiledScript,
     val evalConfiguration: ScriptEvaluationConfiguration,
 ) : CompiledScript {
-
-    override val type: KClass<*>
-        get() = runBlocking {
+    private val scriptClassDelegate = lazy {
+        runBlocking {
             (script.getClass(evalConfiguration) as ResultWithDiagnostics.Success).value
         }
+    }
+
+    override val type: KClass<*>
+        get() = scriptClassDelegate.value
 
     @Suppress("UNCHECKED_CAST")
     override fun <T> execute(vararg constructorArgs: Any?): Result<T> {

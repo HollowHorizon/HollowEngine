@@ -70,12 +70,24 @@ class Primitive(
         weights = values
     }
 
-    fun setupPipeline(pipeline: RenderPipeline, skinGetter: SkinGetter, matrixGetter: MatrixGetter) {
+    fun setupPipeline(
+        pipeline: RenderPipeline,
+        skinGetter: SkinGetter,
+        matrixGetter: MatrixGetter,
+        visibilityGetter: VisibilityGetter,
+    ) {
         if (useBatching) {
-            initBatching(pipeline, matrixGetter, positions ?: return, texCoords ?: return, normals ?: return)
+            initBatching(
+                pipeline,
+                matrixGetter,
+                positions ?: return,
+                texCoords ?: return,
+                normals ?: return,
+                visibilityGetter
+            )
         } else {
-            initVAO(pipeline, matrixGetter)
-            initSkinning(pipeline, skinGetter)
+            initVAO(pipeline, matrixGetter, visibilityGetter)
+            initSkinning(pipeline, skinGetter, visibilityGetter)
         }
     }
 
@@ -358,14 +370,17 @@ class Primitive(
     private fun initVAO(
         pipeline: RenderPipeline,
         node: MatrixGetter,
+        visibilityGetter: VisibilityGetter,
     ) {
         if (useBatching) return
         if (morphTargets.isNotEmpty()) {
             pipeline.addVAORenderable {
+                if (!visibilityGetter()) return@addVAORenderable
                 updateMorphTargets()
             }
         }
         pipeline.addVAORenderable {
+            if (!visibilityGetter()) return@addVAORenderable
             renderVAO(node, stack)
         }
     }
@@ -414,12 +429,14 @@ class Primitive(
         positions: Array<Vec3f>,
         texCoords: Array<Vec2f>,
         normals: Array<Vec3f>,
+        visibilityGetter: VisibilityGetter,
     ) {
         val color = material.color
 
         val renderType = getRenderType()
         if (indices != null) {
             pipeline.addBatchedRenderable {
+                if (!visibilityGetter()) return@addBatchedRenderable
                 val vertexConsumer = source.getBuffer(renderType)
                 val pose = stack.last().pose()
                 val normal = stack.last().normal()
@@ -433,6 +450,7 @@ class Primitive(
             }
         } else {
             pipeline.addBatchedRenderable {
+                if (!visibilityGetter()) return@addBatchedRenderable
                 val vertexConsumer = source.getBuffer(renderType)
                 val pose = stack.last().pose()
                 val normal = stack.last().normal()
@@ -520,9 +538,9 @@ class Primitive(
         morphCommands.forEach { it(weights) }
     }
 
-    private fun initSkinning(pipeline: RenderPipeline, node: SkinGetter) {
-        if(hasSkinning) {
-            pipeline.addSkinnable { transformSkinning(node) }
+    private fun initSkinning(pipeline: RenderPipeline, node: SkinGetter, visibilityGetter: VisibilityGetter) {
+        if (hasSkinning) {
+            pipeline.addSkinnable { if (visibilityGetter()) transformSkinning(node) }
         }
     }
 
@@ -576,6 +594,7 @@ class Primitive(
 
 typealias MatrixGetter = () -> Mat4f
 typealias SkinGetter = () -> Array<Mat4f>
+typealias VisibilityGetter = () -> Boolean
 
 fun Vec3f.get(i: Int): Float {
     return when (i) {

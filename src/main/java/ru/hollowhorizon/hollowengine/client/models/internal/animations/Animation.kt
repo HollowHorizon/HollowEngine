@@ -3,35 +3,14 @@ package ru.hollowhorizon.hollowengine.client.models.internal.animations
 import de.fabmax.kool.math.QuatF
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.math.Vec4f
-import de.fabmax.kool.scene.TrsTransformF
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
-import ru.hollowhorizon.hollowengine.client.models.internal.v2.ClientNode
 
 class Animation(
     val name: String,
     val nodes: Map<Int, AnimationData>,
     var duration: Float = nodes.values.maxOf { it.duration },
 ) {
-    val temp = TrsTransformF()
-
-    fun compute(node: ClientNode, currentTime: Float): TrsTransformF? {
-        return nodes[node.definition.index]?.let {
-            val t = it.translation?.compute(currentTime)
-            val r = it.rotation?.compute(currentTime)
-            val s = it.scale?.compute(currentTime)
-
-            temp.setIdentity()
-            t?.let(temp::translate)
-            r?.let(temp::rotate)
-            s?.let(temp::scale)
-            temp
-        }
-    }
-
-    fun computeWeights(node: ClientNode, currentTime: Float): FloatArray? {
-        return nodes[node.definition.index]?.weights?.compute(currentTime)
-    }
 
     override fun toString() = name
 

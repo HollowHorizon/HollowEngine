@@ -11,10 +11,9 @@ import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipe
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix3f
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix4f
 
-class ItemNode(val entity: LivingEntity, val slot: EquipmentSlot, parent: RuntimeNode?): RuntimeNode("Item", parent=parent), RenderNode {
-    override val children: MutableList<RuntimeNode> = mutableListOf()
-
+class ItemNode(val entity: LivingEntity, val slot: EquipmentSlot, parent: Attachment?): Attachment(parent) {
     override fun collectCommands(pipeline: RenderPipeline) {
+        super.collectCommands(pipeline)
         pipeline.addBatchedRenderable {
             stack.pushPose()
 

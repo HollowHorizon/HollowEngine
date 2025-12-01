@@ -1,46 +1,28 @@
 package ru.hollowhorizon.hollowengine.common.components.entity
 
-import net.minecraft.client.renderer.entity.LivingEntityRenderer
-import net.minecraft.client.renderer.texture.OverlayTexture
-import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
-import org.joml.Quaternionf
-import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
-import ru.hollowhorizon.hollowengine.client.models.internal.v2.ClientModel
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.MOVEMENT_FACTOR
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.calculateSpeedViaDeltaMovement
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.bindRenderer
 import ru.hollowhorizon.hollowengine.common.components.Component
-import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
-import ru.hollowhorizon.hollowengine.common.utils.rl
+import kotlin.math.abs
 
 class ModelComponent(entity: LivingEntity) : Component<LivingEntity>(entity) {
-    val model by lazy {
-        ClientModel(HollowModelManager.getOrCreate("hollowengine:models/entity/player_model.gltf".rl).model)
-    }
+    init {
+        val model = ModelAttachment("hollowengine:models/entity/player_model.gltf")
 
-    private val pipeline by lazy {
-        ListRenderPipeline().apply { model.collectCommands(this) }
-    }
-
-    @SubscribeEvent
-    fun onRender(event: RenderEntityEvent.Pre) = with(event) {
-        poseStack.pushPose()
-
-        var overlay = OverlayTexture.NO_OVERLAY
-        if (entity is LivingEntity) {
-            poseStack.mulPose(
-                Quaternionf().rotateY(-Mth.rotLerp(partialTicks, entity.yBodyRotO, entity.yBodyRot) * Mth.DEG_TO_RAD)
-            )
-            overlay = LivingEntityRenderer.getOverlayCoords(entity, 0f)
+        model.onUpdate {
+            val speed = calculateSpeedViaDeltaMovement(owner)
+            val isMoving = abs(speed) >= MOVEMENT_FACTOR
+            animations["idle"].enabled = !isMoving
+            animations["walk"].enabled = isMoving
+            animations["walk"].speed = speed * 0.6f
+            animations["idle"].wrapMode = WrapMode.Loop
+            animations["walk"].wrapMode = WrapMode.Loop
         }
 
-        pipeline.render(
-            RenderContext(poseStack, buffer, packedLight, overlay)
-        )
-        poseStack.popPose()
-
-        isCanceled = true
+        model.bindRenderer()
     }
-
 }

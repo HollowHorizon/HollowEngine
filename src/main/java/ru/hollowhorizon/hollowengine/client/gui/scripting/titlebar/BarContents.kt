@@ -100,13 +100,9 @@ fun UiScope.Logo() {
     modifier.onClick {
         ScriptingEnvironmentOverlay.isCollapsed = !ScriptingEnvironmentOverlay.isCollapsed
     }
-    Image("hollowengine:textures/gui/logo/logo_hovered.png", SamplerMode.LINEAR) {
+    Image("hollowengine:textures/gui/logo/logo.svg", SamplerMode.LINEAR) {
         modifier.size(size, size).align(AlignmentX.Center, AlignmentY.Center)
-        modifier.tint(Color.WHITE.withAlpha(factor))
-    }
-    Image("hollowengine:textures/gui/logo/logo.png", SamplerMode.LINEAR) {
-        modifier.size(size, size).align(AlignmentX.Center, AlignmentY.Center)
-        modifier.tint(Color.WHITE.withAlpha(1f - factor))
+        modifier.tint(Color.WHITE.withAlpha(0.75f + 0.25f * factor))
     }
 }
 

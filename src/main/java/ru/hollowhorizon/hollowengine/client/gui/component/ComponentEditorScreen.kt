@@ -60,31 +60,9 @@ class ComponentEditorScreen(val provider: ComponentDispatcher) : KoolScreen() {
                         }
                 }
                 Splitter()
-                LazyColumn {
-                    items(provider.`hollowcore$components`.keys.toList()) {
-                        val component = provider.`hollowcore$components`[it] ?: return@items
 
-                        Column(Grow.Std) {
-                            val isCollapsed = remember { mutableStateOf(false) }
+            }
 
-                            ComponentHeader(it, isCollapsed)
-                            if (!isCollapsed.use()) {
-                                ComponentEditor(component)
-                            }
-                        }
-                    }
-                }
-            }
-            provider.`hollowcore$components`.values.forEach { component ->
-                component.properties.values.forEach { property ->
-                    if (property.hasRenderer) with(property.renderer) {
-                        editor(
-                            component,
-                            JavaHacks.forceCast(property)
-                        )
-                    }
-                }
-            }
         }
     }
 

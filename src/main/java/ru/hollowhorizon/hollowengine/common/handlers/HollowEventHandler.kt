@@ -6,10 +6,6 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.level.ServerLevel
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
-import ru.hollowhorizon.hollowengine.common.components.lifecycle.detach
-import ru.hollowhorizon.hollowengine.common.components.lifecycle.load
-import ru.hollowhorizon.hollowengine.common.components.lifecycle.onTick
-import ru.hollowhorizon.hollowengine.common.components.lifecycle.save
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.ItemTooltipEvent
 import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent
@@ -39,7 +35,7 @@ object HollowEventHandler {
         val level = event.level as ServerLevel
         val folder = (level.chunkSource.dataStorage as DimensionDataStorageAccessor).dataFolder
 
-        val tag = (event.level as ComponentDispatcher).save()
+        val tag = (event.level as ComponentDispatcher).container.save()
         if (tag.isEmpty && !event.level.server.isRunning) return
         val stream = folder.resolve("hollowengine-components.dat").outputStream()
         tag.save(stream)
@@ -55,7 +51,7 @@ object HollowEventHandler {
         if (components.exists()) {
             try {
                 val tag = DataInputStream(components.inputStream()).loadAsNBT() as CompoundTag
-                (event.level as ComponentDispatcher).load(tag)
+                (event.level as ComponentDispatcher).container.load(tag)
             } catch (e: Exception) {
                 HollowCore.LOGGER.warn(
                     "Exception, while loading components for level {}: ",
@@ -69,20 +65,20 @@ object HollowEventHandler {
     @SubscribeEvent
     fun onTickLevels(event: TickEvent.Server) {
         event.server.allLevels.forEach {
-            (it as ComponentDispatcher).onTick()
+            (it as ComponentDispatcher).container.update()
         }
     }
 
     @SubscribeEvent
     fun onTickClientLevel(event: TickEvent.Client) {
-        (event.minecraft.level as? ComponentDispatcher)?.onTick()
+        (event.minecraft.level as? ComponentDispatcher)?.container?.update()
     }
 
     @SubscribeEvent
     fun onServerStop(event: ServerEvent.Stoping) {
         event.server.allLevels.forEach {
             (it as ComponentDispatcher).apply {
-                `hollowcore$components`.keys.forEach { detach(it) }
+                container.components.keys.forEach { container.detach(it) }
             }
         }
     }

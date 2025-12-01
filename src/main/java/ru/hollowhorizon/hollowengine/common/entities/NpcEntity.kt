@@ -20,7 +20,6 @@ import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
-import ru.hollowhorizon.hollowengine.common.components.lifecycle.attach
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcMoveControl
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcPathNavigation
@@ -40,8 +39,8 @@ class NpcEntity : PathfinderMob {
     init {
         moveControl = NpcMoveControl(this)
         if(!level().isClientSide) (this as ComponentDispatcher).apply {
-            attach("hollowengine:npcs/main".rl)
-            attach("hollowengine:model_renderer".rl)
+            container.attach("hollowengine:npcs/main".rl)
+            container.attach("hollowengine:model_renderer".rl)
             //attach("hollowengine:animator".rl)
         }
     }

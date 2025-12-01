@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.components
 
-import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hollowengine.common.components.events.ComponentEventSubscriber
 import ru.hollowhorizon.hollowengine.common.components.property.Property
 import ru.hollowhorizon.hollowengine.common.components.property.Sync
 
@@ -14,17 +12,13 @@ abstract class Component<T : Any>(val owner: T) {
     inline fun <reified V : Any> property(name: String? = null, noinline initializer: () -> V) =
         Property(this, name, V::class.java, initializer)
 
+    var changedProperties = mutableSetOf<String>()
+
     private var onAttaches = HashSet<() -> Unit>()
     private var onDetachs = HashSet<() -> Unit>()
     private var onTicks = HashSet<() -> Unit>()
     private var onEnableds = HashSet<() -> Unit>()
     private var onDisableds = HashSet<() -> Unit>()
-    private var onSaves = HashSet<CompoundTag.() -> Unit>()
-    private var onLoads = HashSet<CompoundTag.() -> Unit>()
-
-    init {
-        with(ComponentEventSubscriber) { setupEvents() }
-    }
 
     internal open fun onAttach() {
         onAttaches.forEach { it() }
@@ -46,14 +40,6 @@ abstract class Component<T : Any>(val owner: T) {
         onDisableds.forEach { it() }
     }
 
-    internal open fun saveExtras(tag: CompoundTag) {
-        onSaves.forEach { it(tag) }
-    }
-
-    internal open fun loadExtras(tag: CompoundTag) {
-        onLoads.forEach { it(tag) }
-    }
-
     fun onAttach(action: () -> Unit) {
         onAttaches.add(action)
     }
@@ -72,14 +58,6 @@ abstract class Component<T : Any>(val owner: T) {
 
     fun onDisabled(action: () -> Unit) {
         onDisableds.add(action)
-    }
-
-    fun onSave(action: CompoundTag.() -> Unit) {
-        onSaves.add(action)
-    }
-
-    fun onLoad(action: CompoundTag.() -> Unit) {
-        onLoads.add(action)
     }
 
     fun enable() {

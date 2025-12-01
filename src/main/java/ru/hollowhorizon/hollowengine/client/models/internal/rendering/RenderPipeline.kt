@@ -14,7 +14,7 @@ typealias Renderable = RenderContext.() -> Unit
 interface RenderPipeline {
     fun addBatchedRenderable(action: Renderable)
     fun addVAORenderable(action: Renderable)
-    fun addInitializable(action: () -> Unit)
+    fun onUpdate(action: () -> Unit)
     fun addSkinnable(action: () -> Unit)
 
 
@@ -41,7 +41,7 @@ class ListRenderPipeline : RenderPipeline {
         vaoCommands.add(action)
     }
 
-    override fun addInitializable(action: () -> Unit) {
+    override fun onUpdate(action: () -> Unit) {
         commands.add(action)
     }
 

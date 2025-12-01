@@ -19,7 +19,7 @@ object ModComponents {
 }
 
 data class ComponentEntry<T : Any>(
-    val type: KClass<T>,
+    val targetType: KClass<T>,
     val generator: (T) -> Component<T>,
 ) : (T) -> Component<T> {
     override fun invoke(value: T) = generator(value)

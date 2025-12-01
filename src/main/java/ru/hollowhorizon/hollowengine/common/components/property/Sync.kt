@@ -8,6 +8,6 @@ fun interface Sync {
     }
 
     object ON_CHANGE : Sync {
-        override fun shouldSync(property: Property<*>): Boolean = property.changed
+        override fun shouldSync(property: Property<*>): Boolean = true
     }
 }

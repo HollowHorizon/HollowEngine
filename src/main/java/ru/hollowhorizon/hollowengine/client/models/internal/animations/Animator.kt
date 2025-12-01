@@ -1,15 +1,15 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animations
 
-import de.fabmax.kool.math.*
+import de.fabmax.kool.math.MutableQuatF
+import de.fabmax.kool.math.QuatF
+import de.fabmax.kool.math.Vec3f
+import de.fabmax.kool.math.deg
 import de.fabmax.kool.scene.TrsTransformF
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler.partialTick
 import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
-import ru.hollowhorizon.hollowengine.client.models.internal.v2.ClientModel
 import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
 
 
@@ -33,11 +33,11 @@ private val NodeDefinition.fullName: String
     }
 
 class AnimationInstance(private val animation: Animation) {
-    private val blendTime = BlendTime(0f, 0f)
+    private val blendTime = BlendTime(0.2f, 0.2f)
     private var reversed = false
     private var endTime = 0f
 
-    var blendCurve = Interpolation.LINEAR
+    var blendCurve = Interpolation.QUINT_IN
     private var _enabled = false
     var enabled: Boolean
         get() = _enabled
@@ -76,7 +76,7 @@ class AnimationInstance(private val animation: Animation) {
         blendTime.output = output
     }
 
-    fun update(model: ClientModel, dt: Float) {
+    fun update(model: Map<Int, TrsTransformF>, dt: Float) {
         time += if (state == State.PLAYING) speed * dt else dt
         when (state) {
             State.STARTING -> updateStarting(model)
@@ -86,11 +86,11 @@ class AnimationInstance(private val animation: Animation) {
     }
 
 
-    private fun updateStarting(model: ClientModel) {
+    private fun updateStarting(model: Map<Int, TrsTransformF>) {
         val factor = time / blendTime.input
         val weight = blendCurve(factor) * weight
         animation.nodes.forEach { (node, channels) ->
-            val transform = model.nodes[node]!!.transform
+            val transform = model[node] ?: return@forEach
 
             channels.translation?.let {
                 val translation = Vec3f.ZERO.mix(it.compute(0f), weight)
@@ -113,11 +113,11 @@ class AnimationInstance(private val animation: Animation) {
         }
     }
 
-    private fun updateEnding(model: ClientModel) {
+    private fun updateEnding(model: Map<Int, TrsTransformF>) {
         val factor = (time / blendTime.output).coerceAtMost(1f)
         val weight = blendCurve(factor) * weight
         animation.nodes.forEach { (node, channels) ->
-            val transform = model.nodes[node]!!.transform
+            val transform = model[node] ?: return@forEach
 
             channels.translation?.let {
                 val translation = it.compute(endTime).mix(Vec3f.ZERO, weight)
@@ -142,13 +142,13 @@ class AnimationInstance(private val animation: Animation) {
     }
 
 
-    private fun updatePlaying(model: ClientModel) {
+    private fun updatePlaying(model: Map<Int, TrsTransformF>) {
         applyWrapMode()
 
         val time = if (reversed) duration - time else time
 
         animation.nodes.forEach { (node, channels) ->
-            val transform = model.nodes[node]!!.transform
+            val transform = model[node] ?: return@forEach
 
             channels.translation?.let {
                 val translation = Vec3f.ZERO.mix(it.compute(time), weight)

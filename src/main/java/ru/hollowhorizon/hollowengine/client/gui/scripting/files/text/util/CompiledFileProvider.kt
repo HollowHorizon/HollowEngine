@@ -116,7 +116,7 @@ class CompiledFileProvider(
         // 3. Apply to Data Structure
         lines.subList(selectionStartLine, selectionStartLine + numLinesToRemove).clear()
         lines.addAll(selectionStartLine, newTextLines)
-        currentText = lines.joinToString("\n") { it.text }
+        currentText = lines.joinToString("\n") { it.text }.replace("\r\n", "")
 
         // 4. Calculate New Caret
         val newCaretLine = selectionStartLine + newLinesRaw.lastIndex

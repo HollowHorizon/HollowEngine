@@ -20,7 +20,6 @@ import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForTag
-import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 
 interface Renderer<V : Any> {
     fun UiScope.render(component: Component<*>, property: Property<V>)
@@ -146,7 +145,6 @@ class UpdatePropertyPacket(
         val entity = player.level().getEntity(entityId) ?: return
         val dispatcher = entity as? ComponentDispatcher ?: return
         val location = ComponentRegistry.getLocationById(componentId)
-        dispatcher.`hollowcore$components`[location]?.properties?.get(property)?.deserialize(NBTFormat, tag)
 
     }
 }
