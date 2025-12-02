@@ -3,20 +3,11 @@ package ru.hollowhorizon.hollowengine.client.models.internal.v2
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.math.deg
 import de.fabmax.kool.util.Time
-import net.minecraft.client.renderer.entity.LivingEntityRenderer
-import net.minecraft.client.renderer.texture.OverlayTexture
-import net.minecraft.util.Mth
-import net.minecraft.world.entity.LivingEntity
-import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.client.models.internal.Model
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
-import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
-import ru.hollowhorizon.hollowengine.common.components.Component
-import ru.hollowhorizon.hollowengine.common.components.events.on
-import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 
@@ -62,34 +53,6 @@ class ModelAttachment(model: Model, parent: Attachment?) : Attachment(parent) {
     }
 
     fun child(name: String) = nodes.single { it.name == name }
-}
-
-context(component: Component<LivingEntity>)
-fun ModelAttachment.bindRenderer() {
-    component.on<RenderEntityEvent.Pre>().onlyOwner { it.entity }.listen { event ->
-        with(event) {
-            poseStack.pushPose()
-
-            var overlay = OverlayTexture.NO_OVERLAY
-            if (this.entity is LivingEntity) {
-                poseStack.mulPose(
-                    Quaternionf().rotateY(
-                        -Mth.rotLerp(
-                            partialTicks,
-                            entity.yBodyRotO,
-                            entity.yBodyRot
-                        ) * Mth.DEG_TO_RAD
-                    )
-                )
-                overlay = LivingEntityRenderer.getOverlayCoords(entity, 0f)
-            }
-
-            pipeline.render(RenderContext(poseStack, buffer, packedLight, overlay))
-            poseStack.popPose()
-
-            isCanceled = true
-        }
-    }
 }
 
 class Animations(private val map: Map<String, AnimationInstance>) : Collection<AnimationInstance> {

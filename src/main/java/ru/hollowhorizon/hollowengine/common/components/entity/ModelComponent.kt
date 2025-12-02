@@ -5,11 +5,10 @@ import ru.hollowhorizon.hollowengine.client.models.internal.controller.MOVEMENT_
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.calculateSpeedViaDeltaMovement
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
-import ru.hollowhorizon.hollowengine.client.models.internal.v2.bindRenderer
-import ru.hollowhorizon.hollowengine.common.components.Component
+import ru.hollowhorizon.hollowengine.common.scripting.types.LivingEntityComponent
 import kotlin.math.abs
 
-class ModelComponent(entity: LivingEntity) : Component<LivingEntity>(entity) {
+class ModelComponent(entity: LivingEntity) : LivingEntityComponent(entity) {
     init {
         val model = ModelAttachment("hollowengine:models/entity/player_model.gltf")
 

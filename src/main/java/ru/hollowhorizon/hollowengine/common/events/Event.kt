@@ -10,7 +10,7 @@ interface Cancelable {
 
 interface ClientEvent: Event
 
-interface ComponentDispatcherEvent<T>: Event {
+interface ComponentDispatcherEvent: Event {
     val owner: ComponentDispatcher
 }
 

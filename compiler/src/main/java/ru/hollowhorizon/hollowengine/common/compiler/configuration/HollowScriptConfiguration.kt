@@ -14,6 +14,12 @@ open class HollowScriptConfiguration(classpath: List<File>, body: Builder.() -> 
     jvm {
         compilerOptions(
             "-opt-in=kotlin.time.ExperimentalTime,kotlin.ExperimentalStdlibApi",
+            "-opt-in=org.jetbrains.kotlin.analysis.api.KaPlatformInterface",
+            "-opt-in=org.jetbrains.kotlin.analysis.api.KaImplementationDetail",
+            "-opt-in=org.jetbrains.kotlin.analysis.api.KaExperimentalApi",
+            "-opt-in=org.jetbrains.kotlin.analysis.api.KaIdeApi",
+            "-opt-in=org.jetbrains.kotlin.analysis.api.KaContextParameterApi",
+            "-Xcontext-parameters",
             "-jvm-target=17",
             "-Xadd-modules=ALL-MODULE-PATH" // Loading kotlin from shadowed jar
         )

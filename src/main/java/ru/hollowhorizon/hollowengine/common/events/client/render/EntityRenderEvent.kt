@@ -62,7 +62,7 @@ open class RenderEntityEvent(
     val poseStack: PoseStack,
     val buffer: MultiBufferSource,
     val packedLight: Int,
-) : ComponentDispatcherEvent<Entity>, ClientEvent {
+) : ComponentDispatcherEvent, ClientEvent {
     override val owner: ComponentDispatcher
         get() = entity as ComponentDispatcher
 
@@ -95,7 +95,7 @@ class RenderPlayerEvent(
     val poseStack: PoseStack,
     val buffer: MultiBufferSource,
     val packedLight: Int,
-) : ComponentDispatcherEvent<AbstractClientPlayer>, ClientEvent, Cancelable {
+) : ComponentDispatcherEvent, ClientEvent, Cancelable {
     override val owner: ComponentDispatcher
         get() = player as ComponentDispatcher
     override var isCanceled = false
