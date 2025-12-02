@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.components.entity
 
 import net.minecraft.world.entity.LivingEntity
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.headRotation
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.MOVEMENT_FACTOR
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.calculateSpeedViaDeltaMovement
@@ -12,6 +13,8 @@ class ModelComponent(entity: LivingEntity) : LivingEntityComponent(entity) {
     init {
         val model = ModelAttachment("hollowengine:models/entity/player_model.gltf")
 
+        val head = model.child("Node_86").child("Model").child("Body").child("BodyUp").child("Head")
+
         model.onUpdate {
             val speed = calculateSpeedViaDeltaMovement(owner)
             val isMoving = abs(speed) >= MOVEMENT_FACTOR
@@ -20,6 +23,8 @@ class ModelComponent(entity: LivingEntity) : LivingEntityComponent(entity) {
             animations["walk"].speed = speed * 0.6f
             animations["idle"].wrapMode = WrapMode.Loop
             animations["walk"].wrapMode = WrapMode.Loop
+
+            head.transform.rotate(owner.headRotation)
         }
 
         model.bindRenderer()

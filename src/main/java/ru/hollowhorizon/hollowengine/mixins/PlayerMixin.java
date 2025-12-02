@@ -32,6 +32,8 @@ public abstract class PlayerMixin extends LivingEntity {
 
     @Inject(method = "interactOn", at = @At("HEAD"), cancellable = true)
     private void onInteract(Entity entityToInteractOn, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
+        // На клиенте это событие уже было (MultiPlayerGameMode вызывает этот метод с клиента, а на сервере он должен вызываться тут)
+        if (level().isClientSide) return;
         var event = new PlayerInteractEvent.EntityInteract(JavaHacks.forceCast(this), hand, entityToInteractOn);
         EventBus.post(event);
         if (event.isCanceled()) cir.setReturnValue(InteractionResult.PASS);
