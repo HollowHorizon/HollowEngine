@@ -53,10 +53,6 @@ import org.jetbrains.kotlin.analysis.decompiler.psi.KotlinClassFileDecompiler
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreApplicationEnvironmentMode
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreProjectEnvironment
-import org.jetbrains.kotlin.config.ApiVersion
-import org.jetbrains.kotlin.config.LanguageFeature
-import org.jetbrains.kotlin.config.LanguageVersion
-import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 import org.jetbrains.kotlin.library.KLIB_METADATA_FILE_EXTENSION
 import org.jetbrains.kotlin.load.kotlin.PackagePartProvider
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
@@ -324,13 +320,7 @@ class AnalysisEnvironment(
                 kotlinCoreProjectEnvironment,
                 libraries,
                 emptyList<Any>(),
-                LanguageVersionSettingsImpl(
-                    LanguageVersion.LATEST_STABLE, ApiVersion.LATEST_STABLE,
-                    emptyMap(),
-                    mapOf(
-                        LanguageFeature.ContextReceivers to LanguageFeature.State.ENABLED
-                    )
-                ),
+                HollowEngineLanguageSettings.INSTANCE,
                 null,
             )
 

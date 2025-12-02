@@ -15,7 +15,7 @@ import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.getChildrenOfType
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.InlayHint
 import ru.hollowhorizon.hollowengine.common.ide.session.completion.util.renderVerbose
-
+import ru.hollowhorizon.hollowengine.logE
 val KtNamedDeclaration.isSingleUnderscore: Boolean
     get() {
         // We don't want to call 'getNameIdentifier' on stubs to prevent text building
@@ -28,18 +28,13 @@ val KtNamedDeclaration.isSingleUnderscore: Boolean
 context(session: KaSession)
 private fun PsiElement.determineType(): KaType? =
     with(session) {
-        try {
-            when (this@determineType) {
-                is KtNamedFunction -> symbol.returnType
-                is KtCallExpression -> expressionType
-                is KtParameter if isLambdaParameter && typeReference == null -> returnType
-                is KtDestructuringDeclarationEntry if !isSingleUnderscore -> expressionType
-                is KtProperty -> returnType.takeIf { this !is KaErrorType }
-                else -> null
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return null
+        when (this@determineType) {
+            is KtNamedFunction -> symbol.returnType
+            is KtCallExpression -> expressionType
+            is KtParameter if isLambdaParameter && typeReference == null -> returnType
+            is KtDestructuringDeclarationEntry if !isSingleUnderscore -> expressionType
+            is KtProperty -> returnType.takeIf { this !is KaErrorType }
+            else -> null
         }
     }
 
@@ -181,14 +176,18 @@ context(session: KaSession)
 fun provideHints(file: KtFile): List<InlayHint> {
     val res = mutableListOf<InlayHint>()
     for (node in file.preOrderTraversal().asIterable()) {
-        when (node) {
-            is KtNamedFunction -> functionHint(res, node)
-            is KtLambdaArgument -> lambdaValueParamHints(res, node)
-            // TODO: chained expressions обычно в Java применяют, в Kotlin от них толку мало, но можно будет в конфиг добавить
-            // is KtDotQualifiedExpression -> chainedExpressionHints(res, node)
-            is KtCallExpression -> callableArgNameHints(res, node)
-            is KtDestructuringDeclaration -> destructuringVarHints(res, node)
-            is KtProperty -> declarationHint(res, node)
+        try {
+            when (node) {
+                is KtNamedFunction -> functionHint(res, node)
+                is KtLambdaArgument -> lambdaValueParamHints(res, node)
+                // TODO: chained expressions обычно в Java применяют, в Kotlin от них толку мало, но можно будет в конфиг добавить
+                // is KtDotQualifiedExpression -> chainedExpressionHints(res, node)
+                is KtCallExpression -> callableArgNameHints(res, node)
+                is KtDestructuringDeclaration -> destructuringVarHints(res, node)
+                is KtProperty -> declarationHint(res, node)
+            }
+        } catch (e: Throwable) {
+            logE(e)
         }
     }
     return res

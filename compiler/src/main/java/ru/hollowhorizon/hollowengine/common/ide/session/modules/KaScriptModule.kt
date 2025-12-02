@@ -6,10 +6,10 @@ import org.jetbrains.kotlin.analysis.api.KaPlatformInterface
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaScriptModule
 import org.jetbrains.kotlin.config.LanguageVersionSettings
-import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
 import org.jetbrains.kotlin.psi.KtFile
+import ru.hollowhorizon.hollowengine.common.ide.session.HollowEngineLanguageSettings
 
 class KaScriptModule(
     override val file: KtFile,
@@ -22,7 +22,7 @@ class KaScriptModule(
         get() = GlobalSearchScope.fileScope(file)
 
     override val languageVersionSettings: LanguageVersionSettings
-        get() = LanguageVersionSettingsImpl.DEFAULT
+        get() = HollowEngineLanguageSettings.INSTANCE
 
     override val targetPlatform: TargetPlatform
         get() = JvmPlatforms.defaultJvmPlatform
