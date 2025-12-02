@@ -17,10 +17,8 @@ import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.block.SkullBlock
-import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.events.Cancelable
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
-import ru.hollowhorizon.hollowengine.common.events.ComponentDispatcherEvent
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 
 class RegisterEntityLayersDefinitions(private val layerDefinitions: Map<ModelLayerLocation, () -> LayerDefinition>) :
@@ -62,9 +60,7 @@ open class RenderEntityEvent(
     val poseStack: PoseStack,
     val buffer: MultiBufferSource,
     val packedLight: Int,
-) : ComponentDispatcherEvent, ClientEvent {
-    override val owner: ComponentDispatcher
-        get() = entity as ComponentDispatcher
+): ClientEvent {
 
     class Pre(
         entity: Entity,
@@ -95,8 +91,6 @@ class RenderPlayerEvent(
     val poseStack: PoseStack,
     val buffer: MultiBufferSource,
     val packedLight: Int,
-) : ComponentDispatcherEvent, ClientEvent, Cancelable {
-    override val owner: ComponentDispatcher
-        get() = player as ComponentDispatcher
+) : ClientEvent, Cancelable {
     override var isCanceled = false
 }

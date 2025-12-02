@@ -8,6 +8,7 @@ import ru.hollowhorizon.hollowengine.common.events.Event
 class ServerChatEvent(
     val player: ServerPlayer, var message: Component,
 ) : Event, Cancelable {
+
     override var isCanceled = false
     val username get() = player.gameProfile.name
 }

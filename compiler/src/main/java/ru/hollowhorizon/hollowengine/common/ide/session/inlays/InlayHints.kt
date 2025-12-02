@@ -28,13 +28,18 @@ val KtNamedDeclaration.isSingleUnderscore: Boolean
 context(session: KaSession)
 private fun PsiElement.determineType(): KaType? =
     with(session) {
-        when (this@determineType) {
-            is KtNamedFunction -> symbol.returnType
-            is KtCallExpression -> expressionType
-            is KtParameter if isLambdaParameter && typeReference == null -> returnType
-            is KtDestructuringDeclarationEntry if !isSingleUnderscore -> expressionType
-            is KtProperty -> returnType.takeIf { this !is KaErrorType }
-            else -> null
+        try {
+            when (this@determineType) {
+                is KtNamedFunction -> symbol.returnType
+                is KtCallExpression -> expressionType
+                is KtParameter if isLambdaParameter && typeReference == null -> returnType
+                is KtDestructuringDeclarationEntry if !isSingleUnderscore -> expressionType
+                is KtProperty -> returnType.takeIf { this !is KaErrorType }
+                else -> null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
         }
     }
 
@@ -101,7 +106,7 @@ private fun callableArgNameHints(
 context(session: KaSession)
 private fun lambdaValueParamHints(
     acc: MutableList<InlayHint>,
-    node: KtLambdaArgument
+    node: KtLambdaArgument,
 ) {
 
     val params = node.getLambdaExpression()!!.valueParameters
@@ -139,7 +144,7 @@ private fun chainedExpressionHints(
 context(session: KaSession)
 private fun destructuringVarHints(
     acc: MutableList<InlayHint>,
-    node: KtDestructuringDeclaration
+    node: KtDestructuringDeclaration,
 ) {
     val hints = node.entries.mapNotNull {
         it.hintBuilder(InlayKind.TypeHint)
@@ -150,7 +155,7 @@ private fun destructuringVarHints(
 context(session: KaSession)
 private fun declarationHint(
     acc: MutableList<InlayHint>,
-    node: KtProperty
+    node: KtProperty,
 ) {
     //check decleration does not include type i.e. var t1: String
     if (node.typeReference != null) return
