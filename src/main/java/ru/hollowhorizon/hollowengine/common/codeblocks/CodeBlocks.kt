@@ -13,7 +13,6 @@ abstract class CodeBlock(val color: Color, val isExpression: Boolean = false) {
     var next: CodeBlock? = null
     var parent: CodeBlock? = null
 
-    // Хранит и горизонтальные инпуты, и корни вертикальных цепочек (Statement Lists)
     val inputs = mutableMapOf<String, CodeBlock>()
 
     var parentBlock: CodeBlock? = null
@@ -41,7 +40,6 @@ abstract class CodeBlock(val color: Color, val isExpression: Boolean = false) {
     open fun BlockEditor.InputSlotScope.composeBody() {}
 }
 
-// --- Пример 1: Обычный блок ---
 class PrintBlock(var defaultMessage: String = "") : CodeBlock(MdColor.DEEP_PURPLE, isExpression = false) {
     override suspend fun execute(context: BlockContext): Any? {
         val msg = inputs["msg"]?.execute(context) ?: defaultMessage
@@ -55,7 +53,6 @@ class PrintBlock(var defaultMessage: String = "") : CodeBlock(MdColor.DEEP_PURPL
     }
 }
 
-// --- Пример 2: Блок Значения ---
 class StringValueBlock(var value: String) : CodeBlock(MdColor.AMBER, isExpression = true) {
     override suspend fun execute(context: BlockContext) = value
     override fun BlockEditor.InputSlotScope.composeContent() {
@@ -81,12 +78,10 @@ class RepeatBlock : CodeBlock(MdColor.ORANGE, isExpression = false) {
     }
 
     override fun BlockEditor.InputSlotScope.composeBody() {
-        // Просто одно тело
         BodySlot("body")
     }
 }
 
-// --- Блок с двумя телами (If-Else) ---
 class IfBlock : CodeBlock(MdColor.TEAL, isExpression = false) {
     override suspend fun execute(context: BlockContext): Any? {
         val condition = inputs["cond"]?.execute(context) as? Boolean ?: false
@@ -104,13 +99,10 @@ class IfBlock : CodeBlock(MdColor.TEAL, isExpression = false) {
     }
 
     override fun BlockEditor.InputSlotScope.composeBody() {
-        // 1. Слот для ветки Then
         BodySlot("then")
 
-        // 2. Разделитель (визуальная перемычка)
         SectionSeparator("Else")
 
-        // 3. Слот для ветки Else
         BodySlot("else")
     }
 }
