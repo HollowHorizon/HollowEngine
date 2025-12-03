@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
-import de.fabmax.kool.math.MutableVec2f
 import de.fabmax.kool.modules.ui2.Text
 import de.fabmax.kool.modules.ui2.UiScope
+import de.fabmax.kool.modules.ui2.mutableStateOf
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MdColor
 
@@ -13,10 +13,16 @@ class BlockContext {
 abstract class CodeBlock(val color: Color) {
     var next: CodeBlock? = null
 
-    val position = MutableVec2f(50f, 50f)
+    // Используем State для реактивности координат
+    val positionX = mutableStateOf(50f)
+    val positionY = mutableStateOf(50f)
+
+    fun setPosition(x: Float, y: Float) {
+        positionX.set(x)
+        positionY.set(y)
+    }
 
     abstract suspend fun execute(context: BlockContext)
-
     abstract fun UiScope.composeContent()
 }
 
