@@ -5,18 +5,11 @@ import de.fabmax.kool.modules.ui2.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.PrintBlock
 
-sealed class DropAction(val target: CodeBlock) {
-    class InsertBefore(target: CodeBlock) : DropAction(target)
-    class AttachAfter(target: CodeBlock) : DropAction(target)
-
-    // Для корректного сравнения в списках
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is DropAction) return false
-        if (this::class != other::class) return false
-        return target == other.target
-    }
-    override fun hashCode(): Int = target.hashCode()
+// DropAction как sealed interface + data classes => equals/hashCode корректны автоматически
+sealed interface DropAction {
+    val target: CodeBlock
+    data class InsertBefore(override val target: CodeBlock) : DropAction
+    data class AttachAfter(override val target: CodeBlock) : DropAction
 }
 
 class BlockEditor {
@@ -27,14 +20,20 @@ class BlockEditor {
 
     var potentialAction: DropAction? = null
 
+    // Храним уникальные (action, node), чтобы избежать дубликатов
     private val dropTargets = mutableListOf<Pair<DropAction, UiNode>>()
 
-    // Константы для размеров зон, чтобы они совпадали у Блока и у Призрака
-    private val TOP_ZONE_HEIGHT = Dp(40f)
-    private val TOP_ZONE_OFFSET = Dp(-30f) // Сильный вынос вверх
+    // Временный вектор для перерасчётов в onDrag — один объект, переиспользуется
+    private val tmpLocal = MutableVec2f()
 
-    private val BOTTOM_ZONE_HEIGHT = Dp(30f)
-    private val BOTTOM_ZONE_OFFSET = Dp(-10f)
+    companion object {
+        // Константы размеров зон (camelCase)
+        private val topZoneHeight = Dp(40f)
+        private val topZoneOffset = Dp(-30f)
+
+        private val bottomZoneHeight = Dp(30f)
+        private val bottomZoneOffset = Dp(-10f)
+    }
 
     init {
         // Тестовые данные
@@ -48,6 +47,7 @@ class BlockEditor {
     }
 
     fun UiScope.EditorLayout() {
+        // каждый кадр/рендер заново собираем цели
         dropTargets.clear()
 
         ScrollPane(rememberScrollState()) {
@@ -72,37 +72,35 @@ class BlockEditor {
             val action = potentialAction
             val isDraggingOther = draggingBlock != null && draggingBlock != block
 
-            // --- 1. ПРЕВЬЮ ВСТАВКИ СВЕРХУ (Insert Before) ---
+            // --- PREVIEW INSERT BEFORE ---
             if (isDraggingOther && action is DropAction.InsertBefore && action.target == block) {
                 Box {
-                    modifier.layout(CellLayout) // Чтобы наложить ловушку поверх призрака
+                    modifier.layout(CellLayout)
 
-                    // А. Сам призрак
+                    // ghost
                     renderGhostChain(draggingBlock!!)
 
-                    // Б. Страховочная зона (Safety Net)
-                    // Она должна торчать вверх ТАК ЖЕ, как зона у реального блока,
-                    // чтобы поймать мышь, когда реальный блок уедет вниз.
+                    // safety zone (top)
                     Box {
                         modifier
                             .width(Grow.Std)
-                            .height(TOP_ZONE_HEIGHT)
-                            .margin(top = TOP_ZONE_OFFSET)
+                            .height(topZoneHeight)
+                            .margin(top = topZoneOffset)
                             .alignY(AlignmentY.Top)
 
-                        dropTargets.add(action to uiNode)
+                        addDropTargetOnce(action, uiNode)
                     }
 
-                    // В. Тело призрака тоже является зоной
-                    dropTargets.add(action to uiNode)
+                    // ghost body area as target too
+                    addDropTargetOnce(action, uiNode)
                 }
             }
 
-            // --- 2. БЛОК И ЕГО ЗОНЫ ---
+            // --- REAL BLOCK + ZONES ---
             Box {
                 modifier.layout(CellLayout)
 
-                // Визуал блока
+                // visual + drag handlers
                 BlockVisual(block) {
                     modifier
                         .onDragStart { ev -> handleDragStart(block, ev) }
@@ -110,54 +108,51 @@ class BlockEditor {
                         .onDragEnd { handleDragEnd(block) }
                 }
 
-                // Зона сверху
+                // top insertion zone
                 Box {
                     modifier
                         .width(Grow.Std)
-                        .height(TOP_ZONE_HEIGHT)
+                        .height(topZoneHeight)
                         .alignY(AlignmentY.Top)
-                        .margin(top = TOP_ZONE_OFFSET)
-                    //.border(RectBorder(Color.GREEN, 1.dp)) // Debug
+                        .margin(top = topZoneOffset)
 
-                    dropTargets.add(DropAction.InsertBefore(block) to uiNode)
+                    addDropTargetOnce(DropAction.InsertBefore(block), uiNode)
                 }
 
-                // Зона снизу
+                // bottom attach zone
                 Box {
                     modifier
                         .width(Grow.Std)
-                        .height(BOTTOM_ZONE_HEIGHT)
+                        .height(bottomZoneHeight)
                         .alignY(AlignmentY.Bottom)
-                        .margin(bottom = BOTTOM_ZONE_OFFSET)
-                    //.border(RectBorder(Color.BLUE, 1.dp)) // Debug
+                        .margin(bottom = bottomZoneOffset)
 
-                    dropTargets.add(DropAction.AttachAfter(block) to uiNode)
+                    addDropTargetOnce(DropAction.AttachAfter(block), uiNode)
                 }
             }
 
-            // --- 3. ПРЕВЬЮ ВСТАВКИ СНИЗУ (Attach After) ---
+            // --- PREVIEW ATTACH AFTER ---
             if (isDraggingOther && action is DropAction.AttachAfter && action.target == block) {
                 Box {
                     modifier.layout(CellLayout)
 
                     renderGhostChain(draggingBlock!!)
 
-                    // Страховочная зона для низа
                     Box {
                         modifier
                             .width(Grow.Std)
-                            .height(BOTTOM_ZONE_HEIGHT)
-                            .margin(bottom = BOTTOM_ZONE_OFFSET)
+                            .height(bottomZoneHeight)
+                            .margin(bottom = bottomZoneOffset)
                             .alignY(AlignmentY.Bottom)
 
-                        dropTargets.add(action to uiNode)
+                        addDropTargetOnce(action, uiNode)
                     }
 
-                    dropTargets.add(action to uiNode)
+                    addDropTargetOnce(action, uiNode)
                 }
             }
 
-            // --- 4. РЕКУРСИЯ ---
+            // recurse
             block.next?.let { nextBlock ->
                 renderBlock(nextBlock, isRoot = false)
             }
@@ -187,13 +182,14 @@ class BlockEditor {
             Box { modifier.height(5.dp).width(Grow.Std) }
             Row {
                 modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                if (isGhost) with(block) { composeContent() } else with(block) { composeContent() }
+                // composeContent() вызываем напрямую; if-else не нужен (в обоих случаях одно и то же)
+                with(block) { composeContent() }
             }
             Box { modifier.height(5.dp).width(Grow.Std) }
         }
     }
 
-    // --- ОБРАБОТЧИКИ ---
+    // --- Drag handlers ---
 
     private fun UiScope.handleDragStart(block: CodeBlock, ev: PointerEvent) {
         draggingBlock = block
@@ -205,42 +201,38 @@ class BlockEditor {
 
             val scrollPane = uiNode.findParentOfType<ScrollPaneNode>()
             if (scrollPane != null) {
-                val localInScroll = MutableVec2f()
-                scrollPane.toLocal(screenPos, localInScroll)
-                block.setPosition(localInScroll.x - dragLocalOffset.x, localInScroll.y - dragLocalOffset.y)
+                // переиспользуем tmpLocal
+                scrollPane.toLocal(screenPos, tmpLocal)
+                block.setPosition(tmpLocal.x - dragLocalOffset.x, tmpLocal.y - dragLocalOffset.y)
             }
         }
     }
 
     private fun UiScope.handleDrag(block: CodeBlock, ev: PointerEvent) {
-        if (draggingBlock == block) {
-            val scrollPane = uiNode.findParentOfType<ScrollPaneNode>() ?: return
-            val localPos = MutableVec2f()
-            scrollPane.toLocal(ev.screenPosition, localPos)
-            block.setPosition(localPos.x - dragLocalOffset.x, localPos.y - dragLocalOffset.y)
+        if (draggingBlock != block) return
 
-            // Hit Test Sticky Logic
-            // 1. Проверяем текущее действие (включая зоны у призраков)
-            val currentActionTarget = dropTargets.find { (action, node) ->
-                potentialAction != null &&
-                        action == potentialAction && // Используем equals переопределенный в DropAction
-                        node.isInBounds(ev.screenPosition)
+        val scrollPane = uiNode.findParentOfType<ScrollPaneNode>() ?: return
+        scrollPane.toLocal(ev.screenPosition, tmpLocal)
+        block.setPosition(tmpLocal.x - dragLocalOffset.x, tmpLocal.y - dragLocalOffset.y)
+
+        // Sticky hit-test: сначала проверяем остаёмся ли мы в той же цели (быстрее)
+        val stayingOnSameAction = potentialAction?.let { currentAction ->
+            dropTargets.any { (action, node) ->
+                action == currentAction && node.isInBounds(ev.screenPosition)
             }
+        } ?: false
 
-            if (currentActionTarget != null) {
-                // Остаемся на текущем действии
-            } else {
-                // 2. Ищем новую цель
-                val hitTarget = dropTargets.find { (action, node) ->
-                    node.isInBounds(ev.screenPosition) &&
-                            block != action.target &&
-                            !isChildOf(action.target, block)
-                }
-                potentialAction = hitTarget?.first
+        if (!stayingOnSameAction) {
+            // ищем новую цель (и фильтруем некорректные действия)
+            val hit = dropTargets.find { (action, node) ->
+                node.isInBounds(ev.screenPosition) &&
+                        block != action.target && // не на себя
+                        !isAncestorOf(action.target, block) // не на своего ребёнка/потомка
             }
-
-            surface.triggerUpdate()
+            potentialAction = hit?.first
         }
+
+        surface.triggerUpdate()
     }
 
     private fun handleDragEnd(block: CodeBlock) {
@@ -254,7 +246,7 @@ class BlockEditor {
         potentialAction = null
     }
 
-    // --- ЛОГИКА ДЕРЕВА ---
+    // --- Tree manipulation ---
 
     private fun detachBlock(block: CodeBlock) {
         block.parent?.let { parent ->
@@ -266,16 +258,18 @@ class BlockEditor {
 
     private fun attachBlockAfter(target: CodeBlock, newBlock: CodeBlock) {
         rootBlocks.remove(newBlock)
+
         val oldNext = target.next
         target.next = newBlock
         newBlock.parent = target
 
-        var newBlockTail = newBlock
-        while (newBlockTail.next != null) newBlockTail = newBlockTail.next!!
+        // найти хвост newBlock
+        var tail = newBlock
+        while (tail.next != null) tail = tail.next!!
 
         if (oldNext != null) {
-            newBlockTail.next = oldNext
-            oldNext.parent = newBlockTail
+            tail.next = oldNext
+            oldNext.parent = tail
         }
     }
 
@@ -287,19 +281,21 @@ class BlockEditor {
             parent.next = newBlock
             newBlock.parent = parent
         } else {
+            // target был корнем — заменяем в списке rootBlocks
             rootBlocks.remove(target)
             rootBlocks.add(newBlock)
             newBlock.parent = null
         }
 
-        var newBlockTail = newBlock
-        while (newBlockTail.next != null) newBlockTail = newBlockTail.next!!
-
-        newBlockTail.next = target
-        target.parent = newBlockTail
+        // присоединить хвост newBlock к target
+        var tail = newBlock
+        while (tail.next != null) tail = tail.next!!
+        tail.next = target
+        target.parent = tail
     }
 
-    private fun isChildOf(parent: CodeBlock, possibleChild: CodeBlock): Boolean {
+    private fun isAncestorOf(parent: CodeBlock, possibleChild: CodeBlock): Boolean {
+        // Возвращает true, если possibleChild — один из предков parent (поднимаемся вверх от parent)
         var curr = parent.parent
         while (curr != null) {
             if (curr == possibleChild) return true
@@ -307,12 +303,21 @@ class BlockEditor {
         }
         return false
     }
+
+    // --- Утилиты для dropTargets ---
+
+    private fun addDropTargetOnce(action: DropAction, node: UiNode) {
+        // избегаем дубликатов — обычно node identity + action identity
+        val pair = action to node
+        if (!dropTargets.contains(pair)) dropTargets.add(pair)
+    }
 }
 
+/** Полезное расширение: безопасное и компактное нахождение родителя нужного типа */
 private inline fun <reified T> UiNode.findParentOfType(): T? {
-    var current = this
-    while (current !is T) {
-        current = current.parent ?: break
+    var current: UiNode? = this
+    while (current != null && current !is T) {
+        current = current.parent
     }
     return current as? T
 }
