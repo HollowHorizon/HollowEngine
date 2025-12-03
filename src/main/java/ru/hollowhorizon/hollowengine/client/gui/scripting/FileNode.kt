@@ -115,8 +115,7 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
 
                         if (file == null) IdeContent.openFile(
                             item.treePath,
-                            item.treePath.fromReadablePath().readBytes(),
-                            ::TextFileData
+                            item.treePath.fromReadablePath().readBytes()
                         )
                         else ScriptingEnvironmentOverlay.dock.getLeafAtPath("0/1")?.bringToTop(file.dockable)
                     }

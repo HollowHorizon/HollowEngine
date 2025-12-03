@@ -1,11 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
 import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.modules.ui2.UiNode
-import de.fabmax.kool.modules.ui2.UiRenderer
-import de.fabmax.kool.modules.ui2.UiSurface
-import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.PolyUtil
+import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.scene.geometry.MeshBuilder
+import de.fabmax.kool.util.*
 
 class ScratchBlockBackground(
     val color: Color,
@@ -72,11 +70,11 @@ class ScratchBlockBackground(
     }
 
     private fun drawPath(node: UiNode, points: List<Vec3f>, color: Color) = with(node) {
-        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configured(color, clipped = false) {
+        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(color) {
             fillPolygon(PolyUtil.fillPolygon(points))
         }
         val strokeColor = color.mix(Color.BLACK, 0.2f)
-        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configured(strokeColor, clipped = false) {
+        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(strokeColor) {
             for (i in 0 until points.size) {
                 val p1 = points[i]
                 val p2 = points[(i + 1) % points.size]
@@ -118,11 +116,11 @@ class ContainerFooterBackground(val color: Color) : UiRenderer<UiNode> {
 
         PuzzleShapes.addBezier(points, x + r, y + h, x, y + h, x, y + h - r)
 
-        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configured(color, clipped = false) {
+        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(color) {
             fillPolygon(PolyUtil.fillPolygon(points))
         }
         val strokeColor = color.mix(Color.BLACK, 0.2f)
-        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configured(strokeColor, clipped = false) {
+        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(strokeColor) {
             for (i in 0 until points.size) {
                 val p1 = points[i]
                 val p2 = points[(i + 1) % points.size]
@@ -162,8 +160,46 @@ class ContainerMiddleBackground(val color: Color) : UiRenderer<UiNode> {
         points.add(Vec3f(x + innerNotchX, y + h, 0f))
         points.add(Vec3f(x, y + h, 0f))
 
-        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configured(color, clipped = false) {
+        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(color) {
             fillPolygon(PolyUtil.fillPolygon(points))
         }
     }
+}
+
+context(node: UiNode)
+inline fun <Layout: Struct> MeshBuilder<Layout>.configure(color: Color? = null, block: MeshBuilder<Layout>.() -> Unit) {
+    val panel = node.findParentOfType<ScrollPaneNode>() ?: node
+    val setBoundsUiVertex: MutableStructBufferView<UiVertexLayout>.(UiVertexLayout) -> Unit = {
+        it.clip.set(panel.clipLeftPx - 7.5f, panel.clipTopPx - 10f, panel.clipRightPx, panel.clipBottomPx + 10f)
+    }
+    val setBoundsTextVertex: MutableStructBufferView<UiTextVertexLayout>.(UiTextVertexLayout) -> Unit = {
+        it.clip.set(panel.clipLeftPx - 7.5f, panel.clipTopPx - 10f, panel.clipRightPx, panel.clipBottomPx + 10f)
+    }
+    val setBoundsCustom: MutableStructBufferView<*>.(Struct) -> Unit = {
+        @Suppress("UNCHECKED_CAST")
+        this as MutableStructBufferView<Struct>
+        it.getFloat4(UiVertexLayout.clip.name)?.set(panel.clipLeftPx - 7.5f, panel.clipTopPx - 10f, panel.clipRightPx, panel.clipBottomPx + 10f)
+    }
+
+    val prevMod = vertexCustomizer
+    @Suppress("UNCHECKED_CAST")
+    when {
+        geometry.layout === UiVertexLayout -> {
+            this as MeshBuilder<UiVertexLayout>
+            vertexCustomizer = setBoundsUiVertex
+        }
+        geometry.layout === UiTextVertexLayout -> {
+            this as MeshBuilder<UiTextVertexLayout>
+            vertexCustomizer = setBoundsTextVertex
+        }
+        else -> vertexCustomizer = setBoundsCustom
+    }
+    val prevColor = this.color
+    color?.let { this.color = it }
+    withTransform {
+        translate(node.leftPx, node.topPx, 0f)
+        this.block()
+    }
+    vertexCustomizer = prevMod
+    this.color = prevColor
 }

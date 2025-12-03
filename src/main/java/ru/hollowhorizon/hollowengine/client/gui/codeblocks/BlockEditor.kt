@@ -11,9 +11,11 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.RepeatBlock
 
 sealed interface DropAction {
     val target: CodeBlock
+
     data class InsertBefore(override val target: CodeBlock) : DropAction
     data class AttachAfter(override val target: CodeBlock) : DropAction
-    data class AttachToInput(override val target: CodeBlock, val inputName: String, val isStatementSlot: Boolean) : DropAction
+    data class AttachToInput(override val target: CodeBlock, val inputName: String, val isStatementSlot: Boolean) :
+        DropAction
 }
 
 class BlockEditor {
@@ -24,8 +26,11 @@ class BlockEditor {
     private val dropTargets = mutableListOf<Pair<DropAction, UiNode>>()
     private val tmpLocal = MutableVec2f()
 
+    private val removalPopup = AutoPopup()
+
     companion object {
         const val C_BLOCK_SPINE_WIDTH = 20f
+
         // Высота сенсорной зоны для дропа (невидимая)
         val DROP_SENSOR_HEIGHT = Dp(20f)
     }
@@ -37,13 +42,55 @@ class BlockEditor {
         rootBlocks.add(IfBlock().apply { setPosition(50f, 150f) })
     }
 
-    fun UiScope.EditorLayout() {
+    fun UiScope.EditorLayout(body: ScrollPaneScope.() -> Unit) {
         dropTargets.clear()
-        ScrollPane(rememberScrollState()) {
-            modifier.layout(CellLayout).width(Grow.Std).height(Grow.Std)
-            modifier.onClick { potentialAction = null }
 
-            rootBlocks.use().forEach { block -> renderBlockRecursively(block) }
+        val state = rememberScrollState()
+
+        Box {
+            modifier
+                .width(Grow.Std)
+                .height(Grow.Std)
+                .backgroundColor(colors.backgroundVariant)
+                .onWheelX {
+                    state.scrollDpX(it.pointer.scroll.x * -20f)
+                }
+                .onWheelY {
+                    state.scrollDpY(it.pointer.scroll.y * -50f)
+                }
+
+            modifier.onDrag {
+                val delta = it.pointer.delta
+                if (delta.x != 0f) {
+                    state.scrollDpX(Dp.fromPx(-delta.x).value)
+                }
+                if (delta.y != 0f) {
+                    state.scrollDpY(Dp.fromPx(-delta.y).value)
+                }
+            }
+
+            ScrollPane(state) {
+                modifier.layout(CellLayout).width(Grow.Std).height(Grow.Std)
+                modifier.onClick { potentialAction = null }
+
+                rootBlocks.use().forEach { block -> renderBlockRecursively(block) }
+                body()
+            }
+
+            VerticalScrollbar {
+                modifier
+                    .relativeBarPos(state.relativeBarPosY)
+                    .relativeBarLen(state.relativeBarLenY)
+                    .onChange { state.scrollRelativeY(it) }
+            }
+            HorizontalScrollbar {
+                modifier
+                    .relativeBarPos(state.relativeBarPosX)
+                    .relativeBarLen(state.relativeBarLenX)
+                    .onChange { state.scrollRelativeX(it) }
+            }
+
+            removalPopup()
         }
     }
 
@@ -78,6 +125,9 @@ class BlockEditor {
                                 .onDragStart { ev -> handleDragStart(block, ev) }
                                 .onDrag { ev -> handleDrag(block, ev) }
                                 .onDragEnd { handleDragEnd(block) }
+                                .onClick {
+                                    onBlockRightClick(block, it)
+                                }
                         }
 
                         with(InputSlotScope(this, block, isGhost)) {
@@ -87,7 +137,7 @@ class BlockEditor {
                         if (block is IfBlock || block is RepeatBlock) {
                             Box {
                                 modifier.height(20.dp).width(Grow.Std)
-                                modifier.background(ContainerFooterBackground(if(isGhost) block.color.withAlpha(0.5f) else block.color))
+                                modifier.background(ContainerFooterBackground(if (isGhost) block.color.withAlpha(0.5f) else block.color))
 
                                 if (!isDragging) {
                                     Box {
@@ -134,6 +184,25 @@ class BlockEditor {
         }
     }
 
+    private fun onBlockRightClick(
+        block: CodeBlock,
+        event: PointerEvent,
+    ) {
+        removalPopup.popupContent = {
+            Column {
+                Button("Удалить") {
+                    modifier.onClick {
+                        removalPopup.hide()
+                        if (it.isLeftClick) removeBlock(block)
+                    }
+                }
+            }
+        }
+        if (event.isRightClick) {
+            removalPopup.show(Vec2f(event.screenPosition))
+        }
+    }
+
     private fun UiScope.BlockHeaderVisual(block: CodeBlock, isGhost: Boolean, blockModifier: UiModifier.() -> Unit) {
         Box {
             val marginLeft = if (block.isExpression) Dp.fromPx(PuzzleShapes.TAB_WIDTH) else 0.dp
@@ -142,12 +211,14 @@ class BlockEditor {
             val bgColor = if (isGhost) block.color.withAlpha(0.5f) else block.color
             val isContainer = block is IfBlock || block is RepeatBlock
 
-            modifier.background(ScratchBlockBackground(
-                color = bgColor,
-                isExpression = block.isExpression,
-                hasNext = !block.isExpression,
-                isContainerHeader = isContainer
-            ))
+            modifier.background(
+                ScratchBlockBackground(
+                    color = bgColor,
+                    isExpression = block.isExpression,
+                    hasNext = !block.isExpression,
+                    isContainerHeader = isContainer
+                )
+            )
 
             Row {
                 modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
@@ -158,11 +229,13 @@ class BlockEditor {
         }
     }
 
-    inner class InputSlotScope(val uiScope: UiScope, val parentBlock: CodeBlock, val isGhost: Boolean): UiScope by uiScope {
+    inner class InputSlotScope(val uiScope: UiScope, val parentBlock: CodeBlock, val isGhost: Boolean) :
+        UiScope by uiScope {
         fun InputSlot(name: String) {
             val attached = parentBlock.inputs[name]
             val action = potentialAction
-            val isTargeted = action is DropAction.AttachToInput && action.target == parentBlock && action.inputName == name && !action.isStatementSlot
+            val isTargeted =
+                action is DropAction.AttachToInput && action.target == parentBlock && action.inputName == name && !action.isStatementSlot
 
             uiScope.Box {
                 modifier.alignY(AlignmentY.Center).margin(horizontal = 2.dp)
@@ -184,7 +257,8 @@ class BlockEditor {
         fun BodySlot(name: String) {
             val attached = parentBlock.inputs[name]
             val action = potentialAction
-            val isTargeted = action is DropAction.AttachToInput && action.target == parentBlock && action.inputName == name && action.isStatementSlot
+            val isTargeted =
+                action is DropAction.AttachToInput && action.target == parentBlock && action.inputName == name && action.isStatementSlot
 
             uiScope.Row {
                 modifier.width(Grow.Std)
@@ -205,7 +279,13 @@ class BlockEditor {
                     Box {
                         if (attached == null) {
                             modifier.height(30.dp).width(100.dp)
-                            if (isTargeted) modifier.background(ScratchBlockBackground(Color.WHITE.withAlpha(0.2f), false, true))
+                            if (isTargeted) modifier.background(
+                                ScratchBlockBackground(
+                                    Color.WHITE.withAlpha(0.2f),
+                                    false,
+                                    true
+                                )
+                            )
                         } else {
                             modifier.height(sizes.smallGap).width(Grow.Std)
                         }
@@ -235,7 +315,8 @@ class BlockEditor {
                     modifier.width(Grow.Std).height(30.dp)
                     modifier.background(ContainerMiddleBackground(bgColor))
                     Text(label) {
-                        modifier.alignY(AlignmentY.Center).margin(start = Dp.fromPx(C_BLOCK_SPINE_WIDTH + 10f)).textColor(Color.WHITE)
+                        modifier.alignY(AlignmentY.Center).margin(start = Dp.fromPx(C_BLOCK_SPINE_WIDTH + 10f))
+                            .textColor(Color.WHITE)
                     }
                 }
             }
@@ -255,7 +336,7 @@ class BlockEditor {
             if (isExpression) modifier.size(40.dp, 30.dp)
             else modifier.height(40.dp).width(100.dp)
             modifier.background(ScratchBlockBackground(Color.WHITE.withAlpha(0.2f), isExpression, !isExpression))
-            if(!isExpression) modifier.margin(vertical = 2.dp)
+            if (!isExpression) modifier.margin(vertical = 2.dp)
         }
     }
 
@@ -269,7 +350,7 @@ class BlockEditor {
             newBlock.parent = null
 
             var tail = newBlock
-            while(tail.next != null) tail = tail.next!!
+            while (tail.next != null) tail = tail.next!!
             tail.next = existingBlock
             existingBlock.parent = tail
             existingBlock.parentBlock = null
@@ -307,6 +388,40 @@ class BlockEditor {
         surface.triggerUpdate()
     }
 
+    private fun removeBlock(block: CodeBlock) {
+        val nextBlock = block.next
+
+        block.parent?.let { parent ->
+            parent.next = nextBlock
+            nextBlock?.parent = parent
+        } ?: block.parentBlock?.let { parentContainer ->
+            val slotName = block.parentInputName ?: return@let
+
+            if (nextBlock != null) {
+                parentContainer.inputs[slotName] = nextBlock
+                nextBlock.parentBlock = parentContainer
+                nextBlock.parentInputName = slotName
+                nextBlock.parent = null
+            } else {
+                parentContainer.inputs.remove(slotName)
+            }
+        } ?: run {
+            rootBlocks.remove(block)
+            // Если у удаленного блока был хвост, он становится новым корневым блоком
+            if (nextBlock != null) {
+                rootBlocks.add(nextBlock)
+                // Сохраняем позицию, чтобы хвост не прыгнул в (0,0)
+                nextBlock.setPosition(block.positionX.value, block.positionY.value)
+                nextBlock.parent = null
+            }
+        }
+
+        block.parent = null
+        block.parentBlock = null
+        block.parentInputName = null
+        block.next = null
+    }
+
     private fun UiScope.detachBlock(block: CodeBlock, screenPos: Vec2f) {
         block.parent?.let { p ->
             if (p.next == block) p.next = null
@@ -336,7 +451,7 @@ class BlockEditor {
             if (action is DropAction.AttachToInput && !action.isStatementSlot) return true
             return false
         } else {
-            return when(action) {
+            return when (action) {
                 is DropAction.InsertBefore -> true
                 is DropAction.AttachAfter -> true
                 is DropAction.AttachToInput -> action.isStatementSlot
@@ -362,7 +477,7 @@ class BlockEditor {
         target.next = newBlock
         newBlock.parent = target
         var tail = newBlock
-        while(tail.next != null) tail = tail.next!!
+        while (tail.next != null) tail = tail.next!!
         if (oldNext != null) {
             tail.next = oldNext
             oldNext.parent = tail
@@ -389,7 +504,7 @@ class BlockEditor {
             newBlock.parent = null
         }
         var tail = newBlock
-        while(tail.next != null) tail = tail.next!!
+        while (tail.next != null) tail = tail.next!!
         tail.next = target
         target.parent = tail
     }
@@ -409,7 +524,7 @@ class BlockEditor {
     }
 }
 
-private inline fun <reified T> UiNode.findParentOfType(): T? {
+inline fun <reified T> UiNode.findParentOfType(): T? {
     var current: UiNode? = this
     while (current != null && current !is T) current = current.parent
     return current as? T

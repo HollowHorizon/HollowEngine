@@ -6,7 +6,6 @@ import de.fabmax.kool.modules.ui2.Composable
 import de.fabmax.kool.modules.ui2.UiScope
 import de.fabmax.kool.modules.ui2.remember
 import net.minecraft.client.Minecraft
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.utils.lang
@@ -74,12 +73,16 @@ class FilePopup : Composable {
                                 fileExtension = ".kts"
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                             }
+                            item("Скрипт (Блоки кода)") {
+                                fileExtension = ".hescr"
+                                createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
+                            }
                         }
                     }
                 }
             } else {
                 item(ACTIONS("open"), "hollowengine:textures/gui/icons/file_kts.png") {
-                    IdeContent.openFile(node.treePath, node.treePath.fromReadablePath().readBytes(), ::TextFileData)
+                    IdeContent.openFile(node.treePath, node.treePath.fromReadablePath().readBytes())
                 }
             }
             divider()

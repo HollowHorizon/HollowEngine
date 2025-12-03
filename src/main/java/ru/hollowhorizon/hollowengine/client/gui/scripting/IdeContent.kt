@@ -4,23 +4,27 @@ import de.fabmax.kool.modules.ui2.Dp
 import de.fabmax.kool.modules.ui2.DragAndDropContext
 import de.fabmax.kool.modules.ui2.docking.DockNode
 import de.fabmax.kool.modules.ui2.docking.Dockable
-import net.minecraft.client.Minecraft
-import ru.hollowhorizon.hollowengine.client.gui.docs.DocsNode
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.insertItem
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.DocFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.scripts.CodeBlocksFileData
 
 object IdeContent {
     val files = HashMap<String, FileData>()
     var fileTree = FileNode.EMPTY
     val dndContext = DragAndDropContext<FileNode>()
 
+    private val fileTypes: Map<String, (String, ByteArray) -> FileData> = buildMap {
+        put(".kts", ::TextFileData)
+        put(".hescr", ::CodeBlocksFileData)
+    }
 
-    fun <T : FileData> openFile(path: String, bytes: ByteArray, generator: (String, ByteArray) -> T): FileData? {
+    fun openFile(path: String, bytes: ByteArray): FileData? {
 
         // Get or Create file
         val file = files.getOrPut(path) {
+            val generator = fileTypes.firstNotNullOf { if (path.endsWith(it.key)) it.value else null }
             val localFile = generator(path, bytes)
             localFile.open()
 

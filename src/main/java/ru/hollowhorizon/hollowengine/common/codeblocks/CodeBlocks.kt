@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
+import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MdColor
@@ -25,6 +26,7 @@ abstract class CodeBlock(val color: Color, val isExpression: Boolean = false) {
         positionX.value = x
         positionY.value = y
     }
+    fun setPosition(pos: Vec2f) = setPosition(pos.x, pos.y)
 
     fun attachInput(slotName: String, block: CodeBlock) {
         inputs[slotName] = block

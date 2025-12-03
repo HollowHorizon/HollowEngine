@@ -1,8 +1,10 @@
 package ru.hollowhorizon.hollowengine.mixins.kool;
 
 import de.fabmax.kool.input.PointerInput;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import org.lwjgl.glfw.GLFW;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -19,6 +21,7 @@ public class MouseHandlerMixin {
 
     @Shadow private double ypos;
 
+    @Shadow @Final private Minecraft minecraft;
     @Unique
     private float hollowengine$x;
     @Unique
@@ -27,7 +30,7 @@ public class MouseHandlerMixin {
     @Inject(method = "onPress", at = @At("HEAD"), cancellable = true)
     private void onPress(long windowPointer, int button, int action, int modifiers, CallbackInfo ci) {
         PointerInput.INSTANCE.handleMouseButtonEvent$kool_core(button, action == GLFW.GLFW_PRESS);
-        if(ScriptingEnvironmentScreenKt.isMouseOverDock(hollowengine$x, hollowengine$y)) {
+        if(ScriptingEnvironmentScreenKt.isMouseOverDock(hollowengine$x, hollowengine$y) && minecraft.screen != null) {
             ci.cancel();
         }
     }
@@ -37,7 +40,7 @@ public class MouseHandlerMixin {
         PointerInput.INSTANCE.handleMouseMove$kool_core((float) xpos, (float) ypos);
         hollowengine$x = (float) xpos;
         hollowengine$y = (float) ypos;
-        if(ScriptingEnvironmentScreenKt.isMouseOverDock(hollowengine$x, hollowengine$y)) {
+        if(ScriptingEnvironmentScreenKt.isMouseOverDock(hollowengine$x, hollowengine$y) && minecraft.screen != null) {
             this.xpos = 0;
             this.ypos = 0;
             ci.cancel();
@@ -47,7 +50,7 @@ public class MouseHandlerMixin {
     @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
     private void onScroll(long windowPointer, double xOffset, double yOffset, CallbackInfo ci) {
         PointerInput.INSTANCE.handleMouseScroll$kool_core((float) xOffset, (float) yOffset);
-        if(ScriptingEnvironmentScreenKt.isMouseOverDock(hollowengine$x, hollowengine$y)) {
+        if(ScriptingEnvironmentScreenKt.isMouseOverDock(hollowengine$x, hollowengine$y) && minecraft.screen != null) {
             ci.cancel();
         }
     }

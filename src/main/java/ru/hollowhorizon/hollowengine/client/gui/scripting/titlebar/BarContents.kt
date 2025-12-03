@@ -159,7 +159,10 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
     }
 
     if (itemIndex.use() != -1) Box {
-        val file = items[itemIndex.use()].first
+        val file = items.getOrNull(itemIndex.use())?.first ?: run {
+            itemIndex.set(-1)
+            return@Box
+        }
 
         ActionButton(24.dp, "hollowengine:textures/gui/icons/play.png") {
             StartScriptPacket(file).send()
