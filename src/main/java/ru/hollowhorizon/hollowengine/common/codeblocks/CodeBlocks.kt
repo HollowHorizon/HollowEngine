@@ -10,19 +10,15 @@ class BlockContext {
 }
 
 abstract class CodeBlock(val color: Color, val isExpression: Boolean = false) {
-    // Вертикальная связь (Statements)
     var next: CodeBlock? = null
     var parent: CodeBlock? = null
 
-    // Горизонтальная связь / Вложенность (Inputs/Expressions)
-    // Ключ - имя слота, Значение - блок
+    // Хранит и горизонтальные инпуты, и корни вертикальных цепочек (Statement Lists)
     val inputs = mutableMapOf<String, CodeBlock>()
 
-    // Если этот блок вставлен в input другого блока, запоминаем, в какой именно
     var parentBlock: CodeBlock? = null
     var parentInputName: String? = null
 
-    // Координаты (имеют смысл только если блок корневой, т.е. лежит на канвасе)
     val positionX = mutableStateOf(50f)
     val positionY = mutableStateOf(50f)
 
@@ -31,53 +27,90 @@ abstract class CodeBlock(val color: Color, val isExpression: Boolean = false) {
         positionY.value = y
     }
 
-    // Помощник для присоединения инпута
     fun attachInput(slotName: String, block: CodeBlock) {
         inputs[slotName] = block
         block.parentBlock = this
         block.parentInputName = slotName
-        block.parent = null // У инпута нет вертикального родителя
+        block.parent = null
     }
 
-    abstract suspend fun execute(context: BlockContext): Any? // Теперь может возвращать значение
+    abstract suspend fun execute(context: BlockContext): Any?
+
     abstract fun BlockEditor.InputSlotScope.composeContent()
+
+    open fun BlockEditor.InputSlotScope.composeBody() {}
 }
 
-// Пример блока-инструкции (имеет зубчики)
+// --- Пример 1: Обычный блок ---
 class PrintBlock(var defaultMessage: String = "") : CodeBlock(MdColor.DEEP_PURPLE, isExpression = false) {
     override suspend fun execute(context: BlockContext): Any? {
-        // Если в слот "msg" что-то вставлено, вычисляем это. Иначе берем дефолт.
-        val messageToPrint = inputs["msg"]?.execute(context) ?: defaultMessage
-        println("Block says: $messageToPrint")
-
+        val msg = inputs["msg"]?.execute(context) ?: defaultMessage
+        println(msg)
         return next?.execute(context)
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        // Текст "Print"
-        Text("Print") {
-            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center)
-        }
-
+        Text("Print") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
         InputSlot("msg")
     }
 }
 
-// Пример блока-выражения (число/математика), без зубчиков
+// --- Пример 2: Блок Значения ---
 class StringValueBlock(var value: String) : CodeBlock(MdColor.AMBER, isExpression = true) {
-    override suspend fun execute(context: BlockContext): Any {
-        return value
+    override suspend fun execute(context: BlockContext) = value
+    override fun BlockEditor.InputSlotScope.composeContent() {
+        TextField(value) {
+            modifier.onChange { value = it }
+                .colors(lineColor = Color.WHITE, textColor = Color.WHITE)
+        }
+    }
+}
+
+class RepeatBlock : CodeBlock(MdColor.ORANGE, isExpression = false) {
+    override suspend fun execute(context: BlockContext): Any? {
+        val times = inputs["times"]?.execute(context).toString().toIntOrNull() ?: 1
+        repeat(times) {
+            inputs["body"]?.execute(context)
+        }
+        return next?.execute(context)
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        TextField(value) {
-            modifier
-                .onChange { value = it }
-                .colors(
-                    lineColor = Color.WHITE,
-                    cursorColor = Color.WHITE,
-                    textColor = Color.WHITE
-                )
+        Text("Repeat") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+        InputSlot("times")
+    }
+
+    override fun BlockEditor.InputSlotScope.composeBody() {
+        // Просто одно тело
+        BodySlot("body")
+    }
+}
+
+// --- Блок с двумя телами (If-Else) ---
+class IfBlock : CodeBlock(MdColor.TEAL, isExpression = false) {
+    override suspend fun execute(context: BlockContext): Any? {
+        val condition = inputs["cond"]?.execute(context) as? Boolean ?: false
+        if (condition) {
+            inputs["then"]?.execute(context)
+        } else {
+            inputs["else"]?.execute(context)
         }
+        return next?.execute(context)
+    }
+
+    override fun BlockEditor.InputSlotScope.composeContent() {
+        Text("If") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+        InputSlot("cond")
+    }
+
+    override fun BlockEditor.InputSlotScope.composeBody() {
+        // 1. Слот для ветки Then
+        BodySlot("then")
+
+        // 2. Разделитель (визуальная перемычка)
+        SectionSeparator("Else")
+
+        // 3. Слот для ветки Else
+        BodySlot("else")
     }
 }
