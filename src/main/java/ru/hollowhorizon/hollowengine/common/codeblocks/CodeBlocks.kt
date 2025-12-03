@@ -12,8 +12,8 @@ class BlockContext {
 
 abstract class CodeBlock(val color: Color) {
     var next: CodeBlock? = null
+    var parent: CodeBlock? = null
 
-    // Используем State для реактивности координат
     val positionX = mutableStateOf(50f)
     val positionY = mutableStateOf(50f)
 
