@@ -23,8 +23,8 @@ class ScratchBlockBackground(
         with(node) {
             val w = node.widthPx
             val h = node.heightPx
-            val x = 0f //node.leftPx
-            val y = 0f //node.topPx
+            val x = 0f
+            val y = 0f
 
             val points = mutableListOf<Vec3f>()
 

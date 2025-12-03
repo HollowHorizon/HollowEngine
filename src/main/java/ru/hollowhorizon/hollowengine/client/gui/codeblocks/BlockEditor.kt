@@ -1,15 +1,20 @@
 package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
 import de.fabmax.kool.math.MutableVec2f
+import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.PrintBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.StringValueBlock
 
-// DropAction как sealed interface + data classes => equals/hashCode корректны автоматически
+// Новые действия
 sealed interface DropAction {
     val target: CodeBlock
     data class InsertBefore(override val target: CodeBlock) : DropAction
     data class AttachAfter(override val target: CodeBlock) : DropAction
+    // Новое действие: вставить в слот inputName целевого блока
+    data class AttachToInput(override val target: CodeBlock, val inputName: String) : DropAction
 }
 
 class BlockEditor {
@@ -17,37 +22,26 @@ class BlockEditor {
 
     var draggingBlock: CodeBlock? = null
     val dragLocalOffset = MutableVec2f()
-
     var potentialAction: DropAction? = null
 
-    // Храним уникальные (action, node), чтобы избежать дубликатов
     private val dropTargets = mutableListOf<Pair<DropAction, UiNode>>()
-
-    // Временный вектор для перерасчётов в onDrag — один объект, переиспользуется
     private val tmpLocal = MutableVec2f()
 
-    companion object {
-        // Константы размеров зон (camelCase)
-        private val topZoneHeight = Dp(40f)
-        private val topZoneOffset = Dp(-30f)
-
-        private val bottomZoneHeight = Dp(30f)
-        private val bottomZoneOffset = Dp(-10f)
-    }
-
     init {
-        // Тестовые данные
-        val b1 = PrintBlock("Hello").apply { setPosition(100f, 100f) }
-        val b2 = PrintBlock("My Dear")
-        b1.next = b2
-        b2.parent = b1
-        rootBlocks.add(b1)
+        // Тест: Принт и Выражение
+        val b1 = PrintBlock("Default Text").apply { setPosition(100f, 100f) }
+        val valBlock = StringValueBlock("Hello")
 
-        rootBlocks.add(PrintBlock("World").apply { setPosition(100f, 250f) })
+        // Пример прикрепления программно
+        // b1.attachInput("msg", valBlock)
+
+        rootBlocks.add(b1)
+        rootBlocks.add(StringValueBlock("Free String").apply { setPosition(100f, 200f) })
     }
+
+    // --- UI Layout ---
 
     fun UiScope.EditorLayout() {
-        // каждый кадр/рендер заново собираем цели
         dropTargets.clear()
 
         ScrollPane(rememberScrollState()) {
@@ -55,14 +49,20 @@ class BlockEditor {
             modifier.width(Grow.Std).height(Grow.Std)
             modifier.onClick { potentialAction = null }
 
+            // Рисуем только корневые блоки. Вложенные отрисуются внутри родителей.
             rootBlocks.use().forEach { block ->
-                renderBlock(block, isRoot = true)
+                renderBlockRecursively(block)
             }
         }
     }
 
-    private fun UiScope.renderBlock(block: CodeBlock, isRoot: Boolean) {
+    // Универсальный рендер блока (и корневого, и вложенного, и ghost)
+    private fun UiScope.renderBlockRecursively(block: CodeBlock, isGhost: Boolean = false) {
         Column {
+            // Если это корневой блок, ставим позицию. Если вложенный - позиция автоматическая (в потоке Column/Row).
+            // Проверяем: если у блока нет parentBlock (инпута) и нет parent (вертикального), и он в rootBlocks -> позиционируем.
+            val isRoot = rootBlocks.contains(block)
+
             modifier.zLayer(if (draggingBlock == block) UiSurface.LAYER_FLOATING else UiSurface.LAYER_DEFAULT)
 
             if (isRoot) {
@@ -72,167 +72,199 @@ class BlockEditor {
             val action = potentialAction
             val isDraggingOther = draggingBlock != null && draggingBlock != block
 
-            // --- PREVIEW INSERT BEFORE ---
-            if (isDraggingOther && action is DropAction.InsertBefore && action.target == block) {
+            // 1. Зона вставки СВЕРХУ (только для Statements, не для Expressions)
+            if (!block.isExpression) {
+                if (isDraggingOther && action is DropAction.InsertBefore && action.target == block) {
+                    GhostPlaceholder(draggingBlock!!, true)
+                }
+                // Зона дропа сверху
                 Box {
-                    modifier.layout(CellLayout)
-
-                    // ghost
-                    renderGhostChain(draggingBlock!!)
-
-                    // safety zone (top)
-                    Box {
-                        modifier
-                            .width(Grow.Std)
-                            .height(topZoneHeight)
-                            .margin(top = topZoneOffset)
-                            .alignY(AlignmentY.Top)
-
-                        addDropTargetOnce(action, uiNode)
-                    }
-
-                    // ghost body area as target too
-                    addDropTargetOnce(action, uiNode)
+                    modifier.width(Grow.Std).height(20.dp).margin(top = (-15).dp).alignY(AlignmentY.Top)
+                    addDropTargetOnce(DropAction.InsertBefore(block), uiNode)
                 }
             }
 
-            // --- REAL BLOCK + ZONES ---
+            // 2. Визуал самого блока
             Box {
-                modifier.layout(CellLayout)
+                modifier.layout(CellLayout) // Чтобы дети накладывались (фон + контент)
 
-                // visual + drag handlers
-                BlockVisual(block) {
+                // Фон и обработчики драга
+                BlockVisual(block, isGhost) {
                     modifier
                         .onDragStart { ev -> handleDragStart(block, ev) }
                         .onDrag { ev -> handleDrag(block, ev) }
                         .onDragEnd { handleDragEnd(block) }
                 }
 
-                // top insertion zone
+                // Для Drop Target "Input" нам нужно, чтобы зоны были внутри composeContent.
+                // Но drop targets добавляются глобально. См. реализацию InputSlot ниже.
+            }
+
+            // 3. Зона вставки СНИЗУ (только для Statements)
+            if (!block.isExpression) {
+                // Зона дропа снизу
                 Box {
-                    modifier
-                        .width(Grow.Std)
-                        .height(topZoneHeight)
-                        .alignY(AlignmentY.Top)
-                        .margin(top = topZoneOffset)
-
-                    addDropTargetOnce(DropAction.InsertBefore(block), uiNode)
-                }
-
-                // bottom attach zone
-                Box {
-                    modifier
-                        .width(Grow.Std)
-                        .height(bottomZoneHeight)
-                        .alignY(AlignmentY.Bottom)
-                        .margin(bottom = bottomZoneOffset)
-
+                    modifier.width(Grow.Std).height(20.dp).margin(bottom = (-10).dp).alignY(AlignmentY.Bottom)
                     addDropTargetOnce(DropAction.AttachAfter(block), uiNode)
                 }
-            }
 
-            // --- PREVIEW ATTACH AFTER ---
-            if (isDraggingOther && action is DropAction.AttachAfter && action.target == block) {
-                Box {
-                    modifier.layout(CellLayout)
+                if (isDraggingOther && action is DropAction.AttachAfter && action.target == block) {
+                    GhostPlaceholder(draggingBlock!!, false)
+                }
 
-                    renderGhostChain(draggingBlock!!)
-
-                    Box {
-                        modifier
-                            .width(Grow.Std)
-                            .height(bottomZoneHeight)
-                            .margin(bottom = bottomZoneOffset)
-                            .alignY(AlignmentY.Bottom)
-
-                        addDropTargetOnce(action, uiNode)
-                    }
-
-                    addDropTargetOnce(action, uiNode)
+                // Рекурсия для vertical flow (next)
+                block.next?.let { next ->
+                    renderBlockRecursively(next, isGhost)
                 }
             }
-
-            // recurse
-            block.next?.let { nextBlock ->
-                renderBlock(nextBlock, isRoot = false)
-            }
         }
     }
 
-    private fun UiScope.renderGhostChain(head: CodeBlock) {
+    private fun UiScope.BlockVisual(block: CodeBlock, isGhost: Boolean, blockModifier: UiModifier.() -> Unit = {}) {
         Column {
-            modifier.background(null)
-            var current: CodeBlock? = head
-            while (current != null) {
-                BlockVisual(current, isGhost = true)
-                current = current.next
-            }
-        }
-    }
-
-    private fun UiScope.BlockVisual(block: CodeBlock, isGhost: Boolean = false, blockModifier: UiModifier.() -> Unit = {}) {
-        Column {
-            modifier
-                .width(FitContent)
-                .apply(blockModifier)
+            modifier.width(FitContent).apply(blockModifier)
 
             val bgColor = if (isGhost) block.color.withAlpha(0.5f) else block.color
-            modifier.background(ScratchBlockBackground(bgColor, hasTopNotch = true, hasBottomNotch = true))
 
-            Box { modifier.height(5.dp).width(Grow.Std) }
+            // Определяем форму: если Expression - просто скругленный, если Statement - с зубчиками
+            modifier.background(ScratchBlockBackground(
+                color = bgColor,
+                hasTopNotch = !block.isExpression,
+                hasBottomNotch = !block.isExpression && block.next != null // или всегда true для statement
+            ))
+
             Row {
-                modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                // composeContent() вызываем напрямую; if-else не нужен (в обоих случаях одно и то же)
-                with(block) { composeContent() }
+                modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                modifier.alignY(AlignmentY.Center)
+
+                // Здесь магия: мы подменяем composeContent так, чтобы можно было вызывать InputSlot
+                with(InputSlotScope(this, block)) {
+                    with(block) { composeContent() }
+                }
             }
-            Box { modifier.height(5.dp).width(Grow.Std) }
         }
     }
 
-    // --- Drag handlers ---
+    // Хелпер для рендера Ghost (призрака при перетаскивании)
+    private fun UiScope.GhostPlaceholder(block: CodeBlock, topMargin: Boolean) {
+        Box {
+            modifier.height(40.dp).width(100.dp) // Условно
+            // Можно отрендерить упрощенную копию
+        }
+    }
+
+    // --- Input Slots Logic ---
+
+    // Специальный скоуп, который мы передаем в composeContent блока,
+    // чтобы он мог вызывать функцию InputSlot
+    inner class InputSlotScope(val uiScope: UiScope, val parentBlock: CodeBlock): UiScope by uiScope {
+        // Главная фича: Слот для вставки
+        fun InputSlot(name: String) {
+            val attachedBlock = parentBlock.inputs[name]
+            val action = potentialAction
+            val isTargeted = action is DropAction.AttachToInput &&
+                    action.target == parentBlock &&
+                    action.inputName == name
+
+            uiScope.Box {
+                modifier
+                    .margin(horizontal = 5.dp)
+                    .alignY(AlignmentY.Center)
+                    .border(RectBorder(Color.WHITE, sizes.borderWidth))
+
+                // Логика Drop Target для слота
+                // Важно: зона должна быть активна, даже если там уже есть блок (для замены) или пусто
+                addDropTargetOnce(DropAction.AttachToInput(parentBlock, name), uiNode)
+
+                if (attachedBlock != null) {
+                    // Рендерим прикрепленный блок
+                    // Важно: если мы тащим ЭТОТ блок, рисуем его полупрозрачным или вообще скрываем (если хотим логику "вырывания")
+                    if (draggingBlock == attachedBlock) {
+                        // Место свободно визуально, пока тащим
+                        EmptySlotVisual(isTargeted)
+                    } else {
+                        renderBlockRecursively(attachedBlock)
+                        // Если наводим поверх существующего - можно подсветить, что он будет заменен
+                        if (isTargeted) {
+                            modifier.border(RectBorder(Color.WHITE, 2.dp))
+                        }
+                    }
+                } else {
+                    // Слот пуст
+                    if (isTargeted && draggingBlock != null) {
+                        // Показываем превью того, что вставляем
+                        // Упрощенно: просто бокс цвета блока
+                        Box {
+                            modifier
+                                .size(40.dp, 20.dp)
+                                .background(RectBackground(draggingBlock!!.color.withAlpha(0.5f)))
+                        }
+                    } else {
+                        EmptySlotVisual(false)
+                    }
+                }
+            }
+        }
+
+        private fun UiScope.EmptySlotVisual(highlight: Boolean) {
+            Box {
+                modifier
+                    .size(30.dp, 20.dp)
+                    .background(RectBackground(Color.BLACK.withAlpha(0.2f)))
+                    .border(RectBorder(if(highlight) Color.WHITE else Color.WHITE.withAlpha(0f), 2.dp))
+            }
+        }
+    }
+
+    // --- Drag Handlers ---
 
     private fun UiScope.handleDragStart(block: CodeBlock, ev: PointerEvent) {
         draggingBlock = block
         dragLocalOffset.set(ev.position.x, ev.position.y)
 
-        if (!rootBlocks.contains(block)) {
-            val screenPos = ev.screenPosition
-            detachBlock(block)
-
-            val scrollPane = uiNode.findParentOfType<ScrollPaneNode>()
-            if (scrollPane != null) {
-                // переиспользуем tmpLocal
-                scrollPane.toLocal(screenPos, tmpLocal)
-                block.setPosition(tmpLocal.x - dragLocalOffset.x, tmpLocal.y - dragLocalOffset.y)
-            }
-        }
+        // Логика отсоединения
+        detachBlock(block, ev.screenPosition)
     }
 
     private fun UiScope.handleDrag(block: CodeBlock, ev: PointerEvent) {
         if (draggingBlock != block) return
 
+        // Обновляем позицию (визуально блок теперь летает)
         val scrollPane = uiNode.findParentOfType<ScrollPaneNode>() ?: return
         scrollPane.toLocal(ev.screenPosition, tmpLocal)
         block.setPosition(tmpLocal.x - dragLocalOffset.x, tmpLocal.y - dragLocalOffset.y)
 
-        // Sticky hit-test: сначала проверяем остаёмся ли мы в той же цели (быстрее)
-        val stayingOnSameAction = potentialAction?.let { currentAction ->
-            dropTargets.any { (action, node) ->
-                action == currentAction && node.isInBounds(ev.screenPosition)
-            }
-        } ?: false
+        // Поиск цели Drop
+        // 1. Проверяем слоты (Input) - они имеют приоритет, так как они меньше и внутри
+        // 2. Проверяем вертикальные зоны
 
-        if (!stayingOnSameAction) {
-            // ищем новую цель (и фильтруем некорректные действия)
-            val hit = dropTargets.find { (action, node) ->
-                node.isInBounds(ev.screenPosition) &&
-                        block != action.target && // не на себя
-                        !isAncestorOf(action.target, block) // не на своего ребёнка/потомка
+        var bestAction: DropAction? = null
+
+        // Ищем среди всех зон
+        for ((action, node) in dropTargets) {
+            if (node.isInBounds(ev.screenPosition)) {
+                // Фильтрация: нельзя вставить в себя или в своих детей
+                if (isValidDrop(block, action)) {
+                    bestAction = action
+                    break // Нашли (можно добавить логику выбора ближайшего по Z)
+                }
             }
-            potentialAction = hit?.first
+        }
+        potentialAction = bestAction
+        surface.triggerUpdate()
+    }
+
+    private fun isValidDrop(source: CodeBlock, action: DropAction): Boolean {
+        if (source == action.target) return false
+        // Нельзя вставить родителя в ребенка
+        if (isAncestorOf(source, action.target)) return false
+
+        // Для AttachToInput: принимаем только isExpression = true (опционально, но логично)
+        if (action is DropAction.AttachToInput) {
+            if (!source.isExpression) return false // Если разрешаем вставлять statement внутрь, убрать это
         }
 
-        surface.triggerUpdate()
+        return true
     }
 
     private fun handleDragEnd(block: CodeBlock) {
@@ -240,32 +272,68 @@ class BlockEditor {
             when (action) {
                 is DropAction.InsertBefore -> insertBlockBefore(action.target, block)
                 is DropAction.AttachAfter -> attachBlockAfter(action.target, block)
+                is DropAction.AttachToInput -> attachBlockToInput(action.target, action.inputName, block)
             }
         }
         draggingBlock = null
         potentialAction = null
     }
 
-    // --- Tree manipulation ---
+    // --- Logic Utils ---
 
-    private fun detachBlock(block: CodeBlock) {
-        block.parent?.let { parent ->
-            if (parent.next == block) parent.next = null
+    private fun UiScope.detachBlock(block: CodeBlock, screenPos: Vec2f) {
+        // 1. Отцепляем от вертикального родителя
+        block.parent?.let { p ->
+            if (p.next == block) p.next = null
             block.parent = null
         }
-        if (!rootBlocks.contains(block)) rootBlocks.add(block)
+
+        // 2. Отцепляем от функционального родителя (Input)
+        block.parentBlock?.let { p ->
+            p.inputs.remove(block.parentInputName)
+            block.parentBlock = null
+            block.parentInputName = null
+        }
+
+        // 3. Добавляем в root, чтобы он рисовался поверх всего во время драга
+        if (!rootBlocks.contains(block)) {
+            rootBlocks.add(block)
+            // Конвертируем координаты, чтобы блок не прыгнул
+            val scrollPane = uiNode.findParentOfType<ScrollPaneNode>()
+            if (scrollPane != null) {
+                scrollPane.toLocal(screenPos, tmpLocal)
+                block.setPosition(tmpLocal.x - dragLocalOffset.x, tmpLocal.y - dragLocalOffset.y)
+            }
+        }
     }
+
+    private fun attachBlockToInput(target: CodeBlock, slotName: String, newBlock: CodeBlock) {
+        rootBlocks.remove(newBlock) // Убираем из корня
+
+        // Если там уже кто-то был - выкидываем его (или можно сделать swap)
+        target.inputs[slotName]?.let { oldBlock ->
+            oldBlock.parentBlock = null
+            oldBlock.parentInputName = null
+            rootBlocks.add(oldBlock)
+            oldBlock.setPosition(newBlock.positionX.value + 20, newBlock.positionY.value + 20)
+        }
+
+        target.attachInput(slotName, newBlock)
+    }
+
+    // insertBlockBefore / attachBlockAfter остаются почти такими же,
+    // но нужно учесть, что draggingBlock мог прийти из Input'а.
+    // detachBlock уже это решает.
 
     private fun attachBlockAfter(target: CodeBlock, newBlock: CodeBlock) {
         rootBlocks.remove(newBlock)
-
         val oldNext = target.next
         target.next = newBlock
         newBlock.parent = target
 
-        // найти хвост newBlock
+        // Хвост
         var tail = newBlock
-        while (tail.next != null) tail = tail.next!!
+        while(tail.next != null) tail = tail.next!!
 
         if (oldNext != null) {
             tail.next = oldNext
@@ -281,39 +349,35 @@ class BlockEditor {
             parent.next = newBlock
             newBlock.parent = parent
         } else {
-            // target был корнем — заменяем в списке rootBlocks
+            // Target был корнем
             rootBlocks.remove(target)
             rootBlocks.add(newBlock)
             newBlock.parent = null
         }
 
-        // присоединить хвост newBlock к target
         var tail = newBlock
-        while (tail.next != null) tail = tail.next!!
+        while(tail.next != null) tail = tail.next!!
         tail.next = target
         target.parent = tail
     }
 
-    private fun isAncestorOf(parent: CodeBlock, possibleChild: CodeBlock): Boolean {
-        // Возвращает true, если possibleChild — один из предков parent (поднимаемся вверх от parent)
-        var curr = parent.parent
+    private fun isAncestorOf(possibleParent: CodeBlock, child: CodeBlock): Boolean {
+        // Проверяем и вертикаль (parent), и инпуты (parentBlock)
+        var curr: CodeBlock? = child.parent ?: child.parentBlock
         while (curr != null) {
-            if (curr == possibleChild) return true
-            curr = curr.parent
+            if (curr == possibleParent) return true
+            curr = curr.parent ?: curr.parentBlock
         }
         return false
     }
 
-    // --- Утилиты для dropTargets ---
-
     private fun addDropTargetOnce(action: DropAction, node: UiNode) {
-        // избегаем дубликатов — обычно node identity + action identity
-        val pair = action to node
-        if (!dropTargets.contains(pair)) dropTargets.add(pair)
+        // Простая проверка на дубликаты
+        val exists = dropTargets.any { it.first == action && it.second == node }
+        if (!exists) dropTargets.add(action to node)
     }
 }
 
-/** Полезное расширение: безопасное и компактное нахождение родителя нужного типа */
 private inline fun <reified T> UiNode.findParentOfType(): T? {
     var current: UiNode? = this
     while (current != null && current !is T) {
