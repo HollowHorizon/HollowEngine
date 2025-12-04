@@ -7,6 +7,7 @@ import de.fabmax.kool.math.MutableVec2f
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
+import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.IfBlock
@@ -61,7 +62,6 @@ class BlockEditor {
                 .onWheelY {
                     state.scrollDpY(it.pointer.scroll.y * -50f)
                 }
-
             modifier.onDrag {
                 val delta = it.pointer.delta
                 if (delta.x != 0f) {
@@ -72,8 +72,11 @@ class BlockEditor {
                 }
             }
 
+            val node = uiNode
+
             ScrollPane(state) {
-                modifier.layout(CellLayout)//.width(Grow.Std).height(Grow.Std)
+                modifier.layout(CellLayout)
+                    .padding(sizes.largeGap)
                 modifier.onClick { potentialAction = null }
 
                 rootBlocks.use().forEach { block -> renderBlockRecursively(block) }
@@ -82,12 +85,26 @@ class BlockEditor {
 
             VerticalScrollbar {
                 modifier
+                    .width(sizes.smallGap).margin(sizes.smallGap)
+                    .colors(
+                        trackColor = EditorTheme.Scrollbar.trackColor,
+                        trackHoverColor = EditorTheme.Scrollbar.trackHover,
+                        color = EditorTheme.Scrollbar.color,
+                        hoverColor = EditorTheme.Scrollbar.hoverColor,
+                    )
                     .relativeBarPos(state.relativeBarPosY)
                     .relativeBarLen(state.relativeBarLenY)
                     .onChange { state.scrollRelativeY(it) }
             }
             HorizontalScrollbar {
                 modifier
+                    .height(sizes.smallGap).margin(sizes.smallGap)
+                    .colors(
+                        trackColor = EditorTheme.Scrollbar.trackColor,
+                        trackHoverColor = EditorTheme.Scrollbar.trackHover,
+                        color = EditorTheme.Scrollbar.color,
+                        hoverColor = EditorTheme.Scrollbar.hoverColor,
+                    )
                     .relativeBarPos(state.relativeBarPosX)
                     .relativeBarLen(state.relativeBarLenX)
                     .onChange { state.scrollRelativeX(it) }
@@ -101,7 +118,7 @@ class BlockEditor {
         Column {
 
             val isRoot = rootBlocks.contains(block)
-            modifier.width(if(isRoot) FitContent else Grow.Std)
+            modifier.width(if (isRoot) FitContent else Grow.Std)
             val isDragging = draggingBlock == block
 
             if (isRoot) {
@@ -139,7 +156,7 @@ class BlockEditor {
                                     isHovered.set(true)
                                 }
                                 .onHover {
-                                    PointerInput.cursorShape = if(it.pointer.isLeftButtonPressed) CursorShape.MOVE else CursorShape.HAND
+                                    PointerInput.cursorShape = CursorShape.HAND
                                 }
                                 .onExit {
                                     isHovered.set(false)
@@ -353,7 +370,10 @@ class BlockEditor {
 
         fun SectionSeparator(label: String) {
             val bgColor = if (isGhost) parentBlock.color.withAlpha(0.5f) else parentBlock.color
-            val color by animateColorAsState(if (isHovered) bgColor else bgColor.mulRgb(0.9f), tween(0.2f, Easing.quadRev))
+            val color by animateColorAsState(
+                if (isHovered) bgColor else bgColor.mulRgb(0.9f),
+                tween(0.2f, Easing.quadRev)
+            )
             uiScope.Row {
                 modifier.width(Grow.Std).height(FitContent)
                 Box {

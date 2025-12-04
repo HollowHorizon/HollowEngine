@@ -20,7 +20,7 @@ class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(MdColor.BLUE, isExpress
     override suspend fun execute(context: BlockContext): Any? {
         val a = inputs["a"]?.execute(context).toString().toDoubleOrNull() ?: 0.0
         val b = inputs["b"]?.execute(context).toString().toDoubleOrNull() ?: 0.0
-        return when(op) {
+        return when (op) {
             MathOp.ADD -> a + b
             MathOp.SUB -> a - b
             MathOp.MUL -> a * b
@@ -56,7 +56,7 @@ class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(MdColor.INDIGO, i
         val resB = inputs["b"]?.execute(context)
 
         // Упрощенная логика сравнения
-        return when(op) {
+        return when (op) {
             LogicOp.EQUALS -> resA == resB
             LogicOp.AND -> (resA as? Boolean == true) && (resB as? Boolean == true)
             LogicOp.OR -> (resA as? Boolean == true) || (resB as? Boolean == true)
@@ -68,11 +68,19 @@ class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(MdColor.INDIGO, i
     override fun BlockEditor.InputSlotScope.composeContent() {
         InputSlot("a")
         Text(op.symbol) {
-            modifier.margin(horizontal = 5.dp).textColor(Color.WHITE)
+            modifier.margin(horizontal = sizes.smallGap)
+                .padding(horizontal = sizes.smallGap)
+                .textColor(Color.WHITE)
+                .alignY(AlignmentY.Center)
                 .onClick {
-                    val values = LogicOp.values()
-                    op = values[(op.ordinal + 1) % values.size]
+                    if (it.pointer.isLeftButtonClicked) {
+                        val values = LogicOp.values()
+                        op = values[(op.ordinal + 1) % values.size]
+                    }
+                    surface.triggerUpdate()
                 }
+                .zLayer(300)
+                .background(RoundRectBackground(Color.BLACK.withAlpha(0.2f), sizes.smallGap))
         }
         InputSlot("b")
     }
@@ -100,7 +108,7 @@ class BoolBlock(var value: Boolean = true) : CodeBlock(MdColor.AMBER, isExpressi
             modifier
                 .size(20.dp, 20.dp)
                 .border(RectBorder(Color.WHITE, 2.dp))
-                .background(if(value) RectBackground(Color.WHITE) else null)
+                .background(if (value) RectBackground(Color.WHITE) else null)
                 .onClick { value = !value }
         }
     }
