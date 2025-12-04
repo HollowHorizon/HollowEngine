@@ -4,11 +4,12 @@ import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MdColor
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 
-class BlockContext {
-    // Контекст выполнения
-}
+interface StartBlock
+interface EndBlock
+interface ContainerBlock
 
 abstract class CodeBlock(val color: Color, val isExpression: Boolean = false) {
     var next: CodeBlock? = null
@@ -39,13 +40,22 @@ abstract class CodeBlock(val color: Color, val isExpression: Boolean = false) {
 
     abstract fun BlockEditor.InputSlotScope.composeContent()
 
+    open fun UiScope.composeHeaderLayout(scopeBuilder: (UiScope) -> BlockEditor.InputSlotScope, blockHeaderModifier: UiModifier.() -> Unit) {
+        Row {
+            modifier.apply(blockHeaderModifier)
+            // Стандартные паддинги
+            modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
+            scopeBuilder(this).composeContent()
+        }
+    }
+
     open fun BlockEditor.InputSlotScope.composeBody() {}
 }
 
 class PrintBlock(var defaultMessage: String = "") : CodeBlock(MdColor.DEEP_PURPLE, isExpression = false) {
     override suspend fun execute(context: BlockContext): Any? {
         val msg = inputs["msg"]?.execute(context) ?: defaultMessage
-        println(msg)
+        HollowEngine.LOGGER.info(msg)
         return next?.execute(context)
     }
 
@@ -60,12 +70,13 @@ class StringValueBlock(var value: String) : CodeBlock(MdColor.AMBER, isExpressio
     override fun BlockEditor.InputSlotScope.composeContent() {
         TextField(value) {
             modifier.onChange { value = it }
+                .hint("Значение")
                 .colors(lineColor = Color.WHITE, textColor = Color.WHITE)
         }
     }
 }
 
-class RepeatBlock : CodeBlock(MdColor.ORANGE, isExpression = false) {
+class RepeatBlock : CodeBlock(MdColor.ORANGE, isExpression = false), ContainerBlock {
     override suspend fun execute(context: BlockContext): Any? {
         val times = inputs["times"]?.execute(context).toString().toIntOrNull() ?: 1
         repeat(times) {
@@ -84,7 +95,7 @@ class RepeatBlock : CodeBlock(MdColor.ORANGE, isExpression = false) {
     }
 }
 
-class IfBlock : CodeBlock(MdColor.TEAL, isExpression = false) {
+class IfBlock : CodeBlock(MdColor.TEAL, isExpression = false), ContainerBlock {
     override suspend fun execute(context: BlockContext): Any? {
         val condition = inputs["cond"]?.execute(context) as? Boolean ?: false
         if (condition) {

@@ -4,10 +4,7 @@ import de.fabmax.kool.math.MutableVec2f
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.IfBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.PrintBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.RepeatBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.*
 
 sealed interface DropAction {
     val target: CodeBlock
@@ -134,7 +131,7 @@ class BlockEditor {
                             with(block) { composeBody() }
                         }
 
-                        if (block is IfBlock || block is RepeatBlock) {
+                        if (block is ContainerBlock) {
                             Box {
                                 modifier.height(20.dp).width(Grow.Std)
                                 modifier.background(ContainerFooterBackground(if (isGhost) block.color.withAlpha(0.5f) else block.color))
@@ -159,7 +156,7 @@ class BlockEditor {
                             addDropTargetOnce(DropAction.InsertBefore(block), uiNode)
                         }
 
-                        if (block !is IfBlock && block !is RepeatBlock) {
+                        if (block !is ContainerBlock) {
                             Box {
                                 modifier
                                     .width(Grow.Std).height(DROP_SENSOR_HEIGHT)
@@ -209,7 +206,7 @@ class BlockEditor {
             modifier.width(FitContent).margin(start = marginLeft).apply(blockModifier)
 
             val bgColor = if (isGhost) block.color.withAlpha(0.5f) else block.color
-            val isContainer = block is IfBlock || block is RepeatBlock
+            val isContainer = block is ContainerBlock
 
             modifier.background(
                 ScratchBlockBackground(
@@ -220,10 +217,22 @@ class BlockEditor {
                 )
             )
 
-            Row {
-                modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
-                with(InputSlotScope(this, block, isGhost)) {
-                    with(block) { composeContent() }
+            with(block) {
+                // Передаем модификаторы, которые отвечают за фон и перетаскивание
+                composeHeaderLayout({ InputSlotScope(it, block, isGhost) }) {
+                    modifier.width(FitContent).margin(start = marginLeft).apply(blockModifier)
+
+                    val bgColor = if (isGhost) block.color.withAlpha(0.5f) else block.color
+                    val isContainer = block is ContainerBlock
+
+                    background(
+                        ScratchBlockBackground(
+                            color = bgColor,
+                            isExpression = block.isExpression,
+                            hasNext = !block.isExpression && block !is StartBlock,
+                            isContainerHeader = isContainer
+                        )
+                    )
                 }
             }
         }
