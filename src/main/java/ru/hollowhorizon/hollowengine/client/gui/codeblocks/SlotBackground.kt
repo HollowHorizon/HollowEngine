@@ -36,7 +36,7 @@ class SlotBackground(val color: Color, val isHovered: Boolean) : UiRenderer<UiNo
 
         val bgColor = if(isHovered) color.mix(Color.WHITE, 0.2f) else color
 
-        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configured(bgColor, clipped = false) {
+        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configured(bgColor, clipped = true) {
             fillPolygon(PolyUtil.fillPolygon(points))
         }
     }

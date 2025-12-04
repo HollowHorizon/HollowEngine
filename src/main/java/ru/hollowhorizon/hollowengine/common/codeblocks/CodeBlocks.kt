@@ -42,9 +42,10 @@ abstract class CodeBlock(val color: Color, val isExpression: Boolean = false) {
 
     context(editor: BlockEditor)
     open fun UiScope.composeHeaderLayout(isHovered: Boolean, isGhost: Boolean, blockHeaderModifier: UiModifier.() -> Unit) {
-        Row {
+        Row(Grow.Std) {
             modifier.apply(blockHeaderModifier)
             modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
+
             editor.InputSlotScope(this, this@CodeBlock, isHovered, isGhost).composeContent()
         }
     }
@@ -61,6 +62,7 @@ class PrintBlock(var defaultMessage: String = "") : CodeBlock(MdColor.DEEP_PURPL
 
     override fun BlockEditor.InputSlotScope.composeContent() {
         Text("Print") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+        Box(Grow.Std) {}
         InputSlot("msg")
     }
 }
@@ -108,6 +110,7 @@ class IfBlock : CodeBlock(MdColor.TEAL, isExpression = false), ContainerBlock {
 
     override fun BlockEditor.InputSlotScope.composeContent() {
         Text("If") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+        Box(Grow.Std) {}
         InputSlot("cond")
     }
 

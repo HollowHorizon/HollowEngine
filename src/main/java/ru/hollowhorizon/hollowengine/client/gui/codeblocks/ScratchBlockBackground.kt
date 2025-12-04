@@ -178,15 +178,15 @@ context(node: UiNode)
 inline fun <Layout: Struct> MeshBuilder<Layout>.configure(color: Color? = null, block: MeshBuilder<Layout>.() -> Unit) {
     val panel = node.findParentOfType<ScrollPaneNode>() ?: node
     val setBoundsUiVertex: MutableStructBufferView<UiVertexLayout>.(UiVertexLayout) -> Unit = {
-        it.clip.set(panel.clipLeftPx - 7.5f, panel.clipTopPx - 10f, panel.clipRightPx, panel.clipBottomPx + 10f)
+        it.clip.set(panel.clipLeftPx, panel.clipTopPx, panel.clipRightPx, panel.clipBottomPx)
     }
     val setBoundsTextVertex: MutableStructBufferView<UiTextVertexLayout>.(UiTextVertexLayout) -> Unit = {
-        it.clip.set(panel.clipLeftPx - 7.5f, panel.clipTopPx - 10f, panel.clipRightPx, panel.clipBottomPx + 10f)
+        it.clip.set(panel.clipLeftPx, panel.clipTopPx, panel.clipRightPx, panel.clipBottomPx)
     }
     val setBoundsCustom: MutableStructBufferView<*>.(Struct) -> Unit = {
         @Suppress("UNCHECKED_CAST")
         this as MutableStructBufferView<Struct>
-        it.getFloat4(UiVertexLayout.clip.name)?.set(panel.clipLeftPx - 7.5f, panel.clipTopPx - 10f, panel.clipRightPx, panel.clipBottomPx + 10f)
+        it.getFloat4(UiVertexLayout.clip.name)?.set(panel.clipLeftPx, panel.clipTopPx, panel.clipRightPx, panel.clipBottomPx)
     }
 
     val prevMod = vertexCustomizer

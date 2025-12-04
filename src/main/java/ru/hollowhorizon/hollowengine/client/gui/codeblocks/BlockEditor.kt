@@ -7,7 +7,10 @@ import de.fabmax.kool.math.MutableVec2f
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
-import ru.hollowhorizon.hollowengine.common.codeblocks.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.ContainerBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.IfBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.PrintBlock
 
 sealed interface DropAction {
     val target: CodeBlock
@@ -70,7 +73,7 @@ class BlockEditor {
             }
 
             ScrollPane(state) {
-                modifier.layout(CellLayout).width(Grow.Std).height(Grow.Std)
+                modifier.layout(CellLayout)//.width(Grow.Std).height(Grow.Std)
                 modifier.onClick { potentialAction = null }
 
                 rootBlocks.use().forEach { block -> renderBlockRecursively(block) }
@@ -96,7 +99,9 @@ class BlockEditor {
 
     private fun UiScope.renderBlockRecursively(block: CodeBlock, isGhost: Boolean = false) {
         Column {
+
             val isRoot = rootBlocks.contains(block)
+            modifier.width(if(isRoot) FitContent else Grow.Std)
             val isDragging = draggingBlock == block
 
             if (isRoot) {
@@ -105,17 +110,17 @@ class BlockEditor {
             }
 
             Column {
-                modifier.width(FitContent)
+                modifier.width(Grow.Std)
 
                 if (!block.isExpression && potentialAction is DropAction.InsertBefore && potentialAction?.target == block && !isDragging) {
-                    Column {
+                    Column(Grow.Std) {
                         GhostPlaceholder(false)
                         addDropTargetOnce(DropAction.InsertBefore(block), uiNode)
                     }
                 }
 
                 Box {
-                    modifier.width(FitContent)
+                    modifier.width(Grow.Std)
 
                     Column {
                         modifier.width(Grow.Std)
@@ -160,7 +165,9 @@ class BlockEditor {
                                 if (!isDragging) {
                                     Box {
                                         modifier.width(Grow.Std).alignY(AlignmentY.Bottom)
+                                            .height(DROP_SENSOR_HEIGHT)
                                         addDropTargetOnce(DropAction.AttachAfter(block), uiNode)
+
                                     }
                                 }
                             }
@@ -172,7 +179,6 @@ class BlockEditor {
                             modifier
                                 .width(Grow.Std).height(DROP_SENSOR_HEIGHT)
                                 .alignY(AlignmentY.Top)
-                                .margin(top = (-10).dp)
 
                             addDropTargetOnce(DropAction.InsertBefore(block), uiNode)
                         }
@@ -182,22 +188,21 @@ class BlockEditor {
                                 modifier
                                     .width(Grow.Std).height(DROP_SENSOR_HEIGHT)
                                     .alignY(AlignmentY.Bottom)
-                                    .margin(bottom = (-10).dp)
 
                                 addDropTargetOnce(DropAction.AttachAfter(block), uiNode)
                             }
                         }
                     }
                 }
-            }
 
-            if (!block.isExpression) {
-                val action = potentialAction
-                if (action is DropAction.AttachAfter && action.target == block && !isDragging) {
-                    GhostPlaceholder(false)
+                if (!block.isExpression) {
+                    val action = potentialAction
+                    if (action is DropAction.AttachAfter && action.target == block && !isDragging) {
+                        GhostPlaceholder(false)
+                    }
+
+                    block.next?.let { next -> renderBlockRecursively(next, isGhost) }
                 }
-
-                block.next?.let { next -> renderBlockRecursively(next, isGhost) }
             }
         }
     }
@@ -229,7 +234,7 @@ class BlockEditor {
     ) {
         Box {
             val marginLeft = if (block.isExpression) Dp.fromPx(PuzzleShapes.TAB_WIDTH) else 0.dp
-            modifier.width(FitContent).margin(start = marginLeft).apply(blockModifier)
+            modifier.width(Grow.Std).margin(start = marginLeft).apply(blockModifier)
 
             val bgColor = if (isGhost) block.color.withAlpha(0.5f) else block.color
             val color by animateColorAsState(
@@ -250,18 +255,9 @@ class BlockEditor {
             with(block) {
                 // Передаем модификаторы, которые отвечают за фон и перетаскивание
                 composeHeaderLayout(isHovered.use(), isGhost) {
-                    modifier.width(FitContent).margin(start = marginLeft).apply(blockModifier)
+                    modifier.width(Grow.Std).margin(start = marginLeft).apply(blockModifier)
 
-                    val isContainer = block is ContainerBlock
 
-                    background(
-                        ScratchBlockBackground(
-                            color = color,
-                            isExpression = block.isExpression,
-                            hasNext = !block.isExpression && block !is StartBlock,
-                            isContainerHeader = isContainer
-                        )
-                    )
                 }
             }
         }
@@ -281,7 +277,7 @@ class BlockEditor {
                 action is DropAction.AttachToInput && action.target == parentBlock && action.inputName == name && !action.isStatementSlot
 
             uiScope.Box {
-                modifier.alignY(AlignmentY.Center).margin(horizontal = 2.dp)
+                modifier.align(AlignmentX.End, AlignmentY.Center).margin(horizontal = sizes.gap)
                 addDropTargetOnce(DropAction.AttachToInput(parentBlock, name, false), uiNode)
 
                 if (attached != null) {
@@ -357,7 +353,7 @@ class BlockEditor {
 
         fun SectionSeparator(label: String) {
             val bgColor = if (isGhost) parentBlock.color.withAlpha(0.5f) else parentBlock.color
-            val color by animateColorAsState(if (isHovered) bgColor else bgColor, tween(0.2f, Easing.quadRev))
+            val color by animateColorAsState(if (isHovered) bgColor else bgColor.mulRgb(0.9f), tween(0.2f, Easing.quadRev))
             uiScope.Row {
                 modifier.width(Grow.Std).height(FitContent)
                 Box {
@@ -381,7 +377,7 @@ class BlockEditor {
     }
 
     private fun UiScope.GhostPlaceholder(isExpression: Boolean) {
-        Box {
+        Box(Grow.Std) {
             if (isExpression) modifier.size(40.dp, 30.dp)
             else modifier.height(40.dp).width(100.dp)
             modifier.background(ScratchBlockBackground(Color.WHITE.withAlpha(0.2f), isExpression, !isExpression))
