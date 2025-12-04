@@ -54,7 +54,8 @@ class OnEventBlock(var eventName: String = "MyEvent") : CodeBlock(MdColor.PINK) 
     override suspend fun execute(context: BlockContext) = Unit
 
     // Используем кастомный лейаут заголовка, чтобы добавить настройки
-    override fun UiScope.composeHeaderLayout(scopeBuilder: (UiScope) -> BlockEditor.InputSlotScope, blockHeaderModifier: UiModifier.() -> Unit) {
+    context(editor: BlockEditor)
+    override fun UiScope.composeHeaderLayout(isHovered: Boolean, isGhost: Boolean, blockHeaderModifier: UiModifier.() -> Unit) {
         Column {
             modifier.apply(blockHeaderModifier) // применяем фон и отступы к колонке
             modifier.padding(10.dp)

@@ -1,5 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
+import de.fabmax.kool.input.CursorShape
+import de.fabmax.kool.input.PointerInput
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.MutableVec2f
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
@@ -115,9 +118,11 @@ class BlockEditor {
                     modifier.width(FitContent)
 
                     Column {
-                        modifier.width(FitContent)
+                        modifier.width(Grow.Std)
 
-                        BlockHeaderVisual(block, isGhost) {
+                        val isHovered = remember { mutableStateOf(false) }
+
+                        BlockHeaderVisual(isHovered, block, isGhost) {
                             modifier
                                 .onDragStart { ev -> handleDragStart(block, ev) }
                                 .onDrag { ev -> handleDrag(block, ev) }
@@ -125,16 +130,32 @@ class BlockEditor {
                                 .onClick {
                                     onBlockRightClick(block, it)
                                 }
+                                .onEnter {
+                                    isHovered.set(true)
+                                }
+                                .onHover {
+                                    PointerInput.cursorShape = if(it.pointer.isLeftButtonPressed) CursorShape.MOVE else CursorShape.HAND
+                                }
+                                .onExit {
+                                    isHovered.set(false)
+                                }
                         }
 
-                        with(InputSlotScope(this, block, isGhost)) {
+                        with(InputSlotScope(this, block, isHovered.use(), isGhost)) {
                             with(block) { composeBody() }
                         }
 
                         if (block is ContainerBlock) {
                             Box {
                                 modifier.height(20.dp).width(Grow.Std)
-                                modifier.background(ContainerFooterBackground(if (isGhost) block.color.withAlpha(0.5f) else block.color))
+                                val bgColor = if (isGhost) block.color.withAlpha(0.5f) else block.color
+                                val color by animateColorAsState(
+                                    if (isHovered.value) bgColor else bgColor.mulRgb(0.9f), tween(
+                                        0.2f,
+                                        Easing.quadRev
+                                    )
+                                )
+                                modifier.background(ContainerFooterBackground(color))
 
                                 if (!isDragging) {
                                     Box {
@@ -200,17 +221,26 @@ class BlockEditor {
         }
     }
 
-    private fun UiScope.BlockHeaderVisual(block: CodeBlock, isGhost: Boolean, blockModifier: UiModifier.() -> Unit) {
+    private fun UiScope.BlockHeaderVisual(
+        isHovered: MutableStateValue<Boolean>,
+        block: CodeBlock,
+        isGhost: Boolean,
+        blockModifier: UiModifier.() -> Unit,
+    ) {
         Box {
             val marginLeft = if (block.isExpression) Dp.fromPx(PuzzleShapes.TAB_WIDTH) else 0.dp
             modifier.width(FitContent).margin(start = marginLeft).apply(blockModifier)
 
             val bgColor = if (isGhost) block.color.withAlpha(0.5f) else block.color
+            val color by animateColorAsState(
+                if (isHovered.use()) bgColor else bgColor.mulRgb(0.9f),
+                tween(0.2f, Easing.quadRev)
+            )
             val isContainer = block is ContainerBlock
 
             modifier.background(
                 ScratchBlockBackground(
-                    color = bgColor,
+                    color = color,
                     isExpression = block.isExpression,
                     hasNext = !block.isExpression,
                     isContainerHeader = isContainer
@@ -219,15 +249,14 @@ class BlockEditor {
 
             with(block) {
                 // Передаем модификаторы, которые отвечают за фон и перетаскивание
-                composeHeaderLayout({ InputSlotScope(it, block, isGhost) }) {
+                composeHeaderLayout(isHovered.use(), isGhost) {
                     modifier.width(FitContent).margin(start = marginLeft).apply(blockModifier)
 
-                    val bgColor = if (isGhost) block.color.withAlpha(0.5f) else block.color
                     val isContainer = block is ContainerBlock
 
                     background(
                         ScratchBlockBackground(
-                            color = bgColor,
+                            color = color,
                             isExpression = block.isExpression,
                             hasNext = !block.isExpression && block !is StartBlock,
                             isContainerHeader = isContainer
@@ -238,7 +267,12 @@ class BlockEditor {
         }
     }
 
-    inner class InputSlotScope(val uiScope: UiScope, val parentBlock: CodeBlock, val isGhost: Boolean) :
+    inner class InputSlotScope(
+        val uiScope: UiScope,
+        val parentBlock: CodeBlock,
+        val isHovered: Boolean,
+        val isGhost: Boolean,
+    ) :
         UiScope by uiScope {
         fun InputSlot(name: String) {
             val attached = parentBlock.inputs[name]
@@ -273,11 +307,16 @@ class BlockEditor {
                 modifier.width(Grow.Std)
 
                 val bgColor = if (isGhost) parentBlock.color.withAlpha(0.5f) else parentBlock.color
+                val color by animateColorAsState(
+                    if (isHovered) bgColor else bgColor.mulRgb(0.9f),
+                    tween(0.2f, Easing.quadRev)
+                )
                 Box {
                     modifier
                         .width(Dp.fromPx(C_BLOCK_SPINE_WIDTH) - sizes.smallGap * 0.5f)
                         .height(Grow.Std)
-                        .background(RectBackground(bgColor))
+                        .background(RectBackground(color))
+                        .border(RectBorder(color.mix(Color.BLACK, 0.2f), Dp.fromPx(2f)))
                 }
 
                 Box { modifier.size(sizes.smallGap * 0.5f, Grow.Std) }
@@ -318,11 +357,12 @@ class BlockEditor {
 
         fun SectionSeparator(label: String) {
             val bgColor = if (isGhost) parentBlock.color.withAlpha(0.5f) else parentBlock.color
+            val color by animateColorAsState(if (isHovered) bgColor else bgColor, tween(0.2f, Easing.quadRev))
             uiScope.Row {
                 modifier.width(Grow.Std).height(FitContent)
                 Box {
                     modifier.width(Grow.Std).height(30.dp)
-                    modifier.background(ContainerMiddleBackground(bgColor))
+                    modifier.background(ContainerMiddleBackground(color))
                     Text(label) {
                         modifier.alignY(AlignmentY.Center).margin(start = Dp.fromPx(C_BLOCK_SPINE_WIDTH + 10f))
                             .textColor(Color.WHITE)

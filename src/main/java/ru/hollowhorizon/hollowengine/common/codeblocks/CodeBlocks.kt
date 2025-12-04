@@ -40,12 +40,12 @@ abstract class CodeBlock(val color: Color, val isExpression: Boolean = false) {
 
     abstract fun BlockEditor.InputSlotScope.composeContent()
 
-    open fun UiScope.composeHeaderLayout(scopeBuilder: (UiScope) -> BlockEditor.InputSlotScope, blockHeaderModifier: UiModifier.() -> Unit) {
+    context(editor: BlockEditor)
+    open fun UiScope.composeHeaderLayout(isHovered: Boolean, isGhost: Boolean, blockHeaderModifier: UiModifier.() -> Unit) {
         Row {
             modifier.apply(blockHeaderModifier)
-            // Стандартные паддинги
             modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
-            scopeBuilder(this).composeContent()
+            editor.InputSlotScope(this, this@CodeBlock, isHovered, isGhost).composeContent()
         }
     }
 
