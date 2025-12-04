@@ -295,7 +295,6 @@ class BlockEditor {
 
             uiScope.Box {
                 modifier.align(AlignmentX.End, AlignmentY.Center).margin(horizontal = sizes.gap)
-                addDropTargetOnce(DropAction.AttachToInput(parentBlock, name, false), uiNode)
 
                 if (attached != null) {
                     if (draggingBlock == attached) EmptySlotVisual(isTargeted, true)
@@ -304,6 +303,8 @@ class BlockEditor {
                         if (isTargeted) modifier.border(RectBorder(Color.WHITE, 2.dp))
                     }
                 } else {
+                    addDropTargetOnce(DropAction.AttachToInput(parentBlock, name, false), uiNode)
+
                     if (isTargeted && draggingBlock?.isExpression == true) GhostPlaceholder(true)
                     else EmptySlotVisual(false, true)
                 }
