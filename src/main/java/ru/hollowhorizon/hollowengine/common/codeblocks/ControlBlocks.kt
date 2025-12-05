@@ -22,7 +22,7 @@ class WhileBlock : CodeBlock(MdColor.ORANGE), ContainerBlock {
 
     override fun BlockEditor.InputSlotScope.composeContent() {
         Text("While") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("cond")
+        InputSlot("cond", ExpressionTypes.BOOLEAN)
     }
 
     override fun BlockEditor.InputSlotScope.composeBody() {
@@ -39,7 +39,7 @@ class DelayBlock : CodeBlock(MdColor.LIGHT_BLUE) {
 
     override fun BlockEditor.InputSlotScope.composeContent() {
         Text("Delay") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("time")
+        InputSlot("time", ExpressionTypes.NUMBER)
         Text("ms") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
     }
 }

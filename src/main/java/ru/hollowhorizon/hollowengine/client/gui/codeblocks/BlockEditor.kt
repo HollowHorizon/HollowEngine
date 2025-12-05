@@ -9,10 +9,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.set
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.ContainerBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.IfBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.PrintBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.*
 
 sealed interface DropAction {
     val target: CodeBlock
@@ -292,7 +289,8 @@ class BlockEditor {
         val isGhost: Boolean,
     ) :
         UiScope by uiScope {
-        fun InputSlot(name: String) {
+        fun InputSlot(name: String, type: ExpressionType) {
+            parentBlock.inputTypes[name] = type
             val attached = parentBlock.inputs[name]
             val action = potentialAction
             val isTargeted =
@@ -518,14 +516,18 @@ class BlockEditor {
     private fun isValidDrop(source: CodeBlock, action: DropAction): Boolean {
         if (source == action.target) return false
         if (isAncestorOf(source, action.target)) return false
-        if (source.isExpression) {
-            if (action is DropAction.AttachToInput && !action.isStatementSlot) return true
-            return false
-        } else {
-            return when (action) {
-                is DropAction.InsertBefore -> true
-                is DropAction.AttachAfter -> true
-                is DropAction.AttachToInput -> action.isStatementSlot
+
+        return when(action) {
+            is DropAction.InsertBefore, is DropAction.AttachAfter -> !source.isExpression
+            is DropAction.AttachToInput -> {
+                if(source is ExpressionBlock) {
+                    val requiredType = action.target.inputTypes[action.inputName] ?: return false
+                    val returnType = source.expressionType
+                    val typesMatch = requiredType.accepts(returnType)
+                    typesMatch && !action.isStatementSlot
+                } else {
+                    action.isStatementSlot
+                }
             }
         }
     }

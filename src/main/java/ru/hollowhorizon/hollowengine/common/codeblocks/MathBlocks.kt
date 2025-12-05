@@ -13,7 +13,9 @@ enum class LogicOp(val symbol: String) {
     EQUALS("=="), GREATER(">"), LESS("<"), AND("&&"), OR("||");
 }
 
-class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(MdColor.BLUE, isExpression = true) {
+class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(MdColor.BLUE), ExpressionBlock {
+    override val expressionType = ExpressionTypes.NUMBER
+
     // Dropdown state
     var expanded = mutableStateOf(false)
 
@@ -29,7 +31,7 @@ class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(MdColor.BLUE, isExpress
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        InputSlot("a")
+        InputSlot("a", ExpressionTypes.NUMBER)
 
         // Кликабельный текст для смены операции
         Box {
@@ -46,11 +48,13 @@ class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(MdColor.BLUE, isExpress
             Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center) }
         }
 
-        InputSlot("b")
+        InputSlot("b", ExpressionTypes.NUMBER)
     }
 }
 
-class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(MdColor.INDIGO, isExpression = true) {
+class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(MdColor.INDIGO), ExpressionBlock {
+    override val expressionType = ExpressionTypes.BOOLEAN
+
     override suspend fun execute(context: BlockContext): Any? {
         val resA = inputs["a"]?.execute(context)
         val resB = inputs["b"]?.execute(context)
@@ -66,7 +70,7 @@ class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(MdColor.INDIGO, i
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        InputSlot("a")
+        InputSlot("a", ExpressionTypes.NUMBER)
         Text(op.symbol) {
             modifier.margin(horizontal = sizes.smallGap)
                 .padding(horizontal = sizes.smallGap)
@@ -82,12 +86,14 @@ class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(MdColor.INDIGO, i
                 .zLayer(300)
                 .background(RoundRectBackground(Color.BLACK.withAlpha(0.2f), sizes.smallGap))
         }
-        InputSlot("b")
+        InputSlot("b", ExpressionTypes.NUMBER)
     }
 }
 
 // Примитивы
-class NumberBlock(var value: Double = 0.0) : CodeBlock(MdColor.AMBER, isExpression = true) {
+class NumberBlock(var value: Double = 0.0) : CodeBlock(MdColor.AMBER), ExpressionBlock {
+    override val expressionType = ExpressionTypes.NUMBER
+
     override suspend fun execute(context: BlockContext) = value
     override fun BlockEditor.InputSlotScope.composeContent() {
         TextField(value.toString()) {
@@ -98,7 +104,9 @@ class NumberBlock(var value: Double = 0.0) : CodeBlock(MdColor.AMBER, isExpressi
     }
 }
 
-class BoolBlock(var value: Boolean = true) : CodeBlock(MdColor.AMBER, isExpression = true) {
+class BoolBlock(var value: Boolean = true) : CodeBlock(MdColor.AMBER), ExpressionBlock {
+    override val expressionType = ExpressionTypes.BOOLEAN
+
     override suspend fun execute(context: BlockContext) = value
     override fun BlockEditor.InputSlotScope.composeContent() {
         Checkbox(value) {

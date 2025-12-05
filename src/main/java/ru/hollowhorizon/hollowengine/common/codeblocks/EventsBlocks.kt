@@ -9,8 +9,7 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 
 class SendEventBlock(var eventName: String = "MyEvent") : CodeBlock(MdColor.PINK) {
     override suspend fun execute(context: BlockContext): Any? {
-        val payload = inputs["payload"]?.execute(context)
-        context.emitEvent(eventName, payload)
+        context.emitEvent(eventName, null)
         return next?.execute(context)
     }
 
@@ -21,7 +20,6 @@ class SendEventBlock(var eventName: String = "MyEvent") : CodeBlock(MdColor.PINK
                 .hint("Название сообщения")
                 .onChange { eventName = it }
         }
-        InputSlot("payload")
     }
 }
 

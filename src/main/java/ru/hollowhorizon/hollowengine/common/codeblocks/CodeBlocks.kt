@@ -10,12 +10,16 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 interface StartBlock
 interface EndBlock
 interface ContainerBlock
+interface ExpressionBlock {
+    val expressionType: ExpressionType
+}
 
-abstract class CodeBlock(val color: Color, val isExpression: Boolean = false) {
+abstract class CodeBlock(val color: Color) {
     var next: CodeBlock? = null
     var parent: CodeBlock? = null
 
     val inputs = mutableMapOf<String, CodeBlock>()
+    val inputTypes = mutableMapOf<String, ExpressionType>()
 
     var parentBlock: CodeBlock? = null
     var parentInputName: String? = null
@@ -27,6 +31,7 @@ abstract class CodeBlock(val color: Color, val isExpression: Boolean = false) {
         positionX.value = x
         positionY.value = y
     }
+
     fun setPosition(pos: Vec2f) = setPosition(pos.x, pos.y)
 
     fun attachInput(slotName: String, block: CodeBlock) {
@@ -41,7 +46,11 @@ abstract class CodeBlock(val color: Color, val isExpression: Boolean = false) {
     abstract fun BlockEditor.InputSlotScope.composeContent()
 
     context(editor: BlockEditor)
-    open fun UiScope.composeHeaderLayout(isHovered: Boolean, isGhost: Boolean, blockHeaderModifier: UiModifier.() -> Unit) {
+    open fun UiScope.composeHeaderLayout(
+        isHovered: Boolean,
+        isGhost: Boolean,
+        blockHeaderModifier: UiModifier.() -> Unit,
+    ) {
         Row(Grow.Std) {
             modifier.apply(blockHeaderModifier)
             modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
@@ -53,7 +62,10 @@ abstract class CodeBlock(val color: Color, val isExpression: Boolean = false) {
     open fun BlockEditor.InputSlotScope.composeBody() {}
 }
 
-class PrintBlock(var defaultMessage: String = "") : CodeBlock(MdColor.DEEP_PURPLE, isExpression = false) {
+val CodeBlock.isExpression: Boolean
+    get() = this is ExpressionBlock
+
+class PrintBlock(var defaultMessage: String = "") : CodeBlock(MdColor.DEEP_PURPLE) {
     override suspend fun execute(context: BlockContext): Any? {
         val msg = inputs["msg"]?.execute(context) ?: defaultMessage
         HollowEngine.LOGGER.info(msg)
@@ -63,11 +75,13 @@ class PrintBlock(var defaultMessage: String = "") : CodeBlock(MdColor.DEEP_PURPL
     override fun BlockEditor.InputSlotScope.composeContent() {
         Text("Print") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
         Box(Grow.Std) {}
-        InputSlot("msg")
+        InputSlot("msg", AnyType)
     }
 }
 
-class StringValueBlock(var value: String) : CodeBlock(MdColor.AMBER, isExpression = true) {
+class StringValueBlock(var value: String) : CodeBlock(MdColor.AMBER), ExpressionBlock {
+    override val expressionType = ExpressionTypes.STRING
+
     override suspend fun execute(context: BlockContext) = value
     override fun BlockEditor.InputSlotScope.composeContent() {
         TextField(value) {
@@ -78,7 +92,7 @@ class StringValueBlock(var value: String) : CodeBlock(MdColor.AMBER, isExpressio
     }
 }
 
-class RepeatBlock : CodeBlock(MdColor.ORANGE, isExpression = false), ContainerBlock {
+class RepeatBlock : CodeBlock(MdColor.ORANGE), ContainerBlock {
     override suspend fun execute(context: BlockContext): Any? {
         val times = inputs["times"]?.execute(context).toString().toIntOrNull() ?: 1
         repeat(times) {
@@ -89,7 +103,7 @@ class RepeatBlock : CodeBlock(MdColor.ORANGE, isExpression = false), ContainerBl
 
     override fun BlockEditor.InputSlotScope.composeContent() {
         Text("Repeat") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("times")
+        InputSlot("times", ExpressionTypes.BOOLEAN)
     }
 
     override fun BlockEditor.InputSlotScope.composeBody() {
@@ -97,7 +111,7 @@ class RepeatBlock : CodeBlock(MdColor.ORANGE, isExpression = false), ContainerBl
     }
 }
 
-class IfBlock : CodeBlock(MdColor.TEAL, isExpression = false), ContainerBlock {
+class IfBlock : CodeBlock(MdColor.TEAL), ContainerBlock {
     override suspend fun execute(context: BlockContext): Any? {
         val condition = inputs["cond"]?.execute(context) as? Boolean ?: false
         if (condition) {
@@ -111,7 +125,7 @@ class IfBlock : CodeBlock(MdColor.TEAL, isExpression = false), ContainerBlock {
     override fun BlockEditor.InputSlotScope.composeContent() {
         Text("If") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
         Box(Grow.Std) {}
-        InputSlot("cond")
+        InputSlot("cond", ExpressionTypes.BOOLEAN)
     }
 
     override fun BlockEditor.InputSlotScope.composeBody() {

@@ -22,11 +22,13 @@ class SetVarBlock(var varName: String = "var") : CodeBlock(MdColor.DEEP_ORANGE) 
                 .colors(textColor = Color.WHITE, lineColor = Color.WHITE)
         }
         Text("to") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("value")
+        InputSlot("value", AnyType)
     }
 }
 
-class GetVarBlock(var varName: String = "var") : CodeBlock(MdColor.DEEP_ORANGE, isExpression = true) {
+class GetVarBlock(var varName: String = "var") : CodeBlock(MdColor.DEEP_ORANGE), ExpressionBlock {
+    override val expressionType = ExpressionTypes.STRING
+
     override suspend fun execute(context: BlockContext): Any? {
         return context.variables[varName]
     }
