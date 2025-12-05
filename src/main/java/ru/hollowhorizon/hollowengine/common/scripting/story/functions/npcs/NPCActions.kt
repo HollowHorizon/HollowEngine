@@ -96,7 +96,6 @@ suspend infix fun NpcEntity.look(entity: Entity) {
  * @param pos Позиция блока, который нужно использовать.
  */
 suspend infix fun NpcEntity.useBlock(pos: Vec3) {
-    move(pos)
     look(pos)
     val hit = level().clip(ClipContext(pos, pos, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, this))
     swing(InteractionHand.MAIN_HAND)

@@ -11,6 +11,7 @@ object StandardModules {
     val General: BlockModule = {
         block("Вывод") { PrintBlock() }
         block("Ждать") { DelayBlock() }
+        block("Команда (minecraft)") { ExecuteCommandBlock() }
     }
 
     val Math: BlockModule = {
@@ -39,14 +40,14 @@ object StandardModules {
     }
 
     val Variables: BlockModule = {
-        category("Переменные", MdColor.DEEP_ORANGE) {
+        category("Переменные", Color("680bbf")) {
             block("Присвоить") { SetVarBlock("") }
             block("Получить") { GetVarBlock("") }
         }
     }
 
     val Events: BlockModule = {
-        category("События", Color("ba7300")) {
+        category("События", Color("ffa70f")) {
             block("При запуске") { OnStartBlock() }
             block("При событии") { OnEventBlock() }
         }

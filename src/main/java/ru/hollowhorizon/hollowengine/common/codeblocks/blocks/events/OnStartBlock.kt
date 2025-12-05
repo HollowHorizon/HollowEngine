@@ -16,6 +16,6 @@ class OnStartBlock: CodeBlock(), StartBlock {
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("Начало") { modifier.width(Grow.Std).align(AlignmentX.Center, AlignmentY.Center) }
+        Text("Начало") { modifier.width(FitContent).align(AlignmentX.Center, AlignmentY.Center) }
     }
 }

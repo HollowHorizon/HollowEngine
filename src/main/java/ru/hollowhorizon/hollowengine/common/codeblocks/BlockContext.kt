@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.codeblocks
 
 import de.fabmax.kool.util.Color
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
@@ -17,6 +18,7 @@ import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import java.io.File
 
 class BlockContext(val scope: CoroutineScope) {
+    val server = currentServer
     val variables = mutableMapOf<String, Any?>()
 
     private val _eventBus = MutableSharedFlow<Pair<String, Any?>>()
@@ -47,10 +49,12 @@ fun runScript(file: File) {
     runScript(blocks)
 }
 
-fun runScript(rootBlocks: List<CodeBlock>) {
-    val context = BlockContext(currentServer.coroutineScope)
+var oldJob: Job? = null
 
-    context.scope.launch {
+fun runScript(rootBlocks: List<CodeBlock>) {
+    oldJob?.cancel()
+    val context = BlockContext(currentServer.coroutineScope)
+    oldJob = context.scope.launch {
         rootBlocks.filter { it is StartBlock }.forEach {
             it.execute(context)
         }

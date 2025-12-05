@@ -168,6 +168,7 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
         }
 
         ActionButton(24.dp, "hollowengine:textures/gui/icons/play.png") {
+            IdeContent.files.values.forEach { it.save() }
             StartScriptPacket(file).send()
         }
     }

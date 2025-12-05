@@ -39,8 +39,8 @@ class NpcEntity : PathfinderMob {
     init {
         moveControl = NpcMoveControl(this)
         if(!level().isClientSide) (this as ComponentDispatcher).apply {
-            container.attach("hollowengine:npcs/main".rl)
-            container.attach("hollowengine:model_renderer".rl)
+            //container.attach("hollowengine:npcs/main".rl)
+            container.attach("hollowengine:model_component".rl)
             //attach("hollowengine:animator".rl)
         }
     }
@@ -88,11 +88,12 @@ class NpcEntity : PathfinderMob {
     }
 
     override fun doPush(pEntity: Entity) {
+        super.doPush(pEntity)
         //if (get<NpcComponent>()?.hitboxMode != HitboxMode.EMPTY) super.doPush(pEntity)
     }
 
     override fun isPushable(): Boolean {
-        return false
+        return super.isPushable()
         //return super.isPushable() && get<NpcComponent>()?.hitboxMode == HitboxMode.PULLING
     }
 

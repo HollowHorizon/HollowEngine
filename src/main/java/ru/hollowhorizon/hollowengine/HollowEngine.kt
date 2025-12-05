@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine
 
 //? if forge {
 /*import ru.hollowhorizon.hollowengine.client.render.setupCamera
+import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
 *///?}
 
 import org.apache.logging.log4j.LogManager
@@ -20,11 +21,13 @@ object HollowEngine {
     val compilerLoader = CompilerLoader(DirectoryManager.HOLLOW_ENGINE.resolve("HollowEngineCompiler.jar").toFile())
 
     init {
-
+        isPhysicalClient
         LOGGER.info("Initializing Hollow Engine 2.0!")
 
-        val (mappings, classpath) = CommonEnvironment.setup()
-        compilerLoader.initialize(File(System.getProperty("java.home")), classpath, mappings)
+        if (compilerLoader.hasCompilerJar()) {
+            val (mappings, classpath) = CommonEnvironment.setup()
+            compilerLoader.initialize(File(System.getProperty("java.home")), classpath, mappings)
+        }
 
         //? if forge {
         /*if (isPhysicalClient) setupCamera()

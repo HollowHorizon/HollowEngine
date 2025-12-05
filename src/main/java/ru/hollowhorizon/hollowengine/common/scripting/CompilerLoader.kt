@@ -8,10 +8,14 @@ class CompilerLoader(
     private val compilerJar: File,
     private val implementationClassName: String = "ru.hollowhorizon.hollowengine.common.ScriptingEnvironmentInitializerImpl"
 ) : AutoCloseable {
+    var isLoaded = false
 
     private var classLoader: URLClassLoader? = null
 
+    fun hasCompilerJar() = compilerJar.exists()
+
     fun initialize(javaHome: File, classpath: List<File>, mappings: Mappings) {
+        if (!hasCompilerJar()) return
         val jarUrl = compilerJar.toURI().toURL()
 
         val parentLoader = ScriptingEnvironmentInitializer::class.java.classLoader
@@ -30,6 +34,7 @@ class CompilerLoader(
                 ScriptClassProvider(".kts", "kotlin.Any"),
             ), mappings)
 
+            isLoaded = true
             println("HollowEngine Compiler loaded successfully from ${compilerJar.name}")
 
         } catch (e: Exception) {

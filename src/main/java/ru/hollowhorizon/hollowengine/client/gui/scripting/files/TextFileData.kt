@@ -7,6 +7,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.logE
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
@@ -37,7 +38,13 @@ class TextFileData(name: String, path: String) :
     }
 
     override fun UiScope.compose() {
+
         modifier.background(RoundRectBackground(EditorTheme.bg, sizes.smallGap))
+
+        if(!HollowEngine.compilerLoader.isLoaded) {
+            Text("А где HollowEngineCompiler.jar?") {}
+            return
+        }
 
         Box(Grow.Std, Grow.Std) {
             ScriptTextArea(

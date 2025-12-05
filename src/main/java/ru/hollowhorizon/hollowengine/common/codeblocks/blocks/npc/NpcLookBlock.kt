@@ -29,9 +29,10 @@ class NpcLookBlock : CodeBlock() {
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("NPC Look") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+        Text("НИП") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
         InputSlot("npc", AnyType)
-        Text("At") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+        Box(Grow.Std) {  }
+        Text("смотрит на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
         InputSlot("target", AnyType)
     }
 }

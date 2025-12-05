@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.blocks
 
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
+import de.fabmax.kool.util.MdColor
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -29,37 +30,39 @@ class PositionBlock : CodeBlock(), ExpressionBlock {
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Column(Grow.Std) {
-            Row(Grow.Std) {
-                Text("XYZ") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-                InputSlot("x", ExpressionTypes.NUMBER)
-                InputSlot("y", ExpressionTypes.NUMBER)
-                InputSlot("z", ExpressionTypes.NUMBER)
-            }
-            Box(Grow.Std) {
-                Image("hollowengine:textures/gui/icons/paste.png") {
-                    modifier.size(sizes.largeGap, sizes.largeGap)
-                        .margin(sizes.smallGap)
-                        .align(AlignmentX.End, AlignmentY.Center)
+        Text("X") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+        InputSlot("x", ExpressionTypes.NUMBER)
+        Text("Y") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+        InputSlot("y", ExpressionTypes.NUMBER)
+        Text("Z") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+        InputSlot("z", ExpressionTypes.NUMBER)
+        Image("hollowengine:textures/gui/icons/paste.png") {
+            modifier.size(sizes.largeGap * 1.5f, sizes.largeGap * 1.5f)
+                .margin(sizes.smallGap)
+                .align(AlignmentX.End, AlignmentY.Center)
 
-                    val isHovered by modifier.hoverable()
-                    val color by animateColorAsState(Color.WHITE.withAlpha(if (isHovered) 1f else 0.8f))
-                    modifier.tint(color)
-                        .onClick {
-                            if (it.isLeftClick) {
-                                pastePlayerCoords()
-                            }
-                        }
+            val isHovered by modifier.hoverable()
+            val color by animateColorAsState(Color.WHITE.mulRgb(if (isHovered) 1f else 0.8f))
+            modifier.tint(color)
+                .onClick {
+                    if (it.isLeftClick) {
+                        pastePlayerCoords()
+                    }
                 }
-            }
         }
     }
 
     private fun BlockEditor.InputSlotScope.pastePlayerCoords() {
         val pos = Minecraft.getInstance().player?.position() ?: Vec3.ZERO
-        inputs["x"] = NumberBlock(pos.x).also { it.parentBlock = this@PositionBlock; it.parentInputName = "x" }
-        inputs["y"] = NumberBlock(pos.x).also { it.parentBlock = this@PositionBlock; it.parentInputName = "y" }
-        inputs["y"] = NumberBlock(pos.x).also { it.parentBlock = this@PositionBlock; it.parentInputName = "z" }
+        inputs["x"] = NumberBlock(pos.x).also {
+            it.parentBlock = this@PositionBlock; it.color = MdColor.AMBER; it.parentInputName = "x"
+        }
+        inputs["y"] = NumberBlock(pos.y).also {
+            it.parentBlock = this@PositionBlock; it.color = MdColor.AMBER; it.parentInputName = "y"
+        }
+        inputs["z"] = NumberBlock(pos.z).also {
+            it.parentBlock = this@PositionBlock; it.color = MdColor.AMBER; it.parentInputName = "z"
+        }
         notifyChanged()
     }
 }

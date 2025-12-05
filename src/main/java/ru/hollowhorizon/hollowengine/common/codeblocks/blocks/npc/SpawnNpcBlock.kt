@@ -34,20 +34,21 @@ class SpawnNpcBlock : CodeBlock(), ExpressionBlock {
     override fun BlockEditor.InputSlotScope.composeContent() {
         Column {
             Text("Создать NPC") { modifier.textColor(Color.WHITE) }
-
+            Box { modifier.margin(sizes.smallGap * 0.5f) }
             Row {
                 Text("Имя:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
                 TextField(npcName) {
-                    modifier.width(100.dp).margin(start = 5.dp).onChange { npcName = it }
+                    modifier.width(FitContent).margin(start = 5.dp).onChange { npcName = it }
                 }
             }
-
-            TextField(modelPath) {
-                modifier.width(150.dp).hint("Путь к модели").onChange { modelPath = it }
-            }
-
-            Row {
+            Box { modifier.margin(sizes.smallGap * 0.5f) }
+//            TextField(modelPath) {
+//                modifier.width(FitContent).hint("Путь к модели").onChange { modelPath = it }
+//            }
+//            Box { modifier.margin(sizes.smallGap * 0.5f) }
+            Row(Grow.Std) {
                 Text("Позиция:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+                Box(Grow.Std) {  }
                 InputSlot("pos", ExpressionTypes.VEC3)
             }
         }

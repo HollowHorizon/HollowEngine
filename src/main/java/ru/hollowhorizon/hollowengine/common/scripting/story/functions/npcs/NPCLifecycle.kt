@@ -6,9 +6,9 @@ import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.models.internal.Transform
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationType
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.literal
-import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import kotlin.contracts.ExperimentalContracts
 
 /**
@@ -64,11 +64,6 @@ fun npc(
     val level = currentServer.getLevel(currentServer.levelKeys().find { it.location().toString() == world }
         ?: throw IllegalStateException("Dimension $world not found!"))
         ?: throw IllegalStateException("Dimension $world is not loaded!")
-
-    level.allEntities.asSequence()
-        .filterIsInstance<NpcEntity>()
-        .firstOrNull { it.name == name }
-        ?.let { return it }
 
     return NpcEntity(level).apply {
         setPos(pos.x, pos.y, pos.z)

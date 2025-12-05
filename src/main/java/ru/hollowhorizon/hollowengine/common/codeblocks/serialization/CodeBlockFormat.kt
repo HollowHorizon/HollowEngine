@@ -30,6 +30,7 @@ class CodeBlockFormat(val blockModule: BlockProvider) {
     @OptIn(ExperimentalSerializationApi::class)
     val json = Json {
         explicitNulls = false
+        ignoreUnknownKeys = true
         encodeDefaults = true
         prettyPrint = true
         prettyPrintIndent = "  "

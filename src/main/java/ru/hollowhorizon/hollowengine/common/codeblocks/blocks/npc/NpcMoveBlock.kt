@@ -31,17 +31,22 @@ class NpcMoveBlock : CodeBlock() {
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Column {
-            Row {
-                Text("NPC Move") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+        Column(Grow.Std) {
+            Row(Grow.Std) {
+                Text("НИП") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+                Box(Grow.Std) {  }
                 InputSlot("npc", AnyType) // Сюда подключаем GetVarBlock
             }
-            Row {
-                Text("To") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+            Box { modifier.margin(sizes.smallGap * 0.5f) }
+            Row(Grow.Std) {
+                Text("Идёт на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+                Box(Grow.Std) {  }
                 InputSlot("target", AnyType) // LocationBlock или GetVarBlock(Entity)
             }
-            Row {
-                Text("Speed") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+            Box { modifier.margin(sizes.smallGap * 0.5f) }
+            Row(Grow.Std) {
+                Text("Со скоростью") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+                Box(Grow.Std) {  }
                 InputSlot("speed", ExpressionTypes.NUMBER)
             }
         }

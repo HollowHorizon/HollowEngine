@@ -24,7 +24,7 @@ class NpcSayBlock : CodeBlock() {
     override fun BlockEditor.InputSlotScope.composeContent() {
         Text("НИП") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
         InputSlot("npc", AnyType)
-
+        Box(Grow.Std) {  }
         Text("Говорит:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(start = 5.dp) }
         InputSlot("text", ExpressionTypes.STRING)
     }

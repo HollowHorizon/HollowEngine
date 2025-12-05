@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
+import de.fabmax.kool.Clipboard
 import de.fabmax.kool.input.CursorShape
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.math.Easing
@@ -10,6 +11,7 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.set
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 
 sealed interface DropAction {
@@ -29,11 +31,11 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
     private val dropTargets = mutableListOf<Pair<DropAction, UiNode>>()
     private val tmpLocal = MutableVec2f()
 
-    private val removalPopup = AutoPopup()
 
     private val snapAnimations = mutableListOf<SnapAnimation>()
 
     private val creationPopup = ItemPopupMenu<Vec2f>("BlockCreationMenu")
+    private val blockPopup = ItemPopupMenu<Vec2f>("BlockPopupMenu")
 
     companion object {
         const val C_BLOCK_SPINE_WIDTH = 20f
@@ -109,7 +111,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
                     .onChange { state.scrollRelativeX(it) }
             }
 
-            removalPopup()
+            blockPopup()
             creationPopup()
         }
     }
@@ -157,7 +159,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
                                 .onDrag { ev -> handleDrag(block, ev) }
                                 .onDragEnd { handleDragEnd(block) }
                                 .onClick {
-                                    onBlockRightClick(block, it)
+                                    onBlockRightClick(block, it, uiNode)
                                 }
                                 .onEnter {
                                     isHovered.set(true)
@@ -234,19 +236,21 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
     private fun onBlockRightClick(
         block: CodeBlock,
         event: PointerEvent,
+        uiNode: UiNode,
     ) {
-        removalPopup.popupContent = {
-            Column {
-                Button("Удалить") {
-                    modifier.onClick {
-                        removalPopup.hide()
-                        if (it.isLeftClick) removeBlock(block)
-                    }
-                }
-            }
-        }
+
         if (event.isRightClick) {
-            removalPopup.show(Vec2f(event.screenPosition))
+            blockPopup.show(Vec2f(event.screenPosition), SubMenuItem("Блок", null) {
+                item("Дублировать") {
+                    duplicateBlock(block, it)
+                }
+                item("Копировать UUID") {
+                    Clipboard.copyToClipboard(block.uuid.toString())
+                }
+                item("Удалить") {
+                    removeBlock(block)
+                }
+            }, Vec2f((uiNode.findParentOfType<ScrollPaneNode>() ?: uiNode).toLocal(event.screenPosition)))
         }
     }
 
@@ -272,6 +276,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
                     color = color,
                     isExpression = block.isExpression,
                     hasNext = !block.isExpression,
+                    hasPrev = block !is StartBlock,
                     isContainerHeader = isContainer
                 )
             )
@@ -355,8 +360,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
                             if (isTargeted) modifier.background(
                                 ScratchBlockBackground(
                                     Color.WHITE.withAlpha(0.2f),
-                                    false,
-                                    true
+                                    isExpression = false,
+                                    hasNext = true
                                 )
                             )
                         } else {
@@ -465,6 +470,14 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
         surface.triggerUpdate()
     }
 
+    private fun duplicateBlock(block: CodeBlock, localPos: Vec2f) {
+        val newBlock = block.deepCopy(provider)
+
+        newBlock.setPosition(localPos.x, localPos.y)
+        rootBlocks.add(newBlock)
+        notifyChanged()
+    }
+
     private fun removeBlock(block: CodeBlock) {
         val nextBlock = block.next
 
@@ -527,10 +540,10 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
         if (source == action.target) return false
         if (isAncestorOf(source, action.target)) return false
 
-        return when(action) {
+        return when (action) {
             is DropAction.InsertBefore, is DropAction.AttachAfter -> !source.isExpression
             is DropAction.AttachToInput -> {
-                if(source is ExpressionBlock) {
+                if (source is ExpressionBlock) {
                     val requiredType = action.target.inputTypes[action.inputName] ?: return false
                     val returnType = source.expressionType
                     val typesMatch = requiredType.accepts(returnType) || returnType == AnyType
