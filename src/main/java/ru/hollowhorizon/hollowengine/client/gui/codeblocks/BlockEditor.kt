@@ -56,12 +56,7 @@ class BlockEditor(val provider: BlockProvider) {
                 .onWheelY {
                     state.scrollDpY(it.pointer.scroll.y * -50f)
                 }
-                .onClick {
-                    if(it.isRightClick) {
-                        val rootMenu = buildMenuFromProvider(provider, uiNode)
-                        creationPopup.show(Vec2f(it.screenPosition), rootMenu, it.screenPosition)
-                    }
-                }
+                .onClick { createBlocksMenu(it) }
 
             modifier.onDrag {
                 val delta = it.pointer.delta
@@ -76,7 +71,10 @@ class BlockEditor(val provider: BlockProvider) {
             ScrollPane(state) {
                 modifier.layout(CellLayout)
                     .padding(sizes.largeGap)
-                modifier.onClick { potentialAction = null }
+                modifier.onClick {
+                    createBlocksMenu(it)
+                    potentialAction = null
+                }
 
                 rootBlocks.use().forEach { block -> renderBlockRecursively(block) }
                 body()
@@ -113,6 +111,13 @@ class BlockEditor(val provider: BlockProvider) {
 
             removalPopup()
             creationPopup()
+        }
+    }
+
+    private fun UiScope.createBlocksMenu(event: PointerEvent) {
+        if (event.isRightClick) {
+            val rootMenu = buildMenuFromProvider(provider, uiNode)
+            creationPopup.show(Vec2f(event.screenPosition), rootMenu, Vec2f(event.screenPosition))
         }
     }
 

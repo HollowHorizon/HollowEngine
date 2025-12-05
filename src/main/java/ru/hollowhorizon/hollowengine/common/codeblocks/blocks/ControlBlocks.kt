@@ -8,12 +8,14 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MdColor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionTypes
 
+@Serializable
 class WhileBlock : CodeBlock(MdColor.ORANGE), ContainerBlock {
     override suspend fun execute(context: BlockContext): Any? {
         while (context.scope.isActive && inputs["cond"]?.execute(context) as? Boolean == true) {

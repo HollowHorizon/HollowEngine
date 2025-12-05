@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.blocks
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MdColor
+import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
@@ -108,6 +109,7 @@ class NumberBlock(var value: Double = 0.0) : CodeBlock(MdColor.AMBER), Expressio
     }
 }
 
+@Serializable
 class BoolBlock(var value: Boolean = true) : CodeBlock(MdColor.AMBER), ExpressionBlock {
     override val expressionType = ExpressionTypes.BOOLEAN
 

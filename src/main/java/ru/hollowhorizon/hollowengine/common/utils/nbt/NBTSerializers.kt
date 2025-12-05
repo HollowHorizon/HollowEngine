@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.utils.nbt
 
 import de.fabmax.kool.math.Vec3f
+import de.fabmax.kool.util.Color
 import io.netty.buffer.Unpooled
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.ByteArraySerializer
@@ -26,9 +27,7 @@ import org.joml.Matrix4f
 import org.joml.Vector3d
 import org.joml.Vector3f
 import ru.hollowhorizon.hollowengine.HollowCore
-import ru.hollowhorizon.hollowengine.client.utils.registryAccess
 import ru.hollowhorizon.hollowengine.common.utils.literal
-import ru.hollowhorizon.hollowengine.common.utils.mcText
 import ru.hollowhorizon.hollowengine.common.utils.readItem
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.common.utils.save
@@ -294,6 +293,18 @@ object ForItemStack : KSerializer<ItemStack> {
         dec.endStructure(descriptor)
         return if (tag?.isEmpty == true) ItemStack.EMPTY
         else tag!!.readItem()
+    }
+}
+
+object ForStringUUID: KSerializer<UUID> {
+    override val descriptor: SerialDescriptor = String.serializer().descriptor
+
+    override fun serialize(encoder: Encoder, value: UUID) {
+        return encoder.encodeString(value.toString())
+    }
+
+    override fun deserialize(decoder: Decoder): UUID {
+        return UUID.fromString(decoder.decodeString())
     }
 }
 
@@ -676,5 +687,18 @@ object ForEntity : KSerializer<Entity> {
 
     override fun serialize(encoder: Encoder, value: Entity) {
         encoder.encodeInt(value.id)
+    }
+}
+
+
+object ForColor : KSerializer<Color> {
+    override val descriptor: SerialDescriptor = String.serializer().descriptor
+
+    override fun serialize(encoder: Encoder, value: Color) {
+        encoder.encodeString(value.toHexString())
+    }
+
+    override fun deserialize(decoder: Decoder): Color {
+        return Color(decoder.decodeString())
     }
 }
