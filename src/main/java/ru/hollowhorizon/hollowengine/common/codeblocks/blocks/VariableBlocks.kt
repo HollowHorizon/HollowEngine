@@ -1,9 +1,10 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks
+package ru.hollowhorizon.hollowengine.common.codeblocks.blocks
 
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MdColor
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.common.codeblocks.*
 
 class SetVarBlock(var varName: String = "var") : CodeBlock(MdColor.DEEP_ORANGE) {
     override suspend fun execute(context: BlockContext): Any? {

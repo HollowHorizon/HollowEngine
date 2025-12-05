@@ -1,9 +1,13 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks
+package ru.hollowhorizon.hollowengine.common.codeblocks.blocks
 
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MdColor
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionTypes
 
 enum class MathOp(val symbol: String) {
     ADD("+"), SUB("-"), MUL("*"), DIV("/");

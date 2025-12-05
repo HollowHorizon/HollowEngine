@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks
+package ru.hollowhorizon.hollowengine.common.codeblocks.blocks
 
 import de.fabmax.kool.modules.ui2.AlignmentY
 import de.fabmax.kool.modules.ui2.Text
@@ -9,6 +9,10 @@ import de.fabmax.kool.util.MdColor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.ContainerBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionTypes
 
 class WhileBlock : CodeBlock(MdColor.ORANGE), ContainerBlock {
     override suspend fun execute(context: BlockContext): Any? {

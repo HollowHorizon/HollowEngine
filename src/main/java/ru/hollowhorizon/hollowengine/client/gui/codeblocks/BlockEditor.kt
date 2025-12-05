@@ -9,6 +9,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.set
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 
 sealed interface DropAction {
@@ -20,7 +21,7 @@ sealed interface DropAction {
         DropAction
 }
 
-class BlockEditor {
+class BlockEditor(val provider: BlockProvider) {
     val rootBlocks = mutableStateListOf<CodeBlock>()
     var draggingBlock: CodeBlock? = null
     val dragStartOffset = MutableVec2f()
@@ -32,18 +33,11 @@ class BlockEditor {
 
     private val snapAnimations = mutableListOf<SnapAnimation>()
 
+    private val creationPopup = ItemPopupMenu<Vec2f>("BlockCreationMenu")
+
     companion object {
         const val C_BLOCK_SPINE_WIDTH = 20f
-
-        // Высота сенсорной зоны для дропа (невидимая)
         val DROP_SENSOR_HEIGHT = Dp(20f)
-    }
-
-    init {
-        rootBlocks.add(PrintBlock("Start").apply { setPosition(50f, 50f) })
-        rootBlocks.add(PrintBlock("Start").apply { setPosition(50f, 50f) })
-        rootBlocks.add(PrintBlock("Start").apply { setPosition(50f, 50f) })
-        rootBlocks.add(IfBlock().apply { setPosition(50f, 150f) })
     }
 
     fun UiScope.EditorLayout(body: ScrollPaneScope.() -> Unit) {
@@ -62,6 +56,13 @@ class BlockEditor {
                 .onWheelY {
                     state.scrollDpY(it.pointer.scroll.y * -50f)
                 }
+                .onClick {
+                    if(it.isRightClick) {
+                        val rootMenu = buildMenuFromProvider(provider, uiNode)
+                        creationPopup.show(Vec2f(it.screenPosition), rootMenu, it.screenPosition)
+                    }
+                }
+
             modifier.onDrag {
                 val delta = it.pointer.delta
                 if (delta.x != 0f) {
@@ -71,8 +72,6 @@ class BlockEditor {
                     state.scrollDpY(Dp.fromPx(-delta.y).value)
                 }
             }
-
-            val node = uiNode
 
             ScrollPane(state) {
                 modifier.layout(CellLayout)
@@ -113,6 +112,7 @@ class BlockEditor {
             }
 
             removalPopup()
+            creationPopup()
         }
     }
 
