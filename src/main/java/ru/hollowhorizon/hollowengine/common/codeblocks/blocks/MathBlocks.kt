@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.blocks
 
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.MdColor
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
@@ -19,7 +18,7 @@ enum class LogicOp(val symbol: String) {
 }
 
 @Serializable
-class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(MdColor.BLUE), ExpressionBlock {
+class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(), ExpressionBlock {
     override val expressionType = ExpressionTypes.NUMBER
 
     override suspend fun execute(context: BlockContext): Any? {
@@ -57,7 +56,7 @@ class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(MdColor.BLUE), Expressi
 }
 
 @Serializable
-class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(MdColor.INDIGO), ExpressionBlock {
+class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(), ExpressionBlock {
     override val expressionType = ExpressionTypes.BOOLEAN
 
     override suspend fun execute(context: BlockContext): Any? {
@@ -98,7 +97,7 @@ class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(MdColor.INDIGO), 
 
 // Примитивы
 @Serializable
-class NumberBlock(var value: Double = 0.0) : CodeBlock(MdColor.AMBER), ExpressionBlock {
+class NumberBlock(var value: Double = 0.0) : CodeBlock(), ExpressionBlock {
     override val expressionType = ExpressionTypes.NUMBER
 
     override suspend fun execute(context: BlockContext) = value
@@ -112,7 +111,7 @@ class NumberBlock(var value: Double = 0.0) : CodeBlock(MdColor.AMBER), Expressio
 }
 
 @Serializable
-class BoolBlock(var value: Boolean = true) : CodeBlock(MdColor.AMBER), ExpressionBlock {
+class BoolBlock(var value: Boolean = true) : CodeBlock(), ExpressionBlock {
     override val expressionType = ExpressionTypes.BOOLEAN
 
     override suspend fun execute(context: BlockContext) = value

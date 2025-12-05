@@ -13,7 +13,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 
 @Serializable
-class SendEventBlock(var eventName: String = "MyEvent") : CodeBlock(MdColor.PINK) {
+class SendEventBlock(var eventName: String = "MyEvent") : CodeBlock() {
     override suspend fun execute(context: BlockContext): Any? {
         context.emitEvent(eventName, null)
         return next?.execute(context)

@@ -5,7 +5,6 @@ import de.fabmax.kool.modules.ui2.colors
 import de.fabmax.kool.modules.ui2.hint
 import de.fabmax.kool.modules.ui2.onChange
 import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.MdColor
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -17,7 +16,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionTypes
 
 @Serializable
 @SerialName("hollowengine:string_type")
-class StringValueBlock(var value: String) : CodeBlock(MdColor.Companion.AMBER), ExpressionBlock {
+class StringValueBlock(var value: String) : CodeBlock(), ExpressionBlock {
     @Transient
     override val expressionType = ExpressionTypes.STRING
 

@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.blocks
 
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.MdColor
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -13,7 +12,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 
 @Serializable
 @SerialName("hollowengine:print")
-class PrintBlock : CodeBlock(MdColor.Companion.DEEP_PURPLE) {
+class PrintBlock : CodeBlock() {
     override suspend fun execute(context: BlockContext): Any? {
         val msg = inputs["msg"]?.execute(context) ?: "PrintBlock's ($uuid) input is empty!"
         HollowEngine.LOGGER.info(msg)

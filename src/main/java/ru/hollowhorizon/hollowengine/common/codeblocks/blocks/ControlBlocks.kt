@@ -16,7 +16,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionTypes
 
 @Serializable
-class WhileBlock : CodeBlock(MdColor.ORANGE), ContainerBlock {
+class WhileBlock : CodeBlock(), ContainerBlock {
     override suspend fun execute(context: BlockContext): Any? {
         while (context.scope.isActive && inputs["cond"]?.execute(context) as? Boolean == true) {
             inputs["body"]?.execute(context)
@@ -37,7 +37,7 @@ class WhileBlock : CodeBlock(MdColor.ORANGE), ContainerBlock {
 }
 
 @Serializable
-class DelayBlock : CodeBlock(MdColor.LIGHT_BLUE) {
+class DelayBlock : CodeBlock() {
     override suspend fun execute(context: BlockContext): Any? {
         val time = inputs["time"]?.execute(context).toString().toLongOrNull() ?: 1000L
         delay(time)

@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.modules
 
+import de.fabmax.kool.util.MdColor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.*
 
@@ -10,19 +11,19 @@ object StandardModules {
     }
 
     val Math: BlockModule = {
-        category("Математика") {
+        category("Математика", MdColor.BLUE) {
             block("Операция") { MathBlock() }
         }
     }
 
     val Logic: BlockModule = {
-        category("Логика") {
+        category("Логика", MdColor.INDIGO) {
             block("Сравнение") { LogicBlock() }
         }
     }
 
     val Types: BlockModule = {
-        category("Типы данных") {
+        category("Типы данных", MdColor.AMBER) {
             block("Строка") { StringValueBlock("") }
             block("Число") { NumberBlock() }
             block("Логический тип") { BoolBlock() }
@@ -30,7 +31,7 @@ object StandardModules {
     }
 
     val Variables: BlockModule = {
-        category("Переменные") {
+        category("Переменные", MdColor.DEEP_ORANGE) {
             block("Присвоить") { SetVarBlock("") }
             block("Получить") { GetVarBlock("") }
         }
@@ -41,7 +42,7 @@ object StandardModules {
     }
 
     val Loops: BlockModule = {
-        category("Циклы") {
+        category("Циклы", MdColor.ORANGE) {
             block("Пока") { WhileBlock() }
         }
     }

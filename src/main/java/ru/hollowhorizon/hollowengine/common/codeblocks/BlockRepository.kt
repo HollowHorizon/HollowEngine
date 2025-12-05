@@ -1,10 +1,12 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
+import de.fabmax.kool.util.Color
+import de.fabmax.kool.util.MdColor
 import kotlin.reflect.KClass
 
 class BlockProvider(val name: String, val rootCategory: BlockCategory)
 
-class BlockCategory(val name: String) {
+class BlockCategory(val name: String, val color: Color) {
     val subCategories = mutableListOf<BlockCategory>()
     val blocks = mutableListOf<BlockEntry<*>>()
 }
@@ -18,8 +20,8 @@ class BlockCategoryBuilder(@PublishedApi internal val category: BlockCategory) {
     /**
      * Создает подкатегорию.
      */
-    fun category(name: String, setup: BlockCategoryBuilder.() -> Unit) {
-        val sub = BlockCategory(name)
+    fun category(name: String, color: Color, setup: BlockCategoryBuilder.() -> Unit) {
+        val sub = BlockCategory(name, color)
         category.subCategories.add(sub)
         BlockCategoryBuilder(sub).setup()
     }
@@ -28,7 +30,11 @@ class BlockCategoryBuilder(@PublishedApi internal val category: BlockCategory) {
      * Добавляет блок в текущую категорию.
      */
     inline fun <reified T : CodeBlock> block(name: String, noinline factory: () -> T) {
-        category.blocks.add(BlockEntry(name, factory, T::class))
+        category.blocks.add(BlockEntry(name, {
+            val block = factory()
+            block.color = category.color
+            block
+        }, T::class))
     }
 
     /**
@@ -41,8 +47,8 @@ class BlockCategoryBuilder(@PublishedApi internal val category: BlockCategory) {
 }
 
 object BlockRepository {
-    fun create(name: String, setup: BlockModule): BlockProvider {
-        val root = BlockCategory(name)
+    fun create(name: String, color: Color = MdColor.LIGHT_BLUE, setup: BlockModule): BlockProvider {
+        val root = BlockCategory(name, color)
         val builder = BlockCategoryBuilder(root)
         builder.setup()
         return BlockProvider(name, root)

@@ -8,7 +8,7 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 
 @Serializable
-class SetVarBlock(var varName: String = "var") : CodeBlock(MdColor.DEEP_ORANGE) {
+class SetVarBlock(var varName: String = "var") : CodeBlock() {
     override suspend fun execute(context: BlockContext): Any? {
         val value = inputs["value"]?.execute(context)
         context.variables[varName] = value
@@ -30,7 +30,7 @@ class SetVarBlock(var varName: String = "var") : CodeBlock(MdColor.DEEP_ORANGE) 
 }
 
 @Serializable
-class GetVarBlock(var varName: String = "var") : CodeBlock(MdColor.DEEP_ORANGE), ExpressionBlock {
+class GetVarBlock(var varName: String = "var") : CodeBlock(), ExpressionBlock {
     @Transient
     override val expressionType = ExpressionTypes.STRING
 

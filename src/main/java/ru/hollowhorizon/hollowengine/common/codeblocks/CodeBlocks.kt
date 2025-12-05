@@ -16,8 +16,11 @@ interface ExpressionBlock {
 }
 
 @Serializable
-abstract class CodeBlock(@Transient val color: Color = Color.WHITE) {
-    val uuid: @Serializable(ForStringUUID::class) UUID = UUID.randomUUID()
+abstract class CodeBlock {
+    var uuid: @Serializable(ForStringUUID::class) UUID = UUID.randomUUID()
+
+    @Transient
+    lateinit var color: Color
 
     @Transient
     var next: CodeBlock? = null
