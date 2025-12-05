@@ -7,6 +7,7 @@ import de.fabmax.kool.math.MutableVec2f
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
+import de.fabmax.kool.util.set
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ContainerBlock
@@ -31,6 +32,8 @@ class BlockEditor {
     private val tmpLocal = MutableVec2f()
 
     private val removalPopup = AutoPopup()
+
+    private val snapAnimations = mutableListOf<SnapAnimation>()
 
     companion object {
         const val C_BLOCK_SPINE_WIDTH = 20f
@@ -81,6 +84,8 @@ class BlockEditor {
 
                 rootBlocks.use().forEach { block -> renderBlockRecursively(block) }
                 body()
+
+                renderSnapAnimations()
             }
 
             VerticalScrollbar {
@@ -297,7 +302,7 @@ class BlockEditor {
                 modifier.align(AlignmentX.End, AlignmentY.Center).margin(horizontal = sizes.gap)
 
                 if (attached != null) {
-                    if (draggingBlock == attached) EmptySlotVisual(isTargeted, true)
+                    if (draggingBlock == attached) EmptySlotVisual(isTargeted)
                     else {
                         renderBlockRecursively(attached)
                         if (isTargeted) modifier.border(RectBorder(Color.WHITE, 2.dp))
@@ -306,7 +311,7 @@ class BlockEditor {
                     addDropTargetOnce(DropAction.AttachToInput(parentBlock, name, false), uiNode)
 
                     if (isTargeted && draggingBlock?.isExpression == true) GhostPlaceholder(true)
-                    else EmptySlotVisual(false, true)
+                    else EmptySlotVisual(false)
                 }
             }
         }
@@ -388,7 +393,7 @@ class BlockEditor {
             }
         }
 
-        private fun UiScope.EmptySlotVisual(highlight: Boolean, isExpression: Boolean) {
+        private fun UiScope.EmptySlotVisual(highlight: Boolean) {
             Box {
                 modifier.size(40.dp, 30.dp)
                 modifier.background(SlotBackground(parentBlock.color.mix(Color.BLACK, 0.3f), highlight))
@@ -527,6 +532,7 @@ class BlockEditor {
 
     private fun handleDragEnd(block: CodeBlock) {
         potentialAction?.let { action ->
+            triggerSnapEffect(action)
             when (action) {
                 is DropAction.InsertBefore -> insertBlockBefore(action.target, block)
                 is DropAction.AttachAfter -> attachBlockAfter(action.target, block)
@@ -535,6 +541,23 @@ class BlockEditor {
         }
         draggingBlock = null
         potentialAction = null
+    }
+
+    private fun triggerSnapEffect(action: DropAction) {
+        if (action is DropAction.InsertBefore) return
+        val targetNode = dropTargets.find { it.first == action }?.second ?: return
+
+        val centerX = targetNode.leftPx
+        val centerY = targetNode.topPx
+
+        val scrollPane = targetNode.findParentOfType<ScrollPaneNode>() ?: return
+
+        scrollPane.toLocal(Vec2f(centerX, centerY), tmpLocal)
+
+        val offsetX = if (action !is DropAction.AttachToInput) -7.5f else 0f
+        val offsetY = if (action is DropAction.AttachToInput) -10f else 0f
+
+        snapAnimations.add(SnapAnimation(tmpLocal.x + offsetX, tmpLocal.y + offsetY))
     }
 
     private fun attachBlockAfter(target: CodeBlock, newBlock: CodeBlock) {
@@ -587,6 +610,43 @@ class BlockEditor {
     private fun addDropTargetOnce(action: DropAction, node: UiNode) {
         val exists = dropTargets.any { it.first == action && it.second == node }
         if (!exists) dropTargets.add(action to node)
+    }
+
+    private fun UiScope.renderSnapAnimations() {
+        snapAnimations.removeIf { it.isFinished }
+
+
+
+        Box {
+            modifier.width(Grow.Std).height(Grow.Std)
+            modifier.background(UiRenderer { node ->
+                node.apply {
+                    val drawList = getPlainBuilder(UiSurface.LAYER_FLOATING)
+
+                    snapAnimations.forEach { anim ->
+                        val p = anim.animator.progressAndUse()
+
+                        val scale = 10f + p * 30f
+
+                        val alpha = Easing.quad(1f - p).coerceIn(0f, 1f)
+
+                        drawList.configured(Color.WHITE.withAlpha(alpha)) {
+                            translate(anim.x, anim.y, 0f)
+                            scale(scale, scale, 1f)
+
+                            // Используем нашу "ручную" геометрию
+                            val i0 = geometry.numVertices
+                            for (v in RingGeometry.vertices) {
+                                vertex { it.position.set(v) }
+                            }
+                            for (i in RingGeometry.indices) {
+                                geometry.addIndex(i0 + i)
+                            }
+                        }
+                    }
+                }
+            })
+        }
     }
 }
 
