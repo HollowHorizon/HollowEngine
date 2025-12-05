@@ -7,6 +7,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.findColorFor
 import java.util.*
 
 class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<CodeBlock>> {
@@ -65,6 +66,8 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<CodeBl
             } catch (e: Exception) {
                 throw SerializationException("Failed to decode block at index $index: ${e.message}", e)
             }
+
+            block.color = format.blockModule.findColorFor(block)
 
             nodeMap[block.uuid] = block
             jsonMap[block.uuid] = jsonObject

@@ -1,13 +1,20 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
+import de.fabmax.kool.util.Color
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.OnEventBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.PrintBlock
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.decodeFromStream
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.NpcSayBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.StandardModules
+import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
+import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockSerializer
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
+import java.io.File
 
 class BlockContext(val scope: CoroutineScope) {
     val variables = mutableMapOf<String, Any?>()
@@ -20,13 +27,31 @@ class BlockContext(val scope: CoroutineScope) {
     }
 }
 
+@OptIn(ExperimentalSerializationApi::class)
+fun runScript(file: File) {
+    val repository = BlockRepository.create("Скрипт") {
+        include(StandardModules.AllBasics)
+        include {
+            category("НИПы", Color("7cba00")) {
+                block("Создать", ::SpawnNpcBlock)
+                block("Идти", ::NpcMoveBlock)
+                block("Смотреть", ::NpcLookBlock)
+                block("Сказать", ::NpcSayBlock)
+                block("Взаимодействовать", ::NpcInteractBlock)
+                block("Удалить", ::DespawnNpcBlock)
+            }
+        }
+    }
+    val format = CodeBlockFormat(repository)
+    val blocks = format.json.decodeFromStream(CodeBlockSerializer(format), file.inputStream())
+    runScript(blocks)
+}
+
 fun runScript(rootBlocks: List<CodeBlock>) {
     val context = BlockContext(currentServer.coroutineScope)
 
-    rootBlocks.filterIsInstance<OnEventBlock>().forEach { it.listen(context) }
-
     context.scope.launch {
-        rootBlocks.filter { it is PrintBlock }.forEach {
+        rootBlocks.filter { it is StartBlock }.forEach {
             it.execute(context)
         }
     }

@@ -2,12 +2,10 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.blocks
 
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionTypes
+import ru.hollowhorizon.hollowengine.common.codeblocks.*
 
 enum class MathOp(val symbol: String) {
     ADD("+"), SUB("-"), MUL("*"), DIV("/");
@@ -18,6 +16,7 @@ enum class LogicOp(val symbol: String) {
 }
 
 @Serializable
+@SerialName("hollowengine:math/operation")
 class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(), ExpressionBlock {
     override val expressionType = ExpressionTypes.NUMBER
 
@@ -56,6 +55,7 @@ class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(), ExpressionBlock {
 }
 
 @Serializable
+@SerialName("hollowengine:math/logic")
 class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(), ExpressionBlock {
     override val expressionType = ExpressionTypes.BOOLEAN
 
@@ -95,8 +95,58 @@ class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(), ExpressionBloc
     }
 }
 
+@Serializable
+@SerialName("hollowengine:math/test")
+class TestBlock : CodeBlock(), ExpressionBlock {
+    override val expressionType: ExpressionType
+        get() = parentBlock?.expressionTypeOrNull
+            ?: inputs["then"]?.expressionTypeOrNull
+            ?: inputs["else"]?.expressionTypeOrNull
+            ?: AnyType
+
+    override suspend fun execute(context: BlockContext): Any? {
+        return if (inputs["test"]?.execute(context) == true) inputs["then"]?.execute(context)
+        else inputs["else"]?.execute(context)
+    }
+
+    context(editor: BlockEditor)
+    override fun UiScope.composeHeaderLayout(
+        isHovered: Boolean,
+        isGhost: Boolean,
+        blockHeaderModifier: UiModifier.() -> Unit,
+    ) {
+        Column(Grow.Std) {
+            modifier.apply(blockHeaderModifier)
+            modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
+
+            editor.InputSlotScope(this, this@TestBlock, isHovered, isGhost).composeContent()
+        }
+    }
+
+    override fun BlockEditor.InputSlotScope.composeContent() {
+        Row(Grow.Std) {
+            Text("Выбрать по") {  }
+            Box(Grow.Std) {}
+            InputSlot("test", ExpressionTypes.BOOLEAN)
+        }
+        Box { modifier.size(Grow.Std, sizes.gap) }
+        Row(Grow.Std) {
+            Text("Если истина") {  }
+            Box(Grow.Std) {}
+            InputSlot("then", parentBlock.expressionTypeOrNull ?: inputs["else"]?.expressionTypeOrNull ?: AnyType)
+        }
+        Box { modifier.size(Grow.Std, sizes.gap) }
+        Row(Grow.Std) {
+            Text("Если ложь") {  }
+            Box(Grow.Std) {}
+            InputSlot("else", parentBlock.expressionTypeOrNull ?: inputs["then"]?.expressionTypeOrNull ?: AnyType)
+        }
+    }
+}
+
 // Примитивы
 @Serializable
+@SerialName("hollowengine:number")
 class NumberBlock(var value: Double = 0.0) : CodeBlock(), ExpressionBlock {
     override val expressionType = ExpressionTypes.NUMBER
 
@@ -111,6 +161,7 @@ class NumberBlock(var value: Double = 0.0) : CodeBlock(), ExpressionBlock {
 }
 
 @Serializable
+@SerialName("hollowengine:boolen")
 class BoolBlock(var value: Boolean = true) : CodeBlock(), ExpressionBlock {
     override val expressionType = ExpressionTypes.BOOLEAN
 

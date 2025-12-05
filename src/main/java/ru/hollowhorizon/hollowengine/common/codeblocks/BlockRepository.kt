@@ -6,6 +6,12 @@ import kotlin.reflect.KClass
 
 class BlockProvider(val name: String, val rootCategory: BlockCategory)
 
+fun BlockProvider.findColorFor(block: CodeBlock): Color = rootCategory.findColorFor(block) ?: rootCategory.color
+fun BlockCategory.findColorFor(block: CodeBlock): Color? {
+    return if(block::class in blocks.map { it.type }) color
+    else subCategories.firstNotNullOfOrNull { it.findColorFor(block) }
+}
+
 class BlockCategory(val name: String, val color: Color) {
     val subCategories = mutableListOf<BlockCategory>()
     val blocks = mutableListOf<BlockEntry<*>>()

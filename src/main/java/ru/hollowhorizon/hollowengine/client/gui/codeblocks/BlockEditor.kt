@@ -288,7 +288,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
     }
 
     inner class InputSlotScope(
-        val uiScope: UiScope,
+        uiScope: UiScope,
         val parentBlock: CodeBlock,
         val isHovered: Boolean,
         val isGhost: Boolean,
@@ -297,14 +297,14 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
             this@BlockEditor.notifyChanged()
         }
 
-        fun InputSlot(name: String, type: ExpressionType) {
+        fun UiScope.InputSlot(name: String, type: ExpressionType) {
             parentBlock.inputTypes[name] = type
             val attached = parentBlock.inputs[name]
             val action = potentialAction
             val isTargeted =
                 action is DropAction.AttachToInput && action.target == parentBlock && action.inputName == name && !action.isStatementSlot
 
-            uiScope.Box {
+            Box {
                 modifier.align(AlignmentX.End, AlignmentY.Center).margin(horizontal = sizes.gap)
 
                 if (attached != null) {
@@ -322,13 +322,13 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
             }
         }
 
-        fun BodySlot(name: String) {
+        fun UiScope.BodySlot(name: String) {
             val attached = parentBlock.inputs[name]
             val action = potentialAction
             val isTargeted =
                 action is DropAction.AttachToInput && action.target == parentBlock && action.inputName == name && action.isStatementSlot
 
-            uiScope.Row {
+            Row {
                 modifier.width(Grow.Std)
 
                 val bgColor = if (isGhost) parentBlock.color.withAlpha(0.5f) else parentBlock.color
@@ -380,13 +380,13 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
             }
         }
 
-        fun SectionSeparator(label: String) {
+        fun UiScope.SectionSeparator(label: String) {
             val bgColor = if (isGhost) parentBlock.color.withAlpha(0.5f) else parentBlock.color
             val color by animateColorAsState(
                 if (isHovered) bgColor else bgColor.mulRgb(0.9f),
                 tween(0.2f, Easing.quadRev)
             )
-            uiScope.Row {
+            Row {
                 modifier.width(Grow.Std).height(FitContent)
                 Box {
                     modifier.width(Grow.Std).height(30.dp)
@@ -533,7 +533,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
                 if(source is ExpressionBlock) {
                     val requiredType = action.target.inputTypes[action.inputName] ?: return false
                     val returnType = source.expressionType
-                    val typesMatch = requiredType.accepts(returnType)
+                    val typesMatch = requiredType.accepts(returnType) || returnType == AnyType
                     typesMatch && !action.isStatementSlot
                 } else {
                     action.isStatementSlot

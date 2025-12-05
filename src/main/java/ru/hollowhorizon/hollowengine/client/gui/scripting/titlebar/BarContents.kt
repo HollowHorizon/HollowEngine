@@ -13,6 +13,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.scripts.CodeBlocksFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
@@ -20,6 +21,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
+import ru.hollowhorizon.hollowengine.common.codeblocks.runScript
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
@@ -131,27 +133,28 @@ fun UiScope.TextButton(text: String, onClick: (PointerEvent) -> Unit = {}) {
 fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
     if (IdeContent.files.isEmpty() || ScriptingEnvironmentOverlay.isCollapsed) return@append
 
-    val items = IdeContent.files.filter { it.value is TextFileData }.map { (key, file) ->
-        key to Composable {
-            Row {
-                Box {
-                    modifier.alignY(AlignmentY.Center)
-                    Image(file.icon) {
-                        modifier.margin(end = sizes.smallGap).size(24.dp, 24.dp)
-                            .imageSize(ImageSize.Stretch)
+    val items =
+        IdeContent.files.filter { it.value is TextFileData || it.value is CodeBlocksFileData }.map { (key, file) ->
+            key to Composable {
+                Row {
+                    Box {
+                        modifier.alignY(AlignmentY.Center)
+                        Image(file.icon) {
+                            modifier.margin(end = sizes.smallGap).size(24.dp, 24.dp)
+                                .imageSize(ImageSize.Stretch)
+                        }
                     }
-                }
 
-                Box {
-                    Text(file.fileName) {
-                        modifier
-                            .alignY(AlignmentY.Center)
-                            .textColor(colors.onBackground)
+                    Box {
+                        Text(file.fileName) {
+                            modifier
+                                .alignY(AlignmentY.Center)
+                                .textColor(colors.onBackground)
+                        }
                     }
                 }
             }
         }
-    }
     val itemIndex = remember { mutableStateOf(KeyValueStore.getInt("ide.file_index", -1)) }
 
     ComboBox.apply {
@@ -203,11 +206,15 @@ class StartScriptPacket(val path: String) : HollowPacket {
         } else {
             val file = path.fromReadablePath()
 
-            val result = ScriptingEnvironment.INSTANCE.compiler.compile(file)
-            if (result.isFailure) {
-                HollowEngine.LOGGER.info(result.exceptionOrNull())
+            if (file.name.endsWith(".hescr")) {
+                runScript(file)
             } else {
-                result.getOrThrow().start()
+                val result = ScriptingEnvironment.INSTANCE.compiler.compile(file)
+                if (result.isFailure) {
+                    HollowEngine.LOGGER.info(result.exceptionOrNull())
+                } else {
+                    result.getOrThrow().start()
+                }
             }
         }
     }

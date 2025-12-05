@@ -1,8 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.modules
 
+import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MdColor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnEventBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnStartBlock
 
 object StandardModules {
     val General: BlockModule = {
@@ -17,8 +20,12 @@ object StandardModules {
     }
 
     val Logic: BlockModule = {
-        category("Логика", MdColor.INDIGO) {
+        category("Логика", MdColor.TEAL) {
+            block("Если/Иначе") { IfElseBlock() }
+            block("Если") { IfBlock() }
             block("Сравнение") { LogicBlock() }
+            block("Тест") { TestBlock() }
+            block("Передать") { SendEventBlock("") }
         }
     }
 
@@ -27,6 +34,7 @@ object StandardModules {
             block("Строка") { StringValueBlock("") }
             block("Число") { NumberBlock() }
             block("Логический тип") { BoolBlock() }
+            block("Координаты") { PositionBlock() }
         }
     }
 
@@ -38,12 +46,16 @@ object StandardModules {
     }
 
     val Events: BlockModule = {
-        block("Передать") { SendEventBlock("") }
+        category("События", Color("ba7300")) {
+            block("При запуске") { OnStartBlock() }
+            block("При событии") { OnEventBlock() }
+        }
     }
 
     val Loops: BlockModule = {
         category("Циклы", MdColor.ORANGE) {
             block("Пока") { WhileBlock() }
+            block("Повторить") { RepeatBlock() }
         }
     }
 

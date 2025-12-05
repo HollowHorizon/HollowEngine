@@ -5,6 +5,7 @@ import de.fabmax.kool.modules.ui2.Text
 import de.fabmax.kool.modules.ui2.alignY
 import de.fabmax.kool.modules.ui2.textColor
 import de.fabmax.kool.util.Color
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
@@ -13,6 +14,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionTypes
 
 @Serializable
+@SerialName("hollowengine:loops/repeat")
 class RepeatBlock : CodeBlock(), ContainerBlock {
     override suspend fun execute(context: BlockContext): Any? {
         val times = inputs["times"]?.execute(context).toString().toIntOrNull() ?: 1
@@ -23,8 +25,9 @@ class RepeatBlock : CodeBlock(), ContainerBlock {
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("Repeat") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("times", ExpressionTypes.BOOLEAN)
+        Text("Повторить") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center) }
+        InputSlot("times", ExpressionTypes.NUMBER)
+        Text("Раз") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center) }
     }
 
     override fun BlockEditor.InputSlotScope.composeBody() {
