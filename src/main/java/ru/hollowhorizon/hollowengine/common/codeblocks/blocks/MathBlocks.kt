@@ -18,11 +18,9 @@ enum class LogicOp(val symbol: String) {
     EQUALS("=="), GREATER(">"), LESS("<"), AND("&&"), OR("||");
 }
 
+@Serializable
 class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(MdColor.BLUE), ExpressionBlock {
     override val expressionType = ExpressionTypes.NUMBER
-
-    // Dropdown state
-    var expanded = mutableStateOf(false)
 
     override suspend fun execute(context: BlockContext): Any? {
         val a = inputs["a"]?.execute(context).toString().toDoubleOrNull() ?: 0.0
@@ -48,6 +46,7 @@ class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(MdColor.BLUE), Expressi
                     // Простая циклическая смена, можно сделать Popup меню
                     val values = MathOp.values()
                     op = values[(op.ordinal + 1) % values.size]
+                    notifyChanged()
                 }
 
             Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center) }
@@ -57,6 +56,7 @@ class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(MdColor.BLUE), Expressi
     }
 }
 
+@Serializable
 class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(MdColor.INDIGO), ExpressionBlock {
     override val expressionType = ExpressionTypes.BOOLEAN
 
@@ -87,6 +87,7 @@ class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(MdColor.INDIGO), 
                         op = values[(op.ordinal + 1) % values.size]
                     }
                     surface.triggerUpdate()
+                    notifyChanged()
                 }
                 .zLayer(300)
                 .background(RoundRectBackground(Color.BLACK.withAlpha(0.2f), sizes.smallGap))
@@ -96,6 +97,7 @@ class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(MdColor.INDIGO), 
 }
 
 // Примитивы
+@Serializable
 class NumberBlock(var value: Double = 0.0) : CodeBlock(MdColor.AMBER), ExpressionBlock {
     override val expressionType = ExpressionTypes.NUMBER
 
@@ -103,7 +105,7 @@ class NumberBlock(var value: Double = 0.0) : CodeBlock(MdColor.AMBER), Expressio
     override fun BlockEditor.InputSlotScope.composeContent() {
         TextField(value.toString()) {
             modifier.width(60.dp)
-                .onChange { value = it.toDoubleOrNull() ?: 0.0 }
+                .onChange { value = it.toDoubleOrNull() ?: 0.0; notifyChanged() }
                 .colors(lineColor = Color.WHITE.withAlpha(0f), textColor = Color.WHITE)
         }
     }
@@ -116,14 +118,7 @@ class BoolBlock(var value: Boolean = true) : CodeBlock(MdColor.AMBER), Expressio
     override suspend fun execute(context: BlockContext) = value
     override fun BlockEditor.InputSlotScope.composeContent() {
         Checkbox(value) {
-            modifier.onToggle { this@BoolBlock.value = it }
-        }
-        Box {
-            modifier
-                .size(20.dp, 20.dp)
-                .border(RectBorder(Color.WHITE, 2.dp))
-                .background(if (value) RectBackground(Color.WHITE) else null)
-                .onClick { value = !value }
+            modifier.onToggle { this@BoolBlock.value = it; notifyChanged() }
         }
     }
 }

@@ -36,6 +36,7 @@ class WhileBlock : CodeBlock(MdColor.ORANGE), ContainerBlock {
     }
 }
 
+@Serializable
 class DelayBlock : CodeBlock(MdColor.LIGHT_BLUE) {
     override suspend fun execute(context: BlockContext): Any? {
         val time = inputs["time"]?.execute(context).toString().toLongOrNull() ?: 1000L

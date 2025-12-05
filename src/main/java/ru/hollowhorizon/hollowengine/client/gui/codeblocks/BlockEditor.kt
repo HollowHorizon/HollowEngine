@@ -21,7 +21,7 @@ sealed interface DropAction {
         DropAction
 }
 
-class BlockEditor(val provider: BlockProvider) {
+class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
     val rootBlocks = mutableStateListOf<CodeBlock>()
     var draggingBlock: CodeBlock? = null
     val dragStartOffset = MutableVec2f()
@@ -292,8 +292,11 @@ class BlockEditor(val provider: BlockProvider) {
         val parentBlock: CodeBlock,
         val isHovered: Boolean,
         val isGhost: Boolean,
-    ) :
-        UiScope by uiScope {
+    ) : UiScope by uiScope {
+        fun notifyChanged() {
+            this@BlockEditor.notifyChanged()
+        }
+
         fun InputSlot(name: String, type: ExpressionType) {
             parentBlock.inputTypes[name] = type
             val attached = parentBlock.inputs[name]
@@ -494,6 +497,8 @@ class BlockEditor(val provider: BlockProvider) {
         block.parentBlock = null
         block.parentInputName = null
         block.next = null
+
+        notifyChanged()
     }
 
     private fun UiScope.detachBlock(block: CodeBlock, screenPos: Vec2f) {
@@ -548,6 +553,7 @@ class BlockEditor(val provider: BlockProvider) {
         }
         draggingBlock = null
         potentialAction = null
+        notifyChanged()
     }
 
     private fun triggerSnapEffect(action: DropAction) {

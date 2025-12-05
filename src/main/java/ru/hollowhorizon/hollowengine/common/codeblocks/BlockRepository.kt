@@ -1,17 +1,19 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
+import kotlin.reflect.KClass
+
 class BlockProvider(val name: String, val rootCategory: BlockCategory)
 
 class BlockCategory(val name: String) {
     val subCategories = mutableListOf<BlockCategory>()
-    val blocks = mutableListOf<BlockEntry>()
+    val blocks = mutableListOf<BlockEntry<*>>()
 }
 
-data class BlockEntry(val name: String, val factory: () -> CodeBlock)
+data class BlockEntry<T : CodeBlock>(val name: String, val factory: () -> T, val type: KClass<T>)
 
 typealias BlockModule = BlockCategoryBuilder.() -> Unit
 
-class BlockCategoryBuilder(private val category: BlockCategory) {
+class BlockCategoryBuilder(@PublishedApi internal val category: BlockCategory) {
 
     /**
      * Создает подкатегорию.
@@ -25,8 +27,8 @@ class BlockCategoryBuilder(private val category: BlockCategory) {
     /**
      * Добавляет блок в текущую категорию.
      */
-    fun block(name: String, factory: () -> CodeBlock) {
-        category.blocks.add(BlockEntry(name, factory))
+    inline fun <reified T : CodeBlock> block(name: String, noinline factory: () -> T) {
+        category.blocks.add(BlockEntry(name, factory, T::class))
     }
 
     /**

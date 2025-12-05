@@ -136,6 +136,11 @@ class TextFileData(name: String, path: String) :
             }
         }
     }
+
+    override fun close() {
+        super.close()
+        provider.dispose()
+    }
 }
 
 private fun ScriptTextAreaScope.installSelectionHandler(

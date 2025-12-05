@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.serialization
 
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
@@ -8,58 +9,99 @@ import kotlinx.serialization.json.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import java.util.*
 
-object CodeBlockSerializer : KSerializer<List<CodeBlock>> {
+class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<CodeBlock>> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
-    override fun serialize(
-        encoder: Encoder,
-        value: List<CodeBlock>,
-    ) {
-        val array = value
-            .flatMap { it.flatten() }
-            .map {
-                JsonObject(buildMap {
-                    put("node", CodeBlockFormat.Json.encodeToJsonElement(it))
-                    it.next?.let { put("next", JsonPrimitive(it.uuid.toString())) }
-                    if (it.inputs.isNotEmpty()) put("inputs", JsonObject(buildMap {
-                        it.inputs.forEach { (key, block) ->
-                            put(key, JsonPrimitive(block.uuid.toString()))
+    override fun serialize(encoder: Encoder, value: List<CodeBlock>) {
+        val jsonEncoder = encoder as? JsonEncoder
+            ?: throw SerializationException("This serializer only works with JSON")
+
+        val allBlocks = value.flatMap { it.flatten() }
+
+        val jsonArray = JsonArray(allBlocks.map { block ->
+            buildJsonObject {
+                put("node", format.json.encodeToJsonElement(block))
+
+                block.next?.let {
+                    put("next", JsonPrimitive(it.uuid.toString()))
+                }
+
+                if (block.inputs.isNotEmpty()) {
+                    put("inputs", buildJsonObject {
+                        block.inputs.forEach { (slotName, connectedBlock) ->
+                            put(slotName, JsonPrimitive(connectedBlock.uuid.toString()))
                         }
-                    }))
-                    if (it.parent == null && it.parentBlock == null) {
-                        put("x", JsonPrimitive(it.positionX.value))
-                        put("y", JsonPrimitive(it.positionY.value))
-                    }
-                })
+                    })
+                }
+
+                if (block.parent == null && block.parentBlock == null) {
+                    put("x", JsonPrimitive(block.positionX.value))
+                    put("y", JsonPrimitive(block.positionY.value))
+                }
             }
-            .let { JsonArray(it) }
-        (encoder as JsonEncoder).encodeJsonElement(array)
+        })
+
+        jsonEncoder.encodeJsonElement(jsonArray)
     }
 
     override fun deserialize(decoder: Decoder): List<CodeBlock> {
-        val jsonNodes = ((decoder as JsonDecoder).decodeJsonElement() as JsonArray)
-        val nodes = jsonNodes.map {
-            CodeBlockFormat.Json.decodeFromJsonElement<CodeBlock>(it.jsonObject["node"]!!)
-        }.associateBy { it.uuid }
-        jsonNodes.forEach { node ->
-            val current = UUID.fromString(node.jsonObject["node"]!!.jsonObject["uuid"]!!.jsonPrimitive.content)
-            val next = node.jsonObject["next"]?.jsonPrimitive?.content?.let { UUID.fromString(it) }
-            if (next != null) {
-                nodes[current]?.next = nodes[next]
-                nodes[next]?.parent = nodes[current]
+        val jsonDecoder = decoder as? JsonDecoder
+            ?: throw SerializationException("This serializer only works with JSON")
+
+        val jsonArray = jsonDecoder.decodeJsonElement() as? JsonArray
+            ?: throw SerializationException("Expected JsonArray of blocks")
+
+        val nodeMap = mutableMapOf<UUID, CodeBlock>()
+        val jsonMap = mutableMapOf<UUID, JsonObject>()
+
+        jsonArray.forEachIndexed { index, element ->
+            val jsonObject = element.jsonObject
+
+            val nodeElement = jsonObject["node"]
+                ?: throw SerializationException("Block at index $index missing 'node' field")
+
+            val block = try {
+                format.json.decodeFromJsonElement<CodeBlock>(nodeElement)
+            } catch (e: Exception) {
+                throw SerializationException("Failed to decode block at index $index: ${e.message}", e)
             }
-            node.jsonObject["inputs"]?.jsonObject?.forEach { (key, value) ->
-                val uuid = UUID.fromString(value.jsonPrimitive.content)
-                nodes[current]?.let {
-                    val input = nodes[uuid] ?: return@let
-                    it.inputs[key] = input
-                    input.parentBlock = it
-                    input.parentInputName = key
-                }
-            }
-            node.jsonObject["x"]?.jsonPrimitive?.floatOrNull?.let { nodes[current]?.positionX?.set(it) }
-            node.jsonObject["y"]?.jsonPrimitive?.floatOrNull?.let { nodes[current]?.positionX?.set(it) }
+
+            nodeMap[block.uuid] = block
+            jsonMap[block.uuid] = jsonObject
         }
-        return nodes.values.filter { it.parent == null && it.parentBlock == null }.toList()
+
+        jsonMap.forEach { (uuid, jsonObject) ->
+            val currentBlock = nodeMap[uuid]!!
+
+            val nextIdStr = jsonObject["next"]?.jsonPrimitive?.content
+            if (nextIdStr != null) {
+                val nextUuid = UUID.fromString(nextIdStr)
+                val nextBlock = nodeMap[nextUuid]
+                    ?: throw SerializationException("Block $uuid refers to missing next block $nextUuid")
+
+                currentBlock.next = nextBlock
+                nextBlock.parent = currentBlock
+            }
+
+            val inputsObj = jsonObject["inputs"]?.jsonObject
+            inputsObj?.forEach { (slotName, uuidElement) ->
+                val inputUuid = UUID.fromString(uuidElement.jsonPrimitive.content)
+                val inputBlock = nodeMap[inputUuid]
+                    ?: throw SerializationException("Block $uuid input '$slotName' refers to missing block $inputUuid")
+
+                currentBlock.inputs[slotName] = inputBlock
+                inputBlock.parentBlock = currentBlock
+                inputBlock.parentInputName = slotName
+            }
+
+            jsonObject["x"]?.jsonPrimitive?.floatOrNull?.let { x ->
+                currentBlock.positionX.set(x)
+            }
+            jsonObject["y"]?.jsonPrimitive?.floatOrNull?.let { y ->
+                currentBlock.positionY.set(y)
+            }
+        }
+
+        return nodeMap.values.filter { it.parent == null && it.parentBlock == null }
     }
 }

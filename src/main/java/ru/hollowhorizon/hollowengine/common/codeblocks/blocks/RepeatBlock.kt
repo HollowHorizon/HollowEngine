@@ -6,12 +6,14 @@ import de.fabmax.kool.modules.ui2.alignY
 import de.fabmax.kool.modules.ui2.textColor
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MdColor
+import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionTypes
 
+@Serializable
 class RepeatBlock : CodeBlock(MdColor.Companion.ORANGE), ContainerBlock {
     override suspend fun execute(context: BlockContext): Any? {
         val times = inputs["times"]?.execute(context).toString().toIntOrNull() ?: 1

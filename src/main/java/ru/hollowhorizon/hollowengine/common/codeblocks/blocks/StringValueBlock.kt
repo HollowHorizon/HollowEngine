@@ -24,7 +24,7 @@ class StringValueBlock(var value: String) : CodeBlock(MdColor.Companion.AMBER), 
     override suspend fun execute(context: BlockContext) = value
     override fun BlockEditor.InputSlotScope.composeContent() {
         TextField(value) {
-            modifier.onChange { value = it }
+            modifier.onChange { value = it; notifyChanged() }
                 .hint("Значение")
                 .colors(lineColor = Color.Companion.WHITE, textColor = Color.Companion.WHITE)
         }

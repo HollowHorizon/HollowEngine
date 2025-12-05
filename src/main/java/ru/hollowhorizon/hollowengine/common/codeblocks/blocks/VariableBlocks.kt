@@ -3,9 +3,11 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.blocks
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MdColor
+import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 
+@Serializable
 class SetVarBlock(var varName: String = "var") : CodeBlock(MdColor.DEEP_ORANGE) {
     override suspend fun execute(context: BlockContext): Any? {
         val value = inputs["value"]?.execute(context)
@@ -27,7 +29,9 @@ class SetVarBlock(var varName: String = "var") : CodeBlock(MdColor.DEEP_ORANGE) 
     }
 }
 
+@Serializable
 class GetVarBlock(var varName: String = "var") : CodeBlock(MdColor.DEEP_ORANGE), ExpressionBlock {
+    @Transient
     override val expressionType = ExpressionTypes.STRING
 
     override suspend fun execute(context: BlockContext): Any? {

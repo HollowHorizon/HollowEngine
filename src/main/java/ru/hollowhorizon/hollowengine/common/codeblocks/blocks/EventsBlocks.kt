@@ -5,10 +5,14 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MdColor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 
+@Serializable
 class SendEventBlock(var eventName: String = "MyEvent") : CodeBlock(MdColor.PINK) {
     override suspend fun execute(context: BlockContext): Any? {
         context.emitEvent(eventName, null)
@@ -20,13 +24,24 @@ class SendEventBlock(var eventName: String = "MyEvent") : CodeBlock(MdColor.PINK
         TextField(eventName) {
             modifier.width(100.dp).margin(horizontal = 5.dp)
                 .hint("Название сообщения")
-                .onChange { eventName = it }
+                .onChange { eventName = it; notifyChanged() }
         }
     }
 }
 
+@Serializable
 class OnEventBlock(var eventName: String = "MyEvent") : CodeBlock(MdColor.PINK) {
+    @Transient
     var restartOnTrigger = mutableStateOf(true)
+
+    @SerialName("restart_on_trigger")
+    private var restart: Boolean
+        get() = restartOnTrigger.value
+        set(value) {
+            restartOnTrigger.set(value)
+        }
+
+    @Transient
     private var activeJob: Job? = null
 
     // Этот метод вызывается не через execute(), а движком при старте скрипта
@@ -68,7 +83,7 @@ class OnEventBlock(var eventName: String = "MyEvent") : CodeBlock(MdColor.PINK) 
 
                 TextField(eventName) {
                     modifier.width(120.dp)
-                        .onChange { eventName = it }
+                        .onChange { eventName = it; editor.notifyChanged() }
                         .hint("Название сообщения")
                         .colors(lineColor = Color.WHITE, textColor = Color.WHITE)
                 }
