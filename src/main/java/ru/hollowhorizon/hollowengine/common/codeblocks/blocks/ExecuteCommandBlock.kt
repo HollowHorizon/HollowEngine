@@ -10,22 +10,19 @@ import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionTypes
 
 @Serializable
 @SerialName("hollowengine:server/command")
 class ExecuteCommandBlock : CodeBlock() {
+    val cmd by input<String>("cmd")
 
-    override suspend fun execute(context: BlockContext): Any? {
-        val server = context.server
+    override suspend fun BlockContext.execute() {
         val source = server.createCommandSourceStack()
-        val command = inputs["cmd"]?.execute(context)
-        if(command!=null) server.commands.performPrefixedCommand(source, command.toString())
-        return next?.execute(context)
+        server.commands.performPrefixedCommand(source, cmd())
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("Команда:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("cmd", ExpressionTypes.STRING)
+        Text("Команда:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(cmd)
     }
 }

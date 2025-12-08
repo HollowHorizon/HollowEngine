@@ -528,7 +528,7 @@ public class MikktspaceTangentGenerator {
                 continue;
             }
 
-            //TODO nehon : clean this, have a local TrinInfo and assign it to pTriInfo[iDstTriIndex] at the end... and change those variables names...
+            //TODO nehon : clean this, have a local TrinInfo and assign it to pTriInfo[iDstTriIndex] at the end... and change those variables.svg names...
             pTriInfos[iDstTriIndex] = new TriInfo();
             pTriInfos[iDstTriIndex].orgFaceNumber = f;
             pTriInfos[iDstTriIndex].tSpacesOffs = iTSpacesOffs;

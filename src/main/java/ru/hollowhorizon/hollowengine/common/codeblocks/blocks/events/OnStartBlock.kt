@@ -10,12 +10,13 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.StartBlock
 
 @Serializable
 @SerialName("hollowengine:start")
-class OnStartBlock: CodeBlock(), StartBlock {
-    override suspend fun execute(context: BlockContext): Any? {
-        return next?.execute(context)
-    }
+class OnStartBlock : CodeBlock(), StartBlock {
+    override suspend fun BlockContext.execute() {}
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("Начало") { modifier.width(FitContent).align(AlignmentX.Center, AlignmentY.Center) }
+        Text("При запуске скрипта") {
+            modifier.width(FitContent).align(AlignmentX.Center, AlignmentY.Center)
+                .bold()
+        }
     }
 }

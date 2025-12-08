@@ -4,6 +4,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 
@@ -18,11 +19,15 @@ enum class LogicOp(val symbol: String) {
 @Serializable
 @SerialName("hollowengine:math/operation")
 class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(), ExpressionBlock {
-    override val expressionType = ExpressionTypes.NUMBER
+    @Transient
+    override val expressionType = typeOf<Number>()
 
-    override suspend fun execute(context: BlockContext): Any? {
-        val a = inputs["a"]?.execute(context).toString().toDoubleOrNull() ?: 0.0
-        val b = inputs["b"]?.execute(context).toString().toDoubleOrNull() ?: 0.0
+    val a by input<Number>("a")
+    val b by input<Number>("a")
+
+    override suspend fun BlockContext.execute(): Any? {
+        val a = a().toDouble()
+        val b = b().toDouble()
         return when (op) {
             MathOp.ADD -> a + b
             MathOp.SUB -> a - b
@@ -32,66 +37,73 @@ class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(), ExpressionBlock {
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        InputSlot("a", ExpressionTypes.NUMBER)
+        InputSlot(a)
 
         // Кликабельный текст для смены операции
         Box {
             modifier
                 .margin(horizontal = 4.dp)
                 .padding(horizontal = 4.dp, vertical = 2.dp)
-                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), 4.dp))
+                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), sizes.largeGap))
                 .onClick {
                     // Простая циклическая смена, можно сделать Popup меню
-                    val values = MathOp.values()
+                    val values = MathOp.entries
                     op = values[(op.ordinal + 1) % values.size]
                     notifyChanged()
                 }
 
-            Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center) }
+            Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center).bold() }
         }
 
-        InputSlot("b", ExpressionTypes.NUMBER)
+        InputSlot(b)
     }
 }
 
 @Serializable
 @SerialName("hollowengine:math/logic")
 class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(), ExpressionBlock {
-    override val expressionType = ExpressionTypes.BOOLEAN
+    @Transient
+    override val expressionType = typeOf<Boolean>()
 
-    override suspend fun execute(context: BlockContext): Any? {
-        val resA = inputs["a"]?.execute(context)
-        val resB = inputs["b"]?.execute(context)
+    val a by input<Boolean>("a")
+    val b by input<Boolean>("b")
+
+    override suspend fun BlockContext.execute(): Any? {
+        val resA = a()
+        val resB = b()
 
         // Упрощенная логика сравнения
         return when (op) {
             LogicOp.EQUALS -> resA == resB
-            LogicOp.AND -> (resA as? Boolean == true) && (resB as? Boolean == true)
-            LogicOp.OR -> (resA as? Boolean == true) || (resB as? Boolean == true)
+            LogicOp.AND -> resA && resB
+            LogicOp.OR -> resA || resB
             LogicOp.GREATER -> (resA.toString().toDoubleOrNull() ?: 0.0) > (resB.toString().toDoubleOrNull() ?: 0.0)
             LogicOp.LESS -> (resA.toString().toDoubleOrNull() ?: 0.0) < (resB.toString().toDoubleOrNull() ?: 0.0)
         }
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        InputSlot("a", ExpressionTypes.NUMBER)
-        Text(op.symbol) {
-            modifier.margin(horizontal = sizes.smallGap)
-                .padding(horizontal = sizes.smallGap)
-                .textColor(Color.WHITE)
-                .alignY(AlignmentY.Center)
+        InputSlot(a)
+        Box {
+            modifier
+                .margin(horizontal = 4.dp)
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), sizes.largeGap))
                 .onClick {
                     if (it.pointer.isLeftButtonClicked) {
-                        val values = LogicOp.values()
+                        val values = LogicOp.entries
                         op = values[(op.ordinal + 1) % values.size]
                     }
                     surface.triggerUpdate()
                     notifyChanged()
                 }
-                .zLayer(300)
-                .background(RoundRectBackground(Color.BLACK.withAlpha(0.2f), sizes.smallGap))
+
+            Text(op.symbol) {
+                modifier.textColor(Color.WHITE).alignX(AlignmentX.Center).bold()
+            }
         }
-        InputSlot("b", ExpressionTypes.NUMBER)
+
+        InputSlot(b)
     }
 }
 
@@ -99,58 +111,58 @@ class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(), ExpressionBloc
 @SerialName("hollowengine:math/test")
 class TestBlock : CodeBlock(), ExpressionBlock {
     override val expressionType: ExpressionType
-        get() = parentBlock?.expressionTypeOrNull
-            ?: inputs["then"]?.expressionTypeOrNull
-            ?: inputs["else"]?.expressionTypeOrNull
-            ?: AnyType
+        get() {
+            val parentType = parentBlock?.expressionTypeOrNull
+            if (parentType != null && parentType != AnyType) return parentType
 
-    override suspend fun execute(context: BlockContext): Any? {
-        return if (inputs["test"]?.execute(context) == true) inputs["then"]?.execute(context)
-        else inputs["else"]?.execute(context)
-    }
+            val thenType = inputs["then"]?.expressionTypeOrNull
+            val elseType = inputs["else"]?.expressionTypeOrNull
 
-    context(editor: BlockEditor)
-    override fun UiScope.composeHeaderLayout(
-        isHovered: Boolean,
-        isGhost: Boolean,
-        blockHeaderModifier: UiModifier.() -> Unit,
-    ) {
-        Column(Grow.Std) {
-            modifier.apply(blockHeaderModifier)
-            modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
-
-            editor.InputSlotScope(this, this@TestBlock, isHovered, isGhost).composeContent()
+            return thenType ?: elseType ?: AnyType
         }
+
+    val test by input<Boolean>("test")
+    val thenBranch by input<Any>("then")
+    val elseBranch by input<Any>("else")
+
+    override suspend fun BlockContext.execute(): Any? {
+        return if (test()) thenBranch()
+        else elseBranch()
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Row(Grow.Std) {
-            Text("Выбрать по") {  }
-            Box(Grow.Std) {}
-            InputSlot("test", ExpressionTypes.BOOLEAN)
-        }
-        Box { modifier.size(Grow.Std, sizes.gap) }
-        Row(Grow.Std) {
-            Text("Если истина") {  }
-            Box(Grow.Std) {}
-            InputSlot("then", parentBlock.expressionTypeOrNull ?: inputs["else"]?.expressionTypeOrNull ?: AnyType)
-        }
-        Box { modifier.size(Grow.Std, sizes.gap) }
-        Row(Grow.Std) {
-            Text("Если ложь") {  }
-            Box(Grow.Std) {}
-            InputSlot("else", parentBlock.expressionTypeOrNull ?: inputs["then"]?.expressionTypeOrNull ?: AnyType)
+        Column(Grow.Std) {
+            modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
+
+            Row(Grow.Std) {
+                Text("Выбрать по") { modifier.bold() }
+                Box(Grow.Std) {}
+                InputSlot(test)
+            }
+            Box { modifier.size(Grow.Std, sizes.gap) }
+            Row(Grow.Std) {
+                Text("Если истина") { modifier.bold() }
+                Box(Grow.Std) {}
+                InputSlot(thenBranch)
+            }
+            Box { modifier.size(Grow.Std, sizes.gap) }
+            Row(Grow.Std) {
+                Text("Если ложь") { modifier.bold() }
+                Box(Grow.Std) {}
+                InputSlot(elseBranch)
+            }
         }
     }
 }
 
-// Примитивы
 @Serializable
 @SerialName("hollowengine:number")
 class NumberBlock(var value: Double = 0.0) : CodeBlock(), ExpressionBlock {
-    override val expressionType = ExpressionTypes.NUMBER
+    @Transient
+    override val expressionType = typeOf<Number>()
 
-    override suspend fun execute(context: BlockContext) = value
+    override suspend fun BlockContext.execute() = value
+
     override fun BlockEditor.InputSlotScope.composeContent() {
         TextField(value.toString()) {
             modifier.width(60.dp)
@@ -163,9 +175,11 @@ class NumberBlock(var value: Double = 0.0) : CodeBlock(), ExpressionBlock {
 @Serializable
 @SerialName("hollowengine:boolen")
 class BoolBlock(var value: Boolean = true) : CodeBlock(), ExpressionBlock {
-    override val expressionType = ExpressionTypes.BOOLEAN
+    @Transient
+    override val expressionType = typeOf<Boolean>()
 
-    override suspend fun execute(context: BlockContext) = value
+    override suspend fun BlockContext.execute() = value
+
     override fun BlockEditor.InputSlotScope.composeContent() {
         Checkbox(value) {
             modifier.onToggle { this@BoolBlock.value = it; notifyChanged() }

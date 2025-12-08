@@ -5,6 +5,7 @@ import de.fabmax.kool.KoolConfigJvm
 import de.fabmax.kool.KoolSystem
 import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.pipeline.*
+import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import net.minecraft.resources.ResourceLocation
@@ -50,5 +51,9 @@ object KoolManager {
 class KoolInitEvent : ClientEvent {
     fun loadTexture(texture: ResourceLocation, mode: SamplerMode = SamplerMode.NEAREST) {
         ImageManager.load(texture.toString(), mode)
+    }
+
+    fun attachScene(scene: Scene) {
+        KoolManager.context.scenes.stageAdd(scene, 0)
     }
 }

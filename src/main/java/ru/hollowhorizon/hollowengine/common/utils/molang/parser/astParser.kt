@@ -40,7 +40,7 @@ class Parser(private val tokens: List<Token>) {
             }
             expect(Token.Type.RPAREN)
 
-            if (peek()?.type == Token.Type.DOT) error("Complex calls (like `${path.joinToString(".")}(...).other.variables`) not supported yet!")
+            if (peek()?.type == Token.Type.DOT) error("Complex calls (like `${path.joinToString(".")}(...).other.variables.svg`) not supported yet!")
 
             FunctionCall(path.joinToString("."), args)
         } else {

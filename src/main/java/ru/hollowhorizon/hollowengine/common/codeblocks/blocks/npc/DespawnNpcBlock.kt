@@ -8,7 +8,6 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
-import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
@@ -17,14 +16,14 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.despa
 @Serializable
 @SerialName("hollowengine:npc/despawn")
 class DespawnNpcBlock : CodeBlock() {
-    override suspend fun execute(context: BlockContext): Any? {
-        val npcEntity = inputs["npc"]?.execute(context) as? NpcEntity
-        npcEntity?.despawn()
-        return next?.execute(context)
+    val npc by input<NpcEntity>("npc")
+
+    override suspend fun BlockContext.execute() {
+        npc().despawn()
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("Удалить НИПа") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("npc", AnyType)
+        Text("Удалить НИПа") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(npc)
     }
 }

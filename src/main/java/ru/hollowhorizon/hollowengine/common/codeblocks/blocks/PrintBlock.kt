@@ -6,22 +6,21 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
-import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 
 @Serializable
 @SerialName("hollowengine:print")
 class PrintBlock : CodeBlock() {
-    override suspend fun execute(context: BlockContext): Any? {
-        val msg = inputs["msg"]?.execute(context) ?: "PrintBlock's ($uuid) input is empty!"
-        HollowEngine.LOGGER.info(msg)
-        return next?.execute(context)
+    val msg by input<Any>("msg")
+
+    override suspend fun BlockContext.execute() {
+        HollowEngine.LOGGER.info(msg())
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("Напечатать") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center) }
+        Text("Напечатать") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
         Box(Grow.Companion.Std) {}
-        InputSlot("msg", AnyType)
+        InputSlot(msg)
     }
 }

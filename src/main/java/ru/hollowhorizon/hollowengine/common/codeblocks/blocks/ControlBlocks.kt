@@ -13,23 +13,24 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ContainerBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionTypes
 
 @Serializable
 @SerialName("hollowengine:loops/while")
 class WhileBlock : CodeBlock(), ContainerBlock {
-    override suspend fun execute(context: BlockContext): Any? {
-        while (context.scope.isActive && inputs["cond"]?.execute(context) as? Boolean == true) {
-            inputs["body"]?.execute(context)
+    val condition by input<Boolean>("cond")
+    val body by input<Unit>("body")
+
+    override suspend fun BlockContext.execute() {
+        while (scope.isActive && condition()) {
+            body()
             // Небольшая задержка, чтобы не повесить поток при бесконечном цикле без yield
             delay(1)
         }
-        return next?.execute(context)
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("Пока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("cond", ExpressionTypes.BOOLEAN)
+        Text("Пока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(condition)
     }
 
     override fun BlockEditor.InputSlotScope.composeBody() {
@@ -40,15 +41,15 @@ class WhileBlock : CodeBlock(), ContainerBlock {
 @Serializable
 @SerialName("hollowengine:control/delay")
 class DelayBlock : CodeBlock() {
-    override suspend fun execute(context: BlockContext): Any? {
-        val time = (inputs["time"]?.execute(context).toString().toLongOrNull() ?: 1L) * 1000L
-        delay(time)
-        return next?.execute(context)
+    val time by input<Number>("time")
+
+    override suspend fun BlockContext.execute() {
+        delay((time().toDouble() * 1000).toLong())
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("Ждать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("time", ExpressionTypes.NUMBER)
-        Text("секунд") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+        Text("Ждать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(time)
+        Text("секунд") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }

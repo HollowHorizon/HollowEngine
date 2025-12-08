@@ -1,11 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
-import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.modules.ui2.mutableStateOf
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputDelegate
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForStringUUID
 import java.util.*
@@ -29,6 +31,9 @@ abstract class CodeBlock {
 
     @Transient
     var parent: CodeBlock? = null
+
+    @Transient
+    internal val inputDelegates = mutableMapOf<String, InputDelegate<*>>()
 
     @Transient
     val inputs = mutableMapOf<String, CodeBlock>()
@@ -60,25 +65,32 @@ abstract class CodeBlock {
         block.parent = null
     }
 
-    abstract suspend fun execute(context: BlockContext): Any?
+    inline fun <reified T : Any> input(name: String? = null) = InputDelegate(
+        name,
+        if (T::class == Any::class) AnyType else typeOf<T>(),
+        T::class.java
+    )
+
+    abstract suspend fun BlockContext.execute(): Any?
 
     abstract fun BlockEditor.InputSlotScope.composeContent()
 
-    context(editor: BlockEditor)
-    open fun UiScope.composeHeaderLayout(
-        isHovered: Boolean,
-        isGhost: Boolean,
-        blockHeaderModifier: UiModifier.() -> Unit,
-    ) {
-        Row(Grow.Std) {
-            modifier.apply(blockHeaderModifier)
-            modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
+    open fun BlockEditor.InputSlotScope.composeBody() {}
 
-            editor.InputSlotScope(this, this@CodeBlock, isHovered, isGhost).composeContent()
+    open fun serialize(tag: CompoundTag) {
+        inputDelegates.forEach { (name, value) ->
+            tag.put(name, CompoundTag().apply {
+                value.serialize(this)
+            })
         }
     }
 
-    open fun BlockEditor.InputSlotScope.composeBody() {}
+    open fun deserialize(tag: CompoundTag) {
+        tag.allKeys.forEach {
+            val delegate = inputDelegates[it] ?: return@forEach
+            delegate.deserialize(tag.getCompound(it))
+        }
+    }
 }
 
 fun CodeBlock.deepCopy(provider: BlockProvider): CodeBlock {

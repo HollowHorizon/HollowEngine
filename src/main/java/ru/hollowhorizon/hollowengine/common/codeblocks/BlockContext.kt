@@ -1,62 +1,119 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
-import de.fabmax.kool.util.Color
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeFromStream
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.NpcSayBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.*
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.server.MinecraftServer
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.NPCModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.StandardModules
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.CachedCodeBlockInterpreter
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.CodeBlockInterpreter
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockSerializer
-import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.common.components.Component
+import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
+import ru.hollowhorizon.hollowengine.common.coroutines.dispatcher
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.server.ServerEvent
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
+import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
+import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.utils.serialization.deserializeNoInline
+import ru.hollowhorizon.hollowengine.common.utils.serialization.serializeNoInline
 import java.io.File
+import java.util.*
 
-class BlockContext(val scope: CoroutineScope) {
+class CodeBlocksComponent(server: MinecraftServer) : Component<MinecraftServer>(server) {
+    val contexts = mutableListOf<BlockContext>()
+
+    override fun serialize(tag: CompoundTag) {
+        contexts.forEach {
+            tag.put(it.file, CompoundTag().apply(it::save))
+            it.scope.cancel()
+        }
+    }
+
+    override fun deserialize(compound: CompoundTag) {
+        contexts.forEach { it.scope.cancel() }
+        contexts.clear()
+        compound.allKeys.forEach { file ->
+            val context = createScript(file.fromReadablePath(), owner)
+            context.load(compound.getCompound(file))
+            context.launch()
+        }
+    }
+}
+
+@SubscribeEvent
+fun onServerStart(event: ServerEvent.Starting) {
+    (event.server as ComponentDispatcher).container.attach("hollowengine:code_blocks_component".rl)
+}
+
+class BlockContext(val scope: CoroutineScope, val file: String) {
     val server = currentServer
     val variables = mutableMapOf<String, Any?>()
+    val interpreters = mutableSetOf<CodeBlockInterpreter<Unit>>()
 
-    private val _eventBus = MutableSharedFlow<Pair<String, Any?>>()
-    val eventBus = _eventBus.asSharedFlow()
+    fun addBlock(block: CodeBlock) {
+        if (block !is StartBlock) return
 
-    suspend fun emitEvent(name: String, arg: Any? = null) {
-        _eventBus.emit(name to arg)
+        val interpreter = CachedCodeBlockInterpreter(block, Unit::class.java)
+        interpreters += interpreter
+    }
+
+    fun launch() {
+        interpreters.forEach {
+            scope.launch { it.execute(this@BlockContext) }
+        }
+    }
+
+    fun save(tag: CompoundTag) {
+        val context = CompoundTag()
+        interpreters.forEach {
+            context.put(it.rootUUID.toString(), CompoundTag().apply(it::serialize))
+        }
+        val variables = CompoundTag()
+        this.variables.forEach { (key, value) ->
+            variables.put(key, NBTFormat.serializeNoInline(value!!, value::class.java as Class<Any>))
+            variables.putString("$key:type", value::class.java.name)
+        }
+        tag.put("context", context)
+        tag.put("variables.svg", variables)
+    }
+
+    fun load(tag: CompoundTag) {
+        val context = tag.getCompound("context")
+        context.allKeys.forEach { key ->
+            val uuid = UUID.fromString(key)
+            interpreters.find { it -> it.rootUUID == uuid }?.deserialize(context.getCompound(key))
+        }
+        val variables = tag.getCompound("variables.svg")
+        variables.allKeys.filter { !it.endsWith(":type") }.forEach { key ->
+            val type = Class.forName(variables.getString("$key:type"))
+            this.variables[key] = NBTFormat.deserializeNoInline(variables.get(key)!!, type)
+        }
     }
 }
 
 @OptIn(ExperimentalSerializationApi::class)
-fun runScript(file: File) {
+fun createScript(file: File, server: MinecraftServer = currentServer): BlockContext {
     val repository = BlockRepository.create("Скрипт") {
         include(StandardModules.AllBasics)
-        include {
-            category("НИПы", Color("7cba00")) {
-                block("Создать", ::SpawnNpcBlock)
-                block("Идти", ::NpcMoveBlock)
-                block("Смотреть", ::NpcLookBlock)
-                block("Сказать", ::NpcSayBlock)
-                block("Взаимодействовать", ::NpcInteractBlock)
-                block("Удалить", ::DespawnNpcBlock)
-            }
-        }
+        include(NPCModule)
     }
     val format = CodeBlockFormat(repository)
     val blocks = format.json.decodeFromStream(CodeBlockSerializer(format), file.inputStream())
-    runScript(blocks)
+    return createScript(server, blocks, file.toReadablePath())
 }
 
-var oldJob: Job? = null
-
-fun runScript(rootBlocks: List<CodeBlock>) {
-    oldJob?.cancel()
-    val context = BlockContext(currentServer.coroutineScope)
-    oldJob = context.scope.launch {
-        rootBlocks.filter { it is StartBlock }.forEach {
-            it.execute(context)
-        }
-    }
+fun createScript(server: MinecraftServer, rootBlocks: List<CodeBlock>, file: String): BlockContext {
+    val context = BlockContext(CoroutineScope(server.dispatcher + SupervisorJob()), file)
+    rootBlocks.forEach { context.addBlock(it) }
+    return context
 }

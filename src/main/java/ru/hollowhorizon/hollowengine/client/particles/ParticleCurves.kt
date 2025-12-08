@@ -25,7 +25,7 @@ class CurveVariables(
     }
 
     override fun getOrPut(name: String, initialValue: Float): Variables.Variable =
-        getOrNull(name) ?: throw UnsupportedOperationException("$this does not support unknown variables")
+        getOrNull(name) ?: throw UnsupportedOperationException("$this does not support unknown variables.svg")
 
     private inner class Variable(val curve: BedrockParticleFile.Curve) : Variables.Variable {
         private var cachedFrame = -1

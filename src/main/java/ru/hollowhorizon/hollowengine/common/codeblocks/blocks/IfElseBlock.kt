@@ -2,29 +2,32 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.blocks
 
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ContainerBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionTypes
 
 @Serializable
+@SerialName("hollowengine:control/if-else")
 class IfElseBlock : CodeBlock(), ContainerBlock {
-    override suspend fun execute(context: BlockContext): Any? {
-        val condition = inputs["cond"]?.execute(context) as? Boolean ?: false
-        if (condition) {
-            inputs["then"]?.execute(context)
+    val condition by input<Boolean>("condition")
+    val thenBranch by input<Unit>("then")
+    val elseBranch by input<Unit>("else")
+
+    override suspend fun BlockContext.execute() {
+        if(condition()) {
+            thenBranch()
         } else {
-            inputs["else"]?.execute(context)
+            elseBranch()
         }
-        return next?.execute(context)
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("Если") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center) }
+        Text("Если") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
         Box(Grow.Companion.Std) {}
-        InputSlot("cond", ExpressionTypes.BOOLEAN)
+        InputSlot(condition)
     }
 
     override fun BlockEditor.InputSlotScope.composeBody() {
@@ -37,19 +40,21 @@ class IfElseBlock : CodeBlock(), ContainerBlock {
 }
 
 @Serializable
+@SerialName("hollowengine:control/if")
 class IfBlock : CodeBlock(), ContainerBlock {
-    override suspend fun execute(context: BlockContext): Any? {
-        val condition = inputs["cond"]?.execute(context) as? Boolean ?: false
-        if (condition) {
-            inputs["then"]?.execute(context)
+    val condition by input<Boolean>("condition")
+    val thenBranch by input<Unit>("then")
+
+    override suspend fun BlockContext.execute() {
+        if (condition()) {
+            thenBranch()
         }
-        return next?.execute(context)
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("Если") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center) }
+        Text("Если") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
         Box(Grow.Companion.Std) {}
-        InputSlot("cond", ExpressionTypes.BOOLEAN)
+        InputSlot(condition)
     }
 
     override fun BlockEditor.InputSlotScope.composeBody() {

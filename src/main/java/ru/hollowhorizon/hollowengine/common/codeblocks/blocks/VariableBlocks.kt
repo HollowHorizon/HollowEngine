@@ -14,24 +14,25 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionBlock
 @Serializable
 @SerialName("hollowengine:events/set")
 class SetVarBlock(var varName: String = "var") : CodeBlock() {
-    override suspend fun execute(context: BlockContext): Any? {
-        val value = inputs["value"]?.execute(context)
-        context.variables[varName] = value
-        return next?.execute(context)
+    val value by input<Any>("value")
+
+    override suspend fun BlockContext.execute() {
+        val value = value()
+        variables[varName] = value
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("Присвоить") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+        Text("Присвоить:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         // Поле ввода имени переменной
         TextField(varName) {
             modifier.width(FitContent).margin(horizontal = 5.dp)
                 .alignY(AlignmentY.Center)
                 .onChange { varName = it }
-                .hint("Имя переменной")
+                .hint("Имя переменной").font(font)
                 .colors(textColor = Color.WHITE, lineColor = Color.WHITE)
         }
-        Text("=") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("value", AnyType)
+        Text("=") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(value)
     }
 }
 
@@ -41,8 +42,8 @@ class GetVarBlock(var varName: String = "var") : CodeBlock(), ExpressionBlock {
     @Transient
     override val expressionType = AnyType
 
-    override suspend fun execute(context: BlockContext): Any? {
-        return context.variables[varName]
+    override suspend fun BlockContext.execute(): Any? {
+        return variables[varName]
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
@@ -50,7 +51,7 @@ class GetVarBlock(var varName: String = "var") : CodeBlock(), ExpressionBlock {
             modifier.width(FitContent).margin(start = 5.dp)
                 .alignY(AlignmentY.Center)
                 .onChange { varName = it }
-                .hint("Имя переменной")
+                .hint("Имя переменной").font(font)
                 .colors(textColor = Color.WHITE, lineColor = Color.WHITE)
         }
     }

@@ -11,23 +11,24 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ContainerBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionTypes
 
 @Serializable
 @SerialName("hollowengine:loops/repeat")
 class RepeatBlock : CodeBlock(), ContainerBlock {
-    override suspend fun execute(context: BlockContext): Any? {
-        val times = inputs["times"]?.execute(context).toString().toIntOrNull() ?: 1
-        repeat(times) {
-            inputs["body"]?.execute(context)
+    val times by input<Int>("times")
+    val body by input<Unit>("body")
+
+    override suspend fun BlockContext.execute() {
+        // TODO: Научить эту штуку считать с учётом сохранения
+        repeat(times()) {
+            body()
         }
-        return next?.execute(context)
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("Повторить") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("times", ExpressionTypes.NUMBER)
-        Text("Раз") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center) }
+        Text("Повторить") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(times)
+        Text("Раз") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
     }
 
     override fun BlockEditor.InputSlotScope.composeBody() {

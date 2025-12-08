@@ -14,29 +14,30 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionTypes
+import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 
 @Serializable
 @SerialName("hollowengine:types/location")
 class PositionBlock : CodeBlock(), ExpressionBlock {
     @Transient
-    override val expressionType = ExpressionTypes.VEC3
+    override val expressionType = typeOf<Vec3>()
 
-    override suspend fun execute(context: BlockContext): Any {
-        val x = inputs["x"]?.execute(context).toString().toDoubleOrNull() ?: 0.0
-        val y = inputs["y"]?.execute(context).toString().toDoubleOrNull() ?: 0.0
-        val z = inputs["z"]?.execute(context).toString().toDoubleOrNull() ?: 0.0
-        return Vec3(x, y, z)
+    val x by input<Number>()
+    val y by input<Number>()
+    val z by input<Number>()
+
+    override suspend fun BlockContext.execute(): Any? {
+        return Vec3(x().toDouble(), y().toDouble(), z().toDouble())
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("X") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("x", ExpressionTypes.NUMBER)
-        Text("Y") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("y", ExpressionTypes.NUMBER)
-        Text("Z") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("z", ExpressionTypes.NUMBER)
-        Image("hollowengine:textures/gui/icons/paste.png") {
+        Text("X") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(x)
+        Text("Y") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(y)
+        Text("Z") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(z)
+        Image("hollowengine:textures/gui/icons/copy.svg") {
             modifier.size(sizes.largeGap * 1.5f, sizes.largeGap * 1.5f)
                 .margin(sizes.smallGap)
                 .align(AlignmentX.End, AlignmentY.Center)

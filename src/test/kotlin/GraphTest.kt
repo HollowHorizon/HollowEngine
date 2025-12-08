@@ -167,7 +167,7 @@ class GraphTest {
         graph.updateAwait()
         graph.updateAwait()
         graph.updateAwait()
-        assertEquals(graph.serialize().getCompound("variables").getInt("counter"), 32_30_10, "Variable 'counter' must be equal '323010'")
+        assertEquals(graph.serialize().getCompound("variables.svg").getInt("counter"), 32_30_10, "Variable 'counter' must be equal '323010'")
     }
 
     // TODO: Нужно сделать более продвинутый обработчик для тестов, чем спамить по 2-4 итерации, пока он дойдёт до нужного шага

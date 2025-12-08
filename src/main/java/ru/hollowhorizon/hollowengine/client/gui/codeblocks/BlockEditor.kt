@@ -8,11 +8,14 @@ import de.fabmax.kool.math.MutableVec2f
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
+import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.set
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
+import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputValue
 
 sealed interface DropAction {
     val target: CodeBlock
@@ -186,7 +189,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
                                         Easing.quadRev
                                     )
                                 )
-                                modifier.background(ContainerFooterBackground(color))
+                                modifier.background(ContainerFooterBackground(color, block !is EndBlock))
+                                modifier.border(Shadow(Color.BLACK.withAlpha(0.2f), sizes.gap))
 
                                 if (!isDragging) {
                                     Box {
@@ -280,13 +284,14 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
                     isContainerHeader = isContainer
                 )
             )
+            modifier.border(RoundRectShadow(Color.BLACK.withAlpha(0.3f), sizes.smallGap, sizes.gap))
 
             with(block) {
-                // Передаем модификаторы, которые отвечают за фон и перетаскивание
-                composeHeaderLayout(isHovered.use(), isGhost) {
-                    modifier.width(Grow.Std).margin(start = marginLeft).apply(blockModifier)
+                Row(Grow.Std) {
+                    modifier.margin(start = marginLeft).apply(blockModifier)
+                    modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
 
-
+                    InputSlotScope(this, block, isHovered.use(), isGhost).composeContent()
                 }
             }
         }
@@ -298,6 +303,12 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
         val isHovered: Boolean,
         val isGhost: Boolean,
     ) : UiScope by uiScope {
+        val boldFont = MsdfFont((IdeTheme.sizes.normalText as MsdfFont).data, 16f, MsdfFont.ITALIC_NONE, 0.2f)
+        val font = MsdfFont((IdeTheme.sizes.normalText as MsdfFont).data, 15f, MsdfFont.ITALIC_NONE)
+
+        fun TextModifier.bold() = font(boldFont)
+        fun TextModifier.regular() = font(boldFont)
+
         fun notifyChanged() {
             this@BlockEditor.notifyChanged()
         }
@@ -326,6 +337,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
                 }
             }
         }
+
+        fun UiScope.InputSlot(input: InputValue<*>) = InputSlot(input.name, input.type)
 
         fun UiScope.BodySlot(name: String) {
             val attached = parentBlock.inputs[name]
@@ -396,9 +409,10 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
                 Box {
                     modifier.width(Grow.Std).height(30.dp)
                     modifier.background(ContainerMiddleBackground(color))
+                    modifier.border(Shadow(Color.BLACK.withAlpha(0.2f), sizes.gap))
                     Text(label) {
                         modifier.alignY(AlignmentY.Center).margin(start = Dp.fromPx(C_BLOCK_SPINE_WIDTH + 10f))
-                            .textColor(Color.WHITE)
+                            .textColor(Color.WHITE).bold()
                     }
                 }
             }
@@ -408,6 +422,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
             Box {
                 modifier.size(40.dp, 30.dp)
                 modifier.background(SlotBackground(parentBlock.color.mix(Color.BLACK, 0.3f), highlight))
+                modifier.border(InnerShadow(Color.BLACK.withAlpha(0.2f), sizes.gap, sizes.smallGap))
                 if (highlight) modifier.border(RectBorder(Color.WHITE, 2.dp))
             }
         }

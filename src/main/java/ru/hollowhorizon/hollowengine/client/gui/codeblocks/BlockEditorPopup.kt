@@ -16,7 +16,7 @@ fun buildMenuFromProvider(provider: BlockProvider, rootUiNode: UiNode): SubMenuI
 context(editor: BlockEditor)
 private fun SubMenuItem<Vec2f>.fillCategory(category: BlockCategory, rootUiNode: UiNode) {
     category.blocks.forEach { entry ->
-        item(entry.name) { screenPos ->
+        item(entry.name, entry.icon) { screenPos ->
             val newBlock = entry.factory()
             val localPos = rootUiNode.toLocal(screenPos)
             newBlock.setPosition(localPos.x, localPos.y)
@@ -28,9 +28,11 @@ private fun SubMenuItem<Vec2f>.fillCategory(category: BlockCategory, rootUiNode:
         divider()
     }
 
-    category.subCategories.forEach { subCat ->
-        subMenu(subCat.name) {
+    val lastIndex = category.subCategories.lastIndex
+    category.subCategories.forEachIndexed { i, subCat ->
+        subMenu(subCat.name, subCat.icon, subCat.color) {
             fillCategory(subCat, rootUiNode)
         }
+        if (i != lastIndex) divider()
     }
 }

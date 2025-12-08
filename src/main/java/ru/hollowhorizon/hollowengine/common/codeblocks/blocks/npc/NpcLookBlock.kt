@@ -7,32 +7,37 @@ import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
-import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.look
 
 @Serializable
 @SerialName("hollowengine:npc/look")
 class NpcLookBlock : CodeBlock() {
-    override suspend fun execute(context: BlockContext): Any? {
-        val npcEntity = inputs["npc"]?.execute(context) as? NpcEntity ?: return next?.execute(context)
-        val target = inputs["target"]?.execute(context)
+    val npc by input<NpcEntity>("npc")
+    val target by input<Any>("target")
+
+    override suspend fun BlockContext.execute() {
+        val npcEntity = npc()
+        val target = target()
 
         when (target) {
             is Vec3 -> npcEntity.look(target)
             is Entity -> npcEntity.look(target)
         }
-
-        return next?.execute(context)
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("НИП") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("npc", AnyType)
+        Text("НИП") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(npc)
         Box(Grow.Std) {  }
-        Text("смотрит на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
-        InputSlot("target", AnyType)
+        Text("смотрит на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot("target", ExpressionType.anyOf(
+            typeOf<Entity>(),
+            typeOf<Vec3>()
+        ))
     }
 }

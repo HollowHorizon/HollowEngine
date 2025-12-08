@@ -37,7 +37,7 @@ public class MinecraftServerMixin implements ComponentDispatcher {
          *///?}
 
         if (file.exists()) {
-            ComponentContainerKt.save(hollowengine$container, file);
+            ComponentContainerKt.load(hollowengine$container, file);
         }
     }
 

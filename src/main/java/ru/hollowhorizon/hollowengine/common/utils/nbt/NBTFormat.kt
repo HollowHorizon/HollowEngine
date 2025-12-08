@@ -38,6 +38,16 @@ internal val TagModule
             subclass(ListTag::class, ForNbtList)
             subclass(CompoundTag::class, ForCompoundNBT)
         }
+        contextual(Number::class, PolymorphicSerializer(Number::class))
+        polymorphic(Number::class) {
+            subclass(Double::class)
+            subclass(Float::class)
+            subclass(Int::class)
+            subclass(Long::class)
+            subclass(Short::class)
+            subclass(Byte::class)
+
+        }
         NBT_TAGS.forEach { entry ->
             entry.value.forEach { kClass ->
                 polymorphic(entry.key as KClass<Object>, kClass as KClass<Object>, kClass.serializer())
@@ -54,8 +64,6 @@ internal val TagModule
         contextual(ForVector3f)
         contextual(ForUuid)
     }
-
-val MAPPINGS_SERIALIZER by lazy { NBTFormat() }
 
 open class NBTFormat(context: SerializersModule = EmptySerializersModule()) : SerialFormat, Format<Tag> {
     override val serializersModule = context + TagModule

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.components.registry
 
 import ru.hollowhorizon.hollowengine.api.Init
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksComponent
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.entity.ModelComponent
 import ru.hollowhorizon.hollowengine.common.registry.system.MutableRegistry
@@ -15,6 +16,9 @@ object ComponentRegistry : MutableRegistry<ComponentEntry<*>> by RegistryManager
 object ModComponents {
     val MODEL_COMPONENT by ComponentRegistry.register("hollowengine:model_component".rl) {
         ComponentEntry.create(::ModelComponent)
+    }
+    val CODE_BLOCKS_COMPONENT by ComponentRegistry.register("hollowengine:code_blocks_component".rl) {
+        ComponentEntry.create(::CodeBlocksComponent)
     }
 }
 

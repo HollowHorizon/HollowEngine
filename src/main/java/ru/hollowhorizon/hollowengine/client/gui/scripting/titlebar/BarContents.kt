@@ -21,7 +21,10 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
-import ru.hollowhorizon.hollowengine.common.codeblocks.runScript
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksComponent
+import ru.hollowhorizon.hollowengine.common.codeblocks.createScript
+import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
+import ru.hollowhorizon.hollowengine.common.components.registry.ModComponents
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
@@ -207,8 +210,9 @@ class StartScriptPacket(val path: String) : HollowPacket {
         } else {
             val file = path.fromReadablePath()
 
-            if (file.name.endsWith(".hescr")) {
-                runScript(file)
+            if (file.name.endsWith(".bc")) {
+                (player.server as ComponentDispatcher).container.get<CodeBlocksComponent>(ModComponents.CODE_BLOCKS_COMPONENT)
+                    ?.contexts?.add(createScript(file).also { it.launch() })
             } else {
                 val result = ScriptingEnvironment.INSTANCE.compiler.compile(file)
                 if (result.isFailure) {

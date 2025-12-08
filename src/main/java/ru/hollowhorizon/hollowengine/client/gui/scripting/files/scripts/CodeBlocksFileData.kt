@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.scripts
 import de.fabmax.kool.modules.ui2.Box
 import de.fabmax.kool.modules.ui2.Grow
 import de.fabmax.kool.modules.ui2.UiScope
-import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.KoolDispatchers
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
@@ -15,8 +14,7 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockRepository
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.NpcSayBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.NPCModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.StandardModules
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockSerializer
@@ -32,16 +30,7 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
     )
     val repository = BlockRepository.create("Скрипт") {
         include(StandardModules.AllBasics)
-        include {
-            category("НИПы", Color("7cba00")) {
-                block("Создать", ::SpawnNpcBlock)
-                block("Идти", ::NpcMoveBlock)
-                block("Смотреть", ::NpcLookBlock)
-                block("Сказать", ::NpcSayBlock)
-                block("Взаимодействовать", ::NpcInteractBlock)
-                block("Удалить", ::DespawnNpcBlock)
-            }
-        }
+        include(NPCModule)
     }
     val format = CodeBlockFormat(repository)
     val editor = BlockEditor(repository) {
@@ -58,6 +47,9 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
 
             } catch (e: Exception) {
                 HollowEngine.LOGGER.error("File $filePath cannot be loaded!", e)
+                val file = filePath.fromReadablePath()
+                val backup = file.parentFile.resolve(file.name + ".backup")
+                file.copyTo(backup, true)
             }
         }
 

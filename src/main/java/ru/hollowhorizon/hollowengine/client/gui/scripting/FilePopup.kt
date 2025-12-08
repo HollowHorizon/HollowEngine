@@ -74,7 +74,7 @@ class FilePopup : Composable {
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                             }
                             item("Скрипт (Блоки кода)") {
-                                fileExtension = ".hescr"
+                                fileExtension = ".bc"
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                             }
                         }

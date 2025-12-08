@@ -1,14 +1,12 @@
 package ru.hollowhorizon.hollowengine.mixins;
 
 import com.mojang.datafixers.DataFixer;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import kotlinx.coroutines.CoroutineDispatcher;
 import kotlinx.coroutines.CoroutineScope;
 import kotlinx.coroutines.CoroutineScopeKt;
 import net.minecraft.core.LayeredRegistryAccess;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.RegistryLayer;
@@ -29,24 +27,19 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import ru.hollowhorizon.hollowengine.HollowCore;
 import ru.hollowhorizon.hollowengine.common.coroutines.ServerDispatcher;
 import ru.hollowhorizon.hollowengine.common.coroutines.SingleThreadDispatcher;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent;
-import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormatKt;
+import ru.hollowhorizon.hollowengine.common.events.server.ServerEvent;
+import ru.hollowhorizon.hollowengine.common.utils.ForgeKotlinKt;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.net.Proxy;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 import static kotlinx.coroutines.SupervisorKt.SupervisorJob;
 
-@Mixin(MinecraftServer.class)
+@Mixin(value = MinecraftServer.class, priority = 993)
 public abstract class MinecraftServerMixin implements ServerDispatcher {
     @Unique
     private SingleThreadDispatcher hollowcore$dispatcher;
@@ -73,7 +66,8 @@ public abstract class MinecraftServerMixin implements ServerDispatcher {
     private void onInit(Thread serverThread, LevelStorageSource.LevelStorageAccess storageSource, PackRepository packRepository, WorldStem worldStem, Proxy proxy, DataFixer fixerUpper, Services services, ChunkProgressListenerFactory progressListenerFactory, CallbackInfo ci) {
         hollowcore$dispatcher = new SingleThreadDispatcher("MinecraftServer.dispatcher");
         hollowcore$coroutineScope = CoroutineScopeKt.CoroutineScope(SupervisorJob(null).plus(hollowcore$dispatcher));
-
+        ForgeKotlinKt.setCurrentServer((MinecraftServer) (Object) this);
+        EventBus.post(new ServerEvent.Starting((MinecraftServer) (Object) this));
     }
 
     @Inject(method = "createLevels", at = @At("TAIL"))
@@ -95,6 +89,7 @@ public abstract class MinecraftServerMixin implements ServerDispatcher {
         CoroutineScopeKt.cancel(hollowcore$coroutineScope, null);
 
         hollowcore$dispatcher.runTasks();
+        EventBus.post(new ServerEvent.Stoping((MinecraftServer) (Object) this));
     }
 
     @Inject(method = "stopServer", at = @At("RETURN"))

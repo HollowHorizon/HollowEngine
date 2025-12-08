@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.fabric
 
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents
@@ -13,7 +12,6 @@ import net.fabricmc.fabric.api.`object`.builder.v1.entity.FabricDefaultAttribute
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.server.packs.PackType
-import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.common.events.EventBus.post
 import ru.hollowhorizon.hollowengine.common.events.blocks.BlockEvent
@@ -24,7 +22,6 @@ import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterEntityAttributesEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
-import ru.hollowhorizon.hollowengine.common.events.server.ServerEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.fabric.internal.DelegatedReloadListener
 
@@ -42,13 +39,6 @@ object FabricEvents {
     private fun onServerEvents() {
         ServerTickEvents.END_SERVER_TICK.register(ServerTickEvents.EndTick { s ->
             post(TickEvent.Server(s))
-        })
-        ServerLifecycleEvents.SERVER_STARTING.register(ServerLifecycleEvents.ServerStarting {
-            currentServer = it
-            ServerEvent.Starting(currentServer).post()
-        })
-        ServerLifecycleEvents.SERVER_STOPPING.register(ServerLifecycleEvents.ServerStopping {
-            ServerEvent.Stoping(it).post()
         })
         PlayerBlockBreakEvents.BEFORE.register(PlayerBlockBreakEvents.Before { world, player, pos, state, blockEntity ->
             val event = BlockEvent.Break(world, pos, state, player)

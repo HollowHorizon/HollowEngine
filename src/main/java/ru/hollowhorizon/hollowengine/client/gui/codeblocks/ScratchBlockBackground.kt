@@ -9,7 +9,7 @@ class ScratchBlockBackground(
     val color: Color,
     val isExpression: Boolean,
     val hasNext: Boolean,
-    val hasPrev: Boolean = true, // Новый флаг: есть ли паз сверху (false для StartBlock)
+    val hasPrev: Boolean = true,
     val isContainerHeader: Boolean = false
 ) : UiRenderer<UiNode> {
 
@@ -26,7 +26,6 @@ class ScratchBlockBackground(
         val points = mutableListOf<Vec3f>()
 
         if (isExpression) {
-            // Отрисовка овального блока-выражения (без изменений)
             PuzzleShapes.addBezier(points, x, y + r, x, y, x + r, y)
             points.add(Vec3f(x + w - r, y, 0f))
             PuzzleShapes.addBezier(points, x + w - r, y, x + w, y, x + w, y + r)
@@ -34,18 +33,14 @@ class ScratchBlockBackground(
             points.add(Vec3f(x + r, y + h, 0f))
             PuzzleShapes.addBezier(points, x + r, y + h, x, y + h, x, y + h - r)
 
-            // "Ушко" слева для expression
             val tyStart = (h - PuzzleShapes.TAB_HEIGHT) / 2f
             points.add(Vec3f(x, tyStart + PuzzleShapes.TAB_HEIGHT, 0f))
             points.add(Vec3f(x - PuzzleShapes.TAB_WIDTH, tyStart + PuzzleShapes.TAB_HEIGHT - 5f, 0f))
             points.add(Vec3f(x - PuzzleShapes.TAB_WIDTH, tyStart + 5f, 0f))
             points.add(Vec3f(x, tyStart, 0f))
         } else {
-            // Верхний левый угол
             PuzzleShapes.addBezier(points, x, y + r, x, y, x + r, y)
 
-            // === ИЗМЕНЕНИЕ: Верхний паз (Top Notch) ===
-            // Рисуем паз только если есть предыдущий блок (hasPrev = true)
             if (hasPrev) {
                 points.add(Vec3f(x + notchX, y, 0f))
                 points.add(Vec3f(x + notchX + 5f, y + notchHeight, 0f))
@@ -53,14 +48,11 @@ class ScratchBlockBackground(
                 points.add(Vec3f(x + notchX + notchWidth, y, 0f))
             }
 
-            // Верхний правый угол
             PuzzleShapes.addBezier(points, x + w - r, y, x + w, y, x + w, y + r)
 
-            // Правая грань и нижний правый угол
             PuzzleShapes.addBezier(points, x + w, y + h - r, x + w, y + h, x + w - r, y + h)
 
             if (isContainerHeader) {
-                // Внутренний паз для контейнера (C-shape)
                 val innerNotchX = BlockEditor.C_BLOCK_SPINE_WIDTH + notchX
 
                 points.add(Vec3f(x + innerNotchX + notchWidth, y + h, 0f))
@@ -70,15 +62,12 @@ class ScratchBlockBackground(
 
                 points.add(Vec3f(x, y + h, 0f))
             } else {
-                // === ИЗМЕНЕНИЕ: Нижний паз (Bottom Notch) ===
-                // Управляется флагом hasNext (уже был в коде, логика сохранена)
                 if (hasNext) {
                     points.add(Vec3f(x + notchX + notchWidth, y + h, 0f))
                     points.add(Vec3f(x + notchX + notchWidth - 5f, y + h + notchHeight, 0f))
                     points.add(Vec3f(x + notchX + 5f, y + h + notchHeight, 0f))
                     points.add(Vec3f(x + notchX, y + h, 0f))
                 }
-                // Нижний левый угол
                 PuzzleShapes.addBezier(points, x + r, y + h, x, y + h, x, y + h - r)
             }
         }
@@ -104,7 +93,7 @@ class ScratchBlockBackground(
 
 class ContainerFooterBackground(
     val color: Color,
-    val hasNext: Boolean = true // Новый флаг: есть ли паз снизу у закрывающего блока
+    val hasNext: Boolean = true
 ) : UiRenderer<UiNode> {
     private val notchWidth = 30f
     private val notchHeight = 8f
@@ -120,18 +109,15 @@ class ContainerFooterBackground(
 
         val innerNotchX = BlockEditor.C_BLOCK_SPINE_WIDTH + notchX
 
-        // Верхняя грань (внутренняя часть контейнера)
         points.add(Vec3f(x, y, 0f))
         points.add(Vec3f(x + innerNotchX, y, 0f))
         points.add(Vec3f(x + innerNotchX + 5f, y + notchHeight, 0f))
         points.add(Vec3f(x + innerNotchX + notchWidth - 5f, y + notchHeight, 0f))
         points.add(Vec3f(x + innerNotchX + notchWidth, y, 0f))
 
-        // Правый край
         PuzzleShapes.addBezier(points, x + w - r, y, x + w, y, x + w, y + r)
         PuzzleShapes.addBezier(points, x + w, y + h - r, x + w, y + h, x + w - r, y + h)
 
-        // === ИЗМЕНЕНИЕ: Нижний паз (Bottom Notch) ===
         if (hasNext) {
             points.add(Vec3f(x + notchX + notchWidth, y + h, 0f))
             points.add(Vec3f(x + notchX + notchWidth - 5f, y + h + notchHeight, 0f))
@@ -139,19 +125,10 @@ class ContainerFooterBackground(
             points.add(Vec3f(x + notchX, y + h, 0f))
         }
 
-        // Нижний левый угол
         PuzzleShapes.addBezier(points, x + r, y + h, x, y + h, x, y + h - r)
 
         node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(color) {
             fillPolygon(PolyUtil.fillPolygon(points))
-        }
-        val strokeColor = color.mix(Color.BLACK, 0.2f)
-        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(strokeColor) {
-            for (i in 0 until points.size) {
-                val p1 = points[i]
-                val p2 = points[(i + 1) % points.size]
-                line(p1.xy, p2.xy, 2f)
-            }
         }
     }
 }
@@ -188,14 +165,6 @@ class ContainerMiddleBackground(val color: Color) : UiRenderer<UiNode> {
 
         node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(color) {
             fillPolygon(PolyUtil.fillPolygon(points))
-        }
-        val strokeColor = color.mix(Color.BLACK, 0.2f)
-        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(strokeColor) {
-            for (i in 0 until points.size) {
-                val p1 = points[i]
-                val p2 = points[(i + 1) % points.size]
-                line(p1.xy, p2.xy, 2f)
-            }
         }
     }
 }

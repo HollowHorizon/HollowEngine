@@ -11,17 +11,17 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 @Serializable
 @SerialName("hollowengine:events/send")
 class SendEventBlock(var eventName: String = "MyEvent") : CodeBlock() {
-    override suspend fun execute(context: BlockContext): Any? {
-        context.emitEvent(eventName, null)
-        return next?.execute(context)
+    override suspend fun BlockContext.execute() {
+        //context.emitEvent(eventName, null)
+
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
         Column(Grow.Std) {
-            Text("Отправить сообщение") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center) }
+            Text("Отправить сообщение") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
             TextField(eventName) {
                 modifier.width(FitContent).margin(horizontal = 5.dp)
-                    .hint("Название сообщения")
+                    .hint("Название сообщения").font(font)
                     .onChange { eventName = it; notifyChanged() }
             }
         }

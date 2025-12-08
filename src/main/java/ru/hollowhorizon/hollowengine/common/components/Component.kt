@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.components
 
+import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.common.components.property.Property
 import ru.hollowhorizon.hollowengine.common.components.property.Sync
 
@@ -72,6 +73,14 @@ abstract class Component<T : Any>(val owner: T) {
             enabled = false
             onDisabled()
         }
+    }
+
+    open fun serialize(tag: CompoundTag) {
+
+    }
+
+    open fun deserialize(compound: CompoundTag) {
+
     }
 
     companion object {

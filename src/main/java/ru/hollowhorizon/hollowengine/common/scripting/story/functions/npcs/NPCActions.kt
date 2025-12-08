@@ -12,6 +12,7 @@ import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ClipContext
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.client.gui.overlay.ChatOverlay
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -192,6 +193,9 @@ val Number.sec get() = (this.toFloat() * 20).toInt()
  * @param text Текст сообщения.
  */
 infix fun NpcEntity.say(text: String) {
+    ChatOverlay.nickname.set(name)
+    ChatOverlay.message.set(text)
+    return // TODO: Можно будет доработать эту систему
     server?.playerList?.players?.forEach {
         it.sendSystemMessage("[$name] $text".literal)
     }

@@ -38,8 +38,6 @@ object ForgeEvents {
         FMLJavaModLoadingContext.get().modEventBus.addListener(ForgeEvents::registerAttributes)
         FMLJavaModLoadingContext.get().modEventBus.addListener(ForgeEvents::onBuildCreativeTab)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::registerReloadListeners)
-        MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onServerStart)
-        MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onServerStop)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::registerCommands)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onServerTick)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onEntityTrackingStart)
@@ -127,15 +125,6 @@ object ForgeEvents {
         val from = server.getLevel(event.from) ?: return
         val to = server.getLevel(event.to) ?: return
         PlayerEvent.ChangeDimension(event.entity, from, to).post()
-    }
-
-    private fun onServerStart(event: ServerAboutToStartEvent) {
-        currentServer = event.server
-        ServerEvent.Starting(currentServer).post()
-    }
-
-    private fun onServerStop(event: ServerStoppingEvent) {
-        ServerEvent.Stoping(event.server).post()
     }
 
     private fun onItemEntityToss(e: ItemTossEvent) {

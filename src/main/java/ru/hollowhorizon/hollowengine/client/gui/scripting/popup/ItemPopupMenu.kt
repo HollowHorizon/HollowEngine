@@ -74,7 +74,7 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                                 modifier.background(RoundRectBackground(colors.hoverBg, sizes.smallGap))
                             }
 
-                            iconBox(withIcons, item.icon)
+                            iconBox(withIcons, item.icon, Color.WHITE)
                             Text(item.label.lang) {
                                 modifier
                                     .width(Grow.MinFit)
@@ -99,7 +99,7 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                                 modifier.background(RoundRectBackground(colors.hoverBg, sizes.smallGap))
                             }
 
-                            item.icon?.let { iconBox(withIcons, it) }
+                            item.icon?.let { iconBox(withIcons, it, item.color ?: Color.WHITE) }
                             Text(item.label?.lang ?: "Sub menu") {
                                 modifier
                                     .width(Grow.MinFit)
@@ -140,7 +140,7 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
         }
     }
 
-    private fun UiScope.iconBox(withIcons: Boolean, icon: String?) {
+    private fun UiScope.iconBox(withIcons: Boolean, icon: String?, color: Color) {
         if (withIcons) {
             if (icon != null) {
                 Image {
@@ -151,7 +151,7 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                             Texture2d(samplerSettings = SamplerSettings().nearest(), mipMapping = MipMapping.Off) {
                                 Assets.loadImage2d(icon).getOrThrow()
                             }
-                        }, sizes.gap)
+                        }, sizes.gap, color)
                 }
             } else {
                 Box(sizes.gap, sizes.gap) { modifier.margin(start = sizes.smallGap) }
@@ -182,15 +182,15 @@ class MenuItem<T : Any?>(
     val action: ((T) -> Unit),
 ) : ContextMenuItem<T>()
 
-class SubMenuItem<T : Any?>(val label: String?, val icon: String?) : ContextMenuItem<T>() {
+class SubMenuItem<T : Any?>(val label: String?, val icon: String?, val color: Color?) : ContextMenuItem<T>() {
     val menuItems: MutableStateList<ContextMenuItem<T>> = mutableStateListOf()
 
     fun item(label: String, icon: String? = null, action: (T) -> Unit) {
         menuItems += MenuItem(label, icon, action)
     }
 
-    fun subMenu(label: String, icon: String? = null, block: SubMenuItem<T>.() -> Unit) {
-        val subMenu = SubMenuItem<T>(label, icon)
+    fun subMenu(label: String, icon: String? = null, color: Color? = null, block: SubMenuItem<T>.() -> Unit) {
+        val subMenu = SubMenuItem<T>(label, icon, color)
         subMenu.block()
         menuItems += subMenu
     }
@@ -203,9 +203,10 @@ class SubMenuItem<T : Any?>(val label: String?, val icon: String?) : ContextMenu
 fun <T : Any?> SubMenuItem(
     label: String? = null,
     icon: String? = null,
+    color: Color? = null,
     block: SubMenuItem<T>.() -> Unit,
 ): SubMenuItem<T> {
-    val menu = SubMenuItem<T>(label, icon)
+    val menu = SubMenuItem<T>(label, icon, color)
     menu.block()
     return menu
 }

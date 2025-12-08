@@ -17,7 +17,7 @@ object IdeContent {
 
     private val fileTypes: Map<String, (String, ByteArray) -> FileData> = buildMap {
         put(".kts", ::TextFileData)
-        put(".hescr", ::CodeBlocksFileData)
+        put(".bc", ::CodeBlocksFileData)
     }
 
     fun openFile(path: String, bytes: ByteArray): FileData? {

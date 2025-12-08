@@ -53,7 +53,7 @@ class Graph(
     suspend fun deserialize(tag: CompoundTag) {
         currentIndex = (tag.get("index") as? IntTag)?.asInt ?: currentIndex
 
-        val variables = tag.getCompound("variables")
+        val variables = tag.getCompound("variables.svg")
 
         rememberVariables.forEach { variable ->
             variable.deserialize(variables.get(variable.name()))
@@ -69,7 +69,7 @@ class Graph(
 
     fun serialize(): CompoundTag = CompoundTag().apply {
         putInt("index", currentIndex)
-        if (rememberVariables.isNotEmpty()) put("variables", CompoundTag().apply {
+        if (rememberVariables.isNotEmpty()) put("variables.svg", CompoundTag().apply {
             rememberVariables.forEach { variable ->
                 variable.serialize()?.let { put(variable.name(), it) }
             }

@@ -208,7 +208,7 @@ object MolangCompiler {
             is Assignment -> {
                 generateFloatExpression(mv, ast.expr)
                 mv.visitInsn(DUP)
-                mv.visitVarInsn(ALOAD, 2) // Загружаем variables
+                mv.visitVarInsn(ALOAD, 2) // Загружаем variables.svg
                 mv.visitInsn(SWAP)
                 mv.visitLdcInsn(ast.variable.path.joinToString("."))
                 mv.visitInsn(SWAP)

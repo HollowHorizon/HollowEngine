@@ -1,9 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.blocks
 
-import de.fabmax.kool.modules.ui2.TextField
-import de.fabmax.kool.modules.ui2.colors
-import de.fabmax.kool.modules.ui2.hint
-import de.fabmax.kool.modules.ui2.onChange
+import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -12,19 +9,19 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionTypes
+import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 
 @Serializable
 @SerialName("hollowengine:string_type")
 class StringValueBlock(var value: String) : CodeBlock(), ExpressionBlock {
     @Transient
-    override val expressionType = ExpressionTypes.STRING
+    override val expressionType = typeOf<String>()
 
-    override suspend fun execute(context: BlockContext) = value
+    override suspend fun BlockContext.execute() = value
     override fun BlockEditor.InputSlotScope.composeContent() {
         TextField(value) {
             modifier.onChange { value = it; notifyChanged() }
-                .hint("Значение")
+                .hint("Значение").font(font)
                 .colors(lineColor = Color.Companion.WHITE, textColor = Color.Companion.WHITE)
         }
     }

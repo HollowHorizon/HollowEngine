@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
 import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.MdColor
 import kotlin.reflect.KClass
 
 class BlockProvider(val name: String, val rootCategory: BlockCategory)
@@ -12,23 +11,32 @@ fun BlockCategory.findColorFor(block: CodeBlock): Color? {
     else subCategories.firstNotNullOfOrNull { it.findColorFor(block) }
 }
 
-class BlockCategory(val name: String, val color: Color) {
+class BlockCategory(val name: String, val color: Color, val icon: String? = null) {
     val subCategories = mutableListOf<BlockCategory>()
     val blocks = mutableListOf<BlockEntry<*>>()
 }
 
-data class BlockEntry<T : CodeBlock>(val name: String, val factory: () -> T, val type: KClass<T>)
+data class BlockEntry<T : CodeBlock>(val name: String, val icon: String? = null, val factory: () -> T, val type: KClass<T>) {
+}
 
-typealias BlockModule = BlockCategoryBuilder.() -> Unit
+fun interface BlockModule {
+    fun BlockCategoryBuilder.build()
+}
 
 class BlockCategoryBuilder(@PublishedApi internal val category: BlockCategory) {
 
     /**
      * Создает подкатегорию.
      */
-    fun category(name: String, color: Color, setup: BlockCategoryBuilder.() -> Unit) {
-        val sub = BlockCategory(name, color)
+    fun category(name: String, color: Color, icon: String?, setup: BlockCategoryBuilder.() -> Unit) {
+        val sub = BlockCategory(name, color, icon)
         category.subCategories.add(sub)
+        BlockCategoryBuilder(sub).setup()
+    }
+
+    fun categoryAfter(index: Int, name: String, color: Color, icon: String?, setup: BlockCategoryBuilder.() -> Unit) {
+        val sub = BlockCategory(name, color, icon)
+        category.subCategories.add(index.coerceAtMost(category.subCategories.size), sub)
         BlockCategoryBuilder(sub).setup()
     }
 
@@ -36,9 +44,17 @@ class BlockCategoryBuilder(@PublishedApi internal val category: BlockCategory) {
      * Добавляет блок в текущую категорию.
      */
     inline fun <reified T : CodeBlock> block(name: String, noinline factory: () -> T) {
-        category.blocks.add(BlockEntry(name, {
+        category.blocks.add(BlockEntry(name, null, {
             val block = factory()
             block.color = category.color
+            block
+        }, T::class))
+    }
+
+    inline fun <reified T: CodeBlock> blockWithColor(name: String, color: Color, noinline factory: () -> T) {
+        category.blocks.add(BlockEntry(name, null, {
+            val block = factory()
+            block.color = color
             block
         }, T::class))
     }
@@ -48,15 +64,15 @@ class BlockCategoryBuilder(@PublishedApi internal val category: BlockCategory) {
      * Это позволяет переиспользовать код (например, математику).
      */
     fun include(module: BlockModule) {
-        this.module()
+        with(module) { build() }
     }
 }
 
 object BlockRepository {
-    fun create(name: String, color: Color = MdColor.LIGHT_BLUE, setup: BlockModule): BlockProvider {
+    fun create(name: String, color: Color = Color("A666EA"), setup: BlockModule): BlockProvider {
         val root = BlockCategory(name, color)
         val builder = BlockCategoryBuilder(root)
-        builder.setup()
+        with(setup) { builder.build() }
         return BlockProvider(name, root)
     }
 }

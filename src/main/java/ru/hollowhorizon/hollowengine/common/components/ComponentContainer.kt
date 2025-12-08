@@ -116,6 +116,7 @@ class ComponentContainer(private val provider: ComponentDispatcher) {
                 }
             }
             componentTag.put("properties", properties)
+            componentTag.put("extras", CompoundTag().apply(component::serialize))
             allComponents.put(location.toString(), componentTag)
         }
         return allComponents
@@ -132,6 +133,8 @@ class ComponentContainer(private val provider: ComponentDispatcher) {
                 properties.allKeys.forEach { name ->
                     component.properties[name]?.deserialize(NBTFormat, properties.get(name)!!)
                 }
+                component.deserialize(componentTag.getCompound("extras"))
+
             } else {
                 HollowCore.LOGGER.warn("Component $key not found in registry")
             }
