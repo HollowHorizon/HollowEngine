@@ -14,6 +14,7 @@ object NPCModule : BlockModule {
             block("Сказать", ::NpcSayBlock)
             block("Взаимодействовать", ::NpcInteractBlock)
             block("Удалить", ::DespawnNpcBlock)
+            block("Бросить предмет", ::NpcDropItemBlock)
         }
     }
 }

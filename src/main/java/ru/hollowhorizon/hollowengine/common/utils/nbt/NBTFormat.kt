@@ -8,6 +8,7 @@ import kotlinx.serialization.modules.*
 import net.minecraft.nbt.*
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
 import ru.hollowhorizon.hollowengine.common.utils.serialization.deserialize
 import ru.hollowhorizon.hollowengine.common.utils.serialization.serialize
@@ -119,8 +120,13 @@ fun Tag.save(stream: DataOutputStream) {
 fun Tag.save(stream: OutputStream) = this.save(DataOutputStream(stream))
 
 fun DataInputStream.loadAsNBT(): Tag {
-    return NbtIo.read(this).apply {
-        this@loadAsNBT.close()
+    try {
+        return NbtIo.read(this).apply {
+            this@loadAsNBT.close()
+        }
+    } catch (e: Exception) {
+        HollowCore.LOGGER.error("Error while reading nbt!", e)
+        return CompoundTag()
     }
 }
 
