@@ -7,13 +7,18 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
+import kotlin.random.Random
 
 enum class MathOp(val symbol: String) {
     ADD("+"), SUB("-"), MUL("*"), DIV("/");
 }
 
 enum class LogicOp(val symbol: String) {
-    EQUALS("=="), GREATER(">"), LESS("<"), AND("&&"), OR("||");
+    AND("&&"), OR("||");
+}
+
+enum class CompareOp(val symbol: String) {
+    EQUALS("=="), NOT_EQUALS("!="), GREATER(">"), LESS("<"), GREATER_EQUALS(">="), LESS_EQUALS("<=");
 }
 
 @Serializable
@@ -46,11 +51,92 @@ class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(), ExpressionBlock {
                 .padding(horizontal = 4.dp, vertical = 2.dp)
                 .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), sizes.largeGap))
                 .onClick {
-                    // Простая циклическая смена, можно сделать Popup меню
-                    val values = MathOp.entries
-                    op = values[(op.ordinal + 1) % values.size]
+                    if (it.pointer.isLeftButtonClicked) {
+                        val values = MathOp.entries
+                        op = values[(op.ordinal + 1) % values.size]
+                    }
+                    surface.triggerUpdate()
                     notifyChanged()
                 }
+                .zLayer(UiSurface.LAYER_DEFAULT)
+
+            Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center).bold() }
+        }
+
+        InputSlot(b)
+    }
+}
+
+@Serializable
+@SerialName("hollowengine:math/random")
+class RandomNumberBlock : CodeBlock(), ExpressionBlock {
+    @Transient
+    override val expressionType = typeOf<Number>()
+
+    val min by input<Number>("min")
+    val max by input<Number>("max")
+
+    override suspend fun BlockContext.execute(): Any? {
+        val minVal = min().toDouble()
+        val maxVal = max().toDouble()
+        return Random.nextDouble(minVal, maxVal)
+    }
+
+    override fun BlockEditor.InputSlotScope.composeContent() {
+        Row(Grow.Std) {
+            Text("Случайное от") {
+                modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+            }
+            InputSlot(min)
+            Text("до") {
+                modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+            }
+            InputSlot(max)
+        }
+    }
+}
+
+@Serializable
+@SerialName("hollowengine:math/compare")
+class CompareBlock(var op: CompareOp = CompareOp.EQUALS) : CodeBlock(), ExpressionBlock {
+    @Transient
+    override val expressionType = typeOf<Boolean>()
+
+    val a by input<Number>("a")
+    val b by input<Number>("b")
+
+    override suspend fun BlockContext.execute(): Any? {
+        val resA = a().toDouble()
+        val resB = b().toDouble()
+
+        return when (op) {
+            CompareOp.EQUALS -> resA == resB
+            CompareOp.NOT_EQUALS -> resA != resB
+            CompareOp.GREATER -> resA > resB
+            CompareOp.LESS -> resA < resB
+            CompareOp.GREATER_EQUALS -> resA >= resB
+            CompareOp.LESS_EQUALS -> resA <= resB
+        }
+    }
+
+    override fun BlockEditor.InputSlotScope.composeContent() {
+        InputSlot(a)
+
+        // Кликабельный текст для смены операции
+        Box {
+            modifier
+                .margin(horizontal = 4.dp)
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), sizes.largeGap))
+                .onClick {
+                    if (it.pointer.isLeftButtonClicked) {
+                        val values = CompareOp.entries
+                        op = values[(op.ordinal + 1) % values.size]
+                    }
+                    surface.triggerUpdate()
+                    notifyChanged()
+                }
+                .alignY(AlignmentY.Center)
 
             Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center).bold() }
         }
@@ -61,7 +147,7 @@ class MathBlock(var op: MathOp = MathOp.ADD) : CodeBlock(), ExpressionBlock {
 
 @Serializable
 @SerialName("hollowengine:math/logic")
-class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(), ExpressionBlock {
+class LogicBlock(var op: LogicOp = LogicOp.AND) : CodeBlock(), ExpressionBlock {
     @Transient
     override val expressionType = typeOf<Boolean>()
 
@@ -72,13 +158,9 @@ class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(), ExpressionBloc
         val resA = a()
         val resB = b()
 
-        // Упрощенная логика сравнения
         return when (op) {
-            LogicOp.EQUALS -> resA == resB
             LogicOp.AND -> resA && resB
             LogicOp.OR -> resA || resB
-            LogicOp.GREATER -> (resA.toString().toDoubleOrNull() ?: 0.0) > (resB.toString().toDoubleOrNull() ?: 0.0)
-            LogicOp.LESS -> (resA.toString().toDoubleOrNull() ?: 0.0) < (resB.toString().toDoubleOrNull() ?: 0.0)
         }
     }
 
@@ -104,6 +186,24 @@ class LogicBlock(var op: LogicOp = LogicOp.EQUALS) : CodeBlock(), ExpressionBloc
         }
 
         InputSlot(b)
+    }
+}
+
+@Serializable
+@SerialName("hollowengine:math/not")
+class NotBlock : CodeBlock(), ExpressionBlock {
+    @Transient
+    override val expressionType = typeOf<Boolean>()
+
+    val value by input<Boolean>("value")
+
+    override suspend fun BlockContext.execute(): Any? {
+        return !(value())
+    }
+
+    override fun BlockEditor.InputSlotScope.composeContent() {
+        Text("Не") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(value)
     }
 }
 

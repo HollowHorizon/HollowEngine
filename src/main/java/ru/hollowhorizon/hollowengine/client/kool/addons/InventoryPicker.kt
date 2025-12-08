@@ -5,6 +5,7 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import net.minecraft.client.Minecraft
 import net.minecraft.world.item.ItemStack
+import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
@@ -12,6 +13,10 @@ import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
 object InventoryPicker {
     context(scope: UiScope)
     fun select(onChoice: (ItemStack) -> Unit) = with(scope) {
+        modifier.background(RoundRectBackground(IdeTheme.colors.background, sizes.smallGap))
+        modifier.border(RoundRectBorder(IdeTheme.colors.primary, sizes.smallGap, sizes.borderWidth))
+            .padding(sizes.smallGap)
+
         val player = Minecraft.getInstance().player ?: return@with
         Column {
             (0..<3).forEach { i ->
@@ -25,6 +30,7 @@ object InventoryPicker {
                     }
                 }
             }
+            divider(Color.WHITE)
             Row {
                 player.inventory.items.subList(0, 9).forEach { item ->
                     slot(item) {

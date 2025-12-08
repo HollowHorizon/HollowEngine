@@ -190,7 +190,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
                                     )
                                 )
                                 modifier.background(ContainerFooterBackground(color, block !is EndBlock))
-                                modifier.border(Shadow(Color.BLACK.withAlpha(0.2f), sizes.gap))
 
                                 if (!isDragging) {
                                     Box {
@@ -284,7 +283,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
                     isContainerHeader = isContainer
                 )
             )
-            modifier.border(RoundRectShadow(Color.BLACK.withAlpha(0.3f), sizes.smallGap, sizes.gap))
 
             with(block) {
                 Row(Grow.Std) {
@@ -409,7 +407,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
                 Box {
                     modifier.width(Grow.Std).height(30.dp)
                     modifier.background(ContainerMiddleBackground(color))
-                    modifier.border(Shadow(Color.BLACK.withAlpha(0.2f), sizes.gap))
                     Text(label) {
                         modifier.alignY(AlignmentY.Center).margin(start = Dp.fromPx(C_BLOCK_SPINE_WIDTH + 10f))
                             .textColor(Color.WHITE).bold()
@@ -422,7 +419,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
             Box {
                 modifier.size(40.dp, 30.dp)
                 modifier.background(SlotBackground(parentBlock.color.mix(Color.BLACK, 0.3f), highlight))
-                modifier.border(InnerShadow(Color.BLACK.withAlpha(0.2f), sizes.gap, sizes.smallGap))
                 if (highlight) modifier.border(RectBorder(Color.WHITE, 2.dp))
             }
         }

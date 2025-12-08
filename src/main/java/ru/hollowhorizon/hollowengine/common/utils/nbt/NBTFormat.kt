@@ -24,6 +24,8 @@ val NBT_TAGS = HashMap<KClass<*>, MutableList<KClass<*>>>()
 @Suppress("UNCHECKED_CAST")
 internal val TagModule
     get() = SerializersModule {
+        contextual(Tag::class, PolymorphicSerializer(Tag::class))
+        
         polymorphic(Tag::class) {
             subclass(ByteTag::class, ForByteNBT)
             subclass(ShortTag::class, ForShortNBT)

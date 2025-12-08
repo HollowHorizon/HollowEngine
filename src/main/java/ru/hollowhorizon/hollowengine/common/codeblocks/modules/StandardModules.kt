@@ -20,6 +20,7 @@ object StandardModules {
     val Math: BlockModule = {
         category("Математика", Color("58B2EA"), icons("math")) {
             block("Операция") { MathBlock() }
+            block("Случайное число") { RandomNumberBlock() }
         }
     }
 
@@ -27,7 +28,9 @@ object StandardModules {
         category("Логика", Color("1DB07D"), icons("logic")) {
             block("Если/Иначе") { IfElseBlock() }
             block("Если") { IfBlock() }
-            blockWithColor("Сравнение", Color("3C44A0")) { LogicBlock() }
+            blockWithColor("Сравнение", Color("3C44A0")) { CompareBlock() }
+            blockWithColor("Логические операторы", Color("3C44A0")) { LogicBlock() }
+            block("Не") { NotBlock() }
             block("Тест") { TestBlock() }
         }
     }

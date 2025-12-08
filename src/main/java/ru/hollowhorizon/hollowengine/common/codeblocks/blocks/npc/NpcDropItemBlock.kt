@@ -14,19 +14,20 @@ import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStack
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.dropItem
+import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStackJson
 
 @Serializable
 @SerialName("hollowengine:npcs/drop_item")
 class NpcDropItemBlock : CodeBlock() {
     val npc by input<NpcEntity>()
-    var item: @Serializable(ForItemStack::class) ItemStack = ItemStack.EMPTY
+    var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
 
     @Transient
     val popup = AutoPopup(true, true)
 
-    override suspend fun BlockContext.execute(): Any? {
-        TODO("Not yet implemented")
+    override suspend fun BlockContext.execute() {
+        npc().dropItem(item)
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
@@ -52,7 +53,7 @@ class NpcDropItemBlock : CodeBlock() {
                             }
                         }
 
-                        popup.show(Vec2f(uiNode.rightPx + 1.dp.px, uiNode.topPx))
+                        popup.show(Vec2f(uiNode.rightPx + sizes.smallGap.px, uiNode.topPx))
                     }
             }
         }

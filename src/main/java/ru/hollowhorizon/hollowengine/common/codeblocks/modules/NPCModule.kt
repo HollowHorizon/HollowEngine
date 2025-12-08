@@ -15,6 +15,19 @@ object NPCModule : BlockModule {
             block("Взаимодействовать", ::NpcInteractBlock)
             block("Удалить", ::DespawnNpcBlock)
             block("Бросить предмет", ::NpcDropItemBlock)
+            block("Расстояние до цели", ::NpcDistanceToBlock)
+            block("Телепортировать", ::NpcTeleportBlock)
+            block("Установить цель", ::NpcSetTargetBlock)
+            block("Сбросить цель", ::NpcClearTargetBlock)
+            block("Получить здоровье", ::NpcHealthBlock)
+            block("Получить макс. здоровье", ::NpcMaxHealthBlock)
+            block("Получить скорость", ::NpcSpeedBlock)
+            block("Получить имя", ::NpcGetNameBlock)
+            block("Установить здоровье", ::NpcSetHealthBlock)
+            block("Установить имя", ::NpcSetNameBlock)
+            block("Проверить жив ли НИП", ::NpcIsAliveBlock)
+            block("Исцелить НИПа", ::NpcHealBlock)
+            block("Нанести урон НИПу", ::NpcHurtBlock)
         }
     }
 }

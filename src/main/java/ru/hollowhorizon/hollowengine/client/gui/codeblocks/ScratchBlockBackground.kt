@@ -79,15 +79,6 @@ class ScratchBlockBackground(
         node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(color) {
             fillPolygon(PolyUtil.fillPolygon(points))
         }
-        val strokeColor = color.mix(Color.BLACK, 0.2f)
-        node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(strokeColor) {
-            for (i in 0 until points.size) {
-                val p1 = points[i]
-                val p2 = points[(i + 1) % points.size]
-
-                line(p1.xy, p2.xy, 2f)
-            }
-        }
     }
 }
 
