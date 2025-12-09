@@ -2,23 +2,31 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.blocks
 
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
+import kotlinx.serialization.*
+import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.variables.LivingEntityContainer
+import ru.hollowhorizon.hollowengine.common.codeblocks.variables.SerializableVariableContainer
+import ru.hollowhorizon.hollowengine.common.codeblocks.variables.isSerializable
 
 @Serializable
 @SerialName("hollowengine:events/set")
 class SetVarBlock(var varName: String = "var") : CodeBlock() {
     val value by input<Any>("value")
 
+    @OptIn(InternalSerializationApi::class)
     override suspend fun BlockContext.execute() {
         val value = value()
-        variables[varName] = value
+
+        variables[varName] = when(value) {
+            isSerializable() -> SerializableVariableContainer(value::class.serializer())
+            is LivingEntity -> LivingEntityContainer()
+            else -> throw IllegalArgumentException("Variable '$varName' cannot be serialized!")
+        }
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {

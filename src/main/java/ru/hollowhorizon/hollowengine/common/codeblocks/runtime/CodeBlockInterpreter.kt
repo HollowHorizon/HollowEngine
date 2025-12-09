@@ -52,13 +52,15 @@ open class CodeBlockInterpreter<T : Any>(var root: CodeBlock, val type: Class<T>
 
 class CachedCodeBlockInterpreter<T : Any>(root: CodeBlock, type: Class<T>) : CodeBlockInterpreter<T>(root, type) {
     var value: Value<T>? = null
-    var isFirst =
+    var isRestoring =
         false // Используется, чтобы кэшированное значение сработало только 1 раз при запуске. Иначе циклы работать не будут
 
     override suspend fun execute(context: BlockContext): T {
-        if (isFirst) {
-            value?.let { return it.value }
-            isFirst = false
+        if (isRestoring) {
+            value?.let {
+                isRestoring = false
+                return it.value
+            }
         }
         val value = super.execute(context)
         this.value = Value(value, type)
@@ -76,7 +78,7 @@ class CachedCodeBlockInterpreter<T : Any>(root: CodeBlock, type: Class<T>) : Cod
     override fun deserialize(tag: CompoundTag) {
         val cached = tag.get(CACHED_TAG) ?: return super.deserialize(tag)
         value = Value.create(cached, type)
-        isFirst = true
+        isRestoring = true
     }
 
     companion object {
