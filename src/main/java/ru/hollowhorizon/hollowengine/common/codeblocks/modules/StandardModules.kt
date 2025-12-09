@@ -5,6 +5,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.BlockModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnEventBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnStartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerDeathBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerJoinBlock
 
 object StandardModules {
     private val icons: (String) -> String = { "hollowengine:textures/gui/icons/$it.svg" }
@@ -56,6 +58,9 @@ object StandardModules {
             block("При запуске") { OnStartBlock() }
             block("При событии") { OnEventBlock() }
             block("Отправить событие") { SendEventBlock("") }
+
+            block("При входе игрока") { OnPlayerJoinBlock() }
+            block("При смерти игрока") { OnPlayerDeathBlock() }
         }
     }
 

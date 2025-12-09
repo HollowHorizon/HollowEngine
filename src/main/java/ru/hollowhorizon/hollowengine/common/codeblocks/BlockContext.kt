@@ -8,6 +8,7 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.NPCModule
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.PlayerModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.StandardModules
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.CachedCodeBlockInterpreter
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.CodeBlockInterpreter
@@ -128,6 +129,7 @@ fun createScript(file: File, server: MinecraftServer = currentServer): BlockCont
     val repository = BlockRepository.create("Скрипт") {
         include(StandardModules.AllBasics)
         include(NPCModule)
+        include(PlayerModule)
     }
     val format = CodeBlockFormat(repository)
     val blocks = format.json.decodeFromStream(CodeBlockSerializer(format), file.inputStream())
