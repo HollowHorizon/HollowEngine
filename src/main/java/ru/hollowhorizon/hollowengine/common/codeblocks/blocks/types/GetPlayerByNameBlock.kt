@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players
+package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types
 
 import de.fabmax.kool.modules.ui2.AlignmentY
 import de.fabmax.kool.modules.ui2.Text
@@ -27,7 +27,7 @@ class GetPlayerByNameBlock : CodeBlock(), ExpressionBlock {
     }
 
     override fun BlockEditor.InputSlotScope.composeContent() {
-        Text("Игрок с именем") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("Игрок с именем") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(playerName)
     }
 }

@@ -7,6 +7,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnEventBloc
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnStartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerDeathBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerJoinBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.GetPlayerByNameBlock
 
 object StandardModules {
     private val icons: (String) -> String = { "hollowengine:textures/gui/icons/$it.svg" }
@@ -43,6 +44,8 @@ object StandardModules {
             block("Число") { NumberBlock() }
             block("Логический тип") { BoolBlock() }
             block("Координаты") { PositionBlock() }
+            
+            block("Получить игрока", ::GetPlayerByNameBlock)
         }
     }
 

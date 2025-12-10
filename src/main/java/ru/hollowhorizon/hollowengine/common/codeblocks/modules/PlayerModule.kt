@@ -8,7 +8,6 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.*
 object PlayerModule : BlockModule {
     override fun BlockCategoryBuilder.build() {
         categoryAfter(2, "Игроки", Color("4287F5"), "hollowengine:textures/gui/icons/players.svg") {
-            block("Получить игрока", ::GetPlayerByNameBlock)
             block("Взаимодействует с мобом", ::PlayerInteractWithEntity)
             block("Взаимодействует с блоков", ::PlayerInteractWithBlock)
             block("Использует предмет", ::PlayerInteractWithItem)
