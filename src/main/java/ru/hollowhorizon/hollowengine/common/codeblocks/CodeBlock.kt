@@ -8,6 +8,7 @@ import kotlinx.serialization.Transient
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputDelegate
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputListDelegate
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForStringUUID
 import java.util.*
@@ -70,6 +71,11 @@ abstract class CodeBlock {
         if (T::class == Any::class) AnyType else typeOf<T>(),
         T::class.java
     )
+    inline fun <reified T : Any> inputList(name: String? = null) = InputListDelegate<T>(
+        name,
+        if (T::class == Any::class) AnyType else typeOf<T>()
+    )
+
 
     abstract suspend fun BlockContext.execute(): Any?
 

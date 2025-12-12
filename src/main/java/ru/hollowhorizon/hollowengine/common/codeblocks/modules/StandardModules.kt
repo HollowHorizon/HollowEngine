@@ -4,6 +4,8 @@ import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockEntry
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.TextComponentBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.TextMergerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CallCustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnEventBlock
@@ -50,6 +52,9 @@ object StandardModules {
             block("Координаты") { PositionBlock() }
 
             block("Получить игрока", ::GetPlayerByNameBlock)
+
+            block("Текстовый компонент") { TextComponentBlock() }
+            block("Объединить компоненты") { TextMergerBlock() }
         }
     }
 

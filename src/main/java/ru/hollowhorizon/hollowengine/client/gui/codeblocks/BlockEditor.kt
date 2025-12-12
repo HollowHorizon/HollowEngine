@@ -283,6 +283,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit): B
                     isContainerHeader = isContainer
                 )
             )
+            if(block.isExpression && block.parentBlock != null) modifier.border(InnerShadow(Color.BLACK.withAlpha(0.2f), sizes.smallGap, sizes.smallGap))
 
             with(block) {
                 Row(Grow.Std) {
@@ -337,6 +338,27 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit): B
         }
 
         fun UiScope.InputSlot(input: InputValue<*>) = InputSlot(input.name, input.type)
+
+        /**
+         * Да, костыль, зато какой :)
+         */
+        fun UiScope.InputSlotList(baseName: String, type: ExpressionType) {
+            val usedIndices = parentBlock.inputs.keys
+                .filter { it.startsWith("${baseName}_") }
+                .mapNotNull { it.substringAfterLast("_").toIntOrNull() }
+                .sorted()
+
+            val maxIndex = usedIndices.lastOrNull() ?: -1
+
+            Row {
+                modifier.alignY(AlignmentY.Center)
+
+                for (i in 0 .. maxIndex + 1) {
+                    val slotName = "${baseName}_$i"
+                    InputSlot(slotName, type)
+                }
+            }
+        }
 
         fun UiScope.BodySlot(name: String) {
             val attached = parentBlock.inputs[name]
