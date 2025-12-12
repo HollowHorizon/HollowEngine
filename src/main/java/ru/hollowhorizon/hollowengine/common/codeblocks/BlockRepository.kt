@@ -7,17 +7,24 @@ class BlockProvider(val name: String, val rootCategory: BlockCategory)
 
 fun BlockProvider.findColorFor(block: CodeBlock): Color = rootCategory.findColorFor(block) ?: rootCategory.color
 fun BlockCategory.findColorFor(block: CodeBlock): Color? {
-    return if(block::class in blocks.map { it.type }) color
+    return if (block::class in blocks.map { it.type }) color
     else subCategories.firstNotNullOfOrNull { it.findColorFor(block) }
 }
 
 class BlockCategory(val name: String, val color: Color, val icon: String? = null) {
     val subCategories = mutableListOf<BlockCategory>()
     val blocks = mutableListOf<BlockEntry<*>>()
+
+    val dynamicGenerators = mutableListOf<BlocksScope.() -> List<BlockEntry<*>>>()
+    fun entries(scope: BlocksScope): List<BlockEntry<*>> = blocks + dynamicGenerators.flatMap { it(scope) }
 }
 
-data class BlockEntry<T : CodeBlock>(val name: String, val icon: String? = null, val factory: () -> T, val type: KClass<T>) {
-}
+data class BlockEntry<T : CodeBlock>(
+    val name: String,
+    val icon: String? = null,
+    val factory: () -> T,
+    val type: KClass<T>,
+)
 
 fun interface BlockModule {
     fun BlockCategoryBuilder.build()
@@ -51,12 +58,16 @@ class BlockCategoryBuilder(@PublishedApi internal val category: BlockCategory) {
         }, T::class))
     }
 
-    inline fun <reified T: CodeBlock> blockWithColor(name: String, color: Color, noinline factory: () -> T) {
+    inline fun <reified T : CodeBlock> blockWithColor(name: String, color: Color, noinline factory: () -> T) {
         category.blocks.add(BlockEntry(name, null, {
             val block = factory()
             block.color = color
             block
         }, T::class))
+    }
+
+    fun dynamicBlocks(generator: BlocksScope.() -> List<BlockEntry<*>>) {
+        category.dynamicGenerators.add(generator)
     }
 
     /**

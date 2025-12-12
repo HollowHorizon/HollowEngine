@@ -7,6 +7,7 @@ import kotlinx.serialization.json.decodeFromStream
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.LivingEntity
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.NPCModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.PlayerModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.StandardModules
@@ -59,14 +60,20 @@ class BlockContext(val scope: CoroutineScope, val file: String) {
     val server = currentServer
     val variables = mutableMapOf<String, VariableContainer<*>>()
     val interpreters = mutableSetOf<CodeBlockInterpreter<Unit>>()
+    val functions = mutableMapOf<String, CustomBlock>()
 
     private val onLoad = mutableListOf<suspend () -> Unit>()
 
     fun addBlock(block: CodeBlock) {
         if (block !is StartBlock) return
+        if (block is EndBlock) return
 
         val interpreter = CachedCodeBlockInterpreter(block, Unit::class.java)
         interpreters += interpreter
+    }
+
+    fun addFunction(block: CustomBlock) {
+        functions[block.function] = block
     }
 
     fun launch() {
@@ -139,5 +146,6 @@ fun createScript(file: File, server: MinecraftServer = currentServer): BlockCont
 fun createScript(server: MinecraftServer, rootBlocks: List<CodeBlock>, file: String): BlockContext {
     val context = BlockContext(CoroutineScope(server.dispatcher + SupervisorJob()), file)
     rootBlocks.forEach { context.addBlock(it) }
+    rootBlocks.filterIsInstance<CustomBlock>().forEach { context.addFunction(it) }
     return context
 }

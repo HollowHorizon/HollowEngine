@@ -64,3 +64,22 @@ class GetVarBlock(var varName: String = "var") : CodeBlock(), ExpressionBlock {
         }
     }
 }
+
+@Serializable
+@SerialName("hollowengine:variables/get_inline")
+class GetVarInlineBlock(val name: String) : CodeBlock(), ExpressionBlock {
+    @Transient
+    override val expressionType = AnyType
+
+    override suspend fun BlockContext.execute(): Any? {
+        return variables[name]
+    }
+
+    override fun BlockEditor.InputSlotScope.composeContent() {
+        Text("Значение переменной") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("\"$name\"") {
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center)
+                .margin(start = 5.dp)
+        }
+    }
+}

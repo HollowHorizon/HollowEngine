@@ -26,8 +26,8 @@ sealed interface DropAction {
         DropAction
 }
 
-class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
-    val rootBlocks = mutableStateListOf<CodeBlock>()
+class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit): BlocksScope {
+    override val rootBlocks = mutableStateListOf<CodeBlock>()
     var draggingBlock: CodeBlock? = null
     val dragStartOffset = MutableVec2f()
     var potentialAction: DropAction? = null
@@ -357,7 +357,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) {
                         .width(Dp.fromPx(C_BLOCK_SPINE_WIDTH) - sizes.smallGap * 0.5f)
                         .height(Grow.Std)
                         .background(RectBackground(color))
-                        .border(RectBorder(color.mix(Color.BLACK, 0.2f), Dp.fromPx(2f)))
                 }
 
                 Box { modifier.size(sizes.smallGap * 0.5f, Grow.Std) }
