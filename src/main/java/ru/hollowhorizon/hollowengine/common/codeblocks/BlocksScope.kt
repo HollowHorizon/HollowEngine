@@ -13,3 +13,6 @@ fun CodeBlock.walk(): Sequence<CodeBlock> = sequence {
         yieldAll(it.walk())
     }
 }
+
+val CodeBlock.parentCount: Int
+    get() = ((parent ?: parentBlock)?.parentCount ?: 0) + 1

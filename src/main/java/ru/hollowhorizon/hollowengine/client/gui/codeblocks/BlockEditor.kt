@@ -127,15 +127,16 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit): B
         }
     }
 
-    private fun UiScope.renderBlockRecursively(block: CodeBlock, isGhost: Boolean = false) {
+    private fun UiScope.renderBlockRecursively(block: CodeBlock, isGhost: Boolean = false, isDraggedStack: Boolean = false) {
         Column {
-
             val isRoot = rootBlocks.contains(block)
             modifier.width(if (isRoot) FitContent else Grow.Std)
-            val isDragging = draggingBlock == block
+            val isDragging = draggingBlock == block || isDraggedStack
+
+            val baseLayer = if (isDragging) UiSurface.LAYER_FLOATING else UiSurface.LAYER_DEFAULT
+            modifier.zLayer(baseLayer + 100 - block.parentCount)
 
             if (isRoot) {
-                modifier.zLayer(if (isDragging) UiSurface.LAYER_FLOATING else UiSurface.LAYER_DEFAULT)
                 modifier.margin(start = Dp.fromPx(block.positionX.use()), top = Dp.fromPx(block.positionY.use()))
             }
 
@@ -231,7 +232,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit): B
                         GhostPlaceholder(false)
                     }
 
-                    block.next?.let { next -> renderBlockRecursively(next, isGhost) }
+                    block.next?.let { next -> renderBlockRecursively(next, isGhost, isDragging) }
                 }
             }
         }
@@ -281,10 +282,10 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit): B
                     isExpression = block.isExpression,
                     hasNext = !block.isExpression,
                     hasPrev = block !is StartBlock,
-                    isContainerHeader = isContainer
+                    isContainerHeader = isContainer,
+                    drawInnerShadow = block.isExpression && block.parentBlock != null,
                 )
             )
-            if(block.isExpression && block.parentBlock != null) modifier.border(InnerShadow(Color.BLACK.withAlpha(0.2f), sizes.smallGap, sizes.smallGap))
 
             with(block) {
                 Row(Grow.Std) {
@@ -379,7 +380,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit): B
                     modifier
                         .width(Dp.fromPx(C_BLOCK_SPINE_WIDTH) - sizes.smallGap * 0.5f)
                         .height(Grow.Std)
-                        .background(RectBackground(color))
+                        .background(SpineBackground(color))
                 }
 
                 Box { modifier.size(sizes.smallGap * 0.5f, Grow.Std) }
@@ -394,7 +395,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit): B
                                 ScratchBlockBackground(
                                     Color.WHITE.withAlpha(0.2f),
                                     isExpression = false,
-                                    hasNext = true
+                                    hasNext = true,
+                                    drawInnerShadow = true
                                 )
                             )
                         } else {

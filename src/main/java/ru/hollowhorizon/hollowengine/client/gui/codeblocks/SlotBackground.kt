@@ -48,5 +48,12 @@ class SlotBackground(val color: Color, val isHovered: Boolean) : UiRenderer<UiNo
         node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configured(bgColor, clipped = true) {
             fillPolygon(PolyUtil.fillPolygon(points))
         }
+        node.getPlainBuilder(UiSurface.LAYER_POPUP).configured(bgColor, clipped = true) {
+            PuzzleShapes.drawInnerShadow(
+                points,
+                width = 4f,
+                color = Color.BLACK.withAlpha(0.2f)
+            )
+        }
     }
 }
