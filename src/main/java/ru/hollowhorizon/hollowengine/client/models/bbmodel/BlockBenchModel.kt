@@ -80,10 +80,7 @@ data class BBElement(
     @SerialName("uv_offset") val uvOffset: List<Float> = listOf(),
     val faces: BBFaces,
     val type: String,
-) {
-
-
-}
+)
 
 @Serializable
 data class BBFaces(
