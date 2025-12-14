@@ -18,9 +18,6 @@ interface SerializerProvider {
     fun serializer(): KSerializer<*>
 }
 
-fun main() {
-}
-
 open class ObservableCollection<E>(
     val original: MutableCollection<E>, val onChange: () -> Unit, protected val elementSerializer: KSerializer<E>,
 ) : MutableCollection<E>, SerializerProvider {

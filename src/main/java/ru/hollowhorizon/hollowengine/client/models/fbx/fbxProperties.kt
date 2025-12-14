@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.fbx
 
-open class Property : Any()
+open class Property
 
 class TypedProperty<T>(var value: T) : Property()
 

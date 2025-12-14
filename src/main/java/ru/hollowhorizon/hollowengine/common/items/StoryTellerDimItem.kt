@@ -13,9 +13,6 @@ import ru.hollowhorizon.hollowengine.common.registry.ModDimensions
 import ru.hollowhorizon.hollowengine.common.registry.ModTabs
 
 class StoryTellerDimItem : Item(Properties().stacksTo(1)), CreativeTab {
-    init {
-
-    }
 
     override fun use(level: Level, player: Player, hand: InteractionHand): InteractionResultHolder<ItemStack> {
         val stack = player.getItemInHand(hand)

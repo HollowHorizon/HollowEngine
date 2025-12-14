@@ -19,7 +19,7 @@ object InventoryPicker {
 
         val player = Minecraft.getInstance().player ?: return@with
         Column {
-            (0..<3).forEach { i ->
+            for (i in 0..<3) {
                 Row {
                     player.inventory.items.subList(9 + i * 9, 18 + i * 9).forEach { item ->
                         slot(item) {
@@ -59,7 +59,7 @@ object InventoryPicker {
                 body()
             }
 
-            if(item.count > 1) Text(item.count.toString()) {
+            if (item.count > 1) Text(item.count.toString()) {
                 modifier.font(MsdfFont(MONOCRAFT, 10f))
                     .align(AlignmentX.End, AlignmentY.Bottom)
                     .margin(sizes.smallGap * 0.5f)
