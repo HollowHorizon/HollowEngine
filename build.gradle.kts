@@ -47,7 +47,7 @@ dependencies {
     install("net.peanuuutz.tomlkt:tomlkt:0.5.0", true)
 
     // GRAPHICS //
-    install("de.fabmax.kool:kool-core:$koolVersion", true)
+    install("de.fabmax.kool:kool-core-desktop:$koolVersion", true)
     install("com.github.weisj:jsvg:2.0.0")
     install("com.facebook:ktfmt:0.54")
 
