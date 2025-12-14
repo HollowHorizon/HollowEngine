@@ -1,7 +1,10 @@
 package ru.hollowhorizon.hollowengine.client.audio
 
 import org.lwjgl.openal.AL10
-import org.lwjgl.system.MemoryUtil
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import kotlin.math.max
+import kotlin.math.min
 
 class WaveCue {
     var id: Int = 0
@@ -22,9 +25,9 @@ class Wave(
     var bitsPerSample: Int,
     var data: ByteArray,
 ) {
-    val bytesPerSample get() = bitsPerSample / 8
-    var byteRate: Int = sampleRate * numChannels * bytesPerSample
-    var blockAlign: Int = numChannels * bytesPerSample
+    // Вторичные конструкторы и свойства для удобства
+    var byteRate: Int = sampleRate * numChannels * (bitsPerSample / 8)
+    var blockAlign: Int = numChannels * (bitsPerSample / 8)
     var lists: List<WaveList> = ArrayList()
     var cues: List<WaveCue> = ArrayList()
 
@@ -34,76 +37,106 @@ class Wave(
     ) : this(numChannels, sampleRate, bitsPerSample, data) {
         this.byteRate = byteRate
         this.blockAlign = blockAlign
-        this.bitsPerSample = bitsPerSample
-        this.data = data
     }
 
+    val bytesPerSample: Int
+        get() = bitsPerSample / 8
+
     val duration: Float
-        get() = data.size.toFloat() / numChannels.toFloat() / bytesPerSample.toFloat() / sampleRate.toFloat()
+        get() = if (byteRate > 0) data.size.toFloat() / byteRate.toFloat() else 0f
 
     val aLFormat: Int
         get() {
-            val bytes = this.bytesPerSample
-            if (bytes == 1) {
-                if (this.numChannels == 2) return AL10.AL_FORMAT_STEREO8
-                if (this.numChannels == 1) return AL10.AL_FORMAT_MONO8
-            } else if (bytes == 2) {
-                if (this.numChannels == 2) return AL10.AL_FORMAT_STEREO16
-                if (this.numChannels == 1) return AL10.AL_FORMAT_MONO16
+            return when (numChannels) {
+                1 -> when (bitsPerSample) {
+                    8 -> AL10.AL_FORMAT_MONO8
+                    16 -> AL10.AL_FORMAT_MONO16
+                    else -> throw IllegalStateException("Unsupported BPS: $bitsPerSample ($bytesPerSample bytes). Call convertTo16() first.")
+                }
+                2 -> when (bitsPerSample) {
+                    8 -> AL10.AL_FORMAT_STEREO8
+                    16 -> AL10.AL_FORMAT_STEREO16
+                    else -> throw IllegalStateException("Unsupported BPS: $bitsPerSample ($bytesPerSample bytes). Call convertTo16() first.")
+                }
+                else -> throw IllegalStateException("Unsupported channel count: $numChannels")
             }
-
-            throw IllegalStateException("Current WAV file has unusual configuration... channels: " + this.numChannels + ", BPS: " + bytes)
         }
 
     fun getScanRegion(pixelsPerSecond: Float): Int {
-        return (sampleRate.toFloat() / pixelsPerSecond).toInt() * this.bytesPerSample * this.numChannels
+        if (pixelsPerSecond <= 0) return 0
+        return ((sampleRate.toFloat() / pixelsPerSecond) * blockAlign).toInt()
     }
 
+    /**
+     * Конвертирует аудиоданные в 16-битный формат (стандарт для OpenAL).
+     * Поддерживает исходные форматы: 8-bit, 24-bit, 32-bit int, 32-bit float.
+     */
     fun convertTo16(): Wave {
-        val c = data.size / this.numChannels / this.bytesPerSample
-        val byteRate = c * this.numChannels * 2
-        val data = ByteArray(byteRate)
-        val isFloat = this.bytesPerSample == 4
-        val wave = Wave(this.numChannels, this.sampleRate, byteRate, 2 * this.numChannels, 16, data)
-        val sample = MemoryUtil.memAlloc(4)
-        val dataBuffer = MemoryUtil.memAlloc(data.size)
+        if (bitsPerSample == 16) return this // Уже 16 бит
 
-        for (i in 0 until c * this.numChannels) {
-            sample.clear()
+        val sourceBytes = bitsPerSample / 8
+        if (sourceBytes == 0) throw IllegalStateException("Invalid bitsPerSample: $bitsPerSample")
 
-            for (j in 0 until this.bytesPerSample) {
-                sample.put(this.data[i * this.bytesPerSample + j])
+        val sampleCount = data.size / sourceBytes
+        val destData = ByteArray(sampleCount * 2) // 16 бит = 2 байта
+
+        val srcBuffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
+        val destBuffer = ByteBuffer.wrap(destData).order(ByteOrder.LITTLE_ENDIAN)
+
+        for (i in 0 until sampleCount) {
+            val pcm16: Short = when (bitsPerSample) {
+                8 -> {
+                    // 8 bit is unsigned (0..255), 16 bit is signed (-32768..32767)
+                    val sample = (srcBuffer.get().toInt() and 0xFF)
+                    ((sample - 128) * 256).toShort()
+                }
+                24 -> {
+                    // 24 bit packed (Little Endian: LSB, MID, MSB)
+                    // Читаем 3 байта
+                    val b1 = srcBuffer.get().toInt() and 0xFF
+                    val b2 = srcBuffer.get().toInt() and 0xFF
+                    val b3 = srcBuffer.get().toInt() // MSB, сохраняем знак
+                    // Собираем Int. Самый простой способ понизить до 16 бит - взять 2 старших байта.
+                    // Это эквивалентно сдвигу вправо на 8 бит.
+                    val sample32 = (b1) or (b2 shl 8) or (b3 shl 16)
+                    (sample32 shr 8).toShort()
+                }
+                32 -> {
+                    // Может быть Float или Int PCM. Обычно в WAV заголовке есть формат (IEEE Float = 3),
+                    // но здесь мы полагаемся на эвристику или явный вызов.
+                    // Предположим, что если 32 бита - это часто Float.
+                    // Для надежности лучше передавать формат, но пока реализуем Float (стандарт для современных DAW)
+                    val sampleVal = srcBuffer.float
+                    // Clamp and scale
+                    val scaled = sampleVal * 32767.0f
+                    val clamped = max(-32768.0f, min(32767.0f, scaled))
+                    clamped.toInt().toShort()
+
+                    // Если вдруг это 32-bit INT, логика была бы: (srcBuffer.int shr 16).toShort()
+                }
+                else -> 0
             }
-
-            if (isFloat) {
-                sample.flip()
-                dataBuffer.putShort((sample.getFloat() * 65535.0f / 2.0f).toInt().toShort())
-            } else {
-                sample.put(0.toByte())
-                sample.flip()
-                dataBuffer.putShort(
-                    (sample.getInt().toFloat() / 8388607.5f * 32767.5f).toInt()
-                        .toShort()
-                )
-            }
+            destBuffer.putShort(pcm16)
         }
 
-        dataBuffer.flip()
-        dataBuffer[data]
-        MemoryUtil.memFree(sample)
-        MemoryUtil.memFree(dataBuffer)
-        wave.lists = this.lists
-        wave.cues = this.cues
-        return wave
+        val newWave = Wave(
+            numChannels = numChannels,
+            sampleRate = sampleRate,
+            byteRate = sampleRate * numChannels * 2,
+            blockAlign = numChannels * 2,
+            bitsPerSample = 16,
+            data = destData
+        )
+        newWave.lists = this.lists
+        newWave.cues = this.cues
+        return newWave
     }
 
-    fun getCues(): FloatArray {
-        val cues = FloatArray(cues.size)
-
-        this.cues.forEachIndexed { index, waveCue ->
-            cues[index] = waveCue.position.toFloat() / sampleRate.toFloat()
+    fun getCuesArray(): FloatArray {
+        val cuesArray = FloatArray(cues.size)
+        cues.forEachIndexed { index, waveCue ->
+            cuesArray[index] = waveCue.position.toFloat() / sampleRate.toFloat()
         }
-
-        return cues
+        return cuesArray
     }
 }

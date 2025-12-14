@@ -8,6 +8,7 @@ import de.fabmax.kool.pipeline.MipMapping
 import de.fabmax.kool.pipeline.SamplerSettings
 import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.util.Color
+import ru.hollowhorizon.hollowengine.client.audio.UIAudio
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.kool.menuDivider
@@ -66,6 +67,7 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                                 }
                                 .onExit { isHovered = false }
                                 .onClick {
+                                    UIAudio.SELECT.play()
                                     item.action.invoke(contextItem)
                                     hide()
                                 }

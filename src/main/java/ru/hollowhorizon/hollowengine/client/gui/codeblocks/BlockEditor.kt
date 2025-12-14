@@ -10,6 +10,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.set
+import ru.hollowhorizon.hollowengine.client.audio.UIAudio
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
@@ -557,6 +558,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit): B
             block.parentInputName = null
         }
         if (!rootBlocks.contains(block)) {
+            UIAudio.CONNECT.play()
             rootBlocks.add(block)
             val scrollPane = uiNode.findParentOfType<ScrollPaneNode>()
             if (scrollPane != null) {
@@ -590,6 +592,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit): B
     private fun handleDragEnd(block: CodeBlock) {
         potentialAction?.let { action ->
             triggerSnapEffect(action)
+            UIAudio.CONNECT.play()
             when (action) {
                 is DropAction.InsertBefore -> insertBlockBefore(action.target, block)
                 is DropAction.AttachAfter -> attachBlockAfter(action.target, block)

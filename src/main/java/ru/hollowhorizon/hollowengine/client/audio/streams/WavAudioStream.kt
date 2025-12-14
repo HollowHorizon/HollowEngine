@@ -39,7 +39,7 @@ class WavAudioStream(wavInputStream: InputStream) : AudioStream {
     @Throws(Exception::class)
     private fun readWaveHeader(stream: InputStream): Wave {
         val wavFormat = WavFormat
-        val main = wavFormat.readChunk(stream)
+        val main = wavFormat.readChunkHeader(stream)
         if (main.id != "RIFF") throw IllegalArgumentException("Not a RIFF file: ${main.id}")
 
         val format = wavFormat.readFourString(stream)
@@ -56,7 +56,7 @@ class WavAudioStream(wavInputStream: InputStream) : AudioStream {
 
         while (stream.available() > 0 && !dataChunkReached) {
             try {
-                val chunk = wavFormat.readChunk(stream)
+                val chunk = wavFormat.readChunkHeader(stream)
                 when (chunk.id) {
                     "fmt " -> {
                         audioFormat = wavFormat.readShort(stream)
