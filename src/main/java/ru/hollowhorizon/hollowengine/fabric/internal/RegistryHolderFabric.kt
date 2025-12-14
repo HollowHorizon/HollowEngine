@@ -3,7 +3,8 @@ package ru.hollowhorizon.hollowengine.fabric.internal
 
 //? if < 1.21
 //? if >= 1.21
-/*import net.minecraft.core.component.DataComponentType*/
+// import net.minecraft.core.component.DataComponentType
+
 import net.minecraft.commands.synchronization.ArgumentTypeInfo
 import net.minecraft.core.Registry
 import net.minecraft.core.particles.ParticleType

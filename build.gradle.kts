@@ -52,10 +52,16 @@ dependencies {
     install("com.facebook:ktfmt:0.54")
 
     val modPlatform = stonecutter.modPlatform
-    val jei = "15.20.0.105"
-    modCompileOnly("mezz.jei:jei-1.20.1-${modPlatform}-api:$jei")
+    if(stonecutter.minecraftVersion == "1.20.1") {
+        val jei = "15.20.0.105"
+        modCompileOnly("mezz.jei:jei-1.20.1-${modPlatform}-api:$jei")
+        compileOnly("lib:bbs:1.2.6-1.20.1-deobf")
+    } else {
+        val jei = "19.25.1.332"
+        modCompileOnly("mezz.jei:jei-1.21.1-${modPlatform}-api:$jei")
+        compileOnly("lib:bbs:1.2.6-1.20.1-deobf") // TODO: А BBS вообще будет на 1.21.1?
+    }
 
-    compileOnly("lib:bbs:1.2.6-${stonecutter.minecraftVersion}-deobf")
 
     testImplementation(kotlin("test"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")

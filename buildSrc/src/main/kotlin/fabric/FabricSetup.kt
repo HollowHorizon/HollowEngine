@@ -8,6 +8,13 @@ import org.gradle.kotlin.dsl.DependencyHandlerScope
 object FabricSetup: DependencySetup {
     override fun DependencyHandlerScope.setup(minecraftVersion: String) {
         when (minecraftVersion) {
+            "1.21.1" -> {
+                modImplementation("net.fabricmc:fabric-loader:0.17.0")
+                install("net.fabricmc.fabric-api:fabric-api:0.116.4+$minecraftVersion", isMod = true)
+                modImplementation("mods:sodium-fabric:0.6.13+mc1.21.1")
+                modImplementation("mods:iris-fabric:1.8.8+mc1.21.1")
+            }
+
             "1.21" -> {
                 modImplementation("net.fabricmc:fabric-loader:0.15.11")
                 install("net.fabricmc.fabric-api:fabric-api:0.102.0+$minecraftVersion", isMod = true)
@@ -37,8 +44,12 @@ object FabricSetup: DependencySetup {
         install("io.github.llamalad7:mixinextras-fabric:0.4.1")
     }
 
-    fun fabricLoader(minecraftVersion: String) = "0.15.11"
+    fun fabricLoader(minecraftVersion: String) = when(minecraftVersion) {
+        "1.21.1" -> "0.17.0"
+        else -> "0.15.11"
+    }
     fun fabricApi(minecraftVersion: String) = when(minecraftVersion) {
+        "1.21.1" -> "0.116.4+$minecraftVersion"
         "1.21" -> "0.102.0+$minecraftVersion"
         "1.20.1" -> "0.92.2+$minecraftVersion"
         "1.19.2" -> "0.77.0+$minecraftVersion"
