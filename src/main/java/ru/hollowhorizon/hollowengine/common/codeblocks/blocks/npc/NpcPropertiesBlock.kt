@@ -12,12 +12,16 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.calculateSpeedViaDeltaMovement
-import ru.hollowhorizon.hollowengine.common.codeblocks.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 
 @Serializable
 @SerialName("hollowengine:npcs/get_health")
-class NpcHealthBlock : CodeBlock(), ExpressionBlock {
+class NpcHealthBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val npc by input<NpcEntity>()
@@ -34,7 +38,7 @@ class NpcHealthBlock : CodeBlock(), ExpressionBlock {
 
 @Serializable
 @SerialName("hollowengine:npcs/get_max_health")
-class NpcMaxHealthBlock : CodeBlock(), ExpressionBlock {
+class NpcMaxHealthBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val npc by input<NpcEntity>()
@@ -51,7 +55,7 @@ class NpcMaxHealthBlock : CodeBlock(), ExpressionBlock {
 
 @Serializable
 @SerialName("hollowengine:npcs/get_speed")
-class NpcSpeedBlock : CodeBlock(), ExpressionBlock {
+class NpcSpeedBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val npc by input<NpcEntity>()
@@ -68,7 +72,7 @@ class NpcSpeedBlock : CodeBlock(), ExpressionBlock {
 
 @Serializable
 @SerialName("hollowengine:npcs/distance_to")
-class NpcDistanceToBlock : CodeBlock(), ExpressionBlock {
+class NpcDistanceToBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val npc by input<NpcEntity>()
@@ -99,7 +103,7 @@ class NpcDistanceToBlock : CodeBlock(), ExpressionBlock {
 
 @Serializable
 @SerialName("hollowengine:npcs/teleport")
-class NpcTeleportBlock : CodeBlock() {
+class NpcTeleportBlock : StatementBlock() {
     val npc by input<NpcEntity>()
     val position by input<Vec3>()
 
@@ -119,7 +123,7 @@ class NpcTeleportBlock : CodeBlock() {
 
 @Serializable
 @SerialName("hollowengine:npcs/set_target")
-class NpcSetTargetBlock : CodeBlock() {
+class NpcSetTargetBlock : StatementBlock() {
     val npc by input<NpcEntity>()
     val target by input<LivingEntity>()
 
@@ -136,7 +140,7 @@ class NpcSetTargetBlock : CodeBlock() {
 
 @Serializable
 @SerialName("hollowengine:npcs/clear_target")
-class NpcClearTargetBlock : CodeBlock() {
+class NpcClearTargetBlock : StatementBlock() {
     val npc by input<NpcEntity>()
 
     override suspend fun BlockContext.execute() {
@@ -151,7 +155,7 @@ class NpcClearTargetBlock : CodeBlock() {
 
 @Serializable
 @SerialName("hollowengine:npcs/get_name")
-class NpcGetNameBlock : CodeBlock(), ExpressionBlock {
+class NpcGetNameBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<String>()
     val npc by input<NpcEntity>()
@@ -168,7 +172,7 @@ class NpcGetNameBlock : CodeBlock(), ExpressionBlock {
 
 @Serializable
 @SerialName("hollowengine:npcs/set_name")
-class NpcSetNameBlock : CodeBlock() {
+class NpcSetNameBlock : StatementBlock() {
     val npc by input<NpcEntity>()
     val name by input<String>()
 
@@ -186,7 +190,7 @@ class NpcSetNameBlock : CodeBlock() {
 
 @Serializable
 @SerialName("hollowengine:npcs/is_alive")
-class NpcIsAliveBlock : CodeBlock(), ExpressionBlock {
+class NpcIsAliveBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
     val npc by input<NpcEntity>()
@@ -203,7 +207,7 @@ class NpcIsAliveBlock : CodeBlock(), ExpressionBlock {
 
 @Serializable
 @SerialName("hollowengine:npcs/heal")
-class NpcHealBlock : CodeBlock() {
+class NpcHealBlock : StatementBlock() {
     val npc by input<NpcEntity>()
     val amount by input<Number>()
 
@@ -220,7 +224,7 @@ class NpcHealBlock : CodeBlock() {
 
 @Serializable
 @SerialName("hollowengine:npcs/hurt")
-class NpcHurtBlock : CodeBlock() {
+class NpcHurtBlock : StatementBlock() {
     val npc by input<NpcEntity>()
     val amount by input<Number>()
 
@@ -238,7 +242,7 @@ class NpcHurtBlock : CodeBlock() {
 
 @Serializable
 @SerialName("hollowengine:npcs/set_health")
-class NpcSetHealthBlock : CodeBlock() {
+class NpcSetHealthBlock : StatementBlock() {
     val npc by input<NpcEntity>()
     val health by input<Number>()
 

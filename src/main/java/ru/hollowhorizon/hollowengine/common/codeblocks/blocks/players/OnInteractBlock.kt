@@ -14,15 +14,15 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.StartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStackJson
 
 @Serializable
 @SerialName("hollowengine:events/interact_block/entity")
-class PlayerInteractWithEntity : CodeBlock() {
+class PlayerInteractWithEntity : StatementBlock() {
     val player by input<Player>("player")
     val entity by input<LivingEntity>("entity")
 
@@ -47,7 +47,7 @@ class PlayerInteractWithEntity : CodeBlock() {
 
 @Serializable
 @SerialName("hollowengine:events/interact_block/block")
-class PlayerInteractWithBlock : CodeBlock() {
+class PlayerInteractWithBlock : StatementBlock() {
     val player by input<Player>("player")
     var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
 
@@ -98,7 +98,7 @@ class PlayerInteractWithBlock : CodeBlock() {
 
 @Serializable
 @SerialName("hollowengine:events/interact_block/item")
-class PlayerInteractWithItem : CodeBlock(), StartBlock {
+class PlayerInteractWithItem : StatementBlock(), StartBlock {
     val player by input<Player>("player")
     var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
 

@@ -8,6 +8,10 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.EndBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.NPCModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.PlayerModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.StandardModules
@@ -64,7 +68,7 @@ class BlockContext(val scope: CoroutineScope, val file: String) {
 
     private val onLoad = mutableListOf<suspend () -> Unit>()
 
-    fun addBlock(block: CodeBlock) {
+    fun addBlock(block: StatementBlock) {
         if (block !is StartBlock) return
         if (block is EndBlock) return
 
@@ -143,9 +147,9 @@ fun createScript(file: File, server: MinecraftServer = currentServer): BlockCont
     return createScript(server, blocks, file.toReadablePath())
 }
 
-fun createScript(server: MinecraftServer, rootBlocks: List<CodeBlock>, file: String): BlockContext {
+fun createScript(server: MinecraftServer, rootBlocks: List<BlockModel>, file: String): BlockContext {
     val context = BlockContext(CoroutineScope(server.dispatcher + SupervisorJob()), file)
-    rootBlocks.forEach { context.addBlock(it) }
+    rootBlocks.filterIsInstance<StatementBlock>().forEach { context.addBlock(it) }
     rootBlocks.filterIsInstance<CustomBlock>().forEach { context.addFunction(it) }
     return context
 }

@@ -9,11 +9,11 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.GameType
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
 @Serializable
 @SerialName("hollowengine:player/gamemode")
-class PlayerGameModeBlock : CodeBlock() {
+class PlayerGameModeBlock : StatementBlock() {
     val player by input<Player>()
     var modeInt = 0 // 0=Survival, 1=Creative, 2=Adventure, 3=Spectator
 

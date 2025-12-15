@@ -8,15 +8,14 @@ import kotlinx.serialization.Transient
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.npc
 
 @Serializable
 @SerialName("hollowengine:npc/spawn")
-class SpawnNpcBlock : CodeBlock(), ExpressionBlock {
+class SpawnNpcBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<NpcEntity>()
 

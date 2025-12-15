@@ -12,11 +12,11 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
 @Serializable
 @SerialName("hollowengine:player/teleport")
-class PlayerTeleportBlock : CodeBlock() {
+class PlayerTeleportBlock : StatementBlock() {
     val player by input<Player>()
     val pos by input<Vec3>()
 

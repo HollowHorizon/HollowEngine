@@ -7,12 +7,12 @@ import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.utils.literal
 
 @Serializable
 @SerialName("hollowengine:player/send_message")
-class PlayerSendMessageBlock : CodeBlock() {
+class PlayerSendMessageBlock : StatementBlock() {
     val player by input<Player>()
     val text by input<String>()
     var overlay = false

@@ -5,12 +5,15 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
-import ru.hollowhorizon.hollowengine.common.codeblocks.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.utils.*
 
 @Serializable
 @SerialName("hollowengine:component/text_component")
-class TextComponentBlock : CodeBlock(), ExpressionBlock {
+class TextComponentBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Component>()
 
@@ -40,7 +43,7 @@ class TextComponentBlock : CodeBlock(), ExpressionBlock {
 
 @Serializable
 @SerialName("hollowengine:component/text_merger")
-class TextMergerBlock : CodeBlock(), ExpressionBlock {
+class TextMergerBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Component>()
 

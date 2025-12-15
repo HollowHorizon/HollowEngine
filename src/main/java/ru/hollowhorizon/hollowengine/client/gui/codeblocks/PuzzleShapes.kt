@@ -16,7 +16,6 @@ object PuzzleShapes {
     const val TAB_WIDTH = 8f
     const val TAB_HEIGHT = 20f
 
-    // Настройки тени
     const val SHADOW_RADIUS = 4f
     val SHADOW_COLOR = Color.BLACK.withAlpha(0.5f)
     const val SHADOW_OFFSET_Y = 2f
@@ -161,7 +160,6 @@ object PuzzleShapes {
             prevFadeIndex = idxFade
         }
 
-        // Замыкание
         if (prevEdgeIndex != -1 && firstEdgeIndex != -1) {
             builder.addTriIndices(prevEdgeIndex, prevFadeIndex, firstFadeIndex)
             builder.addTriIndices(prevEdgeIndex, firstFadeIndex, firstEdgeIndex)

@@ -13,12 +13,16 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
-import ru.hollowhorizon.hollowengine.common.codeblocks.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStackJson
 
 @Serializable
 @SerialName("hollowengine:player/get_health")
-class PlayerHealthBlock : CodeBlock(), ExpressionBlock {
+class PlayerHealthBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val player by input<Player>()
@@ -35,7 +39,7 @@ class PlayerHealthBlock : CodeBlock(), ExpressionBlock {
 
 @Serializable
 @SerialName("hollowengine:player/get_max_health")
-class PlayerMaxHealthBlock : CodeBlock(), ExpressionBlock {
+class PlayerMaxHealthBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val player by input<Player>()
@@ -52,7 +56,7 @@ class PlayerMaxHealthBlock : CodeBlock(), ExpressionBlock {
 
 @Serializable
 @SerialName("hollowengine:player/heal")
-class PlayerHealBlock : CodeBlock() {
+class PlayerHealBlock : StatementBlock() {
     val player by input<Player>()
     val amount by input<Number>()
 
@@ -70,7 +74,7 @@ class PlayerHealBlock : CodeBlock() {
 
 @Serializable
 @SerialName("hollowengine:player/hurt")
-class PlayerHurtBlock : CodeBlock() {
+class PlayerHurtBlock : StatementBlock() {
     val player by input<Player>()
     val amount by input<Number>()
 
@@ -89,7 +93,7 @@ class PlayerHurtBlock : CodeBlock() {
 
 @Serializable
 @SerialName("hollowengine:player/set_health")
-class PlayerSetHealthBlock : CodeBlock() {
+class PlayerSetHealthBlock : StatementBlock() {
     val player by input<Player>()
     val health by input<Number>()
 
@@ -107,7 +111,7 @@ class PlayerSetHealthBlock : CodeBlock() {
 
 @Serializable
 @SerialName("hollowengine:player/get_experience")
-class PlayerGetExperienceBlock : CodeBlock(), ExpressionBlock {
+class PlayerGetExperienceBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val player by input<Player>()
@@ -124,7 +128,7 @@ class PlayerGetExperienceBlock : CodeBlock(), ExpressionBlock {
 
 @Serializable
 @SerialName("hollowengine:player/add_experience")
-class PlayerAddExperienceBlock : CodeBlock() {
+class PlayerAddExperienceBlock : StatementBlock() {
     val player by input<Player>()
     val experience by input<Number>()
 
@@ -142,7 +146,7 @@ class PlayerAddExperienceBlock : CodeBlock() {
 
 @Serializable
 @SerialName("hollowengine:player/get_position")
-class GetPlayerPositionBlock : CodeBlock(), ExpressionBlock {
+class GetPlayerPositionBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Vec3>()
     val player by input<Player>()
@@ -159,7 +163,7 @@ class GetPlayerPositionBlock : CodeBlock(), ExpressionBlock {
 
 @Serializable
 @SerialName("hollowengine:player/has_item")
-class PlayerHasItemBlock(): CodeBlock(), ExpressionBlock {
+class PlayerHasItemBlock(): ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
     val player by input<Player>()
@@ -205,7 +209,7 @@ class PlayerHasItemBlock(): CodeBlock(), ExpressionBlock {
 
 @Serializable
 @SerialName("hollowengine:player/remove_item")
-class PlayerRemoveItemBlock: CodeBlock() {
+class PlayerRemoveItemBlock: StatementBlock() {
     val player by input<Player>()
     var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
 

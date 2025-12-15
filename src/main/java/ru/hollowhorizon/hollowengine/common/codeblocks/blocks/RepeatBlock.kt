@@ -9,12 +9,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.ContainerBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
 @Serializable
 @SerialName("hollowengine:loops/repeat")
-class RepeatBlock : CodeBlock(), ContainerBlock {
+class RepeatBlock : StatementBlock(), ContainerBlock {
     val times by input<Int>("times")
     val body by input<Unit>("body")
 

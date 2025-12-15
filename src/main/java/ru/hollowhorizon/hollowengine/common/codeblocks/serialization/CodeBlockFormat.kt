@@ -8,16 +8,16 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.serializer
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockCategory
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockProvider
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import kotlin.reflect.KClass
 
 class CodeBlockFormat(val blockModule: BlockProvider) {
     @OptIn(InternalSerializationApi::class)
     private val module = SerializersModule {
-        polymorphic(CodeBlock::class) {
+        polymorphic(BlockModel::class) {
             fun appendCategory(category: BlockCategory) {
                 category.blocks.forEach { block ->
-                    subclass(block.type as KClass<CodeBlock>, block.type.serializer())
+                    subclass(block.type as KClass<BlockModel>, block.type.serializer())
                 }
                 category.subCategories.forEach { subcategory ->
                     appendCategory(subcategory)

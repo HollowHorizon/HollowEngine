@@ -6,11 +6,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
 @Serializable
 @SerialName("hollowengine:events/send")
-class SendEventBlock(var eventName: String = "MyEvent") : CodeBlock() {
+class SendEventBlock(var eventName: String = "MyEvent") : StatementBlock() {
     override suspend fun BlockContext.execute() {
         //context.emitEvent(eventName, null)
 

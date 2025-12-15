@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import kotlin.reflect.KType
 import kotlin.reflect.full.isSubtypeOf
 import kotlin.reflect.typeOf
@@ -34,7 +36,7 @@ class KTypeExpressionType(val kType: KType): ExpressionType {
     override fun toString() = kType.toString()
 }
 
-val CodeBlock.expressionTypeOrNull: ExpressionType?
+val BlockModel.expressionTypeOrNull: ExpressionType?
     get() = (this as? ExpressionBlock)?.expressionType
 
 object AnyType: ExpressionType {

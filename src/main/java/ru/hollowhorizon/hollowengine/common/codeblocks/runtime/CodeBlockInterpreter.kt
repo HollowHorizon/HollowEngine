@@ -3,21 +3,22 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.Tag
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 import ru.hollowhorizon.hollowengine.common.utils.serialization.deserializeNoInline
 import ru.hollowhorizon.hollowengine.common.utils.serialization.serializeNoInline
 import java.util.*
 
-open class CodeBlockInterpreter<T : Any>(var root: CodeBlock, val type: Class<T>) {
+open class CodeBlockInterpreter<T : Any>(var root: StatementBlock, val type: Class<T>) {
     val rootUUID = root.uuid
 
     protected var currentUUID: UUID = root.uuid
-    protected var currentBlock: CodeBlock = root
+    protected var currentBlock: BlockModel = root
 
     @Suppress("UNCHECKED_CAST")
     open suspend fun execute(context: BlockContext): T {
-        var current: CodeBlock? = root
+        var current: StatementBlock? = root
         var result: Any? = null
         while (current != null) {
             currentUUID = current.uuid
@@ -37,7 +38,7 @@ open class CodeBlockInterpreter<T : Any>(var root: CodeBlock, val type: Class<T>
 
     open fun deserialize(tag: CompoundTag) {
         currentUUID = tag.getUUID("uuid")
-        var current: CodeBlock = root
+        var current: StatementBlock = root
         while (current.uuid != currentUUID) {
             current = current.next ?: error("Input $currentUUID not attached!")
         }
@@ -50,7 +51,7 @@ open class CodeBlockInterpreter<T : Any>(var root: CodeBlock, val type: Class<T>
     }
 }
 
-class CachedCodeBlockInterpreter<T : Any>(root: CodeBlock, type: Class<T>) : CodeBlockInterpreter<T>(root, type) {
+class CachedCodeBlockInterpreter<T : Any>(root: StatementBlock, type: Class<T>) : CodeBlockInterpreter<T>(root, type) {
     var value: Value<T>? = null
     var isRestoring =
         false // Используется, чтобы кэшированное значение сработало только 1 раз при запуске. Иначе циклы работать не будут

@@ -1,10 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.serialization
 
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
-fun CodeBlock.flatten(): Set<CodeBlock> = buildSet {
+fun BlockModel.flatten(): Set<BlockModel> = buildSet {
     add(this@flatten)
-    next?.flatten()?.let { addAll(it) }
+    (this@flatten as? StatementBlock)?.next?.flatten()?.let { addAll(it) }
     inputs.values.forEach {
         addAll(it.flatten())
     }

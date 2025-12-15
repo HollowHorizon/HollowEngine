@@ -11,12 +11,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.ContainerBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
 @Serializable
 @SerialName("hollowengine:loops/while")
-class WhileBlock : CodeBlock(), ContainerBlock {
+class WhileBlock : StatementBlock(), ContainerBlock {
     val condition by input<Boolean>("cond")
     val body by input<Unit>("body")
 
@@ -40,7 +40,7 @@ class WhileBlock : CodeBlock(), ContainerBlock {
 
 @Serializable
 @SerialName("hollowengine:control/delay")
-class DelayBlock : CodeBlock() {
+class DelayBlock : StatementBlock() {
     val time by input<Number>("time")
 
     override suspend fun BlockContext.execute() {

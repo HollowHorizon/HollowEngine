@@ -7,14 +7,14 @@ import kotlinx.serialization.Serializable
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.destroyBlock
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.useBlock
 
 @Serializable
 @SerialName("hollowengine:npc/interact")
-class NpcInteractBlock : CodeBlock() {
+class NpcInteractBlock : StatementBlock() {
     val npc by input<NpcEntity>("npc")
     val pos by input<Vec3>("pos")
 

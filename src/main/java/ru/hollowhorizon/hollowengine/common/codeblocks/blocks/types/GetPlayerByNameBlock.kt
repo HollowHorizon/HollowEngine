@@ -10,12 +10,15 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
-import ru.hollowhorizon.hollowengine.common.codeblocks.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 
 @Serializable
 @SerialName("hollowengine:player/get_by_name")
-class GetPlayerByNameBlock : CodeBlock(), ExpressionBlock {
+class GetPlayerByNameBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Player>()
     val playerName by input<String>("name")

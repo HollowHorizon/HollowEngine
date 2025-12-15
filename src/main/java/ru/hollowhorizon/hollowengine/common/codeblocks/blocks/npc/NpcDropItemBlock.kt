@@ -12,14 +12,14 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.dropItem
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStackJson
 
 @Serializable
 @SerialName("hollowengine:npcs/drop_item")
-class NpcDropItemBlock : CodeBlock() {
+class NpcDropItemBlock : StatementBlock() {
     val npc by input<NpcEntity>()
     var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
 

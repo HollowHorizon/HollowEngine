@@ -8,12 +8,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.StartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
 @Serializable
 @SerialName("hollowengine:events/receive")
-class OnEventBlock(var eventName: String = "MyEvent") : CodeBlock(), StartBlock {
+class OnEventBlock(var eventName: String = "MyEvent") : StatementBlock(), StartBlock {
     @Transient
     var restartOnTrigger = mutableStateOf(true)
 

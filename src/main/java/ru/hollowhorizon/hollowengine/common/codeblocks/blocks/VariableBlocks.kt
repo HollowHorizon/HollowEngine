@@ -7,15 +7,15 @@ import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.variables.LivingEntityContainer
 import ru.hollowhorizon.hollowengine.common.codeblocks.variables.SerializableVariableContainer
 import ru.hollowhorizon.hollowengine.common.codeblocks.variables.isSerializable
 
 @Serializable
 @SerialName("hollowengine:events/set")
-class SetVarBlock(var varName: String = "var") : CodeBlock() {
+class SetVarBlock(var varName: String = "var") : StatementBlock() {
     val value by input<Any>("value")
 
     @OptIn(InternalSerializationApi::class)
@@ -46,7 +46,7 @@ class SetVarBlock(var varName: String = "var") : CodeBlock() {
 
 @Serializable
 @SerialName("hollowengine:variables/get")
-class GetVarBlock(var varName: String = "var") : CodeBlock(), ExpressionBlock {
+class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
     @Transient
     override val expressionType = AnyType
 
@@ -67,7 +67,7 @@ class GetVarBlock(var varName: String = "var") : CodeBlock(), ExpressionBlock {
 
 @Serializable
 @SerialName("hollowengine:variables/get_inline")
-class GetVarInlineBlock(val name: String) : CodeBlock(), ExpressionBlock {
+class GetVarInlineBlock(val name: String) : ExpressionBlock() {
     @Transient
     override val expressionType = AnyType
 

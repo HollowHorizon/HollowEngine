@@ -10,15 +10,15 @@ import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.StartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.LivingEntityDeathEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 
 @Serializable
 @SerialName("hollowengine:events/player_join")
-class OnPlayerJoinBlock : CodeBlock(), StartBlock {
+class OnPlayerJoinBlock : StatementBlock(), StartBlock {
     private val player by input<Player>("player")
 
     override suspend fun BlockContext.execute() {
@@ -36,7 +36,7 @@ class OnPlayerJoinBlock : CodeBlock(), StartBlock {
 
 @Serializable
 @SerialName("hollowengine:events/player_death")
-class OnPlayerDeathBlock : CodeBlock(), StartBlock {
+class OnPlayerDeathBlock : StatementBlock(), StartBlock {
     private val player by input<Player>("player")
 
     override suspend fun BlockContext.execute() {

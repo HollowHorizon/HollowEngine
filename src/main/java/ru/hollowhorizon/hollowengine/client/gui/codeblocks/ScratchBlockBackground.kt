@@ -71,7 +71,7 @@ class ScratchBlockBackground(
         }
 
         node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(null) {
-            PuzzleShapes.drawShadow(points)
+            if(!drawInnerShadow) PuzzleShapes.drawShadow(points)
 
             color = this@ScratchBlockBackground.color
             fillPolygon(PolyUtil.fillPolygon(points))
@@ -81,8 +81,8 @@ class ScratchBlockBackground(
             if (drawInnerShadow) {
                 PuzzleShapes.drawInnerShadow(
                     points,
-                    width = 6f,
-                    color = Color.BLACK.withAlpha(0.2f)
+                    width = 5f,
+                    color = Color.BLACK.withAlpha(0.65f)
                 )
             }
         }

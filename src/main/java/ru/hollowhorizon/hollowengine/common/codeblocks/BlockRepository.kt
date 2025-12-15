@@ -1,12 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
 import de.fabmax.kool.util.Color
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import kotlin.reflect.KClass
 
 class BlockProvider(val name: String, val rootCategory: BlockCategory)
 
-fun BlockProvider.findColorFor(block: CodeBlock): Color = rootCategory.findColorFor(block) ?: rootCategory.color
-fun BlockCategory.findColorFor(block: CodeBlock): Color? {
+fun BlockProvider.findColorFor(block: BlockModel): Color = rootCategory.findColorFor(block) ?: rootCategory.color
+fun BlockCategory.findColorFor(block: BlockModel): Color? {
     return if (block::class in blocks.map { it.type }) color
     else subCategories.firstNotNullOfOrNull { it.findColorFor(block) }
 }
@@ -19,7 +20,7 @@ class BlockCategory(val name: String, val color: Color, val icon: String? = null
     fun entries(scope: BlocksScope): List<BlockEntry<*>> = blocks + dynamicGenerators.flatMap { it(scope) }
 }
 
-data class BlockEntry<T : CodeBlock>(
+data class BlockEntry<T : BlockModel>(
     val name: String,
     val icon: String? = null,
     val factory: () -> T,
@@ -50,7 +51,7 @@ class BlockCategoryBuilder(@PublishedApi internal val category: BlockCategory) {
     /**
      * Добавляет блок в текущую категорию.
      */
-    inline fun <reified T : CodeBlock> block(name: String, noinline factory: () -> T) {
+    inline fun <reified T : BlockModel> block(name: String, noinline factory: () -> T) {
         category.blocks.add(BlockEntry(name, null, {
             val block = factory()
             block.color = category.color
@@ -58,7 +59,7 @@ class BlockCategoryBuilder(@PublishedApi internal val category: BlockCategory) {
         }, T::class))
     }
 
-    inline fun <reified T : CodeBlock> blockWithColor(name: String, color: Color, noinline factory: () -> T) {
+    inline fun <reified T : BlockModel> blockWithColor(name: String, color: Color, noinline factory: () -> T) {
         category.blocks.add(BlockEntry(name, null, {
             val block = factory()
             block.color = color

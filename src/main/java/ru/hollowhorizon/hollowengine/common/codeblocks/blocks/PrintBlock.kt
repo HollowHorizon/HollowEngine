@@ -7,11 +7,11 @@ import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
 @Serializable
 @SerialName("hollowengine:print")
-class PrintBlock : CodeBlock() {
+class PrintBlock : StatementBlock() {
     val msg by input<Any>("msg")
 
     override suspend fun BlockContext.execute() {

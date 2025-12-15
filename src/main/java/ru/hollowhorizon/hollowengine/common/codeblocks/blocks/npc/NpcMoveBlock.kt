@@ -8,15 +8,15 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.move
 
 @Serializable
 @SerialName("hollowengine:npc/move")
-class NpcMoveBlock : CodeBlock() {
+class NpcMoveBlock : StatementBlock() {
     val npc by input<NpcEntity>("npc")
     val target by input<Any>("target")
     val speed by input<Number>("speed")

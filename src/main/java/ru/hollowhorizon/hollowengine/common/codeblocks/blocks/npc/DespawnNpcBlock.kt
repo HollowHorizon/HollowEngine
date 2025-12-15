@@ -9,13 +9,13 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.despawn
 
 @Serializable
 @SerialName("hollowengine:npc/despawn")
-class DespawnNpcBlock : CodeBlock() {
+class DespawnNpcBlock : StatementBlock() {
     val npc by input<NpcEntity>("npc")
 
     override suspend fun BlockContext.execute() {

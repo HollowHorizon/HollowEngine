@@ -6,14 +6,17 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.findColorFor
+import ru.hollowhorizon.hollowengine.common.codeblocks.isRoot
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import java.util.*
 
-class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<CodeBlock>> {
+class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockModel>> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
-    override fun serialize(encoder: Encoder, value: List<CodeBlock>) {
+    override fun serialize(encoder: Encoder, value: List<BlockModel>) {
         val jsonEncoder = encoder as? JsonEncoder
             ?: throw SerializationException("This serializer only works with JSON")
 
@@ -23,7 +26,7 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<CodeBl
             buildJsonObject {
                 put("node", format.json.encodeToJsonElement(block))
 
-                block.next?.let {
+                (block as? StatementBlock)?.next?.let {
                     put("next", JsonPrimitive(it.uuid.toString()))
                 }
 
@@ -35,7 +38,7 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<CodeBl
                     })
                 }
 
-                if (block.parent == null && block.parentBlock == null) {
+                if (block.isRoot) {
                     put("x", JsonPrimitive(block.positionX.value))
                     put("y", JsonPrimitive(block.positionY.value))
                 }
@@ -45,14 +48,14 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<CodeBl
         jsonEncoder.encodeJsonElement(jsonArray)
     }
 
-    override fun deserialize(decoder: Decoder): List<CodeBlock> {
+    override fun deserialize(decoder: Decoder): List<BlockModel> {
         val jsonDecoder = decoder as? JsonDecoder
             ?: throw SerializationException("This serializer only works with JSON")
 
         val jsonArray = jsonDecoder.decodeJsonElement() as? JsonArray
             ?: throw SerializationException("Expected JsonArray of blocks")
 
-        val nodeMap = mutableMapOf<UUID, CodeBlock>()
+        val nodeMap = mutableMapOf<UUID, BlockModel>()
         val jsonMap = mutableMapOf<UUID, JsonObject>()
 
         jsonArray.forEachIndexed { index, element ->
@@ -62,7 +65,7 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<CodeBl
                 ?: throw SerializationException("Block at index $index missing 'node' field")
 
             val block = try {
-                format.json.decodeFromJsonElement<CodeBlock>(nodeElement)
+                format.json.decodeFromJsonElement<BlockModel>(nodeElement)
             } catch (e: Exception) {
                 throw SerializationException("Failed to decode block at index $index: ${e.message}", e)
             }
@@ -82,6 +85,9 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<CodeBl
                 val nextBlock = nodeMap[nextUuid]
                     ?: throw SerializationException("Block $uuid refers to missing next block $nextUuid")
 
+                currentBlock as StatementBlock
+                nextBlock as StatementBlock
+
                 currentBlock.next = nextBlock
                 nextBlock.parent = currentBlock
             }
@@ -91,6 +97,8 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<CodeBl
                 val inputUuid = UUID.fromString(uuidElement.jsonPrimitive.content)
                 val inputBlock = nodeMap[inputUuid]
                     ?: throw SerializationException("Block $uuid input '$slotName' refers to missing block $inputUuid")
+
+                inputBlock as ExpressionBlock
 
                 currentBlock.inputs[slotName] = inputBlock
                 inputBlock.parentBlock = currentBlock
@@ -105,6 +113,6 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<CodeBl
             }
         }
 
-        return nodeMap.values.filter { it.parent == null && it.parentBlock == null }
+        return nodeMap.values.filter { it.isRoot }
     }
 }

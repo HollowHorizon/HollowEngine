@@ -9,11 +9,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
 @Serializable
 @SerialName("hollowengine:custom/call_custom_block")
-class CallCustomBlock(val function: String) : CodeBlock() {
+class CallCustomBlock(val function: String) : StatementBlock() {
 
     override suspend fun BlockContext.execute() {
         // TODO: Add custom block interpreter with saving?
