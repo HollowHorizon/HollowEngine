@@ -1,0 +1,47 @@
+name: Telegram Notification
+
+on:
+  push:
+    branches: [ "main", "dev", "master" ]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram Message
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          TG_THREAD_ID: ${{ secrets.TG_THREAD_ID }}
+        run: |
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          
+          COMMIT_COUNT=$(jq '.commits | length' "$GITHUB_EVENT_PATH")
+          
+          if [ "$COMMIT_COUNT" -eq "0" ]; then
+            echo "No new commits detected."
+            exit 0
+          fi
+          
+          HEADER="<b>⚡️<a href=\"https://github.com/$GITHUB_REPOSITORY/tree/$BRANCH_NAME\">[$REPO_NAME:$BRANCH_NAME]</a></b> $COMMIT_COUNT new commit(s)"
+          
+          COMMITS_LIST=$(jq -r '.commits[] | "<code><a href=\"\(.url)\">\(.id[0:7])</a></code> \(.message | split("\n")[0] | gsub("<"; "&lt;") | gsub(">"; "&gt;")) - <a href=\"https://github.com/\(.author.username)\">\(.author.name)</a>"' "$GITHUB_EVENT_PATH")
+          
+          FINAL_TEXT="<blockquote>$HEADER"$'\n'"$COMMITS_LIST</blockquote>"
+          
+          jq -n \
+            --arg chat_id "$TG_CHAT_ID" \
+            --arg thread_id "$TG_THREAD_ID" \
+            --arg text "$FINAL_TEXT" \
+            '{
+              chat_id: $chat_id,
+              message_thread_id: $thread_id,
+              parse_mode: "HTML",
+              disable_web_page_preview: true,
+              text: $text
+            }' > payload.json
+          
+          curl -s -X POST "https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d @payload.json
