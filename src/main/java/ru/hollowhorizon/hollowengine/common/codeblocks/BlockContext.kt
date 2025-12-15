@@ -12,6 +12,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.EndBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.EntityModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.NPCModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.PlayerModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.StandardModules
@@ -140,6 +141,7 @@ fun createScript(file: File, server: MinecraftServer = currentServer): BlockCont
     val repository = BlockRepository.create("Скрипт") {
         include(StandardModules.AllBasics)
         include(NPCModule)
+        include(EntityModule)
         include(PlayerModule)
     }
     val format = CodeBlockFormat(repository)

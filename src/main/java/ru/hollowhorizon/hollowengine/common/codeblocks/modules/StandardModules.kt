@@ -10,6 +10,9 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CallCustomB
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnEventBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnStartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.math.EBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.math.PiBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.math.TrigonometryBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerDeathBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerJoinBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.GetPlayerByNameBlock
@@ -30,6 +33,9 @@ object StandardModules {
         category("Математика", Color("58B2EA"), icons("math")) {
             block("Операция") { MathBlock() }
             block("Случайное число") { RandomNumberBlock() }
+            block("Тригонометрия") { TrigonometryBlock() }
+            block("Число Пи") { PiBlock() }
+            block("Экспонента") { EBlock() }
         }
     }
 

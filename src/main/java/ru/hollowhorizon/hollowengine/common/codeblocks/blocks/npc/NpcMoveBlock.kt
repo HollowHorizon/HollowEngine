@@ -36,7 +36,7 @@ class NpcMoveBlock : StatementBlock() {
             Row(Grow.Std) {
                 Text("НИП") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                 Box(Grow.Std) {  }
-                InputSlot(npc) // Сюда подключаем GetVarBlock
+                InputSlot(npc)
             }
             Box { modifier.margin(sizes.smallGap * 0.5f) }
             Row(Grow.Std) {
