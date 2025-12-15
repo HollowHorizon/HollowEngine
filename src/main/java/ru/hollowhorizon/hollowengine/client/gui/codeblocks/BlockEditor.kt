@@ -4,37 +4,22 @@ import de.fabmax.kool.Clipboard
 import de.fabmax.kool.input.CursorShape
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.math.Easing
-import de.fabmax.kool.math.MutableVec2f
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.set
-import ru.hollowhorizon.hollowengine.client.audio.UIAudio
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
-import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
-import ru.hollowhorizon.hollowengine.common.codeblocks.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlockProvider
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlocksScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.isExpression
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.*
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputValue
-
-sealed interface DropAction {
-    val target: BlockModel
-
-    data class InsertBefore(override val target: BlockModel) : DropAction
-    data class AttachAfter(override val target: StatementBlock) : DropAction
-    data class AttachToInput(override val target: BlockModel, val inputName: String, val isStatementSlot: Boolean) :
-        DropAction
-}
+import ru.hollowhorizon.hollowengine.common.codeblocks.parentCount
 
 class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : BlocksScope {
+    val controller = BlockController()
     override val rootBlocks = mutableStateListOf<BlockModel>()
-    var draggingBlock: BlockModel? = null
-    val dragStartOffset = MutableVec2f()
-    var potentialAction: DropAction? = null
-    private val dropTargets = mutableListOf<Pair<DropAction, UiNode>>()
-    private val tmpLocal = MutableVec2f()
 
 
     private val snapAnimations = mutableListOf<SnapAnimation>()
@@ -48,7 +33,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
     }
 
     fun UiScope.EditorLayout(body: ScrollPaneScope.() -> Unit) {
-        dropTargets.clear()
+        controller.update()
 
         val state = rememberScrollState()
 
@@ -56,7 +41,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             modifier
                 .width(Grow.Std)
                 .height(Grow.Std)
-                //.backgroundColor(colors.backgroundVariant)
                 .onWheelX {
                     state.scrollDpX(it.pointer.scroll.x * -20f)
                 }
@@ -80,7 +64,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                     .padding(sizes.largeGap)
                 modifier.onClick {
                     createBlocksMenu(it)
-                    potentialAction = null
+                    controller.resetAction()
                 }
 
                 rootBlocks.use().forEach { block -> renderBlockRecursively(block) }
@@ -128,15 +112,15 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         }
     }
 
-    private fun UiScope.renderBlockRecursively(
+    internal fun UiScope.renderBlockRecursively(
         block: BlockModel,
         isGhost: Boolean = false,
     ) {
         Column {
             val isRoot = rootBlocks.contains(block)
             modifier.width(if (isRoot) FitContent else Grow.Std)
-            val isDragging = draggingBlock == block || draggingBlock in block.parents
 
+            val isDragging = controller.isDragging(block)
             var baseLayer = if (isDragging) UiSurface.LAYER_FLOATING else UiSurface.LAYER_DEFAULT
             if (block.isExpression()) baseLayer += 1
             modifier.zLayer(baseLayer + 100 - block.parentCount)
@@ -148,10 +132,10 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             Column {
                 modifier.width(Grow.Std)
 
-                if (!block.isExpression() && potentialAction is DropAction.InsertBefore && potentialAction?.target == block && !isDragging) {
+                if (!block.isExpression() && controller.canAttachBefore(block) && !isDragging) {
                     Column(Grow.Std) {
                         GhostPlaceholder(false)
-                        addDropTargetOnce(DropAction.InsertBefore(block), uiNode)
+                        controller.addDropTarget(DropAction.InsertBefore(block), uiNode)
                     }
                 }
 
@@ -165,9 +149,9 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
                         BlockHeaderVisual(isHovered, block, isGhost) {
                             modifier
-                                .onDragStart { ev -> handleDragStart(block, ev) }
-                                .onDrag { ev -> handleDrag(block, ev) }
-                                .onDragEnd { handleDragEnd(block) }
+                                .onDragStart { ev -> controller.handleDragStart(block, ev) }
+                                .onDrag { ev -> controller.handleDrag(block, ev) }
+                                .onDragEnd { controller.handleDragEnd(block) }
                                 .onClick {
                                     onBlockRightClick(block, it, uiNode)
                                 }
@@ -183,7 +167,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                         }
 
                         block.let { it as? ContainerBlock }?.let {
-                            with(InputSlotScope(this, block, isHovered.use(), isGhost)) {
+                            with(InputSlotScope(this@BlockEditor, this, block, isHovered.use(), isGhost)) {
                                 with(it) { composeBody() }
                             }
                         }
@@ -204,7 +188,10 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                                     Box {
                                         modifier.width(Grow.Std).alignY(AlignmentY.Bottom)
                                             .height(DROP_SENSOR_HEIGHT)
-                                        addDropTargetOnce(DropAction.AttachAfter(block as StatementBlock), uiNode)
+                                        controller.addDropTarget(
+                                            DropAction.AttachAfter(block as StatementBlock),
+                                            uiNode
+                                        )
 
                                     }
                                 }
@@ -218,7 +205,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                                 .width(Grow.Std).height(DROP_SENSOR_HEIGHT)
                                 .alignY(AlignmentY.Top)
 
-                            addDropTargetOnce(DropAction.InsertBefore(block), uiNode)
+                            controller.addDropTarget(DropAction.InsertBefore(block), uiNode)
                         }
 
                         if (block !is ContainerBlock) {
@@ -227,15 +214,14 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                                     .width(Grow.Std).height(DROP_SENSOR_HEIGHT)
                                     .alignY(AlignmentY.Bottom)
 
-                                addDropTargetOnce(DropAction.AttachAfter(block as StatementBlock), uiNode)
+                                controller.addDropTarget(DropAction.AttachAfter(block as StatementBlock), uiNode)
                             }
                         }
                     }
                 }
 
                 if (block is StatementBlock) {
-                    val action = potentialAction
-                    if (action is DropAction.AttachAfter && action.target == block && !isDragging) {
+                    if (controller.canAttachAfter(block) && !isDragging) {
                         GhostPlaceholder(false)
                     }
 
@@ -254,13 +240,13 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         if (event.isRightClick) {
             blockPopup.show(Vec2f(event.screenPosition), SubMenuItem("Блок", null) {
                 item("Дублировать") {
-                    duplicateBlock(block, it)
+                    controller.duplicateBlock(block, it)
                 }
                 item("Копировать UUID") {
                     Clipboard.copyToClipboard(block.uuid.toString())
                 }
                 item("Удалить") {
-                    removeBlock(block)
+                    controller.removeBlock(block)
                 }
             }, Vec2f((uiNode.findParentOfType<ScrollPaneNode>() ?: uiNode).toLocal(event.screenPosition)))
         }
@@ -299,163 +285,13 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                     modifier.margin(start = marginLeft).apply(blockModifier)
                     modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
 
-                    InputSlotScope(this, block, isHovered.use(), isGhost).composeContent()
+                    InputSlotScope(this@BlockEditor, this, block, isHovered.use(), isGhost).composeContent()
                 }
             }
         }
     }
 
-    inner class InputSlotScope(
-        uiScope: UiScope,
-        val parentBlock: BlockModel,
-        val isHovered: Boolean,
-        val isGhost: Boolean,
-    ) : UiScope by uiScope {
-        val boldFont = MsdfFont((IdeTheme.sizes.normalText as MsdfFont).data, 16f, MsdfFont.ITALIC_NONE, 0.2f)
-        val font = MsdfFont((IdeTheme.sizes.normalText as MsdfFont).data, 15f, MsdfFont.ITALIC_NONE)
-
-        fun TextModifier.bold() = font(boldFont)
-        fun TextModifier.regular() = font(boldFont)
-
-        fun notifyChanged() {
-            this@BlockEditor.notifyChanged()
-        }
-
-        fun UiScope.InputSlot(name: String, type: ExpressionType) {
-            parentBlock.inputTypes[name] = type
-            val attached = parentBlock.inputs[name]
-            val action = potentialAction
-            val isTargeted =
-                action is DropAction.AttachToInput && action.target == parentBlock && action.inputName == name && !action.isStatementSlot
-
-            Box {
-                modifier.align(AlignmentX.End, AlignmentY.Center).margin(horizontal = sizes.gap)
-
-                if (attached != null) {
-                    if (draggingBlock == attached) EmptySlotVisual(isTargeted)
-                    else {
-                        renderBlockRecursively(attached)
-                        if (isTargeted) modifier.border(RectBorder(Color.WHITE, 2.dp))
-                    }
-                } else {
-                    addDropTargetOnce(DropAction.AttachToInput(parentBlock, name, false), uiNode)
-
-                    if (isTargeted && draggingBlock?.isExpression() == true) GhostPlaceholder(true)
-                    else EmptySlotVisual(false)
-                }
-            }
-        }
-
-        fun UiScope.InputSlot(input: InputValue<*>) = InputSlot(input.name, input.type)
-
-        /**
-         * Да, костыль, зато какой :)
-         */
-        fun UiScope.InputSlotList(baseName: String, type: ExpressionType) {
-            val usedIndices = parentBlock.inputs.keys
-                .filter { it.startsWith("${baseName}_") }
-                .mapNotNull { it.substringAfterLast("_").toIntOrNull() }
-                .sorted()
-
-            val maxIndex = usedIndices.lastOrNull() ?: -1
-
-            Row {
-                modifier.alignY(AlignmentY.Center)
-
-                for (i in 0..maxIndex + 1) {
-                    val slotName = "${baseName}_$i"
-                    InputSlot(slotName, type)
-                }
-            }
-        }
-
-        fun UiScope.BodySlot(name: String) {
-            val attached = parentBlock.inputs[name]
-            val action = potentialAction
-            val isTargeted =
-                action is DropAction.AttachToInput && action.target == parentBlock && action.inputName == name && action.isStatementSlot
-
-            Row {
-                modifier.width(Grow.Std)
-
-                val bgColor = if (isGhost) parentBlock.color.withAlpha(0.5f) else parentBlock.color
-                val color by animateColorAsState(
-                    if (isHovered) bgColor else bgColor.mulRgb(0.9f),
-                    tween(0.2f, Easing.quadRev)
-                )
-                Box {
-                    modifier
-                        .width(Dp.fromPx(C_BLOCK_SPINE_WIDTH) - sizes.smallGap * 0.5f)
-                        .height(Grow.Std)
-                        .background(SpineBackground(color))
-                }
-
-                Box { modifier.size(sizes.smallGap * 0.5f, Grow.Std) }
-
-                Column {
-                    modifier.width(Grow.Std)
-
-                    Box {
-                        if (attached == null) {
-                            modifier.height(30.dp).width(100.dp)
-                            if (isTargeted) modifier.background(
-                                ScratchBlockBackground(
-                                    Color.WHITE.withAlpha(0.2f),
-                                    isExpression = false,
-                                    hasNext = true,
-                                    drawInnerShadow = true
-                                )
-                            )
-                        } else {
-                            modifier.height(sizes.smallGap).width(Grow.Std)
-                        }
-                        addDropTargetOnce(DropAction.AttachToInput(parentBlock, name, true), uiNode)
-                    }
-
-                    if (attached != null) {
-                        if (draggingBlock == attached) {
-                            Box { modifier.size(50.dp, 20.dp).background(RectBackground(Color.WHITE.withAlpha(0.1f))) }
-                        } else {
-                            renderBlockRecursively(attached, isGhost)
-                        }
-                    }
-
-                    Box {
-                        modifier.height(sizes.smallGap).width(Grow.Std)
-                    }
-                }
-            }
-        }
-
-        fun UiScope.SectionSeparator(label: String) {
-            val bgColor = if (isGhost) parentBlock.color.withAlpha(0.5f) else parentBlock.color
-            val color by animateColorAsState(
-                if (isHovered) bgColor else bgColor.mulRgb(0.9f),
-                tween(0.2f, Easing.quadRev)
-            )
-            Row {
-                modifier.width(Grow.Std).height(FitContent)
-                Box {
-                    modifier.width(Grow.Std).height(30.dp)
-                    modifier.background(ContainerMiddleBackground(color))
-                    Text(label) {
-                        modifier.alignY(AlignmentY.Center).margin(start = Dp.fromPx(C_BLOCK_SPINE_WIDTH + 10f))
-                            .textColor(Color.WHITE).bold()
-                    }
-                }
-            }
-        }
-
-        private fun UiScope.EmptySlotVisual(highlight: Boolean) {
-            Box {
-                modifier.size(40.dp, 30.dp)
-                modifier.background(SlotBackground(parentBlock.color.mix(Color.BLACK, 0.3f), highlight))
-                if (highlight) modifier.border(RectBorder(Color.WHITE, 2.dp))
-            }
-        }
-    }
-
-    private fun UiScope.GhostPlaceholder(isExpression: Boolean) {
+    internal fun UiScope.GhostPlaceholder(isExpression: Boolean) {
         Box(Grow.Std) {
             if (isExpression) modifier.size(40.dp, 30.dp)
             else modifier.height(40.dp).width(100.dp)
@@ -464,236 +300,12 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         }
     }
 
-    private fun attachBlockToInput(target: BlockModel, slotName: String, newBlock: BlockModel) {
-        rootBlocks.remove(newBlock)
-        val existingBlock = target.inputs[slotName]
-        if (existingBlock != null) {
-            target.inputs[slotName] = newBlock
-            if (newBlock.isExpression()) {
-                newBlock.parentBlock = target
-                newBlock.parentInputName = slotName
-            }
-
-            if (newBlock.isStatement()) {
-                newBlock.parent = null
-                var tail: StatementBlock = newBlock
-                while (tail.next != null) tail = tail.next!!
-                tail.next = existingBlock as? StatementBlock ?: return
-                existingBlock.parent = tail
-            }
-        } else {
-            target.attachInput(slotName, newBlock)
-        }
-    }
-
-    private fun UiScope.handleDragStart(block: BlockModel, ev: PointerEvent) {
-        draggingBlock = block
-        val visualScreenPos = uiNode.toScreen(Vec2f.ZERO)
-        dragStartOffset.set(ev.screenPosition.x - visualScreenPos.x, ev.screenPosition.y - visualScreenPos.y)
-        detachBlock(block, ev.screenPosition)
-    }
-
-    private fun UiScope.handleDrag(block: BlockModel, ev: PointerEvent) {
-        if (draggingBlock != block) return
-        val scrollPane = uiNode.findParentOfType<ScrollPaneNode>() ?: return
-        val targetVisualScreenX = ev.screenPosition.x - dragStartOffset.x
-        val targetVisualScreenY = ev.screenPosition.y - dragStartOffset.y
-        scrollPane.toLocal(Vec2f(targetVisualScreenX, targetVisualScreenY), tmpLocal)
-        block.setPosition(tmpLocal.x, tmpLocal.y)
-
-        var bestAction: DropAction? = null
-        for ((action, node) in dropTargets) {
-            if (node.isInBounds(ev.screenPosition)) {
-                if (isValidDrop(block, action)) {
-                    bestAction = action
-                    break
-                }
-            }
-        }
-        potentialAction = bestAction
-        surface.triggerUpdate()
-    }
-
-    private fun duplicateBlock(block: BlockModel, localPos: Vec2f) {
-        val newBlock = block.deepCopy(provider)
-
-        newBlock.setPosition(localPos.x, localPos.y)
-        rootBlocks.add(newBlock)
-        notifyChanged()
-    }
-
-    private fun removeBlock(block: BlockModel) {
-        if (block.isStatement()) {
-            val nextBlock = block.next
-
-            block.parent?.let { parent ->
-                parent.next = nextBlock
-                nextBlock?.parent = parent
-            } ?: run {
-                rootBlocks.remove(block)
-                // Если у удаленного блока был хвост, он становится новым корневым блоком
-                if (nextBlock != null) {
-                    rootBlocks.add(nextBlock)
-                    // Сохраняем позицию, чтобы хвост не прыгнул в (0,0)
-                    nextBlock.setPosition(block.positionX.value, block.positionY.value)
-                    nextBlock.parent = null
-                }
-            }
-
-            block.parent = null
-            block.next = null
-        }
-
-        if (block.isExpression()) {
-            block.parentBlock?.let { parentContainer ->
-                val slotName = block.parentInputName ?: return@let
-
-                parentContainer.inputs.remove(slotName)
-            }
-            block.parentBlock = null
-            block.parentInputName = null
-
-        }
-
-        notifyChanged()
-    }
-
-    private fun UiScope.detachBlock(block: BlockModel, screenPos: Vec2f) {
-        if (block.isStatement()) {
-            block.parent?.let { p ->
-                if (p.next == block) p.next = null
-                block.parent = null
-            }
-        }
-        if (block.isExpression()) {
-            block.parentBlock?.let { p ->
-                p.inputs.remove(block.parentInputName)
-                block.parentBlock = null
-                block.parentInputName = null
-            }
-        }
-        if (!rootBlocks.contains(block)) {
-            UIAudio.CONNECT.play()
-            rootBlocks.add(block)
-            val scrollPane = uiNode.findParentOfType<ScrollPaneNode>()
-            if (scrollPane != null) {
-                val targetVisualScreenX = screenPos.x - dragStartOffset.x
-                val targetVisualScreenY = screenPos.y - dragStartOffset.y
-                scrollPane.toLocal(Vec2f(targetVisualScreenX, targetVisualScreenY), tmpLocal)
-                block.setPosition(tmpLocal.x, tmpLocal.y)
-            }
-        }
-    }
-
-    private fun isValidDrop(source: BlockModel, action: DropAction): Boolean {
-        if (source == action.target) return false
-        if (isAncestorOf(source, action.target)) return false
-
-        return when (action) {
-            is DropAction.InsertBefore, is DropAction.AttachAfter -> !source.isExpression()
-            is DropAction.AttachToInput -> {
-                if (source is ExpressionBlock) {
-                    val requiredType = action.target.inputTypes[action.inputName] ?: return false
-                    val returnType = source.expressionType
-                    val typesMatch = requiredType.accepts(returnType) || returnType == AnyType
-                    typesMatch && !action.isStatementSlot
-                } else {
-                    action.isStatementSlot
-                }
-            }
-        }
-    }
-
-    private fun handleDragEnd(block: BlockModel) {
-        potentialAction?.let { action ->
-            triggerSnapEffect(action)
-            UIAudio.CONNECT.play()
-            when (action) {
-                is DropAction.InsertBefore -> insertBlockBefore(action.target, block)
-                is DropAction.AttachAfter -> attachBlockAfter(action.target, block as StatementBlock)
-                is DropAction.AttachToInput -> attachBlockToInput(action.target, action.inputName, block)
-            }
-        }
-        draggingBlock = null
-        potentialAction = null
-        notifyChanged()
-    }
-
-    private fun triggerSnapEffect(action: DropAction) {
-        if (action is DropAction.InsertBefore) return
-        val targetNode = dropTargets.find { it.first == action }?.second ?: return
-
-        val centerX = targetNode.leftPx
-        val centerY = targetNode.topPx
-
-        val scrollPane = targetNode.findParentOfType<ScrollPaneNode>() ?: return
-
-        scrollPane.toLocal(Vec2f(centerX, centerY), tmpLocal)
-
-        val offsetX = if (action !is DropAction.AttachToInput) -7.5f else 0f
-        val offsetY = if (action is DropAction.AttachToInput) -10f else 0f
-
-        snapAnimations.add(SnapAnimation(tmpLocal.x + offsetX, tmpLocal.y + offsetY))
-    }
-
-    private fun attachBlockAfter(target: StatementBlock, newBlock: StatementBlock) {
-        rootBlocks.remove(newBlock)
-        val oldNext = target.next
-        target.next = newBlock
-        newBlock.parent = target
-        var tail = newBlock
-        while (tail.next != null) tail = tail.next!!
-        if (oldNext != null) {
-            tail.next = oldNext
-            oldNext.parent = tail
-        }
-    }
-
-    private fun insertBlockBefore(target: BlockModel, newBlock: BlockModel) {
-        rootBlocks.remove(newBlock)
-        val parent = (target as? StatementBlock)?.parent
-        val parentBlock = (target as? ExpressionBlock)?.parentBlock
-        if (parent != null) {
-            parent.next = newBlock as StatementBlock
-            newBlock.parent = parent
-        } else if (parentBlock != null) {
-            val slotName = target.parentInputName!!
-            parentBlock.inputs[slotName] = newBlock
-            if (newBlock.isExpression()) {
-                newBlock.parentBlock = parentBlock
-                newBlock.parentInputName = slotName
-            }
-            target.parentBlock = null
-            target.parentInputName = null
-        } else {
-            rootBlocks.remove(target)
-            rootBlocks.add(newBlock)
-            if (newBlock.isStatement()) newBlock.parent = null
-        }
-        var tail = newBlock as? StatementBlock ?: return
-        while (tail.next != null) tail = tail.next!!
-        tail.next = target as? StatementBlock ?: return
-        target.parent = tail
-    }
-
-    private fun isAncestorOf(possibleParent: BlockModel, child: BlockModel): Boolean {
-        var curr: BlockModel? = (child as? StatementBlock)?.parent ?: (child as? ExpressionBlock)?.parentBlock
-        while (curr != null) {
-            if (curr == possibleParent) return true
-            curr = (curr as? StatementBlock)?.parent ?: (curr as? ExpressionBlock)?.parentBlock
-        }
-        return false
-    }
-
-    private fun addDropTargetOnce(action: DropAction, node: UiNode) {
-        val exists = dropTargets.any { it.first == action && it.second == node }
-        if (!exists) dropTargets.add(action to node)
+    fun triggerSnapEffect(action: SnapAnimation) {
+        snapAnimations.add(action)
     }
 
     private fun UiScope.renderSnapAnimations() {
         snapAnimations.removeIf { it.isFinished }
-
-
 
         Box {
             modifier.width(Grow.Std).height(Grow.Std)

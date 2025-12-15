@@ -7,7 +7,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
@@ -30,7 +30,7 @@ class NpcDropItemBlock : StatementBlock() {
         npc().dropItem(item)
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("НИП") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
         Box(Grow.Std) { }

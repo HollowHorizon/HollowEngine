@@ -5,7 +5,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
@@ -18,7 +18,7 @@ class PrintBlock : StatementBlock() {
         HollowEngine.LOGGER.info(msg())
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Напечатать") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
         Box(Grow.Companion.Std) {}
         InputSlot(msg)

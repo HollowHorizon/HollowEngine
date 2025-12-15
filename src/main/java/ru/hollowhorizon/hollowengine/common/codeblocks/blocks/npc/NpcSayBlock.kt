@@ -4,7 +4,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
@@ -20,7 +20,7 @@ class NpcSayBlock : StatementBlock() {
         npc().say(text())
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("НИП") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
         Box(Grow.Std) {  }

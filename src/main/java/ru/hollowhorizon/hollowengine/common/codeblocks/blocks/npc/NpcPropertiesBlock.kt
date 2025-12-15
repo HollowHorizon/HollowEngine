@@ -10,7 +10,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.calculateSpeedViaDeltaMovement
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
@@ -30,7 +30,7 @@ class NpcHealthBlock : ExpressionBlock() {
         return npc().health
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Здоровье НИПа") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
     }
@@ -47,7 +47,7 @@ class NpcMaxHealthBlock : ExpressionBlock() {
         return npc().maxHealth
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Макс. Здоровье НИПа") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
     }
@@ -64,7 +64,7 @@ class NpcSpeedBlock : ExpressionBlock() {
         return calculateSpeedViaDeltaMovement(npc())
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Скорость НИПа") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
     }
@@ -88,7 +88,7 @@ class NpcDistanceToBlock : ExpressionBlock() {
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Расстояние от") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
         Text("до") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
@@ -113,7 +113,7 @@ class NpcTeleportBlock : StatementBlock() {
         npc.teleportTo(pos.x, pos.y, pos.z)
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Телепортировать НИПа") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
         Text("на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
@@ -131,7 +131,7 @@ class NpcSetTargetBlock : StatementBlock() {
         npc().target = target()
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         InputSlot(npc)
         Text("атакует") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(target)
@@ -147,7 +147,7 @@ class NpcClearTargetBlock : StatementBlock() {
         npc().target = null
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         InputSlot(npc)
         Text("перестаёт атаковать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
@@ -164,7 +164,7 @@ class NpcGetNameBlock : ExpressionBlock() {
         return npc().name
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Имя") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
     }
@@ -180,7 +180,7 @@ class NpcSetNameBlock : StatementBlock() {
         npc().name = name()
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Установить имя") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
         Text("на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
@@ -199,7 +199,7 @@ class NpcIsAliveBlock : ExpressionBlock() {
         return npc().isAlive
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("НИП жив") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
     }
@@ -215,7 +215,7 @@ class NpcHealBlock : StatementBlock() {
         npc().heal(amount().toFloat())
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         InputSlot(npc)
         Text("восстанавливает здоровье на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(amount)
@@ -233,7 +233,7 @@ class NpcHurtBlock : StatementBlock() {
         npc.hurt(npc.damageSources().generic(), amount().toFloat())
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         InputSlot(npc)
         Text("получает урон") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(amount)
@@ -250,7 +250,7 @@ class NpcSetHealthBlock : StatementBlock() {
         npc().health = health().toFloat()
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Установить здоровье") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
         Text("равным") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }

@@ -4,7 +4,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.*
 import net.minecraft.world.entity.LivingEntity
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
@@ -29,7 +29,7 @@ class SetVarBlock(var varName: String = "var") : StatementBlock() {
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Присвоить:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         // Поле ввода имени переменной
         TextField(varName) {
@@ -54,7 +54,7 @@ class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
         return variables[varName]
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         TextField(varName) {
             modifier.width(FitContent).margin(start = 5.dp)
                 .alignY(AlignmentY.Center)
@@ -75,7 +75,7 @@ class GetVarInlineBlock(val name: String) : ExpressionBlock() {
         return variables[name]
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Значение переменной") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         Text("\"$name\"") {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center)

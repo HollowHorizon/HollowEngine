@@ -5,7 +5,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.utils.literal
@@ -22,7 +22,7 @@ class PlayerSendMessageBlock : StatementBlock() {
         player().displayClientMessage(message, overlay)
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Сообщение") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
 

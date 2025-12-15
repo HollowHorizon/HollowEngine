@@ -5,7 +5,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
 interface BlocksScope {
-    val rootBlocks: List<BlockModel>
+    val rootBlocks: MutableList<BlockModel>
 }
 
 fun BlockModel.walk(): Sequence<BlockModel> = sequence {

@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.client.Minecraft
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
@@ -29,7 +29,7 @@ class PositionBlock : ExpressionBlock() {
         return Vec3(x().toDouble(), y().toDouble(), z().toDouble())
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("X") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(x)
         Text("Y") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
@@ -52,7 +52,7 @@ class PositionBlock : ExpressionBlock() {
         }
     }
 
-    private fun BlockEditor.InputSlotScope.pastePlayerCoords() {
+    private fun InputSlotScope.pastePlayerCoords() {
         val pos = Minecraft.getInstance().player?.position() ?: Vec3.ZERO
         inputs["x"] = NumberBlock(pos.x).also {
             it.parentBlock = this@PositionBlock; it.color = MdColor.AMBER; it.parentInputName = "x"

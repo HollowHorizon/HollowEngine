@@ -8,7 +8,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -28,7 +28,7 @@ class OnPlayerJoinBlock : StatementBlock(), StartBlock {
         } while (joinedPlayer != player())
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Когда заходит") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }
@@ -46,7 +46,7 @@ class OnPlayerDeathBlock : StatementBlock(), StartBlock {
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Когда умирает") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }

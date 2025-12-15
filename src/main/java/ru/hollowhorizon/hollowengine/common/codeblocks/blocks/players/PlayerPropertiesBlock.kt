@@ -9,7 +9,7 @@ import kotlinx.serialization.Transient
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
@@ -31,7 +31,7 @@ class PlayerHealthBlock : ExpressionBlock() {
         return player().health
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Здоровье игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }
@@ -48,7 +48,7 @@ class PlayerMaxHealthBlock : ExpressionBlock() {
         return player().maxHealth
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Макс. здоровье игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }
@@ -64,7 +64,7 @@ class PlayerHealBlock : StatementBlock() {
         player().heal(amount().toFloat())
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Вылечить") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
         Text("на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
@@ -83,7 +83,7 @@ class PlayerHurtBlock : StatementBlock() {
         p.hurt(p.damageSources().generic(), amount().toFloat())
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Нанести урона") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
         Text("количество:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
@@ -101,7 +101,7 @@ class PlayerSetHealthBlock : StatementBlock() {
         player().health = health().toFloat()
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Установить здоровье") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
         Text("равным") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
@@ -120,7 +120,7 @@ class PlayerGetExperienceBlock : ExpressionBlock() {
         return player().experienceLevel
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Опыт игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }
@@ -136,7 +136,7 @@ class PlayerAddExperienceBlock : StatementBlock() {
         player().experienceLevel = experience().toInt()
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Выдать игроку") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
         Text("очков опыта") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
@@ -155,7 +155,7 @@ class GetPlayerPositionBlock : ExpressionBlock() {
         return player().position()
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Позиция игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }
@@ -177,7 +177,7 @@ class PlayerHasItemBlock(): ExpressionBlock() {
         return p.inventory.items.any { ItemStack.isSameItemSameTags(it, item) && it.count >= item.count }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Игрок") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
         Text("имеет предмет") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal=sizes.smallGap).bold() }
@@ -233,7 +233,7 @@ class PlayerRemoveItemBlock: StatementBlock() {
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Удалить из инвентаря") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
         Text("предмет") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap).bold() }

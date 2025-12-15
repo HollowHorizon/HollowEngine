@@ -61,17 +61,24 @@ val BlockModel.isRoot: Boolean
         else -> true
     }
 
+val BlockModel.parentsWithSelf: Sequence<BlockModel>
+    get() = sequence {
+        yield(this@parentsWithSelf)
+        yieldAll(parents)
+    }
 val BlockModel.parents: Sequence<BlockModel>
     get() = sequence {
-        when(this@parents) {
+        when (this@parents) {
             is StatementBlock -> parent?.let {
                 yield(it)
                 yieldAll(it.parents)
             }
+
             is ExpressionBlock -> parentBlock?.let {
                 yield(it)
                 yieldAll(it.parents)
             }
+
             else -> return@sequence
         }
     }

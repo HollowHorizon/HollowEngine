@@ -7,7 +7,7 @@ import de.fabmax.kool.modules.ui2.textColor
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
@@ -21,7 +21,7 @@ class ExecuteCommandBlock : StatementBlock() {
         server.commands.performPrefixedCommand(source, cmd())
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Команда:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(cmd)
     }

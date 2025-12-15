@@ -4,7 +4,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -24,13 +24,13 @@ class IfElseBlock : StatementBlock(), ContainerBlock {
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Если") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
         Box(Grow.Companion.Std) {}
         InputSlot(condition)
     }
 
-    override fun BlockEditor.InputSlotScope.composeBody() {
+    override fun InputSlotScope.composeBody() {
         BodySlot("then")
 
         SectionSeparator("Иначе")
@@ -51,13 +51,13 @@ class IfBlock : StatementBlock(), ContainerBlock {
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Если") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
         Box(Grow.Companion.Std) {}
         InputSlot(condition)
     }
 
-    override fun BlockEditor.InputSlotScope.composeBody() {
+    override fun InputSlotScope.composeBody() {
         BodySlot("then")
     }
 }

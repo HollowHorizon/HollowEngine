@@ -5,7 +5,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputDelegate
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputListDelegate
@@ -34,11 +34,6 @@ abstract class BlockModel {
     @Transient
     val positionY = mutableStateOf(50f)
 
-    fun setPosition(x: Float, y: Float) {
-        positionX.value = x
-        positionY.value = y
-    }
-
     fun attachInput(slotName: String, block: BlockModel) {
         inputs[slotName] = block
         if (block.isExpression()) {
@@ -61,7 +56,7 @@ abstract class BlockModel {
 
     abstract suspend fun BlockContext.execute(): Any?
 
-    abstract fun BlockEditor.InputSlotScope.composeContent()
+    abstract fun InputSlotScope.composeContent()
 
 
     open fun serialize(tag: CompoundTag) {

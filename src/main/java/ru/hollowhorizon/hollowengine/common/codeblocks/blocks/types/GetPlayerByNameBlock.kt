@@ -9,7 +9,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
@@ -29,7 +29,7 @@ class GetPlayerByNameBlock : ExpressionBlock() {
             ?: throw IllegalStateException("Player $name not found")
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Игрок с именем") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(playerName)
     }

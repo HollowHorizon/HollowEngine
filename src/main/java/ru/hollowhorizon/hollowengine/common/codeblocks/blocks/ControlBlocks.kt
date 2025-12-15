@@ -9,7 +9,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -28,12 +28,12 @@ class WhileBlock : StatementBlock(), ContainerBlock {
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Пока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(condition)
     }
 
-    override fun BlockEditor.InputSlotScope.composeBody() {
+    override fun InputSlotScope.composeBody() {
         BodySlot("body")
     }
 }
@@ -47,7 +47,7 @@ class DelayBlock : StatementBlock() {
         delay((time().toDouble() * 1000).toLong())
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Ждать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(time)
         Text("секунд") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }

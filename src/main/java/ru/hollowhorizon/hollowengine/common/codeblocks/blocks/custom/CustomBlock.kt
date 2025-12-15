@@ -4,7 +4,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.EndBlock
@@ -20,7 +20,7 @@ class CustomBlock(var function: String = ""): StatementBlock(), ContainerBlock, 
         body()
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         TextField(function) {
             modifier.width(FitContent).margin(start = 5.dp)
                 .alignY(AlignmentY.Center)
@@ -30,7 +30,7 @@ class CustomBlock(var function: String = ""): StatementBlock(), ContainerBlock, 
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeBody() {
+    override fun InputSlotScope.composeBody() {
         BodySlot("body")
     }
 }

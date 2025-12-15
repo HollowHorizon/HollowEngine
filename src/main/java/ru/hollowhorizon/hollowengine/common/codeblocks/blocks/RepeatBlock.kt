@@ -7,7 +7,7 @@ import de.fabmax.kool.modules.ui2.textColor
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -25,13 +25,13 @@ class RepeatBlock : StatementBlock(), ContainerBlock {
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Повторить") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(times)
         Text("Раз") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
     }
 
-    override fun BlockEditor.InputSlotScope.composeBody() {
+    override fun InputSlotScope.composeBody() {
         BodySlot("body")
     }
 }

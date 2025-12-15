@@ -9,7 +9,7 @@ import kotlinx.serialization.Transient
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
@@ -35,7 +35,7 @@ class PlayerInteractWithEntity : StatementBlock() {
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Игрок") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
         Text("взаимодействует с") {
@@ -64,7 +64,7 @@ class PlayerInteractWithBlock : StatementBlock() {
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Игрок") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
         Text("взаимодействует с блоком") {
@@ -115,7 +115,7 @@ class PlayerInteractWithItem : StatementBlock(), StartBlock {
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Игрок") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
         Text("использует") {

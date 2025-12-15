@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
@@ -29,7 +29,7 @@ class PlayerGiveItemBlock : StatementBlock() {
         player().inventory.add(item.copy())
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Выдать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
 

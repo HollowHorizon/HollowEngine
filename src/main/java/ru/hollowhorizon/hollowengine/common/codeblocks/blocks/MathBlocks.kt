@@ -5,7 +5,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import kotlin.random.Random
@@ -42,7 +42,7 @@ class MathBlock(var op: MathOp = MathOp.ADD) : ExpressionBlock() {
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         InputSlot(a)
 
         // Кликабельный текст для смены операции
@@ -83,7 +83,7 @@ class RandomNumberBlock : ExpressionBlock() {
         return Random.nextDouble(minVal, maxVal)
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Row(Grow.Std) {
             Text("Случайное от") {
                 modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
@@ -120,7 +120,7 @@ class CompareBlock(var op: CompareOp = CompareOp.EQUALS) : ExpressionBlock() {
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         InputSlot(a)
 
         // Кликабельный текст для смены операции
@@ -165,7 +165,7 @@ class LogicBlock(var op: LogicOp = LogicOp.AND) : ExpressionBlock() {
         }
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         InputSlot(a)
         Box {
             modifier
@@ -202,7 +202,7 @@ class NotBlock : ExpressionBlock() {
         return !(value())
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Text("Не") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(value)
     }
@@ -231,7 +231,7 @@ class TestBlock : ExpressionBlock() {
         else elseBranch()
     }
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Column(Grow.Std) {
             modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
 
@@ -264,7 +264,7 @@ class NumberBlock(var value: Double = 0.0) : ExpressionBlock() {
 
     override suspend fun BlockContext.execute() = value
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         TextField(value.toString()) {
             modifier.width(60.dp)
                 .onChange { value = it.toDoubleOrNull() ?: 0.0; notifyChanged() }
@@ -281,7 +281,7 @@ class BoolBlock(var value: Boolean = true) : ExpressionBlock() {
 
     override suspend fun BlockContext.execute() = value
 
-    override fun BlockEditor.InputSlotScope.composeContent() {
+    override fun InputSlotScope.composeContent() {
         Checkbox(value) {
             modifier.onToggle { this@BoolBlock.value = it; notifyChanged() }
         }
