@@ -33,7 +33,8 @@ private fun SubMenuItem<Vec2f>.fillCategory(category: BlockCategory, rootUiNode:
         item(entry.name, entry.icon) { screenPos ->
             val newBlock = entry.factory()
             val localPos = rootUiNode.toLocal(screenPos)
-            newBlock.setPosition(localPos.x, localPos.y)
+            newBlock.positionX.set(localPos.x)
+            newBlock.positionY.set(localPos.y)
             editor.rootBlocks.add(newBlock)
         }
     }

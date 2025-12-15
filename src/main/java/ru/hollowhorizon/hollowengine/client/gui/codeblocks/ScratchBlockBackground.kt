@@ -82,7 +82,7 @@ class ScratchBlockBackground(
                 PuzzleShapes.drawInnerShadow(
                     points,
                     width = 5f,
-                    color = Color.BLACK.withAlpha(0.65f)
+                    color = Color.BLACK.withAlpha(0.5f)
                 )
             }
         }
