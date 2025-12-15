@@ -53,7 +53,7 @@ HollowEngine is a powerful content creation engine for Minecraft. It provides an
 
 ### 🔧 (WIP) Visual Programming
 - [x] Block-based coding interface
-- [ ] Variable management (set/get operations)
+- [x] Variable management (set/get operations)
 - [x] Function creation and calling
 - [x] Event-driven programming
 - [x] Loop structures (while, repeat)
