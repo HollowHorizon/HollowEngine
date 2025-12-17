@@ -61,7 +61,7 @@ class EntityIsSwimming : ExpressionBlock() {
 }
 
 @Serializable
-@SerialName("hollowengine:entity/is_swimming")
+@SerialName("hollowengine:entity/is_underwater")
 class EntityIsUnderwater : ExpressionBlock() {
     val entity by input<LivingEntity>("entity")
 
@@ -137,7 +137,7 @@ class EntityIsOnFire : ExpressionBlock() {
 }
 
 @Serializable
-@SerialName("hollowengine:entity/is_on_fire")
+@SerialName("hollowengine:entity/is_in_lava")
 class EntityIsInLava : ExpressionBlock() {
     val entity by input<LivingEntity>("entity")
 
