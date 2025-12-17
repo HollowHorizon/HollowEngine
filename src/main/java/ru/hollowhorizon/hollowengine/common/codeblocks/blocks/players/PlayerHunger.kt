@@ -19,8 +19,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 @Serializable
 @SerialName("hollowengine:player/set_food")
 class PlayerSetFoodBlock : StatementBlock() {
-    val entity by input<Player>()
-    val food by input<Number>()
+    val entity by input<Player>("player")
+    val food by input<Number>("food")
 
     override suspend fun BlockContext.execute() {
         entity().foodData.foodLevel = food().toInt()
@@ -37,8 +37,8 @@ class PlayerSetFoodBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:player/add_exhaustion")
 class PlayerAddExhaustionBlock : StatementBlock() {
-    val entity by input<Player>()
-    val exhaustion by input<Number>()
+    val entity by input<Player>("player")
+    val exhaustion by input<Number>("exhaustion")
 
     override suspend fun BlockContext.execute() {
         entity().foodData.addExhaustion(exhaustion().toFloat())

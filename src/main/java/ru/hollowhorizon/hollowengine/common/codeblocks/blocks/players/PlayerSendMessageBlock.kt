@@ -27,7 +27,7 @@ class PlayerSendMessageBlock : StatementBlock() {
         InputSlot(player)
 
         ComboBox {
-            modifier.width(FitContent).items(listOf("Чат", "Экран"))
+            modifier.width(FitContent).items(listOf("Чат", "Панель действий"))
             modifier.selectedIndex(if (overlay) 1 else 0)
             modifier.onItemSelected { overlay = (it == 1) }
         }

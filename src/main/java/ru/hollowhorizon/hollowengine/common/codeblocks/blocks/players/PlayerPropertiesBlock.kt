@@ -6,6 +6,9 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import net.minecraft.core.registries.Registries
+import net.minecraft.resources.ResourceKey
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec3
@@ -19,7 +22,9 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
+import ru.hollowhorizon.hollowengine.common.npcs.navigation.block
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStackJson
+import ru.hollowhorizon.hollowengine.common.utils.rl
 
 @Serializable
 @SerialName("hollowengine:player/get_health")
@@ -69,25 +74,6 @@ class PlayerHealBlock : StatementBlock() {
         Text("Вылечить") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
         Text("на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-        InputSlot(amount)
-    }
-}
-
-@Serializable
-@SerialName("hollowengine:player/hurt")
-class PlayerHurtBlock : StatementBlock() {
-    val player by input<Player>()
-    val amount by input<Number>()
-
-    override suspend fun BlockContext.execute() {
-        val p = player()
-        p.hurt(p.damageSources().generic(), amount().toFloat())
-    }
-
-    override fun InputSlotScope.composeContent() {
-        Text("Нанести урона") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-        InputSlot(player)
-        Text("количество:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(amount)
     }
 }
@@ -173,6 +159,7 @@ class GetPlayerXpPointsBlock : ExpressionBlock() {
     override suspend fun BlockContext.execute(): Any? {
         return player().totalExperience
     }
+
     override fun InputSlotScope.composeContent() {
         Text("очки опыта игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
@@ -188,6 +175,7 @@ class GetPlayerXpLevelsBlock : ExpressionBlock() {
     override suspend fun BlockContext.execute(): Any? {
         return player().experienceLevel
     }
+
     override fun InputSlotScope.composeContent() {
         Text("уровни опыта игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
@@ -210,25 +198,59 @@ class PlayerCloseGuiBlock : StatementBlock() {
 }
 
 @Serializable
-@SerialName("hollowengine:player/get_position")
-class GetPlayerPositionBlock : ExpressionBlock() {
-    @Transient
-    override val expressionType: ExpressionType = typeOf<Vec3>()
+@SerialName("hollowengine:player/set_respawn")
+class PlayerSetRespawn : StatementBlock() {
     val player by input<Player>()
+    val dimension by input<String>()
+    val pos by input<Vec3>()
+    val forced by input<Boolean>()
+    val sendMessage by input<Boolean>()
 
-    override suspend fun BlockContext.execute(): Any? {
-        return player().position()
+    override suspend fun BlockContext.execute() {
+        val player = player() as ServerPlayer
+        val dimension = ResourceKey.create(Registries.DIMENSION, dimension().rl)
+        player.setRespawnPosition(dimension, pos().block, player.yHeadRot, true, false)
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Позиция игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-        InputSlot(player)
+        Column(Grow.Std) {
+            var isExpanded by remember(false)
+            Row(Grow.Std) {
+                Text("Возрождать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                InputSlot(player)
+                Text("в") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                InputSlot(dimension)
+                Text("на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                InputSlot(pos)
+                Box(Grow.Std) {}
+                Arrow(if (isExpanded) ArrowScope.ROTATION_DOWN else ArrowScope.ROTATION_RIGHT) {
+                    modifier.onClick { isExpanded = !isExpanded }
+                        .size(sizes.gap * 1.5f, sizes.gap * 1.5f)
+                        .alignY(AlignmentY.Center)
+                        .margin(horizontal = sizes.smallGap)
+                        .dragListener(object : Draggable {})
+                        .colors(arrowColor = Color.WHITE.mulRgb(0.9f), arrowHoverColor = Color.WHITE)
+                }
+            }
+            if (isExpanded) {
+                Row(Grow.Std) {
+                    Text("Принудительно: ") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                    InputSlot(forced)
+                }
+                Row(Grow.Std) {
+                    Text("Уведомить игрока? ") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                    InputSlot(sendMessage)
+                }
+            }
+        }
     }
 }
 
+
+
 @Serializable
 @SerialName("hollowengine:player/has_item")
-class PlayerHasItemBlock(): ExpressionBlock() {
+class PlayerHasItemBlock() : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
     val player by input<Player>()
@@ -245,7 +267,9 @@ class PlayerHasItemBlock(): ExpressionBlock() {
     override fun InputSlotScope.composeContent() {
         Text("Игрок") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
-        Text("имеет предмет") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal=sizes.smallGap).bold() }
+        Text("имеет предмет") {
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap).bold()
+        }
         Box(sizes.largeGap * 1.5f, sizes.largeGap * 1.5f) {
             modifier.alignY(AlignmentY.Center)
                 .border(RoundRectBorder(Color.WHITE, sizes.smallGap, sizes.borderWidth))
@@ -274,7 +298,7 @@ class PlayerHasItemBlock(): ExpressionBlock() {
 
 @Serializable
 @SerialName("hollowengine:player/remove_item")
-class PlayerRemoveItemBlock: StatementBlock() {
+class PlayerRemoveItemBlock : StatementBlock() {
     val player by input<Player>()
     var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
 
@@ -301,7 +325,9 @@ class PlayerRemoveItemBlock: StatementBlock() {
     override fun InputSlotScope.composeContent() {
         Text("Удалить из инвентаря") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
-        Text("предмет") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap).bold() }
+        Text("предмет") {
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap).bold()
+        }
         Box(sizes.largeGap * 1.5f, sizes.largeGap * 1.5f) {
             modifier.alignY(AlignmentY.Center)
                 .border(RoundRectBorder(Color.WHITE, sizes.smallGap, sizes.borderWidth))

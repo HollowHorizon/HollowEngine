@@ -13,24 +13,28 @@ import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.getLevel
 
 @Serializable
 @SerialName("hollowengine:player/teleport")
 class PlayerTeleportBlock : StatementBlock() {
     val player by input<Player>()
     val pos by input<Vec3>()
+    val dimension by input<String>("dimension")
 
     override suspend fun BlockContext.execute() {
         val p = player()
         val target = pos()
         if (p is ServerPlayer) {
-            p.teleportTo(target.x, target.y, target.z)
+            p.teleportTo(p.server.getLevel(dimension()), target.x, target.y, target.z, p.yRot, p.xRot)
         }
     }
 
     override fun InputSlotScope.composeContent() {
         Text("Телепортировать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
+        Text("в") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(dimension)
         Text("на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(pos)
     }

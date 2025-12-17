@@ -153,22 +153,6 @@ class NpcClearTargetBlock : StatementBlock() {
     }
 }
 
-@Serializable
-@SerialName("hollowengine:npcs/get_name")
-class NpcGetNameBlock : ExpressionBlock() {
-    @Transient
-    override val expressionType: ExpressionType = typeOf<String>()
-    val npc by input<NpcEntity>()
-
-    override suspend fun BlockContext.execute(): Any? {
-        return npc().name
-    }
-
-    override fun InputSlotScope.composeContent() {
-        Text("Имя") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-        InputSlot(npc)
-    }
-}
 
 @Serializable
 @SerialName("hollowengine:npcs/set_name")
@@ -185,23 +169,6 @@ class NpcSetNameBlock : StatementBlock() {
         InputSlot(npc)
         Text("на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(name)
-    }
-}
-
-@Serializable
-@SerialName("hollowengine:npcs/is_alive")
-class NpcIsAliveBlock : ExpressionBlock() {
-    @Transient
-    override val expressionType: ExpressionType = typeOf<Boolean>()
-    val npc by input<NpcEntity>()
-
-    override suspend fun BlockContext.execute(): Any? {
-        return npc().isAlive
-    }
-
-    override fun InputSlotScope.composeContent() {
-        Text("НИП жив") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-        InputSlot(npc)
     }
 }
 

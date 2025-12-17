@@ -9,25 +9,29 @@ object NPCModule : BlockModule {
     override fun BlockCategoryBuilder.build() {
         categoryAfter(2, "НИПы", Color("7EB542"), "hollowengine:textures/gui/icons/npcs.svg") {
             block("Создать", ::SpawnNpcBlock)
+            block("Удалить", ::DespawnNpcBlock)
+
+            // --- AI и поведение ---
             block("Идти", ::NpcMoveBlock)
             block("Смотреть", ::NpcLookBlock)
             block("Сказать", ::NpcSayBlock)
             block("Взаимодействовать", ::NpcInteractBlock)
-            block("Удалить", ::DespawnNpcBlock)
             block("Бросить предмет", ::NpcDropItemBlock)
-            block("Расстояние до цели", ::NpcDistanceToBlock)
-            block("Телепортировать", ::NpcTeleportBlock)
-            block("Установить цель", ::NpcSetTargetBlock)
+
+            // --- Цели ---
+            block("Установить цель атаки", ::NpcSetTargetBlock)
             block("Сбросить цель", ::NpcClearTargetBlock)
+            block("Расстояние до цели", ::NpcDistanceToBlock)
+
+            // --- Специфичное ---
+            block("Телепортировать", ::NpcTeleportBlock)
+
             block("Получить здоровье", ::NpcHealthBlock)
             block("Получить макс. здоровье", ::NpcMaxHealthBlock)
-            block("Получить скорость", ::NpcSpeedBlock)
-            block("Получить имя", ::NpcGetNameBlock)
+            block("Получить скорость (Атрибут)", ::NpcSpeedBlock)
             block("Установить здоровье", ::NpcSetHealthBlock)
-            block("Установить имя", ::NpcSetNameBlock)
-            block("Проверить жив ли НИП", ::NpcIsAliveBlock)
             block("Исцелить НИПа", ::NpcHealBlock)
-            block("Нанести урон НИПу", ::NpcHurtBlock)
+            block("Установить имя (Display Name)", ::NpcSetNameBlock)
         }
     }
 }
