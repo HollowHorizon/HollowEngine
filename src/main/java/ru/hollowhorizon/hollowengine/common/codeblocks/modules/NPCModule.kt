@@ -28,10 +28,10 @@ object NPCModule : BlockModule {
 
             block("Получить здоровье", ::NpcHealthBlock)
             block("Получить макс. здоровье", ::NpcMaxHealthBlock)
-            block("Получить скорость (Атрибут)", ::NpcSpeedBlock)
+            block("Получить модификатор скорости", ::NpcSpeedBlock)
             block("Установить здоровье", ::NpcSetHealthBlock)
             block("Исцелить НИПа", ::NpcHealBlock)
-            block("Установить имя (Display Name)", ::NpcSetNameBlock)
+            block("Установить имя", ::NpcSetNameBlock)
         }
     }
 }

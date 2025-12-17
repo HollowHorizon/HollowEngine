@@ -233,12 +233,16 @@ class PlayerSetRespawn : StatementBlock() {
                 }
             }
             if (isExpanded) {
+                Box { modifier.margin(sizes.smallGap * 0.5f) }
                 Row(Grow.Std) {
                     Text("Принудительно: ") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                    Box(Grow.Std) {  }
                     InputSlot(forced)
                 }
+                Box { modifier.margin(sizes.smallGap * 0.5f) }
                 Row(Grow.Std) {
                     Text("Уведомить игрока? ") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                    Box(Grow.Std) {  }
                     InputSlot(sendMessage)
                 }
             }
