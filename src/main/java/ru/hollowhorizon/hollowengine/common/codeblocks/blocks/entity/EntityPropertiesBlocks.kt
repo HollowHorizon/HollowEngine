@@ -176,7 +176,7 @@ class EntityIsInvisible : ExpressionBlock() {
 
 
 @Serializable
-@SerialName("hollowengine:entity/is_invisible")
+@SerialName("hollowengine:entity/is_invulnerable")
 class EntityIsInvulnerable : ExpressionBlock() {
     val entity by input<LivingEntity>("entity")
 
