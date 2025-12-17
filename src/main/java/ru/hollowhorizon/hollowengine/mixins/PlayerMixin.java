@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import ru.hollowhorizon.hollowengine.api.extensions.PlayerExtension;
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent;
@@ -25,10 +26,12 @@ import java.util.Objects;
 //?}
 
 @Mixin(Player.class)
-public abstract class PlayerMixin extends LivingEntity {
+public abstract class PlayerMixin extends LivingEntity implements PlayerExtension {
     protected PlayerMixin(EntityType<? extends LivingEntity> entityType, Level level) { super(entityType, level); }
 
     @Shadow @Nullable public abstract ItemEntity drop(ItemStack droppedItem, boolean dropAround, boolean includeThrowerName);
+
+    @Shadow protected abstract void doCloseContainer();
 
     @Inject(method = "interactOn", at = @At("HEAD"), cancellable = true)
     private void onInteract(Entity entityToInteractOn, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
@@ -62,4 +65,10 @@ public abstract class PlayerMixin extends LivingEntity {
         cir.setReturnValue(e.getEntity());
     }
     //?}
+
+
+    @Override
+    public void hollowcore$closeContainer() {
+        doCloseContainer();
+    }
 }

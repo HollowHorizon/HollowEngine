@@ -4,12 +4,16 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.GameType
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 
 @Serializable
 @SerialName("hollowengine:player/gamemode")
@@ -34,6 +38,31 @@ class PlayerGameModeBlock : StatementBlock() {
         Text("Режим игры") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
 
+        ComboBox {
+            modifier.width(FitContent).items(listOf("Выживание", "Творческий", "Приключение", "Наблюдатель"))
+            modifier.selectedIndex(modeInt)
+            modifier.onItemSelected { modeInt = it }
+        }
+    }
+}
+
+@Serializable
+@SerialName("hollowengine:player/check_gamemode")
+class PlayerCheckGamemodeBlock : ExpressionBlock() {
+    @Transient
+    override val expressionType: ExpressionType = typeOf<Boolean>()
+    val player by input<Player>()
+    var modeInt = 0
+
+    override suspend fun BlockContext.execute(): Any {
+        val gm = (player() as ServerPlayer).gameMode.gameModeForPlayer
+        return gm.id == modeInt
+    }
+
+    override fun InputSlotScope.composeContent() {
+        Text("Игрок") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(player)
+        Text("в режиме") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         ComboBox {
             modifier.width(FitContent).items(listOf("Выживание", "Творческий", "Приключение", "Наблюдатель"))
             modifier.selectedIndex(modeInt)

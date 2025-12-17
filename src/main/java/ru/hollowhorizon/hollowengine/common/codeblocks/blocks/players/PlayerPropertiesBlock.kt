@@ -9,6 +9,7 @@ import kotlinx.serialization.Transient
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.api.extensions.PlayerExtension
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
@@ -110,37 +111,101 @@ class PlayerSetHealthBlock : StatementBlock() {
 }
 
 @Serializable
-@SerialName("hollowengine:player/get_experience")
-class PlayerGetExperienceBlock : ExpressionBlock() {
-    @Transient
-    override val expressionType: ExpressionType = typeOf<Number>()
+@SerialName("hollowengine:player/give_xp_points")
+class PlayerGiveXpPointsBlock : StatementBlock() {
     val player by input<Player>()
+    val amount by input<Number>()
 
-    override suspend fun BlockContext.execute(): Any? {
-        return player().experienceLevel
+    override suspend fun BlockContext.execute() {
+        player().giveExperiencePoints(amount().toInt())
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Опыт игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("Выдать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(amount)
+        Text("единиц опыта игроку") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }
 }
 
 @Serializable
-@SerialName("hollowengine:player/add_experience")
-class PlayerAddExperienceBlock : StatementBlock() {
+@SerialName("hollowengine:player/give_xp_levels")
+class PlayerGiveXpLevelsBlock : StatementBlock() {
     val player by input<Player>()
-    val experience by input<Number>()
+    val levels by input<Number>()
 
     override suspend fun BlockContext.execute() {
-        player().experienceLevel = experience().toInt()
+        player().giveExperienceLevels(levels().toInt())
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Выдать игроку") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("Выдать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(levels)
+        Text("уровней опыта игроку") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
-        Text("очков опыта") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-        InputSlot(experience)
+    }
+}
+
+@Serializable
+@SerialName("hollowengine:player/remove_xp_levels")
+class PlayerRemoveXpLevelsBlock : StatementBlock() {
+    val player by input<Player>()
+    val levels by input<Number>()
+
+    override suspend fun BlockContext.execute() {
+        player().giveExperienceLevels(-levels().toInt())
+    }
+
+    override fun InputSlotScope.composeContent() {
+        Text("Снять") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(levels)
+        Text("уровней опыта у игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(player)
+    }
+}
+
+@Serializable
+@SerialName("hollowengine:player/get_xp_points")
+class GetPlayerXpPointsBlock : ExpressionBlock() {
+    @Transient
+    override val expressionType: ExpressionType = typeOf<Number>()
+    val player by input<Player>()
+    override suspend fun BlockContext.execute(): Any? {
+        return player().totalExperience
+    }
+    override fun InputSlotScope.composeContent() {
+        Text("очки опыта игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(player)
+    }
+}
+
+@Serializable
+@SerialName("hollowengine:player/get_xp_levels")
+class GetPlayerXpLevelsBlock : ExpressionBlock() {
+    @Transient
+    override val expressionType: ExpressionType = typeOf<Number>()
+    val player by input<Player>()
+    override suspend fun BlockContext.execute(): Any? {
+        return player().experienceLevel
+    }
+    override fun InputSlotScope.composeContent() {
+        Text("уровни опыта игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(player)
+    }
+}
+
+@Serializable
+@SerialName("hollowengine:player/close_gui")
+class PlayerCloseGuiBlock : StatementBlock() {
+    val player by input<Player>()
+
+    override suspend fun BlockContext.execute() {
+        (player() as PlayerExtension).`hollowcore$closeContainer`()
+    }
+
+    override fun InputSlotScope.composeContent() {
+        Text("Закрыть интерфейс у") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        InputSlot(player)
     }
 }
 
