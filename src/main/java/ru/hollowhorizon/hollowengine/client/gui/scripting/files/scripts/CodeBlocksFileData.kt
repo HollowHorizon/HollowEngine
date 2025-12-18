@@ -14,10 +14,7 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockRepository
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.EntityModule
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.NPCModule
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.PlayerModule
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.StandardModules
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockSerializer
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -35,6 +32,7 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
         include(NPCModule)
         include(EntityModule)
         include(PlayerModule)
+        include(WorldModule)
     }
     val format = CodeBlockFormat(repository)
     val editor = BlockEditor(repository) {

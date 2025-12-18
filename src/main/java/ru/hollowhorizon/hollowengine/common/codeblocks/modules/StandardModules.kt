@@ -13,7 +13,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnStartBloc
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.math.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerDeathBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerJoinBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.GetPlayerByNameBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
 
 object StandardModules {
@@ -63,11 +63,18 @@ object StandardModules {
             block("Число") { NumberBlock() }
             block("Логический тип") { BoolBlock() }
             block("Координаты") { PositionBlock() }
+            block("Координаты блока") { BlockPosBlock() }
 
             block("Получить игрока", ::GetPlayerByNameBlock)
 
             block("Текстовый компонент") { TextComponentBlock() }
             block("Объединить компоненты") { TextMergerBlock() }
+
+            category("Миры", Color("ba9307"), icons("world")) {
+                block("Обычный мир") { GetOverworldBlock() }
+                block("Незер") { GetNetherBlock() }
+                block("Энд") { GetTheEndBlock() }
+            }
         }
     }
 
