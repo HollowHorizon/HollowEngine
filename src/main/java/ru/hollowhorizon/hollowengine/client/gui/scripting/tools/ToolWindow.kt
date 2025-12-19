@@ -70,7 +70,7 @@ fun UiScope.iconButton(
 
         val isHovered by modifier.hoverable()
         val color by animateColorAsState(
-            if (isHovered) IdeTheme.hoveredColors.background else colors.onBackground,
+            if (isHovered) IdeTheme.hoveredColors.background else colors.background,
             tween(easing = Easing.quadRev)
         )
 

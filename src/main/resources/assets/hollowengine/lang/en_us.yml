@@ -35,6 +35,7 @@ hollowengine:
       recipes: Recipe Editor
       console: Terminal
       autoruns: Auto runs
+      translations: Translations
 
       popups:
         create_folder: "Enter folder name:"
