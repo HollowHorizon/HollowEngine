@@ -10,9 +10,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.forget
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.remember
+import kotlin.coroutines.coroutineContext
 
 @Serializable
 @SerialName("hollowengine:loops/while")
@@ -20,9 +22,10 @@ class WhileBlock : StatementBlock(), ContainerBlock {
     val condition by input<Boolean>("cond")
     val body by input<Unit>("body")
 
-    override suspend fun BlockContext.execute() {
-        while (scope.isActive && condition()) {
+    override suspend fun execute() {
+        while (coroutineContext.isActive && remember("condition") { condition() }) {
             body()
+            forget("condition")
             // Небольшая задержка, чтобы не повесить поток при бесконечном цикле без yield
             delay(1)
         }
@@ -43,7 +46,7 @@ class WhileBlock : StatementBlock(), ContainerBlock {
 class DelayBlock : StatementBlock() {
     val time by input<Number>("time")
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         delay((time().toDouble() * 1000).toLong())
     }
 

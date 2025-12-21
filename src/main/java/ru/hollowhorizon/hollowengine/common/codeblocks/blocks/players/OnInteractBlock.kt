@@ -13,7 +13,6 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.events.await
@@ -26,7 +25,7 @@ class PlayerInteractWithEntity : StatementBlock() {
     val player by input<Player>("player")
     val entity by input<LivingEntity>("entity")
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         while (true) {
             val event = await<PlayerInteractEvent.EntityInteract>()
             if (event.player != player()) continue
@@ -54,7 +53,7 @@ class PlayerInteractWithBlock : StatementBlock() {
     @Transient
     val popup = AutoPopup(true, true)
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         while (true) {
             val event = await<PlayerInteractEvent.BlockInteract>()
             if (event.player != player()) continue
@@ -105,7 +104,7 @@ class PlayerInteractWithItem : StatementBlock(), StartBlock {
     @Transient
     val popup = AutoPopup(true, true)
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         while (true) {
             val event = await<PlayerInteractEvent.ItemInteract>()
             if (event.player != player()) continue

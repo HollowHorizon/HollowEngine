@@ -12,7 +12,6 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.calculateSpeedViaDeltaMovement
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -26,7 +25,7 @@ class NpcHealthBlock : ExpressionBlock() {
     override val expressionType: ExpressionType = typeOf<Number>()
     val npc by input<NpcEntity>()
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         return npc().health
     }
 
@@ -43,7 +42,7 @@ class NpcMaxHealthBlock : ExpressionBlock() {
     override val expressionType: ExpressionType = typeOf<Number>()
     val npc by input<NpcEntity>()
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         return npc().maxHealth
     }
 
@@ -60,7 +59,7 @@ class NpcSpeedBlock : ExpressionBlock() {
     override val expressionType: ExpressionType = typeOf<Number>()
     val npc by input<NpcEntity>()
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         return calculateSpeedViaDeltaMovement(npc())
     }
 
@@ -78,7 +77,7 @@ class NpcDistanceToBlock : ExpressionBlock() {
     val npc by input<NpcEntity>()
     val target by input<Any>()
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         val npc = npc()
         val target = target()
         return when (target) {
@@ -107,7 +106,7 @@ class NpcTeleportBlock : StatementBlock() {
     val npc by input<NpcEntity>()
     val position by input<Vec3>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val npc = npc()
         val pos = position()
         npc.teleportTo(pos.x, pos.y, pos.z)
@@ -127,7 +126,7 @@ class NpcSetTargetBlock : StatementBlock() {
     val npc by input<NpcEntity>()
     val target by input<LivingEntity>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         npc().target = target()
     }
 
@@ -143,7 +142,7 @@ class NpcSetTargetBlock : StatementBlock() {
 class NpcClearTargetBlock : StatementBlock() {
     val npc by input<NpcEntity>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         npc().target = null
     }
 
@@ -160,7 +159,7 @@ class NpcSetNameBlock : StatementBlock() {
     val npc by input<NpcEntity>()
     val name by input<String>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         npc().name = name()
     }
 
@@ -178,7 +177,7 @@ class NpcHealBlock : StatementBlock() {
     val npc by input<NpcEntity>()
     val amount by input<Number>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         npc().heal(amount().toFloat())
     }
 
@@ -195,7 +194,7 @@ class NpcHurtBlock : StatementBlock() {
     val npc by input<NpcEntity>()
     val amount by input<Number>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val npc = npc()
         npc.hurt(npc.damageSources().generic(), amount().toFloat())
     }
@@ -213,7 +212,7 @@ class NpcSetHealthBlock : StatementBlock() {
     val npc by input<NpcEntity>()
     val health by input<Number>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         npc().health = health().toFloat()
     }
 

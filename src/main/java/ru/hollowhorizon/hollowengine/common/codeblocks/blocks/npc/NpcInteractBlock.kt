@@ -6,7 +6,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.destroyBlock
@@ -20,7 +19,7 @@ class NpcInteractBlock : StatementBlock() {
 
     var modeInt = 0 // 0 = Use, 1 = Destroy
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         if (modeInt == 0) {
             npc().useBlock(pos())
         } else {

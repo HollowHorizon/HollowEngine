@@ -5,7 +5,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -25,7 +24,7 @@ class TextComponentBlock : ExpressionBlock() {
     var obfuscated = false
     var strikethrough = false
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         return Component.literal(text())
             .colored(textColor.toColor().toIntRGB())
             .apply { if (bold) bold() }
@@ -49,7 +48,7 @@ class TextMergerBlock : ExpressionBlock() {
 
     val components by inputList<Component>("components")
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         val merged = Component.empty()
         for (component in components()) {
             merged.append(component)

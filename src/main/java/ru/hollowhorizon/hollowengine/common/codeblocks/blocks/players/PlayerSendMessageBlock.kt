@@ -6,7 +6,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.utils.literal
 
@@ -17,7 +16,7 @@ class PlayerSendMessageBlock : StatementBlock() {
     val text by input<String>()
     var overlay = false
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val message = text().literal
         player().displayClientMessage(message, overlay)
     }

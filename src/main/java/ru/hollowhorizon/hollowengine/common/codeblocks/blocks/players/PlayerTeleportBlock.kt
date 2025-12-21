@@ -11,7 +11,6 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.getLevel
 
@@ -22,7 +21,7 @@ class PlayerTeleportBlock : StatementBlock() {
     val pos by input<Vec3>()
     val dimension by input<String>("dimension")
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val p = player()
         val target = pos()
         if (p is ServerPlayer) {

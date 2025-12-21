@@ -8,9 +8,11 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlockFrame
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.remember
+import kotlin.coroutines.coroutineContext
 
 @Serializable
 @SerialName("hollowengine:loops/repeat")
@@ -18,10 +20,16 @@ class RepeatBlock : StatementBlock(), ContainerBlock {
     val times by input<Int>("times")
     val body by input<Unit>("body")
 
-    override suspend fun BlockContext.execute() {
-        // TODO: Научить эту штуку считать с учётом сохранения
-        repeat(times()) {
+    override suspend fun execute() {
+        val frame = coroutineContext[BlockFrame.Key] ?: error("Block frame not found!")
+
+        val repeatTimes = remember("times") { times() }
+
+        val expectedTimes = repeatTimes - frame.tag.getInt("index")
+
+        repeat(expectedTimes) {
             body()
+            frame.tag.putInt("index", it)
         }
     }
 

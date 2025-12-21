@@ -10,7 +10,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -22,7 +21,7 @@ class PlayerSetFoodBlock : StatementBlock() {
     val entity by input<Player>("player")
     val food by input<Number>("food")
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         entity().foodData.foodLevel = food().toInt()
     }
 
@@ -40,7 +39,7 @@ class PlayerAddExhaustionBlock : StatementBlock() {
     val entity by input<Player>("player")
     val exhaustion by input<Number>("exhaustion")
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         entity().foodData.addExhaustion(exhaustion().toFloat())
     }
 
@@ -58,7 +57,7 @@ class PlayerSetSaturationBlock : StatementBlock() {
     val entity by input<Player>()
     val saturation by input<Number>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         entity().foodData.setSaturation(saturation().toFloat())
     }
 
@@ -77,7 +76,7 @@ class PlayerGetSaturationBlock : ExpressionBlock() {
     override val expressionType: ExpressionType = typeOf<Number>()
     val entity by input<Player>()
 
-    override suspend fun BlockContext.execute(): Any {
+    override suspend fun execute(): Any {
         return entity().foodData.saturationLevel
     }
 
@@ -94,7 +93,7 @@ class PlayerGetFoodBlock : ExpressionBlock() {
     override val expressionType: ExpressionType = typeOf<Number>()
     val entity by input<Player>()
 
-    override suspend fun BlockContext.execute(): Any {
+    override suspend fun execute(): Any {
         return entity().foodData.foodLevel
     }
 

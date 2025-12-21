@@ -10,7 +10,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -23,7 +22,7 @@ class GetPlayerByNameBlock : ExpressionBlock() {
     override val expressionType: ExpressionType = typeOf<Player>()
     val playerName by input<String>("name")
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         val name = playerName()
         return currentServer.playerList.getPlayerByName(name)
             ?: throw IllegalStateException("Player $name not found")

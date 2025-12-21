@@ -14,7 +14,6 @@ import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.NumberBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
@@ -30,7 +29,7 @@ class PositionBlock : ExpressionBlock() {
     val y by input<Number>()
     val z by input<Number>()
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         return Vec3(x().toDouble(), y().toDouble(), z().toDouble())
     }
 
@@ -82,7 +81,7 @@ class BlockPosBlock : ExpressionBlock() {
     val y by input<Number>()
     val z by input<Number>()
 
-    override suspend fun BlockContext.execute(): BlockPos {
+    override suspend fun execute(): BlockPos {
         return BlockPos(x().toInt(), y().toInt(), z().toInt())
     }
 
@@ -130,7 +129,7 @@ class GetOverworldBlock: ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<ResourceKey<Level>>()
 
-    override suspend fun BlockContext.execute(): ResourceKey<Level> = Level.OVERWORLD
+    override suspend fun execute(): ResourceKey<Level> = Level.OVERWORLD
 
     override fun InputSlotScope.composeContent() {
         DefaultText("Обычный Мир")
@@ -143,7 +142,7 @@ class GetNetherBlock: ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<ResourceKey<Level>>()
 
-    override suspend fun BlockContext.execute(): ResourceKey<Level> = Level.NETHER
+    override suspend fun execute(): ResourceKey<Level> = Level.NETHER
 
     override fun InputSlotScope.composeContent() {
         DefaultText("Незер")
@@ -156,7 +155,7 @@ class GetTheEndBlock: ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<ResourceKey<Level>>()
 
-    override suspend fun BlockContext.execute(): ResourceKey<Level> = Level.END
+    override suspend fun execute(): ResourceKey<Level> = Level.END
 
     override fun InputSlotScope.composeContent() {
         DefaultText("Энд")

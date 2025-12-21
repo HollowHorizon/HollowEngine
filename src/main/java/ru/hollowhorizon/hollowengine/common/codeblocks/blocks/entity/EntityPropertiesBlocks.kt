@@ -16,7 +16,6 @@ import net.minecraft.world.entity.Pose
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -30,7 +29,7 @@ class EntityIsAttackable : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute(): Boolean {
+    override suspend fun execute(): Boolean {
         val entity = entity()
         return entity.isAttackable
     }
@@ -49,7 +48,7 @@ class EntityIsSwimming : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute(): Boolean {
+    override suspend fun execute(): Boolean {
         val entity = entity()
         return entity.isSwimming
     }
@@ -68,7 +67,7 @@ class EntityIsUnderwater : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute(): Boolean {
+    override suspend fun execute(): Boolean {
         val entity = entity()
         return entity.isUnderWater
     }
@@ -87,7 +86,7 @@ class EntityIsAlive : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute(): Boolean {
+    override suspend fun execute(): Boolean {
         val entity = entity()
         return entity.isAlive
     }
@@ -106,7 +105,7 @@ class EntityIsAggressive : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute(): Boolean {
+    override suspend fun execute(): Boolean {
         val entity = entity()
         return if (entity is Mob) entity.isAggressive else false
     }
@@ -125,7 +124,7 @@ class EntityIsOnFire : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute(): Boolean {
+    override suspend fun execute(): Boolean {
         val entity = entity()
         return entity.isOnFire
     }
@@ -144,7 +143,7 @@ class EntityIsInLava : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute(): Boolean {
+    override suspend fun execute(): Boolean {
         val entity = entity()
         return entity.isInLava
     }
@@ -163,7 +162,7 @@ class EntityIsInvisible : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute(): Boolean {
+    override suspend fun execute(): Boolean {
         val entity = entity()
         return entity.isInvisible
     }
@@ -183,7 +182,7 @@ class EntityIsInvulnerable : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute(): Boolean {
+    override suspend fun execute(): Boolean {
         val entity = entity()
         return entity.isInvulnerable
     }
@@ -202,7 +201,7 @@ class EntityIsStanding : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute(): Boolean {
+    override suspend fun execute(): Boolean {
         val entity = entity()
         return entity.hasPose(Pose.STANDING)
     }
@@ -221,7 +220,7 @@ class EntityIsSleeping : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute(): Boolean {
+    override suspend fun execute(): Boolean {
         val entity = entity()
         return entity.hasPose(Pose.SLEEPING)
     }
@@ -240,7 +239,7 @@ class EntityIsCrouching : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute(): Boolean {
+    override suspend fun execute(): Boolean {
         val entity = entity()
         return entity.hasPose(Pose.CROUCHING)
     }
@@ -259,7 +258,7 @@ class EntityIsSitting : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute(): Boolean {
+    override suspend fun execute(): Boolean {
         val entity = entity()
         return entity.hasPose(Pose.SITTING)
     }
@@ -280,7 +279,7 @@ class EntityIsRunning : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute(): Boolean {
+    override suspend fun execute(): Boolean {
         val entity = entity()
         return entity.hasPose(Pose.CROUCHING)
     }
@@ -299,7 +298,7 @@ class EntityGetMainHandItem : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<ItemStack>()
 
-    override suspend fun BlockContext.execute(): ItemStack {
+    override suspend fun execute(): ItemStack {
         val entity = entity()
         return entity.getItemInHand(InteractionHand.MAIN_HAND)
     }
@@ -318,7 +317,7 @@ class EntityGetOffHandItem : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<ItemStack>()
 
-    override suspend fun BlockContext.execute(): ItemStack {
+    override suspend fun execute(): ItemStack {
         val entity = entity()
         return entity.getItemInHand(InteractionHand.OFF_HAND)
     }
@@ -337,7 +336,7 @@ class EntityGetLookAngle : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Vec3>()
 
-    override suspend fun BlockContext.execute(): Vec3 {
+    override suspend fun execute(): Vec3 {
         val entity = entity()
         return entity.lookAngle
     }
@@ -356,7 +355,7 @@ class EntityGetName : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<String>()
 
-    override suspend fun BlockContext.execute(): String {
+    override suspend fun execute(): String {
         val entity = entity()
         return entity.name.string
     }
@@ -375,7 +374,7 @@ class EntityGetPosition : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Vec3>()
 
-    override suspend fun BlockContext.execute(): Vec3 {
+    override suspend fun execute(): Vec3 {
         val entity = entity()
         return entity.position()
     }
@@ -392,7 +391,7 @@ class EntityHurtBlock : StatementBlock() {
     val entity by input<LivingEntity>()
     val amount by input<Number>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val npc = entity()
         npc.hurt(npc.damageSources().generic(), amount().toFloat())
     }
@@ -409,7 +408,7 @@ class EntityHurtBlock : StatementBlock() {
 class RemoveEntityBlock : StatementBlock() {
     val entity by input<LivingEntity>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         entity().remove(Entity.RemovalReason.DISCARDED)
     }
 
@@ -424,7 +423,7 @@ class RemoveEntityBlock : StatementBlock() {
 class EntityClearFire : StatementBlock() {
     val entity by input<LivingEntity>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         entity().clearFire()
     }
 
@@ -440,7 +439,7 @@ class PushEntityBlock : StatementBlock() {
     val entity by input<LivingEntity>()
     val position by input<Vec3>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val e = entity()
         val pos = position()
         e.push(pos.x, pos.y, pos.z)
@@ -459,7 +458,7 @@ class PushEntityBlock : StatementBlock() {
 class SwingMainHandBlock : StatementBlock() {
     val entity by input<LivingEntity>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val e = entity()
         e.swing(InteractionHand.MAIN_HAND)
     }
@@ -475,7 +474,7 @@ class SwingMainHandBlock : StatementBlock() {
 class SwingOffHandBlock : StatementBlock() {
     val entity by input<LivingEntity>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val e = entity()
         e.swing(InteractionHand.OFF_HAND)
     }

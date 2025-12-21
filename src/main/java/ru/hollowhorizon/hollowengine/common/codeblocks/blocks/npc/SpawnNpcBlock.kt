@@ -7,7 +7,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
@@ -22,7 +21,7 @@ class SpawnNpcBlock : ExpressionBlock() {
     val pos by input<Vec3>("pos")
     val name by input<String>("npc")
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
 
         val entity = npc(
             pos = pos(),

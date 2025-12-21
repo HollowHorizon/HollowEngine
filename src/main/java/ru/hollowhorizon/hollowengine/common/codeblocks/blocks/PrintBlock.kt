@@ -6,7 +6,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
 @Serializable
@@ -14,7 +13,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 class PrintBlock : StatementBlock() {
     val msg by input<Any>("msg")
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         HollowEngine.LOGGER.info(msg())
     }
 

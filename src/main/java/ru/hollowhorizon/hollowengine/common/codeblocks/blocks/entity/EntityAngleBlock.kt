@@ -10,7 +10,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -25,7 +24,7 @@ class EntityAngleBlock: ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
 
-    override suspend fun BlockContext.execute(): Number {
+    override suspend fun execute(): Number {
         return entity().angleTo(target())
     }
 

@@ -7,7 +7,6 @@ import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -21,7 +20,7 @@ class NpcMoveBlock : StatementBlock() {
     val target by input<Any>("target")
     val speed by input<Number>("speed")
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val target = target()
         val speed = speed().toDouble()
 

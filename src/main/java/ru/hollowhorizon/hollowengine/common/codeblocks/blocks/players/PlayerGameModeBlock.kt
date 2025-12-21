@@ -9,7 +9,6 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.GameType
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -21,7 +20,7 @@ class PlayerGameModeBlock : StatementBlock() {
     val player by input<Player>()
     var modeInt = 0 // 0=Survival, 1=Creative, 2=Adventure, 3=Spectator
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val p = player()
         if (p is ServerPlayer) {
             val mode = when (modeInt) {
@@ -54,7 +53,7 @@ class PlayerCheckGamemodeBlock : ExpressionBlock() {
     val player by input<Player>()
     var modeInt = 0
 
-    override suspend fun BlockContext.execute(): Any {
+    override suspend fun execute(): Any {
         val gm = (player() as ServerPlayer).gameMode.gameModeForPlayer
         return gm.id == modeInt
     }

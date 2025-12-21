@@ -7,7 +7,7 @@ import net.minecraft.nbt.NbtIo
 import net.minecraft.resources.ResourceKey
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.blockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -21,9 +21,9 @@ class PlaceSchematicBlock : StatementBlock() {
     val schematic by input<String>("schematic")
     val position by input<BlockPos>("pos")
 
-    override suspend fun BlockContext.execute() {
-        val level = server.getLevel(world()) ?: return
-        val resource = server.resourceManager.getResource(schematic().rl)
+    override suspend fun execute() {
+        val level = blockContext().server.getLevel(world()) ?: return
+        val resource = blockContext().server.resourceManager.getResource(schematic().rl)
             .orElseThrow()
 
         val schematic = resource.open().use { inputStream ->

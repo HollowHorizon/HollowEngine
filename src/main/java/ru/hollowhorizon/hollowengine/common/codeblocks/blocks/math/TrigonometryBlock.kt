@@ -6,7 +6,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import kotlin.math.*
@@ -24,7 +23,7 @@ class TrigonometryBlock(var op: TrigOp = TrigOp.SIN) : ExpressionBlock() {
 
     val angle by input<Number>("angle")
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         val value = angle().toDouble()
         return when (op) {
             TrigOp.SIN -> sin(value)

@@ -8,7 +8,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import kotlin.math.E
@@ -20,7 +19,7 @@ class PiBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Number>()
 
-    override suspend fun BlockContext.execute() = PI
+    override suspend fun execute() = PI
 
     override fun InputSlotScope.composeContent() {
         Text("π") {
@@ -35,7 +34,7 @@ class EBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Number>()
 
-    override suspend fun BlockContext.execute() = E
+    override suspend fun execute() = E
 
     override fun InputSlotScope.composeContent() {
         Text("e") {

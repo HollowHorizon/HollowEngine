@@ -1,99 +1,39 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
-import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.Tag
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlockFrame
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
-import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
-import ru.hollowhorizon.hollowengine.common.utils.serialization.deserializeNoInline
-import ru.hollowhorizon.hollowengine.common.utils.serialization.serializeNoInline
-import java.util.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.find
+import ru.hollowhorizon.hollowengine.common.codeblocks.scoped
+import kotlin.coroutines.coroutineContext
 
-open class CodeBlockInterpreter<T : Any>(var root: StatementBlock, val type: Class<T>) {
-    val rootUUID = root.uuid
+interface BlockModelInterpreter<T : Any> {
+    suspend fun execute(): T
+}
 
-    protected var currentUUID: UUID = root.uuid
-    protected var currentBlock: BlockModel = root
+class ExpressionBlockInterpreter<T : Any>(val expression: ExpressionBlock) : BlockModelInterpreter<T> {
+    override suspend fun execute(): T {
+        return expression.execute() as T
+    }
+}
 
+class CodeBlockInterpreter<T : Any>(val root: StatementBlock) : BlockModelInterpreter<T> {
     @Suppress("UNCHECKED_CAST")
-    open suspend fun execute(context: BlockContext): T {
-        var current: StatementBlock? = root
+    override suspend fun execute(): T {
+        val frame = coroutineContext[BlockFrame.Key] ?: error("No frame found")
+        val tag = frame.tag
+
+        var current: StatementBlock? =
+            if (tag.contains("uuid")) root.find(tag.getUUID("uuid"))
+            else root
+
         var result: Any? = null
         while (current != null) {
-            currentUUID = current.uuid
-            currentBlock = current
-            result = with(current) { context.execute() }
+            tag.putUUID("uuid", current.uuid)
+            val block: StatementBlock = current
+            result = scoped { block.execute() }
             current = current.next
         }
         return result as T
-    }
-
-    open fun serialize(tag: CompoundTag) {
-        tag.putUUID("uuid", currentUUID)
-        tag.put("block", CompoundTag().apply {
-            currentBlock.serialize(this)
-        })
-    }
-
-    open fun deserialize(tag: CompoundTag) {
-        currentUUID = tag.getUUID("uuid")
-        var current: StatementBlock = root
-        while (current.uuid != currentUUID) {
-            current = current.next ?: error("Input $currentUUID not attached!")
-        }
-        root = current
-        currentBlock = current
-
-        tag.getCompound("block").let {
-            currentBlock.deserialize(it)
-        }
-    }
-}
-
-class CachedCodeBlockInterpreter<T : Any>(root: StatementBlock, type: Class<T>) : CodeBlockInterpreter<T>(root, type) {
-    var value: Value<T>? = null
-    var isRestoring =
-        false // Используется, чтобы кэшированное значение сработало только 1 раз при запуске. Иначе циклы работать не будут
-
-    override suspend fun execute(context: BlockContext): T {
-        if (isRestoring) {
-            value?.let {
-                isRestoring = false
-                return it.value
-            }
-        }
-        val value = super.execute(context)
-        this.value = Value(value, type)
-        return value
-    }
-
-    override fun serialize(tag: CompoundTag) {
-        value?.let {
-            tag.put(CACHED_TAG, it.serialize())
-        } ?: run {
-            super.serialize(tag)
-        }
-    }
-
-    override fun deserialize(tag: CompoundTag) {
-        val cached = tag.get(CACHED_TAG) ?: return super.deserialize(tag)
-        value = Value.create(cached, type)
-        isRestoring = true
-    }
-
-    companion object {
-        const val CACHED_TAG = $$"$cached"
-    }
-}
-
-class Value<T : Any>(var value: T, val type: Class<T>) {
-    fun serialize(): Tag =
-        value.let { value -> NBTFormat.serializeNoInline(value, type) }
-
-    companion object {
-        fun <T : Any> create(tag: Tag, type: Class<T>): Value<T> {
-            return Value(NBTFormat.deserializeNoInline(tag, type), type)
-        }
     }
 }

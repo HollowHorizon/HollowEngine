@@ -11,7 +11,6 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.dropItem
@@ -26,7 +25,7 @@ class NpcDropItemBlock : StatementBlock() {
     @Transient
     val popup = AutoPopup(true, true)
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         npc().dropItem(item)
     }
 

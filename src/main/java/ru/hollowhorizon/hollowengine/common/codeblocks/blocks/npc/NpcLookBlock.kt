@@ -7,7 +7,6 @@ import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -20,7 +19,7 @@ class NpcLookBlock : StatementBlock() {
     val npc by input<NpcEntity>("npc")
     val target by input<Any>("target")
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val npcEntity = npc()
         val target = target()
 

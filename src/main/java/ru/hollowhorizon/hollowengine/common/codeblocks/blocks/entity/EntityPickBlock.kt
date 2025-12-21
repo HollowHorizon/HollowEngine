@@ -11,7 +11,6 @@ import kotlinx.serialization.Transient
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -25,7 +24,7 @@ class EntityPickBlock: ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Vec3>()
 
-    override suspend fun BlockContext.execute(): Vec3 {
+    override suspend fun execute(): Vec3 {
         val entity = entity()
         return entity.pick(distance().toDouble(), 0f, false).location
     }

@@ -12,7 +12,6 @@ import net.minecraft.world.effect.MobEffectInstance
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
@@ -26,7 +25,7 @@ class EntityAddEffectBlock : StatementBlock() {
     var effectRl: String = "minecraft:speed"
     var position = Vec2f.ZERO
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val effect = BuiltInRegistries.MOB_EFFECT.get(effectRl.rl) ?: return
         entity().addEffect(MobEffectInstance(effect, duration().toInt(), amplifier().toInt()))
     }
@@ -86,7 +85,7 @@ class EntityRemoveEffectBlock : StatementBlock() {
     var effectRl: String = "minecraft:speed"
     var position = Vec2f.ZERO
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val effect = BuiltInRegistries.MOB_EFFECT.get(effectRl.rl) ?: return
         entity().removeEffect(effect)
     }

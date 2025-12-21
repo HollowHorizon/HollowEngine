@@ -1,23 +1,26 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
-import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
-class InputDelegate<T : Any>(var name: String?, val type: ExpressionType, val returnType: Class<T>) :
+class InputDelegate<T : Any>(var name: String?, val type: ExpressionType) :
     ReadOnlyProperty<BlockModel, InputValue<T>> {
     lateinit var thisRef: BlockModel
-    private val interpreter: Lazy<CodeBlockInterpreter<T>> = lazy {
+    private val interpreter: Lazy<BlockModelInterpreter<T>> = lazy {
         val block = thisRef.inputs[name] ?: error("Input $name not attached!")
-        CachedCodeBlockInterpreter(block as StatementBlock, returnType)
+        when(block) {
+            is ExpressionBlock -> ExpressionBlockInterpreter(block)
+            is StatementBlock -> CodeBlockInterpreter(block)
+            else -> error("Unknown block $block at input $name!")
+        }
     }
 
     operator fun provideDelegate(thisRef: BlockModel, property: KProperty<*>): InputDelegate<T> {
         name = name ?: property.name
-        thisRef.inputDelegates[name!!] = this
         this.thisRef = thisRef
         return this
     }
@@ -27,14 +30,6 @@ class InputDelegate<T : Any>(var name: String?, val type: ExpressionType, val re
         property: KProperty<*>,
     ): InputValue<T> {
         return InterpreterValue(name!!, type, interpreter)
-    }
-
-    fun serialize(tag: CompoundTag) {
-        interpreter.value.serialize(tag)
-    }
-
-    fun deserialize(tag: CompoundTag) {
-        interpreter.value.deserialize(tag)
     }
 }
 
@@ -49,8 +44,9 @@ class InputListDelegate<T : Any>(var name: String?, val type: ExpressionType) {
             .filter { it.startsWith("${name}_") }
             .sortedBy { it.substringAfterLast("_").toIntOrNull() ?: Int.MAX_VALUE }
             .map {
-                val delegate = thisRef.inputDelegates[it] ?: error("Input $it not attached!")
-                delegate.getValue(thisRef, property) as InputValue<T>
+                val delegate = InputDelegate<T>(it, type)
+                delegate.provideDelegate(thisRef, property)
+                delegate.getValue(thisRef, property)
             }
 
         return ListValue(name ?: error("Name for list not defined!"), type, sortedKeys)

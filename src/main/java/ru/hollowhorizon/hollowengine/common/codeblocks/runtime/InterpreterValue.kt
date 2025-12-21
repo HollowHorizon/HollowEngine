@@ -1,17 +1,18 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.scoped
 
 class InterpreterValue<T: Any>(
     override val name: String,
     override val type: ExpressionType,
-    val interpreter: Lazy<CodeBlockInterpreter<T>>,
+    val interpreter: Lazy<BlockModelInterpreter<T>>,
 ) : InputValue<T> {
 
-    context(context: BlockContext)
     override suspend fun invoke(): T {
-        return interpreter.value.execute(context)
+        return scoped {
+            interpreter.value.execute()
+        }
     }
 }
 
@@ -21,7 +22,6 @@ class ListValue<T: Any>(
     val values: List<InputValue<T>>,
 ) : InputValue<List<T>> {
 
-    context(context: BlockContext)
     override suspend fun invoke(): List<T> {
         return values.map { it() }
     }

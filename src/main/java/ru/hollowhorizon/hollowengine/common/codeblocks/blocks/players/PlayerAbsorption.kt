@@ -10,7 +10,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -22,7 +21,7 @@ class PlayerSetAbsorption : StatementBlock() {
     val entity by input<Player>("player")
     val absorption by input<Number>("absorption")
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         entity().absorptionAmount = absorption().toFloat()
     }
 
@@ -41,7 +40,7 @@ class PlayerGetAbsorption : ExpressionBlock() {
     override val expressionType: ExpressionType = typeOf<Number>()
     val entity by input<Player>()
 
-    override suspend fun BlockContext.execute(): Any {
+    override suspend fun execute(): Any {
         return entity().absorptionAmount
     }
 

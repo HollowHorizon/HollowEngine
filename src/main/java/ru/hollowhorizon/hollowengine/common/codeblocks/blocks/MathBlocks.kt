@@ -6,8 +6,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
+import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.expressionTypeOrNull
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import kotlin.random.Random
 
 enum class MathOp(val symbol: String) {
@@ -31,7 +34,7 @@ class MathBlock(var op: MathOp = MathOp.ADD) : ExpressionBlock() {
     val a by input<Number>("a")
     val b by input<Number>("a")
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         val a = a().toDouble()
         val b = b().toDouble()
         return when (op) {
@@ -77,7 +80,7 @@ class RandomNumberBlock : ExpressionBlock() {
     val min by input<Number>("min")
     val max by input<Number>("max")
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         val minVal = min().toDouble()
         val maxVal = max().toDouble()
         return Random.nextDouble(minVal, maxVal)
@@ -106,7 +109,7 @@ class CompareBlock(var op: CompareOp = CompareOp.EQUALS) : ExpressionBlock() {
     val a by input<Number>("a")
     val b by input<Number>("b")
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         val resA = a().toDouble()
         val resB = b().toDouble()
 
@@ -155,7 +158,7 @@ class LogicBlock(var op: LogicOp = LogicOp.AND) : ExpressionBlock() {
     val a by input<Boolean>("a")
     val b by input<Boolean>("b")
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         val resA = a()
         val resB = b()
 
@@ -198,7 +201,7 @@ class NotBlock : ExpressionBlock() {
 
     val value by input<Boolean>("value")
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         return !(value())
     }
 
@@ -226,7 +229,7 @@ class TestBlock : ExpressionBlock() {
     val thenBranch by input<Any>("then")
     val elseBranch by input<Any>("else")
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         return if (test()) thenBranch()
         else elseBranch()
     }
@@ -262,7 +265,7 @@ class NumberBlock(var value: Double = 0.0) : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Number>()
 
-    override suspend fun BlockContext.execute() = value
+    override suspend fun execute() = value
 
     override fun InputSlotScope.composeContent() {
         TextField(value.toString()) {
@@ -279,7 +282,7 @@ class BoolBlock(var value: Boolean = true) : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Boolean>()
 
-    override suspend fun BlockContext.execute() = value
+    override suspend fun execute() = value
 
     override fun InputSlotScope.composeContent() {
         Checkbox(value) {

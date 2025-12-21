@@ -12,7 +12,6 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.ai.attributes.AttributeModifier
 import net.minecraft.world.entity.ai.attributes.Attributes
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -25,7 +24,7 @@ class EntitySetBaseSpeed : StatementBlock() {
     val entity by input<LivingEntity>("entity")
     val speed by input<Number>("speed")
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val entity = entity()
         val attribute = entity.attributes.getInstance(Attributes.MOVEMENT_SPEED) ?: return
         val modifier = AttributeModifier(
@@ -53,7 +52,7 @@ class EntityGetBaseSpeed : ExpressionBlock() {
     override val expressionType: ExpressionType = typeOf<Number>()
     val entity by input<LivingEntity>()
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         return entity().attributes.getInstance(Attributes.MOVEMENT_SPEED)?.getModifier(MODIFIER)?.amount ?: 1.0
     }
 

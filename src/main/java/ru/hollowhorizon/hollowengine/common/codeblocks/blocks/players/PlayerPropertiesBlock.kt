@@ -17,7 +17,6 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -33,7 +32,7 @@ class PlayerHealthBlock : ExpressionBlock() {
     override val expressionType: ExpressionType = typeOf<Number>()
     val player by input<Player>()
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         return player().health
     }
 
@@ -50,7 +49,7 @@ class PlayerMaxHealthBlock : ExpressionBlock() {
     override val expressionType: ExpressionType = typeOf<Number>()
     val player by input<Player>()
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         return player().maxHealth
     }
 
@@ -66,7 +65,7 @@ class PlayerHealBlock : StatementBlock() {
     val player by input<Player>()
     val amount by input<Number>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         player().heal(amount().toFloat())
     }
 
@@ -84,7 +83,7 @@ class PlayerSetHealthBlock : StatementBlock() {
     val player by input<Player>()
     val health by input<Number>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         player().health = health().toFloat()
     }
 
@@ -102,7 +101,7 @@ class PlayerGiveXpPointsBlock : StatementBlock() {
     val player by input<Player>()
     val amount by input<Number>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         player().giveExperiencePoints(amount().toInt())
     }
 
@@ -120,7 +119,7 @@ class PlayerGiveXpLevelsBlock : StatementBlock() {
     val player by input<Player>()
     val levels by input<Number>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         player().giveExperienceLevels(levels().toInt())
     }
 
@@ -138,7 +137,7 @@ class PlayerRemoveXpLevelsBlock : StatementBlock() {
     val player by input<Player>()
     val levels by input<Number>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         player().giveExperienceLevels(-levels().toInt())
     }
 
@@ -156,7 +155,7 @@ class GetPlayerXpPointsBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val player by input<Player>()
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         return player().totalExperience
     }
 
@@ -172,7 +171,7 @@ class GetPlayerXpLevelsBlock : ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val player by input<Player>()
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         return player().experienceLevel
     }
 
@@ -187,7 +186,7 @@ class GetPlayerXpLevelsBlock : ExpressionBlock() {
 class PlayerCloseGuiBlock : StatementBlock() {
     val player by input<Player>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         (player() as PlayerExtension).`hollowcore$closeContainer`()
     }
 
@@ -206,7 +205,7 @@ class PlayerSetRespawn : StatementBlock() {
     val forced by input<Boolean>()
     val sendMessage by input<Boolean>()
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val player = player() as ServerPlayer
         val dimension = ResourceKey.create(Registries.DIMENSION, dimension().rl)
         player.setRespawnPosition(dimension, pos().block, player.yHeadRot, true, false)
@@ -263,7 +262,7 @@ class PlayerHasItemBlock() : ExpressionBlock() {
     @Transient
     val popup = AutoPopup(true, true)
 
-    override suspend fun BlockContext.execute(): Any? {
+    override suspend fun execute(): Any? {
         val p = player()
         return p.inventory.items.any { ItemStack.isSameItemSameTags(it, item) && it.count >= item.count }
     }
@@ -309,7 +308,7 @@ class PlayerRemoveItemBlock : StatementBlock() {
     @Transient
     val popup = AutoPopup(true, true)
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val p = player()
         val inventory = p.inventory
         for (i in 0 until inventory.containerSize) {

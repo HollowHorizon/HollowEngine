@@ -9,7 +9,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.events.await
@@ -21,7 +20,7 @@ import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 class OnPlayerJoinBlock : StatementBlock(), StartBlock {
     private val player by input<Player>("player")
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         do {
             val event = await<PlayerEvent.Join>()
             val joinedPlayer = event.player
@@ -39,7 +38,7 @@ class OnPlayerJoinBlock : StatementBlock(), StartBlock {
 class OnPlayerDeathBlock : StatementBlock(), StartBlock {
     private val player by input<Player>("player")
 
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         while (true) {
             val event = await<LivingEntityDeathEvent>()
             if (event.entity == player()) return

@@ -7,6 +7,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.findColorFor
+import ru.hollowhorizon.hollowengine.common.codeblocks.flatten
 import ru.hollowhorizon.hollowengine.common.codeblocks.isRoot
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock

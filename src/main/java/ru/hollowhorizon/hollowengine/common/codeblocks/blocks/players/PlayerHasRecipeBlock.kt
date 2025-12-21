@@ -9,7 +9,6 @@ import kotlinx.serialization.Transient
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -24,7 +23,7 @@ class PlayerHasRecipeBlock : ExpressionBlock() {
     var recipeRl: String = "minecraft:crafting_table"
     var position = Vec2f.ZERO
 
-    override suspend fun BlockContext.execute(): Any {
+    override suspend fun execute(): Any {
         val p = player() as ServerPlayer
         // Проверка рецепта через книгу рецептов
         return p.recipeBook.contains(recipeRl.rl)

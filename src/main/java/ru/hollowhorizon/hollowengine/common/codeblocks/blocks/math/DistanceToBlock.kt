@@ -11,7 +11,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import kotlin.math.PI
@@ -25,7 +24,7 @@ class DistanceToBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Vec3>()
 
-    override suspend fun BlockContext.execute() = PI
+    override suspend fun execute() = PI
 
     override fun InputSlotScope.composeContent() {
         Text("Расстояние между") {
@@ -47,7 +46,7 @@ class VectorLengthBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Number>()
 
-    override suspend fun BlockContext.execute() = vector().length()
+    override suspend fun execute() = vector().length()
 
     override fun InputSlotScope.composeContent() {
         Text("Длина вектора") {
@@ -65,7 +64,7 @@ class NormalizeVectorBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Vec3>()
 
-    override suspend fun BlockContext.execute(): Vec3 = vector().normalize()
+    override suspend fun execute(): Vec3 = vector().normalize()
 
     override fun InputSlotScope.composeContent() {
         Text("Нормализовать") {
@@ -84,7 +83,7 @@ class VectorMultiplyScalarBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Vec3>()
 
-    override suspend fun BlockContext.execute(): Vec3 {
+    override suspend fun execute(): Vec3 {
         val vec = vector()
         val scl = scalar().toDouble()
         return Vec3(vec.x * scl, vec.y * scl, vec.z * scl)
@@ -110,7 +109,7 @@ class VectorGetXBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Number>()
 
-    override suspend fun BlockContext.execute(): Double = vector().x
+    override suspend fun execute(): Double = vector().x
 
     override fun InputSlotScope.composeContent() {
         Text("Координата X вектора") {
@@ -128,7 +127,7 @@ class VectorGetYBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Number>()
 
-    override suspend fun BlockContext.execute(): Double = vector().y
+    override suspend fun execute(): Double = vector().y
 
     override fun InputSlotScope.composeContent() {
         Text("Координата Y вектора") {
@@ -146,7 +145,7 @@ class VectorGetZBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Number>()
 
-    override suspend fun BlockContext.execute(): Double = vector().z
+    override suspend fun execute(): Double = vector().z
 
     override fun InputSlotScope.composeContent() {
         Text("Координата Z вектора") {

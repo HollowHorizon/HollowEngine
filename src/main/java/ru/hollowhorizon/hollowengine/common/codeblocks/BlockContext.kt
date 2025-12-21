@@ -1,76 +1,35 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
-import kotlinx.coroutines.*
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.decodeFromStream
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.server.MinecraftServer
-import net.minecraft.world.entity.LivingEntity
+import net.minecraft.nbt.ListTag
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.EndBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.*
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.CachedCodeBlockInterpreter
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.CodeBlockInterpreter
-import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
-import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockSerializer
-import ru.hollowhorizon.hollowengine.common.codeblocks.variables.LivingEntityContainer
-import ru.hollowhorizon.hollowengine.common.codeblocks.variables.SerializableVariableContainer
 import ru.hollowhorizon.hollowengine.common.codeblocks.variables.VariableContainer
-import ru.hollowhorizon.hollowengine.common.components.Component
-import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
-import ru.hollowhorizon.hollowengine.common.coroutines.dispatcher
-import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.server.ServerEvent
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
-import ru.hollowhorizon.hollowengine.common.utils.rl
-import java.io.File
 import java.util.*
 
-class CodeBlocksComponent(server: MinecraftServer) : Component<MinecraftServer>(server) {
-    val contexts = mutableListOf<BlockContext>()
-
-    override fun serialize(tag: CompoundTag) {
-        contexts.forEach {
-            tag.put(it.file, CompoundTag().apply(it::save))
-            it.scope.cancel()
-        }
-    }
-
-    override fun deserialize(compound: CompoundTag) {
-        contexts.forEach { it.scope.cancel() }
-        contexts.clear()
-        compound.allKeys.forEach { file ->
-            val context = createScript(file.fromReadablePath(), owner)
-            context.load(compound.getCompound(file))
-            context.launch()
-        }
-    }
-}
-
-@SubscribeEvent
-fun onServerStart(event: ServerEvent.Starting) {
-    (event.server as ComponentDispatcher).container.attach("hollowengine:code_blocks_component".rl)
-}
 
 class BlockContext(val scope: CoroutineScope, val file: String) {
     val server = currentServer
+
     val variables = mutableMapOf<String, VariableContainer<*>>()
-    val interpreters = mutableSetOf<CodeBlockInterpreter<Unit>>()
     val functions = mutableMapOf<String, CustomBlock>()
 
-    private val onLoad = mutableListOf<suspend () -> Unit>()
+    val context = hashMapOf<UUID, BlockContextElement>()
+    val interpreters = mutableSetOf<CodeBlockInterpreter<Unit>>()
 
     fun addBlock(block: StatementBlock) {
-        if (block !is StartBlock) return
-        if (block is EndBlock) return
+        assert(block is StartBlock) { "Root block must be a Start block!" }
+        assert(block !is EndBlock) { "Start block can't be a End block!" }
 
-        val interpreter = CachedCodeBlockInterpreter(block, Unit::class.java)
+        val interpreter = CodeBlockInterpreter<Unit>(block)
+        context[block.uuid] = BlockContextElement(this)
         interpreters += interpreter
     }
 
@@ -79,77 +38,34 @@ class BlockContext(val scope: CoroutineScope, val file: String) {
     }
 
     fun launch() {
-        val loader = scope.launch {
-            onLoad.forEach {
-                if (this.isActive) {
-                    it()
-                }
-            }
-        }
-
-        interpreters.forEach {
+        interpreters.forEach { interpreter ->
             scope.launch {
-                loader.join()
-                it.execute(this@BlockContext)
+                withContext(context[interpreter.root.uuid] ?: error("Context not found!")) {
+                    scoped {
+                        interpreter.execute()
+                    }
+                }
             }
         }
     }
 
     fun save(tag: CompoundTag) {
-        val context = CompoundTag()
-        interpreters.forEach {
-            context.put(it.rootUUID.toString(), CompoundTag().apply(it::serialize))
-        }
-        val variables = CompoundTag()
-        this.variables.forEach { (key, container) ->
-            val tag = CompoundTag().apply(container::save)
-            tag.putString("type", container.type)
-            variables.put(key, tag)
-        }
-        tag.put("context", context)
-        tag.put("variables", variables)
+        tag.put("context", CompoundTag().apply {
+            context.forEach { (key, value) ->
+                val list = ListTag()
+                list.addAll(value.frames.map { it.tag })
+                put(key.toString(), list)
+            }
+        })
     }
 
     fun load(tag: CompoundTag) {
-        val context = tag.getCompound("context")
-        context.allKeys.forEach { key ->
-            val uuid = UUID.fromString(key)
-            interpreters.find { it -> it.rootUUID == uuid }?.deserialize(context.getCompound(key))
-        }
-        val variables = tag.getCompound("variables")
-        variables.allKeys.forEach { key ->
-            val tag = variables.getCompound(key)
-            val type = tag.getString("type")
-            this.variables[key] = when (type) {
-                "hollowengine:serializable_value" ->
-                    SerializableVariableContainer(Int.serializer()) //TODO: fix generic serialization
-                "hollowengine:living_entity" -> LivingEntityContainer<LivingEntity>()
-                else -> error("Unknown variable container type: $type")
-            }
-            onLoad += {
-                this.variables[key]?.load(tag)
-            }
+        context.clear()
+        val nbt = tag.getCompound("context")
+        nbt.allKeys.forEach { key ->
+            val element = BlockContextElement(this)
+            element.frames += nbt.getList(key, 10).map { BlockFrame(it as CompoundTag) }
+            context[UUID.fromString(key)] = element
         }
     }
-}
-
-@OptIn(ExperimentalSerializationApi::class)
-fun createScript(file: File, server: MinecraftServer = currentServer): BlockContext {
-    val repository = BlockRepository.create("Скрипт") {
-        include(StandardModules.AllBasics)
-        include(NPCModule)
-        include(EntityModule)
-        include(WorldModule)
-        include(PlayerModule)
-    }
-    val format = CodeBlockFormat(repository)
-    val blocks = format.json.decodeFromStream(CodeBlockSerializer(format), file.inputStream())
-    return createScript(server, blocks, file.toReadablePath())
-}
-
-fun createScript(server: MinecraftServer, rootBlocks: List<BlockModel>, file: String): BlockContext {
-    val context = BlockContext(CoroutineScope(server.dispatcher + SupervisorJob()), file)
-    rootBlocks.filterIsInstance<StatementBlock>().forEach { context.addBlock(it) }
-    rootBlocks.filterIsInstance<CustomBlock>().forEach { context.addFunction(it) }
-    return context
 }

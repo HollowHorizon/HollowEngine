@@ -6,7 +6,7 @@ import kotlinx.serialization.*
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.blockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.variables.LivingEntityContainer
@@ -19,10 +19,10 @@ class SetVarBlock(var varName: String = "var") : StatementBlock() {
     val value by input<Any>("value")
 
     @OptIn(InternalSerializationApi::class)
-    override suspend fun BlockContext.execute() {
+    override suspend fun execute() {
         val value = value()
 
-        variables[varName] = when(value) {
+        blockContext().variables[varName] = when(value) {
             isSerializable() -> SerializableVariableContainer(value::class.serializer())
             is LivingEntity -> LivingEntityContainer()
             else -> throw IllegalArgumentException("Variable '$varName' cannot be serialized!")
@@ -50,8 +50,8 @@ class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
     @Transient
     override val expressionType = AnyType
 
-    override suspend fun BlockContext.execute(): Any? {
-        return variables[varName]
+    override suspend fun execute(): Any? {
+        return blockContext().variables[varName]
     }
 
     override fun InputSlotScope.composeContent() {
@@ -71,8 +71,8 @@ class GetVarInlineBlock(val name: String) : ExpressionBlock() {
     @Transient
     override val expressionType = AnyType
 
-    override suspend fun BlockContext.execute(): Any? {
-        return variables[name]
+    override suspend fun execute(): Any? {
+        return blockContext().variables[name]
     }
 
     override fun InputSlotScope.composeContent() {
