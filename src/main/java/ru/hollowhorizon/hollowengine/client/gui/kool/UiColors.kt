@@ -28,7 +28,7 @@ object UiColors {
     val selectionChild = Color("ff7b0080")
 }
 
-fun ColumnScope.menuDivider(
+fun UiScope.menuDivider(
     marginStart: Dp = sizes.editorPanelMarginStart,
     marginEnd: Dp = sizes.editorPanelMarginEnd,
     marginTop: Dp = sizes.smallGap,

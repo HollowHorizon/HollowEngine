@@ -18,10 +18,8 @@ fun <T : BlockModel> T.deepCopy(provider: BlockProvider): T {
     clone.uuid = UUID.randomUUID()
     clone.color = color
     (clone as? StatementBlock)?.parent = null
-    (clone as? ExpressionBlock)?.let {
-        it.parentBlock = null
-        it.parentInputName = null
-    }
+    clone.parentBlock = null
+    clone.parentInputName = null
 
     this.inputs.forEach { (slotName, inputBlock) ->
         val inputClone = inputBlock.deepCopy(provider)
@@ -56,9 +54,8 @@ fun BlockModel.isStatement(): Boolean {
 
 val BlockModel.isRoot: Boolean
     get() = when (this) {
-        is StatementBlock -> parent == null
-        is ExpressionBlock -> parentBlock == null
-        else -> true
+        is StatementBlock -> parent == null && parentBlock == null
+        else -> parentBlock == null
     }
 
 val BlockModel.parentsWithSelf: Sequence<BlockModel>
@@ -74,12 +71,10 @@ val BlockModel.parents: Sequence<BlockModel>
                 yieldAll(it.parents)
             }
 
-            is ExpressionBlock -> parentBlock?.let {
+            else -> parentBlock?.let {
                 yield(it)
                 yieldAll(it.parents)
             }
-
-            else -> return@sequence
         }
     }
 

@@ -12,6 +12,7 @@ import ru.hollowhorizon.hollowengine.client.audio.UIAudio
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.kool.menuDivider
+import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.util.Node
 
@@ -53,8 +54,8 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
         var subMenuNode by remember<UiNode?>(null)
         val withIcons = items.any { (it is MenuItem && it.icon != null) || (it is SubMenuItem && it.icon != null) }
 
-        menuColumn(x, y, z) {
-            items.forEach { item ->
+        menuColumn(x, y, z, items.count { it !is Divider }) {
+            items(items) { item ->
                 when (item) {
                     is MenuItem -> {
                         Row(width = Grow.Std) {
@@ -161,14 +162,37 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
         }
     }
 
-    private inline fun UiScope.menuColumn(x: Dp, y: Dp, z: Int, block: ColumnScope.() -> Unit) = Column {
-        modifier
-            .margin(start = x, top = y)
-            .background(RoundRectBackground(colors.backgroundMid, sizes.smallGap))
-            .border(RoundRectBorder(colors.secondaryVariant, sizes.smallGap, sizes.borderWidth))
-            .padding(sizes.smallGap)
-            .zLayer(z)
-        block()
+    private inline fun UiScope.menuColumn(
+        x: Dp,
+        y: Dp,
+        z: Int,
+        itemsCount: Int,
+        crossinline block: LazyListScope.() -> Unit
+    ) {
+        val height = (Dp.roundToWholePx(sizes.normalText.textDimensions("|").height)) * itemsCount.coerceAtMost(10)
+        LazyColumn(
+            width = FitContent,
+            height = height,
+            containerModifier = {
+                it.margin(start = x, top = y)
+                    .background(RoundRectBackground(colors.backgroundMid, sizes.smallGap))
+                    .border(RoundRectBorder(colors.secondaryVariant, sizes.smallGap, sizes.borderWidth))
+                    .padding(sizes.smallGap)
+                    .zLayer(z + 500)
+            },
+            vScrollbarModifier = {
+                it.zLayer(z + 500)
+                    .width(sizes.smallGap).margin(sizes.smallGap)
+                    .colors(
+                        trackColor = EditorTheme.Scrollbar.trackColor,
+                        trackHoverColor = EditorTheme.Scrollbar.trackHover,
+                        color = EditorTheme.Scrollbar.color,
+                        hoverColor = EditorTheme.Scrollbar.hoverColor,
+                    )
+            }) {
+
+            block()
+        }
     }
 
     class ContextItemHolder<T>(val item: T)

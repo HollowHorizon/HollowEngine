@@ -21,7 +21,7 @@ object VarIntSerializer {
         val input = ByteArrayInputStream(bytes)
         val result = ArrayList<Int>(expectedSize)
         for (i in 0 until expectedSize) {
-            result[i] = readVarInt(input)
+            result.add(i, readVarInt(input))
         }
         return result
     }

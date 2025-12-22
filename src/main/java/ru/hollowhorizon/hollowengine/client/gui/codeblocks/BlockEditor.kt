@@ -11,15 +11,12 @@ import de.fabmax.kool.util.set
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockProvider
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlocksScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.isExpression
+import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.*
-import ru.hollowhorizon.hollowengine.common.codeblocks.parentCount
 
 class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : BlocksScope {
     val controller = BlockController()
-    override val rootBlocks = mutableStateListOf<BlockModel>()
+    override val rootBlocks: MutableStateList<BlockModel> = MutableStateList(ObservableBlockList(this))
 
 
     private val snapAnimations = mutableListOf<SnapAnimation>()
@@ -117,7 +114,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         isGhost: Boolean = false,
     ) {
         Column {
-            val isRoot = rootBlocks.contains(block)
+            val isRoot = rootBlocks.use().contains(block)
             modifier.width(if (isRoot) FitContent else Grow.Std)
 
             val isDragging = controller.isDragging(block)
@@ -143,7 +140,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                     modifier.width(Grow.Std)
 
                     Column {
-                        modifier.width(Grow.Std)
+                        modifier.width(FitContent)
 
                         val isHovered = remember { mutableStateOf(false) }
 
@@ -259,8 +256,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         blockModifier: UiModifier.() -> Unit,
     ) {
         Box {
-            val marginLeft = if (block.isExpression()) Dp.fromPx(PuzzleShapes.TAB_WIDTH) else 0.dp
-            modifier.width(Grow.Std).margin(start = marginLeft).apply(blockModifier)
+            modifier.apply(blockModifier)
 
             val bgColor = if (isGhost) block.color.withAlpha(0.5f) else block.color
             val color by animateColorAsState(
@@ -282,7 +278,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
             with(block) {
                 Row(Grow.Std) {
-                    modifier.margin(start = marginLeft).apply(blockModifier)
+                    modifier.apply(blockModifier)
                     modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
 
                     InputSlotScope(this@BlockEditor, this, block, isHovered.use(), isGhost).composeContent()

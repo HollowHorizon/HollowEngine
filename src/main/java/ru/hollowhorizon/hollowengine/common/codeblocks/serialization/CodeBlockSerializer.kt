@@ -10,7 +10,6 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.findColorFor
 import ru.hollowhorizon.hollowengine.common.codeblocks.flatten
 import ru.hollowhorizon.hollowengine.common.codeblocks.isRoot
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import java.util.*
 
@@ -98,8 +97,6 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockM
                 val inputUuid = UUID.fromString(uuidElement.jsonPrimitive.content)
                 val inputBlock = nodeMap[inputUuid]
                     ?: throw SerializationException("Block $uuid input '$slotName' refers to missing block $inputUuid")
-
-                inputBlock as ExpressionBlock
 
                 currentBlock.inputs[slotName] = inputBlock
                 inputBlock.parentBlock = currentBlock

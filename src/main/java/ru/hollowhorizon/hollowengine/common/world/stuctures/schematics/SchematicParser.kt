@@ -6,7 +6,9 @@ import net.minecraft.core.BlockPos
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.Tag
+import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.HollowCore
 
 object SchematicParser {
 
@@ -33,9 +35,15 @@ object SchematicParser {
 
             val paletteMap = mutableMapOf<Int, BlockInput>()
             paletteTag.allKeys.forEach { key ->
-                val state = BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK.asLookup(), key, true)
+                val key = key.replace("short_grass", "grass")
+                try {
+                    val state = BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK.asLookup(), key, true)
 
-                paletteMap[paletteTag.getInt(key)] = BlockInput(state.blockState, state.properties.keys, state.nbt)
+                    paletteMap[paletteTag.getInt(key)] = BlockInput(state.blockState, state.properties.keys, state.nbt)
+                } catch (e: Exception) {
+                    HollowCore.LOGGER.error("Error parsing $key", e)
+                    paletteMap[paletteTag.getInt(key)] = BlockInput(Blocks.BEDROCK.defaultBlockState(), emptySet(), null)
+                }
             }
 
             val rawData = blocksTag.getByteArray("Data")

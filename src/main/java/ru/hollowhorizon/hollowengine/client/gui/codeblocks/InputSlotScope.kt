@@ -91,46 +91,39 @@ class InputSlotScope(
             )
             Box {
                 modifier
-                    .width(Dp.Companion.fromPx(BlockEditor.Companion.C_BLOCK_SPINE_WIDTH) - sizes.smallGap * 0.5f)
-                    .height(Grow.Companion.Std)
+                    .width(Dp.fromPx(BlockEditor.C_BLOCK_SPINE_WIDTH) - sizes.smallGap * 0.5f)
+                    .height(Grow.Std)
                     .background(SpineBackground(color))
             }
 
-            Box { modifier.size(sizes.smallGap * 0.5f, Grow.Companion.Std) }
+            Box { modifier.size(sizes.smallGap * 0.5f, Grow.Std) }
 
             Column {
-                modifier.width(Grow.Companion.Std)
+                modifier.width(Grow.Std)
 
                 Box {
                     if (attached == null) {
                         modifier.height(30.dp).width(100.dp)
                         if (isTargeted) modifier.background(
                             ScratchBlockBackground(
-                                Color.Companion.WHITE.withAlpha(0.2f),
+                                Color.WHITE.withAlpha(0.2f),
                                 isExpression = false,
                                 hasNext = true,
                                 drawInnerShadow = true
                             )
                         )
                     } else {
-                        modifier.height(sizes.smallGap).width(Grow.Companion.Std)
+                        modifier.height(sizes.smallGap).width(Grow.Std)
                     }
                     editor.controller.addDropTarget(DropAction.AttachToInput(parentBlock, name, true), uiNode)
                 }
 
                 if (attached != null) {
-                    if (editor.controller.draggingBlock == attached) {
-                        Box {
-                            modifier.size(50.dp, 20.dp)
-                                .background(RectBackground(Color.Companion.WHITE.withAlpha(0.1f)))
-                        }
-                    } else {
-                        renderBlockRecursively(attached, isGhost)
-                    }
+                    renderBlockRecursively(attached, isGhost)
                 }
 
                 Box {
-                    modifier.height(sizes.smallGap).width(Grow.Companion.Std)
+                    modifier.height(sizes.smallGap).width(Grow.Std)
                 }
             }
         }
@@ -143,14 +136,14 @@ class InputSlotScope(
             tween(0.2f, Easing.quadRev)
         )
         Row {
-            modifier.width(Grow.Companion.Std).height(FitContent)
+            modifier.width(Grow.Std).height(FitContent)
             Box {
-                modifier.width(Grow.Companion.Std).height(30.dp)
+                modifier.width(Grow.Std).height(30.dp)
                 modifier.background(ContainerMiddleBackground(color))
                 Text(label) {
                     modifier.alignY(AlignmentY.Center)
-                        .margin(start = Dp.Companion.fromPx(BlockEditor.Companion.C_BLOCK_SPINE_WIDTH + 10f))
-                        .textColor(Color.Companion.WHITE).bold()
+                        .margin(start = Dp.fromPx(BlockEditor.C_BLOCK_SPINE_WIDTH + 10f))
+                        .textColor(Color.WHITE).bold()
                 }
             }
         }

@@ -7,7 +7,6 @@ import de.fabmax.kool.modules.ui2.ScrollPaneNode
 import de.fabmax.kool.modules.ui2.UiNode
 import de.fabmax.kool.modules.ui2.UiScope
 import ru.hollowhorizon.hollowengine.client.audio.UIAudio
-import ru.hollowhorizon.hollowengine.client.gui.overlay.ChatOverlay.surface
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
@@ -65,7 +64,6 @@ class BlockController {
             }
         }
         potentialAction = bestAction
-        surface.triggerUpdate()
     }
 
     context(editor: BlockEditor) fun handleDragEnd(block: BlockModel) {
@@ -89,10 +87,9 @@ class BlockController {
         val existingBlock = target.inputs[slotName]
         if (existingBlock != null) {
             target.inputs[slotName] = newBlock
-            if (newBlock.isExpression()) {
-                newBlock.parentBlock = target
-                newBlock.parentInputName = slotName
-            }
+            newBlock.parentBlock = target
+            newBlock.parentInputName = slotName
+
 
             if (newBlock.isStatement()) {
                 newBlock.parent = null
@@ -124,17 +121,15 @@ class BlockController {
     private fun insertBlockBefore(target: BlockModel, newBlock: BlockModel) {
         editor.rootBlocks.remove(newBlock)
         val parent = (target as? StatementBlock)?.parent
-        val parentBlock = (target as? ExpressionBlock)?.parentBlock
+        val parentBlock = target.parentBlock
         if (parent != null) {
             parent.next = newBlock as StatementBlock
             newBlock.parent = parent
         } else if (parentBlock != null) {
             val slotName = target.parentInputName!!
             parentBlock.inputs[slotName] = newBlock
-            if (newBlock.isExpression()) {
-                newBlock.parentBlock = parentBlock
-                newBlock.parentInputName = slotName
-            }
+            newBlock.parentBlock = parentBlock
+            newBlock.parentInputName = slotName
             target.parentBlock = null
             target.parentInputName = null
         } else {
@@ -180,12 +175,10 @@ class BlockController {
                 block.parent = null
             }
         }
-        if (block.isExpression()) {
-            block.parentBlock?.let { p ->
-                p.inputs.remove(block.parentInputName)
-                block.parentBlock = null
-                block.parentInputName = null
-            }
+        block.parentBlock?.let { p ->
+            p.inputs.remove(block.parentInputName)
+            block.parentBlock = null
+            block.parentInputName = null
         }
         if (!editor.rootBlocks.contains(block)) {
             UIAudio.CONNECT.play()
@@ -212,7 +205,6 @@ class BlockController {
                 parent.next = nextBlock
                 nextBlock?.parent = parent
             } ?: run {
-                editor.rootBlocks.remove(block)
                 if (nextBlock != null) {
                     editor.rootBlocks.add(nextBlock)
                     nextBlock.positionX.set(block.positionX.value)
@@ -225,16 +217,15 @@ class BlockController {
             block.next = null
         }
 
-        if (block.isExpression()) {
-            block.parentBlock?.let { parentContainer ->
-                val slotName = block.parentInputName ?: return@let
+        block.parentBlock?.let { parentContainer ->
+            val slotName = block.parentInputName ?: return@let
 
-                parentContainer.inputs.remove(slotName)
-            }
-            block.parentBlock = null
-            block.parentInputName = null
-
+            parentContainer.inputs.remove(slotName)
         }
+        block.parentBlock = null
+        block.parentInputName = null
+        editor.rootBlocks.remove(block)
+
 
         editor.notifyChanged()
     }

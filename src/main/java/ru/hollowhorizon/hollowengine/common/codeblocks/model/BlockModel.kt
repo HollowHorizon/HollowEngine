@@ -6,8 +6,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlocksScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
-import ru.hollowhorizon.hollowengine.common.codeblocks.isExpression
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputDelegate
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputListDelegate
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -17,6 +17,13 @@ import java.util.*
 @Serializable
 abstract class BlockModel {
     var uuid: @Serializable(ForStringUUID::class) UUID = UUID.randomUUID()
+
+
+    @Transient
+    var parentBlock: BlockModel? = null
+
+    @Transient
+    var parentInputName: String? = null
 
     @Transient
     var color: Color = Color.Companion.RED
@@ -35,10 +42,8 @@ abstract class BlockModel {
 
     fun attachInput(slotName: String, block: BlockModel) {
         inputs[slotName] = block
-        if (block.isExpression()) {
-            block.parentBlock = this
-            block.parentInputName = slotName
-        }
+        block.parentInputName = slotName
+        block.parentBlock = this
     }
 
     inline fun <reified T : Any> input(name: String? = null) = InputDelegate<T>(
@@ -55,4 +60,14 @@ abstract class BlockModel {
     abstract suspend fun execute(): Any?
 
     abstract fun InputSlotScope.composeContent()
+
+    @Transient
+    private var _explicitScope: BlocksScope? = null
+
+    val scope: BlocksScope?
+        get() = _explicitScope ?: (this as? StatementBlock)?.parent?.scope ?: parentBlock?.scope
+
+    fun setExplicitScope(scope: BlocksScope?) {
+        _explicitScope = scope
+    }
 }
