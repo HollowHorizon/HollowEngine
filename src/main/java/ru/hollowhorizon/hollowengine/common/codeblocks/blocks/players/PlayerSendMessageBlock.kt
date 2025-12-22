@@ -28,7 +28,7 @@ class PlayerSendMessageBlock : StatementBlock() {
         ComboBox {
             modifier.width(FitContent).items(listOf("Чат", "Панель действий"))
                 .background(RoundRectBackground(Color.BLACK.withAlpha(0.15f), sizes.smallGap))
-                .zLayer(1000)
+                .zLayer(modifier.zLayer + 10)
                 .margin(sizes.smallGap).padding(sizes.smallGap)
                 .selectedIndex(if (overlay) 1 else 0)
                 .onItemSelected { overlay = (it == 1) }

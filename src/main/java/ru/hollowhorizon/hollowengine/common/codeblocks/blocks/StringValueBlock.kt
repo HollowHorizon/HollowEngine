@@ -6,6 +6,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 
@@ -20,7 +21,12 @@ class StringValueBlock(var value: String) : ExpressionBlock() {
         TextField(value) {
             modifier.onChange { value = it; notifyChanged() }
                 .hint("Значение").font(font)
-                .colors(lineColor = Color.Companion.WHITE, textColor = Color.Companion.WHITE)
+                .colors(
+                    lineColor = Color.WHITE,
+                    textColor = Color.WHITE,
+                    selectionColor = EditorTheme.selection,
+                    cursorColor = EditorTheme.caret
+                )
         }
     }
 }

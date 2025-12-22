@@ -6,6 +6,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.expressionTypeOrNull
@@ -269,9 +270,14 @@ class NumberBlock(var value: Double = 0.0) : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         TextField(value.toString()) {
-            modifier.width(60.dp)
+            modifier
                 .onChange { value = it.toDoubleOrNull() ?: 0.0; notifyChanged() }
-                .colors(lineColor = Color.WHITE.withAlpha(0f), textColor = Color.WHITE)
+                .colors(
+                    lineColor = Color.WHITE,
+                    textColor = Color.WHITE,
+                    selectionColor = EditorTheme.selection,
+                    cursorColor = EditorTheme.caret
+                )
         }
     }
 }
