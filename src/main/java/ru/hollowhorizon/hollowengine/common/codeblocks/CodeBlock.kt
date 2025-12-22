@@ -58,6 +58,12 @@ val BlockModel.isRoot: Boolean
         else -> parentBlock == null
     }
 
+val BlockModel.root: BlockModel
+    get() = when {
+        isStatement() -> parent?.root ?: parentBlock?.root ?: this
+        else -> parentBlock?.root ?: this
+    }
+
 val BlockModel.parentsWithSelf: Sequence<BlockModel>
     get() = sequence {
         yield(this@parentsWithSelf)
