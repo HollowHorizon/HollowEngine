@@ -8,9 +8,7 @@ import de.fabmax.kool.modules.ui2.UiNode
 import de.fabmax.kool.modules.ui2.UiScope
 import ru.hollowhorizon.hollowengine.client.audio.UIAudio
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.*
 
 class BlockController {
     private val dropTargets = mutableListOf<Pair<DropAction, UiNode>>()
@@ -24,8 +22,18 @@ class BlockController {
     }
 
     fun isDragging(block: BlockModel) = draggingBlock in block.parentsWithSelf
-    fun canAttachBefore(block: BlockModel) = (potentialAction as? DropAction.InsertBefore)?.target == block
-    fun canAttachAfter(block: BlockModel) = (potentialAction as? DropAction.AttachAfter)?.target == block
+    fun canAttachBefore(block: BlockModel): Boolean {
+        val target = (potentialAction as? DropAction.InsertBefore)?.target
+        if (draggingBlock is EndBlock || target is StartBlock) return false
+        return target == block
+    }
+
+    fun canAttachAfter(block: BlockModel): Boolean {
+        val target = (potentialAction as? DropAction.AttachAfter)?.target
+        if (draggingBlock is StartBlock || target is EndBlock) return false
+        return target == block
+    }
+
     fun canAttachToInput(block: BlockModel, inputName: String) =
         (potentialAction as? DropAction.AttachToInput)?.let { it.target == block && it.inputName == inputName } == true
 
@@ -68,13 +76,24 @@ class BlockController {
 
     context(editor: BlockEditor) fun handleDragEnd(block: BlockModel) {
         potentialAction?.let { action ->
-            triggerSnapEffect(action)
-            UIAudio.CONNECT.play()
             when (action) {
-                is DropAction.InsertBefore -> insertBlockBefore(action.target, block)
-                is DropAction.AttachAfter -> attachBlockAfter(action.target, block as StatementBlock)
-                is DropAction.AttachToInput -> attachBlockToInput(action.target, action.inputName, block)
+                is DropAction.InsertBefore if (canAttachBefore(action.target)) -> {
+                    insertBlockBefore(action.target, block)
+                }
+
+                is DropAction.AttachAfter if (canAttachAfter(action.target)) -> {
+                    attachBlockAfter(action.target, block as StatementBlock)
+                }
+
+                is DropAction.AttachToInput if (canAttachToInput(action.target, action.inputName)) -> {
+                    attachBlockToInput(action.target, action.inputName, block)
+                }
+
+                else -> return
             }
+
+            UIAudio.CONNECT.play()
+            triggerSnapEffect(action)
         }
         draggingBlock = null
         potentialAction = null
