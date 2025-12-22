@@ -32,11 +32,12 @@ class ColorHSV() : Composable {
     override fun UiScope.compose() {
         Box(sizes.largeGap * 1.5f, sizes.largeGap * 1.5f) {
             modifier.background(RoundRectBackground(toColor(), sizes.smallGap))
-                .zLayer(800)
+                .zLayer(modifier.zLayer + 800)
                 .border(RoundRectBorder(Color.WHITE, sizes.smallGap, sizes.borderWidth))
                 .onClick {
                     popup.popupContent = {
                         modifier.padding(sizes.smallGap)
+                            .zLayer(100_100_100)
 
                         ColorChooserH(
                             hue = hue,

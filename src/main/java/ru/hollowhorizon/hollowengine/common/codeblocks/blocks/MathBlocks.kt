@@ -52,6 +52,8 @@ class MathBlock(var op: MathOp = MathOp.ADD) : ExpressionBlock() {
         // Кликабельный текст для смены операции
         Box {
             modifier
+                .size(sizes.largeGap, sizes.largeGap)
+                .alignY(AlignmentY.Center)
                 .margin(horizontal = 4.dp)
                 .padding(horizontal = 4.dp, vertical = 2.dp)
                 .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), sizes.largeGap))
@@ -63,9 +65,9 @@ class MathBlock(var op: MathOp = MathOp.ADD) : ExpressionBlock() {
                     surface.triggerUpdate()
                     notifyChanged()
                 }
-                .zLayer(UiSurface.LAYER_DEFAULT)
+                .zLayer(modifier.zLayer + 10)
 
-            Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center).bold() }
+            Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center).alignY(AlignmentY.Center).bold() }
         }
 
         InputSlot(b)
@@ -130,6 +132,7 @@ class CompareBlock(var op: CompareOp = CompareOp.EQUALS) : ExpressionBlock() {
         // Кликабельный текст для смены операции
         Box {
             modifier
+                .size(sizes.largeGap, sizes.largeGap).alignY(AlignmentY.Center)
                 .margin(horizontal = 4.dp)
                 .padding(horizontal = 4.dp, vertical = 2.dp)
                 .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), sizes.largeGap))
@@ -142,8 +145,9 @@ class CompareBlock(var op: CompareOp = CompareOp.EQUALS) : ExpressionBlock() {
                     notifyChanged()
                 }
                 .alignY(AlignmentY.Center)
+                .zLayer(modifier.zLayer + 10)
 
-            Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center).bold() }
+            Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center).alignY(AlignmentY.Center).bold() }
         }
 
         InputSlot(b)
@@ -173,8 +177,9 @@ class LogicBlock(var op: LogicOp = LogicOp.AND) : ExpressionBlock() {
         InputSlot(a)
         Box {
             modifier
-                .margin(horizontal = 4.dp)
-                .padding(horizontal = 4.dp, vertical = 2.dp)
+                .size(FitContent, sizes.largeGap)
+                .alignY(AlignmentY.Center)
+                .padding(horizontal = sizes.smallGap)
                 .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), sizes.largeGap))
                 .onClick {
                     if (it.pointer.isLeftButtonClicked) {
@@ -184,9 +189,10 @@ class LogicBlock(var op: LogicOp = LogicOp.AND) : ExpressionBlock() {
                     surface.triggerUpdate()
                     notifyChanged()
                 }
+                .zLayer(modifier.zLayer + 10)
 
             Text(op.symbol) {
-                modifier.textColor(Color.WHITE).alignX(AlignmentX.Center).bold()
+                modifier.textColor(Color.WHITE).alignX(AlignmentX.Center).alignY(AlignmentY.Center).bold()
             }
         }
 
