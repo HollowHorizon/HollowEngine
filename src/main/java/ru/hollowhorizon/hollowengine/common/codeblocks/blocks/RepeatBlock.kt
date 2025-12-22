@@ -17,13 +17,13 @@ import kotlin.coroutines.coroutineContext
 @Serializable
 @SerialName("hollowengine:loops/repeat")
 class RepeatBlock : StatementBlock(), ContainerBlock {
-    val times by input<Int>("times")
+    val times by input<Number>("times")
     val body by input<Unit>("body")
 
     override suspend fun execute() {
         val frame = coroutineContext[BlockFrame.Key] ?: error("Block frame not found!")
 
-        val repeatTimes = remember("times") { times() }
+        val repeatTimes = remember("times") { times().toInt() }
 
         val expectedTimes = repeatTimes - frame.tag.getInt("index")
 
