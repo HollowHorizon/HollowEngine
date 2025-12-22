@@ -33,7 +33,7 @@ class MathBlock(var op: MathOp = MathOp.ADD) : ExpressionBlock() {
     override val expressionType = typeOf<Number>()
 
     val a by input<Number>("a")
-    val b by input<Number>("a")
+    val b by input<Number>("b")
 
     override suspend fun execute(): Any? {
         val a = a().toDouble()

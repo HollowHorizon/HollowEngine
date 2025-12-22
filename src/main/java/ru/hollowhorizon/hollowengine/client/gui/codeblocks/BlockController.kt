@@ -78,7 +78,7 @@ class BlockController {
         potentialAction?.let { action ->
             when (action) {
                 is DropAction.InsertBefore if (canAttachBefore(action.target)) -> {
-                    insertBlockBefore(action.target, block)
+                    insertBlockBefore(action.target, block as StatementBlock)
                 }
 
                 is DropAction.AttachAfter if (canAttachAfter(action.target)) -> {
@@ -130,20 +130,34 @@ class BlockController {
         newBlock.parent = target
         var tail = newBlock
         while (tail.next != null) tail = tail.next!!
+
         if (oldNext != null) {
-            tail.next = oldNext
-            oldNext.parent = tail
+            if(oldNext is EndBlock) {
+                oldNext.parent = null
+                editor.rootBlocks.add(oldNext)
+            } else {
+                tail.next = oldNext
+                oldNext.parent = tail
+            }
         }
     }
 
     context(editor: BlockEditor)
-    private fun insertBlockBefore(target: BlockModel, newBlock: BlockModel) {
+    private fun insertBlockBefore(target: BlockModel, newBlock: StatementBlock) {
         editor.rootBlocks.remove(newBlock)
         val parent = (target as? StatementBlock)?.parent
         val parentBlock = target.parentBlock
         if (parent != null) {
-            parent.next = newBlock as StatementBlock
-            newBlock.parent = parent
+            if(newBlock is StartBlock) {
+                editor.rootBlocks.add(newBlock)
+                parent.next = null
+                target.parent = newBlock
+                newBlock.next = target
+                return
+            } else {
+                parent.next = newBlock
+                newBlock.parent = parent
+            }
         } else if (parentBlock != null) {
             val slotName = target.parentInputName!!
             parentBlock.inputs[slotName] = newBlock
@@ -156,7 +170,7 @@ class BlockController {
             editor.rootBlocks.add(newBlock)
             if (newBlock.isStatement()) newBlock.parent = null
         }
-        var tail = newBlock as? StatementBlock ?: return
+        var tail = newBlock
         while (tail.next != null) tail = tail.next!!
         tail.next = target as? StatementBlock ?: return
         target.parent = tail
