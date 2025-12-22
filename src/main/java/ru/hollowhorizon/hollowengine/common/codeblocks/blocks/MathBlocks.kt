@@ -286,7 +286,7 @@ class BoolBlock(var value: Boolean = true) : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         Checkbox(value) {
-            modifier.onToggle { this@BoolBlock.value = it; notifyChanged() }
+            modifier.onToggle { this@BoolBlock.value = it; surface.triggerUpdate(); notifyChanged() }
         }
     }
 }
