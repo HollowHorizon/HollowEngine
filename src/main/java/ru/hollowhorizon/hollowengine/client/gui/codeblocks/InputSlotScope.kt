@@ -93,6 +93,7 @@ class InputSlotScope(
                 modifier
                     .width(Dp.fromPx(BlockEditor.C_BLOCK_SPINE_WIDTH))
                     .height(Grow.Std)
+                    .zLayer(modifier.zLayer + 1)
                     .background(SpineBackground(color))
             }
 
