@@ -13,13 +13,13 @@ class ScratchBlockBackground(
     val isContainerHeader: Boolean = false,
     val drawInnerShadow: Boolean = false,
 ) : UiRenderer<UiNode> {
-    // Настройки зубчиков
-    private val notchWidth = 30f
-    private val notchHeight = 8f
-    private val notchX = 20f
-    private val r = PuzzleShapes.CORNER_RADIUS
 
     override fun renderUi(node: UiNode) = with(node) {
+        val notchWidth = sizes.gap * 1.5f
+        val notchHeight = sizes.smallGap * 0.75f
+        val notchX = sizes.gap
+        val r = sizes.smallGap
+
         val w = node.widthPx
         val h = node.heightPx
         val x = 0f
@@ -27,46 +27,49 @@ class ScratchBlockBackground(
         val points = mutableListOf<Vec3f>()
 
         if (isExpression) {
-            PuzzleShapes.addBezier(points, x, y + r, x, y, x + r, y)
-            points.add(Vec3f(x + w - r, y, 0f))
-            PuzzleShapes.addBezier(points, x + w - r, y, x + w, y, x + w, y + r)
-            PuzzleShapes.addBezier(points, x + w, y + h - r, x + w, y + h, x + w - r, y + h)
-            points.add(Vec3f(x + r, y + h, 0f))
-            PuzzleShapes.addBezier(points, x + r, y + h, x, y + h, x, y + h - r)
+            PuzzleShapes.addBezier(points, x, y + r.px, x, y, x + r.px, y)
+            points.add(Vec3f(x + w - r.px, y, 0f))
+            PuzzleShapes.addBezier(points, x + w - r.px, y, x + w, y, x + w, y + r.px)
+            PuzzleShapes.addBezier(points, x + w, y + h - r.px, x + w, y + h, x + w - r.px, y + h)
+            points.add(Vec3f(x + r.px, y + h, 0f))
+            PuzzleShapes.addBezier(points, x + r.px, y + h, x, y + h, x, y + h - r.px)
 
-            val tyStart = (h - PuzzleShapes.TAB_HEIGHT) / 2f
-            points.add(Vec3f(x, tyStart + PuzzleShapes.TAB_HEIGHT, 0f))
-            points.add(Vec3f(x - PuzzleShapes.TAB_WIDTH, tyStart + PuzzleShapes.TAB_HEIGHT - 5f, 0f))
-            points.add(Vec3f(x - PuzzleShapes.TAB_WIDTH, tyStart + 5f, 0f))
+            val width = Dp(4f).px
+            val height = Dp(12f).px
+
+            val tyStart = (h - height) / 2f
+            points.add(Vec3f(x, tyStart + height, 0f))
+            points.add(Vec3f(x - width, tyStart + height - notchHeight.px, 0f))
+            points.add(Vec3f(x - width, tyStart + notchHeight.px, 0f))
             points.add(Vec3f(x, tyStart, 0f))
         } else {
-            PuzzleShapes.addBezier(points, x, y + r, x, y, x + r, y)
+            PuzzleShapes.addBezier(points, x, y + r.px, x, y, x + r.px, y)
 
             if (hasPrev) {
-                points.add(Vec3f(x + notchX, y, 0f))
-                points.add(Vec3f(x + notchX + 5f, y + notchHeight, 0f))
-                points.add(Vec3f(x + notchX + notchWidth - 5f, y + notchHeight, 0f))
-                points.add(Vec3f(x + notchX + notchWidth, y, 0f))
+                points.add(Vec3f(x + notchX.px, y, 0f))
+                points.add(Vec3f(x + notchX.px + notchHeight.px, y + notchHeight.px, 0f))
+                points.add(Vec3f(x + notchX.px + notchWidth.px - notchHeight.px, y + notchHeight.px, 0f))
+                points.add(Vec3f(x + notchX.px + notchWidth.px, y, 0f))
             }
 
-            PuzzleShapes.addBezier(points, x + w - r, y, x + w, y, x + w, y + r)
-            PuzzleShapes.addBezier(points, x + w, y + h - r, x + w, y + h, x + w - r, y + h)
+            PuzzleShapes.addBezier(points, x + w - r.px, y, x + w, y, x + w, y + r.px)
+            PuzzleShapes.addBezier(points, x + w, y + h - r.px, x + w, y + h, x + w - r.px, y + h)
 
             if (isContainerHeader) {
-                val innerNotchX = BlockEditor.C_BLOCK_SPINE_WIDTH + notchX
-                points.add(Vec3f(x + innerNotchX + notchWidth, y + h, 0f))
-                points.add(Vec3f(x + innerNotchX + notchWidth - 5f, y + h + notchHeight, 0f))
-                points.add(Vec3f(x + innerNotchX + 5f, y + h + notchHeight, 0f))
+                val innerNotchX = BlockEditor.C_BLOCK_SPINE_WIDTH + notchX.px
+                points.add(Vec3f(x + innerNotchX + notchWidth.px, y + h, 0f))
+                points.add(Vec3f(x + innerNotchX + notchWidth.px - notchHeight.px, y + h + notchHeight.px, 0f))
+                points.add(Vec3f(x + innerNotchX + notchHeight.px, y + h + notchHeight.px, 0f))
                 points.add(Vec3f(x + innerNotchX, y + h, 0f))
                 points.add(Vec3f(x, y + h, 0f))
             } else {
                 if (hasNext) {
-                    points.add(Vec3f(x + notchX + notchWidth, y + h, 0f))
-                    points.add(Vec3f(x + notchX + notchWidth - 5f, y + h + notchHeight, 0f))
-                    points.add(Vec3f(x + notchX + 5f, y + h + notchHeight, 0f))
-                    points.add(Vec3f(x + notchX, y + h, 0f))
+                    points.add(Vec3f(x + notchX.px + notchWidth.px, y + h, 0f))
+                    points.add(Vec3f(x + notchX.px + notchWidth.px - notchHeight.px, y + h + notchHeight.px, 0f))
+                    points.add(Vec3f(x + notchX.px + notchHeight.px, y + h + notchHeight.px, 0f))
+                    points.add(Vec3f(x + notchX.px, y + h, 0f))
                 }
-                PuzzleShapes.addBezier(points, x + r, y + h, x, y + h, x, y + h - r)
+                PuzzleShapes.addBezier(points, x + r.px, y + h, x, y + h, x, y + h - r.px)
             }
         }
 
@@ -81,7 +84,7 @@ class ScratchBlockBackground(
             if (drawInnerShadow) {
                 PuzzleShapes.drawInnerShadow(
                     points,
-                    width = 5f,
+                    width = 1f.dp.px,
                     color = Color.BLACK.withAlpha(0.5f)
                 )
             }
@@ -93,12 +96,13 @@ class ContainerFooterBackground(
     val color: Color,
     val hasNext: Boolean = true
 ) : UiRenderer<UiNode> {
-    private val notchWidth = 30f
-    private val notchHeight = 8f
-    private val notchX = 20f
-    private val r = PuzzleShapes.CORNER_RADIUS
 
     override fun renderUi(node: UiNode) = with(node) {
+        val notchWidth = (sizes.gap * 1.5f).px
+        val notchHeight = (sizes.smallGap * 0.75f).px
+        val notchX = sizes.gap.px
+        val r = sizes.smallGap.px
+
         val w = node.widthPx
         val h = node.heightPx
         val x = 0f
@@ -109,8 +113,8 @@ class ContainerFooterBackground(
 
         points.add(Vec3f(x, y, 0f))
         points.add(Vec3f(x + innerNotchX, y, 0f))
-        points.add(Vec3f(x + innerNotchX + 5f, y + notchHeight, 0f))
-        points.add(Vec3f(x + innerNotchX + notchWidth - 5f, y + notchHeight, 0f))
+        points.add(Vec3f(x + innerNotchX + notchHeight, y + notchHeight, 0f))
+        points.add(Vec3f(x + innerNotchX + notchWidth - notchHeight, y + notchHeight, 0f))
         points.add(Vec3f(x + innerNotchX + notchWidth, y, 0f))
 
         PuzzleShapes.addBezier(points, x + w - r, y, x + w, y, x + w, y + r)
@@ -118,8 +122,8 @@ class ContainerFooterBackground(
 
         if (hasNext) {
             points.add(Vec3f(x + notchX + notchWidth, y + h, 0f))
-            points.add(Vec3f(x + notchX + notchWidth - 5f, y + h + notchHeight, 0f))
-            points.add(Vec3f(x + notchX + 5f, y + h + notchHeight, 0f))
+            points.add(Vec3f(x + notchX + notchWidth - notchHeight, y + h + notchHeight, 0f))
+            points.add(Vec3f(x + notchX + notchHeight, y + h + notchHeight, 0f))
             points.add(Vec3f(x + notchX, y + h, 0f))
         }
 
@@ -133,12 +137,13 @@ class ContainerFooterBackground(
 }
 
 class ContainerMiddleBackground(val color: Color) : UiRenderer<UiNode> {
-    private val notchWidth = 30f
-    private val notchHeight = 8f
-    private val notchX = 20f
-    private val spineW = BlockEditor.C_BLOCK_SPINE_WIDTH
 
     override fun renderUi(node: UiNode) = with(node) {
+        val notchWidth = (sizes.gap * 1.5f).px
+        val notchHeight = (sizes.smallGap * 0.75f).px
+        val notchX = sizes.gap.px
+        val spineW = sizes.gap.px
+
         val w = node.widthPx
         val h = node.heightPx
         val x = 0f
@@ -149,16 +154,16 @@ class ContainerMiddleBackground(val color: Color) : UiRenderer<UiNode> {
 
         points.add(Vec3f(x, y, 0f))
         points.add(Vec3f(x + innerNotchX, y, 0f))
-        points.add(Vec3f(x + innerNotchX + 5f, y + notchHeight, 0f))
-        points.add(Vec3f(x + innerNotchX + notchWidth - 5f, y + notchHeight, 0f))
+        points.add(Vec3f(x + innerNotchX + notchHeight, y + notchHeight, 0f))
+        points.add(Vec3f(x + innerNotchX + notchWidth - notchHeight, y + notchHeight, 0f))
         points.add(Vec3f(x + innerNotchX + notchWidth, y, 0f))
 
         points.add(Vec3f(x + w, y, 0f))
         points.add(Vec3f(x + w, y + h, 0f))
 
         points.add(Vec3f(x + innerNotchX + notchWidth, y + h, 0f))
-        points.add(Vec3f(x + innerNotchX + notchWidth - 5f, y + h + notchHeight, 0f))
-        points.add(Vec3f(x + innerNotchX + 5f, y + h + notchHeight, 0f))
+        points.add(Vec3f(x + innerNotchX + notchWidth - notchHeight, y + h + notchHeight, 0f))
+        points.add(Vec3f(x + innerNotchX + notchHeight, y + h + notchHeight, 0f))
         points.add(Vec3f(x + innerNotchX, y + h, 0f))
         points.add(Vec3f(x, y + h, 0f))
 
@@ -191,8 +196,8 @@ class SpineBackground(val color: Color) : UiRenderer<UiNode> {
             val si0 = vertex { it.position.set(0f, 0f, 0f); it.color.set(shadowColor) }
             val si1 = vertex { it.position.set(0f, h, 0f); it.color.set(shadowColor) }
 
-            val so0 = vertex { it.position.set(-radius, offsetY, 0f); it.color.set(transparent) }
-            val so1 = vertex { it.position.set(-radius, h + offsetY, 0f); it.color.set(transparent) }
+            val so0 = vertex { it.position.set(-radius.px, offsetY.px, 0f); it.color.set(transparent) }
+            val so1 = vertex { it.position.set(-radius.px, h + offsetY.px, 0f); it.color.set(transparent) }
 
             addTriIndices(si0, so0, so1)
             addTriIndices(si0, so1, si1)

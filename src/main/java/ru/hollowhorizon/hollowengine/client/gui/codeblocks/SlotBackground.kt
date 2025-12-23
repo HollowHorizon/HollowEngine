@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
 import de.fabmax.kool.math.Vec3f
+import de.fabmax.kool.modules.ui2.Dp
 import de.fabmax.kool.modules.ui2.UiNode
 import de.fabmax.kool.modules.ui2.UiRenderer
 import de.fabmax.kool.modules.ui2.UiSurface
@@ -26,7 +27,7 @@ class SlotBackground(val color: Color, val isHovered: Boolean) : UiRenderer<UiNo
         PuzzleShapes.addBezier(points, x + w, y + h - r, x + w, y + h, x + w - r, y + h) // Bottom-Right
         PuzzleShapes.addBezier(points, x + r, y + h, x, y + h, x, y + h - r) // Bottom-Left
 
-        val tabDepth = PuzzleShapes.TAB_WIDTH
+        val tabDepth = Dp(4f).px
 
         val bottomTabY = y + tyStart + tabH
         if (bottomTabY < y + h - r - 0.1f) {

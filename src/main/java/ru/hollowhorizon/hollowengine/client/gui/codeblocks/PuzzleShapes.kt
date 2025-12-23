@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
 import de.fabmax.kool.math.Vec3f
+import de.fabmax.kool.modules.ui2.Dp
 import de.fabmax.kool.modules.ui2.UiVertexLayout
 import de.fabmax.kool.scene.geometry.MeshBuilder
 import de.fabmax.kool.util.Color
@@ -12,22 +13,18 @@ import kotlin.math.sqrt
 
 
 object PuzzleShapes {
-    const val CORNER_RADIUS = 8f
-    const val TAB_WIDTH = 8f
-    const val TAB_HEIGHT = 20f
-
-    const val SHADOW_RADIUS = 4f
+    val SHADOW_RADIUS = Dp(2f)
     val SHADOW_COLOR = Color.BLACK.withAlpha(0.5f)
-    const val SHADOW_OFFSET_Y = 2f
+    val SHADOW_OFFSET_Y = Dp(1f)
 
     data class SafeGeometry(val r: Float, val tabH: Float, val tabYStart: Float)
 
     fun calculateSafeGeometry(h: Float): SafeGeometry {
-        val r = min(CORNER_RADIUS, h / 2f)
+        val r = min(Dp(4f).px, h / 2f)
 
         val availableForTab = h - 2 * r
 
-        var tH = TAB_HEIGHT
+        var tH = Dp(12f).px
         if (tH > availableForTab) {
             tH = availableForTab
             if (tH < 0) tH = 0f
@@ -54,9 +51,9 @@ object PuzzleShapes {
     context(builder: MeshBuilder<UiVertexLayout>)
     fun drawShadow(
         points: List<Vec3f>,
-        width: Float = SHADOW_RADIUS,
+        width: Float = SHADOW_RADIUS.px,
         color: Color = SHADOW_COLOR,
-        offsetY: Float = SHADOW_OFFSET_Y,
+        offsetY: Float = SHADOW_OFFSET_Y.px,
     ) {
         drawStrip(points, width, color, offsetY, isInner = false)
     }
@@ -64,7 +61,7 @@ object PuzzleShapes {
     context(builder: MeshBuilder<UiVertexLayout>)
     fun drawInnerShadow(
         points: List<Vec3f>,
-        width: Float = SHADOW_RADIUS,
+        width: Float = SHADOW_RADIUS.px,
         color: Color = SHADOW_COLOR
     ) {
         drawStrip(points, width, color, 0f, isInner = true)
