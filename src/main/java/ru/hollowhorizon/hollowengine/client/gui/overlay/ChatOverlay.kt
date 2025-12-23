@@ -44,14 +44,14 @@ object ChatOverlay {
                 LaunchedEffect(text) {
                     tween<Float>(0.3f, Easing.quadRev).animateTo(transparency, 1f)
                     val wordsDelay = text.trim().split(Regex("\\s+")).size * 0.6f
-                    tween<Float>(1.5f, Easing.linear).animateTo(textAnimation, 1f)
+                    tween<Float>(wordsDelay, Easing.linear).animateTo(textAnimation, 1f)
                     delay((wordsDelay * 1000).toLong())
                     tween<Float>(0.3f, Easing.quadRev).animateTo(transparency, 0f)
                     textAnimation.set(0f)
                 }
 
                 Box {
-                    modifier.padding(sizes.smallGap)
+                    modifier.padding(sizes.gap)
                         .background(
                             RoundRectBackground(
                                 Color.BLACK.withAlpha(0.4f * transparency.use()),

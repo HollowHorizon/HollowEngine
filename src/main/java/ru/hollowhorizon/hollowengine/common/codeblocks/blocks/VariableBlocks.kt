@@ -5,18 +5,14 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.serializer
-import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.blockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.variables.LivingEntityContainer
-import ru.hollowhorizon.hollowengine.common.codeblocks.variables.SerializableVariableContainer
-import ru.hollowhorizon.hollowengine.common.codeblocks.variables.isSerializable
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
+import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 
 @Serializable
 @SerialName("hollowengine:events/set")
@@ -29,11 +25,7 @@ class SetVarBlock(var varName: String = "var") : StatementBlock() {
     override suspend fun execute() {
         val value = value()
 
-        blockContext().variables[varName] = when (value) {
-            isSerializable() -> SerializableVariableContainer(value::class.serializer())
-            is LivingEntity -> LivingEntityContainer<LivingEntity>().apply { this.value = value }
-            else -> throw IllegalArgumentException("Variable '$varName' cannot be serialized!")
-        }
+        blockContext().variables[varName]?.set(JavaHacks.forceCast(value))
     }
 
     override fun InputSlotScope.composeContent() {
@@ -85,7 +77,7 @@ class GetVarInlineBlock(val name: String) : ExpressionBlock() {
         }
 
     override suspend fun execute(): Any? {
-        return blockContext().variables[name]?.value
+        return blockContext().variables[name]?.get()
     }
 
     override fun InputSlotScope.composeContent() {

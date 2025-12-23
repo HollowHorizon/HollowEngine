@@ -37,7 +37,8 @@ stonecutter {
 
         rootProject.projectDir.resolve("versions")
             .listFiles()
-            .filter { !it.isFile }
+            .filter { it.isDirectory }
+            .filter { !it.resolve(".build-ignore").exists() }
             .forEach { version(it.name) }
         branch("compiler")
     }
