@@ -97,8 +97,6 @@ class InputSlotScope(
                     .background(SpineBackground(color))
             }
 
-            //Box { modifier.size(sizes.smallGap * 0.5f, Grow.Std) }
-
             Column {
                 modifier.width(Grow.Std)
 

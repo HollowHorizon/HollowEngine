@@ -118,7 +118,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             modifier.width(if (isRoot) FitContent else Grow.Std)
 
             val isDragging = controller.isDragging(block)
-            var baseLayer = if (isDragging) UiSurface.LAYER_FLOATING else UiSurface.LAYER_DEFAULT
+            var baseLayer = if (isDragging) 1_000_000 else UiSurface.LAYER_DEFAULT
             baseLayer += rootBlocks.indexOf(block.root) * 1000
             if (block.bodyRoot.parentBlock != null) baseLayer += 100
             if (block.isExpression()) modifier.zLayer(baseLayer + 100)
