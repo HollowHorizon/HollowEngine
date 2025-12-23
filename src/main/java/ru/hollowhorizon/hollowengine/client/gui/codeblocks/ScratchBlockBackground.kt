@@ -171,7 +171,7 @@ class ContainerMiddleBackground(val color: Color) : UiRenderer<UiNode> {
 
 class SpineBackground(val color: Color) : UiRenderer<UiNode> {
     override fun renderUi(node: UiNode) = with(node) {
-        val w = node.widthPx
+        val w = node.widthPx + 10f
         val h = node.heightPx
         node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(color) {
 

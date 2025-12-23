@@ -43,25 +43,23 @@ class OnEventBlock(var eventName: String = "MyEvent") : StatementBlock(), StartB
     override fun InputSlotScope.composeContent() {
         Column(Grow.Std) {
 
-            Row {
-                modifier.width(Grow.Companion.Std).alignY(AlignmentY.Center)
-                Text("При сообщении") { modifier.textColor(Color.Companion.WHITE).bold() }
+            Row(Grow.Std) {
+                modifier.alignY(AlignmentY.Center)
 
-                Box { modifier.width(10.dp) }
-
+                Text("При сообщении") { modifier.textColor(Color.WHITE).bold() }
+                Box { modifier.width(sizes.gap) }
                 TextField(eventName) {
-                    modifier.width(Grow.Companion.Std).alignY(AlignmentY.Center)
+                    modifier.alignY(AlignmentY.Center)
                         .onChange { eventName = it; notifyChanged() }
                         .hint("Название сообщения")
-                        .font(font)
-                        .colors(lineColor = Color.Companion.WHITE, textColor = Color.Companion.WHITE)
+                        .colors(lineColor = Color.WHITE, textColor = Color.WHITE)
                 }
             }
 
             Box { modifier.height(10.dp) }
 
             // Настройка поведения: Restart vs Parallel
-            Row {
+            Row(Grow.Std) {
                 modifier.onClick { restartOnTrigger.value = !restartOnTrigger.value }
 
                 Checkbox(restartOnTrigger.use()) {
@@ -69,7 +67,7 @@ class OnEventBlock(var eventName: String = "MyEvent") : StatementBlock(), StartB
                         .alignY(AlignmentY.Center)
                 }
 
-                Text(if (restartOnTrigger.value) "Синхронно (Отменить прошлые)" else "Асинхронно") {
+                Text(if (restartOnTrigger.use()) "Синхронно (Отменить прошлые)  " else "Асинхронно") {
                     modifier.margin(start = 8.dp).textColor(Color.Companion.WHITE.withAlpha(0.8f))
                         .regular()
                 }

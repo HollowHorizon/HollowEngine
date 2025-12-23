@@ -91,12 +91,12 @@ class InputSlotScope(
             )
             Box {
                 modifier
-                    .width(Dp.fromPx(BlockEditor.C_BLOCK_SPINE_WIDTH) - sizes.smallGap * 0.5f)
+                    .width(Dp.fromPx(BlockEditor.C_BLOCK_SPINE_WIDTH))
                     .height(Grow.Std)
                     .background(SpineBackground(color))
             }
 
-            Box { modifier.size(sizes.smallGap * 0.5f, Grow.Std) }
+            //Box { modifier.size(sizes.smallGap * 0.5f, Grow.Std) }
 
             Column {
                 modifier.width(Grow.Std)
@@ -112,8 +112,6 @@ class InputSlotScope(
                                 drawInnerShadow = true
                             )
                         )
-                    } else {
-                        modifier.height(sizes.smallGap).width(Grow.Std)
                     }
                     editor.controller.addDropTarget(DropAction.AttachToInput(parentBlock, name, true), uiNode)
                 }
@@ -122,9 +120,6 @@ class InputSlotScope(
                     renderBlockRecursively(attached, isGhost)
                 }
 
-                Box {
-                    modifier.height(sizes.smallGap).width(Grow.Std)
-                }
             }
         }
     }

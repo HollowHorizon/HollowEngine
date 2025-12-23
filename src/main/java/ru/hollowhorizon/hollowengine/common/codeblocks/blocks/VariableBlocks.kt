@@ -21,7 +21,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.walk
 @Serializable
 @SerialName("hollowengine:events/set")
 class SetVarBlock(var varName: String = "var") : StatementBlock() {
-    val expressionType get() = (inputs["value"] as ExpressionBlock).expressionType
+    val expressionType get() = (inputs["value"] as? ExpressionBlock)?.expressionType
 
     val value by input<Any>("value")
 

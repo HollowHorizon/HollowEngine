@@ -64,6 +64,12 @@ val BlockModel.root: BlockModel
         else -> parentBlock?.root ?: this
     }
 
+val BlockModel.bodyRoot: BlockModel
+    get() = when {
+        isStatement() -> parent?.bodyRoot ?: this
+        else -> this
+    }
+
 val BlockModel.parentsWithSelf: Sequence<BlockModel>
     get() = sequence {
         yield(this@parentsWithSelf)
@@ -71,16 +77,13 @@ val BlockModel.parentsWithSelf: Sequence<BlockModel>
     }
 val BlockModel.parents: Sequence<BlockModel>
     get() = sequence {
-        when (this@parents) {
-            is StatementBlock -> parent?.let {
-                yield(it)
-                yieldAll(it.parents)
-            }
-
-            else -> parentBlock?.let {
-                yield(it)
-                yieldAll(it.parents)
-            }
+        if (this@parents is StatementBlock) parent?.let {
+            yield(it)
+            yieldAll(it.parents)
+        }
+        parentBlock?.let {
+            yield(it)
+            yieldAll(it.parents)
         }
     }
 
