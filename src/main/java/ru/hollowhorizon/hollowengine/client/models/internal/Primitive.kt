@@ -43,7 +43,7 @@ class Primitive(
     private val morphCommands = ArrayList<(FloatArray) -> Unit>()
 
     // Порог для переключения между режимами рендеринга
-    val useBatching = false // positionsCount < 512 && !hasSkinning && morphTargets.isEmpty()
+    val useBatching = positionsCount < 512 && !hasSkinning && morphTargets.isEmpty()
 
     private var vao = -1
     private var skinningVao = -1
