@@ -164,49 +164,61 @@ class Primitive(
                 GL33.glEnableVertexAttribArray(5)
 
                 if (tangents == null) positions?.let { positions ->
-                    val tangents = BufferUtils.createFloatBuffer(normals.size * 4)
+                    val tangentBufferData = FloatArray(positions.size * 4)
+
                     MikktspaceTangentGenerator.genTangSpaceDefault(object : MikkTSpaceContext {
-                        override fun getNumFaces(): Int = positionsCount / 9
+                        override fun getNumFaces(): Int =
+                            indices?.let { it.size / 3 } ?: (positionsCount / 9)
+
                         override fun getNumVerticesOfFace(face: Int): Int = 3
+
                         override fun getPosition(posOut: FloatArray, face: Int, vert: Int) {
-                            val index = (face * 3) + vert
-                            posOut[0] = positions[index].x
-                            posOut[1] = positions[index].y
-                            posOut[2] = positions[index].z
+                            val index = getVertexIndex(face, vert)
+                            val p = positions[index]
+                            posOut[0] = p.x; posOut[1] = p.y; posOut[2] = p.z
                         }
 
                         override fun getNormal(normOut: FloatArray, face: Int, vert: Int) {
-                            val index = (face * 3) + vert
-                            normOut[0] = normals[index].x
-                            normOut[1] = normals[index].y
-                            normOut[2] = normals[index].z
+                            val index = getVertexIndex(face, vert)
+                            val n = normals[index]
+                            normOut[0] = n.x; normOut[1] = n.y; normOut[2] = n.z
                         }
 
                         override fun getTexCoord(texOut: FloatArray, face: Int, vert: Int) {
-                            val index = (face * 3) + vert
-                            texOut[0] = texCoords?.get(index)?.x ?: 0f
-                            texOut[1] = texCoords?.get(index)?.y ?: 0f
+                            val index = getVertexIndex(face, vert)
+                            val t = texCoords?.get(index)
+                            texOut[0] = t?.x ?: 0f
+                            texOut[1] = t?.y ?: 0f
+                        }
+
+                        private fun getVertexIndex(face: Int, vert: Int): Int {
+                            return indices?.get(face * 3 + vert) ?: (face * 3 + vert)
                         }
 
                         override fun setTSpaceBasic(tangent: FloatArray, sign: Float, face: Int, vert: Int) {
-                            tangents.put(tangent[0]).put(tangent[1]).put(tangent[2]).put(-sign)
+                            val index = getVertexIndex(face, vert)
+                            val offset = index * 4
+
+                            tangentBufferData[offset] = tangent[0]
+                            tangentBufferData[offset + 1] = tangent[1]
+                            tangentBufferData[offset + 2] = tangent[2]
+                            tangentBufferData[offset + 3] = -sign
                         }
 
                         override fun setTSpace(
-                            tangent: FloatArray?,
-                            biTangent: FloatArray?,
-                            magS: Float,
-                            magT: Float,
-                            isOrientationPreserving: Boolean,
-                            face: Int,
-                            vert: Int,
+                            tangent: FloatArray?, biTangent: FloatArray?, magS: Float, magT: Float,
+                            isOrientationPreserving: Boolean, face: Int, vert: Int
                         ) {
                         }
                     })
-                    tangents.flip()
+
+                    val tangentsNative = BufferUtils.createFloatBuffer(tangentBufferData.size)
+                    tangentsNative.put(tangentBufferData)
+                    tangentsNative.flip()
+
                     tangentBuffer = GL33.glGenBuffers()
                     GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, tangentBuffer)
-                    GL33.glBufferData(GL33.GL_ARRAY_BUFFER, tangents, GL33.GL_STATIC_DRAW)
+                    GL33.glBufferData(GL33.GL_ARRAY_BUFFER, tangentsNative, GL33.GL_STATIC_DRAW)
                     GL33.glVertexAttribPointer(9, 4, GL33.GL_FLOAT, false, 0, 0)
                     GL33.glEnableVertexAttribArray(9)
                 }
