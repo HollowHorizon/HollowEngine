@@ -11,7 +11,7 @@ open class PlayerEvent(val player: Player) : Event {
 
     class Join(player: Player) : PlayerEvent(player)
     class ChangeDimension(player: Player, val from: ServerLevel, val to: ServerLevel) : PlayerEvent(player)
-
+    class Respawn(player: Player, val isReturnFromEnd: Boolean) : PlayerEvent(player)
     class SleepInBed(player: Player, var problem: BedSleepingProblem? = null, val pos: BlockPos) : PlayerEvent(player)
     class Wakeup(player: Player, val wakeImmediately: Boolean, val updateLevelForSleepingPlayers: Boolean) : PlayerEvent(player)
 }

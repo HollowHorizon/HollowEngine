@@ -29,6 +29,12 @@ fun onPlayerClone(event: PlayerEvent.Clone) {
 }
 
 @SubscribeEvent
+fun onPlayerRespawn(event: PlayerEvent.Respawn) {
+    val dispatcher = event.player as ComponentDispatcher
+    dispatcher.container.markAllChanged()
+}
+
+@SubscribeEvent
 fun onStartTracking(event: EntityTrackingEvent.Start) {
     val dispatcher = event.entity as ComponentDispatcher
     dispatcher.container.markAllChanged()
