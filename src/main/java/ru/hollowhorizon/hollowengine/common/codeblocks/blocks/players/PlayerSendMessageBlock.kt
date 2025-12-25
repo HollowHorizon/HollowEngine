@@ -27,6 +27,7 @@ class PlayerSendMessageBlock : StatementBlock() {
 
         ComboBox {
             modifier.width(FitContent).items(listOf("Чат", "Панель действий"))
+                .alignY(AlignmentY.Center)
                 .background(RoundRectBackground(Color.BLACK.withAlpha(0.15f), sizes.smallGap))
                 .zLayer(modifier.zLayer + 10)
                 .margin(sizes.smallGap).padding(sizes.smallGap)

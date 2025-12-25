@@ -16,13 +16,12 @@ class SendEventBlock(var eventName: String = "MyEvent") : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Column(Grow.Std) {
-            Text("Отправить сообщение") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-            TextField(eventName) {
-                modifier.width(FitContent).margin(horizontal = 5.dp)
-                    .hint("Название сообщения").font(font)
-                    .onChange { eventName = it; notifyChanged() }
-            }
+        Text("Отправить сообщение") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        TextField(eventName) {
+            modifier.width(FitContent).margin(horizontal = sizes.smallGap)
+                .hint("Название сообщения").font(font)
+                .alignY(AlignmentY.Center)
+                .onChange { eventName = it; notifyChanged() }
         }
     }
 }

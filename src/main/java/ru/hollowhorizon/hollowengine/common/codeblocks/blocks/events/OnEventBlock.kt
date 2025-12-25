@@ -41,37 +41,14 @@ class OnEventBlock(var eventName: String = "MyEvent") : StatementBlock(), StartB
     }
 
     override fun InputSlotScope.composeContent() {
-        Column(Grow.Std) {
 
-            Row(Grow.Std) {
-                modifier.alignY(AlignmentY.Center)
-
-                Text("При сообщении") { modifier.textColor(Color.WHITE).bold() }
-                Box { modifier.width(sizes.gap) }
-                TextField(eventName) {
-                    modifier.alignY(AlignmentY.Center)
-                        .onChange { eventName = it; notifyChanged() }
-                        .hint("Название сообщения")
-                        .colors(lineColor = Color.WHITE, textColor = Color.WHITE)
-                }
-            }
-
-            Box { modifier.height(10.dp) }
-
-            // Настройка поведения: Restart vs Parallel
-            Row(Grow.Std) {
-                modifier.onClick { restartOnTrigger.value = !restartOnTrigger.value }
-
-                Checkbox(restartOnTrigger.use()) {
-                    modifier.onToggle { restartOnTrigger.set(it) }
-                        .alignY(AlignmentY.Center)
-                }
-
-                Text(if (restartOnTrigger.use()) "Синхронно (Отменить прошлые)  " else "Асинхронно") {
-                    modifier.margin(start = 8.dp).textColor(Color.Companion.WHITE.withAlpha(0.8f))
-                        .regular()
-                }
-            }
+        Text("При сообщении") { modifier.alignY(AlignmentY.Center).textColor(Color.WHITE).bold() }
+        Box { modifier.width(sizes.gap) }
+        TextField(eventName) {
+            modifier.alignY(AlignmentY.Center)
+                .onChange { eventName = it; notifyChanged() }
+                .hint("Название сообщения")
+                .colors(lineColor = Color.WHITE, textColor = Color.WHITE)
         }
     }
 }

@@ -11,8 +11,6 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnEventBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnStartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.math.*
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerDeathBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerJoinBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
 
@@ -121,8 +119,8 @@ object StandardModules {
             block("При событии") { OnEventBlock() }
             block("Отправить событие") { SendEventBlock("") }
 
-            block("При входе игрока") { OnPlayerJoinBlock() }
-            block("При смерти игрока") { OnPlayerDeathBlock() }
+            //block("При входе игрока") { OnPlayerJoinBlock() }
+            //block("При смерти игрока") { OnPlayerDeathBlock() }
         }
     }
 

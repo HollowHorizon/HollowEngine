@@ -260,7 +260,11 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         Box {
             modifier.apply(blockModifier)
 
-            val bgColor = if (isGhost) block.color.withAlpha(0.5f) else block.color
+            val isUnused = block.parentsWithSelf.none { it is StartBlock }
+
+            val bgColor = if (isGhost) block.color.withAlpha(0.5f)
+            else if(isUnused) block.color.mix(Color.LIGHT_GRAY, 0.5f).withAlpha(0.35f)
+            else block.color
             val color by animateColorAsState(
                 if (isHovered.use()) bgColor else bgColor.mulRgb(0.9f),
                 tween(0.2f, Easing.quadRev)

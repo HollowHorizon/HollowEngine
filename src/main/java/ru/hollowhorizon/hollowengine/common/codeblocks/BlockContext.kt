@@ -18,6 +18,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.variables.LivingEntityCon
 import ru.hollowhorizon.hollowengine.common.codeblocks.variables.SerializableVariableContainer
 import ru.hollowhorizon.hollowengine.common.codeblocks.variables.VariableContainer
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
+import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 import java.util.*
 
 
@@ -69,7 +70,7 @@ class BlockContext(val scope: CoroutineScope, val file: String) {
                 val variable: VariableContainer<*> = if (typeOf<LivingEntity>().accepts(type)) {
                     LivingEntityContainer<LivingEntity>()
                 } else {
-                    val serializer = serializer((type as KTypeExpressionType).kType) as KSerializer<Any>
+                    val serializer = NBTFormat.serializersModule.serializer((type as KTypeExpressionType).kType) as KSerializer<Any>
                     SerializableVariableContainer(serializer)
                 }
 
