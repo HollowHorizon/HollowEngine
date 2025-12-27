@@ -1,17 +1,14 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.panels
 
-import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
-import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.releaseDelayed
-import ru.hollowhorizon.hollowengine.client.gui.kool.UiColors
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.Layout
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileTitleBar
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.ToolBar
-import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 
 abstract class DockPanel(final override val name: String, val dock: Dock) : Layout, Composable {
     final override val dockable = UiDockable(name, dock)
@@ -19,27 +16,20 @@ abstract class DockPanel(final override val name: String, val dock: Dock) : Layo
 
     private var surface: UiSurface? = null
 
+    val isCollapsed = mutableStateOf(false)
     val isDocked: Boolean get() = dockable.dockedTo.value != null
 
     private fun UiScope.panelContent() {
-
-        val isHovered by modifier.hoverable()
-        val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
-
-        val borderColor = Color("3C3C4AFF").mix(Color("586D84FF"), factor)
-        if (!isDocked) modifier.border(RoundRectBorder(borderColor, sizes.smallGap, sizes.borderWidth))
-        modifier.background(RoundRectBackground(colors.backgroundVariant, sizes.smallGap))
-
         Column(Grow.Std, Grow.Std) {
             FileTitleBar(
+                icon,
                 dockable,
+                isCollapsed,
                 showTabsIfDocked = !showOnToolbar,
-                drawAlignLeft = { drawHeaderLeft() },
-                drawAlignRight = { drawHeaderRight() },
                 onCloseAction = {
                     close()
                 })
-            this@DockPanel()
+            if(!isCollapsed.use()) this@DockPanel()
         }
     }
 
@@ -50,7 +40,7 @@ abstract class DockPanel(final override val name: String, val dock: Dock) : Layo
         dockable.floatingY.set(Dp.fromPx(ScriptingEnvironmentOverlay.titleBarHeight) + Dp(5f))
 
         surface = WindowSurface(dock.dockingSurface.parentScene, dockable, dock.dockingSurface.colors, dock.dockingSurface.sizes) {
-            modifier.border(null)
+            modifier.border(null).backgroundColor(ColorTheme.UI.BackgroundGeneral)
             if (!showOnToolbar) {
                 panelContent()
                 return@WindowSurface
@@ -63,11 +53,9 @@ abstract class DockPanel(final override val name: String, val dock: Dock) : Layo
                 Row(Grow.Std, Grow.Std) {
                     if (isPanelBarLeft) {
                         ToolBar(this@DockPanel, true)
-                        Box(width = sizes.borderWidth, height = Grow.Std) { modifier.backgroundColor(UiColors.titleBg) }
                         panelContent()
                     } else {
                         panelContent()
-                        Box(width = sizes.borderWidth, height = Grow.Std) { modifier.backgroundColor(UiColors.titleBg) }
                         ToolBar(this@DockPanel, false)
                     }
                 }

@@ -1,44 +1,48 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.panels
 
-import de.fabmax.kool.modules.ui2.AlignmentY
-import de.fabmax.kool.modules.ui2.Text
-import de.fabmax.kool.modules.ui2.TextField
-import de.fabmax.kool.modules.ui2.UiScope
-import de.fabmax.kool.modules.ui2.alignY
-import de.fabmax.kool.modules.ui2.colors
+import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
-import de.fabmax.kool.modules.ui2.hint
-import de.fabmax.kool.modules.ui2.margin
-import de.fabmax.kool.modules.ui2.onChange
-import de.fabmax.kool.modules.ui2.onEnterPressed
-import de.fabmax.kool.modules.ui2.remember
-import de.fabmax.kool.modules.ui2.width
-import org.apache.logging.log4j.LogManager
+import de.fabmax.kool.util.Color
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
-import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console.LogMessage
-import kotlin.text.isBlank
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.generated.Assets
 
 class FileTreePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.project_tree", dock) {
-    override val icon = "hollowengine:textures/gui/icons/code_editor.svg"
-    var filter = ""
+    override val icon = Assets.Hollowengine.Textures.Gui.Icons.CODE_EDITOR
+    var filter = mutableStateOf("")
 
     override fun UiScope.compose() {
-        IdeContent.fileTree.apply {
-            draw(filter)
-        }
-    }
+        Column(Grow.Std, Grow.Std) {
+            modifier.margin(horizontal=Dimensions.PaddingMedium)
+                .margin(bottom=Dimensions.PaddingMedium, top= Dimensions.PaddingNormal)
+                .padding(Dimensions.PaddingMedium)
+                .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, Dimensions.PaddingNormal))
 
-    override fun UiScope.drawHeaderRight() {
-        Text("Фильтр:") {
-            modifier.alignY(AlignmentY.Center)
-        }
-        TextField(filter) {
-            modifier.margin(horizontal = sizes.gap)
-                .colors(lineColor = colors.secondaryVariant, lineColorFocused = colors.secondary)
-                .alignY(AlignmentY.Center).hint("Текст или Regex")
-                .onEnterPressed { surface.requestFocus(null) }.onChange {
-                    filter = it
+            Row(Grow.Std) {
+                modifier.padding(Dimensions.PaddingMedium)
+                    .margin(Dimensions.PaddingMedium)
+                    .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingHuge))
+
+                Image(Assets.Hollowengine.Textures.Gui.Icons.SEARCH) {
+                    modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
+                        .alignY(AlignmentY.Center).margin(start = Dimensions.PaddingMedium)
                 }
+
+                TextField(filter.use()) {
+                    modifier.alignY(AlignmentY.Center)
+                        .size(Grow.Std, Grow.Std)
+                        .colors(lineColor = Color.BLACK.withAlpha(0f), lineColorFocused = Color.BLACK.withAlpha(0f))
+                        .hint("Search by text or Regex")
+                        .onEnterPressed { surface.requestFocus(null) }
+                        .onChange { filter.set(it) }
+                        .margin(start=Dimensions.PaddingMedium)
+                }
+            }
+            IdeContent.fileTree.apply {
+                draw(filter.use())
+            }
         }
     }
 }

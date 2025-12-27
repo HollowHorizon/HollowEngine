@@ -5,7 +5,7 @@ import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
-import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import kotlin.math.min
 
@@ -46,7 +46,7 @@ object ComboBox {
                             }
                         if (i == hoveredIndex) {
                             modifier
-                                .background(RoundRectBackground(IdeTheme.hoveredColors.background, sizes.smallGap))
+                                .background(RoundRectBackground(ColorTheme.UI.BackgroundGeneral, sizes.smallGap))
                         }
                         if (items.size > 7) {
                             // make some space for the scrollbar
@@ -61,13 +61,13 @@ object ComboBox {
 
         Row {
             val isHovered by modifier.hoverable()
-            val color by animateColorAsState(if(isHovered) colors.background else IdeTheme.hoveredColors.background, tween(easing = Easing.quadRev))
+            val color by animateColorAsState(if(isHovered) colors.background else ColorTheme.UI.BackgroundGeneral, tween(easing = Easing.quadRev))
 
             modifier.padding(horizontal = sizes.smallGap)
                 .alignY(AlignmentY.Center)
             modifier.background(RoundRectBackground(color, sizes.smallGap))
 
-            if (popupMenu.isVisible.use()) modifier.background(RoundRectBackground(IdeTheme.hoveredColors.background, sizes.smallGap))
+            if (popupMenu.isVisible.use()) modifier.background(RoundRectBackground(ColorTheme.UI.BackgroundGeneral, sizes.smallGap))
 
             val id = index.coerceIn(-1, items.lastIndex)
             if (id == -1) {

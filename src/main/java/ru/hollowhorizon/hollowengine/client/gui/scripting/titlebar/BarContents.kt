@@ -9,6 +9,8 @@ import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
@@ -17,7 +19,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.scripts.CodeBloc
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
-import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
@@ -35,9 +36,13 @@ import ru.hollowhorizon.hollowengine.common.utils.literal
 
 @SubscribeEvent
 fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
-    Box(24.dp, 24.dp) {
-        modifier.alignY(AlignmentY.Center)
+    modifier.padding(vertical = Dimensions.PaddingNormal)
 
+    Box(
+        Dimensions.PaddingLarge + Dimensions.PaddingSmall + Dimensions.PaddingMedium * 2f,
+        Dimensions.PaddingLarge + Dimensions.PaddingSmall
+    ) {
+        modifier.alignY(AlignmentY.Center)
         Logo()
 
     }
@@ -46,7 +51,7 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
 
     val overlay = remember { ItemPopupMenu<Unit>("Title-File-Overlay") }
     overlay()
-    TextButton("Файл") {
+    TextButton("File") {
         overlay.hide()
         overlay.show(Vec2f(it.screenPosition), SubMenuItem {
             item("Новый проект") {
@@ -73,10 +78,10 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
             }
         }, Unit)
     }
-    TextButton("Правка")
+    TextButton("Edit")
     val windowOverlay = remember { ItemPopupMenu<Unit>("Title-Window-Overlay") }
     windowOverlay()
-    TextButton("Окна") {
+    TextButton("Windows") {
         windowOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
             val size = LayoutLoader.LAYOUTS.size
             LayoutLoader.LAYOUTS.values.forEachIndexed { i, window ->
@@ -87,11 +92,11 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
             }
         }, Unit)
     }
-    TextButton("Поиск")
+    TextButton("Search")
 
     val settingsOverlay = remember { ItemPopupMenu<Unit>("Title-Settings-Overlay") }
     settingsOverlay()
-    TextButton("Настройки") {
+    TextButton("Info") {
         settingsOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
 
         }, Unit)
@@ -101,30 +106,31 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
 fun UiScope.Logo() {
     val isHovered by modifier.hoverable()
     val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
-    val size = 22.dp + 2.dp * factor
+    val size = Dimensions.PaddingLarge + Dimensions.PaddingSmall * factor
     modifier.onClick {
         ScriptingEnvironmentOverlay.isCollapsed = !ScriptingEnvironmentOverlay.isCollapsed
     }
     Image("hollowengine:textures/gui/logo/logo.svg", SamplerMode.LINEAR) {
         modifier.size(size, size).align(AlignmentX.Center, AlignmentY.Center)
-        modifier.tint(Color.WHITE.withAlpha(0.75f + 0.25f * factor))
+            .tint(Color.WHITE.withAlpha(0.75f + 0.25f * factor))
     }
 }
 
 fun UiScope.TextButton(text: String, onClick: (PointerEvent) -> Unit = {}) {
     Box {
-
+        modifier.alignY(AlignmentY.Center)
+            .margin(horizontal = Dimensions.PaddingMedium)
+            .padding(Dimensions.PaddingNormal)
         val isHovered by modifier.hoverable()
         val color by animateColorAsState(
-            if (isHovered) IdeTheme.hoveredColors.background else colors.background,
+            if (isHovered) ColorTheme.UI.ForegroundSecondary else ColorTheme.UI.BackgroundSecondary,
             tween(easing = Easing.quadRev)
         )
 
-        modifier.padding(horizontal = sizes.smallGap)
         modifier.background(RoundRectBackground(color, sizes.smallGap))
 
         Text(text) {
-            modifier.alignY(AlignmentY.Center)
+            modifier
                 .onClick {
                     onClick(it)
                 }
@@ -142,7 +148,7 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
                 Row {
                     Box {
                         modifier.alignY(AlignmentY.Center)
-                        Image(file.icon) {
+                        Image(file.icon.toString()) {
                             modifier.margin(end = sizes.smallGap).size(24.dp, 24.dp)
                                 .imageSize(ImageSize.Stretch)
                         }
@@ -184,7 +190,7 @@ private fun UiScope.ActionButton(
 ) {
     val isHovered by modifier.hoverable()
     val color by animateColorAsState(
-        if (isHovered) colors.background else IdeTheme.hoveredColors.background,
+        if (isHovered) colors.background else ColorTheme.UI.BackgroundGeneral,
         tween(easing = Easing.quadRev)
     )
 

@@ -1,32 +1,46 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
+import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.generated.Assets
+
 object IconHelper {
-    fun forPath(path: String, isFolder: Boolean = false, isOpened: Boolean = false): String {
-        val baseDir = "hollowengine:textures/gui/icons"
+    val Icons = Assets.Hollowengine.Textures.Gui.Icons
 
-        return "$baseDir/" + when {
+    fun forPath(path: String, isFolder: Boolean = false, isOpened: Boolean = false): ResourceLocation {
+        return when {
             isFolder -> {
-                val type = when(path) {
-                    "assets" -> "folder_assets"
-                    "data" -> "folder_data"
-                    "scripts" -> "folder_scripts"
-                    "npcs" -> "folder_npcs"
-                    "camera" -> "folder_camera"
-                    else -> "folder"
+                if(isOpened) {
+                    when (path) {
+                        "assets" -> Icons.FOLDER_ASSETS_OPEN
+                        "data" -> Icons.FOLDER_DATA_OPEN
+                        "scripts" -> Icons.FOLDER_SCRIPTS_OPEN
+                        "npcs" -> Icons.FOLDER_NPCS_OPEN
+                        "camera" -> Icons.FOLDER_CAMERA_OPEN
+                        else -> Icons.FOLDER_OPEN
+                    }
+                } else {
+                    when (path) {
+                        "assets" -> Icons.FOLDER_ASSETS
+                        "data" -> Icons.FOLDER_DATA
+                        "scripts" -> Icons.FOLDER_SCRIPTS
+                        "npcs" -> Icons.FOLDER_NPCS
+                        "camera" -> Icons.FOLDER_CAMERA
+                        else -> Icons.FOLDER
+                    }
                 }
-
-                if (isOpened) type + "_open"
-                else type
             }
 
             else -> {
                 when (path.substringAfterLast('.')) {
-                    "kts", "kt" -> "file_kts"
-                    "png", "jpg", "jpeg", "gif" -> "file_image"
-                    "ogg", "mp3", "wav" -> "file_sound"
-                    else -> "file"
+                    "bc" -> Icons.FILE_CODEBLOCKS
+                    "zip", "rar", "jar" -> Icons.FILE_ZIP
+                    "gltf", "glb", "fbx", "geo.json", "obj" -> Icons.FILE_MODEL
+                    "kts", "kt" -> Icons.FILE_KTS
+                    "png", "jpg", "jpeg", "gif" -> Icons.FILE_IMAGE
+                    "ogg", "mp3", "wav" -> Icons.FILE_SOUND
+                    else -> Icons.FILE
                 }
             }
-        } + ".png"
+        }
     }
 }

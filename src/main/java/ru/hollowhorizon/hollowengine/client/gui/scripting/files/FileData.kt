@@ -22,6 +22,8 @@ abstract class FileData(
     final override val dockable = UiDockable(filePath, ScriptingEnvironmentOverlay.dock)
     override val name = "file\$$fileName"
     override val icon = IconHelper.forPath(filePath)
+
+    val isCollapsed = mutableStateOf(false)
     val isDocked get() = dockable.dockedTo.value != null
 
     protected var surface: UiSurface? = null
@@ -54,7 +56,7 @@ abstract class FileData(
             Column(Grow.Std, Grow.Std) {
                 val overlay = remember { ItemPopupMenu<Dockable>("Title-File-Overlay") }
                 overlay()
-                FileTitleBar(dockable, onCloseAction = { dockable ->
+                FileTitleBar(icon, dockable, isCollapsed, onCloseAction = { dockable ->
                     closeFile(dockable)
                 }, onRightClick = { dockable, event ->
                     val menu = SubMenuItem("File-Context-Menu") {
@@ -71,7 +73,7 @@ abstract class FileData(
                     overlay.hide()
                     overlay.show(Vec2f(event.screenPosition), menu, dockable)
                 })
-                this@FileData()
+                if(!isCollapsed.use()) this@FileData()
             }
         }.also { ScriptingEnvironmentOverlay.dock.addDockableSurface(dockable, it) }
     }

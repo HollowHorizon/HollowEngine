@@ -31,6 +31,7 @@ import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.generated.Assets
 
 class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
     var model = ""
@@ -101,7 +102,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
     override fun isPauseScreen() = false
 
     inner class GeneralPanel : DockPanel("hollowengine.gui.tool.general", dock) {
-        override val icon: String = "Not used."
+        override val icon = Assets.Hollowengine.Textures.Gui.Icons.FILE
 
         init {
             showOnToolbar = false
@@ -272,7 +273,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
 //    }
 
     inner class AttributesPanel : DockPanel("hollowengine.gui.tool.attributes", dock) {
-        override val icon = "Not used."
+        override val icon = Assets.Hollowengine.Textures.Gui.Icons.FILE
 
         init {
             showOnToolbar = false
@@ -315,7 +316,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
     }
 
     inner class EntityPanel : DockPanel("hollowengine.gui.tool.entity", dock) {
-        override val icon = "Not used."
+        override val icon = Assets.Hollowengine.Textures.Gui.Icons.NPCS
 
         init {
             showOnToolbar = false

@@ -10,38 +10,31 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.MsdfFontData
 import de.fabmax.kool.util.MsdfMeta
-import kotlinx.serialization.ExperimentalSerializationApi
+import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
-import ru.hollowhorizon.hollowengine.common.utils.rl
 
 object IdeTheme {
-    @OptIn(ExperimentalSerializationApi::class)
-    private val font by lazy {
-        val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>("hollowengine:fonts/pt_sans.json".rl.stream)
-        val msdfMap = Texture2d(
-            TexFormat.RGBA,
-            mipMapping = MipMapping.Off,
-            samplerSettings = SamplerSettings(),
-            "MsdfFont:${fontInfo.name}"
-        ) {
-            Assets.loadImage2d("hollowengine:fonts/pt_sans.png")
-                .getOrDefault(SingleColorTexture.getColorTextureData(Color.BLACK))
-        }
-        MsdfFontData(msdfMap, fontInfo)
-    }
 
     val sizes = Sizes.large.copy(
-        normalText = MsdfFont(font, 18f),
+        normalText = MsdfFont(ColorTheme.Fonts.MONOCRAFT, Dimensions.FontNormal),
         borderWidth = Dp.roundToWholePx(1.5f)
     )
-    var colors = Colors.darkColors(
-        background = Color("24272EFF"),
-        backgroundVariant = Color("1F2228FF"),
-        secondaryVariant = Color("3C3C4AFF"),
-        secondary = Color("4C4C5AFF")
-    )
-    val hoveredColors = Colors.darkColors(
-        background = Color("31343DFF")
-    )
+    var colors = Colors.darkColors()
+}
+
+fun loadFont(font: ResourceLocation): MsdfFontData {
+    val fontInfo = JsonFormat.decodeFromStream<MsdfMeta>(font.stream)
+    val msdfMap = Texture2d(
+        TexFormat.RGBA,
+        mipMapping = MipMapping.Off,
+        samplerSettings = SamplerSettings(),
+        "MsdfFont:${fontInfo.name}"
+    ) {
+        Assets.loadImage2d(font.withPath(font.path.removeSuffix(".json") + ".png").toString())
+            .getOrDefault(SingleColorTexture.getColorTextureData(Color.BLACK))
+    }
+    return MsdfFontData(msdfMap, fontInfo)
 }

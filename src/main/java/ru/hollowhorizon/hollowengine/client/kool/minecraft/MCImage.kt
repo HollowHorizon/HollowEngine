@@ -10,6 +10,7 @@ import de.fabmax.kool.pipeline.MipMapping
 import de.fabmax.kool.pipeline.SamplerSettings
 import de.fabmax.kool.pipeline.Texture2d
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.packs.resources.ResourceManager
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 
@@ -19,7 +20,7 @@ object ImageManager : ResourceManagerReloadListener {
     fun load(location: String, mode: SamplerMode): Texture2d = IMAGES.getOrPut(location) {
         Texture2d(
             mipMapping = MipMapping.Off, samplerSettings = SamplerSettings().let {
-                if (mode == SamplerMode.NEAREST) it.nearest() else it.linear()
+                if (mode == SamplerMode.NEAREST && !location.endsWith(".svg")) it.nearest() else it.linear()
             }
         ) {
             Assets.loadImage2d(location).getOrThrow()
@@ -42,6 +43,8 @@ fun UiScope.Image(location: String, mode: SamplerMode = SamplerMode.NEAREST, blo
 
         block()
     }
+
+fun UiScope.Image(location: ResourceLocation, mode: SamplerMode = SamplerMode.NEAREST, block: ImageScope.() -> Unit = {}) = Image(location.toString(), mode, block)
 
 enum class SamplerMode {
     NEAREST, LINEAR

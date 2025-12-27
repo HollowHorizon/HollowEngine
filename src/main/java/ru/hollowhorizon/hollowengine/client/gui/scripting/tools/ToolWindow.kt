@@ -4,16 +4,21 @@ import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.DockNodeLeaf
 import de.fabmax.kool.modules.ui2.docking.Dockable
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.Layout
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader.layoutOrder
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
-import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
-fun UiScope.ToolBar(panel: DockPanel, isLeft: Boolean) = Column(height = Grow.Std) {
-    modifier.backgroundColor(colors.background)
+fun UiScope.ToolBar(panel: DockPanel, isLeft: Boolean) = Column(
+    Dimensions.PaddingLarge + Dimensions.PaddingSmall + Dimensions.PaddingMedium * 2f,
+    Grow.Std
+) {
+    modifier.backgroundColor(ColorTheme.UI.BackgroundSecondary)
+        .margin(top = Dimensions.PaddingNormal)
     val dockNode = panel.dockable.dockedTo.use() ?: return@Column
     dockNode.dockedItems.sortedBy { layoutOrder.indexOf(it.name) }.forEach { dockable ->
         panelButton(
@@ -40,8 +45,8 @@ fun UiScope.iconButton(
     panel: Dockable,
     tooltip: String? = null,
     toggleState: Boolean = false,
-    width: Dimension = FitContent,
-    height: Dimension = FitContent,
+    width: Dimension = Dimensions.PaddingLarge + Dimensions.PaddingSmall + Dimensions.PaddingMedium * 2f,
+    height: Dimension = Dimensions.PaddingLarge + Dimensions.PaddingSmall + Dimensions.PaddingMedium * 2f,
     boxBlock: (UiScope.() -> Unit)? = null,
     isLeft: Boolean,
     onClick: (PointerEvent) -> Unit,
@@ -52,9 +57,11 @@ fun UiScope.iconButton(
     val tooltipState = remember { TooltipState(0.5) }
 
     if (toggleState) {
-        Box(sizes.borderWidth * 2, Grow(0.5f * anim)) {
-            modifier.background(RoundRectBackground(colors.onBackground, sizes.smallGap * 0.5f))
+        Box(Dimensions.PaddingNormal, Grow(0.5f * anim)) {
+            modifier.background(RoundRectBackground(ColorTheme.Accents.Main, Dimensions.PaddingSmall))
+                .border(RoundRectShadow(ColorTheme.Accents.Main.withAlpha(0.33f), Dimensions.PaddingSmall, Dimensions.PaddingNormal))
                 .alignY(AlignmentY.Center)
+                .margin(start = (-Dimensions.PaddingSmall.value).dp)
 
             if (!isLeft) modifier.alignX(AlignmentX.End)
         }
@@ -70,19 +77,19 @@ fun UiScope.iconButton(
 
         val isHovered by modifier.hoverable()
         val color by animateColorAsState(
-            if (isHovered) IdeTheme.hoveredColors.background else colors.background,
-            tween(easing = Easing.quadRev)
+            if (isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary,
+            tween(easing = Easing.easeOutQuart)
         )
 
-        modifier
-            .margin(sizes.smallGap)
-            .padding(sizes.smallGap)
+        modifier.padding(Dimensions.PaddingSmall)
+            .margin(Dimensions.PaddingSmall)
+            .align(AlignmentX.Center, AlignmentY.Center)
 
         modifier.background(RoundRectBackground(color, sizes.smallGap))
 
-        Image(layout.icon) {
+        Image(layout.icon.toString()) {
             modifier.align(AlignmentX.Center, AlignmentY.Center)
-                .size(28.dp, 28.dp)
+                .size(Dimensions.PaddingLarge, Dimensions.PaddingLarge)
         }
 
         tooltip?.let { text ->

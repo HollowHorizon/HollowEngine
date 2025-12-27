@@ -2,15 +2,15 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_DOWN
-import de.fabmax.kool.modules.ui2.ArrowScope.Companion.ROTATION_RIGHT
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
-import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
+import ru.hollowhorizon.hollowengine.client.gui.tree.TreeBackgroundRenderer
 import ru.hollowhorizon.hollowengine.client.kool.DndHandler
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -41,8 +41,8 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
     }
 
     fun canShow(filter: String): Boolean {
-        if(treePath.contains(filter, ignoreCase = true)) return true
-        if(children.any { it.canShow(filter) }) return true
+        if (treePath.contains(filter, ignoreCase = true)) return true
+        if (children.any { it.canShow(filter) }) return true
         return false
     }
 
@@ -51,7 +51,7 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
 
         // Открываем / Закрываем папку
         isExpanded.set(!isExpanded.value)
-        if(isExpanded.value) update()
+        if (isExpanded.value) update()
     }
 
     fun update() {
@@ -85,7 +85,14 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
 
         LazyColumn(
             containerModifier = { it.backgroundColor(null) },
-            vScrollbarModifier = { it.width(sizes.smallGap) },
+            vScrollbarModifier = {
+                it.width(sizes.smallGap).colors(
+                    ColorTheme.UI.BackgroundElements,
+                    ColorTheme.UI.BackgroundAccent,
+                    Color.WHITE.withAlpha(0f),
+                    ColorTheme.UI.BackgroundElements.withAlpha(0.3f),
+                )
+            },
             withHorizontalScrollbar = true
         ) {
 
@@ -105,36 +112,14 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
     }
 
     protected open fun UiScope.sceneObjectItem(item: FileNode) {
-        modifier
-            .onClick { evt ->
-                if (evt.pointer.isLeftButtonClicked && evt.pointer.leftButtonRepeatedClickCount == 2) {
-                    if (item.isFolder) {
-                        item.toggleExpanded()
-                    } else {
-                        val file = IdeContent.files[item.treePath]
-
-                        if (file == null) IdeContent.openFile(
-                            item.treePath,
-                            item.treePath.fromReadablePath().readBytes()
-                        )
-                        else ScriptingEnvironmentOverlay.dock.getLeafAtPath("0/1")?.bringToTop(file.dockable)
-                    }
-                }
-            }
-
-        val isHovered by modifier.hoverable()
-        val bgColor by animateColorAsState(if(isHovered) IdeTheme.hoveredColors.background else colors.background, tween(easing = Easing.quadRev))
-        val fgColor by animateColorAsState(if(isHovered) Color("C4CBDAFF") else Color("9099ACFF"), tween(easing = Easing.quadRev))
-
-        modifier.background(RoundRectBackground(bgColor, sizes.smallGap))
-        sceneObjectLabel(item, fgColor)
+        sceneObjectLabel(item)
     }
 
     protected fun UiScope.sceneObjectDndHandler(item: FileNode) {
         val dndHandler = rememberItemDndHandler(item)
 
         if (dndHandler.isHovered.use()) {
-            modifier.background(RoundRectBackground(IdeTheme.hoveredColors.background, sizes.gap))
+            modifier.background(RoundRectBackground(ColorTheme.UI.BackgroundGeneral, sizes.gap))
         }
 
         modifier.installDragAndDropHandler(IdeContent.dndContext, dndHandler) { item }
@@ -182,43 +167,100 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
         }
     }
 
-    protected open fun UiScope.sceneObjectLabel(item: FileNode, fgColor: Color) =
+    protected open fun UiScope.sceneObjectLabel(item: FileNode) =
         Row(width = Grow.Std) {
             modifier.padding(start = sizes.smallGap)
-            if (item.depth > 0) {
-                Box(width = (14.dp + sizes.smallGap * 2) * item.depth + if (!item.isFolder) 14.dp + sizes.smallGap * 2 else 0.dp) {}
-            }
 
-            Box {
-                modifier.alignY(AlignmentY.Center)
-                    .padding(sizes.smallGap)
-
-                if (item.isFolder) {
-                    Arrow(isHoverable = false) {
+            Row(height = Grow.Std) {
+                for (i in 0 until item.depth) {
+                    Box(Grow.Std) {
                         modifier
-                            .rotation(if (item.isExpanded.use()) ROTATION_DOWN else ROTATION_RIGHT)
                             .align(AlignmentX.Center, AlignmentY.Center)
                             .onClick { item.toggleExpanded() }
-                            .size(14.dp, 14.dp)
+                            .size(Dimensions.PaddingLarge, Grow.Std)
+                            .background(TreeBackgroundRenderer(item.isExpanded.use() && i == item.depth - 1))
+
+                        if (i != 0) modifier.margin(start = Dimensions.PaddingMedium)
                     }
                 }
             }
 
             val icon = IconHelper.forPath(item.treePath, item.isFolder, item.isExpanded.use())
 
-            Box {
-                modifier.alignY(AlignmentY.Center)
-                Image(icon) {
-                    modifier.margin(horizontal = sizes.smallGap).size(24.dp, 24.dp)
-                        .imageSize(ImageSize.Stretch)
-                }
-            }
+            Row(width = Grow.Std) {
+                modifier
+                    .onClick { evt ->
+                        if (evt.pointer.isLeftButtonClicked) {
+                            if (item.isFolder) {
+                                item.toggleExpanded()
+                            } else {
+                                val file = IdeContent.files[item.treePath]
 
-            Box(width = Grow.Std, height = Grow.Std) {
-                Text(item.treeName) {
-                    modifier
-                        .alignY(AlignmentY.Center)
-                        .textColor(fgColor)
+                                if (file == null) IdeContent.openFile(
+                                    item.treePath,
+                                    item.treePath.fromReadablePath().readBytes()
+                                )
+                                else ScriptingEnvironmentOverlay.dock.getLeafAtPath("0/1")?.bringToTop(file.dockable)
+                            }
+                        }
+                    }
+
+                val isHovered by modifier.hoverable()
+                val bgColor by animateColorAsState(
+                    if (isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary,
+                    tween(easing = Easing.quadRev)
+                )
+                val fgColor by animateColorAsState(
+                    if (isHovered) Color("C4CBDAFF") else Color("9099ACFF"),
+                    tween(easing = Easing.quadRev)
+                )
+
+                modifier.background(RoundRectBackground(bgColor, sizes.smallGap))
+                    .padding(Dimensions.PaddingNormal)
+
+                Box {
+                    if (item.depth != 0) modifier.margin(start = Dimensions.PaddingMedium)
+                    modifier.alignY(AlignmentY.Center)
+                    val crossfadeAnim = remember { AnimatableFloat(1f) }
+                    var activeIcon by remember { mutableStateOf(icon) }
+                    var fadingOutIcon by remember { mutableStateOf<ResourceLocation?>(null) } // Тип Any? или тип, который возвращает IconHelper
+
+                    LaunchedEffect(icon) {
+                        if (icon != activeIcon) {
+                            fadingOutIcon = activeIcon
+                            activeIcon = icon
+                            crossfadeAnim.set(0f)
+                            crossfadeAnim.animateTo(
+                                targetValue = 1f,
+                                duration = 0.3f,
+                                easing = Easing.easeOutQuart
+                            )
+                            fadingOutIcon = null
+                        }
+                    }
+                    if (fadingOutIcon != null) {
+                        Image(fadingOutIcon.toString()) {
+                            modifier
+                                .size(Dimensions.PaddingLarge, Dimensions.PaddingLarge)
+                                .imageSize(ImageSize.Stretch)
+                                .tint(Color.WHITE.withAlpha(1f - crossfadeAnim.use()))
+                        }
+                    }
+                    Image(activeIcon) {
+                        modifier.size(Dimensions.PaddingLarge, Dimensions.PaddingLarge)
+                            .imageSize(ImageSize.Stretch)
+                            .tint(Color.WHITE.withAlpha(crossfadeAnim.use()))
+
+                    }
+                }
+
+                Box(width = Grow.Std, height = Grow.Std) {
+                    modifier.margin(start = Dimensions.PaddingMedium)
+                    Text(item.treeName) {
+                        modifier
+                            .alignY(AlignmentY.Center)
+                            .textColor(fgColor)
+                    }
                 }
             }
         }

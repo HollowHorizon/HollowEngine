@@ -16,12 +16,13 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console.Console
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console.LogMessage
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.generated.Assets
 import kotlin.concurrent.withLock
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
 class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock) {
-    override val icon = "hollowengine:textures/gui/icons/console.svg"
+    override val icon = Assets.Hollowengine.Textures.Gui.Icons.CONSOLE
 
     private val lineProvider = LogLineProvider()
 

@@ -12,6 +12,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnEventBloc
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnStartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.math.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
 
 object StandardModules {
@@ -78,20 +79,58 @@ object StandardModules {
 
     val Variables: BlockModule = {
         category("Переменные", Color("7248DD"), icons("variables")) {
-            block("Присвоить") { SetVarBlock("") }
-            block("Получить") { GetVarBlock("") }
+            category("Локальные", Color("7248DD"), icons("variables")) {
+                block("Присвоить") { SetVarBlock("") }
+                block("Получить") { GetVarBlock("") }
 
-            dynamicBlocks {
-                rootBlocks.flatMap { it.walk() }.filterIsInstance<SetVarBlock>()
-                    .filter { it.varName.isNotEmpty() }
-                    .map {
-                        BlockEntry(
-                            "Получить ${it.varName}",
-                            null,
-                            { GetVarInlineBlock(it.varName).also { it.color = Color("7248DD") } },
-                            GetVarInlineBlock::class
-                        )
-                    }
+                dynamicBlocks {
+                    rootBlocks.flatMap { it.walk() }.filterIsInstance<SetVarBlock>()
+                        .filter { it.varName.isNotEmpty() }
+                        .map {
+                            BlockEntry(
+                                "Получить ${it.varName}",
+                                null,
+                                { GetVarInlineBlock(it.varName).also { it.color = Color("7248DD") } },
+                                GetVarInlineBlock::class
+                            )
+                        }
+                }
+            }
+
+            category("Глобальные", Color("5e1f0d"), icons("variables")) {
+                block("Присвоить") { SetGlobalVarBlock("") }
+                block("Получить") { GetGlobalVarBlock("") }
+
+                dynamicBlocks {
+                    rootBlocks.flatMap { it.walk() }.filterIsInstance<SetGlobalVarBlock>()
+                        .filter { it.varName.isNotEmpty() }
+                        .map {
+                            BlockEntry(
+                                "Получить ${it.varName}",
+                                null,
+                                { GetGlobalVarBlock(it.varName).also { it.color = Color("7248DD") } },
+                                GetGlobalVarBlock::class
+                            )
+                        }
+                }
+            }
+
+            category("Сущности", Color("007a1d"), icons("variables")) {
+                block("Присвоить") { SetEntityVarBlock("") }
+                block("Получить") { GetEntityVarBlock("") }
+
+                dynamicBlocks {
+                    rootBlocks.flatMap { it.walk() }.filterIsInstance<SetEntityVarBlock>()
+                        .filter { it.varName.isNotEmpty() }
+                        .map {
+                            BlockEntry(
+                                "Получить ${it.varName}",
+                                null,
+                                { GetEntityVarBlock(it.varName).also { it.color = Color("7248DD") } },
+                                GetEntityVarBlock::class
+                            )
+                        }
+                }
             }
         }
     }

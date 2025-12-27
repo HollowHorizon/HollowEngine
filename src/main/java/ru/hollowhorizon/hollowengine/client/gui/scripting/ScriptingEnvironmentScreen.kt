@@ -10,6 +10,7 @@ import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFontData
 import de.fabmax.kool.util.MsdfMeta
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay.dock
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
@@ -48,7 +49,6 @@ object ScriptingEnvironmentOverlay {
             field = value
             if(value) scene.removeNode(dock)
             else scene.addNode(dock, 0)
-            //dock.isVisible = !value
         }
 
 
@@ -58,9 +58,9 @@ object ScriptingEnvironmentOverlay {
         addPanelSurface(sizes = IdeTheme.sizes, colors = IdeTheme.colors) {
             modifier.size(if (isCollapsed) FitContent else Grow.Std, FitContent)
             if (isCollapsed) modifier.background(null)
-            Row(width = if (isCollapsed) FitContent else Grow.Std) {
-                modifier.margin(sizes.smallGap)
+            else modifier.backgroundColor(ColorTheme.UI.BackgroundSecondary)
 
+            Row(width = if (isCollapsed) FitContent else Grow.Std) {
                 TitleBarCreationEvent.Start(this).post()
                 Box { modifier.alignX(AlignmentX.Center).width(Grow.Std) }
                 TitleBarCreationEvent.Center(this).post()
@@ -85,8 +85,6 @@ object ScriptingEnvironmentOverlay {
             dockingPaneComposable = Composable {
                 Column(Grow.Std, Grow.Std) {
                     modifier.margin(top = Dp.fromPx(titleBarHeight))
-
-                    Box(width = Grow.Std, height = sizes.borderWidth) { modifier.backgroundColor(Color("3C3C4AFF")) }
                     root()
                 }
             }

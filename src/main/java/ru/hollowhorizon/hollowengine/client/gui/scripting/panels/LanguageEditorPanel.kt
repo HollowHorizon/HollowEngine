@@ -5,14 +5,15 @@ import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.util.Color
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
-import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.lang.LanguageViewModel
 import ru.hollowhorizon.hollowengine.client.lang.TranslationRow
+import ru.hollowhorizon.hollowengine.generated.Assets
 
 class LanguageEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.translations", dock) {
-    override val icon = "hollowengine:textures/gui/icons/language.svg"
+    override val icon = Assets.Hollowengine.Textures.Gui.Icons.LANGUAGE
     private val vm = LanguageViewModel()
 
     private val sourceLangPopup = ItemPopupMenu<Unit>("SourceLangPopup")
@@ -81,7 +82,7 @@ class LanguageEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.translat
             }
 
             Row(Grow.Std) {
-                modifier.backgroundColor(IdeTheme.hoveredColors.background).padding(vertical = 4.dp)
+                modifier.backgroundColor(ColorTheme.UI.BackgroundGeneral).padding(vertical = 4.dp)
                 Text("Ключ перевода") { modifier.width(Grow(0.35f)).margin(start = sizes.gap) }
                 Text("Оригинал") { modifier.width(Grow(0.3f)) }
                 Text("Перевод") { modifier.width(Grow(0.35f)) }

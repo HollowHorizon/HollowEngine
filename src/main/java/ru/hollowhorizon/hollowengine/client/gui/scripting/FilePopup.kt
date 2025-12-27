@@ -69,7 +69,7 @@ class FilePopup : Composable {
                     }
                     if (node.treePath.startsWith("scripts")) {
                         subMenu(ACTIONS("create.script"), "hollowengine:textures/gui/icons/create_file.png") {
-                            item("Простой скрипт", "hollowengine:textures/gui/icons/file_kts.png") {
+                            item("Простой скрипт", "hollowengine:textures/gui/icons/file_kts.svg") {
                                 fileExtension = ".kts"
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                             }
@@ -81,7 +81,7 @@ class FilePopup : Composable {
                     }
                 }
             } else {
-                item(ACTIONS("open"), "hollowengine:textures/gui/icons/file_kts.png") {
+                item(ACTIONS("open"), "hollowengine:textures/gui/icons/file_kts.svg") {
                     IdeContent.openFile(node.treePath, node.treePath.fromReadablePath().readBytes())
                 }
             }

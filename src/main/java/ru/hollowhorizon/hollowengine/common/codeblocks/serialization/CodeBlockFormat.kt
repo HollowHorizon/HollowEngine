@@ -9,8 +9,10 @@ import kotlinx.serialization.modules.subclass
 import kotlinx.serialization.serializer
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockCategory
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockProvider
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.GetVarInlineBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CallCustomBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.GetEntityVarBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.GetGlobalVarBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.GetVarInlineBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import kotlin.reflect.KClass
 
@@ -30,6 +32,8 @@ class CodeBlockFormat(val blockModule: BlockProvider) {
 
             // Эти блоки добавляются динамически
             subclass(GetVarInlineBlock::class)
+            subclass(GetGlobalVarBlock::class)
+            subclass(GetEntityVarBlock::class)
             subclass(CallCustomBlock::class)
         }
     }

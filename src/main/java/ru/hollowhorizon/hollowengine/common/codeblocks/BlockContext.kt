@@ -8,7 +8,7 @@ import kotlinx.serialization.serializer
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.world.entity.LivingEntity
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.SetVarBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.SetVarBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.EndBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock

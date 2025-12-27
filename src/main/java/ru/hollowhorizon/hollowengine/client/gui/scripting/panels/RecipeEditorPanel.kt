@@ -9,15 +9,16 @@ import net.minecraft.world.Container
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.crafting.Recipe
 import net.minecraft.world.item.crafting.RecipeType
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.recipe.RecipeFileData
-import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
+import ru.hollowhorizon.hollowengine.generated.Assets
 
 
 class RecipeEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.recipes", dock) {
-    override val icon = "hollowengine:textures/gui/icons/recipes.svg"
+    override val icon = Assets.Hollowengine.Textures.Gui.Icons.RECIPES
 
     override fun UiScope.compose() {
         modifier.margin(sizes.smallGap)
@@ -28,7 +29,7 @@ class RecipeEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.recipes", 
             items(RECIPE_TYPES) { recipeType ->
                 Box {
                     val isHovered by modifier.hoverable()
-                    val color by animateColorAsState(if(isHovered) colors.background else IdeTheme.hoveredColors.background, tween(easing = Easing.quadRev))
+                    val color by animateColorAsState(if(isHovered) colors.background else ColorTheme.UI.BackgroundGeneral, tween(easing = Easing.quadRev))
                     modifier.padding(sizes.smallGap * 0.5f).margin(sizes.smallGap * 0.5f)
                         .width(Grow.Std)
                         .backgroundColor(color)

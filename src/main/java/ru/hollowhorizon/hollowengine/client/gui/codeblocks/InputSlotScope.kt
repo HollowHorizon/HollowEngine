@@ -8,6 +8,8 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.isExpression
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.parentsWithSelf
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputValue
 
 class InputSlotScope(
@@ -146,7 +148,9 @@ class InputSlotScope(
     private fun UiScope.EmptySlotVisual(highlight: Boolean) {
         Box {
             modifier.size(40.dp, 30.dp)
-            modifier.background(SlotBackground(parentBlock.color.mix(Color.Companion.BLACK, 0.3f), highlight))
+            val isUnused = parentBlock.parentsWithSelf.none { it is StartBlock }
+            val color = if(isUnused) parentBlock.color.mix(Color.LIGHT_GRAY, 0.5f).withAlpha(0.35f) else parentBlock.color
+            modifier.background(SlotBackground(color.mix(Color.Companion.BLACK, 0.3f), highlight))
             if (highlight) modifier.border(RectBorder(Color.Companion.WHITE, 2.dp))
         }
     }

@@ -1,3 +1,10 @@
+
+
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import ru.hollowhorizon.gradle.*
+import ru.hollowhorizon.gradle.tasks.GenerateAssetsTask
+
+
 plugins {
     java
     `maven-publish`
@@ -79,3 +86,18 @@ dependencies {
 
 }
 
+val generateAssets by tasks.registering(GenerateAssetsTask::class) {
+    generatedPackage.set("ru.hollowhorizon.hollowengine.generated")
+    assetsDirectory.set(rootProject.file("src/main/resources/assets"))
+    outputDirectory.set(layout.buildDirectory.dir("generated/sources/assets/kotlin"))
+}
+
+sourceSets {
+    main {
+        java.srcDir(generateAssets.map { it.outputDirectory })
+    }
+}
+
+tasks.withType<KotlinCompile> {
+    dependsOn(generateAssets)
+}

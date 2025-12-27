@@ -10,7 +10,6 @@ import ru.hollowhorizon.hollowengine.api.Init
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.CompilerLoader
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.CommonEnvironment
-import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
 import java.io.File
 
 
@@ -21,7 +20,6 @@ object HollowEngine {
     val compilerLoader = CompilerLoader(DirectoryManager.HOLLOW_ENGINE.resolve("HollowEngineCompiler.jar").toFile())
 
     init {
-        isPhysicalClient
         LOGGER.info("Initializing Hollow Engine 2.0!")
 
         if (compilerLoader.hasCompilerJar()) {

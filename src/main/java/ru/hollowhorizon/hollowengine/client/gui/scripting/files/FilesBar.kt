@@ -8,9 +8,15 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.Color
+import de.fabmax.kool.util.MsdfFont
+import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
+import ru.hollowhorizon.hollowengine.generated.Assets
 import ru.hollowhorizon.hollowengine.mixins.kool.UiDockableAccessor
 
 fun UiScope.LazyList(
@@ -29,7 +35,7 @@ fun UiScope.LazyList(
     isScrollByDrag: Boolean = true,
     state: LazyListState = rememberListState(),
     scopeName: String? = null,
-    block: LazyListScope.() -> Unit
+    block: LazyListScope.() -> Unit,
 ) {
 
     Box {
@@ -91,7 +97,13 @@ fun UiScope.LazyList(
         }
         if (withHorizontalScrollbar) {
             HorizontalScrollbar {
-                lazyListAware(state, ScrollbarOrientation.Horizontal, listOrientation, scrollbarColor, hScrollbarModifier)
+                lazyListAware(
+                    state,
+                    ScrollbarOrientation.Horizontal,
+                    listOrientation,
+                    scrollbarColor,
+                    hScrollbarModifier
+                )
             }
         }
     }
@@ -109,7 +121,7 @@ fun UiScope.FileDockingTabsBar(
     if (dockNode != null && nodeCount > 1) {
 
         Row(width = Grow.Std) {
-            modifier.margin(vertical=sizes.smallGap)
+            modifier.margin(vertical = sizes.smallGap)
             LazyList(
                 height = FitContent,
                 isScrollByDrag = true,
@@ -223,23 +235,18 @@ fun UiScope.FileDockingTabsBar(
 }
 
 fun UiScope.FileTitleBar(
+    icon: ResourceLocation,
     windowDockable: UiDockable,
+    minimizeButton: MutableStateValue<Boolean>,
     isDraggable: Boolean = true,
     showTabsIfDocked: Boolean = true,
     onCloseAction: ((Dockable) -> Unit)? = null,
     onRightClick: (Dockable, PointerEvent) -> Unit = { dockable, event -> },
-    drawAlignLeft: (UiScope.() -> Unit)? = null,
-    drawAlignRight: (UiScope.() -> Unit)? = null
 ) {
     val isTabbed = if (showTabsIfDocked) {
         val hasAnyTabs: Boolean
         Column(Grow.Std) {
             hasAnyTabs = FileDockingTabsBar(windowDockable, onCloseAction = onCloseAction, onRightClick = onRightClick)
-            if(hasAnyTabs && (drawAlignLeft != null || drawAlignRight != null)) Row {
-                drawAlignLeft?.let { it() }
-                Box(Grow.Std) {}
-                drawAlignRight?.let { it() }
-            }
         }
         hasAnyTabs
     } else {
@@ -248,31 +255,42 @@ fun UiScope.FileTitleBar(
 
     if (!isTabbed) {
         if (windowDockable.floatingWidth.value == FitContent || windowDockable.floatingHeight.value == FitContent) {
-            windowDockable.setFloatingBounds(
-                width = 450.dp,
-                height = 200.dp
-            )
+            windowDockable.setFloatingBounds(450.dp, 200.dp)
         }
-        Row(Grow.Std) {
-            if(windowDockable.isDocked.use()) modifier.margin(sizes.smallGap)
-            modifier
-                .onClick {
-                    if (it.pointer.isMiddleButtonReleased) {
-                        onCloseAction?.invoke(windowDockable)
-                    } else if (it.isRightClick) {
-                        onRightClick(windowDockable, it)
-                    }
+        FileDockingBar(icon, windowDockable, onCloseAction, onRightClick, minimizeButton, isDraggable)
+    } else {
+        // add an empty row to avoid a hard layout change when the title bar changes visibility
+        Row { }
+    }
+}
+
+private fun UiScope.FileDockingBar(
+    icon: ResourceLocation,
+    windowDockable: UiDockable,
+    onCloseAction: ((Dockable) -> Unit)?,
+    onRightClick: (Dockable, PointerEvent) -> Unit,
+    minimizeButton: MutableStateValue<Boolean>,
+    isDraggable: Boolean,
+) {
+    Row(Grow.Std) {
+        if (windowDockable.isDocked.use()) modifier.margin(horizontal=Dimensions.PaddingMedium)
+            .margin(top=Dimensions.PaddingMedium)
+        modifier
+            .onClick {
+                if (it.pointer.isMiddleButtonReleased) {
+                    onCloseAction?.invoke(windowDockable)
+                } else if (it.isRightClick) {
+                    onRightClick(windowDockable, it)
                 }
+            }
 
+        Row(Grow.Std) {
 
-            val isHovered by modifier.hoverable()
-            val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
-            val bgColor = colors.background.mix(Color("394450FF"), factor)
-            val borderColor = Color("3C3C4AFF").mix(Color("586D84FF"), factor)
-
-            modifier
-                .background(RoundRectBackground(bgColor, sizes.smallGap))
-                .border(RoundRectBorder(borderColor, sizes.smallGap, sizes.borderWidth))
+            modifier.background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, Dimensions.PaddingNormal))
+                .padding(
+                    vertical = Dimensions.PaddingMedium,
+                    horizontal = Dimensions.PaddingMedium + Dimensions.PaddingNormal
+                )
 
             if (isDraggable && !PointerInput.primaryPointer.isMiddleButtonDown && !PointerInput.primaryPointer.isRightButtonDown) {
                 with(windowDockable) {
@@ -280,50 +298,62 @@ fun UiScope.FileTitleBar(
                 }
             }
 
+            Image(icon) {
+                modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
+                    .alignY(AlignmentY.Center)
+            }
+
             val itemName =
                 IdeContent.files.values.find { it.dockable == windowDockable }?.fileName ?: windowDockable.name.lang
 
             Text(itemName) {
                 modifier
-                    .margin(horizontal = sizes.gap, vertical = sizes.smallGap * 0.5f)
+                    .margin(horizontal = Dimensions.PaddingMedium)
+                    .font(remember {
+                        MsdfFont(
+                            ColorTheme.Fonts.MONOCRAFT,
+                            Dimensions.FontNormal,
+                            MsdfFont.ITALIC_NONE,
+                            MsdfFont.WEIGHT_EXTRA_BOLD
+                        )
+                    })
+                    .textColor(ColorTheme.UI.WhiteReplacement)
                     .align(AlignmentX.Start, AlignmentY.Center)
-                    .textAlign(AlignmentX.Center, AlignmentY.Center)
-            }
-
-
-            drawAlignLeft?.let {
-
-                if(false) Box(sizes.borderWidth, Grow.Std) {
-                    modifier.backgroundColor(borderColor)
-                }
-                it()
             }
 
             Box(Grow.Std) {}
 
-            if((drawAlignRight != null || onCloseAction != null) && false) Box(sizes.borderWidth, Grow.Std) {
-                modifier.backgroundColor(borderColor)
-                    .margin(horizontal = sizes.smallGap)
-            }
-
-            drawAlignRight?.let { it() }
-
-            onCloseAction?.let {
-                CloseButton(
-                    background = bgColor,
-                    backgroundHover = bgColor,
-                    foreground = colors.onBackground,
-                    buttonMod = {
-                        it
-                            .onDragStart {}.onDragEnd {}.onDrag {} // Deny drag by close button
-                            .align(AlignmentX.End, AlignmentY.Center)
-                            .padding(sizes.smallGap)
-                    }) { ev -> it(windowDockable) }
+            onCloseAction?.let { action ->
+                Box {
+                    modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
+                        .background(
+                            CloseButtonBackground(
+                                ColorTheme.UI.WhiteReplacement,
+                                Color.WHITE,
+                                ColorTheme.UI.BackgroundSecondary,
+                                ColorTheme.UI.BackgroundSecondary
+                            )
+                        )
+                        .onClick {
+                            if (it.isLeftClick) action(windowDockable)
+                        }
+                }
             }
         }
-    } else {
-        // add an empty row to avoid a hard layout change when the title bar changes visibility
-        Row { }
+        Box(height = Grow.Std) {
+            modifier.padding(Dimensions.PaddingMedium)
+                .margin(start = Dimensions.PaddingNormal)
+
+            val isHovered by modifier.hoverable()
+            val color by animateColorAsState(if(isHovered) ColorTheme.UI.BackgroundAccent else ColorTheme.UI.BackgroundSecondary)
+            modifier.background(RoundRectBackground(color, Dimensions.PaddingNormal))
+                .onClick { if(it.pointer.isLeftButtonClicked) minimizeButton.set(!minimizeButton.use()) }
+
+            Image(Assets.Hollowengine.Textures.Gui.Icons.MINIMIZE) {
+                modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
+                    .align(AlignmentX.Center, AlignmentY.Center)
+            }
+        }
     }
 }
 

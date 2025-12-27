@@ -1,3 +1,5 @@
+import ru.hollowhorizon.gradle.StonecutterSetup
+
 plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
