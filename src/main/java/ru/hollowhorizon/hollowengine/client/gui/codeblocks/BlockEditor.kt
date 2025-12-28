@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
 import de.fabmax.kool.Clipboard
 import de.fabmax.kool.input.CursorShape
+import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
@@ -18,7 +19,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
     val controller = BlockController()
     override val rootBlocks: MutableStateList<BlockModel> = MutableStateList(ObservableBlockList(this))
 
-
     private val snapAnimations = mutableListOf<SnapAnimation>()
 
     private val creationPopup = ItemPopupMenu<Vec2f>("BlockCreationMenu")
@@ -32,31 +32,33 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
     fun UiScope.EditorLayout(body: ScrollPaneScope.() -> Unit) {
         controller.update()
 
-        val state = rememberScrollState()
-
         Box {
             modifier
                 .width(Grow.Std)
                 .height(Grow.Std)
                 .onWheelX {
-                    state.scrollDpX(it.pointer.scroll.x * -20f)
+                    controller.scrollState.scrollDpX(it.pointer.scroll.x * -20f)
                 }
                 .onWheelY {
-                    state.scrollDpY(it.pointer.scroll.y * -50f)
+                    if(KeyboardInput.isShiftDown) {
+                        controller.scrollState.scrollDpX(it.pointer.scroll.x * -20f)
+                    } else {
+                        controller.scrollState.scrollDpY(it.pointer.scroll.y * -50f)
+                    }
                 }
                 .onClick { createBlocksMenu(it) }
 
             modifier.onDrag {
                 val delta = it.pointer.delta
                 if (delta.x != 0f) {
-                    state.scrollDpX(Dp.fromPx(-delta.x).value)
+                    controller.scrollState.scrollDpX(Dp.fromPx(-delta.x).value)
                 }
                 if (delta.y != 0f) {
-                    state.scrollDpY(Dp.fromPx(-delta.y).value)
+                    controller.scrollState.scrollDpY(Dp.fromPx(-delta.y).value)
                 }
             }
 
-            ScrollPane(state) {
+            ScrollPane(controller.scrollState) {
                 modifier.layout(CellLayout)
                     .padding(sizes.largeGap)
                 modifier.onClick {
@@ -79,9 +81,9 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                         color = EditorTheme.Scrollbar.color,
                         hoverColor = EditorTheme.Scrollbar.hoverColor,
                     )
-                    .relativeBarPos(state.relativeBarPosY)
-                    .relativeBarLen(state.relativeBarLenY)
-                    .onChange { state.scrollRelativeY(it) }
+                    .relativeBarPos(controller.scrollState.relativeBarPosY)
+                    .relativeBarLen(controller.scrollState.relativeBarLenY)
+                    .onChange { controller.scrollState.scrollRelativeY(it) }
             }
             HorizontalScrollbar {
                 modifier
@@ -92,9 +94,9 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                         color = EditorTheme.Scrollbar.color,
                         hoverColor = EditorTheme.Scrollbar.hoverColor,
                     )
-                    .relativeBarPos(state.relativeBarPosX)
-                    .relativeBarLen(state.relativeBarLenX)
-                    .onChange { state.scrollRelativeX(it) }
+                    .relativeBarPos(controller.scrollState.relativeBarPosX)
+                    .relativeBarLen(controller.scrollState.relativeBarLenX)
+                    .onChange { controller.scrollState.scrollRelativeX(it) }
             }
 
             blockPopup()
@@ -109,17 +111,18 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         }
     }
 
-    internal fun UiScope.renderBlockRecursively(
+    context(scope: UiScope)
+    internal fun renderBlockRecursively(
         block: BlockModel,
         isGhost: Boolean = false,
-    ) {
+    ): Unit = with(scope) {
         Column {
             val isRoot = rootBlocks.use().contains(block)
             modifier.width(if (isRoot) FitContent else Grow.Std)
 
             val isDragging = controller.isDragging(block)
             var baseLayer = if (isDragging) 1_000_000 else UiSurface.LAYER_DEFAULT
-            baseLayer += rootBlocks.indexOf(block.root) * 1000
+            rootBlocks.indexOf(block.root).takeUnless { it == -1 }?.let { baseLayer += it * 1000 }
             if (block.bodyRoot.parentBlock != null) baseLayer += 100
             if (block.isExpression()) modifier.zLayer(baseLayer + 100)
             else modifier.zLayer(baseLayer + 100 - block.parentCount)
@@ -260,7 +263,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         Box {
             modifier.apply(blockModifier)
 
-            val isUnused = block.parentsWithSelf.none { it is StartBlock }
+            val isUnused = block.parentsWithSelf.none { it is StartBlock } && block.root in rootBlocks
 
             val bgColor = if (isGhost) block.color.withAlpha(0.5f)
             else if(isUnused) block.color.mix(Color.LIGHT_GRAY, 0.5f).withAlpha(0.35f)
@@ -342,8 +345,9 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
     }
 }
 
-inline fun <reified T> UiNode.findParentOfType(): T? {
+inline fun <reified T> UiNode.findParentOfType(filter: (T) -> Boolean = { true }): T? {
     var current: UiNode? = this
-    while (current != null && current !is T) current = current.parent
+
+    while (current != null && !(current is T && filter(current))) current = current.parent
     return current as? T
 }

@@ -97,6 +97,10 @@ hollowengine:
       obfuscating: "Obfuscating script %s."
       executing: "Running script %s."
 
+  message:
+    filter: Search by text or Regex
+    block_filter: Search by blocks
+
   commands:
     copy: "§6[§bHollow Engine§6] §7Value: %s has been copied."
     tags: "§6[§bHollow Engine§6] §7Item tags: "

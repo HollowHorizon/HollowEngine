@@ -50,7 +50,7 @@ object KoolManager {
 
 class KoolInitEvent : ClientEvent {
     fun loadTexture(texture: ResourceLocation, mode: SamplerMode = SamplerMode.NEAREST) {
-        ImageManager.load(texture.toString(), mode)
+        ImageManager.load(texture, mode)
     }
 
     fun attachScene(scene: Scene) {

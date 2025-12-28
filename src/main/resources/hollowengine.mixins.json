@@ -38,6 +38,7 @@
     "kool.MixinLeafSlots",
     "kool.PlatformInputMixin",
     "kool.UiDockableAccessor",
+    "kool.UiNodeAccessor",
     "loot.LootDataManagerMixin",
     "tags.TagEntryAccessor",
     "tags.TagLoaderMixin"

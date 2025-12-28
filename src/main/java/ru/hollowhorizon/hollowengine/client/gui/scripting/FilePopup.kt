@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.utils.lang
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
 
@@ -63,17 +64,17 @@ class FilePopup : Composable {
         filePopup.hide()
         filePopup.show(Vec2f(position), SubMenuItem {
             if (node.isFolder) {
-                subMenu(ACTIONS("create"), "hollowengine:textures/gui/icons/add.png") {
-                    item(ACTIONS("create.folder"), "hollowengine:textures/gui/icons/create_folder.png") {
+                subMenu(ACTIONS("create"), icons.ADD) {
+                    item(ACTIONS("create.folder"), icons.CREATE_FOLDER) {
                         createFolderPopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                     }
                     if (node.treePath.startsWith("scripts")) {
-                        subMenu(ACTIONS("create.script"), "hollowengine:textures/gui/icons/create_file.png") {
-                            item("Простой скрипт", "hollowengine:textures/gui/icons/file_kts.svg") {
+                        subMenu(ACTIONS("create.script"), icons.CREATE_FILE) {
+                            item("Простой скрипт", icons.FILE_KTS) {
                                 fileExtension = ".kts"
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                             }
-                            item("Скрипт (Блоки кода)") {
+                            item("Скрипт (Блоки кода)", icons.FILE_CODEBLOCKS) {
                                 fileExtension = ".bc"
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                             }
@@ -81,20 +82,20 @@ class FilePopup : Composable {
                     }
                 }
             } else {
-                item(ACTIONS("open"), "hollowengine:textures/gui/icons/file_kts.svg") {
+                item(ACTIONS("open"), icons.FILE_KTS) {
                     IdeContent.openFile(node.treePath, node.treePath.fromReadablePath().readBytes())
                 }
             }
             divider()
-            item(ACTIONS("copy"), "hollowengine:textures/gui/icons/copy.png") {
+            item(ACTIONS("copy"), icons.COPY_SVG) {
                 copySource = it.treePath
                 deleteOriginal = false
             }
-            item(ACTIONS("cut"), "hollowengine:textures/gui/icons/cut.png") {
+            item(ACTIONS("cut"), icons.CUT) {
                 copySource = it.treePath
                 deleteOriginal = true
             }
-            item(ACTIONS("paste"), "hollowengine:textures/gui/icons/paste.png") {
+            item(ACTIONS("paste"), icons.PASTE) {
                 if (!it.isFolder) return@item
 
                 val target = it.treePath
@@ -108,23 +109,23 @@ class FilePopup : Composable {
             divider()
             if (node.treePath.startsWith("assets/")) item(
                 ACTIONS("copy_as_path"),
-                "hollowengine:textures/gui/icons/copy.png"
+                icons.COPY_SVG
             ) {
                 Clipboard.copyToClipboard(node.treePath.substringAfter("assets/").replaceFirst('/', ':'))
             }
             if (Minecraft.getInstance().isLocalServer) item(
                 ACTIONS("open_in_explorer"),
-                "hollowengine:textures/gui/icons/explorer.png"
+                icons.EXPLORER
             ) {
                 DesktopUtil.openInExplorer(node.treePath.fromReadablePath())
             }
             divider()
-            subMenu(ACTIONS("github"), "hollowengine:textures/gui/icons/github.png") {}
+            subMenu(ACTIONS("github"), icons.GITHUB) {}
             divider()
-            item(ACTIONS("rename"), "hollowengine:textures/gui/icons/rename.png") {
+            item(ACTIONS("rename"), icons.RENAME) {
                 renamePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
             }
-            item(ACTIONS("delete"), "hollowengine:textures/gui/icons/remove.png") {
+            item(ACTIONS("delete"), icons.REMOVE) {
                 deletePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                 // Немного халтурный способ обновления папки - закрыть и открыть
             }

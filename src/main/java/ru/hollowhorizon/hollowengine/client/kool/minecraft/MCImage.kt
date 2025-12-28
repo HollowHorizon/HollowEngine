@@ -13,17 +13,18 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.packs.resources.ResourceManager
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
+import ru.hollowhorizon.hollowengine.common.utils.rl
 
 object ImageManager : ResourceManagerReloadListener {
-    private val IMAGES = Object2ObjectOpenHashMap<String, Texture2d>()
+    private val IMAGES = Object2ObjectOpenHashMap<ResourceLocation, Texture2d>()
 
-    fun load(location: String, mode: SamplerMode): Texture2d = IMAGES.getOrPut(location) {
+    fun load(location: ResourceLocation, mode: SamplerMode): Texture2d = IMAGES.getOrPut(location) {
         Texture2d(
             mipMapping = MipMapping.Off, samplerSettings = SamplerSettings().let {
-                if (mode == SamplerMode.NEAREST && !location.endsWith(".svg")) it.nearest() else it.linear()
+                if (mode == SamplerMode.NEAREST && !location.path.endsWith(".svg")) it.nearest() else it.linear()
             }
         ) {
-            Assets.loadImage2d(location).getOrThrow()
+            Assets.loadImage2d(location.toString()).getOrThrow()
         }
     }
 
@@ -31,20 +32,20 @@ object ImageManager : ResourceManagerReloadListener {
         IMAGES.replaceAll { location, image ->
             image.release()
             Texture2d(mipMapping = image.mipMapping, samplerSettings = image.samplerSettings) {
-                Assets.loadImage2d(location).getOrThrow()
+                Assets.loadImage2d(location.toString()).getOrThrow()
             }
         }
     }
 }
 
-fun UiScope.Image(location: String, mode: SamplerMode = SamplerMode.NEAREST, block: ImageScope.() -> Unit = {}) =
+fun UiScope.Image(location: ResourceLocation, mode: SamplerMode = SamplerMode.NEAREST, block: ImageScope.() -> Unit = {}) =
     Image {
         modifier.image(ImageManager.load(location, mode))
 
         block()
     }
 
-fun UiScope.Image(location: ResourceLocation, mode: SamplerMode = SamplerMode.NEAREST, block: ImageScope.() -> Unit = {}) = Image(location.toString(), mode, block)
+fun UiScope.Image(location: String, mode: SamplerMode = SamplerMode.NEAREST, block: ImageScope.() -> Unit = {}) = Image(location.rl, mode, block)
 
 enum class SamplerMode {
     NEAREST, LINEAR

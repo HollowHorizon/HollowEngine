@@ -4,6 +4,7 @@ import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.geometry.MeshBuilder
 import de.fabmax.kool.util.*
+import ru.hollowhorizon.hollowengine.mixins.kool.UiNodeAccessor
 
 class ScratchBlockBackground(
     val color: Color,
@@ -210,7 +211,7 @@ inline fun <Layout : Struct> MeshBuilder<Layout>.configure(
     color: Color? = null,
     block: MeshBuilder<Layout>.() -> Unit,
 ) {
-    val panel = node.findParentOfType<ScrollPaneNode>() ?: node
+    val panel = node.findParentOfType<ScrollPaneNode>() ?: node.findParentOfType<ColumnNode> { (it as UiNodeAccessor).scopeName == "CodeBlockRenderer" } ?: node
     val setBoundsUiVertex: MutableStructBufferView<UiVertexLayout>.(UiVertexLayout) -> Unit = {
         it.clip.set(panel.clipLeftPx, panel.clipTopPx, panel.clipRightPx, panel.clipBottomPx)
     }

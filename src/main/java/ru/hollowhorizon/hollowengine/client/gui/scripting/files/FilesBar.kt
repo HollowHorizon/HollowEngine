@@ -273,8 +273,7 @@ private fun UiScope.FileDockingBar(
     isDraggable: Boolean,
 ) {
     Row(if(minimizeButton.use()) FitContent else Grow.Std) {
-        if (windowDockable.isDocked.use()) modifier.margin(horizontal=Dimensions.PaddingMedium)
-            .margin(top=Dimensions.PaddingMedium)
+        if (windowDockable.isDocked.use()) modifier.margin(Dimensions.PaddingNormal)
         modifier
             .onClick {
                 if (it.pointer.isMiddleButtonReleased) {
@@ -325,15 +324,16 @@ private fun UiScope.FileDockingBar(
 
             onCloseAction?.let { action ->
                 Box {
+                    val background = CloseButtonBackground(
+                        ColorTheme.UI.WhiteReplacement,
+                        Color.WHITE,
+                        ColorTheme.UI.BackgroundSecondary,
+                        ColorTheme.UI.BackgroundSecondary
+                    )
+                    val isHovered by modifier.hoverable()
+                    background.isHovered = isHovered
                     modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                        .background(
-                            CloseButtonBackground(
-                                ColorTheme.UI.WhiteReplacement,
-                                Color.WHITE,
-                                ColorTheme.UI.BackgroundSecondary,
-                                ColorTheme.UI.BackgroundSecondary
-                            )
-                        )
+                        .background(background)
                         .onClick {
                             if (it.isLeftClick) action(windowDockable)
                         }

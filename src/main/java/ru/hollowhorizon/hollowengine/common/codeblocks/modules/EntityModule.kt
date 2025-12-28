@@ -9,7 +9,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.entity.attributes.
 
 object EntityModule : BlockModule {
     override fun BlockCategoryBuilder.build() {
-        category("Сущности", Color("1a8a01"), "hollowengine:textures/gui/icons/npcs.svg") {
+        category("Сущности", Color("1a8a01"), icons.NPCS) {
             // --- Свойства и Геттеры ---
             block("Получить координаты") { EntityGetPosition() }
             block("Получить имя") { EntityGetName() }

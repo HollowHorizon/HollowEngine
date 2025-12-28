@@ -11,6 +11,7 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFontData
 import de.fabmax.kool.util.MsdfMeta
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay.dock
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
@@ -78,8 +79,8 @@ object ScriptingEnvironmentOverlay {
         }
 
         dock.apply {
-            borderWidth.set(IdeTheme.sizes.borderWidth)
-            borderColor.set(Color("3C3C4AFF"))
+            borderWidth.set(Dimensions.PaddingNormal)
+            borderColor.set(ColorTheme.UI.BackgroundGeneral)
             dockingSurface.sizes = IdeTheme.sizes
             dockingSurface.colors = IdeTheme.colors
             dockingPaneComposable = Composable {

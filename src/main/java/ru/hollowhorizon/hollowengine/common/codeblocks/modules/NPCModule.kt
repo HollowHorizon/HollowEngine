@@ -7,7 +7,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.*
 
 object NPCModule : BlockModule {
     override fun BlockCategoryBuilder.build() {
-        categoryAfter(2, "НИПы", Color("7EB542"), "hollowengine:textures/gui/icons/npcs.svg") {
+        categoryAfter(2, "НИПы", Color("7EB542"), icons.NPCS) {
             block("Создать", ::SpawnNpcBlock)
             block("Удалить", ::DespawnNpcBlock)
 

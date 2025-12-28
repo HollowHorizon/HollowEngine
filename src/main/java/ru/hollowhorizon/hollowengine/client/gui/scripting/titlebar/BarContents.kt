@@ -15,7 +15,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.scripts.CodeBlocksFileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.CodeBlocksFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
@@ -24,6 +24,7 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksComponent
 import ru.hollowhorizon.hollowengine.common.codeblocks.createScript
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.components.registry.ModComponents
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -67,13 +68,13 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
 
             }
             divider()
-            item("Перезагрузить ресурсы", "hollowengine:textures/gui/icons/reload_mc.png") {
+            item("Перезагрузить ресурсы", icons.RELOAD_MC) {
                 Minecraft.getInstance().reloadResourcePacks()
             }
             item("Сбросить индексы") {
             }
             divider()
-            item("Выход", "hollowengine:textures/gui/icons/exit.png") {
+            item("Выход", icons.EXIT) {
                 Minecraft.getInstance().screen?.onClose()
             }
         }, Unit)

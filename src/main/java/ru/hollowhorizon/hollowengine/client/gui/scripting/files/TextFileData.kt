@@ -14,6 +14,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.offset
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
@@ -131,7 +132,7 @@ class TextFileData(name: String, path: String) :
     }
 
     override fun SubMenuItem<Dockable>.createMenu() {
-        item("Форматировать", "hollowengine:textures/gui/icons/icon_41.png") {
+        item("Форматировать", icons.ICON_41) {
             try {
                 val original = provider.lines.joinToString("\n") { it.text }
                 val new = Formatter.format(KOTLINLANG_FORMAT, original)

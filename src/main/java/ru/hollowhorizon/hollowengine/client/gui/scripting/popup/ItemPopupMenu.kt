@@ -1,18 +1,17 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.popup
 
-import de.fabmax.kool.Assets
-import de.fabmax.kool.loadImage2d
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.pipeline.MipMapping
-import de.fabmax.kool.pipeline.SamplerSettings
 import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.util.Color
+import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.audio.UIAudio
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
 import ru.hollowhorizon.hollowengine.client.gui.kool.menuDivider
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.util.Node
 
@@ -144,7 +143,7 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
         }
     }
 
-    private fun UiScope.iconBox(withIcons: Boolean, icon: String?, color: Color) {
+    private fun UiScope.iconBox(withIcons: Boolean, icon: ResourceLocation?, color: Color) {
         if (withIcons) {
             if (icon != null) {
                 Image {
@@ -152,9 +151,7 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                         .margin(start = sizes.smallGap)
                         .alignY(AlignmentY.Center)
                         .iconImage(remember {
-                            Texture2d(samplerSettings = SamplerSettings().nearest(), mipMapping = MipMapping.Off) {
-                                Assets.loadImage2d(icon).getOrThrow()
-                            }
+                            ImageManager.load(icon, SamplerMode.NEAREST)
                         }, sizes.gap, color)
                 }
             } else {
@@ -205,18 +202,18 @@ class Divider<T : Any?> : ContextMenuItem<T>()
 
 class MenuItem<T : Any?>(
     val label: String,
-    val icon: String?,
+    val icon: ResourceLocation?,
     val action: ((T) -> Unit),
 ) : ContextMenuItem<T>()
 
-class SubMenuItem<T : Any?>(val label: String?, val icon: String?, val color: Color?) : ContextMenuItem<T>() {
+class SubMenuItem<T : Any?>(val label: String?, val icon: ResourceLocation?, val color: Color?) : ContextMenuItem<T>() {
     val menuItems: MutableStateList<ContextMenuItem<T>> = mutableStateListOf()
 
-    fun item(label: String, icon: String? = null, action: (T) -> Unit) {
+    fun item(label: String, icon: ResourceLocation? = null, action: (T) -> Unit) {
         menuItems += MenuItem(label, icon, action)
     }
 
-    fun subMenu(label: String, icon: String? = null, color: Color? = null, block: SubMenuItem<T>.() -> Unit) {
+    fun subMenu(label: String, icon: ResourceLocation? = null, color: Color? = null, block: SubMenuItem<T>.() -> Unit) {
         val subMenu = SubMenuItem<T>(label, icon, color)
         subMenu.block()
         menuItems += subMenu
@@ -229,7 +226,7 @@ class SubMenuItem<T : Any?>(val label: String?, val icon: String?, val color: Co
 
 fun <T : Any?> SubMenuItem(
     label: String? = null,
-    icon: String? = null,
+    icon: ResourceLocation? = null,
     color: Color? = null,
     block: SubMenuItem<T>.() -> Unit,
 ): SubMenuItem<T> {

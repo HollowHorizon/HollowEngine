@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
 import de.fabmax.kool.util.Color
+import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import kotlin.reflect.KClass
 
@@ -12,20 +13,23 @@ fun BlockCategory.findColorFor(block: BlockModel): Color? {
     else subCategories.firstNotNullOfOrNull { it.findColorFor(block) }
 }
 
-class BlockCategory(val name: String, val color: Color, val icon: String? = null) {
+class BlockCategory(val name: String, val color: Color, val icon: ResourceLocation? = null): CategoryItem {
     val subCategories = mutableListOf<BlockCategory>()
     val blocks = mutableListOf<BlockEntry<*>>()
 
     val dynamicGenerators = mutableListOf<BlocksScope.() -> List<BlockEntry<*>>>()
     fun entries(scope: BlocksScope): List<BlockEntry<*>> = blocks + dynamicGenerators.flatMap { it(scope) }
+    fun items(scope: BlocksScope): List<CategoryItem> = subCategories + entries(scope)
 }
+
+sealed interface CategoryItem
 
 data class BlockEntry<T : BlockModel>(
     val name: String,
-    val icon: String? = null,
+    val icon: ResourceLocation? = null,
     val factory: () -> T,
     val type: KClass<T>,
-)
+): CategoryItem
 
 fun interface BlockModule {
     fun BlockCategoryBuilder.build()
@@ -36,13 +40,13 @@ class BlockCategoryBuilder(@PublishedApi internal val category: BlockCategory) {
     /**
      * Создает подкатегорию.
      */
-    fun category(name: String, color: Color, icon: String?, setup: BlockCategoryBuilder.() -> Unit) {
+    fun category(name: String, color: Color, icon: ResourceLocation?, setup: BlockCategoryBuilder.() -> Unit) {
         val sub = BlockCategory(name, color, icon)
         category.subCategories.add(sub)
         BlockCategoryBuilder(sub).setup()
     }
 
-    fun categoryAfter(index: Int, name: String, color: Color, icon: String?, setup: BlockCategoryBuilder.() -> Unit) {
+    fun categoryAfter(index: Int, name: String, color: Color, icon: ResourceLocation?, setup: BlockCategoryBuilder.() -> Unit) {
         val sub = BlockCategory(name, color, icon)
         category.subCategories.add(index.coerceAtMost(category.subCategories.size), sub)
         BlockCategoryBuilder(sub).setup()

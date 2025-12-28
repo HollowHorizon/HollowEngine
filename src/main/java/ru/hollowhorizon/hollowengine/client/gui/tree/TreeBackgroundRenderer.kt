@@ -6,7 +6,6 @@ import de.fabmax.kool.modules.ui2.UiRenderer
 import de.fabmax.kool.modules.ui2.UiSurface
 import de.fabmax.kool.modules.ui2.UiVertexLayout
 import de.fabmax.kool.scene.geometry.MeshBuilder
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.configure
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import kotlin.math.pow
@@ -14,7 +13,7 @@ import kotlin.math.pow
 class TreeBackgroundRenderer(val isExpanded: Boolean) : UiRenderer<UiNode> {
     override fun renderUi(node: UiNode) {
         node.apply {
-            getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(ColorTheme.UI.BackgroundAccent) {
+            getPlainBuilder(UiSurface.LAYER_BACKGROUND).configured(ColorTheme.UI.BackgroundAccent) {
                 val lineWidth = Dimensions.PaddingSmall.px * 0.75f
 
                 val startX = widthPx / 2f

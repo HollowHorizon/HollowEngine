@@ -7,6 +7,7 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 class FileTreePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.project_tree", dock) {
@@ -15,8 +16,7 @@ class FileTreePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.project_tree",
 
     override fun UiScope.compose() {
         Column(Grow.Std, Grow.Std) {
-            modifier.margin(horizontal=Dimensions.PaddingMedium)
-                .margin(bottom=Dimensions.PaddingMedium, top= Dimensions.PaddingNormal)
+            modifier.margin(Dimensions.PaddingNormal)
                 .padding(Dimensions.PaddingMedium)
                 .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, Dimensions.PaddingNormal))
 
@@ -34,7 +34,7 @@ class FileTreePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.project_tree",
                     modifier.alignY(AlignmentY.Center)
                         .size(Grow.Std, Grow.Std)
                         .colors(lineColor = Color.BLACK.withAlpha(0f), lineColorFocused = Color.BLACK.withAlpha(0f))
-                        .hint("Search by text or Regex")
+                        .hint("hollowengine.message.filter".lang)
                         .onEnterPressed { surface.requestFocus(null) }
                         .onChange { filter.set(it) }
                         .margin(start=Dimensions.PaddingMedium)

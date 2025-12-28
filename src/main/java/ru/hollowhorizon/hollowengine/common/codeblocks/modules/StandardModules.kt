@@ -14,12 +14,13 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.math.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
+import ru.hollowhorizon.hollowengine.generated.Assets
+
+internal val icons = Assets.Hollowengine.Textures.Gui.Icons
 
 object StandardModules {
-    private val icons: (String) -> String = { "hollowengine:textures/gui/icons/$it.svg" }
-
     val General: BlockModule = {
-        category("Основные", Color("A666EA"), icons("general")) {
+        category("Основные", Color("A666EA"), icons.GENERAL) {
             block("Вывод") { PrintBlock() }
             block("Ждать") { DelayBlock() }
             block("Выполнить команду") { ExecuteCommandBlock() }
@@ -27,7 +28,7 @@ object StandardModules {
     }
 
     val Math: BlockModule = {
-        category("Математика", Color("58B2EA"), icons("math")) {
+        category("Математика", Color("58B2EA"), icons.MATH) {
             block("Операция") { MathBlock() }
             block("Случайное число") { RandomNumberBlock() }
             block("Тригонометрия") { TrigonometryBlock() }
@@ -46,7 +47,7 @@ object StandardModules {
     }
 
     val Logic: BlockModule = {
-        category("Логика", Color("1DB07D"), icons("logic")) {
+        category("Логика", Color("1DB07D"), icons.LOGIC) {
             block("Если/Иначе") { IfElseBlock() }
             block("Если") { IfBlock() }
             blockWithColor("Сравнение", Color("3C44A0")) { CompareBlock() }
@@ -57,7 +58,7 @@ object StandardModules {
     }
 
     val Types: BlockModule = {
-        category("Типы данных", Color("F3BD3E"), icons("types")) {
+        category("Типы данных", Color("F3BD3E"), icons.TYPES) {
             block("Строка") { StringValueBlock("") }
             block("Число") { NumberBlock() }
             block("Логический тип") { BoolBlock() }
@@ -69,7 +70,7 @@ object StandardModules {
             block("Текстовый компонент") { TextComponentBlock() }
             block("Объединить компоненты") { TextMergerBlock() }
 
-            category("Миры", Color("ba9307"), icons("world")) {
+            category("Миры", Color("ba9307"), icons.WORLD) {
                 block("Обычный мир") { GetOverworldBlock() }
                 block("Незер") { GetNetherBlock() }
                 block("Энд") { GetTheEndBlock() }
@@ -78,8 +79,8 @@ object StandardModules {
     }
 
     val Variables: BlockModule = {
-        category("Переменные", Color("7248DD"), icons("variables")) {
-            category("Локальные", Color("7248DD"), icons("variables")) {
+        category("Переменные", Color("7248DD"), icons.VARIABLES) {
+            category("Локальные", Color("7248DD"), icons.VARIABLES) {
                 block("Присвоить") { SetVarBlock("") }
                 block("Получить") { GetVarBlock("") }
 
@@ -97,7 +98,7 @@ object StandardModules {
                 }
             }
 
-            category("Глобальные", Color("5e1f0d"), icons("variables")) {
+            category("Глобальные", Color("5e1f0d"), icons.VARIABLES) {
                 block("Присвоить") { SetGlobalVarBlock("") }
                 block("Получить") { GetGlobalVarBlock("") }
 
@@ -115,7 +116,7 @@ object StandardModules {
                 }
             }
 
-            category("Сущности", Color("007a1d"), icons("variables")) {
+            category("Сущности", Color("007a1d"), icons.VARIABLES) {
                 block("Присвоить") { SetEntityVarBlock("") }
                 block("Получить") { GetEntityVarBlock("") }
 
@@ -136,7 +137,7 @@ object StandardModules {
     }
 
     val Functions: BlockModule = {
-        category("Функции", Color("EA6A5A"), icons("autocomplete_method")) {
+        category("Функции", Color("EA6A5A"), icons.AUTOCOMPLETE_METHOD) {
             block("Создать функцию") { CustomBlock() }
 
             dynamicBlocks {
@@ -153,7 +154,7 @@ object StandardModules {
     }
 
     val Events: BlockModule = {
-        category("События", Color("C94072"), icons("events")) {
+        category("События", Color("C94072"), icons.EVENTS) {
             block("При запуске") { OnStartBlock() }
             block("При событии") { OnEventBlock() }
             block("Отправить событие") { SendEventBlock("") }
@@ -164,7 +165,7 @@ object StandardModules {
     }
 
     val Loops: BlockModule = {
-        category("Циклы", Color("EB903F"), icons("loops")) {
+        category("Циклы", Color("EB903F"), icons.LOOPS) {
             block("Пока") { WhileBlock() }
             block("Повторить") { RepeatBlock() }
         }

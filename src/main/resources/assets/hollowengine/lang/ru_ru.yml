@@ -98,6 +98,10 @@ hollowengine:
       obfuscating: Обфускация скрипта %s.
       executing: Запуск скрипта %s.
 
+  message:
+    filter: Поиск по тексту или Regex
+    block_filter: Поиск по блокам
+
   commands:
     copy: "§6[§bHollow Engine§6] §7Значение: %s скопировано."
     tags: "§6[§bHollow Engine§6] §7Теги предмета: "

@@ -8,7 +8,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.world.schematics.P
 
 object WorldModule : BlockModule {
     override fun BlockCategoryBuilder.build() {
-        categoryAfter(0, "Мир", Color("ba9307"), "hollowengine:textures/gui/icons/world.svg") {
+        categoryAfter(0, "Мир", Color("ba9307"), icons.WORLD) {
             block("Установить блок", ::SetBlockBlock)
             block("Обновить блок", ::UpdateBlockBlock)
             block("Сломать блок", ::RemoveBlockBlock)
@@ -22,7 +22,7 @@ object WorldModule : BlockModule {
             block("Получить погоду", ::GetWeatherBlock)
             block("Изменить погоду", ::SetWeatherBlock)
 
-            category("Структуры", Color("6234c7"), "hollowengine:textures/gui/icons/structures.svg") {
+            category("Структуры", Color("6234c7"), icons.STRUCTURES) {
                 block("Разместить схематику", ::PlaceSchematicBlock)
             }
         }

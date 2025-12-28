@@ -7,7 +7,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.*
 
 object PlayerModule : BlockModule {
     override fun BlockCategoryBuilder.build() {
-        categoryAfter(2, "Игроки", Color("4287F5"), "hollowengine:textures/gui/icons/players.svg") {
+        categoryAfter(2, "Игроки", Color("4287F5"), icons.PLAYERS) {
             block("Телепортировать") { PlayerTeleportBlock() }
             block("Установить точку возрождения") { PlayerSetRespawn() }
             block("Отправить сообщение") { PlayerSendMessageBlock() }

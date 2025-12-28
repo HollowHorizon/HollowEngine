@@ -2,15 +2,13 @@ package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
 import de.fabmax.kool.math.MutableVec2f
 import de.fabmax.kool.math.Vec2f
-import de.fabmax.kool.modules.ui2.PointerEvent
-import de.fabmax.kool.modules.ui2.ScrollPaneNode
-import de.fabmax.kool.modules.ui2.UiNode
-import de.fabmax.kool.modules.ui2.UiScope
+import de.fabmax.kool.modules.ui2.*
 import ru.hollowhorizon.hollowengine.client.audio.UIAudio
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.*
 
 class BlockController {
+    val scrollState = ScrollState()
     private val dropTargets = mutableListOf<Pair<DropAction, UiNode>>()
     private var potentialAction: DropAction? = null
 
