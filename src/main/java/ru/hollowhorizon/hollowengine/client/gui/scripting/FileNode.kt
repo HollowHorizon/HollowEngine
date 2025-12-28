@@ -11,7 +11,6 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IconHelper
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.gui.tree.TreeBackgroundRenderer
-import ru.hollowhorizon.hollowengine.client.kool.DndHandler
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 
@@ -85,6 +84,7 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
 
         LazyColumn(
             containerModifier = { it.backgroundColor(null) },
+            scrollPaneModifier = { it.width(FitContent).margin(horizontal = Dimensions.PaddingNormal) },
             vScrollbarModifier = {
                 it.width(sizes.smallGap).colors(
                     ColorTheme.UI.BackgroundElements,
@@ -112,62 +112,6 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
     }
 
     protected open fun UiScope.sceneObjectItem(item: FileNode) {
-        sceneObjectLabel(item)
-    }
-
-    protected fun UiScope.sceneObjectDndHandler(item: FileNode) {
-        val dndHandler = rememberItemDndHandler(item)
-
-        if (dndHandler.isHovered.use()) {
-            modifier.background(RoundRectBackground(ColorTheme.UI.BackgroundGeneral, sizes.gap))
-        }
-
-        modifier.installDragAndDropHandler(IdeContent.dndContext, dndHandler) { item }
-    }
-
-    private fun UiScope.rememberItemDndHandler(treeItem: FileNode): FileHandler {
-        val handler = remember { FileHandler(treeItem, uiNode) }
-        IdeContent.dndContext.registerHandler(handler)
-        return handler
-    }
-
-    private class FileHandler(val node: FileNode, uiNode: UiNode) : DndHandler(uiNode) {
-        val insertPos = mutableStateOf(0)
-
-        override fun onMatchingHover(
-            dragItem: FileNode,
-            dragPointer: PointerEvent,
-            source: DragAndDropHandler<FileNode>?,
-            isHovered: Boolean,
-        ) {
-            super.onMatchingHover(dragItem, dragPointer, source, isHovered)
-
-            val h = dropTarget.heightPx
-            val hoverPtrPos = dropTarget.toLocal(dragPointer.screenPosition)
-
-            when {
-                hoverPtrPos.y < h * 0.25f -> insertPos.set(-1)
-                hoverPtrPos.y > h * 0.75f -> insertPos.set(1)
-                else -> insertPos.set(0)
-            }
-        }
-
-        override fun onDragEnd(
-            dragItem: FileNode,
-            dragPointer: PointerEvent,
-            source: DragAndDropHandler<FileNode>?,
-            target: DragAndDropHandler<FileNode>?,
-            success: Boolean,
-        ) {
-            super.onDragEnd(dragItem, dragPointer, source, target, success)
-            (target as? FileHandler)?.node?.let { node ->
-                if (!node.isFolder || dragItem.treePath == node.treePath) return@let
-                //CopyFilePacket(dragItem.treePath, node.treePath, true).send()
-            }
-        }
-    }
-
-    protected open fun UiScope.sceneObjectLabel(item: FileNode) =
         Row(width = Grow.Std) {
             modifier.padding(start = sizes.smallGap)
 
@@ -208,17 +152,17 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
                 val isHovered by modifier.hoverable()
                 val bgColor by animateColorAsState(
                     if (isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary,
-                    tween(easing = Easing.quadRev)
+                    tween(easing = Easing.easeOutQuart)
                 )
                 val fgColor by animateColorAsState(
                     if (isHovered) Color("C4CBDAFF") else Color("9099ACFF"),
-                    tween(easing = Easing.quadRev)
+                    tween(easing = Easing.easeOutQuart)
                 )
 
                 modifier.background(RoundRectBackground(bgColor, sizes.smallGap))
                     .padding(Dimensions.PaddingNormal)
 
-                Box {
+                Box(scopeName = item.treePath) {
                     if (item.depth != 0) modifier.margin(start = Dimensions.PaddingMedium)
                     modifier.alignY(AlignmentY.Center)
                     val crossfadeAnim = remember { AnimatableFloat(1f) }
@@ -254,8 +198,9 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
                     }
                 }
 
-                Box(width = Grow.Std, height = Grow.Std) {
-                    modifier.margin(start = Dimensions.PaddingMedium)
+                Box {
+                    modifier.margin(Dimensions.PaddingMedium, Dimensions.PaddingHuge)
+                        .alignY(AlignmentY.Center)
                     Text(item.treeName) {
                         modifier
                             .alignY(AlignmentY.Center)
@@ -264,6 +209,7 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
                 }
             }
         }
+    }
 
     companion object {
         val EMPTY = FileNode("HollowEngine", "").apply { isFolder = true }

@@ -20,7 +20,8 @@ abstract class DockPanel(final override val name: String, val dock: Dock) : Layo
     val isDocked: Boolean get() = dockable.dockedTo.value != null
 
     private fun UiScope.panelContent() {
-        Column(Grow.Std, Grow.Std) {
+        val size = if(isCollapsed.use()) FitContent else Grow.Std
+        Column(size, size) {
             FileTitleBar(
                 icon,
                 dockable,

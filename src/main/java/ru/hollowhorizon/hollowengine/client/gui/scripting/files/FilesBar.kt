@@ -272,7 +272,7 @@ private fun UiScope.FileDockingBar(
     minimizeButton: MutableStateValue<Boolean>,
     isDraggable: Boolean,
 ) {
-    Row(Grow.Std) {
+    Row(if(minimizeButton.use()) FitContent else Grow.Std) {
         if (windowDockable.isDocked.use()) modifier.margin(horizontal=Dimensions.PaddingMedium)
             .margin(top=Dimensions.PaddingMedium)
         modifier
