@@ -49,9 +49,10 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
     fun UiScope.EditorLayout(body: ScrollPaneScope.() -> Unit) {
         controller.update()
 
-        val smoothScale = animateFloatAsState(
+        val smoothScale = animateSpringFloatAsState(
             scaleState.use(),
-            tween(0.15f, Easing.easeOutQuad)
+            stiffness = 600f,
+            damping = 0.8f
         )
         scale = smoothScale.use()
 
@@ -79,7 +80,13 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                     }
                 }
                 .onClick { createBlocksMenu(it) }
-            modifier.background(BlockGridBackground(this@BlockEditor, 3.dp, Dimensions.PaddingLarge + Dimensions.PaddingNormal))
+            modifier.background(
+                BlockGridBackground(
+                    this@BlockEditor,
+                    3.dp,
+                    Dimensions.PaddingLarge + Dimensions.PaddingNormal
+                )
+            )
 
             modifier.onDrag {
                 val delta = it.pointer.delta
@@ -204,7 +211,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                                 modifier.height(Dimensions.PaddingHuge.scaled()).width(Grow.Std)
                                 val bgColor = if (isGhost) block.color.withAlpha(0.5f) else block.color
                                 val color by animateColorAsState(
-                                    if (isHovered.value) bgColor else bgColor.mulRgb(0.9f), tween(0.2f, Easing.easeOutQuart)
+                                    if (isHovered.value) bgColor else bgColor.mulRgb(0.9f),
+                                    tween(0.2f, Easing.easeOutQuart)
                                 )
                                 modifier.background(ContainerFooterBackground(color, currentZoom, block !is EndBlock))
 
