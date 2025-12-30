@@ -32,7 +32,7 @@ class SetGlobalVarBlock(var varName: String = "var") : StatementBlock() {
         Text("Присвоить (G):") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         // Поле ввода имени переменной
         TextField(varName) {
-            modifier.width(FitContent).margin(horizontal = 5.dp)
+            modifier.width(FitContent).margin(horizontal = 5.dp.scaled())
                 .alignY(AlignmentY.Center)
                 .onChange { varName = it }
                 .hint("Имя переменной").font(font)
@@ -58,7 +58,7 @@ class GetGlobalVarBlock(var varName: String = "var") : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         TextField(varName) {
-            modifier.width(FitContent).margin(start = 5.dp)
+            modifier.width(FitContent).margin(start = 5.dp.scaled())
                 .alignY(AlignmentY.Center)
                 .onChange { varName = it }
                 .hint("Имя переменной (G)").font(font)
@@ -84,7 +84,7 @@ class GetGlobalVarInlineBlock(val name: String) : ExpressionBlock() {
         Text("Значение переменной (G)") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         Text("\"$name\"") {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center)
-                .margin(start = 5.dp)
+                .margin(start = 5.dp.scaled()).regular()
         }
     }
 }

@@ -4,10 +4,13 @@ import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.geometry.MeshBuilder
 import de.fabmax.kool.util.*
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.mixins.kool.UiNodeAccessor
+import kotlin.math.max
 
 class ScratchBlockBackground(
     val color: Color,
+    val zoom: Float,
     val isExpression: Boolean,
     val hasNext: Boolean,
     val hasPrev: Boolean = true,
@@ -16,10 +19,13 @@ class ScratchBlockBackground(
 ) : UiRenderer<UiNode> {
 
     override fun renderUi(node: UiNode) = with(node) {
-        val notchWidth = sizes.gap * 1.5f
-        val notchHeight = sizes.smallGap * 0.75f
-        val notchX = sizes.gap
-        val r = sizes.smallGap
+        val gap = Dimensions.PaddingNormal.px * 3f * zoom
+        val smallGap = Dimensions.PaddingSmall.px * 1.5f * zoom
+
+        val notchWidth = gap * 1.5f
+        val notchHeight = smallGap * 2.0f
+        val notchX = gap
+        val r = smallGap
 
         val w = node.widthPx
         val h = node.heightPx
@@ -28,81 +34,82 @@ class ScratchBlockBackground(
         val points = mutableListOf<Vec3f>()
 
         if (isExpression) {
-            PuzzleShapes.addBezier(points, x, y + r.px, x, y, x + r.px, y)
-            points.add(Vec3f(x + w - r.px, y, 0f))
-            PuzzleShapes.addBezier(points, x + w - r.px, y, x + w, y, x + w, y + r.px)
-            PuzzleShapes.addBezier(points, x + w, y + h - r.px, x + w, y + h, x + w - r.px, y + h)
-            points.add(Vec3f(x + r.px, y + h, 0f))
-            PuzzleShapes.addBezier(points, x + r.px, y + h, x, y + h, x, y + h - r.px)
+            PuzzleShapes.addBezier(points, x, y + r, x, y, x + r, y)
+            points.add(Vec3f(x + w - r, y, 0f))
+            PuzzleShapes.addBezier(points, x + w - r, y, x + w, y, x + w, y + r)
+            PuzzleShapes.addBezier(points, x + w, y + h - r, x + w, y + h, x + w - r, y + h)
+            points.add(Vec3f(x + r, y + h, 0f))
+            PuzzleShapes.addBezier(points, x + r, y + h, x, y + h, x, y + h - r)
 
-            val width = Dp(4f).px
-            val height = Dp(12f).px
+            val tabW = Dp(4f).px * zoom
+            val tabH = Dp(12f).px * zoom
 
-            val tyStart = (h - height) / 2f
-            points.add(Vec3f(x, tyStart + height, 0f))
-            points.add(Vec3f(x - width, tyStart + height - notchHeight.px, 0f))
-            points.add(Vec3f(x - width, tyStart + notchHeight.px, 0f))
-            points.add(Vec3f(x, tyStart, 0f))
-        } else {
-            PuzzleShapes.addBezier(points, x, y + r.px, x, y, x + r.px, y)
+            val safeTabH = if (h > tabH + 2f) tabH else max(0f, h - 2f)
+            val tyStart = (h - safeTabH) / 2f
 
-            if (hasPrev) {
-                points.add(Vec3f(x + notchX.px, y, 0f))
-                points.add(Vec3f(x + notchX.px + notchHeight.px, y + notchHeight.px, 0f))
-                points.add(Vec3f(x + notchX.px + notchWidth.px - notchHeight.px, y + notchHeight.px, 0f))
-                points.add(Vec3f(x + notchX.px + notchWidth.px, y, 0f))
+            if (safeTabH > 1f) {
+                points.add(Vec3f(x, tyStart + safeTabH, 0f))
+                points.add(Vec3f(x - tabW, tyStart + safeTabH - (safeTabH * 0.2f), 0f))
+                points.add(Vec3f(x - tabW, tyStart + (safeTabH * 0.2f), 0f))
+                points.add(Vec3f(x, tyStart, 0f))
             }
-
-            PuzzleShapes.addBezier(points, x + w - r.px, y, x + w, y, x + w, y + r.px)
-            PuzzleShapes.addBezier(points, x + w, y + h - r.px, x + w, y + h, x + w - r.px, y + h)
+        } else {
+            PuzzleShapes.addBezier(points, x, y + r, x, y, x + r, y)
+            if (hasPrev) {
+                points.add(Vec3f(x + notchX, y, 0f))
+                points.add(Vec3f(x + notchX + notchHeight, y + notchHeight, 0f))
+                points.add(Vec3f(x + notchX + notchWidth - notchHeight, y + notchHeight, 0f))
+                points.add(Vec3f(x + notchX + notchWidth, y, 0f))
+            }
+            PuzzleShapes.addBezier(points, x + w - r, y, x + w, y, x + w, y + r)
+            PuzzleShapes.addBezier(points, x + w, y + h - r, x + w, y + h, x + w - r, y + h)
 
             if (isContainerHeader) {
-                val innerNotchX = BlockEditor.C_BLOCK_SPINE_WIDTH + notchX.px
-                points.add(Vec3f(x + innerNotchX + notchWidth.px, y + h, 0f))
-                points.add(Vec3f(x + innerNotchX + notchWidth.px - notchHeight.px, y + h + notchHeight.px, 0f))
-                points.add(Vec3f(x + innerNotchX + notchHeight.px, y + h + notchHeight.px, 0f))
-                points.add(Vec3f(x + innerNotchX, y + h, 0f))
+                val spineW = BlockEditor.C_BLOCK_SPINE_WIDTH * zoom
+                val innerNotchX = spineW + notchX
+                if (innerNotchX + notchWidth < w) {
+                    points.add(Vec3f(x + innerNotchX + notchWidth, y + h, 0f))
+                    points.add(Vec3f(x + innerNotchX + notchWidth - notchHeight, y + h + notchHeight, 0f))
+                    points.add(Vec3f(x + innerNotchX + notchHeight, y + h + notchHeight, 0f))
+                    points.add(Vec3f(x + innerNotchX, y + h, 0f))
+                }
                 points.add(Vec3f(x, y + h, 0f))
             } else {
                 if (hasNext) {
-                    points.add(Vec3f(x + notchX.px + notchWidth.px, y + h, 0f))
-                    points.add(Vec3f(x + notchX.px + notchWidth.px - notchHeight.px, y + h + notchHeight.px, 0f))
-                    points.add(Vec3f(x + notchX.px + notchHeight.px, y + h + notchHeight.px, 0f))
-                    points.add(Vec3f(x + notchX.px, y + h, 0f))
+                    points.add(Vec3f(x + notchX + notchWidth, y + h, 0f))
+                    points.add(Vec3f(x + notchX + notchWidth - notchHeight, y + h + notchHeight, 0f))
+                    points.add(Vec3f(x + notchX + notchHeight, y + h + notchHeight, 0f))
+                    points.add(Vec3f(x + notchX, y + h, 0f))
                 }
-                PuzzleShapes.addBezier(points, x + r.px, y + h, x, y + h, x, y + h - r.px)
+                PuzzleShapes.addBezier(points, x + r, y + h, x, y + h, x, y + h - r)
             }
         }
 
         node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(null) {
-            if(!drawInnerShadow) PuzzleShapes.drawShadow(points)
-
+            if(!drawInnerShadow) PuzzleShapes.drawShadow(points, zoom)
             color = this@ScratchBlockBackground.color
             fillPolygon(PolyUtil.fillPolygon(points))
-
         }
         node.getPlainBuilder(UiSurface.LAYER_FLOATING).configure(null) {
-            if (drawInnerShadow) {
-                PuzzleShapes.drawInnerShadow(
-                    points,
-                    width = 1f.dp.px,
-                    color = Color.BLACK.withAlpha(0.5f)
-                )
-            }
+            if (drawInnerShadow) PuzzleShapes.drawInnerShadow(points, zoom)
         }
     }
 }
 
 class ContainerFooterBackground(
     val color: Color,
+    val zoom: Float,
     val hasNext: Boolean = true
 ) : UiRenderer<UiNode> {
 
     override fun renderUi(node: UiNode) = with(node) {
-        val notchWidth = (sizes.gap * 1.5f).px
-        val notchHeight = (sizes.smallGap * 0.75f).px
-        val notchX = sizes.gap.px
-        val r = sizes.smallGap.px
+        val gap = Dimensions.PaddingNormal.px * 3f * zoom
+        val smallGap = Dimensions.PaddingSmall.px * 1.5f * zoom
+
+        val notchWidth = gap * 1.5f
+        val notchHeight = smallGap * 2.0f
+        val notchX = gap
+        val r = smallGap
 
         val w = node.widthPx
         val h = node.heightPx
@@ -110,7 +117,7 @@ class ContainerFooterBackground(
         val y = 0f
         val points = mutableListOf<Vec3f>()
 
-        val innerNotchX = BlockEditor.C_BLOCK_SPINE_WIDTH + notchX
+        val innerNotchX = BlockEditor.C_BLOCK_SPINE_WIDTH * zoom + notchX
 
         points.add(Vec3f(x, y, 0f))
         points.add(Vec3f(x + innerNotchX, y, 0f))
@@ -131,19 +138,22 @@ class ContainerFooterBackground(
         PuzzleShapes.addBezier(points, x + r, y + h, x, y + h, x, y + h - r)
 
         node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(color) {
-            PuzzleShapes.drawShadow(points)
+            PuzzleShapes.drawShadow(points, zoom)
             fillPolygon(PolyUtil.fillPolygon(points))
         }
     }
 }
 
-class ContainerMiddleBackground(val color: Color) : UiRenderer<UiNode> {
+class ContainerMiddleBackground(val color: Color, val zoom: Float) : UiRenderer<UiNode> {
 
     override fun renderUi(node: UiNode) = with(node) {
-        val notchWidth = (sizes.gap * 1.5f).px
-        val notchHeight = (sizes.smallGap * 0.75f).px
-        val notchX = sizes.gap.px
-        val spineW = sizes.gap.px
+        val gap = Dimensions.PaddingNormal.px * 3f * zoom
+        val smallGap = Dimensions.PaddingSmall.px * 1.5f * zoom
+
+        val notchWidth = gap * 1.5f
+        val notchHeight = smallGap * 2.0f
+        val notchX = gap
+        val spineW = notchX
 
         val w = node.widthPx
         val h = node.heightPx
@@ -169,15 +179,15 @@ class ContainerMiddleBackground(val color: Color) : UiRenderer<UiNode> {
         points.add(Vec3f(x, y + h, 0f))
 
         node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(color) {
-            PuzzleShapes.drawShadow(points)
+            PuzzleShapes.drawShadow(points, zoom)
             fillPolygon(PolyUtil.fillPolygon(points))
         }
     }
 }
 
-class SpineBackground(val color: Color) : UiRenderer<UiNode> {
+class SpineBackground(val color: Color, val zoom: Float) : UiRenderer<UiNode> {
     override fun renderUi(node: UiNode) = with(node) {
-        val w = node.widthPx + 10f
+        val w = node.widthPx + Dimensions.PaddingNormal.px * 3f * zoom
         val h = node.heightPx
         node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(color) {
 
@@ -191,8 +201,8 @@ class SpineBackground(val color: Color) : UiRenderer<UiNode> {
 
             val shadowColor = PuzzleShapes.SHADOW_COLOR
             val transparent = shadowColor.withAlpha(0f)
-            val radius = PuzzleShapes.SHADOW_RADIUS
-            val offsetY = PuzzleShapes.SHADOW_OFFSET_Y
+            val radius = PuzzleShapes.SHADOW_RADIUS * zoom
+            val offsetY = PuzzleShapes.SHADOW_OFFSET_Y * zoom
 
             val si0 = vertex { it.position.set(0f, 0f, 0f); it.color.set(shadowColor) }
             val si1 = vertex { it.position.set(0f, h, 0f); it.color.set(shadowColor) }

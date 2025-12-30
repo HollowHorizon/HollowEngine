@@ -105,7 +105,6 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
             Column(Grow.Std, Grow.Std) {
                 val overlay = remember { ItemPopupMenu<Dockable>("Title-File-Overlay") }
                 overlay()
-                modifier.background(BlockGridBackground(editor, 3.dp, Dimensions.PaddingLarge + Dimensions.PaddingNormal))
                 FileTitleBar(icon, dockable, isCollapsed, onCloseAction = { dockable ->
                     closeFile(dockable)
                 }, onRightClick = { dockable, event ->

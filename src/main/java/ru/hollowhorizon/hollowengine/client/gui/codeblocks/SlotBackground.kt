@@ -8,7 +8,7 @@ import de.fabmax.kool.modules.ui2.UiSurface
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.PolyUtil
 
-class SlotBackground(val color: Color, val isHovered: Boolean) : UiRenderer<UiNode> {
+class SlotBackground(val color: Color, val isHovered: Boolean, val zoom: Float) : UiRenderer<UiNode> {
     override fun renderUi(node: UiNode) = with(node) {
         val w = node.widthPx
         val h = node.heightPx
@@ -17,7 +17,7 @@ class SlotBackground(val color: Color, val isHovered: Boolean) : UiRenderer<UiNo
 
         val points = mutableListOf<Vec3f>()
 
-        val geom = PuzzleShapes.calculateSafeGeometry(h)
+        val geom = PuzzleShapes.calculateSafeGeometry(h, zoom)
         val r = geom.r
         val tabH = geom.tabH
         val tyStart = geom.tabYStart
@@ -27,7 +27,7 @@ class SlotBackground(val color: Color, val isHovered: Boolean) : UiRenderer<UiNo
         PuzzleShapes.addBezier(points, x + w, y + h - r, x + w, y + h, x + w - r, y + h) // Bottom-Right
         PuzzleShapes.addBezier(points, x + r, y + h, x, y + h, x, y + h - r) // Bottom-Left
 
-        val tabDepth = Dp(4f).px
+        val tabDepth = Dp(4f * zoom).px
 
         val bottomTabY = y + tyStart + tabH
         if (bottomTabY < y + h - r - 0.1f) {
@@ -52,8 +52,7 @@ class SlotBackground(val color: Color, val isHovered: Boolean) : UiRenderer<UiNo
         node.getPlainBuilder(UiSurface.LAYER_POPUP).configured(bgColor, clipped = true) {
             PuzzleShapes.drawInnerShadow(
                 points,
-                width = 4f,
-                color = Color.BLACK.withAlpha(0.2f)
+                zoom
             )
         }
     }
