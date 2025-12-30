@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "2.3.0-RC2"
-    kotlin("plugin.serialization") version "2.3.0-RC2"
+    kotlin("jvm") version "2.3.0"
+    kotlin("plugin.serialization") version "2.3.0"
     `kotlin-dsl`
 }
 
@@ -18,7 +18,7 @@ dependencies {
     implementation("dev.architectury:architectury-loom:1.9-SNAPSHOT")
     implementation("net.fabricmc:tiny-remapper:0.10.4")
     implementation("dev.kikugie:stonecutter:0.7.10")
-    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.0-RC2")
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.0")
     implementation("me.fallenbreath.yamlang:me.fallenbreath.yamlang.gradle.plugin:1.4.1")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.9.0")
