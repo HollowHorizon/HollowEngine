@@ -164,7 +164,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                         items(models) { resource ->
                             Box(Grow.Std) {
                                 val isHovered by modifier.hoverable()
-                                val color by animateColorAsState(if(isHovered) Color("1B1E23FF") else Color("252930FF"), tween(easing = Easing.quadRev))
+                                val color by animateColorAsState(if(isHovered) Color("1B1E23FF") else Color("252930FF"), tween(easing = Easing.easeOutQuart))
                                 modifier.backgroundColor(color).padding(sizes.smallGap)
                                     .onClick {
                                         model = resource

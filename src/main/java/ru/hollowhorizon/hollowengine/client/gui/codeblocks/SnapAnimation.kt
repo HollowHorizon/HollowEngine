@@ -2,15 +2,15 @@ package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
 import de.fabmax.kool.math.PI_F
 import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.modules.ui2.AnimatedFloat
+import de.fabmax.kool.modules.ui2.FloatAnimator
 import net.minecraft.util.Mth.cos
 import net.minecraft.util.Mth.sin
 
 class SnapAnimation(val x: Float, val y: Float) {
-    val animator = AnimatedFloat(0.4f)
+    val animator = FloatAnimator(0.4f)
 
     init {
-        animator.start()
+        animator.start(1f)
     }
 
     val isFinished: Boolean

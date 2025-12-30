@@ -29,7 +29,7 @@ class RecipeEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.recipes", 
             items(RECIPE_TYPES) { recipeType ->
                 Box {
                     val isHovered by modifier.hoverable()
-                    val color by animateColorAsState(if(isHovered) colors.background else ColorTheme.UI.BackgroundGeneral, tween(easing = Easing.quadRev))
+                    val color by animateColorAsState(if(isHovered) colors.background else ColorTheme.UI.BackgroundGeneral, tween(easing = Easing.easeOutQuart))
                     modifier.padding(sizes.smallGap * 0.5f).margin(sizes.smallGap * 0.5f)
                         .width(Grow.Std)
                         .backgroundColor(color)
