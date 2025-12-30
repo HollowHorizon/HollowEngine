@@ -106,7 +106,7 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
 
 fun UiScope.Logo() {
     val isHovered by modifier.hoverable()
-    val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
+    val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.easeOutQuart))
     val size = Dimensions.PaddingLarge + Dimensions.PaddingSmall * factor
     modifier.onClick {
         ScriptingEnvironmentOverlay.isCollapsed = !ScriptingEnvironmentOverlay.isCollapsed
@@ -125,7 +125,7 @@ fun UiScope.TextButton(text: String, onClick: (PointerEvent) -> Unit = {}) {
         val isHovered by modifier.hoverable()
         val color by animateColorAsState(
             if (isHovered) ColorTheme.UI.ForegroundSecondary else ColorTheme.UI.BackgroundSecondary,
-            tween(easing = Easing.quadRev)
+            tween(easing = Easing.easeOutQuart)
         )
 
         modifier.background(RoundRectBackground(color, sizes.smallGap))
@@ -192,7 +192,7 @@ private fun UiScope.ActionButton(
     val isHovered by modifier.hoverable()
     val color by animateColorAsState(
         if (isHovered) colors.background else ColorTheme.UI.BackgroundGeneral,
-        tween(easing = Easing.quadRev)
+        tween(easing = Easing.easeOutQuart)
     )
 
     modifier.padding(horizontal = sizes.smallGap)

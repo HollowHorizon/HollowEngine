@@ -181,7 +181,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                                 val color by animateColorAsState(
                                     if (isHovered.value) bgColor else bgColor.mulRgb(0.9f), tween(
                                         0.2f,
-                                        Easing.quadRev
+                                        Easing.easeOutQuart
                                     )
                                 )
                                 modifier.background(ContainerFooterBackground(color, block !is EndBlock))
@@ -270,7 +270,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             else block.color
             val color by animateColorAsState(
                 if (isHovered.use()) bgColor else bgColor.mulRgb(0.9f),
-                tween(0.2f, Easing.quadRev)
+                tween(0.2f, Easing.easeOutQuart)
             )
             val isContainer = block is ContainerBlock
 
@@ -319,11 +319,11 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                     val drawList = getPlainBuilder(UiSurface.LAYER_FLOATING)
 
                     snapAnimations.forEach { anim ->
-                        val p = anim.animator.progressAndUse()
+                        val p = anim.animator.value
 
                         val scale = 10f + p * 30f
 
-                        val alpha = Easing.quad(1f - p).coerceIn(0f, 1f)
+                        val alpha = Easing.easeInQuart(1f - p).coerceIn(0f, 1f)
 
                         drawList.configured(Color.WHITE.withAlpha(alpha)) {
                             translate(anim.x, anim.y, 0f)

@@ -29,8 +29,8 @@ import ru.hollowhorizon.hollowengine.common.npcs.dialogues.DialogueUpdateEvent
 class DialogGui : KoolScreen() {
     var text = ""
         set(value) {
-            textAnimator.duration = value.split(wordCounter).size / 5f
-            textAnimator.start()
+            textAnimator = FloatAnimator(value.split(wordCounter).size / 5f)
+            textAnimator.start(1f)
             field = value
         }
     var character = ""
@@ -40,11 +40,11 @@ class DialogGui : KoolScreen() {
 
     private var extras = CompoundTag()
 
-    private val choiceShowAnimator = AnimatedFloat(0.75f)
-    private val choiceAnimator = AnimatedFloat(1f, 0f)
-    private val rootChoiceAnimator = AnimatedFloat(1f, 0f)
-    private val showAnimator = AnimatedFloat(0.75f)
-    private val textAnimator = AnimatedFloat(2f)
+    private val choiceShowAnimator = FloatAnimator(0.75f)
+    private val choiceAnimator = FloatAnimator(1f, initial = 0f)
+    private val rootChoiceAnimator = FloatAnimator(1f, initial = 0f)
+    private val showAnimator = FloatAnimator(0.75f)
+    private var textAnimator = FloatAnimator(2f)
     private val toggleAnimator = AnimatedFloatLoop()
 
     init {
@@ -53,13 +53,13 @@ class DialogGui : KoolScreen() {
 
     override fun init() {
         super.init()
-        showAnimator.start()
-        textAnimator.start()
+        showAnimator.start(1f)
+        textAnimator.start(1f)
     }
 
     override fun Scene.setup() {
         addPanelSurface(IdeTheme.colors, IdeTheme.sizes.copy(normalText = MsdfFont(KoolManager.MONOCRAFT, 12f))) {
-            val progress = showAnimator.progressAndUse()
+            val progress = showAnimator.updateUsing()
             modifier.backgroundColor(Color(0f, 0f, 0f, 0.6f * Interpolation.QUAD_OUT(progress))).layout(CellLayout)
             modifier.onHover {
                 val (x, y) = it.pointer.delta
@@ -71,7 +71,7 @@ class DialogGui : KoolScreen() {
             }
 
             EntityOverlay(progress)
-            DialogueChoices(progress * Interpolation.QUAD_OUT(choiceShowAnimator.progressAndUse()))
+            DialogueChoices(progress * Interpolation.QUAD_OUT(choiceShowAnimator.updateUsing()))
             DialogueBox(progress)
         }
     }
@@ -124,23 +124,23 @@ class DialogGui : KoolScreen() {
                 Row(Grow.Std, Grow.Std) {
                     modifier.padding(start = 12.dp, end = 12.dp)
                     if(text.isEmpty()) return@Row
-                    Text(text.substring(0, (text.lastIndex * textAnimator.progressAndUse()).toInt() + 1)) {
+                    Text(text.substring(0, (text.lastIndex * textAnimator.updateUsing()).toInt() + 1)) {
                         modifier.zLayer(5).size(Grow.Std, Grow.Std)
                             .isWrapText(true)
                             .textColor(Color(1f, 1f, 1f, Interpolation.QUAD_IN(progress)))
                     }
                     if (!textAnimator.isActive && choices.isEmpty()) Image("hollowengine:textures/gui/dialogues/cursor.png") {
                         val isHovered by modifier.hoverable()
-                        val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
+                        val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.easeOutQuart))
 
-                        val clickAnimator = remember { AnimatedFloat(0.5f, 0f) }
+                        val clickAnimator = remember { FloatAnimator(0.5f, initial = 0f) }
 
                         modifier.onClick {
-                            clickAnimator.start()
+                            clickAnimator.start(1f)
                             DialogueUpdateEvent(extras).send()
                         }
 
-                        val size = 1.0f * (1f - Interpolation.QUAD_OUT(clickAnimator.progressAndUse())) + 0.1f * Interpolation.QUAD_OUT(factor)
+                        val size = 1.0f * (1f - Interpolation.QUAD_OUT(clickAnimator.updateUsing())) + 0.1f * Interpolation.QUAD_OUT(factor)
                         modifier.align(AlignmentX.Start, AlignmentY.Center)
                             .size(22.dp * size, 24.dp * size)
                             .tint(Color(1f, 1f, 1f, Interpolation.QUAD_IN(progress)).mulRgb(0.75f + 0.25f * factor))
@@ -165,8 +165,8 @@ class DialogGui : KoolScreen() {
 
     private fun UiScope.DialogueChoices(progress: Float) {
         val state = rememberListState()
-        choiceAnimator.progress(Time.deltaT)
-        rootChoiceAnimator.progress(Time.deltaT)
+        choiceAnimator.update(Time.deltaT)
+        rootChoiceAnimator.update(Time.deltaT)
         LazyColumn(
             Grow.Std,
             Grow.Std,
@@ -197,8 +197,8 @@ class DialogGui : KoolScreen() {
                     return@itemsIndexed
                 }
                 if (choiceId != -1) {
-                    val alpha = if (i - 1 == choiceId) Interpolation.QUINT_IN(1f - rootChoiceAnimator.use())
-                    else Interpolation.QUINT_IN(1f - choiceAnimator.use())
+                    val alpha = if (i - 1 == choiceId) Interpolation.QUINT_IN(1f - rootChoiceAnimator.value)
+                    else Interpolation.QUINT_IN(1f - choiceAnimator.value)
 
                     DialogueButton(choice, i - 1, alpha)
                 } else {
@@ -227,10 +227,10 @@ class DialogGui : KoolScreen() {
                 .onClick {
                     choiceId = i
                     rootChoiceAnimator.set(0f)
-                    choiceAnimator.start()
+                    choiceAnimator.start(1f)
                     launchOnMainThread {
                         delay(500L)
-                        rootChoiceAnimator.start()
+                        rootChoiceAnimator.start(1f)
                         delay(500)
                         extras.putInt("choiceId", choiceId)
                         DialogueUpdateEvent(extras).send()
@@ -239,7 +239,7 @@ class DialogGui : KoolScreen() {
                 }
 
             val isHovered by modifier.hoverable()
-            val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
+            val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.easeOutQuart))
 
             val size = 1f + 0.1f * Interpolation.QUINT_OUT(factor)
             val transparency = 0.25f + 0.75f * Interpolation.QUINT_IN((factor + scale).clamp())
@@ -290,7 +290,7 @@ class DialogGui : KoolScreen() {
         if(scene.choices.isNotEmpty()) {
             choices.clear()
             choices.addAll(scene.choices)
-            choiceShowAnimator.start()
+            choiceShowAnimator.start(1f)
         }
         choiceId = -1
     }
@@ -302,10 +302,8 @@ class DialogGui : KoolScreen() {
     }
 }
 
-class AnimatedFloatLoop(initValue: Float = 0f) : AnimatedState<Float>(initValue) {
-    override val isActive = true
-
-    override fun progress(deltaT: Float) {
+class AnimatedFloatLoop(initValue: Float = 0f) : MutableStateValue<Float>(initValue) {
+    fun progress(deltaT: Float) {
         val newValue = value + deltaT
         set(newValue)
     }

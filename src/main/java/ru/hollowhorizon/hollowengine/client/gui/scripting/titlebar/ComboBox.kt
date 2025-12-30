@@ -61,7 +61,7 @@ object ComboBox {
 
         Row {
             val isHovered by modifier.hoverable()
-            val color by animateColorAsState(if(isHovered) colors.background else ColorTheme.UI.BackgroundGeneral, tween(easing = Easing.quadRev))
+            val color by animateColorAsState(if(isHovered) colors.background else ColorTheme.UI.BackgroundGeneral, tween(easing = Easing.easeOutQuart))
 
             modifier.padding(horizontal = sizes.smallGap)
                 .alignY(AlignmentY.Center)

@@ -115,8 +115,8 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
     override fun UiScope.drawHeaderRight() {
         Image("hollowengine:textures/gui/icons/auto_scroll.svg") {
             val isHovered by modifier.hoverable()
-            val hoverColor by animateColorAsState(if(isHovered) colors.background else Color.WHITE, tween(easing = Easing.quadRev))
-            val backgroundColor by animateColorAsState(if(isScrollLock.use()) Color("00b003") else hoverColor, tween(easing = Easing.quadRev))
+            val hoverColor by animateColorAsState(if(isHovered) colors.background else Color.WHITE, tween(easing = Easing.easeOutQuart))
+            val backgroundColor by animateColorAsState(if(isScrollLock.use()) Color("00b003") else hoverColor, tween(easing = Easing.easeOutQuart))
 
             modifier.margin(horizontal = sizes.smallGap)
                 .tint(backgroundColor)
@@ -185,7 +185,7 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
                 items(suggestions) { resource ->
                     Box(Grow.Std) {
                         val isHovered by modifier.hoverable()
-                        val hoverColor by animateColorAsState(if(isHovered) Color("1B1E23FF") else Color("252930FF"), tween(easing = Easing.quadRev))
+                        val hoverColor by animateColorAsState(if(isHovered) Color("1B1E23FF") else Color("252930FF"), tween(easing = Easing.easeOutQuart))
 
                         modifier.backgroundColor(hoverColor).padding(sizes.smallGap).onClick {
                             commandInput = resource.apply(commandInput)

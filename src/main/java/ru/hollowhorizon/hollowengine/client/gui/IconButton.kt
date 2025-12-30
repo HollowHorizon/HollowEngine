@@ -9,7 +9,7 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 fun UiScope.IconButton(image: String, hovered: String, body: UiScope.() -> Unit) = Box {
     val isHovered by modifier.hoverable()
 
-    val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
+    val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.easeOutQuart))
 
     body()  
 

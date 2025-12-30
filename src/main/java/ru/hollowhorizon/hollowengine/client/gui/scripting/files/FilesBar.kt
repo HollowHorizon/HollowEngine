@@ -136,7 +136,7 @@ fun UiScope.FileDockingTabsBar(
                 items(dockNode.dockedItems.filter { !it.isHidden }) { item ->
                     Row {
                         val isHovered by modifier.hoverable()
-                        val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.quadRev))
+                        val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.easeOutQuart))
 
                         modifier
                             .margin(horizontal = sizes.smallGap)

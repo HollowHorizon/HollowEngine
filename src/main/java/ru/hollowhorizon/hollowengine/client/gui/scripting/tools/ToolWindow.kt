@@ -33,12 +33,12 @@ fun UiScope.ToolBar(panel: DockPanel, isLeft: Boolean) = Column(
 
 fun UiScope.panelButton(panel: Dockable, dockNode: DockNodeLeaf, layout: Layout, isLeft: Boolean) {
     iconButton(layout, panel, panel.name, panel == dockNode.dockItemOnTop, isLeft = isLeft) {
-        if (panel != dockNode.dockItemOnTop) animators[panel]?.start()
+        if (panel != dockNode.dockItemOnTop) animators[panel]?.start(1f)
         dockNode.bringToTop(panel)
     }
 }
 
-private val animators = mutableMapOf<Dockable, AnimatedFloat>()
+private val animators = mutableMapOf<Dockable, FloatAnimator>()
 
 fun UiScope.iconButton(
     layout: Layout,
@@ -51,15 +51,15 @@ fun UiScope.iconButton(
     isLeft: Boolean,
     onClick: (PointerEvent) -> Unit,
 ) = Box(width, height) {
-    val float = animators.getOrPut(panel) { AnimatedFloat(1f) }
-    val anim = Easing.quadRev(float.progressAndUse())
+    val float = animators.getOrPut(panel) { FloatAnimator(1f) }
+    val anim = Easing.easeOutQuart(float.updateUsing())
 
     val tooltipState = remember { TooltipState(0.5) }
 
     if (toggleState) {
         Box(Dimensions.PaddingNormal, Grow(0.5f * anim)) {
             modifier.background(RoundRectBackground(ColorTheme.Accents.Main, Dimensions.PaddingSmall))
-                .border(RoundRectShadow(ColorTheme.Accents.Main.withAlpha(0.33f), Dimensions.PaddingSmall, Dimensions.PaddingNormal))
+                .border(RoundRectBorder(ColorTheme.Accents.Main.withAlpha(0.33f), Dimensions.PaddingSmall, Dimensions.PaddingNormal))
                 .alignY(AlignmentY.Center)
                 .margin(start = (-Dimensions.PaddingSmall.value).dp)
 

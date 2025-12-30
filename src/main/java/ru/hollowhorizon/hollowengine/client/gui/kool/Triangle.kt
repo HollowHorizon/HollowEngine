@@ -35,7 +35,7 @@ class TriangleNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, surface
     override val isHovered: Boolean get() = isHoveredState.value
 
     private var isHoveredState = mutableStateOf(false)
-    private val rotationAnimator = AnimatedFloat(0.1f)
+    private val rotationAnimator = FloatAnimator(0.1f)
     private var isFirst = true
     private var prevRotation = 0f
 
@@ -50,14 +50,14 @@ class TriangleNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, surface
             prevRotation = modifier.rotation
             isFirst = false
         } else if (prevRotation != modifier.rotation && !rotationAnimator.isActive) {
-            rotationAnimator.start()
+            rotationAnimator.start(1f)
         }
     }
 
     override fun render(ctx: KoolContext) {
         super.render(ctx)
 
-        val p = rotationAnimator.progressAndUse()
+        val p = rotationAnimator.updateUsing()
         val rot = modifier.rotation * p + prevRotation * (1f - p)
         val color = if (isHoveredState.use()) modifier.arrowHoverColor else modifier.arrowColor
         getPlainBuilder().configured(color) {
