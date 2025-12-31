@@ -65,7 +65,7 @@ class ScratchBlockBackground(
             PuzzleShapes.addBezier(points, x + w, y + h - r, x + w, y + h, x + w - r, y + h)
 
             if (isContainerHeader) {
-                val spineW = BlockEditor.C_BLOCK_SPINE_WIDTH * zoom
+                val spineW = BlockEditor.C_BLOCK_SPINE_WIDTH.px * zoom
                 val innerNotchX = spineW + notchX
                 if (innerNotchX + notchWidth < w) {
                     points.add(Vec3f(x + innerNotchX + notchWidth, y + h, 0f))
@@ -117,7 +117,7 @@ class ContainerFooterBackground(
         val y = 0f
         val points = mutableListOf<Vec3f>()
 
-        val innerNotchX = BlockEditor.C_BLOCK_SPINE_WIDTH * zoom + notchX
+        val innerNotchX = BlockEditor.C_BLOCK_SPINE_WIDTH.px * zoom + notchX
 
         points.add(Vec3f(x, y, 0f))
         points.add(Vec3f(x + innerNotchX, y, 0f))
@@ -153,7 +153,7 @@ class ContainerMiddleBackground(val color: Color, val zoom: Float) : UiRenderer<
         val notchWidth = gap * 1.5f
         val notchHeight = smallGap * 2.0f
         val notchX = gap
-        val spineW = notchX
+        val spineW = BlockEditor.C_BLOCK_SPINE_WIDTH.px * zoom
 
         val w = node.widthPx
         val h = node.heightPx
@@ -187,7 +187,7 @@ class ContainerMiddleBackground(val color: Color, val zoom: Float) : UiRenderer<
 
 class SpineBackground(val color: Color, val zoom: Float) : UiRenderer<UiNode> {
     override fun renderUi(node: UiNode) = with(node) {
-        val w = node.widthPx + Dimensions.PaddingNormal.px * 3f * zoom
+        val w = node.widthPx
         val h = node.heightPx
         node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(color) {
 

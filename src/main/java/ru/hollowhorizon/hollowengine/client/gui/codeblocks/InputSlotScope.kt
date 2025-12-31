@@ -85,7 +85,7 @@ class InputSlotScope(
             val color by animateColorAsState(if (isHovered) bgColor else bgColor.mulRgb(0.9f), tween(0.2f, Easing.quadRev))
 
             Box {
-                modifier.width(Dp(BlockEditor.C_BLOCK_SPINE_WIDTH * scale))
+                modifier.width(BlockEditor.C_BLOCK_SPINE_WIDTH.scaled())
                     .height(Grow.Std)
                     .zLayer(modifier.zLayer + 1)
                     .background(SpineBackground(color, scale))
@@ -122,11 +122,11 @@ class InputSlotScope(
         Row {
             modifier.width(Grow.Std).height(FitContent)
             Box {
-                modifier.width(Grow.Std).height(30.dp.scaled())
+                modifier.width(Grow.Std).height(Dimensions.PaddingExtraLarge.scaled())
                 modifier.background(ContainerMiddleBackground(color, scale))
                 Text(label) {
                     modifier.alignY(AlignmentY.Center)
-                        .margin(start = Dp(BlockEditor.C_BLOCK_SPINE_WIDTH * scale + 10f * scale))
+                        .margin(start = (BlockEditor.C_BLOCK_SPINE_WIDTH + Dimensions.PaddingMedium) * scale)
                         .textColor(Color.WHITE).bold()
                 }
             }

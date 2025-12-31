@@ -42,7 +42,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
     }
 
     companion object {
-        const val C_BLOCK_SPINE_WIDTH = 20f
+        val C_BLOCK_SPINE_WIDTH = Dimensions.PaddingMedium
         val DROP_SENSOR_HEIGHT = Dimensions.PaddingLarge
     }
 

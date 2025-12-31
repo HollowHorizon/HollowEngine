@@ -12,6 +12,7 @@ import net.minecraft.resources.ResourceKey
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
@@ -41,8 +42,8 @@ class PositionBlock : ExpressionBlock() {
         Text("Z") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(z)
         Image("hollowengine:textures/gui/icons/copy.svg") {
-            modifier.size(sizes.largeGap * 1.5f, sizes.largeGap * 1.5f)
-                .margin(sizes.smallGap)
+            modifier.size(Dimensions.PaddingHuge.scaled(), Dimensions.PaddingHuge.scaled())
+                .margin(Dimensions.PaddingNormal.scaled())
                 .align(AlignmentX.End, AlignmentY.Center)
 
             val isHovered by modifier.hoverable()

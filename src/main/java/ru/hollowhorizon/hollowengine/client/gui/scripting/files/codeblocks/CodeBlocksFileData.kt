@@ -51,7 +51,6 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
     }
     var filter = mutableStateOf("")
     private val blocksPreviewWidth = mutableStateOf(Dp(230f))
-    private val maxPreviewWidth = mutableStateOf(Dp(230f))
 
     init {
         if (bytes.isNotEmpty()) {
@@ -99,7 +98,6 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
 
     override fun UiScope.setupContent() {
         Row(Grow.Std, Grow.Std) {
-            maxPreviewWidth.set(0.dp)
             blocksPanel()
             Splitter()
             Column(Grow.Std, Grow.Std) {
