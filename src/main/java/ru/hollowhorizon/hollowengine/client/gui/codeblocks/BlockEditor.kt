@@ -50,7 +50,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         val DROP_SENSOR_HEIGHT = Dimensions.PaddingMedium
     }
 
-    fun UiScope.EditorLayout(body: ScrollPaneScope.() -> Unit) {
+    fun UiScope.EditorLayout(body: UiScope.() -> Unit) {
         controller.update()
 
         val smoothScale = animateSpringFloatAsState(
@@ -107,7 +107,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 }
 
                 rootBlocks.use().forEach { block -> renderBlockRecursively(block) }
-                body()
 
                 renderSnapAnimations()
             }
@@ -145,6 +144,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
             blockPopup()
             creationPopup()
+
+            body()
         }
     }
 
@@ -155,7 +156,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 .padding(Dimensions.PaddingMedium)
                 .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingNormal))
                 .zLayer(100_000_000)
-            
+
             Text("-") {
                 val isHovered by modifier.hoverable()
                 val textColor by animateColorAsState(if(isHovered) ColorTheme.UI.WhiteReplacement else ColorTheme.UI.BackgroundAccent)

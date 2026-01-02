@@ -19,6 +19,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileTitleBar
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockRepository
@@ -47,8 +48,8 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
     val editor = BlockEditor(repository) {
         changeEvents.tryEmit(Unit)
     }
-    var filter = mutableStateOf("")
-    private val blocksPreviewWidth = mutableStateOf(Dp(230f))
+    val filter = mutableStateOf("")
+    val isMinimized = mutableStateOf(false)
 
     init {
         if (bytes.isNotEmpty()) {
@@ -96,7 +97,7 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
 
     override fun UiScope.setupContent() {
         Row(Grow.Std, Grow.Std) {
-            blocksPanel()
+            if(!isMinimized.use()) blocksPanel()
             Column(Grow.Std, Grow.Std) {
                 val overlay = remember { ItemPopupMenu<Dockable>("Title-File-Overlay") }
                 overlay()
@@ -137,6 +138,8 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
                         .onChange { filter.set(it) }
                         .margin(start = Dimensions.PaddingMedium)
                 }
+
+                MinimizeButton {}
             }
 
             LazyColumn(
@@ -169,10 +172,35 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
         }
     }
 
+    private fun UiScope.MinimizeButton(body: UiScope.() -> Unit) {
+        Box {
+            modifier.padding(Dimensions.PaddingMedium)
+                .margin(start = Dimensions.PaddingNormal)
+                .alignY(AlignmentY.Center)
+
+            val isHovered by modifier.hoverable()
+            val color by animateColorAsState(if (isHovered) ColorTheme.UI.BackgroundAccent else ColorTheme.UI.BackgroundSecondary)
+            modifier.background(RoundRectBackground(color, Dimensions.PaddingNormal))
+                .onClick { if (it.pointer.isLeftButtonClicked) isMinimized.set(!isMinimized.use()) }
+
+            Image(if (isMinimized.use()) icons.MAXIMIZE else icons.MINIMIZE) {
+                modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
+                    .align(AlignmentX.Center, AlignmentY.Center)
+            }
+
+            body()
+        }
+    }
+
     override fun UiScope.compose() {
         Box(Grow.Std, Grow.Std) {
             with(editor) {
-                EditorLayout {}
+                EditorLayout {
+                    MinimizeButton {
+                        modifier.align(AlignmentX.Start, AlignmentY.Top)
+                            .margin(Dimensions.PaddingMedium)
+                    }
+                }
             }
         }
     }
