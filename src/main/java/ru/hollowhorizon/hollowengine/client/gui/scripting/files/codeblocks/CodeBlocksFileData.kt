@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks
 
-import de.fabmax.kool.input.CursorShape
-import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
@@ -99,7 +97,6 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
     override fun UiScope.setupContent() {
         Row(Grow.Std, Grow.Std) {
             blocksPanel()
-            Splitter()
             Column(Grow.Std, Grow.Std) {
                 val overlay = remember { ItemPopupMenu<Dockable>("Title-File-Overlay") }
                 overlay()
@@ -116,7 +113,7 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
     }
 
     private fun UiScope.blocksPanel() {
-        Column(blocksPreviewWidth.use(), Grow.Std) {
+        Column(FitContent, Grow.Std) {
             modifier.margin(Dimensions.PaddingNormal)
                 .padding(Dimensions.PaddingNormal)
                 .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, Dimensions.PaddingMedium))
@@ -169,25 +166,6 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
                     }
                 }
             }
-        }
-    }
-
-    private fun UiScope.Splitter() {
-        val isSplitterHovered = remember(false)
-        val dragStartWidth = remember(0f)
-        Box(width = Dimensions.PaddingNormal, height = Grow.Std) {
-            modifier
-                .onEnter { isSplitterHovered.value = true }
-                .onExit { isSplitterHovered.value = false }
-                .onHover { PointerInput.cursorShape = CursorShape.RESIZE_E }
-                .onDragStart {
-                    dragStartWidth.value = blocksPreviewWidth.value.px
-                }
-                .onDrag {
-                    val newWidthPx = dragStartWidth.value + it.pointer.dragMovement.x
-                    blocksPreviewWidth.set(Dp.fromPx(newWidthPx))
-                }
-                .backgroundColor(Color.BLACK.withAlpha(0.0001f))
         }
     }
 

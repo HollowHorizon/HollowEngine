@@ -15,8 +15,12 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.BlockGridBackground
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.*
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.roundToInt
 
 class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : BlocksScope {
     val controller = BlockController()
@@ -137,8 +141,57 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                     .zLayer(100_000_000)
             }
 
+            ScaleOverlay()
+
             blockPopup()
             creationPopup()
+        }
+    }
+
+    private fun UiScope.ScaleOverlay() {
+        Row {
+            modifier.align(AlignmentX.End, AlignmentY.Bottom)
+                .margin(Dimensions.PaddingHuge + Dimensions.PaddingMedium)
+                .padding(Dimensions.PaddingMedium)
+                .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingNormal))
+                .zLayer(100_000_000)
+            
+            Text("-") {
+                val isHovered by modifier.hoverable()
+                val textColor by animateColorAsState(if(isHovered) ColorTheme.UI.WhiteReplacement else ColorTheme.UI.BackgroundAccent)
+                val color by animateColorAsState(if(isHovered) ColorTheme.UI.BackgroundAccent else ColorTheme.UI.BackgroundElements)
+
+                modifier.alignY(AlignmentY.Center)
+                    .textColor(textColor)
+                    .margin(Dimensions.PaddingNormal)
+                    .padding(Dimensions.PaddingNormal)
+                    .background(RoundRectBackground(color, Dimensions.PaddingNormal))
+
+                modifier.onClick {
+                    scaleState.set((floor((scale - 0.01f) / 0.05f) * 0.05f).coerceAtLeast(0.25f))
+                }
+            }
+
+            Text("${(scale * 100f).roundToInt()}%") {
+                modifier.alignY(AlignmentY.Center)
+                    .textColor(ColorTheme.UI.WhiteReplacement)
+            }
+
+            Text("+") {
+                val isHovered by modifier.hoverable()
+                val textColor by animateColorAsState(if(isHovered) ColorTheme.UI.WhiteReplacement else ColorTheme.UI.BackgroundAccent)
+                val color by animateColorAsState(if(isHovered) ColorTheme.UI.BackgroundAccent else ColorTheme.UI.BackgroundElements)
+
+                modifier.alignY(AlignmentY.Center)
+                    .textColor(textColor)
+                    .margin(Dimensions.PaddingNormal)
+                    .padding(Dimensions.PaddingNormal)
+                    .background(RoundRectBackground(color, Dimensions.PaddingNormal))
+
+                modifier.onClick {
+                    scaleState.set((ceil((scale + 0.01f) / 0.05f) * 0.05f).coerceAtMost(3.0f))
+                }
+            }
         }
     }
 
@@ -211,7 +264,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                         if (block is ContainerBlock) {
                             Box {
                                 modifier.height(Dimensions.PaddingHuge.scaled()).width(Grow.Std)
-                                val isUnused = block.parentsWithSelf.none { it is StartBlock } && block.root in rootBlocks
+                                val isUnused =
+                                    block.parentsWithSelf.none { it is StartBlock } && block.root in rootBlocks
                                 val bgColor = if (isGhost) block.color.withAlpha(0.5f)
                                 else if (isUnused) block.color.mix(Color.LIGHT_GRAY, 0.5f).withAlpha(0.35f)
                                 else block.color
