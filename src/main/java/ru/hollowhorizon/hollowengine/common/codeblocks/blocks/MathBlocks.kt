@@ -6,6 +6,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
@@ -177,10 +178,10 @@ class LogicBlock(var op: LogicOp = LogicOp.AND) : ExpressionBlock() {
         InputSlot(a)
         Box {
             modifier
-                .size(FitContent, sizes.largeGap)
+                .size(Dimensions.PaddingHuge.scaled(), Dimensions.PaddingHuge.scaled())
                 .alignY(AlignmentY.Center)
-                .padding(horizontal = sizes.smallGap)
-                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), sizes.largeGap))
+                .padding(horizontal = Dimensions.PaddingNormal.scaled())
+                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), Dimensions.PaddingHuge.scaled()))
                 .onClick {
                     if (it.pointer.isLeftButtonClicked) {
                         val values = LogicOp.entries
@@ -277,6 +278,7 @@ class NumberBlock(var value: Double = 0.0) : ExpressionBlock() {
     override fun InputSlotScope.composeContent() {
         TextField(value.toString()) {
             modifier
+                .font(font)
                 .onChange { value = it.toDoubleOrNull() ?: 0.0; notifyChanged() }
                 .colors(
                     lineColor = Color.WHITE,

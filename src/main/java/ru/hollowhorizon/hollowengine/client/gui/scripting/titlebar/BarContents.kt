@@ -56,7 +56,7 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
 
     val overlay = remember { ItemPopupMenu<Unit>("Title-File-Overlay") }
     overlay()
-    TextButton("File") {
+    TextButton("Файл") {
         overlay.hide()
         overlay.show(Vec2f(it.screenPosition), SubMenuItem {
             item("Перезагрузить ресурсы", icons.RELOAD_MC) {
@@ -69,7 +69,7 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
     }
     val windowOverlay = remember { ItemPopupMenu<Unit>("Title-Window-Overlay") }
     windowOverlay()
-    TextButton("Windows") {
+    TextButton("Окна") {
         windowOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
             val size = LayoutLoader.LAYOUTS.size
             LayoutLoader.LAYOUTS.values.forEachIndexed { i, window ->

@@ -3,7 +3,7 @@ package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 import de.fabmax.kool.modules.ui2.UiNode
 import de.fabmax.kool.modules.ui2.UiRenderer
 import de.fabmax.kool.modules.ui2.UiScale
-import de.fabmax.kool.util.Color
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -19,23 +19,21 @@ class SelectionRenderer(val controller: BlockController, val editorScale: Float)
         val scrollX = controller.scrollState.xScrollDp.use() * UiScale.measuredScale
         val scrollY = controller.scrollState.yScrollDp.use() * UiScale.measuredScale
 
-        val x = min(startX, currX) + leftPx + paddingStartPx - scrollX
-        val y = min(startY, currY) + topPx + paddingTopPx - scrollY
+        val x = min(startX, currX) + leftPx + paddingStartPx //- scrollX
+        val y = min(startY, currY) + topPx + paddingTopPx //- scrollY
         val w = abs(startX - currX)
         val h = abs(startY - currY)
 
         node.getUiPrimitives(BlockEditor.Z_LAYER_SCROLLBAR).apply {
-            val borderWidth = 1.dp.px
+            val borderWidth = (1.dp * editorScale).px
 
-            // TODO: Перенести цвета куда-то ещё
-            var color = Color("3399FF").withAlpha(0.3f)
-            rect(x, y, w, h, clipBoundsPx, color)
+            val color = ColorTheme.CodeWindow.Selection
+            rect(x, y, w, h, clipBoundsPx, color.withAlpha(0.3f))
 
-            color = Color("3399FF").withAlpha(0.8f)
-            rect(x, y, w, borderWidth, clipBoundsPx, color) // Top
-            rect(x, y + h - borderWidth, w, borderWidth, clipBoundsPx, color) // Bottom
-            rect(x, y, borderWidth, h, clipBoundsPx, color) // Left
-            rect(x + w - borderWidth, y, borderWidth, h, clipBoundsPx, color) // Right
+            rect(x, y, w, borderWidth, clipBoundsPx, color.withAlpha(0.8f)) // Top
+            rect(x, y + h - borderWidth, w, borderWidth, clipBoundsPx, color.withAlpha(0.8f)) // Bottom
+            rect(x, y, borderWidth, h, clipBoundsPx, color.withAlpha(0.8f)) // Left
+            rect(x + w - borderWidth, y, borderWidth, h, clipBoundsPx, color.withAlpha(0.8f)) // Right
         }
     }
 }

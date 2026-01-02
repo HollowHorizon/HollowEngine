@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -37,7 +38,7 @@ class NpcMoveBlock : StatementBlock() {
                 Box(Grow.Std) {  }
                 InputSlot(npc)
             }
-            Box { modifier.margin(sizes.smallGap * 0.5f) }
+            Box { modifier.margin(Dimensions.PaddingNormal.scaled()) }
             Row(Grow.Std) {
                 Text("Идёт на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                 Box(Grow.Std) {  }
@@ -46,7 +47,7 @@ class NpcMoveBlock : StatementBlock() {
                     typeOf<Entity>(),
                 ))
             }
-            Box { modifier.margin(sizes.smallGap * 0.5f) }
+            Box { modifier.margin(Dimensions.PaddingNormal.scaled()) }
             Row(Grow.Std) {
                 Text("Со скоростью") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                 Box(Grow.Std) {  }

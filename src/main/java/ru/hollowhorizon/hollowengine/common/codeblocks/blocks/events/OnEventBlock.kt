@@ -48,6 +48,7 @@ class OnEventBlock(var eventName: String = "MyEvent") : StatementBlock(), StartB
             modifier.alignY(AlignmentY.Center)
                 .onChange { eventName = it; notifyChanged() }
                 .hint("Название сообщения")
+                .font(font)
                 .colors(lineColor = Color.WHITE, textColor = Color.WHITE)
         }
     }

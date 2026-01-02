@@ -80,7 +80,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
             // Main Content Area
             ScrollPane(controller.scrollState) {
-                modifier.layout(CellLayout).padding(Dimensions.PaddingLarge.scaled())
+                modifier.layout(CellLayout)
+                    .padding(Dimensions.PaddingLarge.scaled())
 
                 // Click on empty space inside scroll pane
                 modifier.onClick {
@@ -89,26 +90,37 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                     controller.resetAction()
                 }
 
-                // --- Selection Handling on Background ---
-                modifier.onDragStart {
-                    controller.startSelection(it.screenPosition, uiNode, scale)
-                    surface.triggerUpdate()
-                }
-                modifier.onDrag {
-                    controller.updateSelection(it.screenPosition, uiNode, scale)
-                    surface.triggerUpdate()
-                }
-                modifier.onDragEnd {
-                    controller.endSelection()
-                    surface.triggerUpdate()
-                }
-
                 // Render Blocks
                 rootBlocks.use().forEach { block -> renderBlockTree(block) }
 
                 renderSnapAnimations(snapAnimations, scale)
             }
 
+            // --- Selection Handling on Background ---
+            modifier.onDragStart {
+                if (it.pointer.isLeftButtonDown) {
+                    controller.startSelection(it.screenPosition, uiNode, scale)
+                    surface.triggerUpdate()
+                } else {
+                    //it.isConsumed = false
+                }
+            }
+            modifier.onDrag {
+                if (it.pointer.isLeftButtonDown) {
+                    controller.updateSelection(it.screenPosition, uiNode, scale)
+                    surface.triggerUpdate()
+                } else {
+                    //it.isConsumed = false
+                }
+            }
+            modifier.onDragEnd {
+                if (it.pointer.isLeftButtonReleased) {
+                    controller.endSelection()
+                    surface.triggerUpdate()
+                } else {
+                    // it.isConsumed = false
+                }
+            }
 
             EditorScrollbars(controller)
             ScaleOverlay()
@@ -152,11 +164,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             Column {
                 modifier.width(Grow.Std)
 
-                modifier.onPositioned {
-                    controller.registerBlockBounds(block, it, scale)
-                }
-
-
                 if (!block.isExpression() && controller.canAttachBefore(block) && !controller.isDragging(block)) {
                     Column(Grow.Std) {
                         GhostPlaceholder(false)
@@ -188,9 +195,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         Column {
             modifier.width(FitContent)
             val isHovered = remember { mutableStateOf(false) }
-            val isSelected = controller.selectedBlocks.use().contains(block)
 
-            BlockHeaderVisual(isHovered, isSelected, block, isGhost) {
+            BlockHeaderVisual(isHovered, block, isGhost) {
                 modifier
                     .setupDragHandler(block, controller)
                     .onClick {
@@ -201,7 +207,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                             if (KeyboardInput.isCtrlDown) {
                                 controller.toggleSelection(block)
                             } else {
-                                if (!isSelected) controller.selectSingle(block)
+                                if (!controller.selectedBlocks.use().contains(block)) controller.selectSingle(block)
                             }
                         }
                     }
@@ -213,6 +219,10 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             // Body
             if (block is ContainerBlock) {
                 renderContainerBody(block, isHovered.use(), isGhost)
+            }
+
+            modifier.onPositioned {
+                controller.registerBlockBounds(block, it, scale)
             }
         }
     }
@@ -231,7 +241,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             modifier.height(Dimensions.PaddingHuge.scaled()).width(Grow.Std)
 
             val isUnused = block.parentsWithSelf.none { it is StartBlock } && block.root in rootBlocks
-            val baseColor = block.resolveColor(isGhost, isUnused)
+            val baseColor = block.resolveColor(isGhost, isUnused, controller.selectedBlocks.use().contains(block))
 
             val animatedColor by animateColorAsState(
                 if (isParentHovered) baseColor else baseColor.mulRgb(0.9f),
@@ -266,7 +276,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
     private fun UiScope.BlockHeaderVisual(
         isHovered: MutableStateValue<Boolean>,
-        isSelected: Boolean, // New Parameter
         block: BlockModel,
         isGhost: Boolean,
         blockModifier: UiModifier.() -> Unit,
@@ -275,13 +284,11 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             modifier.apply(blockModifier)
 
             val isUnused = block.parentsWithSelf.none { it is StartBlock } && block.root in rootBlocks
-            val baseColor = block.resolveColor(isGhost, isUnused)
-
-            // TODO: Перенеси это в resolveColor
-            val targetColor = if (isSelected) baseColor.mix(Color.WHITE, 0.3f) else baseColor
+            val isSelected = controller.selectedBlocks.use().contains(block)
+            val baseColor = block.resolveColor(isGhost, isUnused, isSelected)
 
             val animatedColor by animateColorAsState(
-                if (isHovered.use()) targetColor else targetColor.mulRgb(0.9f),
+                if (isHovered.use()) baseColor else baseColor.mulRgb(0.9f),
                 tween(0.2f, Easing.easeOutQuart)
             )
 
@@ -403,6 +410,7 @@ private fun UiModifier.setupEditorControls(editor: BlockEditor): UiModifier {
             }
         }
         .onDrag {
+            if (it.pointer.isLeftButtonDown) return@onDrag
             val delta = it.pointer.delta
             if (delta.x != 0f) editor.controller.scrollState.scrollDpX(Dp.fromPx(-delta.x).value)
             if (delta.y != 0f) editor.controller.scrollState.scrollDpY(Dp.fromPx(-delta.y).value)
@@ -487,7 +495,7 @@ private fun UiScope.renderSnapAnimations(snapAnimations: MutableList<SnapAnimati
 
 // Helpers for color and node finding
 
-private fun BlockModel.resolveColor(isGhost: Boolean, isUnused: Boolean): Color {
+private fun BlockModel.resolveColor(isGhost: Boolean, isUnused: Boolean, isSelected: Boolean): Color {
     return if (isGhost) this.color.withAlpha(0.5f)
     else if (isUnused) this.color.mix(Color.LIGHT_GRAY, 0.5f).withAlpha(0.35f)
     else this.color

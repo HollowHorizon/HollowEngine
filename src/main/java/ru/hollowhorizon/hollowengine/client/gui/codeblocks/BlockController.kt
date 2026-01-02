@@ -73,10 +73,13 @@ class BlockController {
     }
 
     private fun calculateSelectionIntersection() {
-        val xMin = min(selectionStart.x, selectionCurr.x)
-        val xMax = max(selectionStart.x, selectionCurr.x)
-        val yMin = min(selectionStart.y, selectionCurr.y)
-        val yMax = max(selectionStart.y, selectionCurr.y)
+        val scrollX = scrollState.xScrollDp.value * UiScale.measuredScale
+        val scrollY = scrollState.yScrollDp.value * UiScale.measuredScale
+
+        val xMin = min(selectionStart.x, selectionCurr.x) + scrollX
+        val xMax = max(selectionStart.x, selectionCurr.x) + scrollX
+        val yMin = min(selectionStart.y, selectionCurr.y) + scrollY
+        val yMax = max(selectionStart.y, selectionCurr.y) + scrollY
 
         val newSelection = mutableListOf<BlockModel>()
 
@@ -94,9 +97,13 @@ class BlockController {
     }
 
     fun registerBlockBounds(block: BlockModel, node: UiNode, zoom: Float) {
+        val panel = node.findParentOfType<ScrollPaneNode>() ?: return
+
+        val (x, y) = panel.toLocal(node.leftPx, node.topPx) / zoom
+
         blockBounds[block] = BlockRect(
-            block.positionX.value,
-            block.positionY.value,
+            x,
+            y,
             node.widthPx / zoom,
             node.heightPx / zoom
         )

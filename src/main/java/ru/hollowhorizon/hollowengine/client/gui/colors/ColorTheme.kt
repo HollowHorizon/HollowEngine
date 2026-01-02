@@ -53,6 +53,7 @@ object ColorTheme {
         val Calls = Color("FF9B61")         // Вызовы
         val Methods = Color("E4B348")       // Методы
         val AccentCode = Color("E590E4")    // Акцентный код
+        val Selection = Color("3399FF")
     }
 
     object Blocks {
