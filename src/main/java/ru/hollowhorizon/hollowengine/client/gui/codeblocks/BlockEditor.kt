@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
-import de.fabmax.kool.Clipboard
 import de.fabmax.kool.input.CursorShape
 import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.PointerInput
@@ -15,7 +14,6 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.colors.PaddingLargeSpacing
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.BlockGridBackground
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
-import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.*
@@ -35,10 +33,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
     // UI Components
     private val snapAnimations = mutableListOf<SnapAnimation>()
     private val creationPopup = ItemPopupMenu<Vec2f>("BlockCreationMenu")
-    private val blockPopup = ItemPopupMenu<Vec2f>("BlockPopupMenu")
 
     // --- Public API & Helpers ---
-
     fun Dp.scaled(): Dp = Dp(this.value * scale)
 
     fun getFont(baseSize: Float, isBold: Boolean = false): MsdfFont {
@@ -70,10 +66,15 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         Box {
             modifier
                 .size(Grow.Std, Grow.Std)
-                .background(BlockGridBackground(this@BlockEditor, 3.dp, Dimensions.PaddingLargeSpacing))
+                .backgrounds(
+                    BlockGridBackground(this@BlockEditor, 3.dp, Dimensions.PaddingLargeSpacing),
+                    SelectionRenderer(controller, scale)
+                )
                 .setupEditorControls(this@BlockEditor)
                 .onClick {
                     if (it.isRightClick) openCreationMenu(it)
+                    else controller.clearSelection()
+
                     controller.resetAction()
                 }
 
@@ -84,20 +85,35 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 // Click on empty space inside scroll pane
                 modifier.onClick {
                     openCreationMenu(it)
+                    controller.clearSelection()
                     controller.resetAction()
                 }
 
+                // --- Selection Handling on Background ---
+                modifier.onDragStart {
+                    controller.startSelection(it.screenPosition, uiNode, scale)
+                    surface.triggerUpdate()
+                }
+                modifier.onDrag {
+                    controller.updateSelection(it.screenPosition, uiNode, scale)
+                    surface.triggerUpdate()
+                }
+                modifier.onDragEnd {
+                    controller.endSelection()
+                    surface.triggerUpdate()
+                }
+
                 // Render Blocks
-                // TODO: May be add some visibility filter?
                 rootBlocks.use().forEach { block -> renderBlockTree(block) }
 
                 renderSnapAnimations(snapAnimations, scale)
             }
 
+
             EditorScrollbars(controller)
             ScaleOverlay()
 
-            blockPopup()
+            BlockContextMenu.draw()
             creationPopup()
 
             body()
@@ -122,15 +138,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         }
     }
 
-    private fun openBlockContextMenu(block: BlockModel, event: PointerEvent, uiNode: UiNode) {
-        val menuItems = SubMenuItem("Блок", null) {
-            item("Дублировать") { controller.duplicateBlock(block, it) }
-            item("Копировать UUID") { Clipboard.copyToClipboard(block.uuid.toString()) }
-            item("Удалить") { controller.removeBlock(block) }
-        }
-        val relativePos = (uiNode.findParentOfType<ScrollPaneNode>() ?: uiNode).toLocal(event.screenPosition)
-        blockPopup.show(Vec2f(event.screenPosition), menuItems, Vec2f(relativePos))
-    }
+    // --- Block Rendering ---
 
     context(scope: UiScope)
     internal fun renderBlockTree(block: BlockModel, isGhost: Boolean = false): Unit = with(scope) {
@@ -144,7 +152,11 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             Column {
                 modifier.width(Grow.Std)
 
-                // Drop target before block
+                modifier.onPositioned {
+                    controller.registerBlockBounds(block, it, scale)
+                }
+
+
                 if (!block.isExpression() && controller.canAttachBefore(block) && !controller.isDragging(block)) {
                     Column(Grow.Std) {
                         GhostPlaceholder(false)
@@ -152,18 +164,15 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                     }
                 }
 
-                // The Block Visual + Container Body
                 Box {
                     modifier.width(FitContent)
                     renderBlockNode(block, isGhost)
 
-                    // Drop zones around the block
                     if (!controller.isDragging(block) && !block.isExpression()) {
                         renderOuterDropZones(block)
                     }
                 }
 
-                // Recursion for Next Block (Statement Chain)
                 if (block is StatementBlock) {
                     if (controller.canAttachAfter(block) && !controller.isDragging(block)) {
                         GhostPlaceholder(false)
@@ -179,20 +188,29 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         Column {
             modifier.width(FitContent)
             val isHovered = remember { mutableStateOf(false) }
+            val isSelected = controller.selectedBlocks.use().contains(block)
 
-            // Header (The actual block visual)
-            BlockHeaderVisual(isHovered, block, isGhost) {
+            BlockHeaderVisual(isHovered, isSelected, block, isGhost) {
                 modifier
                     .setupDragHandler(block, controller)
                     .onClick {
-                        if (it.isRightClick) openBlockContextMenu(block, it, uiNode)
+                        if (it.isRightClick) {
+                            BlockContextMenu.show(it, uiNode, block)
+                        } else {
+                            // Toggle Selection logic
+                            if (KeyboardInput.isCtrlDown) {
+                                controller.toggleSelection(block)
+                            } else {
+                                if (!isSelected) controller.selectSingle(block)
+                            }
+                        }
                     }
                     .onEnter { isHovered.set(true) }
                     .onHover { PointerInput.cursorShape = CursorShape.HAND }
                     .onExit { isHovered.set(false) }
             }
 
-            // Container Body (if applicable)
+            // Body
             if (block is ContainerBlock) {
                 renderContainerBody(block, isHovered.use(), isGhost)
             }
@@ -200,13 +218,15 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
     }
 
     context(scope: UiScope)
-    private fun <T> renderContainerBody(block: T, isParentHovered: Boolean, isGhost: Boolean): Unit where T: BlockModel, T: ContainerBlock= with(scope) {
-        // Content inside the C-shape
+    private fun <T> renderContainerBody(
+        block: T,
+        isParentHovered: Boolean,
+        isGhost: Boolean,
+    ): Unit where T : BlockModel, T : ContainerBlock = with(scope) {
         with(InputSlotScope(this@BlockEditor, scope, block, isParentHovered, isGhost)) {
             with(block) { composeBody() }
         }
 
-        // Footer of the C-shape
         Box {
             modifier.height(Dimensions.PaddingHuge.scaled()).width(Grow.Std)
 
@@ -246,6 +266,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
     private fun UiScope.BlockHeaderVisual(
         isHovered: MutableStateValue<Boolean>,
+        isSelected: Boolean, // New Parameter
         block: BlockModel,
         isGhost: Boolean,
         blockModifier: UiModifier.() -> Unit,
@@ -255,10 +276,15 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
             val isUnused = block.parentsWithSelf.none { it is StartBlock } && block.root in rootBlocks
             val baseColor = block.resolveColor(isGhost, isUnused)
+
+            // TODO: Перенеси это в resolveColor
+            val targetColor = if (isSelected) baseColor.mix(Color.WHITE, 0.3f) else baseColor
+
             val animatedColor by animateColorAsState(
-                if (isHovered.use()) baseColor else baseColor.mulRgb(0.9f),
+                if (isHovered.use()) targetColor else targetColor.mulRgb(0.9f),
                 tween(0.2f, Easing.easeOutQuart)
             )
+
             modifier.background(
                 ScratchBlockBackground(
                     color = animatedColor,
@@ -268,12 +294,16 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                     hasPrev = block !is StartBlock,
                     isContainerHeader = block is ContainerBlock,
                     drawInnerShadow = block.isExpression() && block.parentBlock != null,
+                    isSelected = isSelected
                 )
             )
 
             Row(Grow.Std) {
                 modifier.apply(blockModifier)
-                modifier.padding(horizontal = Dimensions.PaddingMedium.scaled(), vertical = Dimensions.PaddingNormal.scaled())
+                modifier.padding(
+                    horizontal = Dimensions.PaddingMedium.scaled(),
+                    vertical = Dimensions.PaddingNormal.scaled()
+                )
                     .alignY(AlignmentY.Center)
 
                 with(InputSlotScope(this@BlockEditor, this@Row, block, isHovered.use(), isGhost)) {
@@ -286,7 +316,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
     private fun UiModifier.configureBlockPositionAndLayer(block: BlockModel, isRoot: Boolean, zoom: Float) {
         val isDragging = controller.isDragging(block)
 
-        // Z-Layer Logic
         var baseLayer = if (isDragging) Z_LAYER_DRAGGING else UiSurface.LAYER_DEFAULT
         rootBlocks.indexOf(block.root).takeUnless { it == -1 }?.let { baseLayer += it * 1000 }
         if (block.bodyRoot.parentBlock != null) baseLayer += 100
@@ -318,8 +347,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             if (!isExpression) modifier.margin(vertical = Dimensions.PaddingSmall.scaled())
         }
     }
-
-    // --- Overlays ---
 
     private fun UiScope.ScaleOverlay() {
         Row {

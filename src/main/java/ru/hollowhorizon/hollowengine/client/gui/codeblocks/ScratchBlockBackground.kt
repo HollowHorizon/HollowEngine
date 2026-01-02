@@ -4,6 +4,7 @@ import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.geometry.MeshBuilder
 import de.fabmax.kool.util.*
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.mixins.kool.UiNodeAccessor
 import kotlin.math.max
@@ -16,6 +17,7 @@ class ScratchBlockBackground(
     val hasPrev: Boolean = true,
     val isContainerHeader: Boolean = false,
     val drawInnerShadow: Boolean = false,
+    val isSelected: Boolean = false
 ) : UiRenderer<UiNode> {
 
     override fun renderUi(node: UiNode) = with(node) {
@@ -90,6 +92,13 @@ class ScratchBlockBackground(
             color = this@ScratchBlockBackground.color
             fillPolygon(PolyUtil.fillPolygon(points))
         }
+
+        if (isSelected) {
+            node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(null) {
+                PuzzleShapes.drawStroke(points, 1.dp.px * zoom, ColorTheme.UI.WhiteReplacement)
+            }
+        }
+
         node.getPlainBuilder(UiSurface.LAYER_FLOATING).configure(null) {
             if (drawInnerShadow) PuzzleShapes.drawInnerShadow(points, zoom)
         }

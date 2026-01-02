@@ -152,4 +152,16 @@ object PuzzleShapes {
             builder.addTriIndices(prevEdgeIndex, firstFadeIndex, firstEdgeIndex)
         }
     }
+
+    context(builder: MeshBuilder<UiVertexLayout>)
+    fun drawStroke(points: List<Vec3f>, width: Float, color: Color) {
+        val pSize = points.size
+        for (i in 0 until pSize) {
+            val p1 = points[i]
+            val p2 = points[(i + 1) % pSize]
+            builder.withColor(color) {
+                line(p1.x, p1.y, p2.x, p2.y, width)
+            }
+        }
+    }
 }

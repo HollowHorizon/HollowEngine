@@ -6,20 +6,104 @@ import de.fabmax.kool.modules.ui2.*
 import ru.hollowhorizon.hollowengine.client.audio.UIAudio
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.*
+import kotlin.math.max
+import kotlin.math.min
 
 class BlockController {
     val scrollState = ScrollState()
     private val dropTargets = mutableListOf<Pair<DropAction, UiNode>>()
     private var potentialAction: DropAction? = null
 
+    // --- Selection State ---
+    val selectedBlocks = mutableStateListOf<BlockModel>()
+    var isSelecting = mutableStateOf(false)
+
+    val selectionStart = MutableVec2f()
+    val selectionCurr = MutableVec2f()
+
+    val blockBounds = mutableMapOf<BlockModel, BlockRect>()
+
     var draggingBlock: BlockModel? = null
     var dragStartOffset = MutableVec2f()
 
+    data class BlockRect(val x: Float, val y: Float, val w: Float, val h: Float)
+
     fun update() {
         dropTargets.clear()
+        blockBounds.clear()
+    }
+
+    fun startSelection(screenPos: Vec2f, contentNode: UiNode, zoom: Float) {
+        selectedBlocks.clear()
+        isSelecting.set(true)
+
+        val local = contentNode.toLocal(screenPos)
+        val logicX = local.x / zoom
+        val logicY = local.y / zoom
+
+        selectionStart.set(logicX, logicY)
+        selectionCurr.set(logicX, logicY)
+    }
+
+    fun updateSelection(screenPos: Vec2f, contentNode: UiNode, zoom: Float) {
+        val local = contentNode.toLocal(screenPos)
+        val logicX = local.x / zoom
+        val logicY = local.y / zoom
+
+        selectionCurr.set(logicX, logicY)
+        calculateSelectionIntersection()
+    }
+
+    fun endSelection() {
+        isSelecting.set(false)
+    }
+
+    fun toggleSelection(block: BlockModel) {
+        if (selectedBlocks.contains(block)) selectedBlocks.remove(block)
+        else selectedBlocks.add(block)
+    }
+
+    fun selectSingle(block: BlockModel) {
+        selectedBlocks.clear()
+        selectedBlocks.add(block)
+    }
+
+    fun clearSelection() {
+        if (selectedBlocks.isNotEmpty()) selectedBlocks.clear()
+    }
+
+    private fun calculateSelectionIntersection() {
+        val xMin = min(selectionStart.x, selectionCurr.x)
+        val xMax = max(selectionStart.x, selectionCurr.x)
+        val yMin = min(selectionStart.y, selectionCurr.y)
+        val yMax = max(selectionStart.y, selectionCurr.y)
+
+        val newSelection = mutableListOf<BlockModel>()
+
+        blockBounds.forEach { (block, bounds) ->
+            if (xMin < bounds.x + bounds.w && xMax > bounds.x &&
+                yMin < bounds.y + bounds.h && yMax > bounds.y) {
+                newSelection.add(block)
+            }
+        }
+
+        if (selectedBlocks.size != newSelection.size || !selectedBlocks.containsAll(newSelection)) {
+            selectedBlocks.clear()
+            selectedBlocks.addAll(newSelection)
+        }
+    }
+
+    fun registerBlockBounds(block: BlockModel, node: UiNode, zoom: Float) {
+        blockBounds[block] = BlockRect(
+            block.positionX.value,
+            block.positionY.value,
+            node.widthPx / zoom,
+            node.heightPx / zoom
+        )
     }
 
     fun isDragging(block: BlockModel) = draggingBlock in block.parentsWithSelf
+
     fun canAttachBefore(block: BlockModel): Boolean {
         val target = (potentialAction as? DropAction.InsertBefore)?.target
         if (draggingBlock is EndBlock || target is StartBlock) return false
@@ -39,6 +123,10 @@ class BlockController {
 
     context(editor: BlockEditor, scope: UiScope)
     fun handleDragStart(block: BlockModel, ev: PointerEvent) {
+        if (!selectedBlocks.contains(block)) {
+            selectSingle(block)
+        }
+
         draggingBlock = block
         val visualScreenPos = scope.uiNode.toScreen(Vec2f.ZERO)
         dragStartOffset.set(ev.screenPosition.x - visualScreenPos.x, ev.screenPosition.y - visualScreenPos.y)
@@ -67,6 +155,8 @@ class BlockController {
         block.positionX.set(local.x / zoom)
         block.positionY.set(local.y / zoom)
 
+        // TODO: Нужно двигать все выбранные блоки
+
         var bestAction: DropAction? = null
         for ((action, node) in dropTargets) {
             if (node.isInBounds(ev.screenPosition)) {
@@ -93,6 +183,17 @@ class BlockController {
         draggingBlock = null
         potentialAction = null
         editor.notifyChanged()
+    }
+
+    // --- Actions ---
+
+    context(editor: BlockEditor)
+    fun deleteSelected() {
+        val toDelete = ArrayList(selectedBlocks)
+        toDelete.forEach { block ->
+            removeBlock(block)
+        }
+        selectedBlocks.clear()
     }
 
     context(editor: BlockEditor)
