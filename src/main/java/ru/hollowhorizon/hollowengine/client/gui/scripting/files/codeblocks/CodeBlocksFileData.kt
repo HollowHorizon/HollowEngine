@@ -1,8 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks
 
-import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.KoolDispatchers
 import kotlinx.coroutines.*
@@ -16,9 +14,6 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileTitleBar
-import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
-import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
@@ -95,48 +90,35 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
         }
     }
 
-    override fun UiScope.setupContent() {
-        Row(Grow.Std, Grow.Std) {
-            if(!isMinimized.use()) blocksPanel()
-            Column(Grow.Std, Grow.Std) {
-                val overlay = remember { ItemPopupMenu<Dockable>("Title-File-Overlay") }
-                overlay()
-                FileTitleBar(icon, dockable, isCollapsed, onCloseAction = { dockable ->
-                    closeFile(dockable)
-                }, onRightClick = { dockable, event ->
-                    val menu = SubMenuItem("File-Context-Menu") { createMenu() }
-                    overlay.hide()
-                    overlay.show(Vec2f(event.screenPosition), menu, dockable)
-                })
-                if (!isCollapsed.use()) compose()
-            }
-        }
-    }
-
     private fun UiScope.blocksPanel() {
         Column(FitContent, Grow.Std) {
-            modifier.margin(Dimensions.PaddingNormal)
-                .padding(Dimensions.PaddingNormal)
+            modifier.margin(horizontal = Dimensions.PaddingNormal)
                 .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, Dimensions.PaddingMedium))
 
             Row(Grow.Std) {
-                modifier.padding(Dimensions.PaddingMedium)
-                    .margin(Dimensions.PaddingMedium)
-                    .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingHuge))
+                modifier.margin(Dimensions.PaddingMedium)
 
-                Image(Assets.Hollowengine.Textures.Gui.Icons.SEARCH) {
-                    modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                        .alignY(AlignmentY.Center).margin(start = Dimensions.PaddingMedium)
-                }
+                Row(Grow.Std) {
+                    modifier.padding(Dimensions.PaddingMedium)
+                        .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingHuge))
 
-                TextField(filter.use()) {
-                    modifier.alignY(AlignmentY.Center)
-                        .size(Grow.Std, Grow.Std)
-                        .colors(lineColor = Color.BLACK.withAlpha(0f), lineColorFocused = Color.BLACK.withAlpha(0f))
-                        .hint("hollowengine.message.block_filter".lang)
-                        .onEnterPressed { surface.requestFocus(null) }
-                        .onChange { filter.set(it) }
-                        .margin(start = Dimensions.PaddingMedium)
+                    Image(Assets.Hollowengine.Textures.Gui.Icons.SEARCH) {
+                        modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
+                            .alignY(AlignmentY.Center).margin(start = Dimensions.PaddingMedium)
+                    }
+
+                    TextField(filter.use()) {
+                        modifier.alignY(AlignmentY.Center)
+                            .size(Grow.Std, Grow.Std)
+                            .colors(
+                                lineColor = Color.BLACK.withAlpha(0f),
+                                lineColorFocused = Color.BLACK.withAlpha(0f)
+                            )
+                            .hint("hollowengine.message.block_filter".lang)
+                            .onEnterPressed { surface.requestFocus(null) }
+                            .onChange { filter.set(it) }
+                            .margin(start = Dimensions.PaddingMedium)
+                    }
                 }
 
                 MinimizeButton {}
@@ -144,7 +126,7 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
 
             LazyColumn(
                 containerModifier = { it.backgroundColor(null) },
-                scrollPaneModifier = { it.width(FitContent).margin(horizontal = Dimensions.PaddingNormal) },
+                scrollPaneModifier = { it.width(Grow.Std).margin(horizontal = Dimensions.PaddingNormal) },
                 vScrollbarModifier = {
                     it.width(Dimensions.PaddingMedium).colors(
                         ColorTheme.UI.BackgroundElements,
@@ -193,10 +175,11 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
     }
 
     override fun UiScope.compose() {
-        Box(Grow.Std, Grow.Std) {
+        Row(Grow.Std, Grow.Std) {
+            if (!isMinimized.use()) blocksPanel()
             with(editor) {
                 EditorLayout {
-                    MinimizeButton {
+                    if (isMinimized.use()) MinimizeButton {
                         modifier.align(AlignmentX.Start, AlignmentY.Top)
                             .margin(Dimensions.PaddingMedium)
                     }

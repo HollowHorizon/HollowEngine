@@ -114,6 +114,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             VerticalScrollbar {
                 modifier
                     .width(Dimensions.PaddingMedium).margin(Dimensions.PaddingMedium)
+                    .margin(bottom=Dimensions.PaddingHuge)
                     .colors(
                         trackColor = ColorTheme.UI.BackgroundSecondary,
                         trackHoverColor = ColorTheme.UI.BackgroundElements,
@@ -128,6 +129,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             HorizontalScrollbar {
                 modifier
                     .height(Dimensions.PaddingMedium).margin(Dimensions.PaddingMedium)
+                    .margin(end=Dimensions.PaddingHuge)
                     .colors(
                         trackColor = ColorTheme.UI.BackgroundSecondary,
                         trackHoverColor = ColorTheme.UI.BackgroundElements,

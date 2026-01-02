@@ -7,6 +7,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
@@ -147,11 +148,12 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
         IdeContent.files.filter { it.value is ScriptFileData || it.value is CodeBlocksFileData }.map { (key, file) ->
             key to Composable {
                 Row {
+                    modifier.alignY(AlignmentY.Center)
+
                     Box {
-                        modifier.alignY(AlignmentY.Center)
                         Image(file.icon.toString()) {
-                            modifier.margin(end = sizes.smallGap).size(24.dp, 24.dp)
-                                .imageSize(ImageSize.Stretch)
+                            modifier.margin(end = Dimensions.PaddingMedium)
+                                .size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
                         }
                     }
 
@@ -167,17 +169,18 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
         }
     val itemIndex = remember { mutableStateOf(KeyValueStore.getInt("ide.file_index", -1)) }
 
-    ComboBox.apply {
-        comboBox("Empty", items.map { it.second }, itemIndex)
-    }
+    ComboBox("Empty", items.map { it.second }, itemIndex)
 
     if (itemIndex.use() != -1) Box {
+        modifier.alignY(AlignmentY.Center)
+            .margin(end=Dimensions.PaddingMedium)
+
         val file = items.getOrNull(itemIndex.use())?.first ?: run {
             itemIndex.set(-1)
             return@Box
         }
 
-        ActionButton(24.dp, "hollowengine:textures/gui/icons/play.png") {
+        ActionButton(Dimensions.PaddingHuge, icons.PLAY) {
             IdeContent.files.values.forEach { it.save() }
             StartScriptPacket(file).send()
         }
@@ -186,16 +189,16 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
 
 private fun UiScope.ActionButton(
     buttonSize: Dimension,
-    icon: String,
+    icon: ResourceLocation,
     action: () -> Unit,
 ) {
     val isHovered by modifier.hoverable()
     val color by animateColorAsState(
-        if (isHovered) colors.background else ColorTheme.UI.BackgroundGeneral,
+        if (isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary,
         tween(easing = Easing.easeOutQuart)
     )
 
-    modifier.padding(horizontal = sizes.smallGap)
+    modifier.padding(Dimensions.PaddingNormal)
         .background(RoundRectBackground(color, sizes.smallGap))
         .onClick {
             action()
