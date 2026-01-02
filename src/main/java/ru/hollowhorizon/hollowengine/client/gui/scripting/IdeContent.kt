@@ -7,6 +7,7 @@ import de.fabmax.kool.modules.ui2.docking.Dockable
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.insertItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ScriptFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.CodeBlocksFileData
 
@@ -16,8 +17,9 @@ object IdeContent {
     val dndContext = DragAndDropContext<FileNode>()
 
     private val fileTypes: Map<String, (String, ByteArray) -> FileData> = buildMap {
-        put(".kts", ::TextFileData)
+        put(".kts", ::ScriptFileData)
         put(".bc", ::CodeBlocksFileData)
+        put(".txt", ::TextFileData)
     }
 
     fun openFile(path: String, bytes: ByteArray): FileData? {

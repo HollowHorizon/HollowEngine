@@ -43,7 +43,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
     companion object {
         val C_BLOCK_SPINE_WIDTH = Dimensions.PaddingMedium
-        val DROP_SENSOR_HEIGHT = Dimensions.PaddingLarge
+        val DROP_SENSOR_HEIGHT = Dimensions.PaddingMedium
     }
 
     fun UiScope.EditorLayout(body: ScrollPaneScope.() -> Unit) {
