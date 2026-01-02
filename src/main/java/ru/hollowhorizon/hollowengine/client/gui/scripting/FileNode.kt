@@ -137,11 +137,11 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
             filePopup()
 
             itemsIndexed(walk(filter)) { i, item ->
-                sceneObjectItem(item)
-
-                modifier.onClick {
-                    if (it.pointer.isRightButtonClicked) {
-                        filePopup.show(item, it.screenPosition)
+                sceneObjectItem(item) {
+                    modifier.onClick {
+                        if (it.pointer.isRightButtonClicked) {
+                            filePopup.show(item, it.screenPosition)
+                        }
                     }
                 }
             }
@@ -149,7 +149,7 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
 
     }
 
-    protected open fun UiScope.sceneObjectItem(item: FileNode) {
+    protected open fun UiScope.sceneObjectItem(item: FileNode, body: UiScope.() -> Unit) {
         val visibility = with(item) { calculateVisibility() }
 
         Box(width = Grow.Std) {
@@ -196,6 +196,7 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
                                 }
                             }
                         }
+                    body()
 
                     val isHovered by modifier.hoverable()
                     val bgColor by animateColorAsState(

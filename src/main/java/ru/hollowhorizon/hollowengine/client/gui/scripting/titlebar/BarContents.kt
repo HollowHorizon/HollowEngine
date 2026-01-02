@@ -29,12 +29,15 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.components.registry.ModComponents
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.start
+import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
 import ru.hollowhorizon.hollowengine.common.utils.literal
+import ru.hollowhorizon.hollowengine.generated.Assets
 
 @SubscribeEvent
 fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
@@ -59,9 +62,11 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
             item("Перезагрузить ресурсы", icons.RELOAD_MC) {
                 Minecraft.getInstance().reloadResourcePacks()
             }
+            item("Открыть папку мода", Assets.Hollowengine.Textures.Gui.Logo.LOGO) {
+                DesktopUtil.openInExplorer(DirectoryManager.HOLLOW_ENGINE.toFile())
+            }
         }, Unit)
     }
-    TextButton("Edit")
     val windowOverlay = remember { ItemPopupMenu<Unit>("Title-Window-Overlay") }
     windowOverlay()
     TextButton("Windows") {
@@ -73,15 +78,6 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
                 }
                 if (i != size - 1) divider()
             }
-        }, Unit)
-    }
-    TextButton("Search")
-
-    val settingsOverlay = remember { ItemPopupMenu<Unit>("Title-Settings-Overlay") }
-    settingsOverlay()
-    TextButton("Info") {
-        settingsOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
-
         }, Unit)
     }
 }

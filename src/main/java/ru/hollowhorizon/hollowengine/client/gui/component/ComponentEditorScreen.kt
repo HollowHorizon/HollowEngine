@@ -91,7 +91,7 @@ class ComponentEditorScreen(val provider: ComponentDispatcher) : KoolScreen() {
 
             Box(Grow.Std) {}
 
-            Image("hollowengine:textures/gui/icons/remove.png") {
+            Image("hollowengine:textures/gui/icons/remove.svg") {
                 val isHovered by modifier.hoverable()
                 val color by animateColorAsState(if(isHovered) Color("AAFF5588") else Color.WHITE, tween(easing = Easing.easeOutQuart))
 

@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
+import de.fabmax.kool.input.CursorShape
 import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.math.Easing
@@ -284,12 +285,17 @@ private fun UiScope.FileDockingBar(
             }
 
         Row(Grow.Std) {
+            val isHovered by modifier.hoverable()
+            val color by animateColorAsState(if(isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary, tween(0.3f, Easing.easeOutQuart))
 
-            modifier.background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, Dimensions.PaddingNormal))
+            modifier.background(RoundRectBackground(color, Dimensions.PaddingNormal))
                 .padding(
                     vertical = Dimensions.PaddingMedium,
                     horizontal = Dimensions.PaddingMedium + Dimensions.PaddingNormal
                 )
+                .onHover { PointerInput.cursorShape = CursorShape.HAND }
+                .onDrag { PointerInput.cursorShape = CursorShape.HAND }
+
 
             if (isDraggable && !PointerInput.primaryPointer.isMiddleButtonDown && !PointerInput.primaryPointer.isRightButtonDown) {
                 with(windowDockable) {
