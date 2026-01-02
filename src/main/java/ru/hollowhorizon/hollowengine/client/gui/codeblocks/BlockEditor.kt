@@ -112,27 +112,29 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 modifier
                     .width(Dimensions.PaddingMedium).margin(Dimensions.PaddingMedium)
                     .colors(
-                        trackColor = ColorTheme.UI.BackgroundElements,
-                        trackHoverColor = ColorTheme.UI.BackgroundSecondary,
+                        trackColor = ColorTheme.UI.BackgroundSecondary,
+                        trackHoverColor = ColorTheme.UI.BackgroundElements,
                         color = ColorTheme.UI.BackgroundAccent,
-                        hoverColor = ColorTheme.Accents.Main
+                        hoverColor = ColorTheme.UI.WhiteReplacement
                     )
                     .relativeBarPos(controller.scrollState.relativeBarPosY)
                     .relativeBarLen(controller.scrollState.relativeBarLenY)
                     .onChange { controller.scrollState.scrollRelativeY(it) }
+                    .zLayer(100_000_000)
             }
             HorizontalScrollbar {
                 modifier
                     .height(Dimensions.PaddingMedium).margin(Dimensions.PaddingMedium)
                     .colors(
-                        trackColor = ColorTheme.UI.BackgroundElements,
-                        trackHoverColor = ColorTheme.UI.BackgroundSecondary,
+                        trackColor = ColorTheme.UI.BackgroundSecondary,
+                        trackHoverColor = ColorTheme.UI.BackgroundElements,
                         color = ColorTheme.UI.BackgroundAccent,
-                        hoverColor = ColorTheme.Accents.Main
+                        hoverColor = ColorTheme.UI.WhiteReplacement
                     )
                     .relativeBarPos(controller.scrollState.relativeBarPosX)
                     .relativeBarLen(controller.scrollState.relativeBarLenX)
                     .onChange { controller.scrollState.scrollRelativeX(it) }
+                    .zLayer(100_000_000)
             }
 
             blockPopup()

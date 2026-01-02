@@ -30,7 +30,7 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
             if (item != null && rootMenu != null) {
                 modifier
                     .layout(CellLayout)
-                    .zLayer(100_100_100)
+                    .zLayer(100_000_000)
                     .backgroundColor(null)
 
                 menuList(rootMenu.menuItems.use(), item.item, Dp.ZERO, Dp.ZERO, modifier.zLayer)
