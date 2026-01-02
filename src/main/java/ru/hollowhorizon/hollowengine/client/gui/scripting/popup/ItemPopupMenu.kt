@@ -1,15 +1,16 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.popup
 
+import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.util.Color
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.audio.UIAudio
-import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
-import ru.hollowhorizon.hollowengine.client.gui.kool.hoverBg
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.kool.menuDivider
-import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
+import ru.hollowhorizon.hollowengine.client.gui.scripting.AccordionLayout
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
 import ru.hollowhorizon.hollowengine.client.utils.lang
@@ -32,6 +33,13 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                     .layout(CellLayout)
                     .zLayer(100_000_000)
                     .backgroundColor(null)
+                    .onClick { it.isConsumed = false }
+                    .onHover { it.isConsumed = false }
+                    .onEnter { it.isConsumed = false }
+                    .onExit { it.isConsumed = false }
+                    .onDrag { it.isConsumed = false }
+                    .onDragStart { it.isConsumed = false }
+                    .onDragEnd { it.isConsumed = false }
 
                 menuList(rootMenu.menuItems.use(), item.item, Dp.ZERO, Dp.ZERO, modifier.zLayer)
             }
@@ -54,8 +62,8 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
         var subMenuNode by remember<UiNode?>(null)
         val withIcons = items.any { (it is MenuItem && it.icon != null) || (it is SubMenuItem && it.icon != null) }
 
-        menuColumn(x, y, z, items.count { it !is Divider }) {
-            items(items) { item ->
+        menuColumn(x, y, z) { opacity ->
+            items.forEach { item ->
                 when (item) {
                     is MenuItem -> {
                         Row(width = Grow.Std) {
@@ -72,17 +80,17 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                                     item.action.invoke(contextItem)
                                     hide()
                                 }
+                                .padding(horizontal = Dimensions.PaddingMedium, vertical = Dimensions.PaddingNormal)
 
-                            if (isHovered) {
-                                modifier.background(RoundRectBackground(colors.hoverBg, sizes.smallGap))
-                            }
+                            val color by animateColorAsState(if (isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary)
+                            modifier.background(RoundRectBackground(color.withAlpha(opacity), Dimensions.PaddingMedium))
 
-                            iconBox(withIcons, item.icon, Color.WHITE)
+
+                            iconBox(withIcons, item.icon, Color.WHITE.withAlpha(opacity))
                             Text(item.label.lang) {
                                 modifier
-                                    .width(Grow.MinFit)
+                                    .textColor(ColorTheme.UI.WhiteReplacement.withAlpha(opacity))
                                     .alignY(AlignmentY.Center)
-                                    .margin(start = if (withIcons) sizes.smallGap else sizes.gap, end = sizes.gap)
                             }
                         }
                     }
@@ -98,31 +106,36 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                                 }
                                 .onExit { isHovered = false }
 
-                            if (isHovered || subMenu == item) {
-                                modifier.background(RoundRectBackground(colors.hoverBg, sizes.smallGap))
-                            }
+                            val color by animateColorAsState(if (isHovered || subMenu == item) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary)
 
-                            item.icon?.let { iconBox(withIcons, it, item.color ?: Color.WHITE) }
+                            modifier.background(RoundRectBackground(color.withAlpha(opacity), Dimensions.PaddingMedium))
+
+
+                            item.icon?.let { iconBox(withIcons, it, (item.color ?: Color.WHITE).withAlpha(opacity)) }
                             Text(item.label?.lang ?: "Sub menu") {
-                                modifier
-                                    .width(Grow.MinFit)
-                                    .alignY(AlignmentY.Center)
-                                    .margin(start = if (withIcons) sizes.smallGap else sizes.gap, end = sizes.gap)
+                                modifier.alignY(AlignmentY.Center)
+                                    .textColor(ColorTheme.UI.WhiteReplacement.withAlpha(opacity))
                             }
+                            Box(Grow.Std) { }
                             Arrow {
-                                modifier
-                                    .alignY(AlignmentY.Center)
-                                    .margin(end = sizes.smallGap)
+                                modifier.alignY(AlignmentY.Center)
+                                    .margin(start=Dimensions.PaddingMedium)
+                                    .colors(
+                                        ColorTheme.UI.BackgroundAccent.withAlpha(opacity),
+                                        ColorTheme.UI.WhiteReplacement.withAlpha(opacity)
+                                    )
+                                    .size(Dimensions.PaddingMedium, Dimensions.PaddingMedium)
                             }
                         }
                     }
 
                     is Divider -> {
                         menuDivider(
-                            marginStart = sizes.gap,
-                            marginEnd = sizes.gap,
-                            marginTop = sizes.smallGap * 0.5f,
-                            marginBottom = sizes.smallGap * 0.5f
+                            marginStart = Dimensions.PaddingMedium,
+                            marginEnd = Dimensions.PaddingMedium,
+                            marginTop = Dimensions.PaddingSmall,
+                            marginBottom = Dimensions.PaddingSmall,
+                            color = ColorTheme.UI.BackgroundElements.withAlpha(opacity)
                         )
                     }
                 }
@@ -148,14 +161,14 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
             if (icon != null) {
                 Image {
                     modifier
-                        .margin(start = sizes.smallGap)
+                        .margin(Dimensions.PaddingNormal)
                         .alignY(AlignmentY.Center)
                         .iconImage(remember {
                             ImageManager.load(icon, SamplerMode.NEAREST)
-                        }, sizes.gap, color)
+                        }, Dimensions.PaddingHuge, color)
                 }
             } else {
-                Box(sizes.gap, sizes.gap) { modifier.margin(start = sizes.smallGap) }
+                Box(Dimensions.PaddingHuge, Dimensions.PaddingHuge) { modifier.margin(Dimensions.PaddingNormal) }
             }
         }
     }
@@ -164,32 +177,38 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
         x: Dp,
         y: Dp,
         z: Int,
-        itemsCount: Int,
-        crossinline block: LazyListScope.() -> Unit
+        crossinline block: ColumnScope.(opacity: Float) -> Unit,
     ) {
-        val height = (Dp.roundToWholePx(sizes.normalText.textDimensions("|").height)) * itemsCount.coerceAtMost(10)
-        LazyColumn(
-            width = FitContent,
-            height = height,
-            containerModifier = {
-                it.margin(start = x, top = y)
-                    .background(RoundRectBackground(colors.backgroundMid, sizes.smallGap))
-                    .border(RoundRectBorder(colors.secondaryVariant, sizes.smallGap, sizes.borderWidth))
-                    .padding(sizes.smallGap)
-                    .zLayer(z + 500)
-            },
-            vScrollbarModifier = {
-                it.zLayer(z + 500)
-                    .width(sizes.smallGap).margin(sizes.smallGap)
-                    .colors(
-                        trackColor = EditorTheme.Scrollbar.trackColor,
-                        trackHoverColor = EditorTheme.Scrollbar.trackHover,
-                        color = EditorTheme.Scrollbar.color,
-                        hoverColor = EditorTheme.Scrollbar.hoverColor,
-                    )
-            }) {
+        Column {
+            val opacity = rememberAnimatableFloat(0f)
 
-            block()
+            LaunchedEffect(Unit) {
+                opacity.animateTo(1f, 0.3f, Easing.easeOutQuart)
+            }
+
+            modifier.margin(start = x, top = y)
+                .zLayer(z + 500)
+                .padding(Dimensions.PaddingMedium)
+                .background(
+                    RoundRectBackground(
+                        ColorTheme.UI.BackgroundSecondary.withAlpha(opacity.use()),
+                        Dimensions.PaddingMedium
+                    )
+                )
+                .border(
+                    RoundRectBorder(
+                        ColorTheme.UI.BackgroundElements.withAlpha(opacity.use()),
+                        Dimensions.PaddingMedium,
+                        Dimensions.PaddingSmall
+                    )
+                )
+
+
+            Column(Grow.Std) {
+                modifier.layout(AccordionLayout(opacity.use()))
+
+                block(opacity.use())
+            }
         }
     }
 

@@ -16,6 +16,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
 import ru.hollowhorizon.hollowengine.generated.Assets
 
+@PublishedApi
 internal val icons = Assets.Hollowengine.Textures.Gui.Icons
 
 object StandardModules {

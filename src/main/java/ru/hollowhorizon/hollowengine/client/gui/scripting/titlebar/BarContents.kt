@@ -56,27 +56,8 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
     TextButton("File") {
         overlay.hide()
         overlay.show(Vec2f(it.screenPosition), SubMenuItem {
-            item("Новый проект") {
-
-            }
-            item("Открыть проект") {
-
-            }
-            item("Экспортировать проект") {
-
-            }
-            item("Закрыть проект") {
-
-            }
-            divider()
             item("Перезагрузить ресурсы", icons.RELOAD_MC) {
                 Minecraft.getInstance().reloadResourcePacks()
-            }
-            item("Сбросить индексы") {
-            }
-            divider()
-            item("Выход", icons.EXIT) {
-                Minecraft.getInstance().screen?.onClose()
             }
         }, Unit)
     }
