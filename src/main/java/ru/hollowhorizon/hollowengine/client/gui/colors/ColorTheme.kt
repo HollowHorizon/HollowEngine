@@ -76,7 +76,7 @@ object Dimensions {
     var PaddingLarge = Dp(24f)
     var PaddingExtraLarge = Dp(32f)
 
-    var CornerRadius = Dp(12f)
-
     var FontNormal = 16f
 }
+
+val Dimensions.PaddingLargeSpacing get() = PaddingLarge + PaddingNormal

@@ -32,7 +32,7 @@ object BlocksPanel {
         Box(scopeName = "CodeBlockRenderer") {
             modifier.padding(Dimensions.PaddingMedium)
 
-            editor.renderBlockRecursively(item)
+            editor.renderBlockTree(item)
         }
     }
 

@@ -40,7 +40,7 @@ class InputSlotScope(
             if (attached != null) {
                 if (editor.controller.draggingBlock == attached) EmptySlotVisual(isTargeted)
                 else {
-                    renderBlockRecursively(attached)
+                    renderBlockTree(attached)
                     if (isTargeted) modifier.border(RectBorder(Color.WHITE, 2.dp.scaled()))
                 }
             } else {
@@ -114,7 +114,7 @@ class InputSlotScope(
                 }
 
                 if (attached != null) {
-                    renderBlockRecursively(attached, isGhost)
+                    renderBlockTree(attached, isGhost)
                 }
             }
         }
