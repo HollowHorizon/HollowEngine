@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.isExpression
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.parentsWithSelf
+import ru.hollowhorizon.hollowengine.common.codeblocks.root
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputValue
 
 class InputSlotScope(
@@ -80,8 +81,11 @@ class InputSlotScope(
 
         Row {
             modifier.width(Grow.Std)
+            val isUnused = parentBlock.parentsWithSelf.none { it is StartBlock } && parentBlock.root in rootBlocks
+            val bgColor = if (isGhost) parentBlock.color.withAlpha(0.5f)
+            else if (isUnused) parentBlock.color.mix(Color.LIGHT_GRAY, 0.5f).withAlpha(0.35f)
+            else parentBlock.color
 
-            val bgColor = if (isGhost) parentBlock.color.withAlpha(0.5f) else parentBlock.color
             val color by animateColorAsState(if (isHovered) bgColor else bgColor.mulRgb(0.9f), tween(0.2f, Easing.quadRev))
 
             Box {
@@ -117,7 +121,11 @@ class InputSlotScope(
     }
 
     fun UiScope.SectionSeparator(label: String) = with(editor) {
-        val bgColor = if (isGhost) parentBlock.color.withAlpha(0.5f) else parentBlock.color
+        val isUnused = parentBlock.parentsWithSelf.none { it is StartBlock } && parentBlock.root in rootBlocks
+        val bgColor = if (isGhost) parentBlock.color.withAlpha(0.5f)
+        else if (isUnused) parentBlock.color.mix(Color.LIGHT_GRAY, 0.5f).withAlpha(0.35f)
+        else parentBlock.color
+        
         val color by animateColorAsState(if (isHovered) bgColor else bgColor.mulRgb(0.9f), tween(0.2f, Easing.quadRev))
         Row {
             modifier.width(Grow.Std).height(FitContent)

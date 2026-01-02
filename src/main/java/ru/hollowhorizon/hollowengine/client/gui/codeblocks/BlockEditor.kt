@@ -209,7 +209,10 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                         if (block is ContainerBlock) {
                             Box {
                                 modifier.height(Dimensions.PaddingHuge.scaled()).width(Grow.Std)
-                                val bgColor = if (isGhost) block.color.withAlpha(0.5f) else block.color
+                                val isUnused = block.parentsWithSelf.none { it is StartBlock } && block.root in rootBlocks
+                                val bgColor = if (isGhost) block.color.withAlpha(0.5f)
+                                else if (isUnused) block.color.mix(Color.LIGHT_GRAY, 0.5f).withAlpha(0.35f)
+                                else block.color
                                 val color by animateColorAsState(
                                     if (isHovered.value) bgColor else bgColor.mulRgb(0.9f),
                                     tween(0.2f, Easing.easeOutQuart)
