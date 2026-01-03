@@ -30,12 +30,14 @@ class ScriptFileData(name: String, path: String) :
     override fun save() {
     }
 
-    private val provider = CompiledFileProvider(filePath.fromReadablePath(), {
-        modifier.errors.clear()
-        modifier.errors.addAll(it)
-    }) {
-        modifier.completions.clear()
-        modifier.completions.addAll(it)
+    private val provider by lazy {
+        CompiledFileProvider(filePath.fromReadablePath(), {
+            modifier.errors.clear()
+            modifier.errors.addAll(it)
+        }) {
+            modifier.completions.clear()
+            modifier.completions.addAll(it)
+        }
     }
 
     override fun UiScope.compose() {
@@ -147,7 +149,7 @@ class ScriptFileData(name: String, path: String) :
 
     override fun close() {
         super.close()
-        provider.dispose()
+        if(HollowEngine.compilerLoader.isLoaded) provider.dispose()
     }
 }
 
