@@ -133,9 +133,9 @@ class CompareBlock(var op: CompareOp = CompareOp.EQUALS) : ExpressionBlock() {
         // Кликабельный текст для смены операции
         Box {
             modifier
-                .size(sizes.largeGap, sizes.largeGap).alignY(AlignmentY.Center)
-                .margin(horizontal = 4.dp)
-                .padding(horizontal = 4.dp, vertical = 2.dp)
+                .size(Dimensions.PaddingLarge.scaled(), Dimensions.PaddingLarge.scaled()).alignY(AlignmentY.Center)
+                .margin(horizontal = Dimensions.PaddingNormal.scaled())
+                .padding(horizontal = Dimensions.PaddingNormal.scaled(), vertical = Dimensions.PaddingSmall.scaled())
                 .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), sizes.largeGap))
                 .onClick {
                     if (it.pointer.isLeftButtonClicked) {

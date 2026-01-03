@@ -8,6 +8,7 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlocksScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputDelegate
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputListDelegate
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -40,6 +41,9 @@ abstract class BlockModel {
     @Transient
     val positionY = mutableStateOf(50f)
 
+    @Transient
+    val isCollapsed = mutableStateOf(false)
+
     fun attachInput(slotName: String, block: BlockModel) {
         inputs[slotName] = block
         block.parentInputName = slotName
@@ -61,6 +65,10 @@ abstract class BlockModel {
 
     abstract fun InputSlotScope.composeContent()
 
+    open fun InputSlotScope.composeContentCollapsed() {
+        DefaultText(this@BlockModel.toString())
+    }
+
     @Transient
     private var _explicitScope: BlocksScope? = null
 
@@ -69,5 +77,9 @@ abstract class BlockModel {
 
     fun setExplicitScope(scope: BlocksScope?) {
         _explicitScope = scope
+    }
+
+    override fun toString(): String {
+        return this::class.simpleName!!.mapIndexed { i, it -> if (it.isUpperCase() && i > 0) " " + it.lowercase() else it }.joinToString("")
     }
 }

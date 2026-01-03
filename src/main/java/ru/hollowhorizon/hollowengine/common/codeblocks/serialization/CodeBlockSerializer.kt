@@ -42,6 +42,7 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockM
                     put("x", JsonPrimitive(block.positionX.value))
                     put("y", JsonPrimitive(block.positionY.value))
                 }
+                put("isCollapsed", JsonPrimitive(block.isCollapsed.value))
             }
         })
 
@@ -108,6 +109,9 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockM
             }
             jsonObject["y"]?.jsonPrimitive?.floatOrNull?.let { y ->
                 currentBlock.positionY.set(y)
+            }
+            jsonObject["isCollapsed"]?.jsonPrimitive?.booleanOrNull?.let { isCollapsed ->
+                currentBlock.isCollapsed.set(isCollapsed)
             }
         }
 

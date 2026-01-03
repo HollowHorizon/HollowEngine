@@ -28,6 +28,11 @@ object BlockContextMenu {
                     Clipboard.copyToClipboard(uuids)
                 }
             } else {
+                if(block.isCollapsed.use(uiNode.surface)) {
+                    item("Развернуть") { block.isCollapsed.set(false) }
+                } else {
+                    item("Свернуть") { block.isCollapsed.set(true) }
+                }
                 item("Дублировать") { controller.duplicateBlock(block, it) }
                 item("Копировать UUID") { Clipboard.copyToClipboard(block.uuid.toString()) }
                 item("Удалить") { controller.removeBlock(block) }

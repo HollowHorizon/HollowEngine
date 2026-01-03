@@ -230,7 +230,7 @@ inline fun <Layout : Struct> MeshBuilder<Layout>.configure(
     color: Color? = null,
     block: MeshBuilder<Layout>.() -> Unit,
 ) {
-    val panel = node.findParentOfType<ScrollPaneNode>() ?: node.findParentOfType<ColumnNode> { (it as UiNodeAccessor).scopeName == "CodeBlockRenderer" } ?: node
+    val panel = node.findParentOfType<ScrollPaneNode>() ?: node.findParentOfType<BoxNode> { (it as UiNodeAccessor).scopeName == "CodeBlockRenderer" } ?: node
     val setBoundsUiVertex: MutableStructBufferView<UiVertexLayout>.(UiVertexLayout) -> Unit = {
         it.clip.set(panel.clipLeftPx, panel.clipTopPx, panel.clipRightPx, panel.clipBottomPx)
     }

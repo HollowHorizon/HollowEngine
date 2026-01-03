@@ -26,6 +26,10 @@ class BlockController {
     var draggingBlock: BlockModel? = null
     var dragStartOffset = MutableVec2f()
 
+    // --- Block Panel State ---
+    val filter = mutableStateOf("")
+    val isBlockPanelMinimized = mutableStateOf(false)
+
     data class BlockRect(val x: Float, val y: Float, val w: Float, val h: Float)
 
     fun update() {

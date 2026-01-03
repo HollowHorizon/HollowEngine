@@ -12,7 +12,6 @@ import de.fabmax.kool.util.set
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.colors.PaddingLargeSpacing
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.BlockGridBackground
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
@@ -28,7 +27,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
     // State
     val scaleState = mutableStateOf(1.0f)
     var scale: Float = 1f
-        private set
+        internal set
 
     // UI Components
     private val snapAnimations = mutableListOf<SnapAnimation>()
@@ -63,72 +62,75 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         controller.update()
         updateScaleAnimation()
 
-        Box {
-            modifier
-                .size(Grow.Std, Grow.Std)
-                .backgrounds(
-                    BlockGridBackground(this@BlockEditor, 3.dp, Dimensions.PaddingLargeSpacing),
-                    SelectionRenderer(controller, scale)
-                )
-                .setupEditorControls(this@BlockEditor)
-                .onClick {
-                    if (it.isRightClick) openCreationMenu(it)
-                    else controller.clearSelection()
+        Row(Grow.Std, Grow.Std) {
+            if (!controller.isBlockPanelMinimized.use()) BlocksPanel()
 
-                    controller.resetAction()
+            Box(Grow.Std, Grow.Std) {
+                modifier
+                    .backgrounds(
+                        BlockGridBackground(this@BlockEditor, 3.dp, Dimensions.PaddingLargeSpacing),
+                        SelectionRenderer(controller, scale)
+                    )
+                    .setupEditorControls(this@BlockEditor)
+                    .onClick {
+                        if (it.isRightClick) openCreationMenu(it)
+                        else controller.clearSelection()
+
+                        controller.resetAction()
+                    }
+
+                // Main Content Area
+                ScrollPane(controller.scrollState) {
+                    modifier.layout(CellLayout)
+                        .padding(Dimensions.PaddingLarge.scaled())
+
+                    // Click on empty space inside scroll pane
+                    modifier.onClick {
+                        openCreationMenu(it)
+                        controller.clearSelection()
+                        controller.resetAction()
+                    }
+
+                    // Render Blocks
+                    rootBlocks.use().forEach { block -> renderBlockTree(block) }
+
+                    renderSnapAnimations(snapAnimations, scale)
                 }
 
-            // Main Content Area
-            ScrollPane(controller.scrollState) {
-                modifier.layout(CellLayout)
-                    .padding(Dimensions.PaddingLarge.scaled())
-
-                // Click on empty space inside scroll pane
-                modifier.onClick {
-                    openCreationMenu(it)
-                    controller.clearSelection()
-                    controller.resetAction()
+                // --- Selection Handling on Background ---
+                modifier.onDragStart {
+                    if (it.pointer.isLeftButtonDown) {
+                        controller.startSelection(it.screenPosition, uiNode, scale)
+                        surface.triggerUpdate()
+                    }
+                }
+                modifier.onDrag {
+                    if (it.pointer.isLeftButtonDown) {
+                        controller.updateSelection(it.screenPosition, uiNode, scale)
+                        surface.triggerUpdate()
+                    }
+                }
+                modifier.onDragEnd {
+                    if (it.pointer.isLeftButtonReleased) {
+                        controller.endSelection()
+                        surface.triggerUpdate()
+                    }
                 }
 
-                // Render Blocks
-                rootBlocks.use().forEach { block -> renderBlockTree(block) }
+                EditorScrollbars(controller)
+                ScaleOverlay()
 
-                renderSnapAnimations(snapAnimations, scale)
+                BlockContextMenu.draw()
+                creationPopup()
+
+                if (controller.isBlockPanelMinimized.use()) {
+                    BlocksPanel.MinimizeButton {
+                        modifier.align(AlignmentX.Start, AlignmentY.Top)
+                            .margin(Dimensions.PaddingMedium)
+                    }
+                }
+                body()
             }
-
-            // --- Selection Handling on Background ---
-            modifier.onDragStart {
-                if (it.pointer.isLeftButtonDown) {
-                    controller.startSelection(it.screenPosition, uiNode, scale)
-                    surface.triggerUpdate()
-                } else {
-                    //it.isConsumed = false
-                }
-            }
-            modifier.onDrag {
-                if (it.pointer.isLeftButtonDown) {
-                    controller.updateSelection(it.screenPosition, uiNode, scale)
-                    surface.triggerUpdate()
-                } else {
-                    //it.isConsumed = false
-                }
-            }
-            modifier.onDragEnd {
-                if (it.pointer.isLeftButtonReleased) {
-                    controller.endSelection()
-                    surface.triggerUpdate()
-                } else {
-                    // it.isConsumed = false
-                }
-            }
-
-            EditorScrollbars(controller)
-            ScaleOverlay()
-
-            BlockContextMenu.draw()
-            creationPopup()
-
-            body()
         }
     }
 
@@ -153,52 +155,52 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
     // --- Block Rendering ---
 
     context(scope: UiScope)
-    internal fun renderBlockTree(block: BlockModel, isGhost: Boolean = false): Unit = with(scope) {
+    internal fun renderBlockTree(
+        block: BlockModel,
+        isGhost: Boolean = false,
+        canDrag: Boolean = true,
+    ): Unit = with(scope) {
         val currentZoom = scale
         val isRoot = rootBlocks.use().contains(block)
 
         Column {
-            modifier.width(if (isRoot) FitContent else Grow.Std)
+            modifier.width(FitContent)
             modifier.configureBlockPositionAndLayer(block, isRoot, currentZoom)
 
-            Column {
-                modifier.width(Grow.Std)
-
-                if (!block.isExpression() && controller.canAttachBefore(block) && !controller.isDragging(block)) {
-                    Column(Grow.Std) {
-                        GhostPlaceholder(false)
-                        controller.addDropTarget(DropAction.InsertBefore(block), uiNode)
-                    }
+            if (!block.isExpression() && controller.canAttachBefore(block) && !controller.isDragging(block)) {
+                Column(Grow.Std) {
+                    GhostPlaceholder(false)
+                    controller.addDropTarget(DropAction.InsertBefore(block), uiNode)
                 }
+            }
 
-                Box {
-                    modifier.width(FitContent)
-                    renderBlockNode(block, isGhost)
+            Box {
+                modifier.width(FitContent)
+                renderBlockNode(block, isGhost, canDrag)
 
-                    if (!controller.isDragging(block) && !block.isExpression()) {
-                        renderOuterDropZones(block)
-                    }
+                if (!controller.isDragging(block) && !block.isExpression()) {
+                    renderOuterDropZones(block)
                 }
+            }
 
-                if (block is StatementBlock) {
-                    if (controller.canAttachAfter(block) && !controller.isDragging(block)) {
-                        GhostPlaceholder(false)
-                    }
-                    block.next?.let { next -> renderBlockTree(next, isGhost) }
+            if (block is StatementBlock) {
+                if (controller.canAttachAfter(block) && !controller.isDragging(block)) {
+                    GhostPlaceholder(false)
                 }
+                block.next?.let { next -> renderBlockTree(next, isGhost, canDrag) }
             }
         }
     }
 
     context(scope: UiScope)
-    private fun renderBlockNode(block: BlockModel, isGhost: Boolean): Unit = with(scope) {
+    private fun renderBlockNode(block: BlockModel, isGhost: Boolean, canDrag: Boolean): Unit = with(scope) {
         Column {
             modifier.width(FitContent)
             val isHovered = remember { mutableStateOf(false) }
 
             BlockHeaderVisual(isHovered, block, isGhost) {
+                if (canDrag) modifier.setupDragHandler(block, controller)
                 modifier
-                    .setupDragHandler(block, controller)
                     .onClick {
                         if (it.isRightClick) {
                             BlockContextMenu.show(it, uiNode, block)
@@ -217,7 +219,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             }
 
             // Body
-            if (block is ContainerBlock) {
+            if (block is ContainerBlock && !block.isCollapsed.use()) {
                 renderContainerBody(block, isHovered.use(), isGhost)
             }
 
@@ -266,7 +268,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             controller.addDropTarget(DropAction.InsertBefore(block), uiNode)
         }
 
-        if (block !is ContainerBlock) {
+        if (block !is ContainerBlock || block.isCollapsed.use()) {
             Box {
                 modifier.width(Grow.Std).height(DROP_SENSOR_HEIGHT.scaled()).alignY(AlignmentY.Bottom)
                 controller.addDropTarget(DropAction.AttachAfter(block as StatementBlock), uiNode)
@@ -299,22 +301,26 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                     isExpression = block.isExpression(),
                     hasNext = !block.isExpression(),
                     hasPrev = block !is StartBlock,
-                    isContainerHeader = block is ContainerBlock,
+                    isContainerHeader = block is ContainerBlock && !block.isCollapsed.use(),
                     drawInnerShadow = block.isExpression() && block.parentBlock != null,
                     isSelected = isSelected
                 )
             )
 
             Row(Grow.Std) {
-                modifier.apply(blockModifier)
                 modifier.padding(
                     horizontal = Dimensions.PaddingMedium.scaled(),
-                    vertical = Dimensions.PaddingNormal.scaled()
-                )
-                    .alignY(AlignmentY.Center)
+                    vertical = Dimensions.PaddingMedium.scaled()
+                ).alignY(AlignmentY.Center)
 
                 with(InputSlotScope(this@BlockEditor, this@Row, block, isHovered.use(), isGhost)) {
-                    with(block) { composeContent() }
+                    with(block) {
+                        if (block.isCollapsed.use()) {
+                            composeContentCollapsed()
+                        } else {
+                            composeContent()
+                        }
+                    }
                 }
             }
         }
@@ -420,9 +426,9 @@ private fun UiModifier.setupEditorControls(editor: BlockEditor): UiModifier {
 context(editor: BlockEditor, scope: UiScope)
 private fun UiModifier.setupDragHandler(block: BlockModel, controller: BlockController): UiModifier {
     return this
-        .onDragStart { ev -> controller.handleDragStart(block, ev) }
-        .onDrag { ev -> controller.handleDrag(block, ev) }
-        .onDragEnd { controller.handleDragEnd(block) }
+        .onDragStart { ev -> if(ev.pointer.isLeftButtonDown) controller.handleDragStart(block, ev) }
+        .onDrag { ev -> if(ev.pointer.isLeftButtonDown) controller.handleDrag(block, ev) }
+        .onDragEnd { ev -> if(ev.pointer.isLeftButtonReleased) controller.handleDragEnd(block) }
 }
 
 private fun UiScope.EditorScrollbars(controller: BlockController) {
