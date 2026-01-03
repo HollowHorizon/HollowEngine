@@ -262,49 +262,6 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
                                 .textColor(fgColor)
                         }
                     }
-
-                    if (item.isFolder && item.children.isNotEmpty() && false) {
-                        val isExpanded = item.isExpanded.use()
-                        val targetRotation = if (isExpanded) 90f else 180f
-
-                        val animRotation by animateFloatAsState(targetRotation, tween(duration = 0.1f))
-
-                        Box {
-                            val isArrowHovered by modifier.hoverable()
-                            val baseColor = if (isArrowHovered) fgColor else fgColor.mix(bgColor, 0.5f)
-                            val arrowColor = baseColor.withAlpha(1f)
-
-                            modifier
-                                .size(Dimensions.PaddingLarge, Dimensions.PaddingLarge)
-                                .alignY(AlignmentY.Center)
-                                .margin(start = sizes.smallGap)
-                                .onClick { item.toggleExpanded() }
-                                .background(UiRenderer { node ->
-                                    node.apply {
-                                        getPlainBuilder().configured(arrowColor) {
-                                            translate(widthPx * 0.5f, heightPx * 0.5f, 0f)
-                                            rotate(animRotation.deg, Vec3f.Z_AXIS)
-
-                                            val stroke = 2.5f.dp.px
-                                            val arrowW = widthPx * 0.25f
-                                            val arrowH = heightPx * 0.25f
-
-                                            val p1 = Vec3f(-arrowW, -arrowH, 0f)
-                                            val p2 = Vec3f(arrowW * 0.6f, 0f, 0f)
-                                            val p3 = Vec3f(-arrowW, arrowH, 0f)
-
-                                            line3d(p1, p2, Vec3f.Z_AXIS, stroke)
-                                            line3d(p2, p3, Vec3f.Z_AXIS, stroke)
-
-                                            val r = stroke * 0.5f
-                                            circle { center.set(p1); radius = r; steps = 8 }
-                                            circle { center.set(p2); radius = r; steps = 8 }
-                                            circle { center.set(p3); radius = r; steps = 8 }
-                                        }
-                                    }
-                                })
-                        }
-                    }
                 }
             }
         }
