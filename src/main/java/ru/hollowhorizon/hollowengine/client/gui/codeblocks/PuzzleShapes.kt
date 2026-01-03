@@ -6,6 +6,7 @@ import de.fabmax.kool.modules.ui2.UiVertexLayout
 import de.fabmax.kool.scene.geometry.MeshBuilder
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.set
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -19,19 +20,17 @@ object PuzzleShapes {
 
     data class SafeGeometry(val r: Float, val tabH: Float, val tabYStart: Float)
 
-    fun calculateSafeGeometry(h: Float): SafeGeometry {
-        val r = min(Dp(4f).px, h / 2f)
+    fun calculateSafeGeometry(h: Float, zoom: Float): SafeGeometry {
+        val r = min(Dimensions.PaddingNormal.px * zoom, h / 2f)
 
         val availableForTab = h - 2 * r
+        var tH = Dp(12f).px * zoom
 
-        var tH = Dp(12f).px
         if (tH > availableForTab) {
             tH = availableForTab
             if (tH < 0) tH = 0f
         }
-
         val tStart = (h - tH) / 2f
-
         return SafeGeometry(r, tH, tStart)
     }
 
@@ -49,22 +48,13 @@ object PuzzleShapes {
     }
 
     context(builder: MeshBuilder<UiVertexLayout>)
-    fun drawShadow(
-        points: List<Vec3f>,
-        width: Float = SHADOW_RADIUS.px,
-        color: Color = SHADOW_COLOR,
-        offsetY: Float = SHADOW_OFFSET_Y.px,
-    ) {
-        drawStrip(points, width, color, offsetY, isInner = false)
+    fun drawShadow(points: List<Vec3f>, zoom: Float) {
+        drawStrip(points, SHADOW_RADIUS.px * zoom, SHADOW_COLOR, SHADOW_OFFSET_Y.px * zoom, isInner = false)
     }
 
     context(builder: MeshBuilder<UiVertexLayout>)
-    fun drawInnerShadow(
-        points: List<Vec3f>,
-        width: Float = SHADOW_RADIUS.px,
-        color: Color = SHADOW_COLOR
-    ) {
-        drawStrip(points, width, color, 0f, isInner = true)
+    fun drawInnerShadow(points: List<Vec3f>, zoom: Float) {
+        drawStrip(points, SHADOW_RADIUS.px * zoom, SHADOW_COLOR, 0f, isInner = true)
     }
 
     context(builder: MeshBuilder<UiVertexLayout>)
@@ -160,6 +150,18 @@ object PuzzleShapes {
         if (prevEdgeIndex != -1 && firstEdgeIndex != -1) {
             builder.addTriIndices(prevEdgeIndex, prevFadeIndex, firstFadeIndex)
             builder.addTriIndices(prevEdgeIndex, firstFadeIndex, firstEdgeIndex)
+        }
+    }
+
+    context(builder: MeshBuilder<UiVertexLayout>)
+    fun drawStroke(points: List<Vec3f>, width: Float, color: Color) {
+        val pSize = points.size
+        for (i in 0 until pSize) {
+            val p1 = points[i]
+            val p2 = points[(i + 1) % pSize]
+            builder.withColor(color) {
+                line(p1.x, p1.y, p2.x, p2.y, width)
+            }
         }
     }
 }

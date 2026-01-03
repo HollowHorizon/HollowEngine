@@ -58,7 +58,7 @@ class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         TextField(varName) {
-            modifier.width(FitContent).margin(start = 5.dp)
+            modifier.width(FitContent).margin(start = 5.dp.scaled())
                 .alignY(AlignmentY.Center)
                 .onChange { varName = it }
                 .hint("Имя переменной (L)").font(font)
@@ -84,7 +84,7 @@ class GetVarInlineBlock(val name: String) : ExpressionBlock() {
         Text("Значение переменной (L)") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         Text("\"$name\"") {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center)
-                .margin(start = 5.dp)
+                .margin(start = 5.dp.scaled()).regular()
         }
     }
 }

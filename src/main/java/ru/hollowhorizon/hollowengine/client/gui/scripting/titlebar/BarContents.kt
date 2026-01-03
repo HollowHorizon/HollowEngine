@@ -7,6 +7,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
@@ -14,7 +15,7 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ScriptFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.CodeBlocksFileData
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
@@ -28,12 +29,15 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.components.registry.ModComponents
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.start
+import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
 import ru.hollowhorizon.hollowengine.common.utils.literal
+import ru.hollowhorizon.hollowengine.generated.Assets
 
 @SubscribeEvent
 fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
@@ -52,37 +56,20 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
 
     val overlay = remember { ItemPopupMenu<Unit>("Title-File-Overlay") }
     overlay()
-    TextButton("File") {
+    TextButton("Файл") {
         overlay.hide()
         overlay.show(Vec2f(it.screenPosition), SubMenuItem {
-            item("Новый проект") {
-
-            }
-            item("Открыть проект") {
-
-            }
-            item("Экспортировать проект") {
-
-            }
-            item("Закрыть проект") {
-
-            }
-            divider()
             item("Перезагрузить ресурсы", icons.RELOAD_MC) {
                 Minecraft.getInstance().reloadResourcePacks()
             }
-            item("Сбросить индексы") {
-            }
-            divider()
-            item("Выход", icons.EXIT) {
-                Minecraft.getInstance().screen?.onClose()
+            item("Открыть папку мода", Assets.Hollowengine.Textures.Gui.Logo.LOGO) {
+                DesktopUtil.openInExplorer(DirectoryManager.HOLLOW_ENGINE.toFile())
             }
         }, Unit)
     }
-    TextButton("Edit")
     val windowOverlay = remember { ItemPopupMenu<Unit>("Title-Window-Overlay") }
     windowOverlay()
-    TextButton("Windows") {
+    TextButton("Окна") {
         windowOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
             val size = LayoutLoader.LAYOUTS.size
             LayoutLoader.LAYOUTS.values.forEachIndexed { i, window ->
@@ -91,15 +78,6 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
                 }
                 if (i != size - 1) divider()
             }
-        }, Unit)
-    }
-    TextButton("Search")
-
-    val settingsOverlay = remember { ItemPopupMenu<Unit>("Title-Settings-Overlay") }
-    settingsOverlay()
-    TextButton("Info") {
-        settingsOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
-
         }, Unit)
     }
 }
@@ -144,14 +122,15 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
     if (IdeContent.files.isEmpty() || ScriptingEnvironmentOverlay.isCollapsed) return@append
 
     val items =
-        IdeContent.files.filter { it.value is TextFileData || it.value is CodeBlocksFileData }.map { (key, file) ->
+        IdeContent.files.filter { it.value is ScriptFileData || it.value is CodeBlocksFileData }.map { (key, file) ->
             key to Composable {
                 Row {
+                    modifier.alignY(AlignmentY.Center)
+
                     Box {
-                        modifier.alignY(AlignmentY.Center)
                         Image(file.icon.toString()) {
-                            modifier.margin(end = sizes.smallGap).size(24.dp, 24.dp)
-                                .imageSize(ImageSize.Stretch)
+                            modifier.margin(end = Dimensions.PaddingMedium)
+                                .size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
                         }
                     }
 
@@ -167,17 +146,18 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
         }
     val itemIndex = remember { mutableStateOf(KeyValueStore.getInt("ide.file_index", -1)) }
 
-    ComboBox.apply {
-        comboBox("Empty", items.map { it.second }, itemIndex)
-    }
+    ComboBox("Empty", items.map { it.second }, itemIndex)
 
     if (itemIndex.use() != -1) Box {
+        modifier.alignY(AlignmentY.Center)
+            .margin(end=Dimensions.PaddingMedium)
+
         val file = items.getOrNull(itemIndex.use())?.first ?: run {
             itemIndex.set(-1)
             return@Box
         }
 
-        ActionButton(24.dp, "hollowengine:textures/gui/icons/play.png") {
+        ActionButton(Dimensions.PaddingHuge, icons.PLAY) {
             IdeContent.files.values.forEach { it.save() }
             StartScriptPacket(file).send()
         }
@@ -186,16 +166,16 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
 
 private fun UiScope.ActionButton(
     buttonSize: Dimension,
-    icon: String,
+    icon: ResourceLocation,
     action: () -> Unit,
 ) {
     val isHovered by modifier.hoverable()
     val color by animateColorAsState(
-        if (isHovered) colors.background else ColorTheme.UI.BackgroundGeneral,
+        if (isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary,
         tween(easing = Easing.easeOutQuart)
     )
 
-    modifier.padding(horizontal = sizes.smallGap)
+    modifier.padding(Dimensions.PaddingNormal)
         .background(RoundRectBackground(color, sizes.smallGap))
         .onClick {
             action()

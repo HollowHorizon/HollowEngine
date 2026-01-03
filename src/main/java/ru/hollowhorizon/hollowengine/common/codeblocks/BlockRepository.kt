@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.codeblocks
 import de.fabmax.kool.util.Color
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import kotlin.reflect.KClass
 
 class BlockProvider(val name: String, val rootCategory: BlockCategory)
@@ -56,7 +57,7 @@ class BlockCategoryBuilder(@PublishedApi internal val category: BlockCategory) {
      * Добавляет блок в текущую категорию.
      */
     inline fun <reified T : BlockModel> block(name: String, noinline factory: () -> T) {
-        category.blocks.add(BlockEntry(name, null, {
+        category.blocks.add(BlockEntry(name, icons.FILE_CODEBLOCKS, {
             val block = factory()
             block.color = category.color
             block
@@ -64,7 +65,7 @@ class BlockCategoryBuilder(@PublishedApi internal val category: BlockCategory) {
     }
 
     inline fun <reified T : BlockModel> blockWithColor(name: String, color: Color, noinline factory: () -> T) {
-        category.blocks.add(BlockEntry(name, null, {
+        category.blocks.add(BlockEntry(name, icons.FILE_CODEBLOCKS, {
             val block = factory()
             block.color = color
             block

@@ -53,6 +53,7 @@ object ColorTheme {
         val Calls = Color("FF9B61")         // Вызовы
         val Methods = Color("E4B348")       // Методы
         val AccentCode = Color("E590E4")    // Акцентный код
+        val Selection = Color("3399FF")
     }
 
     object Blocks {
@@ -76,7 +77,7 @@ object Dimensions {
     var PaddingLarge = Dp(24f)
     var PaddingExtraLarge = Dp(32f)
 
-    var CornerRadius = Dp(12f)
-
     var FontNormal = 16f
 }
+
+val Dimensions.PaddingLargeSpacing get() = PaddingLarge + PaddingNormal

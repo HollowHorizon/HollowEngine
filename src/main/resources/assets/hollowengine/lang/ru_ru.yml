@@ -101,6 +101,7 @@ hollowengine:
   message:
     filter: Поиск по тексту или Regex
     block_filter: Поиск по блокам
+    filter_docs: Поиск по документации
 
   commands:
     copy: "§6[§bHollow Engine§6] §7Значение: %s скопировано."

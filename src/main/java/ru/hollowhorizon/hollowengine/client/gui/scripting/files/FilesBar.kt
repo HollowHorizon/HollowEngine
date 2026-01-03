@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
+import de.fabmax.kool.input.CursorShape
 import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.math.Easing
@@ -16,7 +17,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
-import ru.hollowhorizon.hollowengine.generated.Assets
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.mixins.kool.UiDockableAccessor
 
 fun UiScope.LazyList(
@@ -284,12 +285,17 @@ private fun UiScope.FileDockingBar(
             }
 
         Row(Grow.Std) {
+            val isHovered by modifier.hoverable()
+            val color by animateColorAsState(if(isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary, tween(0.3f, Easing.easeOutQuart))
 
-            modifier.background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, Dimensions.PaddingNormal))
+            modifier.background(RoundRectBackground(color, Dimensions.PaddingNormal))
                 .padding(
                     vertical = Dimensions.PaddingMedium,
                     horizontal = Dimensions.PaddingMedium + Dimensions.PaddingNormal
                 )
+                .onHover { PointerInput.cursorShape = CursorShape.HAND }
+                .onDrag { PointerInput.cursorShape = CursorShape.HAND }
+
 
             if (isDraggable && !PointerInput.primaryPointer.isMiddleButtonDown && !PointerInput.primaryPointer.isRightButtonDown) {
                 with(windowDockable) {
@@ -349,7 +355,7 @@ private fun UiScope.FileDockingBar(
             modifier.background(RoundRectBackground(color, Dimensions.PaddingNormal))
                 .onClick { if(it.pointer.isLeftButtonClicked) minimizeButton.set(!minimizeButton.use()) }
 
-            Image(Assets.Hollowengine.Textures.Gui.Icons.MINIMIZE) {
+            Image(if(minimizeButton.use()) icons.MAXIMIZE else icons.MINIMIZE) {
                 modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
                     .align(AlignmentX.Center, AlignmentY.Center)
             }

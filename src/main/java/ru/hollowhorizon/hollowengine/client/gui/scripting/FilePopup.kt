@@ -87,7 +87,7 @@ class FilePopup : Composable {
                 }
             }
             divider()
-            item(ACTIONS("copy"), icons.COPY_SVG) {
+            item(ACTIONS("copy"), icons.COPY) {
                 copySource = it.treePath
                 deleteOriginal = false
             }
@@ -107,19 +107,26 @@ class FilePopup : Composable {
                 if (deleteOriginal) copySource = ""
             }
             divider()
-            if (node.treePath.startsWith("assets/")) item(
-                ACTIONS("copy_as_path"),
-                icons.COPY_SVG
-            ) {
-                Clipboard.copyToClipboard(node.treePath.substringAfter("assets/").replaceFirst('/', ':'))
+            var hasAny = false
+            if (node.treePath.startsWith("assets/")) {
+                item(
+                    ACTIONS("copy_as_path"),
+                    icons.COPY
+                ) {
+                    Clipboard.copyToClipboard(node.treePath.substringAfter("assets/").replaceFirst('/', ':'))
+                }
+                hasAny = true
             }
-            if (Minecraft.getInstance().isLocalServer) item(
-                ACTIONS("open_in_explorer"),
-                icons.EXPLORER
-            ) {
-                DesktopUtil.openInExplorer(node.treePath.fromReadablePath())
+            if (Minecraft.getInstance().isLocalServer) {
+                item(
+                    ACTIONS("open_in_explorer"),
+                    icons.FOLDER
+                ) {
+                    DesktopUtil.openInExplorer(node.treePath.fromReadablePath())
+                }
+                hasAny = true
             }
-            divider()
+            if (hasAny) divider()
             subMenu(ACTIONS("github"), icons.GITHUB) {}
             divider()
             item(ACTIONS("rename"), icons.RENAME) {

@@ -6,6 +6,7 @@ import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.releaseDelayed
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.Layout
@@ -60,6 +61,11 @@ abstract class FileData(
 
     override fun open() {
         if (surface != null) return
+
+        dockable.floatingX.set(Dp(5f))
+        dockable.floatingY.set(Dp.fromPx(ScriptingEnvironmentOverlay.titleBarHeight) + Dp(5f))
+        dockable.floatingWidth.set(Dimensions.PaddingExtraLarge * 15f)
+        dockable.floatingHeight.set(Dimensions.PaddingExtraLarge * 10f)
         surface = WindowSurface(ScriptingEnvironmentOverlay.scene, dockable, IdeTheme.colors, IdeTheme.sizes) {
 
             modifier.backgroundColor(ColorTheme.UI.BackgroundGeneral).border(null)

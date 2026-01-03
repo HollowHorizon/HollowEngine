@@ -100,6 +100,7 @@ hollowengine:
   message:
     filter: Search by text or Regex
     block_filter: Search by blocks
+    filter_docs: Search in docs
 
   commands:
     copy: "§6[§bHollow Engine§6] §7Value: %s has been copied."

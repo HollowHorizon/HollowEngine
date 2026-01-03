@@ -6,32 +6,121 @@ import de.fabmax.kool.modules.ui2.*
 import ru.hollowhorizon.hollowengine.client.audio.UIAudio
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.*
+import kotlin.math.max
+import kotlin.math.min
 
 class BlockController {
     val scrollState = ScrollState()
     private val dropTargets = mutableListOf<Pair<DropAction, UiNode>>()
     private var potentialAction: DropAction? = null
 
+    // --- Selection State ---
+    val selectedBlocks = mutableStateListOf<BlockModel>()
+    var isSelecting = mutableStateOf(false)
+
+    val selectionStart = MutableVec2f()
+    val selectionCurr = MutableVec2f()
+
+    val blockBounds = mutableMapOf<BlockModel, BlockRect>()
+
     var draggingBlock: BlockModel? = null
     var dragStartOffset = MutableVec2f()
 
+    data class BlockRect(val x: Float, val y: Float, val w: Float, val h: Float)
+
     fun update() {
         dropTargets.clear()
+        blockBounds.clear()
+    }
+
+    fun startSelection(screenPos: Vec2f, contentNode: UiNode, zoom: Float) {
+        selectedBlocks.clear()
+        isSelecting.set(true)
+
+        val local = contentNode.toLocal(screenPos)
+        val logicX = local.x / zoom
+        val logicY = local.y / zoom
+
+        selectionStart.set(logicX, logicY)
+        selectionCurr.set(logicX, logicY)
+    }
+
+    fun updateSelection(screenPos: Vec2f, contentNode: UiNode, zoom: Float) {
+        val local = contentNode.toLocal(screenPos)
+        val logicX = local.x / zoom
+        val logicY = local.y / zoom
+
+        selectionCurr.set(logicX, logicY)
+        calculateSelectionIntersection()
+    }
+
+    fun endSelection() {
+        isSelecting.set(false)
+    }
+
+    fun toggleSelection(block: BlockModel) {
+        if (selectedBlocks.contains(block)) selectedBlocks.remove(block)
+        else selectedBlocks.add(block)
+    }
+
+    fun selectSingle(block: BlockModel) {
+        selectedBlocks.clear()
+        selectedBlocks.add(block)
+    }
+
+    fun clearSelection() {
+        if (selectedBlocks.isNotEmpty()) selectedBlocks.clear()
+    }
+
+    private fun calculateSelectionIntersection() {
+        val scrollX = scrollState.xScrollDp.value * UiScale.measuredScale
+        val scrollY = scrollState.yScrollDp.value * UiScale.measuredScale
+
+        val xMin = min(selectionStart.x, selectionCurr.x) + scrollX
+        val xMax = max(selectionStart.x, selectionCurr.x) + scrollX
+        val yMin = min(selectionStart.y, selectionCurr.y) + scrollY
+        val yMax = max(selectionStart.y, selectionCurr.y) + scrollY
+
+        val newSelection = mutableListOf<BlockModel>()
+
+        blockBounds.forEach { (block, bounds) ->
+            if (xMin < bounds.x + bounds.w && xMax > bounds.x &&
+                yMin < bounds.y + bounds.h && yMax > bounds.y) {
+                newSelection.add(block)
+            }
+        }
+
+        if (selectedBlocks.size != newSelection.size || !selectedBlocks.containsAll(newSelection)) {
+            selectedBlocks.clear()
+            selectedBlocks.addAll(newSelection)
+        }
+    }
+
+    fun registerBlockBounds(block: BlockModel, node: UiNode, zoom: Float) {
+        val panel = node.findParentOfType<ScrollPaneNode>() ?: return
+
+        val (x, y) = panel.toLocal(node.leftPx, node.topPx) / zoom
+
+        blockBounds[block] = BlockRect(
+            x,
+            y,
+            node.widthPx / zoom,
+            node.heightPx / zoom
+        )
     }
 
     fun isDragging(block: BlockModel) = draggingBlock in block.parentsWithSelf
+
     fun canAttachBefore(block: BlockModel): Boolean {
         val target = (potentialAction as? DropAction.InsertBefore)?.target
         if (draggingBlock is EndBlock || target is StartBlock) return false
         return target == block
     }
-
     fun canAttachAfter(block: BlockModel): Boolean {
         val target = (potentialAction as? DropAction.AttachAfter)?.target
         if (draggingBlock is StartBlock || target is EndBlock) return false
         return target == block
     }
-
     fun canAttachToInput(block: BlockModel, inputName: String) =
         (potentialAction as? DropAction.AttachToInput)?.let { it.target == block && it.inputName == inputName } == true
 
@@ -39,26 +128,41 @@ class BlockController {
         get() = (potentialAction as? DropAction.AttachToInput)?.isStatementSlot == true
 
 
-    context(editor: BlockEditor, scope: UiScope) fun handleDragStart(block: BlockModel, ev: PointerEvent) {
+    context(editor: BlockEditor, scope: UiScope)
+    fun handleDragStart(block: BlockModel, ev: PointerEvent) {
+        if (!selectedBlocks.contains(block)) {
+            selectSingle(block)
+        }
+
         draggingBlock = block
         val visualScreenPos = scope.uiNode.toScreen(Vec2f.ZERO)
         dragStartOffset.set(ev.screenPosition.x - visualScreenPos.x, ev.screenPosition.y - visualScreenPos.y)
+
         val scrollPane = scope.uiNode.findParentOfType<ScrollPaneNode>()
         if (scrollPane != null) {
             val targetVisualScreenX = ev.screenPosition.x - dragStartOffset.x
             val targetVisualScreenY = ev.screenPosition.y - dragStartOffset.y
-            detachBlock(block, scrollPane.toLocal(Vec2f(targetVisualScreenX, targetVisualScreenY)))
+
+            val local = scrollPane.toLocal(Vec2f(targetVisualScreenX, targetVisualScreenY))
+            val zoom = editor.scale
+            detachBlock(block, Vec2f(local.x / zoom, local.y / zoom))
         }
     }
 
-    context(editor: BlockEditor, scope: UiScope) fun handleDrag(block: BlockModel, ev: PointerEvent) {
+    context(editor: BlockEditor, scope: UiScope)
+    fun handleDrag(block: BlockModel, ev: PointerEvent) {
         if (draggingBlock != block) return
         val scrollPane = scope.uiNode.findParentOfType<ScrollPaneNode>() ?: return
+
         val targetVisualScreenX = ev.screenPosition.x - dragStartOffset.x
         val targetVisualScreenY = ev.screenPosition.y - dragStartOffset.y
         val local = scrollPane.toLocal(Vec2f(targetVisualScreenX, targetVisualScreenY))
-        block.positionX.set(local.x)
-        block.positionY.set(local.y)
+
+        val zoom = editor.scale
+        block.positionX.set(local.x / zoom)
+        block.positionY.set(local.y / zoom)
+
+        // TODO: Нужно двигать все выбранные блоки
 
         var bestAction: DropAction? = null
         for ((action, node) in dropTargets) {
@@ -72,30 +176,31 @@ class BlockController {
         potentialAction = bestAction
     }
 
-    context(editor: BlockEditor) fun handleDragEnd(block: BlockModel) {
+    context(editor: BlockEditor)
+    fun handleDragEnd(block: BlockModel) {
         potentialAction?.let { action ->
             when (action) {
-                is DropAction.InsertBefore if (canAttachBefore(action.target)) -> {
-                    insertBlockBefore(action.target, block as StatementBlock)
-                }
-
-                is DropAction.AttachAfter if (canAttachAfter(action.target)) -> {
-                    attachBlockAfter(action.target, block as StatementBlock)
-                }
-
-                is DropAction.AttachToInput if (canAttachToInput(action.target, action.inputName)) -> {
-                    attachBlockToInput(action.target, action.inputName, block)
-                }
-
-                else -> return
+                is DropAction.InsertBefore -> if (canAttachBefore(action.target)) insertBlockBefore(action.target, block as StatementBlock)
+                is DropAction.AttachAfter -> if (canAttachAfter(action.target)) attachBlockAfter(action.target, block as StatementBlock)
+                is DropAction.AttachToInput -> if (canAttachToInput(action.target, action.inputName)) attachBlockToInput(action.target, action.inputName, block)
             }
-
             UIAudio.CONNECT.play()
             triggerSnapEffect(action)
         }
         draggingBlock = null
         potentialAction = null
         editor.notifyChanged()
+    }
+
+    // --- Actions ---
+
+    context(editor: BlockEditor)
+    fun deleteSelected() {
+        val toDelete = ArrayList(selectedBlocks)
+        toDelete.forEach { block ->
+            removeBlock(block)
+        }
+        selectedBlocks.clear()
     }
 
     context(editor: BlockEditor)
@@ -106,8 +211,6 @@ class BlockController {
             target.inputs[slotName] = newBlock
             newBlock.parentBlock = target
             newBlock.parentInputName = slotName
-
-
             if (newBlock.isStatement()) {
                 newBlock.parent = null
                 var tail: StatementBlock = newBlock
@@ -128,7 +231,6 @@ class BlockController {
         newBlock.parent = target
         var tail = newBlock
         while (tail.next != null) tail = tail.next!!
-
         if (oldNext != null) {
             if(oldNext is EndBlock) {
                 oldNext.parent = null
@@ -174,7 +276,6 @@ class BlockController {
         target.parent = tail
     }
 
-
     fun addDropTarget(action: DropAction, node: UiNode) {
         val exists = dropTargets.any { it.first == action && it.second == node }
         if (!exists) dropTargets.add(action to node)
@@ -187,19 +288,22 @@ class BlockController {
 
         val centerX = targetNode.leftPx
         val centerY = targetNode.topPx
-
         val scrollPane = targetNode.findParentOfType<ScrollPaneNode>() ?: return
 
         val local = scrollPane.toLocal(Vec2f(centerX, centerY))
 
+        val zoom = editor.scale
+        val logicalX = local.x / zoom
+        val logicalY = local.y / zoom
+
         val offsetX = if (action !is DropAction.AttachToInput) -7.5f else 0f
         val offsetY = if (action is DropAction.AttachToInput) -10f else 0f
 
-        editor.triggerSnapEffect(SnapAnimation(local.x + offsetX, local.y + offsetY))
+        editor.triggerSnapEffect(SnapAnimation(logicalX + offsetX, logicalY + offsetY))
     }
 
-
-    context(editor: BlockEditor) fun detachBlock(block: BlockModel, localPos: Vec2f) {
+    context(editor: BlockEditor)
+    fun detachBlock(block: BlockModel, localPos: Vec2f) {
         if (block.isStatement()) {
             block.parent?.let { p ->
                 if (p.next == block) p.next = null
@@ -221,9 +325,9 @@ class BlockController {
 
     context(editor: BlockEditor) fun duplicateBlock(block: BlockModel, localPos: Vec2f) {
         val newBlock = block.deepCopy(editor.provider)
-
-        newBlock.positionX.set(localPos.x)
-        newBlock.positionY.set(localPos.y)
+        val zoom = editor.scale
+        newBlock.positionX.set(localPos.x / zoom)
+        newBlock.positionY.set(localPos.y / zoom)
         editor.rootBlocks.add(newBlock)
         editor.notifyChanged()
     }
@@ -231,7 +335,6 @@ class BlockController {
     context(editor: BlockEditor) fun removeBlock(block: BlockModel) {
         if (block.isStatement()) {
             val nextBlock = block.next
-
             block.parent?.let { parent ->
                 parent.next = nextBlock
                 nextBlock?.parent = parent
@@ -243,28 +346,22 @@ class BlockController {
                     nextBlock.parent = null
                 }
             }
-
             block.parent = null
             block.next = null
         }
-
         block.parentBlock?.let { parentContainer ->
             val slotName = block.parentInputName ?: return@let
-
             parentContainer.inputs.remove(slotName)
         }
         block.parentBlock = null
         block.parentInputName = null
         editor.rootBlocks.remove(block)
-
-
         editor.notifyChanged()
     }
 
     private fun isValidDrop(source: BlockModel, action: DropAction): Boolean {
         if (source == action.target) return false
         if (isAncestorOf(source, action.target)) return false
-
         return when (action) {
             is DropAction.InsertBefore, is DropAction.AttachAfter -> !source.isExpression()
             is DropAction.AttachToInput -> {
@@ -279,11 +376,6 @@ class BlockController {
             }
         }
     }
-
-    private fun isAncestorOf(possibleParent: BlockModel, child: BlockModel): Boolean =
-        possibleParent in child.parentsWithSelf
-
-    fun resetAction() {
-        potentialAction = null
-    }
+    private fun isAncestorOf(possibleParent: BlockModel, child: BlockModel): Boolean = possibleParent in child.parentsWithSelf
+    fun resetAction() { potentialAction = null }
 }

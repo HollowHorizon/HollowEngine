@@ -5,6 +5,7 @@ import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
 import de.fabmax.kool.util.releaseDelayed
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.Layout
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileTitleBar
@@ -39,6 +40,8 @@ abstract class DockPanel(final override val name: String, val dock: Dock) : Layo
 
         dockable.floatingX.set(Dp(5f))
         dockable.floatingY.set(Dp.fromPx(ScriptingEnvironmentOverlay.titleBarHeight) + Dp(5f))
+        dockable.floatingWidth.set(Dimensions.PaddingExtraLarge * 15f)
+        dockable.floatingHeight.set(Dimensions.PaddingExtraLarge * 10f)
 
         surface = WindowSurface(dock.dockingSurface.parentScene, dockable, dock.dockingSurface.colors, dock.dockingSurface.sizes) {
             modifier.border(null).backgroundColor(ColorTheme.UI.BackgroundGeneral)
