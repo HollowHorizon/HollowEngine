@@ -2,8 +2,6 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import de.fabmax.kool.KoolContext
 import de.fabmax.kool.math.Easing
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.deg
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.FrontendScope
