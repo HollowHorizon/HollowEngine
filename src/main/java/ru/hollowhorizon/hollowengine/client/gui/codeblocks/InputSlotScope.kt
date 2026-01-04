@@ -89,10 +89,12 @@ class InputSlotScope(
             val color by animateColorAsState(if (isHovered) bgColor else bgColor.mulRgb(0.9f), tween(0.2f, Easing.quadRev))
 
             Box {
+                val isSelected = controller.selectedBlocks.use().contains(parentBlock)
+
                 modifier.width(BlockEditor.C_BLOCK_SPINE_WIDTH.scaled())
                     .height(Grow.Std)
                     .zLayer(modifier.zLayer + 1)
-                    .background(SpineBackground(color, scale))
+                    .background(SpineBackground(color, scale, isSelected=isSelected))
             }
 
             Column {
@@ -106,7 +108,7 @@ class InputSlotScope(
                                 scale,
                                 isExpression = false,
                                 hasNext = true,
-                                drawInnerShadow = true
+                                drawInnerShadow = true,
                             )
                         )
                     }
@@ -131,7 +133,9 @@ class InputSlotScope(
             modifier.width(Grow.Std).height(FitContent)
             Box {
                 modifier.width(Grow.Std).height(Dimensions.PaddingExtraLarge.scaled())
-                modifier.background(ContainerMiddleBackground(color, scale))
+                val isSelected = controller.selectedBlocks.use().contains(parentBlock)
+
+                modifier.background(ContainerMiddleBackground(color, scale, isSelected=isSelected))
                 Text(label) {
                     modifier.alignY(AlignmentY.Center)
                         .margin(start = (BlockEditor.C_BLOCK_SPINE_WIDTH + Dimensions.PaddingMedium) * scale)

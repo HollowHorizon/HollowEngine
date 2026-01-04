@@ -199,20 +199,22 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             val isHovered = remember { mutableStateOf(false) }
 
             BlockHeaderVisual(isHovered, block, isGhost) {
-                if (canDrag) modifier.setupDragHandler(block, controller)
-                modifier
-                    .onClick {
-                        if (it.isRightClick) {
-                            BlockContextMenu.show(it, uiNode, block)
-                        } else {
-                            // Toggle Selection logic
-                            if (KeyboardInput.isCtrlDown) {
-                                controller.toggleSelection(block)
+                if (canDrag) {
+                    modifier.setupDragHandler(block, controller)
+                        .onClick {
+                            if (it.isRightClick) {
+                                BlockContextMenu.show(it, uiNode, block)
                             } else {
-                                if (!controller.selectedBlocks.use().contains(block)) controller.selectSingle(block)
+                                // Toggle Selection logic
+                                if (KeyboardInput.isCtrlDown) {
+                                    controller.toggleSelection(block)
+                                } else {
+                                    if (!controller.selectedBlocks.use().contains(block)) controller.selectSingle(block)
+                                }
                             }
                         }
-                    }
+                }
+                modifier
                     .onEnter { isHovered.set(true) }
                     .onHover { PointerInput.cursorShape = CursorShape.HAND }
                     .onExit { isHovered.set(false) }
@@ -250,7 +252,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 tween(0.2f, Easing.easeOutQuart)
             )
 
-            modifier.background(ContainerFooterBackground(animatedColor, scale, block !is EndBlock))
+            val isSelected = controller.selectedBlocks.use().contains(block)
+            modifier.background(ContainerFooterBackground(animatedColor, scale, block !is EndBlock, isSelected))
 
             if (!controller.isDragging(block)) {
                 Box {

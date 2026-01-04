@@ -17,7 +17,7 @@ class ScratchBlockBackground(
     val hasPrev: Boolean = true,
     val isContainerHeader: Boolean = false,
     val drawInnerShadow: Boolean = false,
-    val isSelected: Boolean = false
+    val isSelected: Boolean = false,
 ) : UiRenderer<UiNode> {
 
     override fun renderUi(node: UiNode) = with(node) {
@@ -88,19 +88,20 @@ class ScratchBlockBackground(
         }
 
         node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(null) {
-            if(!drawInnerShadow) PuzzleShapes.drawShadow(points, zoom)
+            if (!drawInnerShadow) PuzzleShapes.drawShadow(points, zoom)
             color = this@ScratchBlockBackground.color
             fillPolygon(PolyUtil.fillPolygon(points))
         }
 
         if (isSelected) {
             node.getPlainBuilder(100_000).configure(null) {
-                PuzzleShapes.drawStroke(points, 3.dp.px * zoom, ColorTheme.UI.WhiteReplacement)
+                PuzzleShapes.drawStroke(points, if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f, ColorTheme.UI.WhiteReplacement)
             }
         }
 
         node.getPlainBuilder(UiSurface.LAYER_FLOATING).configure(null) {
             if (drawInnerShadow) PuzzleShapes.drawInnerShadow(points, zoom)
+            
         }
     }
 }
@@ -108,7 +109,8 @@ class ScratchBlockBackground(
 class ContainerFooterBackground(
     val color: Color,
     val zoom: Float,
-    val hasNext: Boolean = true
+    val hasNext: Boolean = true,
+    val isSelected: Boolean,
 ) : UiRenderer<UiNode> {
 
     override fun renderUi(node: UiNode) = with(node) {
@@ -146,6 +148,12 @@ class ContainerFooterBackground(
 
         PuzzleShapes.addBezier(points, x + r, y + h, x, y + h, x, y + h - r)
 
+        if (isSelected) {
+            node.getPlainBuilder(100_000).configure(null) {
+                PuzzleShapes.drawStroke(points, if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f, ColorTheme.UI.WhiteReplacement)
+            }
+        }
+
         node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(color) {
             PuzzleShapes.drawShadow(points, zoom)
             fillPolygon(PolyUtil.fillPolygon(points))
@@ -153,7 +161,7 @@ class ContainerFooterBackground(
     }
 }
 
-class ContainerMiddleBackground(val color: Color, val zoom: Float) : UiRenderer<UiNode> {
+class ContainerMiddleBackground(val color: Color, val zoom: Float, val isSelected: Boolean) : UiRenderer<UiNode> {
 
     override fun renderUi(node: UiNode) = with(node) {
         val gap = Dimensions.PaddingNormal.px * 3f * zoom
@@ -187,6 +195,12 @@ class ContainerMiddleBackground(val color: Color, val zoom: Float) : UiRenderer<
         points.add(Vec3f(x + innerNotchX, y + h, 0f))
         points.add(Vec3f(x, y + h, 0f))
 
+        if (isSelected) {
+            node.getPlainBuilder(100_000).configure(null) {
+                PuzzleShapes.drawStroke(points, if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f, ColorTheme.UI.WhiteReplacement)
+            }
+        }
+
         node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(color) {
             PuzzleShapes.drawShadow(points, zoom)
             fillPolygon(PolyUtil.fillPolygon(points))
@@ -194,7 +208,7 @@ class ContainerMiddleBackground(val color: Color, val zoom: Float) : UiRenderer<
     }
 }
 
-class SpineBackground(val color: Color, val zoom: Float) : UiRenderer<UiNode> {
+class SpineBackground(val color: Color, val zoom: Float, val isSelected: Boolean) : UiRenderer<UiNode> {
     override fun renderUi(node: UiNode) = with(node) {
         val w = node.widthPx
         val h = node.heightPx
@@ -221,6 +235,13 @@ class SpineBackground(val color: Color, val zoom: Float) : UiRenderer<UiNode> {
 
             addTriIndices(si0, so0, so1)
             addTriIndices(si0, so1, si1)
+
+            if (isSelected) {
+                PuzzleShapes.drawStroke(listOf(
+                    Vec3f(0f, 0f, 0f),
+                    Vec3f(0f, h, 0f),
+                ), if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f, ColorTheme.UI.WhiteReplacement)
+            }
         }
     }
 }
@@ -230,7 +251,8 @@ inline fun <Layout : Struct> MeshBuilder<Layout>.configure(
     color: Color? = null,
     block: MeshBuilder<Layout>.() -> Unit,
 ) {
-    val panel = node.findParentOfType<ScrollPaneNode>() ?: node.findParentOfType<BoxNode> { (it as UiNodeAccessor).scopeName == "CodeBlockRenderer" } ?: node
+    val panel = node.findParentOfType<ScrollPaneNode>()
+        ?: node.findParentOfType<BoxNode> { (it as UiNodeAccessor).scopeName == "CodeBlockRenderer" } ?: node
     val setBoundsUiVertex: MutableStructBufferView<UiVertexLayout>.(UiVertexLayout) -> Unit = {
         it.clip.set(panel.clipLeftPx, panel.clipTopPx, panel.clipRightPx, panel.clipBottomPx)
     }
