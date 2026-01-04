@@ -9,10 +9,11 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.*
 import kotlin.math.max
 import kotlin.math.min
 
-class BlockController {
+class BlockController(val editor: BlockEditor) {
     val scrollState = ScrollState()
     private val dropTargets = mutableListOf<Pair<DropAction, UiNode>>()
     private var potentialAction: DropAction? = null
+    val scrollPanePosition = MutableVec2f()
 
     // --- Selection State ---
     val selectedBlocks = mutableStateListOf<BlockModel>()
@@ -36,6 +37,9 @@ class BlockController {
         dropTargets.clear()
         blockBounds.clear()
     }
+
+    fun toLocal(screenPosition: Vec2f): Vec2f = (screenPosition - scrollPanePosition) / editor.scale
+    fun toLocal(screenX: Float, screenY: Float): Vec2f = toLocal(Vec2f(screenX, screenY))
 
     fun startSelection(screenPos: Vec2f, contentNode: UiNode, zoom: Float) {
         selectedBlocks.clear()
@@ -89,7 +93,8 @@ class BlockController {
 
         blockBounds.forEach { (block, bounds) ->
             if (xMin < bounds.x + bounds.w && xMax > bounds.x &&
-                yMin < bounds.y + bounds.h && yMax > bounds.y) {
+                yMin < bounds.y + bounds.h && yMax > bounds.y
+            ) {
                 newSelection.add(block)
             }
         }
@@ -101,9 +106,7 @@ class BlockController {
     }
 
     fun registerBlockBounds(block: BlockModel, node: UiNode, zoom: Float) {
-        val panel = node.findParentOfType<ScrollPaneNode>() ?: return
-
-        val (x, y) = panel.toLocal(node.leftPx, node.topPx) / zoom
+        val (x, y) = toLocal(node.leftPx, node.topPx)
 
         blockBounds[block] = BlockRect(
             x,
@@ -113,18 +116,21 @@ class BlockController {
         )
     }
 
-    fun isDragging(block: BlockModel) = draggingBlock in block.parentsWithSelf
+    fun isDragging(block: BlockModel) =
+        draggingBlock in block.parentsWithSelf || editor.dragState.entry?.previewItem == block
 
     fun canAttachBefore(block: BlockModel): Boolean {
         val target = (potentialAction as? DropAction.InsertBefore)?.target
         if (draggingBlock is EndBlock || target is StartBlock) return false
         return target == block
     }
+
     fun canAttachAfter(block: BlockModel): Boolean {
         val target = (potentialAction as? DropAction.AttachAfter)?.target
         if (draggingBlock is StartBlock || target is EndBlock) return false
         return target == block
     }
+
     fun canAttachToInput(block: BlockModel, inputName: String) =
         (potentialAction as? DropAction.AttachToInput)?.let { it.target == block && it.inputName == inputName } == true
 
@@ -132,7 +138,7 @@ class BlockController {
         get() = (potentialAction as? DropAction.AttachToInput)?.isStatementSlot == true
 
 
-    context(editor: BlockEditor, scope: UiScope)
+    context(scope: UiScope)
     fun handleDragStart(block: BlockModel, ev: PointerEvent) {
         if (!selectedBlocks.contains(block)) {
             selectSingle(block)
@@ -142,29 +148,23 @@ class BlockController {
         val visualScreenPos = scope.uiNode.toScreen(Vec2f.ZERO)
         dragStartOffset.set(ev.screenPosition.x - visualScreenPos.x, ev.screenPosition.y - visualScreenPos.y)
 
-        val scrollPane = scope.uiNode.findParentOfType<ScrollPaneNode>()
-        if (scrollPane != null) {
-            val targetVisualScreenX = ev.screenPosition.x - dragStartOffset.x
-            val targetVisualScreenY = ev.screenPosition.y - dragStartOffset.y
+        val targetVisualScreenX = ev.screenPosition.x - dragStartOffset.x
+        val targetVisualScreenY = ev.screenPosition.y - dragStartOffset.y
 
-            val local = scrollPane.toLocal(Vec2f(targetVisualScreenX, targetVisualScreenY))
-            val zoom = editor.scale
-            detachBlock(block, Vec2f(local.x / zoom, local.y / zoom))
-        }
+        val local = toLocal(targetVisualScreenX, targetVisualScreenY)
+        detachBlock(block, Vec2f(local.x, local.y))
     }
 
-    context(editor: BlockEditor, scope: UiScope)
+    context(scope: UiScope)
     fun handleDrag(block: BlockModel, ev: PointerEvent) {
         if (draggingBlock != block) return
-        val scrollPane = scope.uiNode.findParentOfType<ScrollPaneNode>() ?: return
 
         val targetVisualScreenX = ev.screenPosition.x - dragStartOffset.x
         val targetVisualScreenY = ev.screenPosition.y - dragStartOffset.y
-        val local = scrollPane.toLocal(Vec2f(targetVisualScreenX, targetVisualScreenY))
+        val local = toLocal(targetVisualScreenX, targetVisualScreenY)
 
-        val zoom = editor.scale
-        block.positionX.set(local.x / zoom)
-        block.positionY.set(local.y / zoom)
+        block.positionX.set(local.x)
+        block.positionY.set(local.y)
 
         // TODO: Нужно двигать все выбранные блоки
 
@@ -180,13 +180,24 @@ class BlockController {
         potentialAction = bestAction
     }
 
-    context(editor: BlockEditor)
     fun handleDragEnd(block: BlockModel) {
         potentialAction?.let { action ->
             when (action) {
-                is DropAction.InsertBefore -> if (canAttachBefore(action.target)) insertBlockBefore(action.target, block as StatementBlock)
-                is DropAction.AttachAfter -> if (canAttachAfter(action.target)) attachBlockAfter(action.target, block as StatementBlock)
-                is DropAction.AttachToInput -> if (canAttachToInput(action.target, action.inputName)) attachBlockToInput(action.target, action.inputName, block)
+                is DropAction.InsertBefore -> if (canAttachBefore(action.target)) insertBlockBefore(
+                    action.target,
+                    block as StatementBlock
+                )
+
+                is DropAction.AttachAfter -> if (canAttachAfter(action.target)) attachBlockAfter(
+                    action.target,
+                    block as StatementBlock
+                )
+
+                is DropAction.AttachToInput -> if (canAttachToInput(
+                        action.target,
+                        action.inputName
+                    )
+                ) attachBlockToInput(action.target, action.inputName, block)
             }
             UIAudio.CONNECT.play()
             triggerSnapEffect(action)
@@ -198,7 +209,6 @@ class BlockController {
 
     // --- Actions ---
 
-    context(editor: BlockEditor)
     fun deleteSelected() {
         val toDelete = ArrayList(selectedBlocks)
         toDelete.forEach { block ->
@@ -207,7 +217,6 @@ class BlockController {
         selectedBlocks.clear()
     }
 
-    context(editor: BlockEditor)
     private fun attachBlockToInput(target: BlockModel, slotName: String, newBlock: BlockModel) {
         editor.rootBlocks.remove(newBlock)
         val existingBlock = target.inputs[slotName]
@@ -227,7 +236,6 @@ class BlockController {
         }
     }
 
-    context(editor: BlockEditor)
     private fun attachBlockAfter(target: StatementBlock, newBlock: StatementBlock) {
         editor.rootBlocks.remove(newBlock)
         val oldNext = target.next
@@ -236,7 +244,7 @@ class BlockController {
         var tail = newBlock
         while (tail.next != null) tail = tail.next!!
         if (oldNext != null) {
-            if(oldNext is EndBlock) {
+            if (oldNext is EndBlock) {
                 oldNext.parent = null
                 editor.rootBlocks.add(oldNext)
             } else {
@@ -246,13 +254,12 @@ class BlockController {
         }
     }
 
-    context(editor: BlockEditor)
     private fun insertBlockBefore(target: BlockModel, newBlock: StatementBlock) {
         editor.rootBlocks.remove(newBlock)
         val parent = (target as? StatementBlock)?.parent
         val parentBlock = target.parentBlock
         if (parent != null) {
-            if(newBlock is StartBlock) {
+            if (newBlock is StartBlock) {
                 editor.rootBlocks.add(newBlock)
                 parent.next = null
                 target.parent = newBlock
@@ -285,7 +292,6 @@ class BlockController {
         if (!exists) dropTargets.add(action to node)
     }
 
-    context(editor: BlockEditor)
     private fun triggerSnapEffect(action: DropAction) {
         if (action is DropAction.InsertBefore) return
         val targetNode = dropTargets.find { it.first == action }?.second ?: return
@@ -306,7 +312,6 @@ class BlockController {
         editor.triggerSnapEffect(SnapAnimation(logicalX + offsetX, logicalY + offsetY))
     }
 
-    context(editor: BlockEditor)
     fun detachBlock(block: BlockModel, localPos: Vec2f) {
         if (block.isStatement()) {
             block.parent?.let { p ->
@@ -327,7 +332,7 @@ class BlockController {
         }
     }
 
-    context(editor: BlockEditor) fun duplicateBlock(block: BlockModel, localPos: Vec2f) {
+    fun duplicateBlock(block: BlockModel, localPos: Vec2f) {
         val newBlock = block.deepCopy(editor.provider)
         val zoom = editor.scale
         newBlock.positionX.set(localPos.x / zoom)
@@ -336,7 +341,7 @@ class BlockController {
         editor.notifyChanged()
     }
 
-    context(editor: BlockEditor) fun removeBlock(block: BlockModel) {
+    fun removeBlock(block: BlockModel) {
         if (block.isStatement()) {
             val nextBlock = block.next
             block.parent?.let { parent ->
@@ -380,6 +385,11 @@ class BlockController {
             }
         }
     }
-    private fun isAncestorOf(possibleParent: BlockModel, child: BlockModel): Boolean = possibleParent in child.parentsWithSelf
-    fun resetAction() { potentialAction = null }
+
+    private fun isAncestorOf(possibleParent: BlockModel, child: BlockModel): Boolean =
+        possibleParent in child.parentsWithSelf
+
+    fun resetAction() {
+        potentialAction = null
+    }
 }

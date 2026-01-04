@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
+import de.fabmax.kool.modules.ui2.mutableStateOf
 import de.fabmax.kool.util.Color
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
@@ -15,6 +16,7 @@ fun BlockCategory.findColorFor(block: BlockModel): Color? {
 }
 
 class BlockCategory(val name: String, val color: Color, val icon: ResourceLocation? = null): CategoryItem {
+    val isExpanded = mutableStateOf(false)
     val subCategories = mutableListOf<BlockCategory>()
     val blocks = mutableListOf<BlockEntry<*>>()
 
@@ -28,9 +30,13 @@ sealed interface CategoryItem
 data class BlockEntry<T : BlockModel>(
     val name: String,
     val icon: ResourceLocation? = null,
-    val factory: () -> T,
+    private val factory: () -> T,
     val type: KClass<T>,
-): CategoryItem
+): CategoryItem {
+    val previewItem by lazy { factory() }
+
+    fun createItem() = factory()
+}
 
 fun interface BlockModule {
     fun BlockCategoryBuilder.build()

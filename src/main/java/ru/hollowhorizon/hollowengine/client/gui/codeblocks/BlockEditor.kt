@@ -21,7 +21,9 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 
 class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : BlocksScope {
-    val controller = BlockController()
+    val controller = BlockController(this)
+    val dragState = DragState(this)
+    val blocksPanel = BlocksPanel(this)
     override val rootBlocks: MutableStateList<BlockModel> = MutableStateList(ObservableBlockList(this))
 
     // State
@@ -63,7 +65,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         updateScaleAnimation()
 
         Row(Grow.Std, Grow.Std) {
-            if (!controller.isBlockPanelMinimized.use()) BlocksPanel()
+            if (!controller.isBlockPanelMinimized.use()) blocksPanel()
 
             Box(Grow.Std, Grow.Std) {
                 modifier
@@ -73,9 +75,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                     )
                     .setupEditorControls(this@BlockEditor)
                     .onClick {
-                        if (it.isRightClick) openCreationMenu(it)
-                        else controller.clearSelection()
-
+                        controller.clearSelection()
                         controller.resetAction()
                     }
 
@@ -83,10 +83,9 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 ScrollPane(controller.scrollState) {
                     modifier.layout(CellLayout)
                         .padding(Dimensions.PaddingLarge.scaled())
+                        .onPositioned { controller.scrollPanePosition.set(it.leftPx, it.topPx) }
 
-                    // Click on empty space inside scroll pane
                     modifier.onClick {
-                        openCreationMenu(it)
                         controller.clearSelection()
                         controller.resetAction()
                     }
@@ -124,11 +123,12 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 creationPopup()
 
                 if (controller.isBlockPanelMinimized.use()) {
-                    BlocksPanel.MinimizeButton {
+                    blocksPanel.CollapseButton {
                         modifier.align(AlignmentX.Start, AlignmentY.Top)
                             .margin(Dimensions.PaddingMedium)
                     }
                 }
+                dragState()
                 body()
             }
         }
@@ -141,15 +141,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             damping = 0.8f
         )
         scale = smoothScale.use()
-    }
-
-    // --- Menus ---
-
-    private fun UiScope.openCreationMenu(event: PointerEvent) {
-        if (event.isRightClick) {
-            val rootMenu = buildMenuFromProvider(provider, uiNode)
-            creationPopup.show(event.screenPosition, rootMenu, Vec2f(event.screenPosition))
-        }
     }
 
     // --- Block Rendering ---

@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
-import de.fabmax.kool.input.PointerInput
-import de.fabmax.kool.math.MutableVec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
@@ -18,8 +16,9 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.generated.Assets
 
-object BlocksPanel {
-    context(scope: UiScope, editor: BlockEditor)
+class BlocksPanel(val editor: BlockEditor) {
+
+    context(scope: UiScope)
     fun Item(item: CategoryItem) {
         when (item) {
             is BlockCategory -> CategoryHeader(item)
@@ -27,48 +26,23 @@ object BlocksPanel {
         }
     }
 
-    context(scope: UiScope, editor: BlockEditor)
+    context(scope: UiScope)
     fun BlockEntry(entry: BlockEntry<BlockModel>): Unit = with(scope) {
-        val item = remember { entry.factory() }
-
-        val screenPos = remember { MutableVec2f() }
-        val tooltip = remember { TooltipState(0.0) }
-
         Box(scopeName = "CodeBlockRenderer") {
             modifier.padding(Dimensions.PaddingMedium)
-                .onDragStart { screenPos.set(it.screenPosition + it.position); tooltip.set(true) }
-                .onDrag { screenPos.set(it.screenPosition + it.position) }
-                .onDragEnd { tooltip.set(false) }
+                .onDragStart { editor.dragState.startDrag(entry, it.position) }
+                .onDragEnd { editor.dragState.endDrag(it.screenPosition) }
 
-            editor.renderBlockTree(item, canDrag = false)
+            editor.renderBlockTree(entry.previewItem, canDrag = false)
 
-        }
-
-        val (x, y) = PointerInput.primaryPointer.pos
-        tooltip.pointerX.set(x)
-        tooltip.pointerY.set(y)
-
-        if(false) Tooltip(tooltip, target = null, scopeName = "Example") {
-            modifier.zLayer(100_000_000)
-                .background(null)
-                .padding(Dimensions.PaddingMedium)
-                .layout(CellLayout)
-                .border(DebugBorder)
-
-            Box(scopeName = "CodeBlockRenderer") {
-                modifier.backgroundColor(Color.LIGHT_GRAY).size(100.dp, 100.dp)
-
-                if(false) editor.renderBlockTree(item, canDrag = false)
-            }
-
-            surface.triggerUpdate()
         }
     }
 
-    context(scope: UiScope, editor: BlockEditor)
+    context(scope: UiScope)
     fun CategoryHeader(category: BlockCategory): Unit = with(scope) {
+        val isExpanded = category.isExpanded.use()
+
         Column(Grow.Std, scopeName = category.name) {
-            var isExpanded by remember(false)
             modifier.margin(Dimensions.PaddingMedium)
 
             Row(width = Grow.Std) {
@@ -86,11 +60,11 @@ object BlocksPanel {
                             color,
                             Dimensions.PaddingMedium,
                             Dimensions.PaddingNormal + Dimensions.PaddingSmall,
-                            isExpanded
+                            category.isExpanded.use()
                         )
                     )
                     .onClick {
-                        isExpanded = !isExpanded
+                        category.isExpanded.set(!category.isExpanded.value)
                     }
 
                 category.icon?.let {
@@ -143,7 +117,7 @@ object BlocksPanel {
         }
     }
 
-    context(scope: UiScope, editor: BlockEditor)
+    context(scope: UiScope)
     operator fun invoke(): Unit = with(scope) {
         val oldScale = editor.scale
         editor.scale = 1f
@@ -180,7 +154,7 @@ object BlocksPanel {
                     }
                 }
 
-                BlocksPanel.MinimizeButton {}
+                CollapseButton {}
             }
 
             LazyColumn(
@@ -214,8 +188,8 @@ object BlocksPanel {
         editor.scale = oldScale
     }
 
-    context(editor: BlockEditor, scope: UiScope)
-    fun MinimizeButton(body: UiScope.() -> Unit) = with(scope) {
+    context(scope: UiScope)
+    fun CollapseButton(body: UiScope.() -> Unit) = with(scope) {
         val isMinimized = editor.controller.isBlockPanelMinimized
         Box {
             modifier.padding(Dimensions.PaddingMedium)
