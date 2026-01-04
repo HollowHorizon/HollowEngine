@@ -148,8 +148,8 @@ class InputSlotScope(
     private fun UiScope.EmptySlotVisual(highlight: Boolean) = with(editor) {
         Box {
             modifier.size(40.dp.scaled(), 30.dp.scaled())
-            val isUnused = parentBlock.parentsWithSelf.none { it is StartBlock }
-            val color = if(isUnused) parentBlock.color.mix(Color.LIGHT_GRAY, 0.5f).withAlpha(0.35f) else parentBlock.color
+
+            val color = parentBlock.resolveColor(false, parentBlock.parentsWithSelf.none { it is StartBlock }, controller.selectedBlocks.contains(parentBlock))
 
             modifier.background(SlotBackground(color.mix(Color.BLACK, 0.3f), highlight, scale))
             if (highlight) modifier.border(RectBorder(Color.WHITE, 2.dp.scaled()))

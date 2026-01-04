@@ -580,14 +580,14 @@ private fun UiScope.renderSnapAnimations(snapAnimations: MutableList<SnapAnimati
 
 // Helpers for color and node finding
 
-private fun BlockModel.resolveColor(isGhost: Boolean, isUnused: Boolean, isSelected: Boolean): Color {
+fun BlockModel.resolveColor(isGhost: Boolean, isUnused: Boolean, isSelected: Boolean): Color {
     return MutableColor(color).apply {
         if (isGhost) withAlpha(0.5f, this)
         if (isUnused) {
             mix(Color.LIGHT_GRAY, 0.5f, this)
             withAlpha(0.35f, this)
         }
-        if (isSelected) mix(Color.WHITE, 0.5f)
+        if (isSelected) mix(Color.WHITE, 0.2f, this)
     }
 }
 
