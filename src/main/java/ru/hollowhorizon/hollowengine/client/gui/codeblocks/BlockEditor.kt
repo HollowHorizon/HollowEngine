@@ -163,7 +163,9 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
         Column {
             modifier.width(FitContent)
+            val additionalZLayer = if (!canDrag) modifier.zLayer else 0
             modifier.configureBlockPositionAndLayer(block, isRoot, currentZoom)
+            modifier.zLayer(modifier.zLayer + additionalZLayer)
 
             if (!block.isExpression() && controller.canAttachBefore(block) && !controller.isDragging(block)) {
                 Column(Grow.Std) {
