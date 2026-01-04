@@ -94,8 +94,8 @@ class ScratchBlockBackground(
         }
 
         if (isSelected) {
-            node.getPlainBuilder(UiSurface.LAYER_BACKGROUND).configure(null) {
-                PuzzleShapes.drawStroke(points, 1.dp.px * zoom, ColorTheme.UI.WhiteReplacement)
+            node.getPlainBuilder(100_000).configure(null) {
+                PuzzleShapes.drawStroke(points, 3.dp.px * zoom, ColorTheme.UI.WhiteReplacement)
             }
         }
 

@@ -35,7 +35,7 @@ class DragState(val editor: BlockEditor) : Composable {
                 this.item = newItem
             }
         } else {
-            editor.controller.handleDrag(item, blockPosition + Vec2f(Dimensions.PaddingMedium.px, Dimensions.PaddingMedium.px))
+            editor.controller.handleDrag(item, blockPosition + dragOffset.value)
         }
     }
 

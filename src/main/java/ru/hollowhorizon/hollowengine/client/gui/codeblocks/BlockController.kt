@@ -26,8 +26,11 @@ class BlockController(val editor: BlockEditor) {
 
     val blockBounds = mutableMapOf<BlockModel, BlockRect>()
 
+    // --- Draggable State ---
     var draggingBlock: BlockModel? = null
     var dragStartOffset = MutableVec2f()
+    private val initialBlockPositions = mutableMapOf<BlockModel, Vec2f>()
+    private val dragStartScreenPos = MutableVec2f()
 
     // --- Block Panel State ---
     val filter = mutableStateOf("")
@@ -43,7 +46,7 @@ class BlockController(val editor: BlockEditor) {
     fun toLocal(screenPosition: Vec2f): Vec2f = (screenPosition - scrollPaneBounds.xy) / editor.scale
     fun toLocal(screenX: Float, screenY: Float): Vec2f = toLocal(Vec2f(screenX, screenY))
     operator fun contains(screenPosition: Vec2f): Boolean =
-        screenPosition.x in scrollPaneBounds.x + Dimensions.PaddingMedium.px ..scrollPaneBounds.x + scrollPaneBounds.z - Dimensions.PaddingMedium.px &&
+        screenPosition.x in scrollPaneBounds.x + Dimensions.PaddingMedium.px..scrollPaneBounds.x + scrollPaneBounds.z - Dimensions.PaddingMedium.px &&
                 screenPosition.y in scrollPaneBounds.y + Dimensions.PaddingMedium.px..scrollPaneBounds.y + scrollPaneBounds.w - Dimensions.PaddingMedium.px
 
     fun startSelection(screenPos: Vec2f, contentNode: UiNode, zoom: Float) {
@@ -143,39 +146,71 @@ class BlockController(val editor: BlockEditor) {
         get() = (potentialAction as? DropAction.AttachToInput)?.isStatementSlot == true
 
 
-    fun handleDragStart(block: BlockModel, blockPosition: Vec2f, localOffset: Vec2f) {
+    fun handleDragStart(block: BlockModel, screenPosition: Vec2f, localOffset: Vec2f) {
         if (!selectedBlocks.contains(block)) {
             selectSingle(block)
         }
 
         draggingBlock = block
         dragStartOffset.set(localOffset)
+        dragStartScreenPos.set(screenPosition)
 
-        detachBlock(block, toLocal(blockPosition))
+        initialBlockPositions.clear()
+
+        val topLevelMovers = selectedBlocks.filter { !isParentSelected(it) }
+
+        topLevelMovers.forEach { mover ->
+            if (!editor.rootBlocks.contains(mover)) {
+                val bounds = blockBounds[mover]
+                val startX = bounds?.x ?: 0f
+                val startY = bounds?.y ?: 0f
+
+                detachBlock(mover, Vec2f(startX, startY))
+            }
+
+            initialBlockPositions[mover] = Vec2f(mover.positionX.value, mover.positionY.value)
+        }
     }
 
     fun handleDrag(block: BlockModel, screenPosition: Vec2f) {
         if (draggingBlock != block) return
 
-        val targetVisualScreenX = screenPosition.x - dragStartOffset.x
-        val targetVisualScreenY = screenPosition.y - dragStartOffset.y
-        val local = toLocal(targetVisualScreenX, targetVisualScreenY)
+        var deltaX = (screenPosition.x - dragStartScreenPos.x - dragStartOffset.x) / editor.scale
+        var deltaY = (screenPosition.y - dragStartScreenPos.y - dragStartOffset.y) / editor.scale
 
-        block.positionX.set(local.x)
-        block.positionY.set(local.y)
+        initialBlockPositions.values.forEach { initialPos ->
+            val proposedX = initialPos.x + deltaX
+            val proposedY = initialPos.y + deltaY
 
-        // TODO: Нужно двигать все выбранные блоки
-
-        var bestAction: DropAction? = null
-        for ((action, node) in dropTargets) {
-            if (node.isInBounds(screenPosition)) {
-                if (isValidDrop(block, action)) {
-                    bestAction = action
-                    break
-                }
+            if (proposedX < 0) {
+                deltaX = max(deltaX, -initialPos.x)
+            }
+            if (proposedY < 0) {
+                deltaY = max(deltaY, -initialPos.y)
             }
         }
-        potentialAction = bestAction
+
+        initialBlockPositions.forEach { (mover, initialPos) ->
+            mover.positionX.set(initialPos.x + deltaX)
+            mover.positionY.set(initialPos.y + deltaY)
+        }
+
+        // Работать можно только с 1 блоком за раз, но перетаскивать можно сразу несколько
+        if (initialBlockPositions.containsKey(draggingBlock)) {
+            var bestAction: DropAction? = null
+            for ((action, node) in dropTargets) {
+                if (node.isInBounds(screenPosition)) {
+                    // Проверяем валидность только для главного блока
+                    if (isValidDrop(block, action)) {
+                        bestAction = action
+                        break
+                    }
+                }
+            }
+            potentialAction = bestAction
+        } else {
+            potentialAction = null
+        }
     }
 
     fun handleDragEnd(block: BlockModel) {
@@ -386,6 +421,14 @@ class BlockController(val editor: BlockEditor) {
 
     private fun isAncestorOf(possibleParent: BlockModel, child: BlockModel): Boolean =
         possibleParent in child.parentsWithSelf
+
+    private fun isParentSelected(block: BlockModel): Boolean {
+        if (block is StatementBlock) {
+            block.parent?.let { if (selectedBlocks.contains(it)) return true }
+        }
+        block.parentBlock?.let { if (selectedBlocks.contains(it)) return true }
+        return false
+    }
 
     fun resetAction() {
         potentialAction = null
