@@ -31,7 +31,8 @@ class BlocksPanel(val editor: BlockEditor) {
         Box(scopeName = "CodeBlockRenderer") {
             modifier.padding(Dimensions.PaddingMedium)
                 .onDragStart { editor.dragState.startDrag(entry, it.position) }
-                .onDragEnd { editor.dragState.endDrag(it.screenPosition) }
+                .onDrag { editor.dragState.drag(it.screenPosition) }
+                .onDragEnd { editor.dragState.endDrag() }
 
             editor.renderBlockTree(entry.previewItem, canDrag = false)
 
@@ -119,9 +120,6 @@ class BlocksPanel(val editor: BlockEditor) {
 
     context(scope: UiScope)
     operator fun invoke(): Unit = with(scope) {
-        val oldScale = editor.scale
-        editor.scale = 1f
-
         val filter = editor.controller.filter
 
         Column(FitContent, Grow.Std) {
@@ -179,13 +177,17 @@ class BlocksPanel(val editor: BlockEditor) {
                 withHorizontalScrollbar = true
             ) {
                 items(editor.provider.rootCategory.items(editor)) {
+                    val oldScale = editor.scale
+                    editor.scale = 1f
+                    
                     with(editor) {
                         Item(it)
                     }
+
+                    editor.scale = oldScale
                 }
             }
         }
-        editor.scale = oldScale
     }
 
     context(scope: UiScope)

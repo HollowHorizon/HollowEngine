@@ -5,35 +5,53 @@ import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockEntry
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 
 class DragState(val editor: BlockEditor) : Composable {
     val isDragging = mutableStateOf(false)
-    val dragPosition = mutableStateOf(Vec2f.ZERO)
+    val dragOffset = mutableStateOf(Vec2f.ZERO)
     var entry: BlockEntry<*>? = null
+    var item: BlockModel? = null
 
     fun startDrag(entry: BlockEntry<*>, pos: Vec2f) {
         isDragging.set(true)
-        dragPosition.set(pos)
+        dragOffset.set(pos)
         this.entry = entry
     }
 
-    fun endDrag(screenPosition: Vec2f) {
-        isDragging.set(false)
-        entry?.let { entry ->
-            val item = entry.createItem()
-            val (x, y) = editor.controller.toLocal(screenPosition - dragPosition.value)
-            // Отступы взяты из Box'а внутри Panel
-            item.positionX.set(x + Dimensions.PaddingMedium.px)
-            item.positionY.set(y + Dimensions.PaddingMedium.px)
-            editor.rootBlocks.add(item)
-            editor.notifyChanged()
+    fun drag(blockPosition: Vec2f) {
+        val item = item
+        val pos = blockPosition - dragOffset.value
+        val (x, y) = editor.controller.toLocal(pos)
+        if (item == null) {
+            if (pos in editor.controller) {
+                val newItem = entry?.createItem() ?: return
+                // Отступы взяты из Box'а внутри Panel
+                newItem.positionX.set(x + Dimensions.PaddingMedium.px)
+                newItem.positionY.set(y + Dimensions.PaddingMedium.px)
+                editor.rootBlocks.add(newItem)
+                editor.notifyChanged()
+                editor.controller.handleDragStart(newItem, blockPosition, dragOffset.value)
+                this.item = newItem
+            }
+        } else {
+            editor.controller.handleDrag(item, blockPosition + Vec2f(Dimensions.PaddingMedium.px, Dimensions.PaddingMedium.px))
         }
+    }
+
+    fun endDrag() {
+        isDragging.set(false)
+
+        item?.let {
+            editor.controller.handleDragEnd(it)
+        }
+        item = null
         entry = null
     }
 
     override fun UiScope.compose() {
-        if (isDragging.use()) {
-            val (offsetX, offsetY) = dragPosition.use()
+        if (isDragging.use() && item == null) {
+            val (offsetX, offsetY) = dragOffset.use()
             val (x, y) = PointerInput.primaryPointer.pos
             Popup(x - offsetX, y - offsetY, layout = CellLayout) {
                 modifier.background(null)

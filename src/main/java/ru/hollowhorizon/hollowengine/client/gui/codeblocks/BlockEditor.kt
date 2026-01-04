@@ -83,7 +83,14 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 ScrollPane(controller.scrollState) {
                     modifier.layout(CellLayout)
                         .padding(Dimensions.PaddingLarge.scaled())
-                        .onPositioned { controller.scrollPanePosition.set(it.leftPx, it.topPx) }
+                        .onPositioned {
+                            controller.scrollPaneBounds.set(
+                                it.leftPx,
+                                it.topPx,
+                                it.widthPx,
+                                it.heightPx
+                            )
+                        }
 
                     modifier.onClick {
                         controller.clearSelection()
@@ -417,9 +424,15 @@ private fun UiModifier.setupEditorControls(editor: BlockEditor): UiModifier {
 context(editor: BlockEditor, scope: UiScope)
 private fun UiModifier.setupDragHandler(block: BlockModel, controller: BlockController): UiModifier {
     return this
-        .onDragStart { ev -> if(ev.pointer.isLeftButtonDown) controller.handleDragStart(block, ev) }
-        .onDrag { ev -> if(ev.pointer.isLeftButtonDown) controller.handleDrag(block, ev) }
-        .onDragEnd { ev -> if(ev.pointer.isLeftButtonReleased) controller.handleDragEnd(block) }
+        .onDragStart { ev ->
+            if (ev.pointer.isLeftButtonDown) controller.handleDragStart(
+                block,
+                Vec2f(scope.uiNode.leftPx, scope.uiNode.topPx),
+                ev.position
+            )
+        }
+        .onDrag { ev -> if (ev.pointer.isLeftButtonDown) controller.handleDrag(block, ev.screenPosition) }
+        .onDragEnd { ev -> if (ev.pointer.isLeftButtonReleased) controller.handleDragEnd(block) }
 }
 
 private fun UiScope.EditorScrollbars(controller: BlockController) {

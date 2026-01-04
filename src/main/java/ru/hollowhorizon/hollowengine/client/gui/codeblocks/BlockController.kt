@@ -1,9 +1,11 @@
 package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
 import de.fabmax.kool.math.MutableVec2f
+import de.fabmax.kool.math.MutableVec4f
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import ru.hollowhorizon.hollowengine.client.audio.UIAudio
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.*
 import kotlin.math.max
@@ -13,7 +15,7 @@ class BlockController(val editor: BlockEditor) {
     val scrollState = ScrollState()
     private val dropTargets = mutableListOf<Pair<DropAction, UiNode>>()
     private var potentialAction: DropAction? = null
-    val scrollPanePosition = MutableVec2f()
+    val scrollPaneBounds = MutableVec4f()
 
     // --- Selection State ---
     val selectedBlocks = mutableStateListOf<BlockModel>()
@@ -38,8 +40,11 @@ class BlockController(val editor: BlockEditor) {
         blockBounds.clear()
     }
 
-    fun toLocal(screenPosition: Vec2f): Vec2f = (screenPosition - scrollPanePosition) / editor.scale
+    fun toLocal(screenPosition: Vec2f): Vec2f = (screenPosition - scrollPaneBounds.xy) / editor.scale
     fun toLocal(screenX: Float, screenY: Float): Vec2f = toLocal(Vec2f(screenX, screenY))
+    operator fun contains(screenPosition: Vec2f): Boolean =
+        screenPosition.x in scrollPaneBounds.x + Dimensions.PaddingMedium.px ..scrollPaneBounds.x + scrollPaneBounds.z - Dimensions.PaddingMedium.px &&
+                screenPosition.y in scrollPaneBounds.y + Dimensions.PaddingMedium.px..scrollPaneBounds.y + scrollPaneBounds.w - Dimensions.PaddingMedium.px
 
     fun startSelection(screenPos: Vec2f, contentNode: UiNode, zoom: Float) {
         selectedBlocks.clear()
@@ -138,29 +143,22 @@ class BlockController(val editor: BlockEditor) {
         get() = (potentialAction as? DropAction.AttachToInput)?.isStatementSlot == true
 
 
-    context(scope: UiScope)
-    fun handleDragStart(block: BlockModel, ev: PointerEvent) {
+    fun handleDragStart(block: BlockModel, blockPosition: Vec2f, localOffset: Vec2f) {
         if (!selectedBlocks.contains(block)) {
             selectSingle(block)
         }
 
         draggingBlock = block
-        val visualScreenPos = scope.uiNode.toScreen(Vec2f.ZERO)
-        dragStartOffset.set(ev.screenPosition.x - visualScreenPos.x, ev.screenPosition.y - visualScreenPos.y)
+        dragStartOffset.set(localOffset)
 
-        val targetVisualScreenX = ev.screenPosition.x - dragStartOffset.x
-        val targetVisualScreenY = ev.screenPosition.y - dragStartOffset.y
-
-        val local = toLocal(targetVisualScreenX, targetVisualScreenY)
-        detachBlock(block, Vec2f(local.x, local.y))
+        detachBlock(block, toLocal(blockPosition))
     }
 
-    context(scope: UiScope)
-    fun handleDrag(block: BlockModel, ev: PointerEvent) {
+    fun handleDrag(block: BlockModel, screenPosition: Vec2f) {
         if (draggingBlock != block) return
 
-        val targetVisualScreenX = ev.screenPosition.x - dragStartOffset.x
-        val targetVisualScreenY = ev.screenPosition.y - dragStartOffset.y
+        val targetVisualScreenX = screenPosition.x - dragStartOffset.x
+        val targetVisualScreenY = screenPosition.y - dragStartOffset.y
         val local = toLocal(targetVisualScreenX, targetVisualScreenY)
 
         block.positionX.set(local.x)
@@ -170,7 +168,7 @@ class BlockController(val editor: BlockEditor) {
 
         var bestAction: DropAction? = null
         for ((action, node) in dropTargets) {
-            if (node.isInBounds(ev.screenPosition)) {
+            if (node.isInBounds(screenPosition)) {
                 if (isValidDrop(block, action)) {
                     bestAction = action
                     break
