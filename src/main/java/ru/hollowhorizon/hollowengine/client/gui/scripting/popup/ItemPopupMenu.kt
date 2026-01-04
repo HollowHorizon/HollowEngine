@@ -10,7 +10,7 @@ import ru.hollowhorizon.hollowengine.client.audio.UIAudio
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.kool.menuDivider
-import ru.hollowhorizon.hollowengine.client.gui.scripting.AccordionLayout
+import ru.hollowhorizon.hollowengine.client.gui.scripting.AccordionColumnLayout
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
 import ru.hollowhorizon.hollowengine.client.utils.lang
@@ -205,7 +205,7 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
 
 
             Column(Grow.Std) {
-                modifier.layout(AccordionLayout(opacity.use()))
+                modifier.layout(AccordionColumnLayout(opacity.use()))
 
                 block(opacity.use())
             }

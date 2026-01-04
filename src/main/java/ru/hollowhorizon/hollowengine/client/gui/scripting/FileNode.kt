@@ -154,7 +154,7 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
 
         Box(width = Grow.Std) {
             if (visibility < 1f) {
-                modifier.layout(AccordionLayout(visibility))
+                modifier.layout(AccordionColumnLayout(visibility))
             }
 
             Row(width = Grow.Std) {
@@ -270,7 +270,7 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
     }
 }
 
-class AccordionLayout(val expansion: Float) : Layout {
+class AccordionColumnLayout(val expansion: Float) : Layout {
     override fun measureContentSize(uiNode: UiNode, ctx: KoolContext) {
         ColumnLayout.measureContentSize(uiNode, ctx)
         uiNode.setContentSize(uiNode.contentWidthPx, uiNode.contentHeightPx * expansion)
@@ -278,5 +278,15 @@ class AccordionLayout(val expansion: Float) : Layout {
 
     override fun layoutChildren(uiNode: UiNode, ctx: KoolContext) {
         ColumnLayout.layoutChildren(uiNode, ctx)
+    }
+}
+class AccordionRowLayout(val expansion: Float) : Layout {
+    override fun measureContentSize(uiNode: UiNode, ctx: KoolContext) {
+        RowLayout.measureContentSize(uiNode, ctx)
+        uiNode.setContentSize(uiNode.contentWidthPx * expansion, uiNode.contentHeightPx)
+    }
+
+    override fun layoutChildren(uiNode: UiNode, ctx: KoolContext) {
+        RowLayout.layoutChildren(uiNode, ctx)
     }
 }

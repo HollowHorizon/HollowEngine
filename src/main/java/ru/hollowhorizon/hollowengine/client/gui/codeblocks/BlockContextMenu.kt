@@ -35,7 +35,7 @@ object BlockContextMenu {
                 }
                 item("Дублировать") { controller.duplicateBlock(block, it) }
                 item("Копировать UUID") { Clipboard.copyToClipboard(block.uuid.toString()) }
-                item("Удалить") { controller.removeBlock(block) }
+                item("Удалить") { controller.deleteSelected() }
             }
         }
 

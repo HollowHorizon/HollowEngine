@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 import de.fabmax.kool.input.CursorShape
 import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.PointerInput
+import de.fabmax.kool.input.UniversalKeyCode
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
@@ -13,6 +14,7 @@ import de.fabmax.kool.util.set
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.colors.PaddingLargeSpacing
+import ru.hollowhorizon.hollowengine.client.gui.kool.onKeyEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
@@ -55,6 +57,15 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         const val Z_LAYER_DRAGGING = 1_000_000
         const val Z_LAYER_SCROLLBAR = 100_000_000
 
+        private val KEY_CODE_SELECT_ALL = UniversalKeyCode('A')
+        private val KEY_CODE_CUT = UniversalKeyCode('X')
+        private val KEY_COPY = UniversalKeyCode('C')
+        private val KEY_PASTE = UniversalKeyCode('V')
+        private val KEY_UNDO = UniversalKeyCode('Z')
+        private val KEY_REDO = UniversalKeyCode('Y')
+        private val KEY_DUPLICATE = UniversalKeyCode('D')
+
+
         val C_BLOCK_SPINE_WIDTH = Dimensions.PaddingMedium
         val DROP_SENSOR_HEIGHT = Dimensions.PaddingMedium
     }
@@ -65,8 +76,44 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         controller.update()
         updateScaleAnimation()
 
+        modifier.onKeyEvent {
+            if (it.isPressed) {
+                val isCtrl = it.isCtrlDown
+                val isShift = it.isShiftDown
+
+                when {
+                    // --- Undo / Redo ---
+                    isCtrl && it.keyCode == KEY_UNDO -> {
+                        if (isShift) controller.history.redo() else controller.history.undo()
+                    }
+
+                    isCtrl && it.keyCode == KEY_REDO -> controller.history.redo()
+
+                    // --- Clipboard ---
+                    isCtrl && it.keyCode == KEY_COPY -> controller.copySelected()
+                    isCtrl && it.keyCode == KEY_CODE_CUT -> controller.cutSelected()
+                    isCtrl && it.keyCode == KEY_PASTE -> controller.paste()
+
+                    // --- Selection & Manipulation ---
+                    isCtrl && it.keyCode == KEY_CODE_SELECT_ALL -> controller.selectAll()
+                    isCtrl && it.keyCode == KEY_DUPLICATE -> controller.duplicateSelected()
+                    it.keyCode == KeyboardInput.KEY_ESC -> controller.clearSelection()
+                    it.keyCode == KeyboardInput.KEY_DEL -> controller.deleteSelected()
+                    it.keyCode == KeyboardInput.KEY_TAB -> {
+                        controller.isBlockPanelMinimized.set(!controller.isBlockPanelMinimized.value)
+                    }
+
+                    it.keyCode == KeyboardInput.KEY_HOME -> controller.resetCamera()
+                }
+            }
+        }
+
         Row(Grow.Std, Grow.Std) {
-            if (!controller.isBlockPanelMinimized.use()) blocksPanel()
+            val expansion by animateFloatAsState(
+                if (controller.isBlockPanelMinimized.use()) 1f else 0f,
+                tween(0.3f, Easing.easeOutQuart)
+            )
+            if (!controller.isBlockPanelMinimized.use() || expansion > 0f) blocksPanel(expansion)
 
             Box(Grow.Std, Grow.Std) {
                 modifier
@@ -126,6 +173,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
                 EditorScrollbars(controller)
                 ScaleOverlay()
+                UndoRedoOverlay()
 
                 BlockContextMenu.draw()
                 creationPopup()
@@ -397,6 +445,31 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 .onClick { onClick() }
         }
     }
+
+    private fun UiScope.UndoRedoOverlay() {
+        Row {
+            modifier.align(AlignmentX.End, AlignmentY.Top)
+                .margin(Dimensions.PaddingMedium)
+                .padding(Dimensions.PaddingSmall)
+                .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingNormal))
+                .zLayer(Z_LAYER_SCROLLBAR)
+
+            EditorButton("<") { controller.history.undo() }
+            EditorButton(">") { controller.history.redo() }
+        }
+    }
+
+    private fun UiScope.EditorButton(text: String, onClick: () -> Unit) {
+        Text(text) {
+            val isHovered by modifier.hoverable()
+            val textColor by animateColorAsState(if (isHovered) ColorTheme.UI.WhiteReplacement else ColorTheme.UI.BackgroundAccent)
+
+            modifier.alignY(AlignmentY.Center)
+                .textColor(textColor)
+                .margin(horizontal = Dimensions.PaddingSmall)
+                .onClick { onClick() }
+        }
+    }
 }
 
 // --- Extensions & Utils ---
@@ -489,7 +562,7 @@ private fun UiScope.renderSnapAnimations(snapAnimations: MutableList<SnapAnimati
                     val p = anim.animator.updateUsing()
                     val baseScale = 10f + p * 30f
                     val actualScale = baseScale * currentZoom
-                    val alpha = Easing.quad(1f - p).coerceIn(0f, 1f)
+                    val alpha = Easing.easeInQuart(1f - p).coerceIn(0f, 1f)
 
                     drawList.configured(Color.WHITE.withAlpha(alpha)) {
                         translate(anim.x * currentZoom, anim.y * currentZoom, 0f)
@@ -513,12 +586,12 @@ private fun UiScope.renderSnapAnimations(snapAnimations: MutableList<SnapAnimati
 
 private fun BlockModel.resolveColor(isGhost: Boolean, isUnused: Boolean, isSelected: Boolean): Color {
     return MutableColor(color).apply {
-        if(isGhost) withAlpha(0.5f, this)
-        if(isUnused) {
+        if (isGhost) withAlpha(0.5f, this)
+        if (isUnused) {
             mix(Color.LIGHT_GRAY, 0.5f, this)
             withAlpha(0.35f, this)
         }
-        if(isSelected) mix(Color.WHITE, 0.5f)
+        if (isSelected) mix(Color.WHITE, 0.5f)
     }
 }
 

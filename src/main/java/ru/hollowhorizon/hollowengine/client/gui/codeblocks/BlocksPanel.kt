@@ -5,7 +5,8 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
-import ru.hollowhorizon.hollowengine.client.gui.scripting.AccordionLayout
+import ru.hollowhorizon.hollowengine.client.gui.scripting.AccordionColumnLayout
+import ru.hollowhorizon.hollowengine.client.gui.scripting.AccordionRowLayout
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
@@ -105,7 +106,7 @@ class BlocksPanel(val editor: BlockEditor) {
             if (isExpanded || animation > 0f) {
                 Column(Grow.Std) {
                     modifier.padding(horizontal = Dimensions.PaddingNormal)
-                        .layout(AccordionLayout(animation))
+                        .layout(AccordionColumnLayout(animation))
                         .backgroundColor(
                             category.color.mix(Color.BLACK, 0.5f).mix(ColorTheme.UI.BackgroundSecondary, 0.5f)
                         )
@@ -119,12 +120,13 @@ class BlocksPanel(val editor: BlockEditor) {
     }
 
     context(scope: UiScope)
-    operator fun invoke(): Unit = with(scope) {
+    operator fun invoke(expansion: Float): Unit = with(scope) {
         val filter = editor.controller.filter
 
         Column(FitContent, Grow.Std) {
             modifier.margin(horizontal = Dimensions.PaddingNormal)
                 .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, Dimensions.PaddingMedium))
+                .layout(AccordionRowLayout(expansion))
 
             Row(Grow.Std) {
                 modifier.margin(Dimensions.PaddingMedium)
@@ -179,7 +181,7 @@ class BlocksPanel(val editor: BlockEditor) {
                 items(editor.provider.rootCategory.items(editor)) {
                     val oldScale = editor.scale
                     editor.scale = 1f
-                    
+
                     with(editor) {
                         Item(it)
                     }

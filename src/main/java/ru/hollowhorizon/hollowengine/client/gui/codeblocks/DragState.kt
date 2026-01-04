@@ -43,7 +43,7 @@ class DragState(val editor: BlockEditor) : Composable {
         isDragging.set(false)
 
         item?.let {
-            editor.controller.handleDragEnd(it)
+            editor.controller.handleDragEnd(it, true)
         }
         item = null
         entry = null
