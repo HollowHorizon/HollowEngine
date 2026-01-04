@@ -8,6 +8,7 @@ import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
+import de.fabmax.kool.util.MutableColor
 import de.fabmax.kool.util.set
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
@@ -511,9 +512,14 @@ private fun UiScope.renderSnapAnimations(snapAnimations: MutableList<SnapAnimati
 // Helpers for color and node finding
 
 private fun BlockModel.resolveColor(isGhost: Boolean, isUnused: Boolean, isSelected: Boolean): Color {
-    return if (isGhost) this.color.withAlpha(0.5f)
-    else if (isUnused) this.color.mix(Color.LIGHT_GRAY, 0.5f).withAlpha(0.35f)
-    else this.color
+    return MutableColor(color).apply {
+        if(isGhost) withAlpha(0.5f, this)
+        if(isUnused) {
+            mix(Color.LIGHT_GRAY, 0.5f, this)
+            withAlpha(0.35f, this)
+        }
+        if(isSelected) mix(Color.WHITE, 0.5f)
+    }
 }
 
 inline fun <reified T> UiNode.findParentOfType(filter: (T) -> Boolean = { true }): T? {

@@ -101,7 +101,6 @@ class ScratchBlockBackground(
 
         node.getPlainBuilder(UiSurface.LAYER_FLOATING).configure(null) {
             if (drawInnerShadow) PuzzleShapes.drawInnerShadow(points, zoom)
-            
         }
     }
 }
