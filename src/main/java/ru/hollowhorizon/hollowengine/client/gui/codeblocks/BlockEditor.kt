@@ -1,9 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
-import de.fabmax.kool.input.CursorShape
-import de.fabmax.kool.input.KeyboardInput
-import de.fabmax.kool.input.PointerInput
-import de.fabmax.kool.input.UniversalKeyCode
+import de.fabmax.kool.input.*
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
@@ -14,7 +11,6 @@ import de.fabmax.kool.util.set
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.colors.PaddingLargeSpacing
-import ru.hollowhorizon.hollowengine.client.gui.kool.onKeyEvent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
@@ -76,41 +72,9 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         controller.update()
         updateScaleAnimation()
 
-        modifier.onKeyEvent {
-            if (it.isPressed) {
-                val isCtrl = it.isCtrlDown
-                val isShift = it.isShiftDown
-
-                when {
-                    // --- Undo / Redo ---
-                    isCtrl && it.keyCode == KEY_UNDO -> {
-                        if (isShift) controller.history.redo() else controller.history.undo()
-                    }
-
-                    isCtrl && it.keyCode == KEY_REDO -> controller.history.redo()
-
-                    // --- Clipboard ---
-                    isCtrl && it.keyCode == KEY_COPY -> controller.copySelected()
-                    isCtrl && it.keyCode == KEY_CODE_CUT -> controller.cutSelected()
-                    isCtrl && it.keyCode == KEY_PASTE -> controller.paste()
-
-                    // --- Selection & Manipulation ---
-                    isCtrl && it.keyCode == KEY_CODE_SELECT_ALL -> controller.selectAll()
-                    isCtrl && it.keyCode == KEY_DUPLICATE -> controller.duplicateSelected()
-                    it.keyCode == KeyboardInput.KEY_ESC -> controller.clearSelection()
-                    it.keyCode == KeyboardInput.KEY_DEL -> controller.deleteSelected()
-                    it.keyCode == KeyboardInput.KEY_TAB -> {
-                        controller.isBlockPanelMinimized.set(!controller.isBlockPanelMinimized.value)
-                    }
-
-                    it.keyCode == KeyboardInput.KEY_HOME -> controller.resetCamera()
-                }
-            }
-        }
-
         Row(Grow.Std, Grow.Std) {
             val expansion by animateFloatAsState(
-                if (controller.isBlockPanelMinimized.use()) 1f else 0f,
+                if (!controller.isBlockPanelMinimized.use()) 1f else 0f,
                 tween(0.3f, Easing.easeOutQuart)
             )
             if (!controller.isBlockPanelMinimized.use() || expansion > 0f) blocksPanel(expansion)
@@ -186,6 +150,38 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 }
                 dragState()
                 body()
+            }
+        }
+    }
+
+    fun onKeyInput(ev: KeyEvent) {
+        if (ev.isPressed) {
+            val isCtrl = ev.isCtrlDown
+            val isShift = ev.isShiftDown
+
+            when {
+                // --- Undo / Redo ---
+                isCtrl && ev.keyCode == KEY_UNDO -> {
+                    if (isShift) controller.history.redo() else controller.history.undo()
+                }
+
+                isCtrl && ev.keyCode == KEY_REDO -> controller.history.redo()
+
+                // --- Clipboard ---
+                isCtrl && ev.keyCode == KEY_COPY -> controller.copySelected()
+                isCtrl && ev.keyCode == KEY_CODE_CUT -> controller.cutSelected()
+                isCtrl && ev.keyCode == KEY_PASTE -> controller.paste()
+
+                // --- Selection & Manipulation ---
+                isCtrl && ev.keyCode == KEY_CODE_SELECT_ALL -> controller.selectAll()
+                isCtrl && ev.keyCode == KEY_DUPLICATE -> controller.duplicateSelected()
+                ev.keyCode == KeyboardInput.KEY_ESC -> controller.clearSelection()
+                ev.keyCode == KeyboardInput.KEY_DEL -> controller.deleteSelected()
+                ev.keyCode == KeyboardInput.KEY_TAB -> {
+                    controller.isBlockPanelMinimized.set(!controller.isBlockPanelMinimized.value)
+                }
+
+                ev.keyCode == KeyboardInput.KEY_HOME -> controller.resetCamera()
             }
         }
     }
@@ -506,7 +502,7 @@ private fun UiModifier.setupDragHandler(block: BlockModel, controller: BlockCont
         .onDragStart { ev ->
             if (ev.pointer.isLeftButtonDown) controller.handleDragStart(
                 block,
-                Vec2f(scope.uiNode.leftPx, scope.uiNode.topPx),
+                ev.screenPosition - ev.position,
                 ev.position
             )
         }

@@ -282,11 +282,11 @@ class AccordionColumnLayout(val expansion: Float) : Layout {
 }
 class AccordionRowLayout(val expansion: Float) : Layout {
     override fun measureContentSize(uiNode: UiNode, ctx: KoolContext) {
-        RowLayout.measureContentSize(uiNode, ctx)
+        ColumnLayout.measureContentSize(uiNode, ctx)
         uiNode.setContentSize(uiNode.contentWidthPx * expansion, uiNode.contentHeightPx)
     }
 
     override fun layoutChildren(uiNode: UiNode, ctx: KoolContext) {
-        RowLayout.layoutChildren(uiNode, ctx)
+        ColumnLayout.layoutChildren(uiNode, ctx)
     }
 }

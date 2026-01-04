@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks
 
+import de.fabmax.kool.input.KeyEvent
 import de.fabmax.kool.modules.ui2.Grow
 import de.fabmax.kool.modules.ui2.Row
 import de.fabmax.kool.modules.ui2.UiScope
@@ -99,5 +100,9 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
         super.close()
         save()
         scope.cancel()
+    }
+
+    override fun onKeyInput(event: KeyEvent) {
+        editor.onKeyInput(event)
     }
 }

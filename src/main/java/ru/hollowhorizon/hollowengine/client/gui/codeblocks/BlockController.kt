@@ -351,11 +351,11 @@ class BlockController(val editor: BlockEditor) {
                 block.parent = null
             }
             if (onlyOnce) {
-                if (!hasParent) block.next?.let { {
+                if (!hasParent) block.next?.let {
                     it.positionX.set(block.positionX.value)
                     it.positionY.set(block.positionY.value)
                     editor.rootBlocks.add(it)
-                } }
+                }
                 block.next = null
             }
         }

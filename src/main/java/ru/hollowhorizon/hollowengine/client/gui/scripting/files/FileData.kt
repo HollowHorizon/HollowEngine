@@ -1,5 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
+import de.fabmax.kool.KoolContext
+import de.fabmax.kool.input.InputStack
+import de.fabmax.kool.input.KeyEvent
+import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
@@ -22,6 +26,21 @@ abstract class FileData(
     final override val dockable = UiDockable(filePath, ScriptingEnvironmentOverlay.dock)
     override val name = "file\$$fileName"
     override val icon = IconHelper.forPath(filePath)
+    val inputListener = InputStack.InputHandler("$filePath Input Handler").apply {
+        keyboardListeners += object : InputStack.KeyboardListener {
+            override fun handleKeyboard(
+                keyEvents: List<KeyEvent>,
+                ctx: KoolContext,
+            ) {
+                val onTop =
+                    ScriptingEnvironmentOverlay.dock.isSurfaceOnTop(surface ?: return, PointerInput.primaryPointer.pos)
+                if (!onTop) return
+                keyEvents.forEach {
+                    onKeyInput(it)
+                }
+            }
+        }
+    }
 
     val isCollapsed = mutableStateOf(false)
     val isDocked get() = dockable.dockedTo.value != null
@@ -71,6 +90,7 @@ abstract class FileData(
             modifier.backgroundColor(ColorTheme.UI.BackgroundGeneral).border(null)
             setupContent()
         }.also { ScriptingEnvironmentOverlay.dock.addDockableSurface(dockable, it) }
+        InputStack.pushBottom(inputListener)
     }
 
     override fun close() {
@@ -79,6 +99,11 @@ abstract class FileData(
             ScriptingEnvironmentOverlay.dock.removeDockableSurface(it)
             it.releaseDelayed(1)
         }
+        InputStack.remove(inputListener)
         surface = null
+    }
+
+    open fun onKeyInput(event: KeyEvent) {
+
     }
 }

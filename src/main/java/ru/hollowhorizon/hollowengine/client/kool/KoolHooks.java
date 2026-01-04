@@ -2,12 +2,15 @@ package ru.hollowhorizon.hollowengine.client.kool;
 
 import de.fabmax.kool.KoolContext;
 import de.fabmax.kool.KoolSystem;
+import de.fabmax.kool.modules.ui2.Focusable;
+import de.fabmax.kool.modules.ui2.UiSurface;
 import de.fabmax.kool.pipeline.CullMethod;
 import de.fabmax.kool.pipeline.DepthCompareOp;
 import de.fabmax.kool.pipeline.backend.gl.RenderBackendGl;
 import de.fabmax.kool.pipeline.backend.gl.ShaderManager;
 import de.fabmax.kool.util.Time;
 import de.fabmax.kool.util.TriggeredCoroutineDispatcher;
+import org.jetbrains.annotations.NotNull;
 import ru.hollowhorizon.hollowengine.common.utils.UnsafeTools;
 import sun.misc.Unsafe;
 
@@ -90,6 +93,18 @@ public class KoolHooks {
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize KoolHooks Unsafe access", e);
         }
+    }
+
+    public static boolean hasAnyFocus(UiSurface.@NotNull UiInputHandler inputHandler) {
+        return inputHandler.getFocusedNode$kool_core() != null;
+    }
+
+    public static Focusable activeFocus(UiSurface.@NotNull UiInputHandler inputHandler) {
+        return inputHandler.getFocusedNode$kool_core();
+    }
+
+    public static void setFocus(UiSurface.@NotNull UiInputHandler inputHandler, Focusable aNew) {
+        inputHandler.setFocusedNode$kool_core(aNew);
     }
 
     // Helper class to hold resolved Unsafe coordinates

@@ -31,11 +31,11 @@ class DragState(val editor: BlockEditor) : Composable {
                 newItem.positionY.set(y + Dimensions.PaddingMedium.px)
                 editor.rootBlocks.add(newItem)
                 editor.notifyChanged()
-                editor.controller.handleDragStart(newItem, blockPosition, dragOffset.value)
+                editor.controller.handleDragStart(newItem, blockPosition - dragOffset.value, dragOffset.value)
                 this.item = newItem
             }
         } else {
-            editor.controller.handleDrag(item, blockPosition + dragOffset.value)
+            editor.controller.handleDrag(item, blockPosition)
         }
     }
 
