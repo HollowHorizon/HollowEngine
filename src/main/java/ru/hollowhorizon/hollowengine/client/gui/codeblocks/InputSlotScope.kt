@@ -46,7 +46,8 @@ class InputSlotScope(
             } else {
                 editor.controller.addDropTarget(DropAction.AttachToInput(parentBlock, name, false), uiNode)
 
-                if (isTargeted && editor.controller.draggingBlock?.isExpression() == true) GhostPlaceholder(true)
+                val dragBlock = editor.controller.draggingBlock
+                if (isTargeted && dragBlock?.isExpression() == true) GhostPlaceholder(dragBlock)
                 else EmptySlotVisual(false)
             }
         }
@@ -104,11 +105,12 @@ class InputSlotScope(
                         modifier.height(30.dp.scaled()).width(100.dp.scaled())
                         if (isTargeted) modifier.background(
                             ScratchBlockBackground(
-                                Color.WHITE.withAlpha(0.2f),
+                                controller.draggingBlock ?: parentBlock,
+                                controller.draggingBlock?.resolveColor(true, false, false) ?: animatedColor,
                                 scale,
-                                isExpression = false,
-                                hasNext = true,
-                                drawInnerShadow = true,
+                                isGhost,
+                                isUnused,
+                                isSelected
                             )
                         )
                     }

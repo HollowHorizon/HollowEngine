@@ -4,21 +4,34 @@ import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.geometry.MeshBuilder
 import de.fabmax.kool.util.*
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.PuzzleShapes.drawInnerShadow
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
+import ru.hollowhorizon.hollowengine.common.codeblocks.isExpression
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.EndBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.mixins.kool.UiNodeAccessor
 import kotlin.math.max
+import kotlin.math.min
 
 class ScratchBlockBackground(
+    val block: BlockModel,
     val color: Color,
     val zoom: Float,
-    val isExpression: Boolean,
-    val hasNext: Boolean,
-    val hasPrev: Boolean = true,
-    val isContainerHeader: Boolean = false,
-    val drawInnerShadow: Boolean = false,
-    val isSelected: Boolean = false,
+    val isGhost: Boolean,
+    val isUnused: Boolean,
+    val isSelected: Boolean,
 ) : UiRenderer<UiNode> {
+    val isExpression = block.isExpression()
+    val hasPrev = block !is StartBlock
+    val hasNext = block !is EndBlock
+    val isContainer = block is ContainerBlock
+    val drawInnerShadow = block.isExpression() && block.parentBlock != null
 
     override fun renderUi(node: UiNode) = with(node) {
         val gap = Dimensions.PaddingNormal.px * 3f * zoom
@@ -56,7 +69,10 @@ class ScratchBlockBackground(
                 points.add(Vec3f(x, tyStart, 0f))
             }
         } else {
-            PuzzleShapes.addBezier(points, x, y + r, x, y, x + r, y)
+            val isTrigger = !hasPrev
+            val rTopLeft = if (isTrigger) gap * 1.5f else r
+
+            PuzzleShapes.addBezier(points, x, y + rTopLeft, x, y, x + rTopLeft, y)
             if (hasPrev) {
                 points.add(Vec3f(x + notchX, y, 0f))
                 points.add(Vec3f(x + notchX + notchHeight, y + notchHeight, 0f))
@@ -64,9 +80,57 @@ class ScratchBlockBackground(
                 points.add(Vec3f(x + notchX + notchWidth, y, 0f))
             }
             PuzzleShapes.addBezier(points, x + w - r, y, x + w, y, x + w, y + r)
+
+            if (isTrigger) {
+                val cy = y + h / 2f
+
+                val totalR = (h * 0.25f)
+                val filletR = r * 0.5f
+
+                val k = 0.55228f
+
+                val yTopStart = cy - totalR
+                val yTopArc   = cy - totalR + filletR * 0.5f
+                val yBottomArc = cy + totalR - filletR * 0.5f
+                val yBottomEnd = cy + totalR
+
+                val innerR = totalR - filletR * 0.5f
+
+                points.add(Vec3f(x + w, yTopStart, 0f))
+
+                PuzzleShapes.addCubicBezier(points,
+                    x + w, yTopStart,
+                    x + w, yTopStart + filletR * k,
+                    x + w - filletR + filletR * k, yTopArc,
+                    x + w - filletR, yTopArc,
+                )
+
+                PuzzleShapes.addCubicBezier(points,
+                    x + w - filletR, yTopArc,
+                    x + w - filletR - innerR * k, yTopArc,
+                    x + w - totalR, cy - innerR * k,
+                    x + w - totalR, cy
+                )
+
+                PuzzleShapes.addCubicBezier(points,
+                    x + w - totalR, cy,
+                    x + w - totalR, cy + innerR * k,
+                    x + w - filletR - innerR * k, yBottomArc,
+                    x + w - filletR, yBottomArc
+                )
+
+                PuzzleShapes.addCubicBezier(points,
+                    x + w - filletR, yBottomArc,
+                    x + w - filletR + filletR * k, yBottomArc,
+                    x + w, yBottomEnd - filletR * k,
+                    x + w, yBottomEnd
+                )
+
+            }
+
             PuzzleShapes.addBezier(points, x + w, y + h - r, x + w, y + h, x + w - r, y + h)
 
-            if (isContainerHeader) {
+            if (isContainer && !isGhost) {
                 val spineW = BlockEditor.C_BLOCK_SPINE_WIDTH.px * zoom
                 val innerNotchX = spineW + notchX
                 if (innerNotchX + notchWidth < w) {
@@ -95,7 +159,7 @@ class ScratchBlockBackground(
 
         if (isSelected) {
             node.getPlainBuilder(100_000).configure(null) {
-                val strokePoints = if (isContainerHeader) {
+                val strokePoints = if (isContainer) {
                     buildList {
                         add(Vec3f(Vec3f(x, y + h, 0f)))
                         addAll(points.dropLast(1).drop(1))
@@ -104,12 +168,36 @@ class ScratchBlockBackground(
                 } else {
                     points
                 }
-                PuzzleShapes.drawStroke(strokePoints, if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f, ColorTheme.UI.WhiteReplacement, isContainerHeader)
+                PuzzleShapes.drawStroke(strokePoints, if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f, ColorTheme.UI.WhiteReplacement, isContainer)
             }
         }
 
         node.getPlainBuilder(UiSurface.LAYER_FLOATING).configure(null) {
-            if (drawInnerShadow) PuzzleShapes.drawInnerShadow(points, zoom)
+            if (drawInnerShadow) drawInnerShadow(points, zoom)
+        }
+
+        if(!hasPrev) {
+            val texture = ImageManager.load(icons.AUTOCOMPLETE_CLASS, SamplerMode.LINEAR)
+            val mesh = surface.getMeshLayer(modifier.zLayer).addImage(texture)
+            mesh.builder.clear()
+            mesh.builder.configure(color) {
+                rect {
+                    isCenteredOrigin = false
+
+                    generateTexCoords()
+                    mirrorTexCoordsY()
+
+                    val imgW = texture.width
+                    val imgH = texture.height
+                    val cx = widthPx
+                    val cy = heightPx * 0.5f
+
+                    val s = min(innerWidthPx / imgW, innerHeightPx / imgH) * 0.35f
+                    origin.set(cx - imgW * s * 0.5f, cy - imgH * s * 0.5f, 0f)
+                    size.set(imgW * s, imgH * s)
+                }
+            }
+            mesh.applyShader(texture, null)
         }
     }
 }

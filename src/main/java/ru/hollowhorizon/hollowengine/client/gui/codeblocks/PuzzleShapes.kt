@@ -35,12 +35,42 @@ object PuzzleShapes {
     }
 
     fun addBezier(points: MutableList<Vec3f>, x0: Float, y0: Float, xc: Float, yc: Float, x1: Float, y1: Float) {
-        val segments = 8
+        val segments = 16
         for (i in 0..segments) {
             val t = i / segments.toFloat()
             val u = 1 - t
             val px = u.pow(2) * x0 + 2 * u * t * xc + t.pow(2) * x1
             val py = u.pow(2) * y0 + 2 * u * t * yc + t.pow(2) * y1
+            if (points.isEmpty() || i > 0) {
+                points.add(Vec3f(px, py, 0f))
+            }
+        }
+    }
+
+    fun addCubicBezier(
+        points: MutableList<Vec3f>,
+        x0: Float, y0: Float,
+        xc1: Float, yc1: Float,
+        xc2: Float, yc2: Float,
+        x1: Float, y1: Float
+    ) {
+        val segments = 16
+        for (i in 0..segments) {
+            val t = i / segments.toFloat()
+            val u = 1 - t
+
+            // Формула кубической кривой Безье
+            val px = u.pow(3) * x0 +
+                    3 * u.pow(2) * t * xc1 +
+                    3 * u * t.pow(2) * xc2 +
+                    t.pow(3) * x1
+
+            val py = u.pow(3) * y0 +
+                    3 * u.pow(2) * t * yc1 +
+                    3 * u * t.pow(2) * yc2 +
+                    t.pow(3) * y1
+
+            // Добавляем точку (исключая дубликат первой точки, если это продолжение линии)
             if (points.isEmpty() || i > 0) {
                 points.add(Vec3f(px, py, 0f))
             }

@@ -226,7 +226,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             if (block.isStatement()) {
                 if (controller.canAttachBefore(block) && !controller.isDragging(block)) {
                     Column(Grow.Std) {
-                        GhostPlaceholder(false)
+                        GhostPlaceholder(block)
                         controller.addDropTarget(DropAction.InsertBefore(block), uiNode)
                     }
                 }
@@ -242,7 +242,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 if (!controller.isDragging(block)) {
                     if (controller.canAttachAfter(block)) {
                         Column(Grow.Std) {
-                            GhostPlaceholder(false)
+                            GhostPlaceholder(controller.draggingBlock ?: block)
                             controller.addDropTarget(DropAction.AttachAfter(block), uiNode)
                         }
                     } else if (next == null && canDrag && block.parentBlock == null) {
@@ -351,6 +351,9 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         Box {
             modifier.apply(blockModifier)
 
+            val isTrigger = block is StartBlock
+            if (isTrigger) modifier.padding(end = Dimensions.PaddingMedium * scale)
+
             val isUnused = block.parentsWithSelf.none { it is StartBlock } && block.root in rootBlocks
             val isSelected = controller.selectedBlocks.use().contains(block)
             val baseColor = block.resolveColor(isGhost, isUnused, isSelected)
@@ -362,14 +365,12 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
             modifier.background(
                 ScratchBlockBackground(
-                    color = animatedColor,
-                    zoom = scale,
-                    isExpression = block.isExpression(),
-                    hasNext = !block.isExpression(),
-                    hasPrev = block !is StartBlock,
-                    isContainerHeader = block is ContainerBlock && !block.isCollapsed.use(),
-                    drawInnerShadow = block.isExpression() && block.parentBlock != null,
-                    isSelected = isSelected
+                    block,
+                    animatedColor,
+                    scale,
+                    isGhost,
+                    isUnused,
+                    isSelected
                 )
             )
 
@@ -424,20 +425,26 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         }
     }
 
-    internal fun UiScope.GhostPlaceholder(isExpression: Boolean) {
+    internal fun UiScope.GhostPlaceholder(block: BlockModel) {
         Box(Grow.Std) {
-            if (isExpression) modifier.size(40.dp.scaled(), 30.dp.scaled())
-            else modifier.height(40.dp.scaled()).width(100.dp.scaled())
+            if (block.isExpression()) modifier.size(40.dp.scaled(), 30.dp.scaled())
+            else {
+                modifier.margin(vertical = Dimensions.PaddingSmall.scaled())
+                    .height(40.dp.scaled()).width(100.dp.scaled())
+            }
+
+            val baseColor = block.resolveColor(isGhost = true, isUnused = false, isSelected = false)
 
             modifier.background(
                 ScratchBlockBackground(
-                    Color.WHITE.withAlpha(0.2f),
+                    block,
+                    baseColor,
                     scale,
-                    isExpression,
-                    !isExpression
+                    isGhost = true,
+                    isUnused = false,
+                    isSelected = false
                 )
             )
-            if (!isExpression) modifier.margin(vertical = Dimensions.PaddingSmall.scaled())
         }
     }
 
@@ -452,7 +459,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             EditorButton("<", controller.history::canUndo) { controller.history.undo() }
             EditorButton(">", controller.history::canRedo) { controller.history.redo() }
 
-            Box(Dimensions.PaddingSmall, Grow.Std) { modifier.backgroundColor(ColorTheme.UI.WhiteReplacement) }
+            Box(Dimensions.PaddingSmall, Grow.Std) { modifier.backgroundColor(ColorTheme.UI.BackgroundAccent) }
 
             EditorButton("-", { scale > 0.25f }) {
                 scaleState.set((floor((scale - 0.01f) / 0.05f) * 0.05f).coerceAtLeast(0.25f))
