@@ -120,49 +120,60 @@ class ConnectionAction(
     private val newState: ConnectionState
 ) : EditorAction {
 
-    override fun execute() = applyState(newState)
-    override fun undo() = applyState(oldState)
+    override fun execute() {
+        applyState(newState)
+    }
+
+    override fun undo() {
+        applyState(oldState)
+    }
 
     private fun applyState(state: ConnectionState) {
-        val currentBlock = block as? StatementBlock
-        val currentParent = currentBlock?.parent
-        val currentNext = currentBlock?.next
+        editor.controller.detachBlockInternal(block)
 
-        var onlyOnce = false
+        val shouldBeInRoot = state.parentBlock == null && state.parentStatement == null
 
-        if (currentBlock != null && currentParent != null && currentNext != null) {
-            if (state.nextStatement != currentNext) {
-                onlyOnce = true
+        if (shouldBeInRoot) {
+            if (!editor.rootBlocks.contains(block)) {
+                if (state.indexInRoot != -1 && state.indexInRoot <= editor.rootBlocks.size) {
+                    editor.rootBlocks.add(state.indexInRoot, block)
+                } else {
+                    editor.rootBlocks.add(block)
+                }
             }
+        } else {
+            editor.rootBlocks.remove(block)
         }
-
-        editor.controller.detachBlockInternal(block, onlyOnce)
 
         if (state.parentBlock != null && state.parentInputName != null) {
             state.parentBlock.inputs[state.parentInputName] = block
             block.parentBlock = state.parentBlock
             block.parentInputName = state.parentInputName
-            editor.rootBlocks.remove(block)
-        } else if (state.parentStatement != null && state.parentStatement.isStatement() && block.isStatement()) {
-            val prevNext = state.parentStatement.next
+        } else if (state.parentStatement != null && block.isStatement() && state.parentStatement.isStatement()) {
             state.parentStatement.next = block
             block.parent = state.parentStatement
-            if(prevNext != null) {
-                var tail: StatementBlock = block
-                while (tail.next != null) tail = tail.next!!
-                tail.next = prevNext
-                prevNext.parent = tail
-            }
-            editor.rootBlocks.remove(block)
-        } else {
-            if (!editor.rootBlocks.contains(block)) {
-                editor.rootBlocks.add(block)
-            }
         }
 
         if (block is StatementBlock && state.nextStatement != null && state.nextStatement.isStatement()) {
-            block.next = state.nextStatement
-            state.nextStatement.parent = block
+            val child = state.nextStatement
+
+            if (child.parent != null && child.parent != block) {
+                child.parent!!.next = null
+            }
+
+            block.next = child
+            child.parent = block
+
+            editor.rootBlocks.remove(child)
+        } else if (block is StatementBlock && state.nextStatement == null) {
+            val currentChild = block.next
+            if (currentChild != null) {
+                currentChild.parent = null
+                if (!editor.rootBlocks.contains(currentChild)) {
+                    editor.rootBlocks.add(currentChild)
+                }
+                block.next = null
+            }
         }
     }
 }

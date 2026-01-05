@@ -4,17 +4,24 @@ import de.fabmax.kool.input.*
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.MutableColor
 import de.fabmax.kool.util.set
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.TitleScreen
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.colors.PaddingLargeSpacing
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
+import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
+import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.*
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.client.ScreenEvent
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
@@ -48,7 +55,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
     }
 
     companion object {
-        const val SCROLL_SPEED_X = -20f
+        const val SCROLL_SPEED_X = -50f
         const val SCROLL_SPEED_Y = -50f
         const val Z_LAYER_DRAGGING = 1_000_000
         const val Z_LAYER_SCROLLBAR = 100_000_000
@@ -63,7 +70,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
 
         val C_BLOCK_SPINE_WIDTH = Dimensions.PaddingMedium
-        val DROP_SENSOR_HEIGHT = Dimensions.PaddingMedium
     }
 
     // --- Main Layout ---
@@ -90,19 +96,20 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                         controller.clearSelection()
                         controller.resetAction()
                     }
+                    .onPositioned {
+                        controller.scrollPaneBounds.set(
+                            it.leftPx,
+                            it.topPx,
+                            it.widthPx,
+                            it.heightPx
+                        )
+                    }
 
                 // Main Content Area
                 ScrollPane(controller.scrollState) {
                     modifier.layout(CellLayout)
                         .padding(Dimensions.PaddingLarge.scaled())
-                        .onPositioned {
-                            controller.scrollPaneBounds.set(
-                                it.leftPx,
-                                it.topPx,
-                                it.widthPx,
-                                it.heightPx
-                            )
-                        }
+
 
                     modifier.onClick {
                         controller.clearSelection()
@@ -118,13 +125,13 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 // --- Selection Handling on Background ---
                 modifier.onDragStart {
                     if (it.pointer.isLeftButtonDown) {
-                        controller.startSelection(it.screenPosition, uiNode, scale)
+                        controller.startSelection(it.screenPosition)
                         surface.triggerUpdate()
                     }
                 }
                 modifier.onDrag {
                     if (it.pointer.isLeftButtonDown) {
-                        controller.updateSelection(it.screenPosition, uiNode, scale)
+                        controller.updateSelection(it.screenPosition)
                         surface.triggerUpdate()
                     }
                 }
@@ -180,6 +187,11 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 ev.keyCode == KeyboardInput.KEY_TAB -> {
                     controller.isBlockPanelMinimized.set(!controller.isBlockPanelMinimized.value)
                 }
+
+                ev.keyCode == KeyboardInput.KEY_CURSOR_UP -> controller.scrollState.scrollDpY(SCROLL_SPEED_Y)
+                ev.keyCode == KeyboardInput.KEY_CURSOR_DOWN -> controller.scrollState.scrollDpY(-SCROLL_SPEED_Y)
+                ev.keyCode == KeyboardInput.KEY_CURSOR_LEFT -> controller.scrollState.scrollDpX(SCROLL_SPEED_X)
+                ev.keyCode == KeyboardInput.KEY_CURSOR_RIGHT -> controller.scrollState.scrollDpX(-SCROLL_SPEED_X)
 
                 ev.keyCode == KeyboardInput.KEY_HOME -> controller.resetCamera()
             }
@@ -302,7 +314,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
             if (!controller.isDragging(block)) {
                 Box {
-                    modifier.width(Grow.Std).alignY(AlignmentY.Bottom).height(DROP_SENSOR_HEIGHT.scaled())
+                    modifier.width(Grow.Std).alignY(AlignmentY.Bottom).height(Grow(0.65f))
                     controller.addDropTarget(DropAction.AttachAfter(block as StatementBlock), uiNode)
                 }
             }
@@ -312,13 +324,13 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
     context(scope: UiScope)
     private fun renderOuterDropZones(block: BlockModel): Unit = with(scope) {
         Box {
-            modifier.width(Grow.Std).height(DROP_SENSOR_HEIGHT.scaled()).alignY(AlignmentY.Top)
+            modifier.width(Grow.Std).height(Grow(0.25f)).alignY(AlignmentY.Top)
             controller.addDropTarget(DropAction.InsertBefore(block), uiNode)
         }
 
         if (block !is ContainerBlock || block.isCollapsed.use()) {
             Box {
-                modifier.width(Grow.Std).height(DROP_SENSOR_HEIGHT.scaled()).alignY(AlignmentY.Bottom)
+                modifier.width(Grow.Std).height(Grow(0.25f)).alignY(AlignmentY.Bottom)
                 controller.addDropTarget(DropAction.AttachAfter(block as StatementBlock), uiNode)
             }
         }
@@ -446,6 +458,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         Row {
             modifier.align(AlignmentX.End, AlignmentY.Top)
                 .margin(Dimensions.PaddingMedium)
+                .margin(end= Dimensions.PaddingLarge)
                 .padding(Dimensions.PaddingSmall)
                 .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingNormal))
                 .zLayer(Z_LAYER_SCROLLBAR)
@@ -462,6 +475,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
             modifier.alignY(AlignmentY.Center)
                 .textColor(textColor)
+                .padding(Dimensions.PaddingNormal)
                 .margin(horizontal = Dimensions.PaddingSmall)
                 .onClick { onClick() }
         }
@@ -482,7 +496,7 @@ private fun UiModifier.setupEditorControls(editor: BlockEditor): UiModifier {
                 if (oldScale != newScale) editor.scaleState.set(newScale)
             } else if (KeyboardInput.isShiftDown) {
                 // Horizontal Scroll via Shift + Wheel
-                editor.controller.scrollState.scrollDpX(it.pointer.scroll.x * BlockEditor.SCROLL_SPEED_X)
+                editor.controller.scrollState.scrollDpX(it.pointer.scroll.y * BlockEditor.SCROLL_SPEED_X)
             } else {
                 // Vertical Scroll
                 editor.controller.scrollState.scrollDpY(it.pointer.scroll.y * BlockEditor.SCROLL_SPEED_Y)
@@ -596,4 +610,32 @@ inline fun <reified T> UiNode.findParentOfType(filter: (T) -> Boolean = { true }
 
     while (current != null && !(current is T && filter(current))) current = current.parent
     return current as? T
+}
+
+@SubscribeEvent
+fun onScreenCreation(event: ScreenEvent.Render.Pre) {
+    if (event.screen is TitleScreen) {
+        val screen = object : KoolScreen() {
+            override fun Scene.setup() {
+                val surface = addPanelSurface(IdeTheme.colors, IdeTheme.sizes) {
+                    modifier.size(Grow.Std, Grow.Std).layout(CellLayout)
+                    Text("Это тестовая версия!\nПока доступен только функционал редактора") {
+                        modifier.align(AlignmentX.Center, AlignmentY.Center)
+                            .font(sizes.normalText.derive(30f))
+                            .isWrapText(true)
+                            .width(Grow.Std)
+                            .textAlign(AlignmentX.Center, AlignmentY.Center)
+                            .padding(Dimensions.PaddingMedium)
+                            .margin(Dimensions.PaddingMedium)
+
+                        val isHovered by modifier.hoverable()
+                        val color by animateColorAsState(if (isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary)
+                        modifier.background(RoundRectBackground(color, Dimensions.PaddingMedium))
+                    }
+                }
+                surface.inputMode = UiSurface.InputCaptureMode.CaptureDisabled
+            }
+        }
+        Minecraft.getInstance().setScreen(screen)
+    }
 }

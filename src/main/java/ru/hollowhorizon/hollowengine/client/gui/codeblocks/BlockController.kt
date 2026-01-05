@@ -46,23 +46,31 @@ class BlockController(val editor: BlockEditor) {
         blockBounds.clear()
     }
 
-    fun toLocal(screenPosition: Vec2f): Vec2f = (screenPosition - scrollPaneBounds.xy) / editor.scale
+    fun toLocal(screenPosition: Vec2f): Vec2f {
+        val scrollX = scrollState.xScrollDp.value * UiScale.measuredScale
+        val scrollY = scrollState.yScrollDp.value * UiScale.measuredScale
+
+        val relX = screenPosition.x - scrollPaneBounds.x + scrollX
+        val relY = screenPosition.y - scrollPaneBounds.y + scrollY
+
+        return Vec2f(relX / editor.scale, relY / editor.scale)
+    }
     fun toLocal(screenX: Float, screenY: Float): Vec2f = toLocal(Vec2f(screenX, screenY))
     operator fun contains(screenPosition: Vec2f): Boolean =
         screenPosition.x in scrollPaneBounds.x + Dimensions.PaddingMedium.px..scrollPaneBounds.x + scrollPaneBounds.z - Dimensions.PaddingMedium.px &&
                 screenPosition.y in scrollPaneBounds.y + Dimensions.PaddingMedium.px..scrollPaneBounds.y + scrollPaneBounds.w - Dimensions.PaddingMedium.px
 
-    fun startSelection(screenPos: Vec2f, contentNode: UiNode, zoom: Float) {
+    fun startSelection(screenPos: Vec2f) {
         selectedBlocks.clear()
         isSelecting.set(true)
-        val local = contentNode.toLocal(screenPos)
-        selectionStart.set(local.x / zoom, local.y / zoom)
+        val local = toLocal(screenPos)
+        selectionStart.set(local.x, local.y)
         selectionCurr.set(selectionStart)
     }
 
-    fun updateSelection(screenPos: Vec2f, contentNode: UiNode, zoom: Float) {
-        val local = contentNode.toLocal(screenPos)
-        selectionCurr.set(local.x / zoom, local.y / zoom)
+    fun updateSelection(screenPos: Vec2f) {
+        val local = toLocal(screenPos)
+        selectionCurr.set(local.x, local.y)
         calculateSelectionIntersection()
     }
 
@@ -84,13 +92,10 @@ class BlockController(val editor: BlockEditor) {
     }
 
     private fun calculateSelectionIntersection() {
-        val scrollX = scrollState.xScrollDp.value * UiScale.measuredScale
-        val scrollY = scrollState.yScrollDp.value * UiScale.measuredScale
-
-        val xMin = min(selectionStart.x, selectionCurr.x) + scrollX
-        val xMax = max(selectionStart.x, selectionCurr.x) + scrollX
-        val yMin = min(selectionStart.y, selectionCurr.y) + scrollY
-        val yMax = max(selectionStart.y, selectionCurr.y) + scrollY
+        val xMin = min(selectionStart.x, selectionCurr.x)
+        val xMax = max(selectionStart.x, selectionCurr.x)
+        val yMin = min(selectionStart.y, selectionCurr.y)
+        val yMax = max(selectionStart.y, selectionCurr.y)
 
         val newSelection = mutableListOf<BlockModel>()
 
@@ -142,7 +147,7 @@ class BlockController(val editor: BlockEditor) {
 
         draggingBlock = block
         dragStartOffset.set(localOffset)
-        dragStartScreenPos.set(screenPosition)
+        dragStartScreenPos.set(screenPosition + localOffset)
 
         initialBlockPositions.clear()
         dragStartConnectionState = captureConnectionState(block)
@@ -165,8 +170,11 @@ class BlockController(val editor: BlockEditor) {
     fun handleDrag(block: BlockModel, screenPosition: Vec2f) {
         if (draggingBlock != block) return
 
-        var deltaX = (screenPosition.x - dragStartScreenPos.x - dragStartOffset.x) / editor.scale
-        var deltaY = (screenPosition.y - dragStartScreenPos.y - dragStartOffset.y) / editor.scale
+        val startWorldPos = toLocal(dragStartScreenPos)
+        val currentWorldPos = toLocal(screenPosition)
+
+        var deltaX = currentWorldPos.x - startWorldPos.x
+        var deltaY = currentWorldPos.y - startWorldPos.y
 
         initialBlockPositions.values.forEach { initialPos ->
             val proposedX = initialPos.x + deltaX
@@ -201,46 +209,55 @@ class BlockController(val editor: BlockEditor) {
         val actionsToPerform = mutableListOf<EditorAction>()
 
         if (isNewBlock) {
-            // Удаляем блок для предпросмотра, чтобы AddBlocksAction добавил его сам и запомнил
+            // Если блок новый, сначала добавляем его в мир отдельным действием
             editor.rootBlocks.remove(block)
             actionsToPerform.add(AddBlocksAction(editor, listOf(block)))
         }
 
         if (action != null) {
-            val oldState = if (isNewBlock) {
-                ConnectionState(
-                    parentBlock = null,
-                    parentInputName = null,
-                    parentStatement = null,
-                    nextStatement = null,
-                    indexInRoot = -1 // Не важно для логики Undo при создании
-                )
-            } else {
-                dragStartConnectionState!!
-            }
+            val affectedBlocks = mutableSetOf<BlockModel>()
+            affectedBlocks.add(block)
 
             when (action) {
-                is DropAction.InsertBefore -> if (canAttachBefore(action.target)) insertBlockBefore(
-                    action.target,
-                    block as StatementBlock
-                )
-
-                is DropAction.AttachAfter -> if (canAttachAfter(action.target)) attachBlockAfter(
-                    action.target,
-                    block as StatementBlock
-                )
-
-                is DropAction.AttachToInput -> if (canAttachToInput(
-                        action.target,
-                        action.inputName
-                    )
-                ) attachBlockToInput(action.target, action.inputName, block)
+                is DropAction.InsertBefore -> {
+                    affectedBlocks.add(action.target) // Тот, перед кем встаем
+                    action.target.parentBlock?.let { affectedBlocks.add(it) } // Родитель-контейнер (если был)
+                    (action.target as? StatementBlock)?.parent?.let { affectedBlocks.add(it) } // Родитель-стейтмент (если был)
+                }
+                is DropAction.AttachAfter -> {
+                    affectedBlocks.add(action.target) // Тот, после кого встаем
+                    action.target.next?.let { affectedBlocks.add(it) } // Тот, кто был после (если мы вклиниваемся)
+                }
+                is DropAction.AttachToInput -> {
+                    affectedBlocks.add(action.target) // Тот, к кому цепляемся
+                    action.target.inputs[action.inputName]?.let { affectedBlocks.add(it) } // Тот, кто там уже был
+                }
             }
+
+            if (!isNewBlock) {
+                dragStartConnectionState?.let { startState ->
+                    startState.parentBlock?.let { affectedBlocks.add(it) }
+                    startState.parentStatement?.let { affectedBlocks.add(it) }
+                }
+            }
+            val oldStates = affectedBlocks.associateWith { captureConnectionState(it) }
+            when (action) {
+                is DropAction.InsertBefore -> insertBlockBeforeLogic(action.target, block as StatementBlock)
+                is DropAction.AttachAfter -> attachBlockAfterLogic(action.target, block as StatementBlock)
+                is DropAction.AttachToInput -> attachBlockToInputLogic(action.target, action.inputName, block)
+            }
+
             UIAudio.CONNECT.play()
             triggerSnapEffect(action)
 
-            val newState = captureConnectionState(block)
-            actionsToPerform.add(ConnectionAction(editor, block, oldState, newState))
+            val newStates = affectedBlocks.associateWith { captureConnectionState(it) }
+            affectedBlocks.forEach { affected ->
+                val old = oldStates[affected]!!
+                val new = newStates[affected]!!
+                if (old != new) {
+                    actionsToPerform.add(ConnectionAction(editor, affected, old, new))
+                }
+            }
         } else {
             val moves = mutableMapOf<BlockModel, Pair<Vec2f, Vec2f>>()
             initialBlockPositions.forEach { (mover, startPos) ->
@@ -253,8 +270,24 @@ class BlockController(val editor: BlockEditor) {
             if (moves.isNotEmpty()) {
                 val oldState = dragStartConnectionState!!
                 if (oldState.parentBlock != null || oldState.parentStatement != null) {
-                    val newState = captureConnectionState(block)
-                    actionsToPerform.add(ConnectionAction(editor, block, oldState, newState))
+                    val oldParentBlock = oldState.parentBlock
+                    val oldParentStatement = oldState.parentStatement
+
+                    val affectedBlocks = listOfNotNull(block, oldParentBlock, oldParentStatement)
+                    val oldStatesMap = mutableMapOf<BlockModel, ConnectionState>()
+                    oldStatesMap[block] = oldState
+                    oldParentBlock?.let { oldStatesMap[it] = captureConnectionState(it) }
+                    oldParentStatement?.let { oldStatesMap[it] = captureConnectionState(it) }
+
+                    detachBlockInternal(block)
+
+                    affectedBlocks.forEach { affected ->
+                        val oldS = oldStatesMap[affected] ?: captureConnectionState(affected)
+                        val newS = captureConnectionState(affected)
+                        if (oldS != newS) {
+                            actionsToPerform.add(ConnectionAction(editor, affected, oldS, newS))
+                        }
+                    }
                 } else {
                     actionsToPerform.add(MoveBlockAction(moves))
                 }
@@ -273,6 +306,112 @@ class BlockController(val editor: BlockEditor) {
         potentialAction = null
         dragStartConnectionState = null
         editor.notifyChanged()
+    }
+
+    private fun attachBlockToInputLogic(target: BlockModel, slotName: String, newBlock: BlockModel) {
+        editor.rootBlocks.remove(newBlock)
+        detachBlockInternal(newBlock)
+
+        val existingBlock = target.inputs[slotName]
+        if (existingBlock != null) {
+            if (newBlock.isStatement() && existingBlock.isStatement()) {
+                val stmtNew = newBlock
+                val stmtExist: StatementBlock = existingBlock
+
+                target.inputs[slotName] = stmtNew
+                stmtNew.parentBlock = target
+                stmtNew.parentInputName = slotName
+
+                var tail: StatementBlock = stmtNew
+                while (tail.next != null) tail = tail.next!!
+
+                tail.next = stmtExist
+                stmtExist.parent = tail
+                stmtExist.parentBlock = null
+                stmtExist.parentInputName = null
+            } else {
+                existingBlock.parentBlock = null
+                existingBlock.parentInputName = null
+                editor.rootBlocks.add(existingBlock)
+
+                target.inputs[slotName] = newBlock
+                newBlock.parentBlock = target
+                newBlock.parentInputName = slotName
+            }
+        } else {
+            target.attachInput(slotName, newBlock)
+        }
+    }
+
+    private fun attachBlockAfterLogic(target: StatementBlock, newBlock: StatementBlock) {
+        editor.rootBlocks.remove(newBlock)
+        detachBlockInternal(newBlock)
+
+        val oldNext = target.next
+        target.next = newBlock
+        newBlock.parent = target
+
+        var tail = newBlock
+        while (tail.next != null) tail = tail.next!!
+
+        if (oldNext != null) {
+            tail.next = oldNext
+            oldNext.parent = tail
+        }
+    }
+
+    private fun insertBlockBeforeLogic(target: BlockModel, newBlock: StatementBlock) {
+        editor.rootBlocks.remove(newBlock)
+        detachBlockInternal(newBlock)
+
+        val parentStatement = (target as? StatementBlock)?.parent
+        val parentBlock = target.parentBlock
+
+        if (parentStatement != null) {
+            if (newBlock is StartBlock) {
+                parentStatement.next = null
+
+                newBlock.next = target
+                target.parent = newBlock
+
+                if (!editor.rootBlocks.contains(newBlock)) editor.rootBlocks.add(newBlock)
+            } else {
+                parentStatement.next = newBlock
+                newBlock.parent = parentStatement
+
+                var tail = newBlock
+                while (tail.next != null) tail = tail.next!!
+
+                tail.next = target
+                target.parent = tail
+            }
+        } else if (parentBlock != null) {
+            val slotName = target.parentInputName!!
+
+            if (newBlock is StartBlock) return
+
+            parentBlock.inputs[slotName] = newBlock
+            newBlock.parentBlock = parentBlock
+            newBlock.parentInputName = slotName
+
+            target.parentBlock = null
+            target.parentInputName = null
+
+            var tail = newBlock
+            while (tail.next != null) tail = tail.next!!
+
+            tail.next = target as? StatementBlock
+            if(target.isStatement()) target.parent = tail
+        } else {
+            editor.rootBlocks.remove(target)
+            editor.rootBlocks.add(newBlock)
+
+            var tail = newBlock
+            while (tail.next != null) tail = tail.next!!
+
+            tail.next = target as? StatementBlock
+            if(target.isStatement()) target.parent = tail
+        }
     }
 
     fun copySelected() {
@@ -312,20 +451,56 @@ class BlockController(val editor: BlockEditor) {
     }
 
     fun deleteSelected() {
-        val topLevel = selectedBlocks.filter { !isParentSelected(it) }
-        if (topLevel.isEmpty()) return
+        if (selectedBlocks.isEmpty()) return
 
-        topLevel.forEach { block ->
-            detachBlockInternal(block, true)
+        val actions = mutableListOf<EditorAction>()
+        val blocksToDelete = ArrayList(selectedBlocks)
+
+        blocksToDelete.forEach { block ->
+            if (block is StatementBlock) {
+                val parent = block.parent
+                val next = block.next
+
+                if (next != null) {
+                    val nextOldState = captureConnectionState(next)
+
+                    val nextNewState = if (parent != null) {
+                        ConnectionState(null, null, parent, next.next, -1)
+                    } else {
+                        val idx = editor.rootBlocks.indexOf(block)
+                        ConnectionState(null, null, null, next.next, idx)
+                    }
+
+                    actions.add(ConnectionAction(editor, next, nextOldState, nextNewState))
+
+                    if (parent != null) {
+                        val parentOldState = captureConnectionState(parent)
+                        val parentNewState = ConnectionState(
+                            parent.parentBlock, parent.parentInputName, parent.parent,
+                            next,
+                            editor.rootBlocks.indexOf(parent)
+                        )
+                        actions.add(ConnectionAction(editor, parent, parentOldState, parentNewState))
+                    }
+                }
+            }
+
+            val blockOldState = captureConnectionState(block)
+            val blockNewState = ConnectionState(null, null, null, null, -1)
+            actions.add(ConnectionAction(editor, block, blockOldState, blockNewState))
+
+            actions.add(RemoveBlocksAction(editor, listOf(block)))
         }
 
-        history.perform(RemoveBlocksAction(editor, topLevel))
+        if (actions.isNotEmpty()) {
+            history.perform(CompoundAction(actions))
+        }
         selectedBlocks.clear()
     }
 
     // --- Internal Logic ---
 
-    private fun captureConnectionState(block: BlockModel): ConnectionState {
+    fun captureConnectionState(block: BlockModel): ConnectionState {
         return ConnectionState(
             parentBlock = block.parentBlock,
             parentInputName = block.parentInputName,
@@ -335,105 +510,16 @@ class BlockController(val editor: BlockEditor) {
         )
     }
 
-    fun detachBlockInternal(block: BlockModel, onlyOnce: Boolean = false) {
+    fun detachBlockInternal(block: BlockModel) {
         if (block.isStatement()) {
-            val nextBlock = block.next
-            val hasParent = block.parent != null
-            block.parent?.let { p ->
-                if (p.next == block) {
-                    if (onlyOnce && nextBlock != null) {
-                        p.next = nextBlock
-                        nextBlock.parent = p
-                    } else {
-                        p.next = null
-                    }
-                }
-                block.parent = null
+            block.parent?.let {
+                if (it.next == block) it.next = null
             }
-            if (onlyOnce) {
-                if (!hasParent) block.next?.let {
-                    it.positionX.set(block.positionX.value)
-                    it.positionY.set(block.positionY.value)
-                    editor.rootBlocks.add(it)
-                }
-                block.next = null
-            }
+            block.parent = null
         }
-        block.parentBlock?.let { p ->
-            p.inputs.remove(block.parentInputName)
-            block.parentBlock = null
-            block.parentInputName = null
-        }
-    }
-
-    private fun attachBlockToInput(target: BlockModel, slotName: String, newBlock: BlockModel) {
-        editor.rootBlocks.remove(newBlock)
-        val existingBlock = target.inputs[slotName]
-        if (existingBlock != null) {
-            target.inputs[slotName] = newBlock
-            newBlock.parentBlock = target
-            newBlock.parentInputName = slotName
-            if (newBlock.isStatement()) {
-                newBlock.parent = null
-                var tail: StatementBlock = newBlock
-                while (tail.next != null) tail = tail.next!!
-                tail.next = existingBlock as? StatementBlock ?: return
-                existingBlock.parent = tail
-            }
-        } else {
-            target.attachInput(slotName, newBlock)
-        }
-    }
-
-    private fun attachBlockAfter(target: StatementBlock, newBlock: StatementBlock) {
-        editor.rootBlocks.remove(newBlock)
-        val oldNext = target.next
-        target.next = newBlock
-        newBlock.parent = target
-        var tail = newBlock
-        while (tail.next != null) tail = tail.next!!
-        if (oldNext != null) {
-            if (oldNext is EndBlock) {
-                oldNext.parent = null
-                editor.rootBlocks.add(oldNext)
-            } else {
-                tail.next = oldNext
-                oldNext.parent = tail
-            }
-        }
-    }
-
-    private fun insertBlockBefore(target: BlockModel, newBlock: StatementBlock) {
-        editor.rootBlocks.remove(newBlock)
-        val parent = (target as? StatementBlock)?.parent
-        val parentBlock = target.parentBlock
-        if (parent != null) {
-            if (newBlock is StartBlock) {
-                editor.rootBlocks.add(newBlock)
-                parent.next = null
-                target.parent = newBlock
-                newBlock.next = target
-                return
-            } else {
-                parent.next = newBlock
-                newBlock.parent = parent
-            }
-        } else if (parentBlock != null) {
-            val slotName = target.parentInputName!!
-            parentBlock.inputs[slotName] = newBlock
-            newBlock.parentBlock = parentBlock
-            newBlock.parentInputName = slotName
-            target.parentBlock = null
-            target.parentInputName = null
-        } else {
-            editor.rootBlocks.remove(target)
-            editor.rootBlocks.add(newBlock)
-            if (newBlock.isStatement()) newBlock.parent = null
-        }
-        var tail = newBlock
-        while (tail.next != null) tail = tail.next!!
-        tail.next = target as? StatementBlock ?: return
-        target.parent = tail
+        block.parentBlock?.inputs?.remove(block.parentInputName)
+        block.parentBlock = null
+        block.parentInputName = null
     }
 
     fun duplicateBlock(block: BlockModel, localPos: Vec2f) {
