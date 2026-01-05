@@ -224,27 +224,37 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             modifier.configureBlockPositionAndLayer(block, isRoot, currentZoom)
             modifier.zLayer(modifier.zLayer + additionalZLayer)
 
-            if (!block.isExpression() && controller.canAttachBefore(block) && !controller.isDragging(block)) {
-                Column(Grow.Std) {
-                    GhostPlaceholder(false)
-                    controller.addDropTarget(DropAction.InsertBefore(block), uiNode)
+            if (block.isStatement()) {
+                if (controller.canAttachBefore(block) && !controller.isDragging(block)) {
+                    Column(Grow.Std) {
+                        GhostPlaceholder(false)
+                        controller.addDropTarget(DropAction.InsertBefore(block), uiNode)
+                    }
                 }
             }
 
             Box {
-                modifier.width(FitContent)
                 renderBlockNode(block, isGhost, canDrag)
-
-                if (!controller.isDragging(block) && !block.isExpression()) {
-                    //renderOuterDropZones(block)
-                }
             }
 
-            if (block is StatementBlock) {
-                if (controller.canAttachAfter(block) && !controller.isDragging(block)) {
-                    GhostPlaceholder(false)
+            if (block.isStatement()) {
+                val next = block.next
+
+                if(!controller.isDragging(block)) {
+                    if (controller.canAttachAfter(block)) {
+                        Column(Grow.Std) {
+                            GhostPlaceholder(false)
+                            controller.addDropTarget(DropAction.AttachAfter(block), uiNode)
+                        }
+                    } else if(next == null && canDrag && block.parentBlock == null) {
+                        Box {
+                            modifier.width(Grow.Std)
+                                .height(Dimensions.PaddingHuge * currentZoom)
+                            controller.addDropTarget(DropAction.AttachAfter(block), uiNode)
+                        }
+                    }
                 }
-                block.next?.let { next -> renderBlockTree(next, isGhost, canDrag) }
+                next?.let { next -> renderBlockTree(next, isGhost, canDrag) }
             }
         }
     }
@@ -255,26 +265,38 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             modifier.width(FitContent)
             val isHovered = remember { mutableStateOf(false) }
 
-            BlockHeaderVisual(isHovered, block, isGhost) {
-                if (canDrag) {
-                    modifier.setupDragHandler(block, controller)
-                        .onClick {
-                            if (it.isRightClick) {
-                                BlockContextMenu.show(it, uiNode, block)
-                            } else {
-                                // Toggle Selection logic
-                                if (KeyboardInput.isCtrlDown) {
-                                    controller.toggleSelection(block)
+            Column {
+                if(block.isStatement() && block.parent == null && canDrag && block.parentBlock == null) {
+                    Box {
+                        modifier.width(Grow.Std)
+                            .height(Dimensions.PaddingHuge * scale)
+                        controller.addDropTarget(DropAction.InsertBefore(block), uiNode)
+                    }
+                }
+
+                BlockHeaderVisual(isHovered, block, isGhost) {
+                    if (canDrag) {
+                        modifier.setupDragHandler(block, controller)
+                            .onClick {
+                                if (it.isRightClick) {
+                                    BlockContextMenu.show(it, uiNode, block)
                                 } else {
-                                    if (!controller.selectedBlocks.use().contains(block)) controller.selectSingle(block)
+                                    // Toggle Selection logic
+                                    if (KeyboardInput.isCtrlDown) {
+                                        controller.toggleSelection(block)
+                                    } else {
+                                        if (!controller.selectedBlocks.use().contains(block)) controller.selectSingle(
+                                            block
+                                        )
+                                    }
                                 }
                             }
-                        }
+                    }
+                    modifier
+                        .onEnter { isHovered.set(true) }
+                        .onHover { PointerInput.cursorShape = CursorShape.HAND }
+                        .onExit { isHovered.set(false) }
                 }
-                modifier
-                    .onEnter { isHovered.set(true) }
-                    .onHover { PointerInput.cursorShape = CursorShape.HAND }
-                    .onExit { isHovered.set(false) }
             }
 
             // Body
@@ -315,20 +337,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             if (!controller.isDragging(block)) {
                 Box {
                     modifier.width(Grow.Std).alignY(AlignmentY.Bottom).height(Grow(0.45f))
-                        .border(DebugBorder)
                     controller.addDropTarget(DropAction.AttachAfter(block as StatementBlock), uiNode)
                 }
-            }
-        }
-    }
-
-    context(scope: UiScope)
-    private fun renderOuterDropZones(block: BlockModel): Unit = with(scope) {
-        if (block !is ContainerBlock || block.isCollapsed.use()) {
-            Box {
-                modifier.width(Grow.Std).height(Grow(0.25f)).alignY(AlignmentY.Bottom)
-                    .border(DebugBorder)
-                controller.addDropTarget(DropAction.AttachAfter(block as StatementBlock), uiNode)
             }
         }
     }
@@ -384,14 +394,12 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             if (!controller.isDragging(block) && !block.isExpression()) {
                 Box {
                     modifier.width(Grow.Std).height(Grow(0.25f)).alignY(AlignmentY.Top)
-                        .border(DebugBorder)
                     controller.addDropTarget(DropAction.InsertBefore(block), uiNode)
                 }
 
                 if (block !is ContainerBlock || block.isCollapsed.use()) {
                     Box {
                         modifier.width(Grow.Std).height(Grow(0.25f)).alignY(AlignmentY.Bottom)
-                            .border(DebugBorder)
                         controller.addDropTarget(DropAction.AttachAfter(block as StatementBlock), uiNode)
                     }
                 }

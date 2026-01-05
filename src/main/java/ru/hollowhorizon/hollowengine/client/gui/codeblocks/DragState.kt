@@ -26,9 +26,9 @@ class DragState(val editor: BlockEditor) : Composable {
         if (item == null) {
             if (pos in editor.controller) {
                 val newItem = entry?.createItem() ?: return
-                // Отступы взяты из Box'а внутри Panel
+                // PaddingMedium это отступ из Box'а внутри Panel, PaddingHuge это начальный отступ блока для дроп-зоны
                 newItem.positionX.set(x + Dimensions.PaddingMedium.px)
-                newItem.positionY.set(y + Dimensions.PaddingMedium.px)
+                newItem.positionY.set(y + Dimensions.PaddingMedium.px - Dimensions.PaddingHuge.px * editor.scale)
                 editor.rootBlocks.add(newItem)
                 editor.notifyChanged()
                 editor.controller.handleDragStart(newItem, blockPosition - dragOffset.value, dragOffset.value)
