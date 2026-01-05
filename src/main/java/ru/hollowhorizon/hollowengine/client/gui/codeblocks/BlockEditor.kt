@@ -144,7 +144,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
                 EditorScrollbars(controller)
                 ScaleOverlay()
-                UndoRedoOverlay()
 
                 BlockContextMenu.draw()
                 creationPopup()
@@ -240,13 +239,13 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             if (block.isStatement()) {
                 val next = block.next
 
-                if(!controller.isDragging(block)) {
+                if (!controller.isDragging(block)) {
                     if (controller.canAttachAfter(block)) {
                         Column(Grow.Std) {
                             GhostPlaceholder(false)
                             controller.addDropTarget(DropAction.AttachAfter(block), uiNode)
                         }
-                    } else if(next == null && canDrag && block.parentBlock == null) {
+                    } else if (next == null && canDrag && block.parentBlock == null) {
                         Box {
                             modifier.width(Grow.Std)
                                 .height(Dimensions.PaddingHuge * currentZoom)
@@ -266,7 +265,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             val isHovered = remember { mutableStateOf(false) }
 
             Column {
-                if(block.isStatement() && block.parent == null && canDrag && block.parentBlock == null) {
+                if (block.isStatement() && block.parent == null && canDrag && block.parentBlock == null) {
                     Box {
                         modifier.width(Grow.Std)
                             .height(Dimensions.PaddingHuge * scale)
@@ -450,21 +449,30 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingNormal))
                 .zLayer(Z_LAYER_SCROLLBAR)
 
-            ScaleButton("-") { scaleState.set((floor((scale - 0.01f) / 0.05f) * 0.05f).coerceAtLeast(0.25f)) }
+            EditorButton("<", controller.history::canUndo) { controller.history.undo() }
+            EditorButton(">", controller.history::canRedo) { controller.history.redo() }
+
+            Box(Dimensions.PaddingSmall, Grow.Std) { modifier.backgroundColor(ColorTheme.UI.WhiteReplacement) }
+
+            EditorButton("-", { scale > 0.25f }) {
+                scaleState.set((floor((scale - 0.01f) / 0.05f) * 0.05f).coerceAtLeast(0.25f))
+            }
 
             Text("${(scale * 100f).roundToInt()}%") {
                 modifier.alignY(AlignmentY.Center).textColor(ColorTheme.UI.WhiteReplacement)
             }
 
-            ScaleButton("+") { scaleState.set((ceil((scale + 0.01f) / 0.05f) * 0.05f).coerceAtMost(3.0f)) }
+            EditorButton("+", { scale < 3.0f }) {
+                scaleState.set((ceil((scale + 0.01f) / 0.05f) * 0.05f).coerceAtMost(3.0f))
+            }
         }
     }
 
-    private fun UiScope.ScaleButton(text: String, onClick: () -> Unit) {
+    private fun UiScope.EditorButton(text: String, predicate: () -> Boolean = { true }, onClick: () -> Unit) {
         Text(text) {
             val isHovered by modifier.hoverable()
-            val textColor by animateColorAsState(if (isHovered) ColorTheme.UI.WhiteReplacement else ColorTheme.UI.BackgroundAccent)
-            val bgColor by animateColorAsState(if (isHovered) ColorTheme.UI.BackgroundAccent else ColorTheme.UI.BackgroundElements)
+            val textColor by animateColorAsState(if (isHovered && predicate()) ColorTheme.UI.WhiteReplacement else ColorTheme.UI.BackgroundAccent)
+            val bgColor by animateColorAsState(if (isHovered && predicate()) ColorTheme.UI.BackgroundAccent else ColorTheme.UI.BackgroundElements)
 
             modifier.alignY(AlignmentY.Center)
                 .textColor(textColor)
@@ -475,32 +483,6 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         }
     }
 
-    private fun UiScope.UndoRedoOverlay() {
-        Row {
-            modifier.align(AlignmentX.End, AlignmentY.Top)
-                .margin(Dimensions.PaddingMedium)
-                .margin(end = Dimensions.PaddingLarge)
-                .padding(Dimensions.PaddingSmall)
-                .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingNormal))
-                .zLayer(Z_LAYER_SCROLLBAR)
-
-            EditorButton("<") { controller.history.undo() }
-            EditorButton(">") { controller.history.redo() }
-        }
-    }
-
-    private fun UiScope.EditorButton(text: String, onClick: () -> Unit) {
-        Text(text) {
-            val isHovered by modifier.hoverable()
-            val textColor by animateColorAsState(if (isHovered) ColorTheme.UI.WhiteReplacement else ColorTheme.UI.BackgroundAccent)
-
-            modifier.alignY(AlignmentY.Center)
-                .textColor(textColor)
-                .padding(Dimensions.PaddingNormal)
-                .margin(horizontal = Dimensions.PaddingSmall)
-                .onClick { onClick() }
-        }
-    }
 }
 
 // --- Extensions & Utils ---

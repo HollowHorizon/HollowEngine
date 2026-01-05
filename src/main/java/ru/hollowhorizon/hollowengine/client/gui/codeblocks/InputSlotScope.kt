@@ -82,19 +82,19 @@ class InputSlotScope(
         Row {
             modifier.width(Grow.Std)
             val isUnused = parentBlock.parentsWithSelf.none { it is StartBlock } && parentBlock.root in rootBlocks
-            val bgColor = if (isGhost) parentBlock.color.withAlpha(0.5f)
-            else if (isUnused) parentBlock.color.mix(Color.LIGHT_GRAY, 0.5f).withAlpha(0.35f)
-            else parentBlock.color
+            val isSelected = controller.selectedBlocks.use().contains(parentBlock)
 
-            val color by animateColorAsState(if (isHovered) bgColor else bgColor.mulRgb(0.9f), tween(0.2f, Easing.quadRev))
-
+            val baseColor = parentBlock.resolveColor(isGhost, isUnused, isSelected)
+            val animatedColor by animateColorAsState(
+                if (isHovered) baseColor else baseColor.mulRgb(0.9f),
+                tween(0.2f, Easing.easeOutQuart)
+            )
             Box {
-                val isSelected = controller.selectedBlocks.use().contains(parentBlock)
 
                 modifier.width(BlockEditor.C_BLOCK_SPINE_WIDTH.scaled())
                     .height(Grow.Std)
                     .zLayer(modifier.zLayer + 1)
-                    .background(SpineBackground(color, scale, isSelected=isSelected))
+                    .background(SpineBackground(animatedColor, scale, isSelected=isSelected))
             }
 
             Column {
@@ -124,18 +124,19 @@ class InputSlotScope(
 
     fun UiScope.SectionSeparator(label: String) = with(editor) {
         val isUnused = parentBlock.parentsWithSelf.none { it is StartBlock } && parentBlock.root in rootBlocks
-        val bgColor = if (isGhost) parentBlock.color.withAlpha(0.5f)
-        else if (isUnused) parentBlock.color.mix(Color.LIGHT_GRAY, 0.5f).withAlpha(0.35f)
-        else parentBlock.color
-        
-        val color by animateColorAsState(if (isHovered) bgColor else bgColor.mulRgb(0.9f), tween(0.2f, Easing.quadRev))
+        val isSelected = controller.selectedBlocks.use().contains(parentBlock)
+
+        val baseColor = parentBlock.resolveColor(isGhost, isUnused, isSelected)
+        val animatedColor by animateColorAsState(
+            if (isHovered) baseColor else baseColor.mulRgb(0.9f),
+            tween(0.2f, Easing.easeOutQuart)
+        )
         Row {
             modifier.width(Grow.Std).height(FitContent)
             Box {
                 modifier.width(Grow.Std).height(Dimensions.PaddingExtraLarge.scaled())
-                val isSelected = controller.selectedBlocks.use().contains(parentBlock)
 
-                modifier.background(ContainerMiddleBackground(color, scale, isSelected=isSelected))
+                modifier.background(ContainerMiddleBackground(animatedColor, scale, isSelected=isSelected))
                 Text(label) {
                     modifier.alignY(AlignmentY.Center)
                         .margin(start = (BlockEditor.C_BLOCK_SPINE_WIDTH + Dimensions.PaddingMedium) * scale)

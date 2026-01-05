@@ -42,6 +42,9 @@ class HistoryManager(val editor: BlockEditor) {
         }
     }
 
+    fun canUndo() = undoStack.isNotEmpty()
+    fun canRedo() = redoStack.isNotEmpty()
+
     companion object {
         const val HISTORY_SIZE = 500
     }
