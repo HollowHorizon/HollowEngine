@@ -95,7 +95,16 @@ class ScratchBlockBackground(
 
         if (isSelected) {
             node.getPlainBuilder(100_000).configure(null) {
-                PuzzleShapes.drawStroke(points, if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f, ColorTheme.UI.WhiteReplacement)
+                val strokePoints = if (isContainerHeader) {
+                    buildList {
+                        add(Vec3f(Vec3f(x, y + h, 0f)))
+                        addAll(points.dropLast(1).drop(1))
+                        add(Vec3f(x + BlockEditor.C_BLOCK_SPINE_WIDTH.px * zoom, y + h, 0f))
+                    }
+                } else {
+                    points
+                }
+                PuzzleShapes.drawStroke(strokePoints, if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f, ColorTheme.UI.WhiteReplacement, isContainerHeader)
             }
         }
 
@@ -149,7 +158,12 @@ class ContainerFooterBackground(
 
         if (isSelected) {
             node.getPlainBuilder(100_000).configure(null) {
-                PuzzleShapes.drawStroke(points, if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f, ColorTheme.UI.WhiteReplacement)
+                val strokePoints = buildList {
+                    add(Vec3f(x + BlockEditor.C_BLOCK_SPINE_WIDTH.px * zoom, y, 0f))
+                    addAll(points.drop(1))
+                    add(Vec3f(x, y, 0f))
+                }
+                PuzzleShapes.drawStroke(strokePoints, if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f, ColorTheme.UI.WhiteReplacement, true)
             }
         }
 
@@ -196,7 +210,15 @@ class ContainerMiddleBackground(val color: Color, val zoom: Float, val isSelecte
 
         if (isSelected) {
             node.getPlainBuilder(100_000).configure(null) {
-                PuzzleShapes.drawStroke(points, if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f, ColorTheme.UI.WhiteReplacement)
+                val width = if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f
+                val strokePoints = buildList {
+                    add(Vec3f(x + BlockEditor.C_BLOCK_SPINE_WIDTH.px * zoom, y, 0f))
+                    addAll(points.drop(1).dropLast(1))
+                    add(Vec3f(x + BlockEditor.C_BLOCK_SPINE_WIDTH.px * zoom, y + h, 0f))
+
+                }
+                PuzzleShapes.drawStroke(strokePoints, width, ColorTheme.UI.WhiteReplacement, true)
+                PuzzleShapes.drawStroke(listOf(points.first(), points.last()), width, ColorTheme.UI.WhiteReplacement, false)
             }
         }
 
@@ -234,12 +256,20 @@ class SpineBackground(val color: Color, val zoom: Float, val isSelected: Boolean
 
             addTriIndices(si0, so0, so1)
             addTriIndices(si0, so1, si1)
+        }
 
-            if (isSelected) {
+        if (isSelected) {
+            node.getPlainBuilder(100_000).configure(null) {
+                val width = if (zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f
                 PuzzleShapes.drawStroke(listOf(
                     Vec3f(0f, 0f, 0f),
                     Vec3f(0f, h, 0f),
-                ), if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f, ColorTheme.UI.WhiteReplacement)
+                ), width, ColorTheme.UI.WhiteReplacement, true)
+                PuzzleShapes.drawStroke(listOf(
+                    Vec3f(w, 0f, 0f),
+                    Vec3f(w, h, 0f),
+                ), width, ColorTheme.UI.WhiteReplacement, true)
+
             }
         }
     }

@@ -63,7 +63,7 @@ object PuzzleShapes {
         width: Float,
         color: Color,
         offsetY: Float,
-        isInner: Boolean
+        isInner: Boolean,
     ) {
         if (points.size < 3) return
 
@@ -154,11 +154,12 @@ object PuzzleShapes {
     }
 
     context(builder: MeshBuilder<UiVertexLayout>)
-    fun drawStroke(points: List<Vec3f>, width: Float, color: Color) {
+    fun drawStroke(points: List<Vec3f>, width: Float, color: Color, ignoreLast: Boolean) {
         val pSize = points.size
         for (i in 0 until pSize) {
             val p1 = points[i]
             val p2 = points[(i + 1) % pSize]
+            if (i == pSize - 1 && ignoreLast) return
             builder.withColor(color) {
                 line(p1.x, p1.y, p2.x, p2.y, width)
             }
