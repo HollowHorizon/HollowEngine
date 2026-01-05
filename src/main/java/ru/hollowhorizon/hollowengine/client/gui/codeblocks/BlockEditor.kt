@@ -236,7 +236,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 renderBlockNode(block, isGhost, canDrag)
 
                 if (!controller.isDragging(block) && !block.isExpression()) {
-                    renderOuterDropZones(block)
+                    //renderOuterDropZones(block)
                 }
             }
 
@@ -314,7 +314,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
             if (!controller.isDragging(block)) {
                 Box {
-                    modifier.width(Grow.Std).alignY(AlignmentY.Bottom).height(Grow(0.65f))
+                    modifier.width(Grow.Std).alignY(AlignmentY.Bottom).height(Grow(0.45f))
+                        .border(DebugBorder)
                     controller.addDropTarget(DropAction.AttachAfter(block as StatementBlock), uiNode)
                 }
             }
@@ -323,14 +324,10 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
 
     context(scope: UiScope)
     private fun renderOuterDropZones(block: BlockModel): Unit = with(scope) {
-        Box {
-            modifier.width(Grow.Std).height(Grow(0.25f)).alignY(AlignmentY.Top)
-            controller.addDropTarget(DropAction.InsertBefore(block), uiNode)
-        }
-
         if (block !is ContainerBlock || block.isCollapsed.use()) {
             Box {
                 modifier.width(Grow.Std).height(Grow(0.25f)).alignY(AlignmentY.Bottom)
+                    .border(DebugBorder)
                 controller.addDropTarget(DropAction.AttachAfter(block as StatementBlock), uiNode)
             }
         }
@@ -380,6 +377,22 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                         } else {
                             composeContent()
                         }
+                    }
+                }
+            }
+
+            if (!controller.isDragging(block) && !block.isExpression()) {
+                Box {
+                    modifier.width(Grow.Std).height(Grow(0.25f)).alignY(AlignmentY.Top)
+                        .border(DebugBorder)
+                    controller.addDropTarget(DropAction.InsertBefore(block), uiNode)
+                }
+
+                if (block !is ContainerBlock || block.isCollapsed.use()) {
+                    Box {
+                        modifier.width(Grow.Std).height(Grow(0.25f)).alignY(AlignmentY.Bottom)
+                            .border(DebugBorder)
+                        controller.addDropTarget(DropAction.AttachAfter(block as StatementBlock), uiNode)
                     }
                 }
             }
@@ -458,7 +471,7 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         Row {
             modifier.align(AlignmentX.End, AlignmentY.Top)
                 .margin(Dimensions.PaddingMedium)
-                .margin(end= Dimensions.PaddingLarge)
+                .margin(end = Dimensions.PaddingLarge)
                 .padding(Dimensions.PaddingSmall)
                 .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingNormal))
                 .zLayer(Z_LAYER_SCROLLBAR)

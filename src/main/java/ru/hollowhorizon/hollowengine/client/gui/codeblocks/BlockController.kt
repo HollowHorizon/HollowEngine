@@ -453,64 +453,38 @@ class BlockController(val editor: BlockEditor) {
     fun deleteSelected() {
         if (selectedBlocks.isEmpty()) return
 
-        val blocksToDelete = selectedBlocks.filter { !isParentSelected(it) }
+        val blocksToDelete = selectedBlocks.toSet()
         val actions = mutableListOf<EditorAction>()
 
         blocksToDelete.forEach { block ->
-            val prevStmt = (block as? StatementBlock)?.parent
-            val prevBlock = block.parentBlock
-            val nextStmt = (block as? StatementBlock)?.next
+            val oldState = captureConnectionState(block)
+            val detachedState = ConnectionState(null, null, null, null, -1, block.positionX.value, block.positionY.value)
+            actions.add(ConnectionAction(editor, block, oldState, detachedState))
 
-            val blockOldState = captureConnectionState(block)
-            val prevStmtOldState = prevStmt?.let { captureConnectionState(it) }
-            val prevBlockOldState = prevBlock?.let { captureConnectionState(it) }
-            val nextStmtOldState = nextStmt?.let { captureConnectionState(it) }
+            if (block is StatementBlock) {
+                val next = block.next
+                if (next != null && next !in blocksToDelete) {
+                    val survivor = next
+                    val survivorOldState = captureConnectionState(survivor)
 
-            detachBlockInternal(block)
+                    val parentStmt = block.parent
+                    val parentBlock = block.parentBlock
+                    val parentInput = block.parentInputName
 
-            if (block is StatementBlock && nextStmt != null) {
-                if (prevStmt != null) {
-                    prevStmt.next = nextStmt
-                    nextStmt.parent = prevStmt
-                } else if (prevBlock != null && block.parentInputName != null) {
-                    prevBlock.inputs[block.parentInputName!!] = nextStmt
-                    nextStmt.parentBlock = prevBlock
-                    nextStmt.parentInputName = block.parentInputName
-                    nextStmt.parent = null
-                } else {
-                    editor.rootBlocks.add(editor.rootBlocks.indexOf(block).coerceAtLeast(0), nextStmt)
-                    nextStmt.parent = null
-                    nextStmt.parentBlock = null
-                    nextStmt.parentInputName = null
+                    val survivorNewState = if (parentStmt != null && parentStmt !in blocksToDelete) {
+                        ConnectionState(null, null, parentStmt, survivor.next, -1, 0f, 0f)
+                    } else if (parentBlock != null && parentInput != null && parentBlock !in blocksToDelete) {
+                        ConnectionState(parentBlock, parentInput, null, survivor.next, -1, 0f, 0f)
+                    } else {
+                        ConnectionState(null, null, null, survivor.next, editor.rootBlocks.indexOf(block), block.positionX.value, block.positionY.value)
+                    }
+
+                    actions.add(ConnectionAction(editor, survivor, survivorOldState, survivorNewState))
                 }
             }
-
-            actions.add(RemoveBlocksAction(editor, listOf(block)))
-
-            if (nextStmt != null) {
-                val nextStmtNewState = captureConnectionState(nextStmt)
-                actions.add(ConnectionAction(editor, nextStmt, nextStmtOldState!!, nextStmtNewState))
-            }
-
-            if (prevStmt != null) {
-                val prevStmtNewState = captureConnectionState(prevStmt)
-                actions.add(ConnectionAction(editor, prevStmt, prevStmtOldState!!, prevStmtNewState))
-            }
-
-            if (prevBlock != null) {
-                val prevBlockNewState = captureConnectionState(prevBlock)
-                actions.add(ConnectionAction(editor, prevBlock, prevBlockOldState!!, prevBlockNewState))
-            }
-
-            actions.add(
-                ConnectionAction(
-                    editor,
-                    block,
-                    blockOldState,
-                    ConnectionState(null, null, null, null, -1, 0f, 0f)
-                )
-            )
         }
+
+        actions.add(RemoveBlocksAction(editor, blocksToDelete.toList()))
 
         if (actions.isNotEmpty()) {
             history.perform(CompoundAction(actions))
@@ -612,7 +586,7 @@ class BlockController(val editor: BlockEditor) {
         if (source == action.target) return false
         if (isAncestorOf(source, action.target)) return false
 
-        if (source is StartBlock && (action is DropAction.AttachToInput || action is DropAction.AttachAfter)) return false
+        if (source is StartBlock) return false
 
         return when (action) {
             is DropAction.InsertBefore, is DropAction.AttachAfter -> !source.isExpression()
