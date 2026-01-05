@@ -77,3 +77,7 @@ HollowEngine is a powerful content creation engine for Minecraft. It provides an
 - 💬 [Discord Community](https://discord.gg/qKpPhkwGCY) - Get help and share creations
 - 💬 [Telegram Channel](https://t.me/hollowengine) - Devlogs and updates
 - 🤖 [AI Wiki Assistant](https://deepwiki.com/HollowHorizon/HollowEngine) - Interactive help
+
+# LICENSE
+
+This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License**.
