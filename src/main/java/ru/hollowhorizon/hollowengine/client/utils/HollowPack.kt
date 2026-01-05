@@ -101,8 +101,8 @@ object HollowPack : PackResources {
         addCustomJSON(model, content)
     }
 
-    override fun getRootResource(vararg fileName: String): IoSupplier<InputStream> {
-        throw FileNotFoundException(fileName.joinToString())
+    override fun getRootResource(vararg fileName: String): IoSupplier<InputStream>? {
+        return null
     }
 
 

@@ -55,6 +55,7 @@ class BlockController(val editor: BlockEditor) {
 
         return Vec2f(relX / editor.scale, relY / editor.scale)
     }
+
     fun toLocal(screenX: Float, screenY: Float): Vec2f = toLocal(Vec2f(screenX, screenY))
     operator fun contains(screenPosition: Vec2f): Boolean =
         screenPosition.x in scrollPaneBounds.x + Dimensions.PaddingMedium.px..scrollPaneBounds.x + scrollPaneBounds.z - Dimensions.PaddingMedium.px &&
@@ -229,10 +230,12 @@ class BlockController(val editor: BlockEditor) {
                     action.target.parentBlock?.let { affectedBlocks.add(it) } // Родитель-контейнер (если был)
                     (action.target as? StatementBlock)?.parent?.let { affectedBlocks.add(it) } // Родитель-стейтмент (если был)
                 }
+
                 is DropAction.AttachAfter -> {
                     affectedBlocks.add(action.target) // Тот, после кого встаем
                     action.target.next?.let { affectedBlocks.add(it) } // Тот, кто был после (если мы вклиниваемся)
                 }
+
                 is DropAction.AttachToInput -> {
                     affectedBlocks.add(action.target) // Тот, к кому цепляемся
                     action.target.inputs[action.inputName]?.let { affectedBlocks.add(it) } // Тот, кто там уже был
@@ -398,7 +401,7 @@ class BlockController(val editor: BlockEditor) {
             while (tail.next != null) tail = tail.next!!
 
             tail.next = target as? StatementBlock
-            if(target.isStatement()) target.parent = tail
+            if (target.isStatement()) target.parent = tail
         } else {
             editor.rootBlocks.remove(target)
             editor.rootBlocks.add(newBlock)
@@ -407,7 +410,7 @@ class BlockController(val editor: BlockEditor) {
             while (tail.next != null) tail = tail.next!!
 
             tail.next = target as? StatementBlock
-            if(target.isStatement()) target.parent = tail
+            if (target.isStatement()) target.parent = tail
         }
     }
 
@@ -450,43 +453,63 @@ class BlockController(val editor: BlockEditor) {
     fun deleteSelected() {
         if (selectedBlocks.isEmpty()) return
 
+        val blocksToDelete = selectedBlocks.filter { !isParentSelected(it) }
         val actions = mutableListOf<EditorAction>()
-        val blocksToDelete = ArrayList(selectedBlocks)
 
         blocksToDelete.forEach { block ->
-            if (block is StatementBlock) {
-                val parent = block.parent
-                val next = block.next
+            val prevStmt = (block as? StatementBlock)?.parent
+            val prevBlock = block.parentBlock
+            val nextStmt = (block as? StatementBlock)?.next
 
-                if (next != null) {
-                    val nextOldState = captureConnectionState(next)
+            val blockOldState = captureConnectionState(block)
+            val prevStmtOldState = prevStmt?.let { captureConnectionState(it) }
+            val prevBlockOldState = prevBlock?.let { captureConnectionState(it) }
+            val nextStmtOldState = nextStmt?.let { captureConnectionState(it) }
 
-                    val nextNewState = if (parent != null) {
-                        ConnectionState(null, null, parent, next.next, -1)
-                    } else {
-                        val idx = editor.rootBlocks.indexOf(block)
-                        ConnectionState(null, null, null, next.next, idx)
-                    }
+            detachBlockInternal(block)
 
-                    actions.add(ConnectionAction(editor, next, nextOldState, nextNewState))
-
-                    if (parent != null) {
-                        val parentOldState = captureConnectionState(parent)
-                        val parentNewState = ConnectionState(
-                            parent.parentBlock, parent.parentInputName, parent.parent,
-                            next,
-                            editor.rootBlocks.indexOf(parent)
-                        )
-                        actions.add(ConnectionAction(editor, parent, parentOldState, parentNewState))
-                    }
+            if (block is StatementBlock && nextStmt != null) {
+                if (prevStmt != null) {
+                    prevStmt.next = nextStmt
+                    nextStmt.parent = prevStmt
+                } else if (prevBlock != null && block.parentInputName != null) {
+                    prevBlock.inputs[block.parentInputName!!] = nextStmt
+                    nextStmt.parentBlock = prevBlock
+                    nextStmt.parentInputName = block.parentInputName
+                    nextStmt.parent = null
+                } else {
+                    editor.rootBlocks.add(editor.rootBlocks.indexOf(block).coerceAtLeast(0), nextStmt)
+                    nextStmt.parent = null
+                    nextStmt.parentBlock = null
+                    nextStmt.parentInputName = null
                 }
             }
 
-            val blockOldState = captureConnectionState(block)
-            val blockNewState = ConnectionState(null, null, null, null, -1)
-            actions.add(ConnectionAction(editor, block, blockOldState, blockNewState))
-
             actions.add(RemoveBlocksAction(editor, listOf(block)))
+
+            if (nextStmt != null) {
+                val nextStmtNewState = captureConnectionState(nextStmt)
+                actions.add(ConnectionAction(editor, nextStmt, nextStmtOldState!!, nextStmtNewState))
+            }
+
+            if (prevStmt != null) {
+                val prevStmtNewState = captureConnectionState(prevStmt)
+                actions.add(ConnectionAction(editor, prevStmt, prevStmtOldState!!, prevStmtNewState))
+            }
+
+            if (prevBlock != null) {
+                val prevBlockNewState = captureConnectionState(prevBlock)
+                actions.add(ConnectionAction(editor, prevBlock, prevBlockOldState!!, prevBlockNewState))
+            }
+
+            actions.add(
+                ConnectionAction(
+                    editor,
+                    block,
+                    blockOldState,
+                    ConnectionState(null, null, null, null, -1, 0f, 0f)
+                )
+            )
         }
 
         if (actions.isNotEmpty()) {
@@ -503,7 +526,9 @@ class BlockController(val editor: BlockEditor) {
             parentInputName = block.parentInputName,
             parentStatement = (block as? StatementBlock)?.parent,
             nextStatement = (block as? StatementBlock)?.next,
-            indexInRoot = editor.rootBlocks.indexOf(block)
+            indexInRoot = editor.rootBlocks.indexOf(block),
+            positionX = block.positionX.value,
+            positionY = block.positionY.value
         )
     }
 
@@ -586,6 +611,9 @@ class BlockController(val editor: BlockEditor) {
     private fun isValidDrop(source: BlockModel, action: DropAction): Boolean {
         if (source == action.target) return false
         if (isAncestorOf(source, action.target)) return false
+
+        if (source is StartBlock && (action is DropAction.AttachToInput || action is DropAction.AttachAfter)) return false
+
         return when (action) {
             is DropAction.InsertBefore, is DropAction.AttachAfter -> !source.isExpression()
             is DropAction.AttachToInput -> {

@@ -110,14 +110,16 @@ data class ConnectionState(
     val parentInputName: String?,
     val parentStatement: BlockModel?,
     val nextStatement: BlockModel?,
-    val indexInRoot: Int = -1 // -1 if not in root
+    val indexInRoot: Int = -1, // -1 if not in root
+    val positionX: Float,
+    val positionY: Float
 )
 
 class ConnectionAction(
     private val editor: BlockEditor,
     private val block: BlockModel,
     private val oldState: ConnectionState,
-    private val newState: ConnectionState
+    private val newState: ConnectionState,
 ) : EditorAction {
 
     override fun execute() {
@@ -130,6 +132,9 @@ class ConnectionAction(
 
     private fun applyState(state: ConnectionState) {
         editor.controller.detachBlockInternal(block)
+
+        block.positionX.set(state.positionX)
+        block.positionY.set(state.positionY)
 
         val shouldBeInRoot = state.parentBlock == null && state.parentStatement == null
 
@@ -165,8 +170,12 @@ class ConnectionAction(
             child.parent = block
 
             editor.rootBlocks.remove(child)
+
+            block.next = child
+            child.parent = block
         } else if (block is StatementBlock && state.nextStatement == null) {
             val currentChild = block.next
+            // TODO: В теории это always true, но надо в этом убедиться
             if (currentChild != null) {
                 currentChild.parent = null
                 if (!editor.rootBlocks.contains(currentChild)) {
