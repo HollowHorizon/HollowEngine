@@ -19,8 +19,8 @@ class SelectionRenderer(val controller: BlockController, val editorScale: Float)
         val scrollX = controller.scrollState.xScrollDp.use() * UiScale.measuredScale
         val scrollY = controller.scrollState.yScrollDp.use() * UiScale.measuredScale
 
-        val x = min(startX, currX) + leftPx + paddingStartPx //- scrollX
-        val y = min(startY, currY) + topPx + paddingTopPx //- scrollY
+        val x = min(startX, currX) + leftPx + paddingStartPx - scrollX
+        val y = min(startY, currY) + topPx + paddingTopPx - scrollY
         val w = abs(startX - currX)
         val h = abs(startY - currY)
 
