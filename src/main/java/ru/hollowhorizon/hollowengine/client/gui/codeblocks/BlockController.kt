@@ -32,7 +32,7 @@ class BlockController(val editor: BlockEditor) {
     var draggingBlock: BlockModel? = null
     var dragStartOffset = MutableVec2f()
     private val initialBlockPositions = mutableMapOf<BlockModel, Vec2f>()
-    private var dragStartConnectionState: ConnectionState? = null
+    private var dragStartConnectionState: Map<BlockModel, ConnectionState>? = null
 
     private val dragStartScreenPos = MutableVec2f()
 
@@ -123,12 +123,14 @@ class BlockController(val editor: BlockEditor) {
 
     fun canAttachBefore(block: BlockModel): Boolean {
         val target = (potentialAction as? DropAction.InsertBefore)?.target
+        // Нельзя вставить перед StartBlock (он триггер)
         if (draggingBlock is EndBlock || target is StartBlock) return false
         return target == block
     }
 
     fun canAttachAfter(block: BlockModel): Boolean {
         val target = (potentialAction as? DropAction.AttachAfter)?.target
+        // Нельзя прицепить StartBlock (он должен быть началом)
         if (draggingBlock is StartBlock || target is EndBlock) return false
         return target == block
     }
@@ -150,7 +152,11 @@ class BlockController(val editor: BlockEditor) {
         dragStartScreenPos.set(screenPosition + localOffset)
 
         initialBlockPositions.clear()
-        dragStartConnectionState = captureConnectionState(block)
+        val relevantBlocks = mutableListOf(block)
+        block.parentBlock?.let { relevantBlocks.add(it) }
+        (block as? StatementBlock)?.parent?.let { relevantBlocks.add(it) }
+
+        dragStartConnectionState = relevantBlocks.associateWith { captureConnectionState(it) }
 
         val topLevelMovers = selectedBlocks.filter { !isParentSelected(it) }
 
@@ -209,7 +215,6 @@ class BlockController(val editor: BlockEditor) {
         val actionsToPerform = mutableListOf<EditorAction>()
 
         if (isNewBlock) {
-            // Если блок новый, сначала добавляем его в мир отдельным действием
             editor.rootBlocks.remove(block)
             actionsToPerform.add(AddBlocksAction(editor, listOf(block)))
         }
@@ -234,13 +239,19 @@ class BlockController(val editor: BlockEditor) {
                 }
             }
 
-            if (!isNewBlock) {
-                dragStartConnectionState?.let { startState ->
-                    startState.parentBlock?.let { affectedBlocks.add(it) }
-                    startState.parentStatement?.let { affectedBlocks.add(it) }
-                }
+            if (block is StatementBlock) {
+                var tail: StatementBlock = block
+                while (tail.next != null) tail = tail.next!!
+                if (tail != block) affectedBlocks.add(tail)
             }
-            val oldStates = affectedBlocks.associateWith { captureConnectionState(it) }
+
+            if (!isNewBlock) {
+                dragStartConnectionState?.keys?.forEach { affectedBlocks.add(it) }
+            }
+
+            val oldStates = affectedBlocks.associateWith {
+                dragStartConnectionState?.get(it) ?: captureConnectionState(it)
+            }
             when (action) {
                 is DropAction.InsertBefore -> insertBlockBeforeLogic(action.target, block as StatementBlock)
                 is DropAction.AttachAfter -> attachBlockAfterLogic(action.target, block as StatementBlock)
@@ -268,24 +279,19 @@ class BlockController(val editor: BlockEditor) {
             }
 
             if (moves.isNotEmpty()) {
-                val oldState = dragStartConnectionState!!
-                if (oldState.parentBlock != null || oldState.parentStatement != null) {
-                    val oldParentBlock = oldState.parentBlock
-                    val oldParentStatement = oldState.parentStatement
+                val oldStates = dragStartConnectionState
 
-                    val affectedBlocks = listOfNotNull(block, oldParentBlock, oldParentStatement)
-                    val oldStatesMap = mutableMapOf<BlockModel, ConnectionState>()
-                    oldStatesMap[block] = oldState
-                    oldParentBlock?.let { oldStatesMap[it] = captureConnectionState(it) }
-                    oldParentStatement?.let { oldStatesMap[it] = captureConnectionState(it) }
-
-                    detachBlockInternal(block)
-
+                if (oldStates != null && oldStates.values.any { it.parentBlock != null || it.parentStatement != null }) {
+                    val affectedBlocks = oldStates.keys.toMutableSet()
+                    affectedBlocks.add(block)
+                    val finalStates = affectedBlocks.associateWith { captureConnectionState(it) }
                     affectedBlocks.forEach { affected ->
-                        val oldS = oldStatesMap[affected] ?: captureConnectionState(affected)
-                        val newS = captureConnectionState(affected)
-                        if (oldS != newS) {
-                            actionsToPerform.add(ConnectionAction(editor, affected, oldS, newS))
+                        val old = oldStates[affected] ?: captureConnectionState(affected)
+                        val new = finalStates[affected]!!
+                        if (old != new) {
+                            actionsToPerform.add(ConnectionAction(editor, affected, old, new))
+                        } else if (affected == block) {
+                            actionsToPerform.add(MoveBlockAction(mapOf(block to moves[block]!!)))
                         }
                     }
                 } else {
@@ -368,27 +374,18 @@ class BlockController(val editor: BlockEditor) {
         val parentBlock = target.parentBlock
 
         if (parentStatement != null) {
-            if (newBlock is StartBlock) {
-                parentStatement.next = null
+            // Вставка между стейтментами
+            parentStatement.next = newBlock
+            newBlock.parent = parentStatement
 
-                newBlock.next = target
-                target.parent = newBlock
+            var tail = newBlock
+            while (tail.next != null) tail = tail.next!!
 
-                if (!editor.rootBlocks.contains(newBlock)) editor.rootBlocks.add(newBlock)
-            } else {
-                parentStatement.next = newBlock
-                newBlock.parent = parentStatement
-
-                var tail = newBlock
-                while (tail.next != null) tail = tail.next!!
-
-                tail.next = target
-                target.parent = tail
-            }
+            tail.next = target
+            target.parent = tail
         } else if (parentBlock != null) {
+            // Вставка первым элементом в инпут
             val slotName = target.parentInputName!!
-
-            if (newBlock is StartBlock) return
 
             parentBlock.inputs[slotName] = newBlock
             newBlock.parentBlock = parentBlock
