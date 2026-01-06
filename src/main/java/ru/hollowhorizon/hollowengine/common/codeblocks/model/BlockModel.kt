@@ -9,8 +9,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlocksScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputDelegate
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputListDelegate
+import ru.hollowhorizon.hollowengine.common.codeblocks.execution.InputDelegate
+import ru.hollowhorizon.hollowengine.common.codeblocks.execution.InputListDelegate
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForStringUUID
 import java.util.*

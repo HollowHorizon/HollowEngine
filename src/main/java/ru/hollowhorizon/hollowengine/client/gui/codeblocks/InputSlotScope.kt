@@ -10,7 +10,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.parentsWithSelf
 import ru.hollowhorizon.hollowengine.common.codeblocks.root
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.InputValue
+import ru.hollowhorizon.hollowengine.common.codeblocks.execution.InputValue
 
 class InputSlotScope(
     private val editor: BlockEditor, uiScope: UiScope,
@@ -91,7 +91,7 @@ class InputSlotScope(
                 tween(0.2f, Easing.easeOutQuart)
             )
             val factor by animateFloatAsState(
-                if (parentBlock is StartBlock && parentBlock.mode.use().isGlobal()) 1f else 0f,
+                if (parentBlock is StartBlock && parentBlock.isGlobal.use()) 1f else 0f,
                 tween(0.2f, Easing.easeOutQuart)
             )
             Box {

@@ -23,8 +23,8 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksComponent
-import ru.hollowhorizon.hollowengine.common.codeblocks.createScript
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.CodeBlocksComponent
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.createScript
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.components.registry.ModComponents

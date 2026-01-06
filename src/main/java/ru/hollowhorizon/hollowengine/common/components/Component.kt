@@ -79,7 +79,7 @@ abstract class Component<T : Any>(val owner: T) {
 
     }
 
-    open fun deserialize(compound: CompoundTag) {
+    open fun deserialize(tag: CompoundTag) {
 
     }
 

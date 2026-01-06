@@ -5,7 +5,4 @@ import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.common.components.Component
 
 open class ServerComponent(owner: MinecraftServer) : Component<MinecraftServer>(owner)
-open class LivingEntityComponent(owner: LivingEntity) : Component<LivingEntity>(owner) {
-    // TODO: Вот эту дичь перенести в context параметры, когда они заработают
-
-}
+open class LivingEntityComponent(owner: LivingEntity) : Component<LivingEntity>(owner)

@@ -8,16 +8,23 @@ import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
-import ru.hollowhorizon.hollowengine.common.codeblocks.blockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.execution.blockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 
+interface VariableProvider {
+    var variableName: String
+    val expressionType: ExpressionType
+    val isGlobal: Boolean
+}
+
 @Serializable
 @SerialName("hollowengine:events/set")
-class SetVarBlock(var varName: String = "var") : StatementBlock() {
-    val expressionType get() = (inputs["value"] as? ExpressionBlock)?.expressionType
+class SetVarBlock(override var variableName: String = "var") : StatementBlock(), VariableProvider {
+    override val expressionType get() = (inputs["value"] as? ExpressionBlock)?.expressionType ?: AnyType
+    override val isGlobal = false
 
     val value by input<Any>("value")
 
@@ -25,16 +32,16 @@ class SetVarBlock(var varName: String = "var") : StatementBlock() {
     override suspend fun execute() {
         val value = value()
 
-        blockContext().variables[varName]?.set(JavaHacks.forceCast(value))
+        blockContext().variables[variableName]?.set(JavaHacks.forceCast(value))
     }
 
     override fun InputSlotScope.composeContent() {
         Text("Присвоить (L):") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         // Поле ввода имени переменной
-        TextField(varName) {
+        TextField(variableName) {
             modifier.width(FitContent).margin(horizontal = 5.dp)
                 .alignY(AlignmentY.Center)
-                .onChange { varName = it }
+                .onChange { variableName = it }
                 .hint("Имя переменной").font(font)
                 .colors(textColor = Color.WHITE, lineColor = Color.WHITE)
         }
@@ -48,7 +55,7 @@ class SetVarBlock(var varName: String = "var") : StatementBlock() {
 class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
     override val expressionType: ExpressionType
         get() {
-            val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.varName == varName }
+            val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.variableName == varName }
             return setVar?.expressionType ?: AnyType
         }
 
@@ -72,7 +79,7 @@ class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
 class GetVarInlineBlock(val name: String) : ExpressionBlock() {
     override val expressionType: ExpressionType
         get() {
-            val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.varName == name }
+            val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.variableName == name }
             return setVar?.expressionType ?: AnyType
         }
 

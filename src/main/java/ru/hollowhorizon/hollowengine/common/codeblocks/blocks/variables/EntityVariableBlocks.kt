@@ -9,7 +9,7 @@ import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
-import ru.hollowhorizon.hollowengine.common.codeblocks.blockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.execution.blockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -53,7 +53,7 @@ class SetEntityVarBlock(var varName: String = "var") : StatementBlock() {
 class GetEntityVarBlock(var varName: String = "var") : ExpressionBlock() {
     override val expressionType: ExpressionType
         get() {
-            val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.varName == varName }
+            val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.variableName == varName }
             return setVar?.expressionType ?: AnyType
         }
 
@@ -81,7 +81,7 @@ class GetEntityVarBlock(var varName: String = "var") : ExpressionBlock() {
 class GetEntityVarInlineBlock(val name: String) : ExpressionBlock() {
     override val expressionType: ExpressionType
         get() {
-            val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.varName == name }
+            val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.variableName == name }
             return setVar?.expressionType ?: AnyType
         }
 

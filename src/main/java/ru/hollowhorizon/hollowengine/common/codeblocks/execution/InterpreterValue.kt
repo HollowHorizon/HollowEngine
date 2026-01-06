@@ -1,7 +1,6 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
+package ru.hollowhorizon.hollowengine.common.codeblocks.execution
 
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
-import ru.hollowhorizon.hollowengine.common.codeblocks.scoped
 
 class InterpreterValue<T: Any>(
     override val name: String,

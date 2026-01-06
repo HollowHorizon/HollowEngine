@@ -9,7 +9,6 @@ import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.TriggerMode
 import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.LivingEntityDeathEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
@@ -18,7 +17,7 @@ import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 @SerialName("hollowengine:events/player_join")
 class OnPlayerJoinBlock : StatementBlock(), StartBlock {
     @Transient
-    override val mode: MutableStateValue<TriggerMode> = mutableStateOf(TriggerMode.LOCAL)
+    override val isGlobal: MutableStateValue<Boolean> = mutableStateOf(false)
     private val player by input<Player>("player")
 
     override suspend fun execute() {
@@ -38,7 +37,7 @@ class OnPlayerJoinBlock : StatementBlock(), StartBlock {
 @SerialName("hollowengine:events/player_death")
 class OnPlayerDeathBlock : StatementBlock(), StartBlock {
     @Transient
-    override val mode: MutableStateValue<TriggerMode> = mutableStateOf(TriggerMode.LOCAL)
+    override val isGlobal: MutableStateValue<Boolean> = mutableStateOf(false)
 
     private val player by input<Player>("player")
 

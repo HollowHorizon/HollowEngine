@@ -1,10 +1,9 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
+package ru.hollowhorizon.hollowengine.common.codeblocks.execution
 
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockFrame
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.find
-import ru.hollowhorizon.hollowengine.common.codeblocks.scoped
 import kotlin.coroutines.coroutineContext
 
 interface BlockModelInterpreter<T : Any> {

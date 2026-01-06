@@ -1,10 +1,17 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.serializer
+import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.variables.LivingEntityContainer
+import ru.hollowhorizon.hollowengine.common.codeblocks.variables.SerializableVariableContainer
+import ru.hollowhorizon.hollowengine.common.codeblocks.variables.VariableContainer
+import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 import kotlin.reflect.KType
 import kotlin.reflect.full.isSubtypeOf
-import kotlin.reflect.typeOf
+import kotlin.reflect.typeOf as kTypeOf
 
 interface ExpressionType {
     fun accepts(other: ExpressionType): Boolean = this == other
@@ -24,9 +31,19 @@ interface ExpressionType {
     }
 }
 
-inline fun <reified T> typeOf() = KTypeExpressionType(typeOf<T>())
+fun createContainer(type: ExpressionType): VariableContainer<*> {
+    return if (typeOf<LivingEntity>().accepts(type)) {
+        LivingEntityContainer<LivingEntity>()
+    } else {
+        // TODO: Зачем вообще теперь нужен AnyType, можно просто использовать KTypeExpressionType
+        val serializer = NBTFormat.Default.serializersModule.serializer((type as KTypeExpressionType).kType) as KSerializer<Any>
+        SerializableVariableContainer(serializer)
+    }
+}
 
-class KTypeExpressionType(val kType: KType): ExpressionType {
+inline fun <reified T> typeOf() = KTypeExpressionType(kTypeOf<T>())
+
+class KTypeExpressionType(val kType: KType) : ExpressionType {
     override fun accepts(other: ExpressionType): Boolean {
         if (other === AnyType) return true
 
@@ -39,6 +56,6 @@ class KTypeExpressionType(val kType: KType): ExpressionType {
 val BlockModel.expressionTypeOrNull: ExpressionType?
     get() = (this as? ExpressionBlock)?.expressionType
 
-object AnyType: ExpressionType {
+object AnyType : ExpressionType {
     override fun accepts(type: ExpressionType) = true
 }

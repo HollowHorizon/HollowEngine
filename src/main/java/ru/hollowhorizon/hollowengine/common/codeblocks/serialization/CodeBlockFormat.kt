@@ -1,8 +1,11 @@
+@file:OptIn(ExperimentalSerializationApi::class)
+
 package ru.hollowhorizon.hollowengine.common.codeblocks.serialization
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
@@ -14,9 +17,14 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.GetEntit
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.GetGlobalVarBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.GetVarInlineBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
+import java.io.File
+import java.io.InputStream
 import kotlin.reflect.KClass
 
 class CodeBlockFormat(val blockModule: BlockProvider) {
+    fun loadBlocks(file: File): List<BlockModel> = file.inputStream().use { loadBlocks(it) }
+    fun loadBlocks(stream: InputStream): List<BlockModel> = json.decodeFromStream(CodeBlockSerializer(this), stream)
+
     @OptIn(InternalSerializationApi::class)
     private val module = SerializersModule {
         polymorphic(BlockModel::class) {

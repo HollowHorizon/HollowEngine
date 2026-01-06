@@ -87,12 +87,12 @@ object StandardModules {
 
                 dynamicBlocks {
                     rootBlocks.flatMap { it.walk() }.filterIsInstance<SetVarBlock>()
-                        .filter { it.varName.isNotEmpty() }
+                        .filter { it.variableName.isNotEmpty() }
                         .map {
                             BlockEntry(
-                                "Получить ${it.varName}",
+                                "Получить ${it.variableName}",
                                 null,
-                                { GetVarInlineBlock(it.varName).also { it.color = Color("7248DD") } },
+                                { GetVarInlineBlock(it.variableName).also { it.color = Color("7248DD") } },
                                 GetVarInlineBlock::class
                             )
                         }
@@ -105,12 +105,12 @@ object StandardModules {
 
                 dynamicBlocks {
                     rootBlocks.flatMap { it.walk() }.filterIsInstance<SetGlobalVarBlock>()
-                        .filter { it.varName.isNotEmpty() }
+                        .filter { it.variableName.isNotEmpty() }
                         .map {
                             BlockEntry(
-                                "Получить ${it.varName}",
+                                "Получить ${it.variableName}",
                                 null,
-                                { GetGlobalVarBlock(it.varName).also { it.color = Color("7248DD") } },
+                                { GetGlobalVarBlock(it.variableName).also { it.color = Color("7248DD") } },
                                 GetGlobalVarBlock::class
                             )
                         }

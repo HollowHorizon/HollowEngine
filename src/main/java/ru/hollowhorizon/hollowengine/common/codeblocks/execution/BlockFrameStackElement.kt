@@ -1,14 +1,17 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks
+package ru.hollowhorizon.hollowengine.common.codeblocks.execution
 
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlockFrame
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksDSL
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.ScriptInstance
 import java.util.*
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
-class BlockContextElement(val context: BlockContext) : AbstractCoroutineContextElement(Key) {
-    companion object Key : CoroutineContext.Key<BlockContextElement>
+class BlockFrameStackElement(val instance: ScriptInstance) : AbstractCoroutineContextElement(Key) {
+    companion object Key : CoroutineContext.Key<BlockFrameStackElement>
 
     private var index = 0
     internal val frames = Stack<BlockFrame>()
@@ -38,14 +41,8 @@ class BlockContextElement(val context: BlockContext) : AbstractCoroutineContextE
 }
 
 @CodeBlocksDSL
-suspend fun blockContext(): BlockContext {
-    val element = coroutineContext[BlockContextElement.Key] ?: error("Context not found!")
-    return element.context
-}
-
-@CodeBlocksDSL
 suspend fun <T> scoped(block: suspend () -> T): T {
-    val context = coroutineContext[BlockContextElement.Key] ?: error("Context not found!")
+    val context = coroutineContext[BlockFrameStackElement.Key] ?: error("Context not found!")
 
     return context.withScopedContext {
         block()

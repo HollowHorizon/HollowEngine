@@ -7,13 +7,12 @@ import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.TriggerMode
 
 @Serializable
 @SerialName("hollowengine:start")
 class OnStartBlock : StatementBlock(), StartBlock {
     @Transient
-    override val mode: MutableStateValue<TriggerMode> = mutableStateOf(TriggerMode.LOCAL)
+    override val isGlobal: MutableStateValue<Boolean> = mutableStateOf(false)
 
     override suspend fun execute() {}
 

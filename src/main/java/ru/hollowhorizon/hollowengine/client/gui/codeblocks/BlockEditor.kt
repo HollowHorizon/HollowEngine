@@ -368,7 +368,7 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
                 tween(0.2f, Easing.easeOutQuart)
             )
             val factor by animateFloatAsState(
-                if (isTrigger && block.mode.use().isGlobal()) 1f else 0f,
+                if (isTrigger && block.isGlobal.use()) 1f else 0f,
                 tween(0.2f, Easing.easeOutQuart)
             )
 

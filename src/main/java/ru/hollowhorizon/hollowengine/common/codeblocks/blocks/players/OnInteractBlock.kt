@@ -15,7 +15,6 @@ import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.TriggerMode
 import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStackJson
@@ -100,7 +99,7 @@ class PlayerInteractWithBlock : StatementBlock() {
 @SerialName("hollowengine:events/interact_block/item")
 class PlayerInteractWithItem : StatementBlock(), StartBlock {
     @Transient
-    override val mode: MutableStateValue<TriggerMode> = mutableStateOf(TriggerMode.LOCAL)
+    override val isGlobal: MutableStateValue<Boolean> = mutableStateOf(false)
     val player by input<Player>("player")
     var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
 

@@ -20,6 +20,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.modules.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockSerializer
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
+import java.io.ByteArrayInputStream
 
 @OptIn(FlowPreview::class)
 class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath.substringAfterLast('/'), filePath) {
@@ -45,11 +46,7 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
     init {
         if (bytes.isNotEmpty()) {
             try {
-                val jsonString = String(bytes)
-                val loadedBlocks = format.json.decodeFromString(CodeBlockSerializer(format), jsonString)
-
-                editor.rootBlocks.addAll(loadedBlocks)
-
+                editor.rootBlocks.addAll(format.loadBlocks(ByteArrayInputStream(bytes)))
             } catch (e: Exception) {
                 HollowEngine.LOGGER.error("File $filePath cannot be loaded!", e)
                 val file = filePath.fromReadablePath()
@@ -85,7 +82,6 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
             HollowEngine.LOGGER.error("File $filePath cannot be saved!", e)
         }
     }
-
 
 
     override fun UiScope.compose() {

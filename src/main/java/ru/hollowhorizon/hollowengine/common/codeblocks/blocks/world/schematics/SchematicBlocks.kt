@@ -7,7 +7,7 @@ import net.minecraft.nbt.NbtIo
 import net.minecraft.resources.ResourceKey
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.blockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.execution.blockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.utils.rl

@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
-import ru.hollowhorizon.hollowengine.common.codeblocks.blockContext
+import ru.hollowhorizon.hollowengine.common.codeblocks.execution.blockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
@@ -16,8 +16,9 @@ import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 
 @Serializable
 @SerialName("hollowengine:events/set_global")
-class SetGlobalVarBlock(var varName: String = "var") : StatementBlock() {
-    val expressionType get() = (inputs["value"] as? ExpressionBlock)?.expressionType
+class SetGlobalVarBlock(override var variableName: String = "var") : StatementBlock(), VariableProvider {
+    override val expressionType get() = (inputs["value"] as? ExpressionBlock)?.expressionType ?: AnyType
+    override val isGlobal = true
 
     val value by input<Any>("value")
 
@@ -25,16 +26,16 @@ class SetGlobalVarBlock(var varName: String = "var") : StatementBlock() {
     override suspend fun execute() {
         val value = value()
 
-        blockContext().variables[varName]?.set(JavaHacks.forceCast(value))
+        blockContext().variables[variableName]?.set(JavaHacks.forceCast(value))
     }
 
     override fun InputSlotScope.composeContent() {
         Text("Присвоить (G):") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         // Поле ввода имени переменной
-        TextField(varName) {
+        TextField(variableName) {
             modifier.width(FitContent).margin(horizontal = 5.dp.scaled())
                 .alignY(AlignmentY.Center)
-                .onChange { varName = it }
+                .onChange { variableName = it }
                 .hint("Имя переменной").font(font)
                 .colors(textColor = Color.WHITE, lineColor = Color.WHITE)
         }
@@ -48,7 +49,7 @@ class SetGlobalVarBlock(var varName: String = "var") : StatementBlock() {
 class GetGlobalVarBlock(var varName: String = "var") : ExpressionBlock() {
     override val expressionType: ExpressionType
         get() {
-            val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.varName == varName }
+            val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.variableName == varName }
             return setVar?.expressionType ?: AnyType
         }
 
@@ -72,7 +73,7 @@ class GetGlobalVarBlock(var varName: String = "var") : ExpressionBlock() {
 class GetGlobalVarInlineBlock(val name: String) : ExpressionBlock() {
     override val expressionType: ExpressionType
         get() {
-            val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.varName == name }
+            val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.variableName == name }
             return setVar?.expressionType ?: AnyType
         }
 
