@@ -97,16 +97,14 @@ class PlayerInteractWithBlock : StatementBlock() {
 
 @Serializable
 @SerialName("hollowengine:events/interact_block/item")
-class PlayerInteractWithItem : StatementBlock(), StartBlock {
-    @Transient
-    override val isGlobal: MutableStateValue<Boolean> = mutableStateOf(false)
+class PlayerInteractWithItem : StartBlock() {
     val player by input<Player>("player")
     var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
 
     @Transient
     val popup = AutoPopup(true, true)
 
-    override suspend fun execute() {
+    override suspend fun trigger() {
         while (true) {
             val event = await<PlayerInteractEvent.ItemInteract>()
             if (event.player != player()) continue

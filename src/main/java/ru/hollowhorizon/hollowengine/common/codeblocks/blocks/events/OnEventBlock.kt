@@ -8,13 +8,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
 @Serializable
 @SerialName("hollowengine:events/receive")
-class OnEventBlock(var eventName: String = "MyEvent") : StatementBlock(), StartBlock {
-    @Transient
-    override val isGlobal: MutableStateValue<Boolean> = mutableStateOf(false)
+class OnEventBlock(var eventName: String = "MyEvent") : StartBlock() {
     @Transient
     var restartOnTrigger = mutableStateOf(true)
 
@@ -27,6 +24,10 @@ class OnEventBlock(var eventName: String = "MyEvent") : StatementBlock(), StartB
 
     @Transient
     private var activeJob: Job? = null
+
+    override suspend fun trigger() {
+        TODO("Not yet implemented")
+    }
 
     override suspend fun execute() {
 //        context.eventBus.collect { (name, _) ->

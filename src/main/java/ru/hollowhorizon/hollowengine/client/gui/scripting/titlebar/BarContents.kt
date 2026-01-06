@@ -23,11 +23,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.CodeBlocksComponent
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.createScript
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
-import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
-import ru.hollowhorizon.hollowengine.common.components.registry.ModComponents
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -198,8 +194,7 @@ class StartScriptPacket(val path: String) : HollowPacket {
             val file = path.fromReadablePath()
 
             if (file.name.endsWith(".bc")) {
-                (player.server as ComponentDispatcher).container.get<CodeBlocksComponent>(ModComponents.CODE_BLOCKS_COMPONENT)
-                    ?.contexts?.add(createScript(file).also { it.launch() })
+                TODO()
             } else {
                 val result = ScriptingEnvironment.INSTANCE.compiler.compile(file)
                 if (result.isFailure) {

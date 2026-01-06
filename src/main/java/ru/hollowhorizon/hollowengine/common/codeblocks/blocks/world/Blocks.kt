@@ -15,10 +15,10 @@ import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
-import ru.hollowhorizon.hollowengine.common.codeblocks.execution.blockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentFile
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 
 @Serializable
@@ -28,7 +28,7 @@ class UpdateBlockBlock : StatementBlock() {
     val pos by input<BlockPos>("pos")
 
     override suspend fun execute() {
-        val level = blockContext().server.getLevel(world()) ?: return
+        val level = currentFile().system.owner.getLevel(world()) ?: return
         val pos = pos()
         level.sendBlockUpdated(pos, level.getBlockState(pos), level.getBlockState(pos), 3)
     }
@@ -49,7 +49,7 @@ class SetBlockBlock: StatementBlock() {
     val blockState by input<BlockState>("blockState")
 
     override suspend fun execute() {
-        val level = blockContext().server.getLevel(world()) ?: return
+        val level = currentFile().system.owner.getLevel(world()) ?: return
         val pos = pos()
         val blockState = blockState()
         level.setBlockAndUpdate(pos, blockState)
@@ -73,7 +73,7 @@ class GetBlockBlock: ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<BlockState>()
     override suspend fun execute(): BlockState {
-        val level = blockContext().server.getLevel(world()) ?: throw IllegalStateException("Level not found: ${world()}")
+        val level = currentFile().system.owner.getLevel(world()) ?: throw IllegalStateException("Level not found: ${world()}")
         val pos = pos()
         return level.getBlockState(pos)
     }
@@ -92,7 +92,7 @@ class RemoveBlockBlock : StatementBlock() {
     val pos by input<BlockPos>("pos")
 
     override suspend fun execute() {
-        val level = blockContext().server.getLevel(world()) ?: return
+        val level = currentFile().system.owner.getLevel(world()) ?: return
         val pos = pos()
         level.removeBlock(pos, false)
     }
@@ -113,7 +113,7 @@ class RotateBlockBlock: StatementBlock() {
     val rotation by input<Rotation>("rotation")
 
     override suspend fun execute() {
-        val level = blockContext().server.getLevel(world()) ?: return
+        val level = currentFile().system.owner.getLevel(world()) ?: return
         val pos = pos()
         val blockState = level.getBlockState(pos)
 
@@ -139,7 +139,7 @@ class SpawnEntityBlock: ExpressionBlock() {
     val position by input<Vec3>("pos")
 
     override suspend fun execute() {
-        val level = blockContext().server.getLevel(world()) ?: return
+        val level = currentFile().system.owner.getLevel(world()) ?: return
         val entityType = entityType()
         val entity = entityType.create(level) ?: return
 
@@ -168,7 +168,7 @@ class HasSkyAtBlock: ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
     override suspend fun execute(): Boolean {
-        val level = blockContext().server.getLevel(world()) ?: throw IllegalStateException("Level not found: ${world()}")
+        val level = currentFile().system.owner.getLevel(world()) ?: throw IllegalStateException("Level not found: ${world()}")
         val pos = pos()
         return level.canSeeSky(pos)
     }
@@ -187,7 +187,7 @@ class GetTimeBlock: ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Long>()
     override suspend fun execute(): Long {
-        val level = blockContext().server.getLevel(world()) ?: throw IllegalStateException("Level not found: ${world()}")
+        val level = currentFile().system.owner.getLevel(world()) ?: throw IllegalStateException("Level not found: ${world()}")
         return level.dayTime
     }
     override fun InputSlotScope.composeContent() {
@@ -203,7 +203,7 @@ class SetTimeBlock: StatementBlock() {
     val time by input<Number>("time")
 
     override suspend fun execute() {
-        val level = blockContext().server.getLevel(world()) ?: return
+        val level = currentFile().system.owner.getLevel(world()) ?: return
         level.dayTime = time().toLong()
     }
 
@@ -224,7 +224,7 @@ class GetWeatherBlock: ExpressionBlock() {
     @Transient
     override val expressionType: ExpressionType = typeOf<Weather>()
     override suspend fun execute(): Weather {
-        val level = blockContext().server.getLevel(world()) ?: throw IllegalStateException("Level not found: ${world()}")
+        val level = currentFile().system.owner.getLevel(world()) ?: throw IllegalStateException("Level not found: ${world()}")
         return when {
             level.isRaining -> Weather.RAIN
             level.isThundering -> Weather.THUNDER
@@ -244,7 +244,7 @@ class SetWeatherBlock: StatementBlock() {
     val weather by input<Weather>("weather")
 
     override suspend fun execute() {
-        val level = blockContext().server.getLevel(world()) ?: throw IllegalStateException("Level not found: ${world()}")
+        val level = currentFile().system.owner.getLevel(world()) ?: throw IllegalStateException("Level not found: ${world()}")
 
         when(weather()) {
             Weather.CLEAR -> level.setWeatherParameters(getDuration(level, -1, ServerLevel.RAIN_DELAY), 0, false, false)

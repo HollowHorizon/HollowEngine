@@ -23,13 +23,15 @@ suspend fun currentFile(): ScriptFile = currentInstance().ownerFile
 @CodeBlocksDSL
 suspend fun getVariable(name: String, isGlobal: Boolean): VariableContainer<*>? {
     val file = currentFile()
-    return if (isGlobal) file.system.globals[name] else file.localVariables[name]
+    val instance = currentInstance()
+    return if (isGlobal) file.system.globals[name] else instance.localVariables[name]
 }
 
 @CodeBlocksDSL
 suspend fun setVariable(name: String, isGlobal: Boolean, value: Any?) {
     val file = currentFile()
-    val variable = (if (isGlobal) file.system.globals[name] else file.localVariables[name])
+    val instance = currentInstance()
+    val variable = (if (isGlobal) file.system.globals[name] else instance.localVariables[name])
         ?: error("Variable with name $name not found!")
     variable.set(JavaHacks.forceCast(value))
 }

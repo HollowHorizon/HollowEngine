@@ -8,11 +8,11 @@ import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
-import ru.hollowhorizon.hollowengine.common.codeblocks.execution.blockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.getVariable
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.setVariable
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
-import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 
 interface VariableProvider {
     var variableName: String
@@ -32,7 +32,7 @@ class SetVarBlock(override var variableName: String = "var") : StatementBlock(),
     override suspend fun execute() {
         val value = value()
 
-        blockContext().variables[variableName]?.set(JavaHacks.forceCast(value))
+        setVariable(variableName, false, value)
     }
 
     override fun InputSlotScope.composeContent() {
@@ -60,7 +60,7 @@ class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
         }
 
     override suspend fun execute(): Any? {
-        return blockContext().variables[varName]
+        return getVariable(varName, false)
     }
 
     override fun InputSlotScope.composeContent() {
@@ -84,7 +84,7 @@ class GetVarInlineBlock(val name: String) : ExpressionBlock() {
         }
 
     override suspend fun execute(): Any? {
-        return blockContext().variables[name]?.get()
+        return getVariable(name, false)
     }
 
     override fun InputSlotScope.composeContent() {

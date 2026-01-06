@@ -8,8 +8,8 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.execution.blockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentFile
 
 @Serializable
 @SerialName("hollowengine:server/command")
@@ -17,9 +17,9 @@ class ExecuteCommandBlock : StatementBlock() {
     val cmd by input<String>("cmd")
 
     override suspend fun execute() {
-        val context = blockContext()
-        val source = context.server.createCommandSourceStack()
-        context.server.commands.performPrefixedCommand(source, cmd())
+        val context = currentFile().system
+        val source = context.owner.createCommandSourceStack()
+        context.owner.commands.performPrefixedCommand(source, cmd())
     }
 
     override fun InputSlotScope.composeContent() {

@@ -15,12 +15,10 @@ import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 
 @Serializable
 @SerialName("hollowengine:events/player_join")
-class OnPlayerJoinBlock : StatementBlock(), StartBlock {
-    @Transient
-    override val isGlobal: MutableStateValue<Boolean> = mutableStateOf(false)
+class OnPlayerJoinBlock : StartBlock() {
     private val player by input<Player>("player")
 
-    override suspend fun execute() {
+    override suspend fun trigger() {
         do {
             val event = await<PlayerEvent.Join>()
             val joinedPlayer = event.player

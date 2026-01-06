@@ -9,12 +9,10 @@ import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
-import ru.hollowhorizon.hollowengine.common.codeblocks.execution.blockContext
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
-import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 
 @Serializable
 @SerialName("hollowengine:events/set_entity")
@@ -27,7 +25,7 @@ class SetEntityVarBlock(var varName: String = "var") : StatementBlock() {
     override suspend fun execute() {
         val value = value()
 
-        blockContext().variables[varName]?.set(JavaHacks.forceCast(value))
+        TODO()
     }
 
     override fun InputSlotScope.composeContent() {
@@ -60,7 +58,7 @@ class GetEntityVarBlock(var varName: String = "var") : ExpressionBlock() {
     val entity by input<LivingEntity>("entity")
 
     override suspend fun execute(): Any? {
-        return blockContext().variables[varName]
+        return TODO()
     }
 
     override fun InputSlotScope.composeContent() {
@@ -88,7 +86,7 @@ class GetEntityVarInlineBlock(val name: String) : ExpressionBlock() {
     val entity by input<LivingEntity>("entity")
 
     override suspend fun execute(): Any? {
-        return blockContext().variables[name]?.get()
+        return TODO()
     }
 
     override fun InputSlotScope.composeContent() {
