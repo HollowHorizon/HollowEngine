@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.coroutines
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Runnable
+import ru.hollowhorizon.hollowengine.HollowEngine
 import kotlin.coroutines.CoroutineContext
 
 class SingleThreadDispatcher(private val name: String) : CoroutineDispatcher() {
@@ -22,12 +23,18 @@ class SingleThreadDispatcher(private val name: String) : CoroutineDispatcher() {
     }
 
     fun runTasks() {
-        while (true) {
-            val task = synchronized(lock) {
-                check(shutdownDelegate == null) { "Dispatcher has been shut down" }
-                queue.removeFirstOrNull()
-            } ?: break
-            task.run()
+        var tasksToRun = synchronized(lock) { queue.size }
+
+        while (tasksToRun > 0) {
+            val task = synchronized(lock) { queue.removeFirstOrNull() } ?: break
+
+            try {
+                task.run()
+            } catch (e: Throwable) {
+                HollowEngine.LOGGER.error("Exception while running coroutine!", e)
+            }
+
+            tasksToRun--
         }
     }
 

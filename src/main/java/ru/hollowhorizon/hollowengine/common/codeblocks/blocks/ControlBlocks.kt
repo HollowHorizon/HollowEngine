@@ -5,11 +5,12 @@ import de.fabmax.kool.modules.ui2.Text
 import de.fabmax.kool.modules.ui2.alignY
 import de.fabmax.kool.modules.ui2.textColor
 import de.fabmax.kool.util.Color
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.yield
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlockFrame
 import ru.hollowhorizon.hollowengine.common.codeblocks.forget
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -26,8 +27,7 @@ class WhileBlock : StatementBlock(), ContainerBlock {
         while (coroutineContext.isActive && remember("condition") { condition() }) {
             body()
             forget("condition")
-            // Небольшая задержка, чтобы не повесить поток при бесконечном цикле без yield
-            delay(1)
+            yield() // Следующая итерация только в следующем тике
         }
     }
 
@@ -47,7 +47,12 @@ class DelayBlock : StatementBlock() {
     val time by input<Number>("time")
 
     override suspend fun execute() {
-        delay((time().toDouble() * 1000).toLong())
+        val frame = coroutineContext[BlockFrame.Key] ?: error("Block frame not found")
+        var remaining = frame.tag.getInt("remaining_ticks").takeIf { it > 0 } ?: (time().toFloat() * 20f).toInt()
+        while (remaining > 0) {
+            yield()
+            frame.tag.putInt("remaining_ticks", --remaining)
+        }
     }
 
     override fun InputSlotScope.composeContent() {
