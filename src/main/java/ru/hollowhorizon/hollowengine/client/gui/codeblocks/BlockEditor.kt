@@ -4,29 +4,23 @@ import de.fabmax.kool.input.*
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.MutableColor
 import de.fabmax.kool.util.set
-import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.screens.TitleScreen
+import ru.hollowhorizon.hollowengine.client.audio.UIAudio
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.colors.PaddingLargeSpacing
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
-import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
-import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.*
-import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.client.ScreenEvent
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
-class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : BlocksScope {
+open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : BlocksScope {
     val controller = BlockController(this)
     val dragState = DragState(this)
     val blocksPanel = BlocksPanel(this)
@@ -505,6 +499,10 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
         }
     }
 
+    open fun playConnectSound() {
+        UIAudio.CONNECT.play()
+    }
+
 }
 
 // --- Extensions & Utils ---
@@ -635,32 +633,4 @@ inline fun <reified T> UiNode.findParentOfType(filter: (T) -> Boolean = { true }
 
     while (current != null && !(current is T && filter(current))) current = current.parent
     return current as? T
-}
-
-@SubscribeEvent
-fun onScreenCreation(event: ScreenEvent.Render.Pre) {
-    if (event.screen is TitleScreen) {
-        val screen = object : KoolScreen() {
-            override fun Scene.setup() {
-                val surface = addPanelSurface(IdeTheme.colors, IdeTheme.sizes) {
-                    modifier.size(Grow.Std, Grow.Std).layout(CellLayout)
-                    Text("Это тестовая версия!\nПока доступен только функционал редактора") {
-                        modifier.align(AlignmentX.Center, AlignmentY.Center)
-                            .font(sizes.normalText.derive(30f))
-                            .isWrapText(true)
-                            .width(Grow.Std)
-                            .textAlign(AlignmentX.Center, AlignmentY.Center)
-                            .padding(Dimensions.PaddingMedium)
-                            .margin(Dimensions.PaddingMedium)
-
-                        val isHovered by modifier.hoverable()
-                        val color by animateColorAsState(if (isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary)
-                        modifier.background(RoundRectBackground(color, Dimensions.PaddingMedium))
-                    }
-                }
-                surface.inputMode = UiSurface.InputCaptureMode.CaptureDisabled
-            }
-        }
-        Minecraft.getInstance().setScreen(screen)
-    }
 }

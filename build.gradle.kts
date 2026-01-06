@@ -72,6 +72,9 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation(kotlin("reflect"))
 
     install("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
     install("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
@@ -100,4 +103,8 @@ sourceSets {
 
 tasks.withType<KotlinCompile> {
     dependsOn(generateAssets)
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }

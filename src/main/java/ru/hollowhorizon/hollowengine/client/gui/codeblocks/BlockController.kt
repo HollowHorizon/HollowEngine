@@ -4,7 +4,6 @@ import de.fabmax.kool.math.MutableVec2f
 import de.fabmax.kool.math.MutableVec4f
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
-import ru.hollowhorizon.hollowengine.client.audio.UIAudio
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.*
@@ -261,7 +260,7 @@ class BlockController(val editor: BlockEditor) {
                 is DropAction.AttachToInput -> attachBlockToInputLogic(action.target, action.inputName, block)
             }
 
-            UIAudio.CONNECT.play()
+            editor.playConnectSound()
             triggerSnapEffect(action)
 
             val newStates = affectedBlocks.associateWith { captureConnectionState(it) }
@@ -582,7 +581,7 @@ class BlockController(val editor: BlockEditor) {
         editor.triggerSnapEffect(SnapAnimation(logicalX + offsetX, logicalY + offsetY))
     }
 
-    private fun isValidDrop(source: BlockModel, action: DropAction): Boolean {
+    fun isValidDrop(source: BlockModel, action: DropAction): Boolean {
         if (source == action.target) return false
         if (isAncestorOf(source, action.target)) return false
 

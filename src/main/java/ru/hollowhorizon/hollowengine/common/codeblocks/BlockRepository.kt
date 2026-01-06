@@ -7,7 +7,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import kotlin.reflect.KClass
 
-class BlockProvider(val name: String, val rootCategory: BlockCategory)
+open class BlockProvider(val name: String, val rootCategory: BlockCategory)
 
 fun BlockProvider.findColorFor(block: BlockModel): Color = rootCategory.findColorFor(block) ?: rootCategory.color
 fun BlockCategory.findColorFor(block: BlockModel): Color? {

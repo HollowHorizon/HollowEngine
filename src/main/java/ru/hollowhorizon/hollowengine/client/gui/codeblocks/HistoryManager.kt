@@ -154,12 +154,30 @@ class ConnectionAction(
         }
 
         if (state.parentBlock != null && state.parentInputName != null) {
+            val occupied = state.parentBlock.inputs[state.parentInputName]
+            if (occupied != null && occupied != block) {
+                // В идеале, предыдущее действие Undo должно было это убрать.
+                // Но для надежности:
+                editor.rootBlocks.add(occupied)
+                occupied.parentBlock = null
+                occupied.parentInputName = null
+            }
             state.parentBlock.inputs[state.parentInputName] = block
             block.parentBlock = state.parentBlock
             block.parentInputName = state.parentInputName
         } else if (state.parentStatement != null && block.isStatement() && state.parentStatement.isStatement()) {
-            state.parentStatement.next = block
-            block.parent = state.parentStatement
+            val parent = state.parentStatement
+
+            // Аналогично, в теории всё должно быть нормально, но если в будущем я поломаю логику, то это должно её обезопасить
+            if (parent.next != null && parent.next != block) {
+                val occupied = parent.next!!
+                editor.rootBlocks.add(occupied)
+                occupied.parent = null
+                parent.next = null
+            }
+
+            parent.next = block
+            block.parent = parent
         }
 
         if (block is StatementBlock && state.nextStatement != null && state.nextStatement.isStatement()) {
@@ -167,6 +185,13 @@ class ConnectionAction(
 
             if (child.parent != null && child.parent != block) {
                 child.parent!!.next = null
+            }
+
+            // Добавленная проверка: если child был в контейнере
+            if (child.parentBlock != null) {
+                child.parentBlock!!.inputs.remove(child.parentInputName)
+                child.parentBlock = null
+                child.parentInputName = null
             }
 
             block.next = child
@@ -178,7 +203,6 @@ class ConnectionAction(
             child.parent = block
         } else if (block is StatementBlock && state.nextStatement == null) {
             val currentChild = block.next
-            // TODO: В теории это always true, но надо в этом убедиться
             if (currentChild != null) {
                 currentChild.parent = null
                 if (!editor.rootBlocks.contains(currentChild)) {

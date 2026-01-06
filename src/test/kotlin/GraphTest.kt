@@ -1,13 +1,15 @@
-import junit.framework.TestCase.assertTrue
-import kotlinx.coroutines.CoroutineScope
+
+
 import kotlinx.coroutines.test.runTest
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.common.graph.Graph
 import ru.hollowhorizon.hollowengine.common.graph.Status
 import ru.hollowhorizon.hollowengine.common.graph.graph
+import kotlin.test.DefaultAsserter.assertTrue
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class GraphTest {
     @Test
