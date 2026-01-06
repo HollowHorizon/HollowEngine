@@ -245,10 +245,10 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                             GhostPlaceholder(controller.draggingBlock ?: block)
                             controller.addDropTarget(DropAction.AttachAfter(block), uiNode)
                         }
-                    } else if (next == null && canDrag && block.parentBlock == null) {
+                    } else if (next == null && canDrag && block.bodyRoot.parentBlock == null) {
                         Box {
                             modifier.width(Grow.Std)
-                                .height(Dimensions.PaddingHuge * currentZoom)
+                                .height(Dimensions.PaddingExtraLarge * currentZoom)
                             controller.addDropTarget(DropAction.AttachAfter(block), uiNode)
                         }
                     }
@@ -352,7 +352,18 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
             modifier.apply(blockModifier)
 
             val isTrigger = block is StartBlock
-            if (isTrigger) modifier.padding(end = Dimensions.PaddingMedium * scale)
+
+            if (isTrigger) {
+                val modeSize = Dimensions.PaddingHuge * scale
+                modifier.padding(end = modeSize)
+                    .onClick {
+                        if (it.position.x > uiNode.widthPx - modeSize.px && it.pointer.isLeftButtonClicked) {
+                            block.toggleMode()
+                        } else {
+                            it.isConsumed = false
+                        }
+                    }
+            }
 
             val isUnused = block.parentsWithSelf.none { it is StartBlock } && block.root in rootBlocks
             val isSelected = controller.selectedBlocks.use().contains(block)
@@ -362,6 +373,10 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                 if (isHovered.use()) baseColor else baseColor.mulRgb(0.9f),
                 tween(0.2f, Easing.easeOutQuart)
             )
+            val factor by animateFloatAsState(
+                if (isTrigger && block.mode.use().isGlobal()) 1f else 0f,
+                tween(0.2f, Easing.easeOutQuart)
+            )
 
             modifier.background(
                 ScratchBlockBackground(
@@ -369,8 +384,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                     animatedColor,
                     scale,
                     isGhost,
-                    isUnused,
-                    isSelected
+                    isSelected,
+                    factor
                 )
             )
 
@@ -441,8 +456,8 @@ class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Unit) : 
                     baseColor,
                     scale,
                     isGhost = true,
-                    isUnused = false,
-                    isSelected = false
+                    isSelected = false,
+                    0f
                 )
             )
         }

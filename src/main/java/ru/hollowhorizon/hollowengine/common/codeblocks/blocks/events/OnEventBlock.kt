@@ -9,10 +9,13 @@ import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.TriggerMode
 
 @Serializable
 @SerialName("hollowengine:events/receive")
 class OnEventBlock(var eventName: String = "MyEvent") : StatementBlock(), StartBlock {
+    @Transient
+    override val mode: MutableStateValue<TriggerMode> = mutableStateOf(TriggerMode.LOCAL)
     @Transient
     var restartOnTrigger = mutableStateOf(true)
 

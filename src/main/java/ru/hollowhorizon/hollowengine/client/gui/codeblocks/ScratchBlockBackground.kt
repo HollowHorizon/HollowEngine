@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.scene.geometry.MeshBuilder
 import de.fabmax.kool.util.*
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.PuzzleShapes.drawInnerShadow
@@ -24,14 +25,15 @@ class ScratchBlockBackground(
     val color: Color,
     val zoom: Float,
     val isGhost: Boolean,
-    val isUnused: Boolean,
     val isSelected: Boolean,
+    val triggerFactor: Float
 ) : UiRenderer<UiNode> {
     val isExpression = block.isExpression()
     val hasPrev = block !is StartBlock
     val hasNext = block !is EndBlock
     val isContainer = block is ContainerBlock
     val drawInnerShadow = block.isExpression() && block.parentBlock != null
+    val isTrigger = !hasPrev
 
     override fun renderUi(node: UiNode) = with(node) {
         val gap = Dimensions.PaddingNormal.px * 3f * zoom
@@ -42,7 +44,7 @@ class ScratchBlockBackground(
         val notchX = gap
         val r = smallGap
 
-        val w = node.widthPx
+        val w = node.widthPx - if(isTrigger) Dimensions.PaddingMedium.px * zoom else 0f
         val h = node.heightPx
         val x = 0f
         val y = 0f
@@ -69,7 +71,6 @@ class ScratchBlockBackground(
                 points.add(Vec3f(x, tyStart, 0f))
             }
         } else {
-            val isTrigger = !hasPrev
             val rTopLeft = if (isTrigger) gap * 1.5f else r
 
             PuzzleShapes.addBezier(points, x, y + rTopLeft, x, y, x + rTopLeft, y)
@@ -90,7 +91,7 @@ class ScratchBlockBackground(
                 val k = 0.55228f
 
                 val yTopStart = cy - totalR
-                val yTopArc   = cy - totalR + filletR * 0.5f
+                val yTopArc = cy - totalR + filletR * 0.5f
                 val yBottomArc = cy + totalR - filletR * 0.5f
                 val yBottomEnd = cy + totalR
 
@@ -98,28 +99,32 @@ class ScratchBlockBackground(
 
                 points.add(Vec3f(x + w, yTopStart, 0f))
 
-                PuzzleShapes.addCubicBezier(points,
+                PuzzleShapes.addCubicBezier(
+                    points,
                     x + w, yTopStart,
                     x + w, yTopStart + filletR * k,
                     x + w - filletR + filletR * k, yTopArc,
                     x + w - filletR, yTopArc,
                 )
 
-                PuzzleShapes.addCubicBezier(points,
+                PuzzleShapes.addCubicBezier(
+                    points,
                     x + w - filletR, yTopArc,
                     x + w - filletR - innerR * k, yTopArc,
                     x + w - totalR, cy - innerR * k,
                     x + w - totalR, cy
                 )
 
-                PuzzleShapes.addCubicBezier(points,
+                PuzzleShapes.addCubicBezier(
+                    points,
                     x + w - totalR, cy,
                     x + w - totalR, cy + innerR * k,
                     x + w - filletR - innerR * k, yBottomArc,
                     x + w - filletR, yBottomArc
                 )
 
-                PuzzleShapes.addCubicBezier(points,
+                PuzzleShapes.addCubicBezier(
+                    points,
                     x + w - filletR, yBottomArc,
                     x + w - filletR + filletR * k, yBottomArc,
                     x + w, yBottomEnd - filletR * k,
@@ -168,7 +173,12 @@ class ScratchBlockBackground(
                 } else {
                     points
                 }
-                PuzzleShapes.drawStroke(strokePoints, if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f, ColorTheme.UI.WhiteReplacement, isContainer)
+                PuzzleShapes.drawStroke(
+                    strokePoints,
+                    if (zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f,
+                    ColorTheme.UI.WhiteReplacement,
+                    isContainer
+                )
             }
         }
 
@@ -176,29 +186,43 @@ class ScratchBlockBackground(
             if (drawInnerShadow) drawInnerShadow(points, zoom)
         }
 
-        if(!hasPrev) {
-            val texture = ImageManager.load(icons.AUTOCOMPLETE_CLASS, SamplerMode.LINEAR)
-            val mesh = surface.getMeshLayer(modifier.zLayer).addImage(texture)
-            mesh.builder.clear()
-            mesh.builder.configure(color) {
-                rect {
-                    isCenteredOrigin = false
+        if (block is StartBlock) {
+            val layer = surface.getMeshLayer(modifier.zLayer)
 
-                    generateTexCoords()
-                    mirrorTexCoordsY()
+            val local = ImageManager.load(icons.AUTOCOMPLETE_CLASS, SamplerMode.LINEAR)
+            val global = ImageManager.load(icons.GLOBAL, SamplerMode.LINEAR)
+            val localMesh = layer.addImage(local)
+            val globalMesh = layer.addImage(global)
 
-                    val imgW = texture.width
-                    val imgH = texture.height
-                    val cx = widthPx
-                    val cy = heightPx * 0.5f
-
-                    val s = min(innerWidthPx / imgW, innerHeightPx / imgH) * 0.35f
-                    origin.set(cx - imgW * s * 0.5f, cy - imgH * s * 0.5f, 0f)
-                    size.set(imgW * s, imgH * s)
-                }
-            }
-            mesh.applyShader(texture, null)
+            Image(localMesh, local, 1f - triggerFactor)
+            Image(globalMesh, global, triggerFactor)
         }
+    }
+
+    private fun UiNode.Image(
+        mesh: ImageMesh,
+        texture: Texture2d,
+        factor: Float
+    ) {
+        mesh.builder.clear()
+        mesh.builder.configure(color.withAlpha(factor)) {
+            rect {
+                isCenteredOrigin = false
+
+                generateTexCoords()
+                mirrorTexCoordsY()
+
+                val imgW = texture.width
+                val imgH = texture.height
+                val cx = widthPx - Dimensions.PaddingMedium.px * zoom
+                val cy = heightPx * 0.5f
+
+                val s = min(innerWidthPx / imgW, innerHeightPx / imgH) * 0.35f
+                origin.set(cx - imgW * s * 0.5f, cy - imgH * s * 0.5f, 0f)
+                size.set(imgW * s, imgH * s)
+            }
+        }
+        mesh.applyShader(texture, null)
     }
 }
 
@@ -251,7 +275,12 @@ class ContainerFooterBackground(
                     addAll(points.drop(1))
                     add(Vec3f(x, y, 0f))
                 }
-                PuzzleShapes.drawStroke(strokePoints, if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f, ColorTheme.UI.WhiteReplacement, true)
+                PuzzleShapes.drawStroke(
+                    strokePoints,
+                    if (zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f,
+                    ColorTheme.UI.WhiteReplacement,
+                    true
+                )
             }
         }
 
@@ -298,7 +327,7 @@ class ContainerMiddleBackground(val color: Color, val zoom: Float, val isSelecte
 
         if (isSelected) {
             node.getPlainBuilder(100_000).configure(null) {
-                val width = if(zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f
+                val width = if (zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f
                 val strokePoints = buildList {
                     add(Vec3f(x + BlockEditor.C_BLOCK_SPINE_WIDTH.px * zoom, y, 0f))
                     addAll(points.drop(1).dropLast(1))
@@ -306,7 +335,12 @@ class ContainerMiddleBackground(val color: Color, val zoom: Float, val isSelecte
 
                 }
                 PuzzleShapes.drawStroke(strokePoints, width, ColorTheme.UI.WhiteReplacement, true)
-                PuzzleShapes.drawStroke(listOf(points.first(), points.last()), width, ColorTheme.UI.WhiteReplacement, false)
+                PuzzleShapes.drawStroke(
+                    listOf(points.first(), points.last()),
+                    width,
+                    ColorTheme.UI.WhiteReplacement,
+                    false
+                )
             }
         }
 
@@ -349,14 +383,18 @@ class SpineBackground(val color: Color, val zoom: Float, val isSelected: Boolean
         if (isSelected) {
             node.getPlainBuilder(100_000).configure(null) {
                 val width = if (zoom > 0.5) 2.dp.px * zoom else 2.dp.px / zoom * 0.15f
-                PuzzleShapes.drawStroke(listOf(
-                    Vec3f(0f, 0f, 0f),
-                    Vec3f(0f, h, 0f),
-                ), width, ColorTheme.UI.WhiteReplacement, true)
-                PuzzleShapes.drawStroke(listOf(
-                    Vec3f(w, 0f, 0f),
-                    Vec3f(w, h, 0f),
-                ), width, ColorTheme.UI.WhiteReplacement, true)
+                PuzzleShapes.drawStroke(
+                    listOf(
+                        Vec3f(0f, 0f, 0f),
+                        Vec3f(0f, h, 0f),
+                    ), width, ColorTheme.UI.WhiteReplacement, true
+                )
+                PuzzleShapes.drawStroke(
+                    listOf(
+                        Vec3f(w, 0f, 0f),
+                        Vec3f(w, h, 0f),
+                    ), width, ColorTheme.UI.WhiteReplacement, true
+                )
 
             }
         }

@@ -4,12 +4,10 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.EndBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.*
 
 @Serializable
 @SerialName("hollowengine:custom/custom_block")
@@ -34,4 +32,7 @@ class CustomBlock(var function: String = ""): StatementBlock(), ContainerBlock, 
     override fun InputSlotScope.composeBody() {
         BodySlot("body")
     }
+
+    @Transient
+    override val mode: MutableStateValue<TriggerMode> = mutableStateOf(TriggerMode.LOCAL)
 }

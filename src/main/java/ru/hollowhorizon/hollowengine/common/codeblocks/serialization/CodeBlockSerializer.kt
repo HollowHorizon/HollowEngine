@@ -10,7 +10,9 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.findColorFor
 import ru.hollowhorizon.hollowengine.common.codeblocks.flatten
 import ru.hollowhorizon.hollowengine.common.codeblocks.isRoot
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.TriggerMode
 import java.util.*
 
 class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockModel>> {
@@ -41,6 +43,9 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockM
                 if (block.isRoot) {
                     put("x", JsonPrimitive(block.positionX.value))
                     put("y", JsonPrimitive(block.positionY.value))
+                }
+                if (block is StartBlock) {
+                    put("mode", JsonPrimitive(block.mode.value.name))
                 }
                 put("isCollapsed", JsonPrimitive(block.isCollapsed.value))
             }
@@ -112,6 +117,9 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockM
             }
             jsonObject["isCollapsed"]?.jsonPrimitive?.booleanOrNull?.let { isCollapsed ->
                 currentBlock.isCollapsed.set(isCollapsed)
+            }
+            jsonObject["mode"]?.takeIf { currentBlock is StartBlock }?.jsonPrimitive?.content?.let { mode ->
+                (currentBlock as StartBlock).mode.set(TriggerMode.valueOf(mode))
             }
         }
 

@@ -90,6 +90,10 @@ class InputSlotScope(
                 if (isHovered) baseColor else baseColor.mulRgb(0.9f),
                 tween(0.2f, Easing.easeOutQuart)
             )
+            val factor by animateFloatAsState(
+                if (parentBlock is StartBlock && parentBlock.mode.use().isGlobal()) 1f else 0f,
+                tween(0.2f, Easing.easeOutQuart)
+            )
             Box {
 
                 modifier.width(BlockEditor.C_BLOCK_SPINE_WIDTH.scaled())
@@ -109,8 +113,8 @@ class InputSlotScope(
                                 controller.draggingBlock?.resolveColor(true, false, false) ?: animatedColor,
                                 scale,
                                 isGhost,
-                                isUnused,
-                                isSelected
+                                isSelected,
+                                factor
                             )
                         )
                     }
