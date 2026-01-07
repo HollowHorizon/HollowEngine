@@ -58,6 +58,8 @@ dependencies {
     install("com.github.weisj:jsvg:2.0.0")
     install("com.facebook:ktfmt:0.54")
 
+    install("org.jetbrains:markdown:0.7.3")
+
     val modPlatform = stonecutter.modPlatform
     if(stonecutter.minecraftVersion == "1.20.1") {
         val jei = "15.20.0.105"
