@@ -7,6 +7,8 @@ import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.MarkdownTokenTypes
 import org.intellij.markdown.ast.ASTNode
 import org.intellij.markdown.flavours.commonmark.CommonMarkFlavourDescriptor
+import org.intellij.markdown.flavours.gfm.GFMElementTypes
+import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.intellij.markdown.parser.MarkdownParser
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme.Fonts.MONOCRAFT
 
@@ -28,6 +30,11 @@ data class MarkdownStyle(
     val textColor: Color = Color.WHITE,
     val codeBackgroundColor: Color = Color.WHITE.withAlpha(0.1f),
     val linkColor: Color = Color("4D90FE"),
+
+    val tableBorderColor: Color = Color.WHITE.withAlpha(0.3f),
+    val tableHeaderBgColor: Color = Color.WHITE.withAlpha(0.2f),
+    val tableEvenRowColor: Color? = null,
+    val tableOddRowColor: Color? = Color.WHITE.withAlpha(0.05f),
 )
 
 class MarkdownEditorHandler(initialText: String = "") : TextLineProvider {
@@ -112,7 +119,7 @@ fun UiScope.MarkdownViewer(
     block: UiScope.() -> Unit = {},
 ) {
     val parsedTree = rememberTarget(markdownSource) {
-        val parser = MarkdownParser(CommonMarkFlavourDescriptor())
+        val parser = MarkdownParser(GFMFlavourDescriptor()) // CommonMark не поддерживает таблицы :>
         parser.buildMarkdownTreeFromString(markdownSource)
     }
 
@@ -178,6 +185,8 @@ private fun UiScope.renderMarkdownNode(
             MarkdownElementTypes.IMAGE -> {
                 MarkdownImage(child, source, style)
             }
+
+            GFMElementTypes.TABLE -> MarkdownTable(child, source, style)
 
             else -> {
                 renderMarkdownNode(child, source, style, availableWidth)
