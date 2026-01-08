@@ -34,8 +34,8 @@ class Primitive(
     private var jointWeights: Array<Vec4f>? = null,
     private val indices: IntArray? = null,
     private val material: Material,
-    private val morphTargets: List<Map<String, FloatArray>> = listOf(),
-    private var weights: FloatArray = floatArrayOf(),
+    val morphTargets: List<Map<String, FloatArray>> = listOf(),
+    var weights: FloatArray = FloatArray(morphTargets.size) { 0f },
 ) {
     val hasSkinning = joints != null && jointWeights != null
     private val indexCount = indices?.size ?: 0
@@ -73,11 +73,6 @@ class Primitive(
 
     // Кэш для RenderType
     private var cachedRenderType: RenderType? = null
-
-    fun setWeights(values: FloatArray) {
-        if (values.isEmpty()) return
-        weights = values
-    }
 
     fun setupPipeline(
         pipeline: RenderPipeline,
@@ -435,7 +430,7 @@ class Primitive(
         if (morphTargets.isNotEmpty() && positions != null) {
             val vertexCount = positions!!.size
             val morphCount = morphTargets.size
-            val totalSize = vertexCount * morphCount * 3
+            val totalSize = vertexCount * morphCount * 4
 
             val posDeltaBuffer = BufferUtils.createFloatBuffer(totalSize)
             val norDeltaBuffer = BufferUtils.createFloatBuffer(totalSize)
@@ -448,20 +443,20 @@ class Primitive(
 
                 for (i in 0 until vertexCount) {
                     if (posDeltas != null) {
-                        posDeltaBuffer.put(posDeltas[i * 3]).put(posDeltas[i * 3 + 1]).put(posDeltas[i * 3 + 2])
+                        posDeltaBuffer.put(posDeltas[i * 3]).put(posDeltas[i * 3 + 1]).put(posDeltas[i * 3 + 2]).put(0f)
                     } else {
-                        posDeltaBuffer.put(0f).put(0f).put(0f)
+                        posDeltaBuffer.put(0f).put(0f).put(0f).put(0f)
                     }
 
                     if (norDeltas != null) {
-                        norDeltaBuffer.put(norDeltas[i * 3]).put(norDeltas[i * 3 + 1]).put(norDeltas[i * 3 + 2])
+                        norDeltaBuffer.put(norDeltas[i * 3]).put(norDeltas[i * 3 + 1]).put(norDeltas[i * 3 + 2]).put(0f)
                     } else {
-                        norDeltaBuffer.put(0f).put(0f).put(0f)
+                        norDeltaBuffer.put(0f).put(0f).put(0f).put(0f)
                     }
 
-                    if (tanDeltas != null) tanDeltaBuffer.put(tanDeltas[i * 3]).put(tanDeltas[i * 3 + 1])
+                    if (tanDeltas != null) tanDeltaBuffer.put(tanDeltas[i * 3]).put(tanDeltas[i * 3 + 1]).put(0f)
                         .put(tanDeltas[i * 3 + 2])
-                    else tanDeltaBuffer.put(0f).put(0f).put(0f)
+                    else tanDeltaBuffer.put(0f).put(0f).put(0f).put(0f)
                 }
             }
             posDeltaBuffer.flip()
@@ -476,7 +471,7 @@ class Primitive(
 
             morphPosTexture = GL11.glGenTextures()
             GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, morphPosTexture)
-            GL31.glTexBuffer(GL31.GL_TEXTURE_BUFFER, GL30.GL_RGB32F, morphPosBuffer)
+            GL31.glTexBuffer(GL31.GL_TEXTURE_BUFFER, GL30.GL_RGBA32F, morphPosBuffer)
 
             // Создаем TBO для нормалей
             morphNorBuffer = GL15.glGenBuffers()
@@ -485,7 +480,7 @@ class Primitive(
 
             morphNorTexture = GL11.glGenTextures()
             GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, morphNorTexture)
-            GL31.glTexBuffer(GL31.GL_TEXTURE_BUFFER, GL30.GL_RGB32F, morphNorBuffer)
+            GL31.glTexBuffer(GL31.GL_TEXTURE_BUFFER, GL30.GL_RGBA32F, morphNorBuffer)
 
             morphTanBuffer = GL15.glGenBuffers()
             GL15.glBindBuffer(GL31.GL_TEXTURE_BUFFER, morphTanBuffer)
@@ -493,7 +488,7 @@ class Primitive(
 
             morphTanTexture = GL11.glGenTextures()
             GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, morphTanTexture)
-            GL31.glTexBuffer(GL31.GL_TEXTURE_BUFFER, GL30.GL_RGB32F, morphTanBuffer)
+            GL31.glTexBuffer(GL31.GL_TEXTURE_BUFFER, GL30.GL_RGBA32F, morphTanBuffer)
         }
 
         vertexBuffer = GL33.glGenBuffers()
@@ -741,7 +736,7 @@ class Primitive(
             GL20.glUniform1i(locCount, morphTargets.size)
 
             val locVCount = GL20.glGetUniformLocation(shaderId, "vertexCount")
-            GL20.glUniform1i(locVCount, positions?.size ?: 0)
+            GL20.glUniform1i(locVCount, positionsCount / 3)
 
             val locWeights = GL20.glGetUniformLocation(shaderId, "morphWeights")
             if (locWeights != -1 && weights.isNotEmpty()) {
@@ -767,7 +762,6 @@ class Primitive(
         GL11.glDrawArrays(GL11.GL_POINTS, 0, positionsCount / 3)
 
         GL30.glEndTransformFeedback()
-        GL20.glUseProgram(0)
     }
 
     private fun computeMatrices(node: SkinGetter): FloatBuffer {
@@ -796,11 +790,14 @@ class Primitive(
             GL30.glDeleteBuffers(midCoordsBuffer)
             GL30.glDeleteBuffers(skinVertexBuffer)
             GL30.glDeleteBuffers(skinNormalBuffer)
+            GL30.glDeleteBuffers(skinTangentBuffer)
 
             if (morphPosBuffer != -1) GL30.glDeleteBuffers(morphPosBuffer)
             if (morphNorBuffer != -1) GL30.glDeleteBuffers(morphNorBuffer)
+            if (morphTanBuffer != -1) GL30.glDeleteBuffers(morphTanBuffer)
             if (morphPosTexture != -1) GL11.glDeleteTextures(morphPosTexture)
             if (morphNorTexture != -1) GL11.glDeleteTextures(morphNorTexture)
+            if (morphTanTexture != -1) GL11.glDeleteTextures(morphTanTexture)
         }
     }
 }

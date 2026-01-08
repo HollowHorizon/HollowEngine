@@ -146,7 +146,7 @@ object GltfModelLoader : ModelLoader {
                                     }
                                 }.toMap()
                             },
-                            node.weights?.toFloatArray() ?: floatArrayOf()
+                            node.weights?.toFloatArray() ?: FloatArray(prim.targets.size) { 0f }
                         )
                     }
 
