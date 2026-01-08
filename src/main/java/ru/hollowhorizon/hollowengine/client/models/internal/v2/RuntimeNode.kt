@@ -45,10 +45,14 @@ open class RuntimeNode(
         RuntimeNode(it, this)
     }
 
+    val jointGetter by lazy {
+        definition.skin!!.jointsIds.associateWith { id -> root.walk().first { it.definition.index == id } }
+    }
+
     override fun collectCommands(pipeline: RenderPipeline) {
         super.collectCommands(pipeline)
         definition.mesh?.primitives?.forEach { primitive ->
-            primitive.setupPipeline(pipeline, { definition.skin!!.compute(definition) }, ::globalMatrix, ::isVisible)
+            primitive.setupPipeline(pipeline, { definition.skin!!.compute(globalMatrix, jointGetter) }, ::globalMatrix, ::isVisible)
         }
         attachments.forEach {
             it.collectCommands(pipeline)
@@ -67,3 +71,12 @@ fun RuntimeNode.walk(): List<RuntimeNode> = buildList {
         addAll(it.walk())
     }
 }
+
+val RuntimeNode.root: RuntimeNode
+    get() {
+        var current: RuntimeNode = this
+        while (current.parent is RuntimeNode) {
+            current = current.parent
+        }
+        return current
+    }

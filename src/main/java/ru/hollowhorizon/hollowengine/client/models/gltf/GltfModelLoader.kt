@@ -58,9 +58,6 @@ object GltfModelLoader : ModelLoader {
         val model = Model(file.scene, scenes, materials.toSet(), animations).apply {
             isBlockBench = file.asset.generator?.contains("blockbench", ignoreCase = true) == true
             for (skin in skins) {
-                for ((i, id) in skin.jointsIds.withIndex()) {
-                    skin.joints[i] = walkNodes().first { it.index == id }
-                }
                 walkNodes().forEach { node ->
                     node.skin?.let { skin ->
                         node.mesh?.primitives?.forEach {

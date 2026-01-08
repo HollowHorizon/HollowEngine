@@ -86,8 +86,8 @@ class Primitive(
                 visibilityGetter
             )
         } else {
-            initVAO(pipeline, matrixGetter, visibilityGetter)
             initSkinning(pipeline, skinGetter, visibilityGetter)
+            initVAO(pipeline, matrixGetter, visibilityGetter)
         }
     }
 
