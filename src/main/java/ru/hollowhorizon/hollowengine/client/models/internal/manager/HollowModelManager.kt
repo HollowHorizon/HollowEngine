@@ -65,7 +65,7 @@ object HollowModelManager : ResourceManagerReloadListener {
         GL20.glAttachShader(glProgramSkinning, glShader)
         GL20.glDeleteShader(glShader)
         GL30.glTransformFeedbackVaryings(
-            glProgramSkinning, arrayOf<CharSequence>("outPosition", "outNormal"), GL30.GL_SEPARATE_ATTRIBS
+            glProgramSkinning, arrayOf<CharSequence>("outPosition", "outNormal", "outTangent"), GL30.GL_SEPARATE_ATTRIBS
         )
         GL20.glLinkProgram(glProgramSkinning)
     }
