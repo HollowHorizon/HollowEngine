@@ -46,12 +46,14 @@ object EventBus {
     }
 }
 
-suspend inline fun <reified T : Event> await(): T =
+suspend inline fun <reified T : Event> await(crossinline filter: (T) -> Boolean = { true }): T =
     suspendCancellableCoroutine { continuation ->
         val listener = object : EventListener<T> {
             override fun onEvent(event: T) {
-                EventBus.unregister(this)
-                continuation.resume(event)
+                if (filter(event)) {
+                    EventBus.unregister(this)
+                    continuation.resume(event)
+                }
             }
         }
 

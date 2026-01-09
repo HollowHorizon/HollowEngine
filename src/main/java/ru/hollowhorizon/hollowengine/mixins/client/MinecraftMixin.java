@@ -30,7 +30,7 @@ public class MinecraftMixin implements ClientDispatcher {
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void onInit(GameConfig gameConfig, CallbackInfo ci) {
-        hollowcore$dispatcher = new SingleThreadDispatcher("MinecraftServer.dispatcher");
+        hollowcore$dispatcher = new SingleThreadDispatcher("MinecraftServer.dispatcher", Thread.currentThread());
         hollowcore$coroutineScope = CoroutineScopeKt.CoroutineScope(SupervisorJob(null).plus(hollowcore$dispatcher));
     }
 

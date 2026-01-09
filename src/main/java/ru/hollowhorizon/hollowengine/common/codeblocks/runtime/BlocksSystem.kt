@@ -7,7 +7,9 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.BlockRepository
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
+import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.events.server.ServerEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
@@ -64,8 +66,12 @@ class BlocksSystem(server: MinecraftServer) : ServerComponent(server) {
             }
 
         scripts.values.forEach { it.startGlobalTriggers() }
+
+        BlocksSystemReloadedEvent().post()
     }
 }
+
+class BlocksSystemReloadedEvent: Event
 
 @SubscribeEvent
 fun onServerStart(event: ServerEvent.Starting) {

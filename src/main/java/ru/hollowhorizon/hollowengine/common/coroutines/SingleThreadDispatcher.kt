@@ -4,6 +4,7 @@ import kotlinx.coroutines.*
 import ru.hollowhorizon.hollowengine.HollowEngine
 import java.util.PriorityQueue
 import kotlin.Any
+import kotlin.Boolean
 import kotlin.Comparable
 import kotlin.Int
 import kotlin.Long
@@ -17,7 +18,7 @@ import kotlin.synchronized
 import kotlin.with
 
 @OptIn(InternalCoroutinesApi::class)
-class SingleThreadDispatcher(private val name: String) : CoroutineDispatcher(), Delay {
+class SingleThreadDispatcher(private val name: String, private val thread: Thread) : CoroutineDispatcher(), Delay {
     private val lock = Any()
     private val queue = ArrayDeque<Runnable>()
     private val delayedQueue = PriorityQueue<ScheduledTask>()
@@ -35,13 +36,17 @@ class SingleThreadDispatcher(private val name: String) : CoroutineDispatcher(), 
         }
     }
 
+    override fun isDispatchNeeded(context: CoroutineContext): Boolean {
+        if (shutdownDelegate != null) return true
+
+        return Thread.currentThread() != thread
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun scheduleResumeAfterDelay(
         timeMillis: Long,
         continuation: CancellableContinuation<Unit>,
     ) {
-        // Конвертируем миллисекунды в тики. 1 тик = 50 мс.
-        // Округляем вверх, чтобы delay(1) не сработал мгновенно в текущем тике
         val ticks = (timeMillis + 49) / 50
         synchronized(lock) {
             val targetTick = currentTick + ticks

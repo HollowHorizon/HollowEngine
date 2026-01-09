@@ -5,12 +5,14 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemReloadedEvent
+import ru.hollowhorizon.hollowengine.common.events.await
 
 @Serializable
 @SerialName("hollowengine:start")
 class OnStartBlock : StartBlock() {
     override suspend fun trigger() {
-
+        await<BlocksSystemReloadedEvent>()
     }
 
     override suspend fun execute() {}
