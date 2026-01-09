@@ -8,7 +8,7 @@ import org.intellij.markdown.ast.ASTNode
 import org.intellij.markdown.ast.getTextInNode
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
-import ru.hollowhorizon.hollowengine.client.kool.Grid
+import kotlin.math.max
 
 fun UiScope.MarkdownParagraph(
     node: ASTNode,
@@ -97,142 +97,104 @@ fun UiScope.MarkdownImage(node: ASTNode, source: String, style: MarkdownStyle) {
 }
 
 fun UiScope.MarkdownTable(node: ASTNode, source: String, style: MarkdownStyle) {
-    // Кэшируем только выравнивание, размеры считать не нужно
+    val widthCache = remember { mutableStateOf<List<Dp>?>(null) }
     val alignCache = remember { mutableStateOf<List<AlignmentX>?>(null) }
     val prevNodeState = remember { mutableStateOf<ASTNode?>(null) }
 
     if (prevNodeState.value != node) {
+        widthCache.set(measureTableColumns(node, source, style))
         alignCache.set(parseTableAlignments(node, source))
         prevNodeState.set(node)
     }
 
+    val columnWidths = widthCache.use() ?: emptyList()
     val alignments = alignCache.use() ?: emptyList()
 
     val headerNode = node.children.find { it.type == GFMElementTypes.HEADER }
     val rowNodes = node.children.filter { it.type == GFMElementTypes.ROW }
 
-    // Вычисляем количество колонок один раз на основе самой широкой строки
-    val allRows = listOfNotNull(headerNode) + rowNodes
-    val maxCols = allRows.maxOfOrNull { it.children.count { c -> c.type == GFMTokenTypes.CELL } } ?: 1
-
     ScrollArea(
-        width = Grow.Std, // Или FitContent, если хотите, чтобы скролл был только вокруг таблицы
+        width = Grow.Std,
         height = FitContent,
         withVerticalScrollbar = false,
         withHorizontalScrollbar = true,
         containerModifier = {
-            // Внешняя рамка
-            it.background(RectBackground(Color.WHITE.withAlpha(0.1f)))
-                .border(RectBorder(style.tableBorderColor, Dp(1f)))
+            it.background(RectBackground(Color.WHITE.withAlpha(0.1f))).border(RectBorder(style.tableBorderColor, Dp(1f)))
         }
     ) {
-        // ИСПОЛЬЗУЕМ GRID
-        // Grid автоматически выровняет столбцы по ширине самого широкого контента
-        Grid(maxCols) {
+        Column {
             modifier
-                .width(FitContent)  // Таблица занимает ровно столько места, сколько нужно контенту
-                .background(RectBackground(style.tableBorderColor)) // Цвет границ (просвечивает через gap)
+                .background(RectBackground(Color.WHITE.withAlpha(0.05f)))
                 .border(RectBorder(style.tableBorderColor, Dp(1f)))
 
-            // Рендерим заголовок
             if (headerNode != null) {
-                renderGridCells(
-                    rowNode = headerNode,
-                    source = source,
-                    style = style,
-                    alignments = alignments,
-                    maxCols = maxCols,
-                    isHeader = true,
-                    rowBackgroundColor = null // Цвет заголовка обрабатывается внутри
-                )
+                MarkdownTableRow(headerNode, source, style, columnWidths, alignments, isHeader = true)
+                Box(width = Grow.Std, height = Dp(1f)) { modifier.backgroundColor(style.tableBorderColor) }
             }
 
-            // Рендерим строки тела
             rowNodes.forEachIndexed { index, row ->
                 val bgColor = if (index % 2 == 0) style.tableEvenRowColor else style.tableOddRowColor
-                renderGridCells(
-                    rowNode = row,
-                    source = source,
-                    style = style,
-                    alignments = alignments,
-                    maxCols = maxCols,
-                    isHeader = false,
-                    rowBackgroundColor = bgColor
-                )
+                MarkdownTableRow(row, source, style, columnWidths, alignments, isHeader = false, rowBackgroundColor = bgColor)
             }
         }
     }
 }
 
-// Хелпер для отрисовки ячеек одной строки внутри Grid
-private fun UiScope.renderGridCells(
-    rowNode: ASTNode,
+private fun UiScope.MarkdownTableRow(
+    node: ASTNode,
     source: String,
     style: MarkdownStyle,
+    columnWidths: List<Dp>,
     alignments: List<AlignmentX>,
-    maxCols: Int,
     isHeader: Boolean,
-    rowBackgroundColor: Color?
+    rowBackgroundColor: Color? = null
 ) {
-    val cells = rowNode.children.filter { it.type == GFMTokenTypes.CELL }
+    Row {
+        modifier.width(FitContent)
+        if (rowBackgroundColor != null) {
+            modifier.backgroundColor(rowBackgroundColor)
+        }
 
-    // Проходимся по всем колонкам сетки (даже если в строке markdown не хватает ячеек)
-    for (i in 0 until maxCols) {
-        val cellNode = cells.getOrNull(i)
-        val alignment = alignments.getOrNull(i) ?: AlignmentX.Start
-        val finalAlign = if (isHeader) AlignmentX.Center else alignment
+        val cells = node.children.filter { it.type == GFMTokenTypes.CELL }
 
-        Box {
-            modifier
-                .width(FitContent) // Ширина ячейки подстраивается под текст
-                .height(Grow.Std)  // Ячейки одной строки будут одинаковой высоты
-                .padding(horizontal = Dp(8f), vertical = Dp(6f)) // Ваши отступы
-
-            // Устанавливаем фон ячейки
-            if (isHeader) {
-                modifier.backgroundColor(style.tableHeaderBgColor)
-            } else if (rowBackgroundColor != null) {
-                modifier.backgroundColor(rowBackgroundColor)
-            } else {
-                // Дефолтный фон, чтобы перекрыть цвет gap (границ)
-                modifier.backgroundColor(Color.WHITE.withAlpha(0.05f))
+        columnWidths.forEachIndexed { index, width ->
+            if (index > 0) {
+                Box(width = Dp(1f), height = Grow.Std) {
+                    modifier.backgroundColor(style.tableBorderColor.withAlpha(0.5f))
+                }
             }
 
-            if (cellNode != null) {
-                val spans = collectSpans(
-                    cellNode,
-                    source,
-                    TextAttributes(if (isHeader) style.boldFont else style.bodyFont, style.textColor),
-                    style
-                )
+            val cellNode = cells.getOrNull(index)
+            val alignment = alignments.getOrNull(index) ?: AlignmentX.Start
 
-                // Текст
-                AttributedText(TextLine(sanitize(spans))) {
-                    modifier
-                        .textAlignX(finalAlign)
-                    // Важно: не используем Grow.Std для ширины, иначе все колонки попытаются растянуться.
-                    // Grid сам решит размер на основе контента.
+            val finalAlign = if (isHeader) AlignmentX.Center else alignment
+
+            Box {
+                modifier
+                    .width(width)
+                    .padding(horizontal = Dp(8f), vertical = Dp(6f))
+
+                if (isHeader) {
+                    modifier.backgroundColor(style.tableHeaderBgColor)
+                }
+
+                if (cellNode != null) {
+                    val spans = collectSpans(
+                        cellNode,
+                        source,
+                        TextAttributes(if (isHeader) style.boldFont else style.bodyFont, style.textColor),
+                        style
+                    )
+
+                    AttributedText(TextLine(sanitize(spans))) {
+                        modifier
+                            .width(Grow.Std)
+                            .textAlignX(finalAlign)
+                    }
                 }
             }
         }
     }
-}
-
-private data class TableData(
-    val headerCells: List<ASTNode>?,
-    val rowCells: List<List<ASTNode>>
-)
-
-private fun parseTableData(node: ASTNode, source: String): TableData {
-    val headerRow = node.children.find { it.type == GFMElementTypes.HEADER }
-    val bodyRows = node.children.filter { it.type == GFMElementTypes.ROW }
-
-    val headerCells = headerRow?.children?.filter { it.type == GFMTokenTypes.CELL }
-    val bodyCells = bodyRows.map { row ->
-        row.children.filter { it.type == GFMTokenTypes.CELL }
-    }
-
-    return TableData(headerCells, bodyCells)
 }
 
 private fun parseTableAlignments(tableNode: ASTNode, source: String): List<AlignmentX> {
@@ -256,6 +218,39 @@ private fun parseTableAlignments(tableNode: ASTNode, source: String): List<Align
         alignments.add(align)
     }
     return alignments
+}
+
+private fun measureTableColumns(tableNode: ASTNode, source: String, style: MarkdownStyle): List<Dp> {
+    val widths = mutableMapOf<Int, Float>()
+    val font = style.bodyFont
+    val boldFont = style.boldFont
+    val cellPaddingPx = 18f
+
+    fun processRow(rowNode: ASTNode, isHeader: Boolean) {
+        val cells = rowNode.children.filter { it.type == GFMTokenTypes.CELL }
+        cells.forEachIndexed { index, cellNode ->
+            val spans = collectSpans(
+                cellNode,
+                source,
+                TextAttributes(if (isHeader) boldFont else font, style.textColor),
+                style
+            )
+
+            var textWidth = 0f
+            spans.forEach { (text, attrs) ->
+                textWidth += measureStringWidth(text, attrs.font)
+            }
+
+            val currentMax = widths.getOrElse(index) { 0f }
+            widths[index] = max(currentMax, textWidth + cellPaddingPx)
+        }
+    }
+
+    tableNode.children.find { it.type == GFMElementTypes.HEADER }?.let { processRow(it, true) }
+    tableNode.children.filter { it.type == GFMElementTypes.ROW }.forEach { processRow(it, false) }
+
+    val colCount = widths.keys.maxOrNull() ?: -1
+    return (0..colCount).map { Dp(widths[it] ?: 100f) }
 }
 
 private fun wrapText(spans: List<Pair<String, TextAttributes>>, maxWidth: Float): List<TextLine> {
