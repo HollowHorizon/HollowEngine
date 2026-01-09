@@ -22,6 +22,7 @@ import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.client.utils.mc
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystem
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -44,6 +45,7 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
             registerModelCommands()
             registerComponentCommands()
             registerUtilityCommands()
+            registerGlobalsCommands()
         }
     }
 }
@@ -136,6 +138,53 @@ private fun CommandExtension.registerUtilityCommands() {
     }
 }
 
+private fun CommandExtension.registerGlobalsCommands() {
+    "globals" {
+        "list" {
+            executes {
+                val variables =
+                    (source.server as ComponentDispatcher).container.get<BlocksSystem>("hollowengine:blocks_system".rl)?.globals
+                        ?: return@executes FAILURE
+                sendSuccess { "Global variables: ${variables.keys.joinToString("\n") { "- '$it'" }}".literal }
+            }
+        }
+
+        "get"(arg("name", StringArgumentType.string()) {
+            (currentServer as ComponentDispatcher).container.get<BlocksSystem>("hollowengine:blocks_system".rl)
+                ?.globals?.keys?.map { "\"$it\"" } ?: emptyList()
+        }) {
+            executes {
+                val variable = StringArgumentType.getString(this, "name")
+                val variables =
+                    (source.server as ComponentDispatcher).container.get<BlocksSystem>("hollowengine:blocks_system".rl)?.globals
+                        ?: return@executes FAILURE
+
+                if(variables.keys.isEmpty()) {
+                    sendSuccess { "There are no variables here yet".literal }
+                } else {
+                    sendSuccess { "'$variable': ${variables[variable].toString()}".literal }
+                }
+            }
+        }
+
+        "remove"(arg("name", StringArgumentType.string()) {
+            (currentServer as ComponentDispatcher).container.get<BlocksSystem>("hollowengine:blocks_system".rl)
+                ?.globals?.keys?.map { "\"$it\"" } ?: emptyList()
+        }) {
+            executes {
+                val variable = StringArgumentType.getString(this, "name")
+                val variables =
+                    (source.server as ComponentDispatcher).container.get<BlocksSystem>("hollowengine:blocks_system".rl)?.globals
+                        ?: return@executes FAILURE
+
+                variables.remove(variable)
+
+                sendSuccess { "Variable '$variable' removed!".literal }
+            }
+        }
+    }
+}
+
 // region Particle Functions
 private fun spawnParticleAtPosition(particleName: String, pos: Vec3) {
     val particleFile = BedrockParticles.PARTICLES[particleName.rl] ?: error("Particle not found")
@@ -162,7 +211,9 @@ private fun removeParticles(particleName: String) {
 // endregion
 
 // region Component Functions
-private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSourceStack>>.registerEntityComponentCommand(action: (ComponentDispatcher, ResourceLocation) -> Unit) {
+private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSourceStack>>.registerEntityComponentCommand(
+    action: (ComponentDispatcher, ResourceLocation) -> Unit,
+) {
     "entity"(
         arg("entity", EntityArgument.entity()),
         arg("component", StringArgumentType.string()) { getAvailableComponents() }
@@ -176,7 +227,9 @@ private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSour
     }
 }
 
-private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSourceStack>>.registerLevelComponentCommand(action: (ComponentDispatcher, ResourceLocation) -> Unit) {
+private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSourceStack>>.registerLevelComponentCommand(
+    action: (ComponentDispatcher, ResourceLocation) -> Unit,
+) {
     "level"(
         arg("level", DimensionArgument.dimension()),
         arg("component", StringArgumentType.string()) { getAvailableComponents() }
@@ -190,7 +243,9 @@ private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSour
     }
 }
 
-private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSourceStack>>.registerServerComponentCommand(action: (ComponentDispatcher, ResourceLocation) -> Unit) {
+private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSourceStack>>.registerServerComponentCommand(
+    action: (ComponentDispatcher, ResourceLocation) -> Unit,
+) {
     "server"(arg("component", StringArgumentType.string()) { getAvailableComponents() }) {
         executes {
             val server = source.server as ComponentDispatcher

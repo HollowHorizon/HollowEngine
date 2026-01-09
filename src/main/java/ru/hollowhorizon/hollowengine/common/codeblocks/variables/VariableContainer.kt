@@ -23,8 +23,8 @@ interface VariableContainer<T : Any> {
     fun load(tag: CompoundTag)
 }
 
-class SerializableVariableContainer<T : Any>(val serializer: KSerializer<T>) : VariableContainer<T> {
-    var value: T? = null
+class SerializableVariableContainer<T : Any>(val serializer: KSerializer<T>, defaultValue: T?) : VariableContainer<T> {
+    var value: T? = defaultValue
 
     override fun set(value: T) {
         this.value = value
@@ -41,11 +41,13 @@ class SerializableVariableContainer<T : Any>(val serializer: KSerializer<T>) : V
     }
 
     override fun load(tag: CompoundTag) {
-        value = if (tag.contains("value")) {
-            NBTFormat.deserialize(serializer, tag.get("value")!!)
-        } else {
-            null
+        if (tag.contains("value")) {
+            value = NBTFormat.deserialize(serializer, tag.get("value")!!)
         }
+    }
+
+    override fun toString(): String {
+        return value?.toString() ?: "Variable of type ${serializer::class.simpleName} (not yet initialized)"
     }
 }
 
@@ -84,5 +86,9 @@ class LivingEntityContainer<T : LivingEntity> : VariableContainer<T> {
         }
 
         error("Entity $uuid not found!")
+    }
+
+    override fun toString(): String {
+        return "Entity $uuid"
     }
 }

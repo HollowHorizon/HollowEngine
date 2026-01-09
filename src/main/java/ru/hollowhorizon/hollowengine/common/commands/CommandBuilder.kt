@@ -111,7 +111,7 @@ fun <T : SharedSuggestionProvider> CommandDispatcher<T>.onRegisterCommands(build
     builder(CommandBuilder(this))
 }
 
-fun CommandContext<CommandSourceStack>.sendSuccess(msg: () -> Component, allowLogging: Boolean = true): Int {
+fun CommandContext<CommandSourceStack>.sendSuccess(allowLogging: Boolean = true, msg: () -> Component): Int {
     source.sendSuccess(msg, allowLogging)
     return 1
 }

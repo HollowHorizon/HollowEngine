@@ -8,7 +8,6 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.TextCom
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.TextMergerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CallCustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnEventBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnStartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.math.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.*
@@ -157,11 +156,18 @@ object StandardModules {
     val Events: BlockModule = {
         category("События", Color("C94072"), icons.EVENTS) {
             block("При запуске") { OnStartBlock() }
-            block("При событии") { OnEventBlock() }
-            block("Отправить событие") { SendEventBlock("") }
+            //block("При событии") { OnEventBlock() }
+            //block("Отправить событие") { SendEventBlock("") }
 
             //block("При входе игрока") { OnPlayerJoinBlock() }
             //block("При смерти игрока") { OnPlayerDeathBlock() }
+        }
+    }
+
+    val Stops: BlockModule = {
+        category("Завершения", Color("F04438"), icons.STOP) {
+            block("Завершить скрипт") { StopBlock() }
+            block("Завершить скрипт, если") { StopIfBlock() }
         }
     }
 
@@ -175,6 +181,7 @@ object StandardModules {
     val AllBasics: BlockModule = {
         include(General)
         include(Events)
+        include(Stops)
         include(Logic)
         include(Loops)
         include(Math)

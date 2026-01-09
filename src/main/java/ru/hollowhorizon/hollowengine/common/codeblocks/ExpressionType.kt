@@ -37,7 +37,11 @@ fun createContainer(type: ExpressionType): VariableContainer<*> {
     } else {
         // TODO: Зачем вообще теперь нужен AnyType, можно просто использовать KTypeExpressionType
         val serializer = NBTFormat.Default.serializersModule.serializer((type as KTypeExpressionType).kType) as KSerializer<Any>
-        SerializableVariableContainer(serializer)
+
+        // TODO: Можно для всех примитивов сделать значения по умолчанию
+        val default = if(typeOf<Boolean>().accepts(type)) false else null
+
+        SerializableVariableContainer(serializer, default)
     }
 }
 

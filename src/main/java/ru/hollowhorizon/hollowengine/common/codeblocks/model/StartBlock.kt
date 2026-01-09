@@ -2,8 +2,12 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.model
 
 import de.fabmax.kool.modules.ui2.MutableStateValue
 import de.fabmax.kool.modules.ui2.mutableStateOf
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
+@Serializable
 abstract class StartBlock : StatementBlock() {
+    @Transient
     val isGlobal: MutableStateValue<Boolean> = mutableStateOf(false)
 
     abstract suspend fun trigger()

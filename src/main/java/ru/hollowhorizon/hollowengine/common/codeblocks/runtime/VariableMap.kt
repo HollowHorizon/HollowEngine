@@ -30,4 +30,11 @@ class VariableMap {
     operator fun contains(name: String): Boolean {
         return variables.containsKey(name)
     }
+
+    fun remove(name: String) {
+        variables.remove(name)
+    }
+
+    val keys: Set<String>
+        get() = variables.keys
 }

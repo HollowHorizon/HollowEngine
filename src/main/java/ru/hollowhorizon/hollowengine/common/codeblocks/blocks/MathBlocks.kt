@@ -53,11 +53,11 @@ class MathBlock(var op: MathOp = MathOp.ADD) : ExpressionBlock() {
         // Кликабельный текст для смены операции
         Box {
             modifier
-                .size(sizes.largeGap, sizes.largeGap)
+                .size(sizes.largeGap.scaled(), sizes.largeGap.scaled())
                 .alignY(AlignmentY.Center)
-                .margin(horizontal = 4.dp)
-                .padding(horizontal = 4.dp, vertical = 2.dp)
-                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), sizes.largeGap))
+                .margin(horizontal = 4.dp.scaled())
+                .padding(horizontal = 4.dp.scaled(), vertical = 2.dp.scaled())
+                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), sizes.largeGap.scaled()))
                 .onClick {
                     if (it.pointer.isLeftButtonClicked) {
                         val values = MathOp.entries

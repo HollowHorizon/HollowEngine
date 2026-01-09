@@ -66,6 +66,10 @@ public abstract class MinecraftServerMixin implements ServerDispatcher {
     private void onInit(Thread serverThread, LevelStorageSource.LevelStorageAccess storageSource, PackRepository packRepository, WorldStem worldStem, Proxy proxy, DataFixer fixerUpper, Services services, ChunkProgressListenerFactory progressListenerFactory, CallbackInfo ci) {
         hollowcore$dispatcher = new SingleThreadDispatcher("MinecraftServer.dispatcher", serverThread);
         hollowcore$coroutineScope = CoroutineScopeKt.CoroutineScope(SupervisorJob(null).plus(hollowcore$dispatcher));
+    }
+
+    @Inject(method = "runServer", at = @At("HEAD"))
+    private void onRun(CallbackInfo ci) {
         ForgeKotlinKt.setCurrentServer((MinecraftServer) (Object) this);
         EventBus.post(new ServerEvent.Starting((MinecraftServer) (Object) this));
     }

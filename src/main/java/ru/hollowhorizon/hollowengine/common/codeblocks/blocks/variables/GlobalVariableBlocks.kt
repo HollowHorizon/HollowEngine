@@ -54,7 +54,7 @@ class GetGlobalVarBlock(var varName: String = "var") : ExpressionBlock() {
         }
 
     override suspend fun execute(): Any? {
-        return getVariable(varName, true)
+        return getVariable(varName, true)?.get()
     }
 
     override fun InputSlotScope.composeContent() {
@@ -78,7 +78,7 @@ class GetGlobalVarInlineBlock(val name: String) : ExpressionBlock() {
         }
 
     override suspend fun execute(): Any? {
-        return getVariable(name, true)
+        return getVariable(name, true)?.get()
     }
 
     override fun InputSlotScope.composeContent() {

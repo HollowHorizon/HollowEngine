@@ -12,8 +12,10 @@ import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentServer
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
-import ru.hollowhorizon.hollowengine.common.utils.currentServer
+import ru.hollowhorizon.hollowengine.common.events.await
+import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 
 @Serializable
 @SerialName("hollowengine:player/get_by_name")
@@ -24,8 +26,11 @@ class GetPlayerByNameBlock : ExpressionBlock() {
 
     override suspend fun execute(): Any? {
         val name = playerName()
-        return currentServer.playerList.getPlayerByName(name)
-            ?: throw IllegalStateException("Player $name not found")
+        val player =  currentServer().playerList?.getPlayerByName(name)
+
+        if (player != null) return player
+
+        return await<PlayerEvent.Join> { it.player.gameProfile.name == name }.player
     }
 
     override fun InputSlotScope.composeContent() {

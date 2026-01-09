@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
+import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksDSL
 import ru.hollowhorizon.hollowengine.common.codeblocks.variables.VariableContainer
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
@@ -19,6 +20,9 @@ suspend fun currentInstance(): ScriptInstance {
 
 @CodeBlocksDSL
 suspend fun currentFile(): ScriptFile = currentInstance().ownerFile
+
+@CodeBlocksDSL
+suspend fun currentServer(): MinecraftServer = currentFile().system.owner
 
 @CodeBlocksDSL
 suspend fun getVariable(name: String, isGlobal: Boolean): VariableContainer<*>? {

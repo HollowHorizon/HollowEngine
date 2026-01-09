@@ -30,19 +30,19 @@ class ComponentContainer(private val provider: ComponentDispatcher) {
     val components: MutableMap<ResourceLocation, Component<*>> =
         Object2ObjectOpenHashMap<ResourceLocation, Component<*>>()
 
-    fun <T : Component<*>> get(entry: ComponentEntry<*>): T? {
+    operator fun <T : Component<*>> get(entry: ComponentEntry<*>): T? {
         val key = ComponentRegistry.getHolder(ComponentRegistry.getId(entry))?.key
             ?: return null
         return components[key] as? T
     }
 
-    fun <T : Component<*>> get(capability: ResourceLocation): T? = components[capability] as? T
+    operator fun <T : Component<*>> get(capability: ResourceLocation): T? = components[capability] as? T
     fun <T : Component<*>> getOrAttach(component: ResourceLocation): T {
         if (attach(component)) get<T>(component)?.let { return it }
         error("Component '$component' is not attached yet")
     }
 
-    fun attach(location: ResourceLocation): Boolean {
+    fun attach(location: ResourceLocation, callAttach: Boolean = true): Boolean {
         if (location in components) return true
         val isScript = location.namespace == "hollowengine" && location.path.startsWith("scripts/")
         val factory = ComponentRegistry.getOrNull(location) ?: run {
@@ -61,9 +61,9 @@ class ComponentContainer(private val provider: ComponentDispatcher) {
         }
 
         components[location] = instance
-        instance.onAttach()
+        if (callAttach) instance.onAttach()
 
-        if(!provider.isClient) markAllChanged()
+        if (!provider.isClient) markAllChanged()
 
         return true
     }
@@ -127,14 +127,14 @@ class ComponentContainer(private val provider: ComponentDispatcher) {
             val componentTag = tag.getCompound(key)
             val properties = componentTag.getCompound("properties")
 
-            if (attach(key.rl)) {
+            if (attach(key.rl, false)) {
                 val component: Component<*> = get(key.rl) ?: error("Component $key does not exist")
                 components[key.rl] = component
                 properties.allKeys.forEach { name ->
                     component.properties[name]?.deserialize(NBTFormat, properties.get(name)!!)
                 }
                 component.deserialize(componentTag.getCompound("extras"))
-
+                component.onAttach()
             } else {
                 HollowCore.LOGGER.warn("Component $key not found in registry")
             }
@@ -170,8 +170,15 @@ fun ComponentContainer.save(file: File) {
     file.outputStream().use { save().save(it) }
 }
 
-fun ComponentContainer.load(file: File) =
-    load(file.inputStream().use { DataInputStream(it).loadAsNBT() as CompoundTag })
+fun ComponentContainer.load(file: File) {
+    val tag = if (file.exists()) {
+        file.inputStream().use { DataInputStream(it).loadAsNBT() as CompoundTag }
+    } else {
+        CompoundTag()
+    }
+
+    load(tag)
+}
 
 fun ComponentContainer.markAllChanged() {
     components.values.forEach { component ->

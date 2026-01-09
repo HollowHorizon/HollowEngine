@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.createContainer
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.dispatcher
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -25,7 +26,7 @@ class ScriptFile(
     val instances = CopyOnWriteArrayList<ScriptInstance>()
     val functions = allBlocks.filterIsInstance<CustomBlock>().associateBy { it.function }
 
-    private val scope = CoroutineScope(system.owner.dispatcher + SupervisorJob())
+    private val scope = CoroutineScope(system.owner.dispatcher + SupervisorJob(system.owner.coroutineScope.coroutineContext.job))
 
     fun startGlobalTriggers() {
         allBlocks.filterIsInstance<StartBlock>()

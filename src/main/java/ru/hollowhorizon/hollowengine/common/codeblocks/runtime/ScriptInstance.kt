@@ -6,7 +6,9 @@ import net.minecraft.nbt.ListTag
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockFrame
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.BlockFrameStackElement
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.CodeBlockInterpreter
+import ru.hollowhorizon.hollowengine.common.codeblocks.execution.scoped
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.dispatcher
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -16,7 +18,8 @@ class ScriptInstance(
     val rootBlock: StartBlock,
 ) {
     val localVariables = VariableMap()
-    val scope = CoroutineScope(ownerFile.system.owner.dispatcher + SupervisorJob())
+    val scope =
+        CoroutineScope(ownerFile.system.owner.dispatcher + SupervisorJob(ownerFile.system.owner.coroutineScope.coroutineContext.job))
 
     private val executors = ConcurrentHashMap<UUID, ExecutionContext>()
 
@@ -78,9 +81,10 @@ class ScriptInstance(
 
         val job = scope.launch(context) {
             try {
-                interpreter.execute()
+                scoped { interpreter.execute() }
             } finally {
                 executors.remove(startBlock.uuid)
+                if (executors.isEmpty()) stop()
             }
         }
 
