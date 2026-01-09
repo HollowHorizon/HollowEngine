@@ -69,5 +69,5 @@ class BlocksSystem(server: MinecraftServer) : ServerComponent(server) {
 
 @SubscribeEvent
 fun onServerStart(event: ServerEvent.Starting) {
-    (event.server as ComponentDispatcher).container.attach("hollowengine:blocks_component".rl)
+    (event.server as ComponentDispatcher).container.attach("hollowengine:blocks_system".rl)
 }

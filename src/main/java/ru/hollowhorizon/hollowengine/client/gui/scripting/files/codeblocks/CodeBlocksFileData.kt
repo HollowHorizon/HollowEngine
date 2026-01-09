@@ -1,10 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks
 
 import de.fabmax.kool.input.KeyEvent
-import de.fabmax.kool.modules.ui2.Grow
-import de.fabmax.kool.modules.ui2.Row
-import de.fabmax.kool.modules.ui2.UiScope
-import de.fabmax.kool.modules.ui2.mutableStateOf
+import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.KoolDispatchers
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
@@ -14,6 +11,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockRepository
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.*
@@ -86,6 +84,8 @@ class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath
 
     override fun UiScope.compose() {
         Row(Grow.Std, Grow.Std) {
+            modifier.margin(Dimensions.PaddingNormal)
+
             with(editor) {
                 EditorLayout {}
             }

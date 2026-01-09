@@ -117,7 +117,7 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockM
             jsonObject["isCollapsed"]?.jsonPrimitive?.booleanOrNull?.let { isCollapsed ->
                 currentBlock.isCollapsed.set(isCollapsed)
             }
-            jsonObject["mode"]?.takeIf { currentBlock is StartBlock }?.jsonPrimitive?.booleanOrNull?.let { mode ->
+            jsonObject["isGlobal"]?.takeIf { currentBlock is StartBlock }?.jsonPrimitive?.booleanOrNull?.let { mode ->
                 (currentBlock as StartBlock).isGlobal.set(mode)
             }
         }
