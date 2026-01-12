@@ -293,7 +293,8 @@ class BlockController(val editor: BlockEditor) {
                         if (old != new) {
                             actionsToPerform.add(ConnectionAction(editor, affected, old, new))
                         } else if (affected == block) {
-                            actionsToPerform.add(MoveBlockAction(mapOf(block to moves[block]!!)))
+                            val move = moves[block] ?: return@forEach
+                            actionsToPerform.add(MoveBlockAction(mapOf(block to move)))
                         }
                     }
                 } else {
