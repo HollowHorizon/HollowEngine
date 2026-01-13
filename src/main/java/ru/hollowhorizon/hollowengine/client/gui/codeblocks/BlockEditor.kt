@@ -92,7 +92,7 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
                             .margin(Dimensions.PaddingMedium)
                     }
                 }
-                
+
                 modifier
                     .backgrounds(
                         BlockGridBackground(this@BlockEditor, 3.dp, Dimensions.PaddingLargeSpacing),
