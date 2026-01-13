@@ -19,7 +19,7 @@ import kotlin.math.min
 @OptIn(ExperimentalContracts::class)
 inline fun UiScope.GlCanvas(
     scopeName: String? = null,
-    noinline glCanvas: DrawContext.() -> Unit,
+    noinline glCanvas: DrawContext.(ImageModifier) -> Unit,
     block: GlCanvasScope.() -> Unit = {},
 ) {
     contract {
@@ -36,7 +36,7 @@ interface GlCanvasScope : ImageScope {
 }
 
 open class GlCanvasModifier(surface: UiSurface) : ImageModifier(surface) {
-    var drawer: DrawContext.() -> Unit by property(DrawContext.DEFAULT)
+    var drawer: DrawContext.(ImageModifier) -> Unit by property(DrawContext.DEFAULT)
 }
 
 data class DrawContext(
@@ -53,7 +53,7 @@ data class DrawContext(
     inline val height get() = y2 - y1
 
     companion object {
-        val DEFAULT: DrawContext.() -> Unit = {}
+        val DEFAULT: DrawContext.(ImageModifier) -> Unit = {}
     }
 }
 
@@ -113,16 +113,6 @@ open class GlCanvasNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, su
             }
         }
         setContentSize(measuredWidth, measuredHeight)
-
-        surface.onEachFrame {
-            BackendScope.launch {
-                drawGlCanvas(
-                    leftPx, topPx,
-                    rightPx, bottomPx,
-                    modifier.zLayer
-                )
-            }
-        }
     }
 
     private fun FlatImageProvider.resizeImage() = apply {
@@ -168,6 +158,13 @@ open class GlCanvasNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, su
 
     override fun render(ctx: KoolContext) {
         super.render(ctx)
+        BackendScope.launch {
+            drawGlCanvas(
+                leftPx, topPx,
+                rightPx, bottomPx,
+                modifier
+            )
+        }
         modifier.imageProvider(FlatImageProvider(WINDOW_BUFFER, true).resizeImage()).imageSize(ImageSize.Stretch)
         modifier.imageProvider?.getTexture(innerWidthPx, innerHeightPx)?.let {
             val imgMesh = surface.getMeshLayer(modifier.zLayer + modifier.imageZ).addImage(it)
@@ -221,7 +218,7 @@ open class GlCanvasNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, su
         y1: Float,
         x2: Float,
         y2: Float,
-        zLayer: Int,
+        modifier: GlCanvasModifier,
     ) {
         if (x1 >= x2 || y1 >= y2) return
         val oldBuffer = GL33.glGetInteger(GL33.GL_FRAMEBUFFER_BINDING)
@@ -237,7 +234,7 @@ open class GlCanvasNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, su
         val matrix4fstack = RenderSystem.getModelViewStack()
         matrix4fstack.pushPose()
         matrix4fstack.setIdentity()
-        matrix4fstack.translate(0.0f, 0.0f, -3000.0f + zLayer)
+        matrix4fstack.translate(0.0f, 0.0f, -3000.0f + modifier.zLayer)
         RenderSystem.applyModelViewMatrix()
 
         // Очищаем участок где будем рисовать
@@ -253,7 +250,7 @@ open class GlCanvasNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, su
         RenderSystem.enableDepthTest()
         RenderSystem.depthFunc(GL33.GL_LEQUAL)
         val mouse = PointerInput.primaryPointer.pos
-        modifier.drawer(DrawContext(mouse.x, mouse.y, x1, y1, x2, y2))
+        modifier.drawer(DrawContext(mouse.x, mouse.y, x1, y1, x2, y2), modifier)
         RenderSystem.disableDepthTest()
 
         // Возвращаем параметры

@@ -17,6 +17,7 @@ object ColorTheme {
         val BackgroundSecondary = Color("24272E") // Фон Вторичный
         val BackgroundElements = Color("31343D")  // Фон Элементов
         val BackgroundAccent = Color("5F6677")    // Фон Акцента
+        val BackgroundDarker = Color("1E2127")
         val WhiteReplacement = Color("C4CBDA")    // Замена "Белому"
 
         val ForegroundSecondary = Color("2A2E35")

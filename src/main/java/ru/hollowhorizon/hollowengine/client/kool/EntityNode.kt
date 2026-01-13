@@ -71,9 +71,9 @@ inline fun UiScope.Entity(
     }
 
     val image = uiNode.createChild(scopeName, EntityNode::class, EntityNode.factory)
-    image.modifier.drawer = {
+    image.modifier.drawer = { modifier ->
         GL33.glDepthFunc(GL33.GL_LEQUAL)
-        entity().render(x, y, width, height, image.modifier)
+        entity().render(x, y, width, height, modifier as EntityModifier)
     }
     image.block()
 }

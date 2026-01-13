@@ -38,7 +38,7 @@ class NpcEntity : PathfinderMob {
 
     init {
         moveControl = NpcMoveControl(this)
-        if(!level().isClientSide) (this as ComponentDispatcher).apply {
+        (this as ComponentDispatcher).apply {
             //container.attach("hollowengine:npcs/main".rl)
             container.attach("hollowengine:model_component".rl)
             //attach("hollowengine:animator".rl)
