@@ -80,6 +80,19 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
             if (!controller.isBlockPanelMinimized.use() || expansion > 0f) blocksPanel(expansion)
 
             Box(Grow.Std, Grow.Std) {
+                EditorScrollbars(controller)
+                ScaleOverlay()
+                BlockContextMenu.draw()
+                creationPopup()
+                dragState()
+
+                if (controller.isBlockPanelMinimized.use()) {
+                    blocksPanel.CollapseButton {
+                        modifier.align(AlignmentX.Start, AlignmentY.Top)
+                            .margin(Dimensions.PaddingMedium)
+                    }
+                }
+                
                 modifier
                     .backgrounds(
                         BlockGridBackground(this@BlockEditor, 3.dp, Dimensions.PaddingLargeSpacing),
@@ -136,19 +149,8 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
                     }
                 }
 
-                EditorScrollbars(controller)
-                ScaleOverlay()
 
-                BlockContextMenu.draw()
-                creationPopup()
 
-                if (controller.isBlockPanelMinimized.use()) {
-                    blocksPanel.CollapseButton {
-                        modifier.align(AlignmentX.Start, AlignmentY.Top)
-                            .margin(Dimensions.PaddingMedium)
-                    }
-                }
-                dragState()
                 body()
             }
         }
@@ -495,7 +497,7 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
                 .margin(Dimensions.PaddingNormal)
                 .padding(Dimensions.PaddingNormal)
                 .background(RoundRectBackground(bgColor, Dimensions.PaddingNormal))
-                .onClick { onClick() }
+                .onClick { if(it.isLeftClick) onClick() }
         }
     }
 
