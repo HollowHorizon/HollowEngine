@@ -160,7 +160,7 @@ fun UiScope.FileDockingTabsBar(
                             .border(RoundRectBorder(borderColor, sizes.smallGap, sizes.borderWidth))
 
 
-                        val itemName = IdeContent.files.values.find { it.dockable == item }?.fileName ?: item.name.lang
+                        val itemName = IdeContent.files.values.find { it.dockable == item }?.filePath?.substringAfterLast('/') ?: item.name.lang
 
                         Text(itemName) {
                             modifier.textAlign(AlignmentX.Start, AlignmentY.Center)
@@ -309,7 +309,7 @@ private fun UiScope.FileDockingBar(
             }
 
             val itemName =
-                IdeContent.files.values.find { it.dockable == windowDockable }?.fileName ?: windowDockable.name.lang
+                IdeContent.files.values.find { it.dockable == windowDockable }?.filePath?.substringAfterLast('/') ?: windowDockable.name.lang
 
             Text(itemName) {
                 modifier

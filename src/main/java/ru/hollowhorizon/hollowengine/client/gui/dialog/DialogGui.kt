@@ -80,7 +80,7 @@ class DialogGui : KoolScreen() {
         Row(Grow.Std, Grow.Std) {
             modifier.padding(sizes.gap)
             entities.forEach { entity ->
-                Entity(entity) {
+                Entity({entity}) {
                     modifier.size(Grow.Std, Grow.Std)
                         .scale(0.85f)
                         .mouseRotation()

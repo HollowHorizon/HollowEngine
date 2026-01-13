@@ -13,7 +13,6 @@ import net.minecraft.client.KeyMapping
 import net.minecraft.client.Minecraft
 import net.minecraft.world.item.Items
 import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.gui.overlay.CompilationStatus
 import ru.hollowhorizon.hollowengine.client.kool.Entity
 import ru.hollowhorizon.hollowengine.client.kool.Item
@@ -107,7 +106,7 @@ object HollowCoreClient {
                     addWindowSurface(w2) {
                         Column(Grow.Std, Grow.Std) {
                             TitleBar(w2)
-                            Entity(Minecraft.getInstance().player!!) {
+                            Entity({Minecraft.getInstance().player!!}) {
                                 modifier.size(Grow.Std, Grow.Std)
                                     .mouseRotation(3f)
                                     .padding(sizes.gap)

@@ -1,16 +1,21 @@
 package ru.hollowhorizon.hollowengine.common.registry
 
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.api.Init
+import ru.hollowhorizon.hollowengine.api.ReloadListener
 import ru.hollowhorizon.hollowengine.api.utils.Polymorphic
 import ru.hollowhorizon.hollowengine.common.config.Config
 import ru.hollowhorizon.hollowengine.common.config.ConfigName
 import ru.hollowhorizon.hollowengine.common.events.*
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.registerPacket
 import ru.hollowhorizon.hollowengine.common.network.registerPackets
 import ru.hollowhorizon.hollowengine.common.registry.system.RegistryManager
+import ru.hollowhorizon.hollowengine.common.utils.Side
+import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBT_TAGS
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Method
@@ -53,6 +58,32 @@ object HollowModProcessor {
 
         registerClassHandler<Init> { type, _ ->
             type.kotlin.objectInstance ?: throw IllegalArgumentException("${type.simpleName} must be an object!")
+        }
+        registerClassHandler<ReloadListener> { type, listener ->
+            val instance = type.kotlin.objectInstance as ResourceManagerReloadListener
+
+            when (listener.side) {
+                Side.CLIENT -> {
+                    if (isPhysicalClient) EventBus.register<RegisterReloadListenersEvent.Client> {
+                        it.register(instance)
+                    }
+                }
+
+                Side.SERVER -> {
+                    EventBus.register<RegisterReloadListenersEvent.Server> {
+                        it.register(instance)
+                    }
+                }
+
+                Side.BOTH -> {
+                    EventBus.register<RegisterReloadListenersEvent.Server> {
+                        it.register(instance)
+                    }
+                    if (isPhysicalClient) EventBus.register<RegisterReloadListenersEvent.Client> {
+                        it.register(instance)
+                    }
+                }
+            }
         }
         registerMethodHandler<Init> { method, _ ->
             if (method.isStatic()) {

@@ -19,10 +19,10 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadableP
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
 
-class ScriptFileData(name: String, path: String) :
-    FileData(name, path) {
+class ScriptFile(path: String) :
+    IDEFile(path) {
 
-    constructor(path: String, ignored: ByteArray) : this(path.substringAfterLast('/'), path)
+    constructor(path: String, ignored: ByteArray) : this(path)
 
     lateinit var modifier: ScriptTextAreaModifier
     lateinit var area: ScriptTextAreaScope
@@ -72,8 +72,8 @@ class ScriptFileData(name: String, path: String) :
                         )
                 },
             ) {
-                this@ScriptFileData.modifier = modifier
-                this@ScriptFileData.area = this
+                this@ScriptFile.modifier = modifier
+                this@ScriptFile.area = this
                 installSelectionHandler(provider) { startLine, caretLine, startChar, caretChar ->
                     provider.lines.clear()
                     val code = ScriptingEnvironment.INSTANCE.analyzer.highlight(
@@ -91,8 +91,8 @@ class ScriptFileData(name: String, path: String) :
                     .margin(end = sizes.smallGap, top = sizes.smallGap)
                     .zLayer(5)
 
-                val errors = this@ScriptFileData.modifier.errors.count { it.severity == Severity.ERROR }
-                val warnings = this@ScriptFileData.modifier.errors.count { it.severity == Severity.WARNING }
+                val errors = this@ScriptFile.modifier.errors.count { it.severity == Severity.ERROR }
+                val warnings = this@ScriptFile.modifier.errors.count { it.severity == Severity.WARNING }
 
                 if (errors > 0) {
                     Row {

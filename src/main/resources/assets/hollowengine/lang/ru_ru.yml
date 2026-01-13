@@ -50,6 +50,7 @@ hollowengine:
             scene: Сцена
             event: Обработчик событий (WIP)
             kool: Сцена Kool (WIP)
+          prefab: Шаблон
           folder: Папка
         open: Открыть
         copy: Копировать

@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.onEach
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.BlockEditor
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IDEFile
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockRepository
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
@@ -21,7 +21,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadableP
 import java.io.ByteArrayInputStream
 
 @OptIn(FlowPreview::class)
-class CodeBlocksFileData(filePath: String, bytes: ByteArray) : FileData(filePath.substringAfterLast('/'), filePath) {
+class CodeBlocksFile(filePath: String, bytes: ByteArray) : IDEFile(filePath) {
     private val scope = CoroutineScope(SupervisorJob() + KoolDispatchers.Frontend)
     private val changeEvents = MutableSharedFlow<Unit>(
         replay = 0,

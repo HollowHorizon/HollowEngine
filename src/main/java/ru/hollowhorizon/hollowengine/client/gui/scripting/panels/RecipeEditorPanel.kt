@@ -11,7 +11,7 @@ import net.minecraft.world.item.crafting.Recipe
 import net.minecraft.world.item.crafting.RecipeType
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.recipe.RecipeFileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.recipe.RecipeIDEFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.generated.Assets
@@ -34,7 +34,7 @@ class RecipeEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.recipes", 
                         .width(Grow.Std)
                         .backgroundColor(color)
                         .onClick {
-                            IdeContent.openFile(RecipeFileData("Crafting Recipes", "files.recipes"))
+                            IdeContent.openFile(RecipeIDEFile("files.recipes"))
                         }
 
                     val recipeItem = manager.getAllRecipesFor(recipeType as RecipeType<Recipe<Container>>)

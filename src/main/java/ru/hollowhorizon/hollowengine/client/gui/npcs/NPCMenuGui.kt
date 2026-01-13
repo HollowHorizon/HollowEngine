@@ -94,7 +94,7 @@ class NPCMenuGui(val npc: NpcEntity) : KoolScreen() {
                     }
                 }
 
-                Entity(npc) {
+                Entity({npc}) {
                     modifier.size(Grow(0.45f), Grow(0.9f))
                         .align(AlignmentX.End, AlignmentY.Center)
                 }

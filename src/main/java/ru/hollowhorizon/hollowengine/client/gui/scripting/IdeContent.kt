@@ -1,28 +1,28 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import de.fabmax.kool.modules.ui2.Dp
-import de.fabmax.kool.modules.ui2.DragAndDropContext
 import de.fabmax.kool.modules.ui2.docking.DockNode
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.insertItem
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ScriptFileData
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFileData
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.CodeBlocksFileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IDEFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ScriptFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.CodeBlocksFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.NPCFile
 
 object IdeContent {
-    val files = HashMap<String, FileData>()
+    val files = HashMap<String, IDEFile>()
     var fileTree = FileNode.EMPTY
-    val dndContext = DragAndDropContext<FileNode>()
 
-    private val fileTypes: Map<String, (String, ByteArray) -> FileData> = buildMap {
-        put(".kts", ::ScriptFileData)
-        put(".bc", ::CodeBlocksFileData)
-        put(".txt", ::TextFileData)
+    private val fileTypes: Map<String, (String, ByteArray) -> IDEFile> = buildMap {
+        put(".kts", ::ScriptFile)
+        put(".bc", ::CodeBlocksFile)
+        put(".txt", ::TextFile)
+        put(".npc", ::NPCFile)
     }
 
-    fun openFile(path: String, bytes: ByteArray): FileData? {
+    fun openFile(path: String, bytes: ByteArray): IDEFile? {
 
         // Get or Create file
         val file = files.getOrPut(path) {
@@ -41,7 +41,7 @@ object IdeContent {
         return file
     }
 
-    fun openFile(node: FileData) {
+    fun openFile(node: IDEFile) {
         val dock = ScriptingEnvironmentOverlay.dock
 
         files.getOrPut(node.filePath) {

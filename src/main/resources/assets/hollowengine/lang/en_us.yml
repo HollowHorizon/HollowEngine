@@ -51,6 +51,7 @@ hollowengine:
             story: Story event
             event: Event handler
             kool: Kool scene
+          prefab: Prefab
           folder: Folder
         open: Open
         copy: Copy

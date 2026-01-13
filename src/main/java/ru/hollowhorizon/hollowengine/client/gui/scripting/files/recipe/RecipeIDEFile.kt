@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.recipe
 
-import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.Time
@@ -9,11 +8,11 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.TooltipFlag
 import net.minecraft.world.item.crafting.CraftingRecipe
 import net.minecraft.world.item.crafting.RecipeType
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IDEFile
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.textLine
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.FileData
 
-class RecipeFileData(name: String, path: String) : FileData(name, path) {
+class RecipeIDEFile(path: String) : IDEFile(path) {
 
     override fun save() {}
 

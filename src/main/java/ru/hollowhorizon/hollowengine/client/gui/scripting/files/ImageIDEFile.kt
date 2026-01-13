@@ -9,8 +9,8 @@ import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.util.toBuffer
 import ru.hollowhorizon.hollowengine.client.gui.kool.backgroundMid
 
-class ImageFileData(name: String, path: String, var image: ByteArray) :
-    FileData(name, path) {
+class ImageIDEFile(path: String, var image: ByteArray) :
+    IDEFile(path) {
 
 
     override fun save() {

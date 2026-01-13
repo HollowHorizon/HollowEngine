@@ -2,7 +2,10 @@ package ru.hollowhorizon.hollowengine.client.kool
 
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.math.Vec2f
-import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.modules.ui2.ImageScope
+import de.fabmax.kool.modules.ui2.UiNode
+import de.fabmax.kool.modules.ui2.UiScope
+import de.fabmax.kool.modules.ui2.UiSurface
 import net.minecraft.world.entity.LivingEntity
 import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.client.render.render
@@ -61,7 +64,7 @@ fun EntityModifier.isRenderShadow(visible: Boolean): EntityModifier = apply { th
 
 @OptIn(ExperimentalContracts::class)
 inline fun UiScope.Entity(
-    entity: LivingEntity, scopeName: String? = null, block: EntityScope.() -> Unit,
+    crossinline entity: () -> LivingEntity, scopeName: String? = null, block: EntityScope.() -> Unit,
 ) {
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
@@ -70,7 +73,7 @@ inline fun UiScope.Entity(
     val image = uiNode.createChild(scopeName, EntityNode::class, EntityNode.factory)
     image.modifier.drawer = {
         GL33.glDepthFunc(GL33.GL_LEQUAL)
-        entity.render(x, y, width, height, image.modifier)
+        entity().render(x, y, width, height, image.modifier)
     }
     image.block()
 }

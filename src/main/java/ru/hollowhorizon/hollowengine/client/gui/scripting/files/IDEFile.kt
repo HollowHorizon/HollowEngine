@@ -19,12 +19,11 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 
-abstract class FileData(
-    val fileName: String,
+abstract class IDEFile(
     val filePath: String,
 ) : Layout, Composable {
     final override val dockable = UiDockable(filePath, ScriptingEnvironmentOverlay.dock)
-    override val name = "file\$$fileName"
+    override val name = "file:[$filePath]"
     override val icon = IconHelper.forPath(filePath)
     val inputListener = InputStack.InputHandler("$filePath Input Handler").apply {
         keyboardListeners += object : InputStack.KeyboardListener {
@@ -63,7 +62,7 @@ abstract class FileData(
                 overlay.hide()
                 overlay.show(Vec2f(event.screenPosition), menu, dockable)
             })
-            if (!isCollapsed.use()) this@FileData()
+            if (!isCollapsed.use()) this@IDEFile()
         }
     }
 

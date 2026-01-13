@@ -15,7 +15,7 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ScriptFileData
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ScriptFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
@@ -117,7 +117,7 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
     if (IdeContent.files.isEmpty() || ScriptingEnvironmentOverlay.isCollapsed) return@append
 
     val items =
-        IdeContent.files.filter { it.value is ScriptFileData }.map { (key, file) ->
+        IdeContent.files.filter { it.value is ScriptFile }.map { (key, file) ->
             key to Composable {
                 Row {
                     modifier.alignY(AlignmentY.Center)
@@ -130,7 +130,7 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
                     }
 
                     Box {
-                        Text(file.fileName) {
+                        Text(file.filePath.substringAfterLast('/')) {
                             modifier
                                 .alignY(AlignmentY.Center)
                                 .textColor(colors.onBackground)

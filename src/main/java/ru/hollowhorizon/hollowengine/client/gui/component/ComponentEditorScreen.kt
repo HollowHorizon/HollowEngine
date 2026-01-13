@@ -26,7 +26,7 @@ class ComponentEditorScreen(val provider: ComponentDispatcher) : KoolScreen() {
         addPanelSurface(IdeTheme.colors, IdeTheme.sizes) {
             modifier.layout(CellLayout)
             Row(Grow.Std, Grow.Std) {
-                Entity(provider as LivingEntity) {
+                Entity({provider as LivingEntity}) {
                     var rotateX by remember { mutableStateOf(0f) }
                     var rotateY by remember { mutableStateOf(0f) }
                     var offsetX by remember { mutableStateOf(0f) }

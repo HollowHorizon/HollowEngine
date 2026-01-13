@@ -80,6 +80,14 @@ class FilePopup : Composable {
                             }
                         }
                     }
+                    if (node.treePath.startsWith("prefabs")) {
+                        subMenu(ACTIONS("create.prefab"), icons.CREATE_FILE) {
+                            item("НИП", icons.NPCS) {
+                                fileExtension = ".npc"
+                                createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
+                            }
+                        }
+                    }
                 }
             } else {
                 item(ACTIONS("open"), icons.FILE_KTS) {

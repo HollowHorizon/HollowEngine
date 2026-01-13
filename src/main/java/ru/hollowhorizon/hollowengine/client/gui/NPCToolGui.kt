@@ -324,7 +324,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
 
         override fun UiScope.compose() {
             modifier.padding(sizes.smallGap)
-            Entity(npc) {
+            Entity({npc}) {
                 modifier.size(Grow.Std, Grow.Std)
             }
         }
