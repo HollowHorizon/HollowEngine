@@ -33,6 +33,7 @@ private val NodeDefinition.fullName: String
     }
 
 class AnimationInstance(private val animation: Animation) {
+    val name = animation.name
     private val blendTime = BlendTime(0.2f, 0.2f)
     private var reversed = false
     private var endTime = 0f

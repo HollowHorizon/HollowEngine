@@ -32,6 +32,7 @@ class ModelAttachment(model: Model, parent: Attachment?) : Attachment(parent) {
 
     private val nodeIdToNode = nodes.flatMap { it.walk() }.associateBy { it.definition.index }
     private val nodeIdToTransform = nodeIdToNode.mapValues { it.value.transform }
+    @PublishedApi
     internal val pipeline by lazy {
         ListRenderPipeline().apply(::collectCommands)
     }
