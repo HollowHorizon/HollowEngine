@@ -89,12 +89,12 @@ dependencies {
     install("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
     install("org.jetbrains.kotlinx:atomicfu:0.30.0-beta")
 
-    install("de.fabmax.kool:kool-physics-desktop:$koolVersion", true)
-    install("de.fabmax:physx-jni:2.7.1")
-    install("de.fabmax:physx-jni:2.7.1:natives-windows")
-    install("de.fabmax:physx-jni:2.7.1:natives-linux")
-    install("de.fabmax:physx-jni:2.7.1:natives-macos")
-    install("de.fabmax:physx-jni:2.7.1:natives-macos-arm64")
+//    install("de.fabmax.kool:kool-physics-desktop:$koolVersion", true)
+//    install("de.fabmax:physx-jni:2.7.1")
+//    install("de.fabmax:physx-jni:2.7.1:natives-windows")
+//    install("de.fabmax:physx-jni:2.7.1:natives-linux")
+//    install("de.fabmax:physx-jni:2.7.1:natives-macos")
+//    install("de.fabmax:physx-jni:2.7.1:natives-macos-arm64")
 }
 
 val generateAssets by tasks.registering(GenerateAssetsTask::class) {
