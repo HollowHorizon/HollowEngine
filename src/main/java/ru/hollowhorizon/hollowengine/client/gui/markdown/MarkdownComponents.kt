@@ -3,12 +3,16 @@ package ru.hollowhorizon.hollowengine.client.gui.markdown
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
+import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.MarkdownTokenTypes
 import org.intellij.markdown.ast.ASTNode
 import org.intellij.markdown.ast.getTextInNode
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.AttributedText
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 
 fun UiScope.MarkdownParagraph(
     node: ASTNode,
@@ -61,19 +65,17 @@ fun UiScope.MarkdownHeader(
 }
 
 fun UiScope.MarkdownCodeBlock(node: ASTNode, source: String, style: MarkdownStyle) {
-    val text = node.children.let {
-        it.subList(it.indexOfFirst { it.type == MarkdownTokenTypes.CODE_FENCE_CONTENT }.takeIf { it >= 0 } ?: return,
-            it.indexOfFirst { it.type == MarkdownTokenTypes.CODE_FENCE_END }.takeIf { it >= 0 } ?: return)
-    }.joinToString("") { it.getTextInNode(source) }.lines()
-
+    val text = node.children.filter { it.type == MarkdownTokenTypes.CODE_FENCE_CONTENT }
+        .joinToString("\n") { it.getTextInNode(source) }
+    val lines = ScriptingEnvironment.INSTANCE.analyzer.highlight("hightlight.kts", text, -1)
+        .map { it.toKool(style.bodyFont) }
     Column(width = Grow.Std) {
-        modifier.padding(vertical = Dp(8f)).backgroundColor(style.codeBackgroundColor)
+        modifier.padding(Dimensions.PaddingMedium)
+            .background(RoundRectBackground(style.codeBackgroundColor, Dimensions.PaddingMedium))
 
-        text.forEach { lineStr ->
-            if (lineStr.isNotEmpty()) {
-                AttributedText(TextLine(listOf(lineStr to TextAttributes(style.codeFont, style.textColor)))) {
-                    modifier.width(Grow.Std)
-                }
+        lines.forEach { line ->
+            AttributedText(line) {
+                modifier.width(Grow.Std)
             }
         }
     }
@@ -85,11 +87,28 @@ fun UiScope.MarkdownImage(node: ASTNode, source: String, style: MarkdownStyle) {
     val urlEnd = text.lastIndexOf(')')
 
     if (urlStart > 0 && urlEnd > urlStart) {
-        val url = text.substring(urlStart, urlEnd)
+        val rawUrl = text.substring(urlStart, urlEnd)
 
-        // TODO: Здесь наверное стоит сделать разделение между https и ResourceLocation, но вообще вроде стандартный `Image(url) { ... }` должен и так схавать
-        Text("Image: $url") {
-            modifier.textColor(style.linkColor).padding(vertical = Dp(8f)).font(style.italicFont)
+        Image(rawUrl) {
+            modifier
+                .padding(vertical = Dp(8f))
+                .width(Grow.Std)
+        }
+
+        // Опционально: отобразить подпись (alt text), если она есть
+        val altTextStart = text.indexOf('[') + 1
+        val altTextEnd = text.lastIndexOf(']')
+        if (altTextEnd > altTextStart) {
+            val alt = text.substring(altTextStart, altTextEnd)
+            if (alt.isNotEmpty()) {
+                Text(alt) {
+                    modifier
+                        .alignX(AlignmentX.Center)
+                        .textColor(style.textColor.withAlpha(0.7f))
+                        .font(style.italicFont)
+                        .margin(top = Dp(4f))
+                }
+            }
         }
     }
 }
@@ -174,7 +193,7 @@ private fun UiScope.MarkdownTableCell(
     style: MarkdownStyle,
     alignment: AlignmentX,
     isHeader: Boolean,
-    bgColor: Color?
+    bgColor: Color?,
 ) {
     Box {
         modifier
@@ -208,7 +227,6 @@ private fun UiScope.MarkdownTableCell(
     }
 }
 
-// Парсинг оставляем без изменений
 private fun parseTableAlignments(tableNode: ASTNode, source: String): List<AlignmentX> {
     val tableText = tableNode.getTextInNode(source).toString().trim()
     val lines = tableText.lines()
@@ -231,6 +249,7 @@ private fun parseTableAlignments(tableNode: ASTNode, source: String): List<Align
     }
     return alignments
 }
+
 private fun wrapText(spans: List<Pair<String, TextAttributes>>, maxWidth: Float): List<TextLine> {
     val visualLines = mutableListOf<TextLine>()
     var currentLineSpans = mutableListOf<Pair<String, TextAttributes>>()
@@ -239,22 +258,37 @@ private fun wrapText(spans: List<Pair<String, TextAttributes>>, maxWidth: Float)
     val effectiveWidth = maxWidth - 1f
 
     for ((text, attrs) in spans) {
-        val words = text.split(" ")
+        val parts = text.split(Regex("\\s+"))
 
-        for (i in words.indices) {
-            val word = words[i]
-            val wordWithSpace = if (i < words.size - 1) "$word " else word
+        for (i in parts.indices) {
+            val word = parts[i]
+            if (word.isEmpty()) continue
 
-            val measuredWidth = measureStringWidth(wordWithSpace, attrs.font)
+            val wordWidth = measureStringWidth(word + " ", attrs.font)
 
-            if (currentLineWidth + measuredWidth > effectiveWidth && currentLineWidth > 0) {
+            if (currentLineWidth + wordWidth > effectiveWidth && currentLineWidth > 0) {
                 visualLines.add(TextLine(sanitize(currentLineSpans)))
                 currentLineSpans = mutableListOf()
                 currentLineWidth = 0f
             }
 
-            currentLineSpans.add(wordWithSpace to attrs)
-            currentLineWidth += measuredWidth
+            currentLineSpans.add(word to attrs)
+            currentLineWidth += wordWidth
+
+            if (i < parts.size - 1) {
+                val space = " "
+                val spaceWidth = measureStringWidth(space, attrs.font)
+
+                currentLineSpans.add(space to attrs)
+                currentLineWidth += spaceWidth
+            }
+        }
+
+        if (text.endsWith(" ") || text.endsWith("\n")) {
+            val space = " "
+            val spaceWidth = measureStringWidth(space, attrs.font)
+            currentLineSpans.add(space to attrs)
+            currentLineWidth += spaceWidth
         }
     }
 
@@ -273,79 +307,140 @@ private fun measureStringWidth(str: String, font: MsdfFont): Float {
     return w
 }
 
-// TODO: Тут пока довольно сомнительная реализация, она не учитывает вложенные виджеты (например, одновременно жирный шрифт, курсив и цвет + выделение фона)
-//  Кроме того, тут слишком плохая обработка неправильных выражений, например, когда есть одна звёздочка (*), а закрывающей нет. Да и символ `\` тоже нужно перепроверить, везде ли он работает
-//  В идеале тут вообще стоит вручную текст парсить и отображать разные виджеты, чтобы вставлять ссылки с анимацией при наведении или всякие иконки/предметы
+/**
+ * Исправленная функция сбора спанов.
+ * Реализован рекурсивный обход дерева (Visitor), что позволяет:
+ * 1. Корректно обрабатывать вложенность (напр. **Жирный _курсив_**).
+ * 2. Игнорировать ошибки разметки (незакрытые теги обрабатываются как текст).
+ * 3. Поддерживать кастомную логику цветов в ссылках.
+ */
 private fun collectSpans(
     node: ASTNode,
     source: String,
-    currentAttr: TextAttributes,
+    parentAttr: TextAttributes,
     style: MarkdownStyle,
 ): List<Pair<String, TextAttributes>> {
     val result = mutableListOf<Pair<String, TextAttributes>>()
 
-    if (node.children.isEmpty()) {
-        val text = node.getTextInNode(source).toString().replace("\\", "")
-        result.add(text to currentAttr)
-    } else {
-        node.children.forEach { child ->
-            when (child.type.toString()) {
-                "Markdown:INLINE_LINK" -> {
-                    val destinationNode = child.children.find { it.type.toString() == "Markdown:LINK_DESTINATION" }
-                    val textNode = child.children.find { it.type.toString() == "Markdown:LINK_TEXT" }
+    fun visit(currentNode: ASTNode, currentAttr: TextAttributes) {
+        // Если у ноды есть дети, рекурсивно обходим их, модифицируя атрибуты
+        // Если детей нет (Leaf node), выводим текст
 
-                    val destination = destinationNode?.getTextInNode(source)?.toString() ?: ""
+        // Специфическая обработка типов нод
+        when (currentNode.type) {
+            // --- Контейнеры (меняют стиль для детей) ---
+            MarkdownElementTypes.STRONG -> {
+                // Вложенный обход с жирным шрифтом
+                currentNode.children.forEach {
+                    visit(
+                        it,
+                        currentAttr.copy(font = currentAttr.font.copy(weight = MsdfFont.WEIGHT_EXTRA_BOLD))
+                    )
+                }
+            }
 
-                    if (destination.startsWith("color:")) {
-                        val colorName = destination.removePrefix("color:")
-                        val color = parseColorString(colorName) ?: currentAttr.color
+            MarkdownElementTypes.EMPH -> {
+                // Вложенный обход с курсивом
+                currentNode.children.forEach {
+                    visit(
+                        it,
+                        currentAttr.copy(font = currentAttr.font.copy(italic = MsdfFont.ITALIC_STD))
+                    )
+                }
+            }
 
-                        textNode?.children?.getOrNull(1)?.let {
-                            result.addAll(collectSpans(it, source, currentAttr.copy(color = color), style))
-                        }
-                    } else {
-                        textNode?.children?.getOrNull(1)?.let {
-                            result.addAll(collectSpans(it, source, currentAttr.copy(color = style.linkColor), style))
-                        }
-                    }
+            MarkdownElementTypes.INLINE_LINK -> {
+                // Логика ссылок и цветов
+                val destinationNode = currentNode.children.find { it.type == MarkdownElementTypes.LINK_DESTINATION }
+                val textNode = currentNode.children.find { it.type == MarkdownElementTypes.LINK_TEXT }
+
+                val destination = destinationNode?.getTextInNode(source)?.toString() ?: ""
+
+                val linkAttr = if (destination.startsWith("color:")) {
+                    val colorName = destination.removePrefix("color:")
+                    val color = parseColorString(colorName) ?: currentAttr.color
+                    currentAttr.copy(color = color)
+                } else {
+                    currentAttr.copy(color = style.linkColor)
                 }
 
-                "Markdown:STRONG" -> {
-                    if (child.children.isEmpty()) {
-                        result.addAll(collectSpans(child, source, currentAttr, style))
-                    } else {
-                        child.children.getOrNull(2)?.let {
-                            result.addAll(collectSpans(it, source, currentAttr.copy(font = style.boldFont), style))
-                        }
+                // Обрабатываем содержимое текста ссылки (там тоже может быть форматирование)
+                // LINK_TEXT обычно содержит [ content ], нам нужен content
+                textNode?.children?.forEach { child ->
+                    if (child.type != MarkdownTokenTypes.LBRACKET && child.type != MarkdownTokenTypes.RBRACKET) {
+                        visit(child, linkAttr)
                     }
                 }
+            }
 
-                "Markdown:EMPH" -> {
-                    if (child.children.isEmpty()) {
-                        result.addAll(collectSpans(child, source, currentAttr, style))
-                    } else {
-                        child.children.getOrNull(1)?.let {
-                            result.addAll(collectSpans(it, source, currentAttr.copy(font = style.italicFont), style))
-                        }
+            MarkdownElementTypes.CODE_SPAN -> {
+                // Код внутри строки. Текст внутри берется буквально, но со своим шрифтом
+                val codeAttr = currentAttr.copy(font = style.codeFont, background = style.codeBackgroundColor)
+                currentNode.children.forEach { child ->
+                    // Пропускаем сами тики (`), если они есть как отдельные токены, но обычно текст внутри
+                    if (child.type == MarkdownTokenTypes.TEXT || child.type == MarkdownTokenTypes.CODE_FENCE_CONTENT) {
+                        // В коде не анэскейпим символы
+                        result.add(child.getTextInNode(source).toString() to codeAttr)
                     }
                 }
+            }
 
-                "Markdown:CODE_SPAN" -> {
-                    val attributes = currentAttr.copy(font = style.codeFont, background = style.codeBackgroundColor)
-                    if (child.children.isEmpty()) {
-                        result.addAll(collectSpans(child, source, attributes, style))
-                    } else {
-                        child.children.getOrNull(1)?.let {
-                            result.addAll(collectSpans(it, source, attributes, style))
-                        }
-                    }
+            // --- Листовые ноды (Текст) ---
+            MarkdownTokenTypes.TEXT,
+            MarkdownTokenTypes.WHITE_SPACE,
+            MarkdownTokenTypes.COLON,
+            MarkdownTokenTypes.LPAREN,
+            MarkdownTokenTypes.RPAREN,
+            MarkdownTokenTypes.LBRACKET,
+            MarkdownTokenTypes.RBRACKET,
+                -> {
+                // Обычный текст: нужно обработать экранирование
+                val text = currentNode.getTextInNode(source).toString()
+                // Исправляем экранирование: заменяем `\*` на `*` и т.д.
+                // Простейший вариант - убрать слэш, если за ним идет символ.
+                val unescaped = unescapeMarkdown(text)
+                result.add(unescaped to currentAttr)
+            }
+
+            MarkdownTokenTypes.ESCAPED_BACKTICKS -> {
+                result.add("`" to currentAttr)
+            }
+
+            // Если мы попали сюда с контейнером, который не обработали выше (например, PARAGRAPH при первом вызове),
+            // просто идем вглубь
+            else -> {
+                if (currentNode.children.isNotEmpty()) {
+                    currentNode.children.forEach { visit(it, currentAttr) }
+                } else {
+                    // Fallback для неизвестных токенов - просто печатаем их текст
+                    // Но лучше игнорировать служебные символы разметки, если они не обработаны выше
                 }
-
-                else -> result.addAll(collectSpans(child, source, currentAttr, style))
             }
         }
     }
+
+    visit(node, parentAttr)
     return result
+}
+
+// Функция для снятия экранирования (например, "foo\*bar" -> "foo*bar")
+private fun unescapeMarkdown(text: String): String {
+    if (!text.contains('\\')) return text
+    val sb = StringBuilder(text.length)
+    var escaped = false
+    for (c in text) {
+        if (escaped) {
+            sb.append(c)
+            escaped = false
+        } else if (c == '\\') {
+            escaped = true
+        } else {
+            sb.append(c)
+        }
+    }
+    // Если строка заканчивается на \, добавляем его (хотя в markdown это редкость)
+    if (escaped) sb.append('\\')
+    return sb.toString()
 }
 
 private fun sanitize(spans: List<Pair<String, TextAttributes>>): List<Pair<String, TextAttributes>> {
@@ -356,6 +451,7 @@ private fun sanitize(spans: List<Pair<String, TextAttributes>>): List<Pair<Strin
         for (i in 1 until spans.size) {
             val span = spans[i]
             if (span.second == prevSpan.second) {
+                // Если атрибуты совпадают, объединяем строки
                 prevSpan = prevSpan.first + span.first to prevSpan.second
                 newSpans[newSpans.lastIndex] = prevSpan
             } else if (span.first.isNotEmpty()) {

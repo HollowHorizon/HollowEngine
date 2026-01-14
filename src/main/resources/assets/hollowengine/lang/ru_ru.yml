@@ -35,6 +35,7 @@ hollowengine:
       recipes: Редактор рецептов
       console: Терминал
       autoruns: Автозапуск
+      markdown: Markdown
 
       popups:
         create_folder: "Введите название папки:"

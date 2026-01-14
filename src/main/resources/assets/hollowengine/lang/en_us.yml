@@ -36,6 +36,7 @@ hollowengine:
       console: Terminal
       autoruns: Auto runs
       translations: Translations
+      markdown: Markdown
 
       popups:
         create_folder: "Enter folder name:"
