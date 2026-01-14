@@ -6,7 +6,6 @@ import de.fabmax.kool.util.MsdfFont
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.MarkdownTokenTypes
 import org.intellij.markdown.ast.ASTNode
-import org.intellij.markdown.flavours.commonmark.CommonMarkFlavourDescriptor
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
 import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.intellij.markdown.parser.MarkdownParser
@@ -14,7 +13,6 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme.Fonts.MONOCRAF
 
 
 data class MarkdownStyle(
-    // TODO: Там AxelEncore скидывал готовые размеры и подходящие параметры для цветов и шрифтов, надо с ними свериться
     val h1Font: MsdfFont = MsdfFont(MONOCRAFT, sizePts = 34f),
     val h2Font: MsdfFont = MsdfFont(MONOCRAFT, sizePts = 30f),
     val h3Font: MsdfFont = MsdfFont(MONOCRAFT, sizePts = 26f),
@@ -87,11 +85,18 @@ fun UiScope.MarkdownEditor(
                     installDefaultSelectionHandler()
                 }
             } else {
-                ScrollPane(remember { ScrollState() }) {
-                    modifier.width(Grow.Std).height(Grow.Std)
+                val width = remember(0f)
+
+                ScrollArea(containerModifier = {
+                    it.background(null).width(Grow.Std)
+                    it.onMeasured {
+                        width.set(it.innerWidthPx)
+                    }
+                }) {
+                    modifier.width(Grow(1f, max = Dp.fromPx(width.use())))
 
                     MarkdownViewer(handler.text, handler.style) {
-                        modifier.width(Grow.Std).height(Grow.MinFit)
+
                     }
                 }
             }
@@ -123,25 +128,24 @@ fun UiScope.MarkdownViewer(
         parser.buildMarkdownTreeFromString(markdownSource)
     }
 
-    Box {
+    Box(Grow.Std, FitContent) {
         block()
 
         // В теории это работает так: создаётся contentWidth, при первом кадре рассчитывает доступные размеры в onMeasured, и уже во 2 кадре использует их для переноса строк
         val contentWidth = remember(0f)
 
         modifier.onMeasured {
-            if (it.contentWidthPx != contentWidth.value) {
-                contentWidth.set(it.contentWidthPx)
-            }
+            contentWidth.set(it.innerWidthPx)
         }
 
-        Column(width = Grow.Std, height = Grow.MinFit) {
+        Column(Grow.Std, Grow.MinFit) {
+
             renderMarkdownNode(parsedTree, markdownSource, style, contentWidth.value)
         }
     }
 }
 
-private fun UiScope.renderMarkdownNode(
+fun UiScope.renderMarkdownNode(
     node: ASTNode,
     source: String,
     style: MarkdownStyle,

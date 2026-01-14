@@ -8,7 +8,7 @@ import org.intellij.markdown.ast.ASTNode
 import org.intellij.markdown.ast.getTextInNode
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
-import kotlin.math.max
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 
 fun UiScope.MarkdownParagraph(
     node: ASTNode,
@@ -17,7 +17,7 @@ fun UiScope.MarkdownParagraph(
 ) {
     val spans = collectSpans(node, source, TextAttributes(style.bodyFont, style.textColor), style)
 
-    Column(width = Grow.Std) {
+    Column(Grow.Std) {
         modifier.padding(bottom = Dp(16f))
 
         val maxWidth = remember(0f)
@@ -53,8 +53,6 @@ fun UiScope.MarkdownHeader(
     Column(width = Grow.Std) {
         modifier.padding(top = Dp(16f), bottom = Dp(8f))
         visualLines.forEach { line ->
-            // TODO: Лучше тут перейти на другудю систему, чтобы вставлять ссылки, выражения через гравис (`),
-            //  и т.п. как разные независимые виджеты, чтобы лучше их анимировать.
             AttributedText(line) {
                 modifier.width(Grow.Std)
             }
@@ -97,99 +95,72 @@ fun UiScope.MarkdownImage(node: ASTNode, source: String, style: MarkdownStyle) {
 }
 
 fun UiScope.MarkdownTable(node: ASTNode, source: String, style: MarkdownStyle) {
-    val widthCache = remember { mutableStateOf<List<Dp>?>(null) }
     val alignCache = remember { mutableStateOf<List<AlignmentX>?>(null) }
     val prevNodeState = remember { mutableStateOf<ASTNode?>(null) }
 
     if (prevNodeState.value != node) {
-        widthCache.set(measureTableColumns(node, source, style))
         alignCache.set(parseTableAlignments(node, source))
         prevNodeState.set(node)
     }
 
-    val columnWidths = widthCache.use() ?: emptyList()
     val alignments = alignCache.use() ?: emptyList()
 
     val headerNode = node.children.find { it.type == GFMElementTypes.HEADER }
     val rowNodes = node.children.filter { it.type == GFMElementTypes.ROW }
 
-    ScrollArea(
-        width = Grow.Std,
-        height = FitContent,
-        withVerticalScrollbar = false,
-        withHorizontalScrollbar = true,
-        containerModifier = {
-            it.background(RectBackground(Color.WHITE.withAlpha(0.1f))).border(RectBorder(style.tableBorderColor, Dp(1f)))
-        }
-    ) {
-        Column {
-            modifier
-                .background(RectBackground(Color.WHITE.withAlpha(0.05f)))
-                .border(RectBorder(style.tableBorderColor, Dp(1f)))
-
-            if (headerNode != null) {
-                MarkdownTableRow(headerNode, source, style, columnWidths, alignments, isHeader = true)
-                Box(width = Grow.Std, height = Dp(1f)) { modifier.backgroundColor(style.tableBorderColor) }
-            }
-
-            rowNodes.forEachIndexed { index, row ->
-                val bgColor = if (index % 2 == 0) style.tableEvenRowColor else style.tableOddRowColor
-                MarkdownTableRow(row, source, style, columnWidths, alignments, isHeader = false, rowBackgroundColor = bgColor)
-            }
-        }
+    val headerCells = headerNode?.children?.filter { it.type == GFMTokenTypes.CELL } ?: emptyList()
+    val bodyRowsCells = rowNodes.map { row ->
+        row.children.filter { it.type == GFMTokenTypes.CELL }
     }
-}
 
-private fun UiScope.MarkdownTableRow(
-    node: ASTNode,
-    source: String,
-    style: MarkdownStyle,
-    columnWidths: List<Dp>,
-    alignments: List<AlignmentX>,
-    isHeader: Boolean,
-    rowBackgroundColor: Color? = null
-) {
-    Row {
-        modifier.width(FitContent)
-        if (rowBackgroundColor != null) {
-            modifier.backgroundColor(rowBackgroundColor)
-        }
+    val maxColumns = (listOf(headerCells.size) + bodyRowsCells.map { it.size }).maxOrNull() ?: 0
 
-        val cells = node.children.filter { it.type == GFMTokenTypes.CELL }
+    Box {
+        modifier
+            .background(RectBackground(Color.WHITE.withAlpha(0.05f)))
+            .border(RectBorder(style.tableBorderColor, Dp(1f)))
 
-        columnWidths.forEachIndexed { index, width ->
-            if (index > 0) {
-                Box(width = Dp(1f), height = Grow.Std) {
-                    modifier.backgroundColor(style.tableBorderColor.withAlpha(0.5f))
-                }
-            }
+        Row {
+            for (colIndex in 0 until maxColumns) {
 
-            val cellNode = cells.getOrNull(index)
-            val alignment = alignments.getOrNull(index) ?: AlignmentX.Start
-
-            val finalAlign = if (isHeader) AlignmentX.Center else alignment
-
-            Box {
-                modifier
-                    .width(width)
-                    .padding(horizontal = Dp(8f), vertical = Dp(6f))
-
-                if (isHeader) {
-                    modifier.backgroundColor(style.tableHeaderBgColor)
+                if (colIndex > 0) {
+                    Box(width = Dp(1f), height = Grow.Std) {
+                        modifier.backgroundColor(style.tableBorderColor.withAlpha(0.5f))
+                    }
                 }
 
-                if (cellNode != null) {
-                    val spans = collectSpans(
-                        cellNode,
-                        source,
-                        TextAttributes(if (isHeader) style.boldFont else style.bodyFont, style.textColor),
-                        style
-                    )
+                Column {
 
-                    AttributedText(TextLine(sanitize(spans))) {
-                        modifier
-                            .width(Grow.Std)
-                            .textAlignX(finalAlign)
+                    val alignment = alignments.getOrNull(colIndex) ?: AlignmentX.Start
+
+                    if (headerNode != null) {
+                        val cellNode = headerCells.getOrNull(colIndex)
+                        MarkdownTableCell(
+                            cellNode = cellNode,
+                            source = source,
+                            style = style,
+                            alignment = AlignmentX.Center,
+                            isHeader = true,
+                            bgColor = style.tableHeaderBgColor
+                        )
+
+                        Box(width = Grow.Std, height = Dp(1f)) {
+                            modifier.backgroundColor(style.tableBorderColor)
+                        }
+                    }
+
+                    bodyRowsCells.forEachIndexed { rowIndex, cells ->
+                        val cellNode = cells.getOrNull(colIndex)
+                        val rowColor = if (rowIndex % 2 == 0) style.tableEvenRowColor else style.tableOddRowColor
+
+                        MarkdownTableCell(
+                            cellNode = cellNode,
+                            source = source,
+                            style = style,
+                            alignment = alignment,
+                            isHeader = false,
+                            bgColor = rowColor
+                        )
                     }
                 }
             }
@@ -197,6 +168,47 @@ private fun UiScope.MarkdownTableRow(
     }
 }
 
+private fun UiScope.MarkdownTableCell(
+    cellNode: ASTNode?,
+    source: String,
+    style: MarkdownStyle,
+    alignment: AlignmentX,
+    isHeader: Boolean,
+    bgColor: Color?
+) {
+    Box {
+        modifier
+            .width(Grow.Std)
+            .padding(horizontal = Dimensions.PaddingNormal, vertical = Dimensions.PaddingNormal)
+
+        val width = remember(0f)
+
+        modifier.onMeasured {
+            width.set(it.innerWidthPx)
+        }
+
+        if (bgColor != null) {
+            modifier.backgroundColor(bgColor)
+        }
+
+        if (cellNode != null) {
+            val spans = collectSpans(
+                cellNode,
+                source,
+                TextAttributes(if (isHeader) style.boldFont else style.bodyFont, style.textColor),
+                style
+            )
+
+            AttributedText(TextLine(sanitize(spans))) {
+                modifier
+                    .width(Grow.Std)
+                    .textAlignX(alignment)
+            }
+        }
+    }
+}
+
+// Парсинг оставляем без изменений
 private fun parseTableAlignments(tableNode: ASTNode, source: String): List<AlignmentX> {
     val tableText = tableNode.getTextInNode(source).toString().trim()
     val lines = tableText.lines()
@@ -219,40 +231,6 @@ private fun parseTableAlignments(tableNode: ASTNode, source: String): List<Align
     }
     return alignments
 }
-
-private fun measureTableColumns(tableNode: ASTNode, source: String, style: MarkdownStyle): List<Dp> {
-    val widths = mutableMapOf<Int, Float>()
-    val font = style.bodyFont
-    val boldFont = style.boldFont
-    val cellPaddingPx = 18f
-
-    fun processRow(rowNode: ASTNode, isHeader: Boolean) {
-        val cells = rowNode.children.filter { it.type == GFMTokenTypes.CELL }
-        cells.forEachIndexed { index, cellNode ->
-            val spans = collectSpans(
-                cellNode,
-                source,
-                TextAttributes(if (isHeader) boldFont else font, style.textColor),
-                style
-            )
-
-            var textWidth = 0f
-            spans.forEach { (text, attrs) ->
-                textWidth += measureStringWidth(text, attrs.font)
-            }
-
-            val currentMax = widths.getOrElse(index) { 0f }
-            widths[index] = max(currentMax, textWidth + cellPaddingPx)
-        }
-    }
-
-    tableNode.children.find { it.type == GFMElementTypes.HEADER }?.let { processRow(it, true) }
-    tableNode.children.filter { it.type == GFMElementTypes.ROW }.forEach { processRow(it, false) }
-
-    val colCount = widths.keys.maxOrNull() ?: -1
-    return (0..colCount).map { Dp(widths[it] ?: 100f) }
-}
-
 private fun wrapText(spans: List<Pair<String, TextAttributes>>, maxWidth: Float): List<TextLine> {
     val visualLines = mutableListOf<TextLine>()
     var currentLineSpans = mutableListOf<Pair<String, TextAttributes>>()
@@ -297,6 +275,7 @@ private fun measureStringWidth(str: String, font: MsdfFont): Float {
 
 // TODO: Тут пока довольно сомнительная реализация, она не учитывает вложенные виджеты (например, одновременно жирный шрифт, курсив и цвет + выделение фона)
 //  Кроме того, тут слишком плохая обработка неправильных выражений, например, когда есть одна звёздочка (*), а закрывающей нет. Да и символ `\` тоже нужно перепроверить, везде ли он работает
+//  В идеале тут вообще стоит вручную текст парсить и отображать разные виджеты, чтобы вставлять ссылки с анимацией при наведении или всякие иконки/предметы
 private fun collectSpans(
     node: ASTNode,
     source: String,
