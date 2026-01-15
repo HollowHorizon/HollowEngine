@@ -37,9 +37,14 @@ public class MouseHandlerMixin {
 
     @Inject(method = "onMove", at = @At("HEAD"), cancellable = true)
     private void onMove(long windowPointer, double xpos, double ypos, CallbackInfo ci) {
-        PointerInput.INSTANCE.handleMouseMove$kool_core((float) xpos, (float) ypos);
-        hollowengine$x = (float) xpos;
-        hollowengine$y = (float) ypos;
+        com.mojang.blaze3d.platform.Window window = minecraft.getWindow();
+        double scaleFactor = (double) minecraft.getMainRenderTarget().width / window.getScreenWidth();
+        float convertedX = (float) (xpos * scaleFactor);
+        float convertedY = (float) (ypos * scaleFactor);
+
+        PointerInput.INSTANCE.handleMouseMove$kool_core((float) convertedX, (float) convertedY);
+        hollowengine$x = (float) convertedX;
+        hollowengine$y = (float) convertedY;
         if(ScriptingEnvironmentScreenKt.isMouseOverDock(hollowengine$x, hollowengine$y) && minecraft.screen != null) {
             this.xpos = 0;
             this.ypos = 0;

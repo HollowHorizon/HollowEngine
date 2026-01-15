@@ -24,7 +24,7 @@ object ColorTheme {
     }
 
     object Accents {
-        val Main = Color("FEAE3F")          // Главный акцент
+        val Main = Color("D77F1C")          // Главный акцент
         val Success = Color("56C351")       // Запуск / успех
     }
 

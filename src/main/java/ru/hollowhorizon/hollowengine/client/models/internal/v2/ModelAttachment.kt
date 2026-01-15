@@ -26,12 +26,23 @@ class ModelAttachment(model: Model, parent: Attachment?) : Attachment(parent) {
         if (model.isBlockBench) transform.rotate(180f.deg, Vec3f.Y_AXIS)
     }
 
+    val triangles by lazy {
+        model.walkNodes().sumOf {
+            it.mesh?.primitives?.sumOf { it.positionsCount / 3 } ?: 0
+        }
+    }
+    val shapekeys by lazy {
+        model.walkNodes().sumOf {
+            it.mesh?.primitives?.sumOf { it.morphTargets.size } ?: 0
+        }
+    }
     private val onUpdates = mutableListOf<ModelAttachment.() -> Unit>()
     val nodes = model.scenes[model.scene].nodes.map { RuntimeNode(it, this) }
     val animations = Animations(model.animations.associate { it.name to AnimationInstance(it) })
 
     private val nodeIdToNode = nodes.flatMap { it.walk() }.associateBy { it.definition.index }
     private val nodeIdToTransform = nodeIdToNode.mapValues { it.value.transform }
+
     @PublishedApi
     internal val pipeline by lazy {
         ListRenderPipeline().apply(::collectCommands)

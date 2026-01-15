@@ -39,7 +39,7 @@ class Primitive(
 ) {
     val hasSkinning = joints != null && jointWeights != null
     private val indexCount = indices?.size ?: 0
-    private val positionsCount = (positions?.size ?: 0) * 3
+    val positionsCount = (positions?.size ?: 0) * 3
     var jointCount = 0
     private val morphCommands = ArrayList<(FloatArray) -> Unit>()
 

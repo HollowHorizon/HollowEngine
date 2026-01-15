@@ -4,7 +4,7 @@ import de.fabmax.kool.modules.ui2.Dp
 import de.fabmax.kool.modules.ui2.UiNode
 import de.fabmax.kool.modules.ui2.UiRenderer
 import de.fabmax.kool.modules.ui2.UiSurface
-import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 
 class GridBackground(
@@ -13,6 +13,7 @@ class GridBackground(
     val scrollX: Float,
     val scrollY: Float,
     val lineWidth: Dp,
+    val lineColor: Color,
 ) : UiRenderer<UiNode> {
     override fun renderUi(node: UiNode) {
         node.apply {
@@ -36,7 +37,7 @@ class GridBackground(
                         lineThicknessPx,
                         heightPx,
                         clipBoundsPx,
-                        ColorTheme.UI.BackgroundElements.withAlpha(0.65f)
+                        lineColor
                     )
                     x += cellSize
                 }
@@ -49,7 +50,7 @@ class GridBackground(
                         widthPx,
                         lineThicknessPx,
                         clipBoundsPx,
-                        ColorTheme.UI.BackgroundElements.withAlpha(0.65f)
+                        lineColor
                     )
                     y += cellSize
                 }

@@ -27,7 +27,7 @@ class MCWindow(val ctx: MCKoolContext) : KoolWindow {
         set(value) { /* MC управляет окном */ }
 
     override val framebufferSize: Vec2i
-        get() = Vec2i(Minecraft.getInstance().window.width, Minecraft.getInstance().window.height)
+        get() = Vec2i(Minecraft.getInstance().mainRenderTarget.width, Minecraft.getInstance().mainRenderTarget.height)
 
     override val size: Vec2i
         get() = Vec2i(Minecraft.getInstance().window.width, Minecraft.getInstance().window.height)

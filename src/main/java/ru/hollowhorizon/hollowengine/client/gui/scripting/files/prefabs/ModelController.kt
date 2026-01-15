@@ -50,7 +50,7 @@ class ModelController {
 
     context(scope: UiScope)
     operator fun invoke() = with(scope) {
-        if (animationEnabled.use() || true) surface.triggerUpdate() // Анимация должна обновлять виджет
+        if (animationEnabled.use()) surface.triggerUpdate() // Анимация должна обновлять виджет
         val zoomState = zoom.use()
         val scale by animateSpringFloatAsState(zoomState)
         val offsetX = offsetX.use()
@@ -112,7 +112,7 @@ class ModelController {
 
                     Text(animations.getOrNull(animationId.use())?.name ?: "Пусто") {
                         modifier.font(remember { MsdfFont(ColorTheme.Fonts.MONOCRAFT, 14f) })
-                            .textColor(ColorTheme.UI.BackgroundAccent)
+                            .textColor(ColorTheme.UI.WhiteReplacement)
                             .margin(Dimensions.PaddingMedium)
                             .width(Grow.Std)
                     }
@@ -154,6 +154,21 @@ class ModelController {
                 }
             }
         }
+    }
+
+    context(scope: UiScope)
+    fun Info() = with(scope) {
+        Column {
+            Text("Полигонов: ") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
+            Text("Анимаций: ") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
+            Text("Шейп-кеев: ") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
+        }
+        Column {
+            Text("${attachment.triangles}") { modifier.textColor(ColorTheme.UI.BackgroundAccent) }
+            Text("${attachment.animations.size}") { modifier.textColor(ColorTheme.UI.BackgroundAccent) }
+            Text("${attachment.shapekeys}") { modifier.textColor(ColorTheme.UI.BackgroundAccent) }
+        }
+
     }
 }
 
