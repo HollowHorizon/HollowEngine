@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.gui.animations
 
 import de.fabmax.kool.modules.ui2.mutableStateOf
 import de.fabmax.kool.util.Color
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import java.util.*
 
 class GraphNode(
@@ -23,5 +24,5 @@ data class GraphConnection(
     val fromNodeId: String,
     val toNodeId: String,
     val label: String = "",
-    val color: Color = Color("D77F1C")
+    val color: Color = ColorTheme.Accents.Main.withAlpha(0.4f)
 )
