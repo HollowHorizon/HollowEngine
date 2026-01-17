@@ -23,6 +23,22 @@ object ColorTheme {
         val ForegroundSecondary = Color("2A2E35")
     }
 
+    object GraphColors {
+        val GridBackground = Color("181818") // Темный фон
+        val GridLines = Color("252525")      // Чуть светлее линии
+        val NodeBackground = Color("424242") // Серый фон узла
+        val SelectionBorder = Color("D77F1C") // Оранжевая обводка
+
+        // Типы узлов
+        val StateEntry = Color("6BC872")     // Зеленый (Entry)
+        val StateExit = Color("DB5C5C")      // Красный (Exit)
+        val StateAny = Color("5BB2E8")       // Голубой (Any State)
+        val StateDefault = Color("D77F1C")   // Оранжевый (Idle/Active)
+        val StateNormal = Color("606060")    // Серый (Обычные стейты)
+
+        val LinkColor = Color("A07040")      // Цвет стрелок (оранжево-коричневый)
+    }
+
     object Accents {
         val Main = Color("D77F1C")          // Главный акцент
         val Success = Color("56C351")       // Запуск / успех
