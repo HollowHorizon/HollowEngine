@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs
 
 import com.mojang.blaze3d.vertex.PoseStack
-import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.MsdfFont
 import net.minecraft.client.Minecraft
@@ -43,8 +42,7 @@ class ModelController {
     val animationEnabled = mutableStateOf(false)
 
     val zoom = mutableStateOf(1f)
-    val offsetX = mutableStateOf(0f)
-    val offsetY = mutableStateOf(0f)
+    val scrollState = ScrollState()
     val yaw = mutableStateOf(0f)
     val pitch = mutableStateOf(0f)
 
@@ -53,24 +51,21 @@ class ModelController {
         if (animationEnabled.use()) surface.triggerUpdate() // Анимация должна обновлять виджет
         val zoomState = zoom.use()
         val scale by animateSpringFloatAsState(zoomState)
-        val offsetX = offsetX.use()
-        val offsetY = offsetY.use()
         val yaw = yaw.use()
         val pitch = pitch.use()
 
-        Model(attachment, "Model-Renderer") {
+        Model(attachment, scrollState, "Model-Renderer") {
             modifier.size(Grow.Std, Grow.Std)
                 .margin(Dimensions.PaddingMedium)
                 .scale(scale)
-                .offset(Vec2f(offsetX, offsetY))
                 .yaw(yaw).pitch(pitch)
                 .onDrag {
                     if (it.pointer.isLeftButtonDown) {
                         this@ModelController.yaw.set((yaw + it.pointer.delta.x / 10) % 360)
                         this@ModelController.pitch.set((pitch + it.pointer.delta.y / 10).coerceIn(-90f, 90f))
                     } else if (it.pointer.isRightButtonDown) {
-                        this@ModelController.offsetX.set(offsetX + it.pointer.delta.x)
-                        this@ModelController.offsetY.set(offsetY + it.pointer.delta.y)
+                        scrollState.scrollDpX(it.pointer.delta.x)
+                        scrollState.scrollDpY(it.pointer.delta.y)
                     }
                 }
                 .onWheelY {
@@ -174,13 +169,11 @@ class ModelController {
 
 open class ModelModifier(surface: UiSurface) : GlCanvasModifier(surface) {
     var scale by property(1f)
-    var offset by property(Vec2f(0f, 0f))
     var yaw by property(0f)
     var pitch by property(0f)
 }
 
 fun ModelModifier.scale(factor: Float) = apply { this.scale = factor }
-fun ModelModifier.offset(position: Vec2f) = apply { this.offset = position }
 fun ModelModifier.yaw(yaw: Float) = apply { this.yaw = yaw }
 fun ModelModifier.pitch(yaw: Float) = apply { this.pitch = yaw }
 
@@ -191,6 +184,8 @@ interface ModelScope : ImageScope {
 class ModelNode(parent: UiNode?, surface: UiSurface) : GlCanvasNode(parent, surface), ModelScope {
     override val modifier: ModelModifier = ModelModifier(surface)
 
+    lateinit var scrollState: ScrollState
+
     companion object {
         val factory: (UiNode, UiSurface) -> ModelNode = { parent, surface -> ModelNode(parent, surface) }
     }
@@ -199,6 +194,7 @@ class ModelNode(parent: UiNode?, surface: UiSurface) : GlCanvasNode(parent, surf
 @OptIn(ExperimentalContracts::class)
 inline fun UiScope.Model(
     attachment: ModelAttachment,
+    scrollState: ScrollState,
     scopeName: String? = null, block: ModelScope.() -> Unit,
 ) {
     contract {
@@ -206,12 +202,13 @@ inline fun UiScope.Model(
     }
 
     val modelNode = uiNode.createChild(scopeName, ModelNode::class, ModelNode.factory)
+    modelNode.scrollState = scrollState
     modelNode.modifier.drawer = { modifier ->
         val modelConfig = modifier as ModelModifier
         GL33.glDepthFunc(GL33.GL_LEQUAL)
         val stack = PoseStack()
-        val xOffset = x + width / 2 + modelConfig.offset.x
-        val yOffset = y + height + modelConfig.offset.y
+        val xOffset = x + width / 2 + modelNode.scrollState.xScrollDp.value * UiScale.measuredScale
+        val yOffset = y + height + modelNode.scrollState.yScrollDp.value * UiScale.measuredScale
         stack.translate(xOffset, yOffset, 0f)
         val newScale = min(width, height) * modelConfig.scale
         stack.mulPoseMatrix(Matrix4f().scaling(newScale, -newScale, newScale))

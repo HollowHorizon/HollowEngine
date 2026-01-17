@@ -36,8 +36,7 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
                     GridBackground(
                         Dimensions.PaddingExtraLarge,
                         1f,
-                        modelController.offsetX.use(),
-                        modelController.offsetY.use(),
+                        modelController.scrollState,
                         Dimensions.PaddingSmall * 0.5f,
                         lineColor
                     )

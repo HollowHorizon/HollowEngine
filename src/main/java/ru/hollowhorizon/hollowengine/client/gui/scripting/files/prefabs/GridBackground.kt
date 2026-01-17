@@ -1,17 +1,13 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs
 
-import de.fabmax.kool.modules.ui2.Dp
-import de.fabmax.kool.modules.ui2.UiNode
-import de.fabmax.kool.modules.ui2.UiRenderer
-import de.fabmax.kool.modules.ui2.UiSurface
+import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 
 class GridBackground(
     val sectionSize: Dp,
     val currentZoom: Float,
-    val scrollX: Float,
-    val scrollY: Float,
+    val scrollState: ScrollState,
     val lineWidth: Dp,
     val lineColor: Color,
 ) : UiRenderer<UiNode> {
@@ -23,8 +19,8 @@ class GridBackground(
 
                 val paddingOffset = Dimensions.PaddingLarge.px * currentZoom
 
-                var startX = (paddingOffset + scrollX) % cellSize
-                var startY = (paddingOffset + scrollY) % cellSize
+                var startX = (paddingOffset - scrollState.xScrollDp.use() * UiScale.measuredScale) % cellSize
+                var startY = (paddingOffset - scrollState.yScrollDp.use() * UiScale.measuredScale) % cellSize
 
                 if (startX > 0) startX -= cellSize
                 if (startY > 0) startY -= cellSize
