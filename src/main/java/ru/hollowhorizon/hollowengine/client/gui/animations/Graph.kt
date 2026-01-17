@@ -1,23 +1,27 @@
 package ru.hollowhorizon.hollowengine.client.gui.animations
 
+import de.fabmax.kool.modules.ui2.mutableStateOf
 import de.fabmax.kool.util.Color
 import java.util.*
 
-// Модель одного узла (State)
-data class GraphNode(
+class GraphNode(
     val id: String = UUID.randomUUID().toString(),
     var title: String,
-    var x: Float,
-    var y: Float,
+    x: Float,
+    y: Float,
     val color: Color,
-    val width: Float = 150f,
-    var properties: MutableMap<String, String> = mutableMapOf() // Для правой панели
-)
+    var properties: MutableMap<String, String> = mutableMapOf()
+) {
+    val xState = mutableStateOf(x)
+    val yState = mutableStateOf(y)
 
-// Модель связи (Transition)
+    val widthState = mutableStateOf(150f)
+    val heightState = mutableStateOf(75f)
+}
+
 data class GraphConnection(
     val fromNodeId: String,
     val toNodeId: String,
     val label: String = "",
-    val color: Color = Color("D77F1C") // Оранжевый как на скрине
+    val color: Color = Color("D77F1C")
 )
