@@ -25,7 +25,7 @@ hollowengine:
     ide:
       .: Встроенная среда разработки
       file: Файл
-      edit: Правка
+      windows: Окна
       search: Поиск
       settings:
         .: Настройки
@@ -36,6 +36,7 @@ hollowengine:
       console: Терминал
       autoruns: Автозапуск
       markdown: Markdown
+      graph: Редактор графов
 
       popups:
         create_folder: "Введите название папки:"

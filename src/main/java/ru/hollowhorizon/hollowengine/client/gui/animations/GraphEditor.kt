@@ -18,6 +18,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.abs
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.max
 import kotlin.math.atan2
+import kotlin.math.min
 
 class GraphEditor {
     val scrollState = ScrollState()
@@ -34,6 +35,9 @@ class GraphEditor {
     private val dragOffset = MutableVec2f()
     private val tempVec = MutableVec2f()
 
+    private val viewportWidth = mutableStateOf(0f)
+    private val viewportHeight = mutableStateOf(0f)
+
     private val connectionFont by lazy {
         MsdfFont(ColorTheme.Fonts.MONOCRAFT, 14f)
     }
@@ -47,7 +51,7 @@ class GraphEditor {
 
         connections.add(GraphConnection(nodes[0].id, nodes[1].id, "auto"))
         connections.add(GraphConnection(nodes[1].id, nodes[2].id, "speed > 0"))
-        connections.add(GraphConnection(nodes[2].id, nodes[1].id, "stop")) // Двусторонняя связь
+        connections.add(GraphConnection(nodes[2].id, nodes[1].id, "stop"))
         connections.add(GraphConnection(nodes[1].id, nodes[3].id, "jump"))
     }
 
@@ -56,6 +60,11 @@ class GraphEditor {
 
         Row(Grow.Std, Grow.Std) {
             Box(Grow.Std, Grow.Std) {
+                modifier.onMeasured {
+                    viewportWidth.set(it.widthPx)
+                    viewportHeight.set(it.heightPx)
+                }
+
                 val bgColor = Color("1E1F22")
                 val gridColor = Color("2A2E35")
                 modifier.background(UiRenderer { node ->
@@ -72,14 +81,13 @@ class GraphEditor {
                     )
                 )
 
-                // Zoom control
                 modifier.onWheelY {
                     if (KeyboardInput.isCtrlDown) {
                         val newScale = (scaleState.value * (if (it.pointer.scroll.y > 0) 1.1f else 0.9f))
                             .coerceIn(0.2f, 2.0f)
                         scaleState.set(newScale)
                     } else {
-                        if(KeyboardInput.isShiftDown) {
+                        if (KeyboardInput.isShiftDown) {
                             scrollState.scrollDpX(it.pointer.scroll.x * -20f)
                         } else {
                             scrollState.scrollDpY(it.pointer.scroll.y * -20f)
@@ -90,12 +98,11 @@ class GraphEditor {
                 }
 
                 modifier.onClick {
-                    if (it.pointer.isLeftButtonDown) {
+                    if (it.pointer.isLeftButtonClicked) {
                         selectedNode.set(null)
                     }
                 }
 
-                // Pan control
                 modifier.onDrag {
                     if (it.pointer.isRightButtonDown || (it.pointer.isLeftButtonDown && dragNode == null)) {
                         scrollState.scrollDpX(-it.pointer.delta.x / UiScale.measuredScale)
@@ -139,7 +146,6 @@ class GraphEditor {
                     val to = nodes.find { it.id == conn.toNodeId }
 
                     if (from != null && to != null) {
-                        // Получаем данные координат и размеров
                         val fromX = from.xState.use()
                         val fromY = from.yState.use()
                         val fromW = from.widthState.use()
@@ -150,17 +156,13 @@ class GraphEditor {
                         val toW = to.widthState.use()
                         val toH = to.heightState.use()
 
-                        // Вычисляем центры узлов в пикселях (с учетом скролла ScrollPane не нужно, т.к. Box внутри него, но нужен масштаб)
-                        // Координаты внутри ScrollPane локальны, поэтому просто scale
                         val centerA = Vec2f((fromX + fromW / 2) * scale, (fromY + fromH / 2) * scale)
                         val centerB = Vec2f((toX + toW / 2) * scale, (toY + toH / 2) * scale)
 
-                        // Проверка на двунаправленную связь
                         val isBiDirectional = connList.any {
                             it.fromNodeId == conn.toNodeId && it.toNodeId == conn.fromNodeId
                         }
 
-                        // Смещаем "виртуальные центры", если связь двойная
                         var targetCenterA = centerA
                         var targetCenterB = centerB
 
@@ -168,7 +170,6 @@ class GraphEditor {
                             val dir = Vec2f(centerB.x - centerA.x, centerB.y - centerA.y)
                             val len = dir.length()
                             if (len > 0.001f) {
-                                // Перпендикуляр
                                 val perp = Vec2f(-dir.y / len, dir.x / len)
                                 val offsetAmount = 15f * scale
                                 val offset = Vec2f(perp.x * offsetAmount, perp.y * offsetAmount)
@@ -178,14 +179,12 @@ class GraphEditor {
                             }
                         }
 
-                        // Находим точки пересечения линии (TargetA -> TargetB) с границами прямоугольников
                         val startPos = getEdgePoint(targetCenterA, fromW * scale, fromH * scale, targetCenterB)
                         val endPos = getEdgePoint(targetCenterB, toW * scale, toH * scale, targetCenterA)
 
-                        val color = if (selectedNode.value == from) Color.WHITE else conn.color
+                        val color by animateColorAsState(if (selectedNode.value == from) Color.WHITE else conn.color)
 
                         with(uiNode) {
-                            // Передаем false для clip, чтобы стрелки не обрезались, если вылезут за пределы (хотя внутри Box(Grow) это редкость)
                             drawDashedArrow(startPos, endPos, color, scale, conn.label, textProps)
                         }
                     }
@@ -202,21 +201,14 @@ class GraphEditor {
         val dirX = target.x - center.x
         val dirY = target.y - center.y
 
-        // Если центры совпадают (или очень близко), возвращаем центр
         if (abs(dirX) < 0.1f && abs(dirY) < 0.1f) return center
 
         val halfW = w / 2f
         val halfH = h / 2f
 
-        // Определяем, какую границу пересекает луч: вертикальную или горизонтальную.
-        // Для этого сравниваем тангенс угла луча с тангенсом угла диагонали прямоугольника.
-
-        // Масштабируем вектор так, чтобы проверить пересечение с единичным квадратом,
-        // это позволяет избавиться от проблем с разными пропорциями w и h
         val nx = dirX / halfW
         val ny = dirY / halfH
 
-        // Выбираем t, чтобы выйти на границу 1.0
         val t = 1.0f / max(abs(nx), abs(ny))
 
         return Vec2f(center.x + nx * t * halfW, center.y + ny * t * halfH)
@@ -236,7 +228,6 @@ class GraphEditor {
 
             val isHovered by modifier.hoverable()
 
-            // Сохраняем реальные размеры узла в логических единицах
             modifier.onMeasured {
                 val logicalW = it.widthPx / scale
                 val logicalH = it.heightPx / scale
@@ -267,8 +258,8 @@ class GraphEditor {
                     val mouseLogicX = tempVec.x / scale
                     val mouseLogicY = tempVec.y / scale
 
-                    node.xState.set(mouseLogicX - dragOffset.x)
-                    node.yState.set(mouseLogicY - dragOffset.y)
+                    node.xState.set((mouseLogicX - dragOffset.x).coerceAtLeast(0f))
+                    node.yState.set((mouseLogicY - dragOffset.y).coerceAtLeast(0f))
                 }
             }.onDragEnd {
                 dragNode = null
@@ -277,23 +268,28 @@ class GraphEditor {
             }
 
             val nodeColor by animateColorAsState(
-                if (isSelected || isHovered) node.color.mix(
-                    Color.WHITE,
-                    0.3f
-                ) else node.color
+                if (isSelected || isHovered) {
+                    node.color.mix(Color.WHITE, 0.3f)
+                } else node.color
             )
             val borderColor by animateColorAsState(if (isSelected) Color.WHITE else if (isHovered) ColorTheme.UI.WhiteReplacement else node.color)
 
             modifier
                 .background(
                     RoundRectGradientBackground(
-                        Dimensions.PaddingMedium,
-                        nodeColor.mix(ColorTheme.UI.BackgroundSecondary, 0.5f), ColorTheme.UI.BackgroundSecondary,
+                        Dimensions.PaddingMedium.scaled(),
+                        nodeColor.mix(ColorTheme.UI.BackgroundSecondary, 0.3f), ColorTheme.UI.BackgroundSecondary,
                         0.dp, 0.dp,
                         Dp(150f * scale), Dp(75f * scale)
                     )
                 )
-                .border(RoundRectBorder(borderColor, Dimensions.PaddingMedium, Dimensions.PaddingSmall))
+                .border(
+                    RoundRectBorder(
+                        borderColor,
+                        Dimensions.PaddingMedium.scaled(),
+                        Dimensions.PaddingSmall.scaled()
+                    )
+                )
                 .padding(Dimensions.PaddingMedium.scaled())
 
             Text(node.title) {
@@ -334,7 +330,7 @@ class GraphEditor {
             modifier.width(Dp(300f)).height(Grow.Std).background(RectBackground(ColorTheme.UI.BackgroundSecondary))
                 .padding(Dimensions.PaddingLarge).zLayer(1000)
 
-            Text("СВОЙСТВА") {
+            Text("PROPERTIES") {
                 modifier.textColor(ColorTheme.UI.WhiteReplacement)
                     .margin(bottom = Dimensions.PaddingLarge)
             }
@@ -346,7 +342,7 @@ class GraphEditor {
                     modifier.textColor(Color.GRAY).margin(top = Dimensions.PaddingSmall)
                 }
             } else {
-                Text("Нет выделения") { modifier.textColor(Color.GRAY) }
+                Text("No selection") { modifier.textColor(Color.GRAY) }
             }
         }
     }
@@ -366,7 +362,7 @@ class GraphEditor {
                 .padding(Dimensions.PaddingMedium)
                 .zLayer(1000)
 
-            Text("Мини-карта") {
+            Text("Mini-map") {
                 modifier.align(AlignmentX.Center, AlignmentY.Center).margin(bottom = Dp(6f))
                     .textColor(ColorTheme.UI.WhiteReplacement.withAlpha(0.5f))
             }
@@ -374,25 +370,80 @@ class GraphEditor {
             Box(Grow.Std, Grow.Std) {
                 modifier.margin(Dimensions.PaddingMedium)
                     .margin(top = Dimensions.PaddingSmall)
+
+                val currentNodes = nodes.use()
+                val currentScrollX = scrollState.xScrollDp.use()
+                val currentScrollY = scrollState.yScrollDp.use()
+                val currentScale = scale
+                val currentViewW = viewportWidth.use()
+                val currentViewH = viewportHeight.use()
+
                 modifier.backgrounds(
                     RoundRectBackground(ColorTheme.UI.BackgroundSecondary, Dp(4f)),
                     UiRenderer { node ->
                         val draw = node.getUiPrimitives()
-                        val mapScale = 0.1f
-                        val mapOffsetX = 50f
-                        val mapOffsetY = 50f
 
-                        nodes.use().forEach { n ->
-                            val mx = n.xState.use() * mapScale + mapOffsetX
-                            val my = n.yState.use() * mapScale + mapOffsetY
-                            val mw = n.widthState.use() * mapScale
-                            val mh = n.heightState.use() * mapScale
+                        if (currentNodes.isEmpty()) return@UiRenderer
+
+                        val minX = currentNodes.minOf { it.xState.value }
+                        val minY = currentNodes.minOf { it.yState.value }
+                        val maxX = currentNodes.maxOf { it.xState.value + it.widthState.value }
+                        val maxY = currentNodes.maxOf { it.yState.value + it.heightState.value }
+
+                        val padding = 20f
+                        val worldL = minX - padding
+                        val worldT = minY - padding
+                        val worldR = maxX + padding
+                        val worldB = maxY + padding
+
+                        val worldW = worldR - worldL
+                        val worldH = worldB - worldT
+
+                        val mapW = node.widthPx
+                        val mapH = node.heightPx
+
+                        if (worldW <= 0.1f || worldH <= 0.1f) return@UiRenderer
+
+                        val scaleX = mapW / worldW
+                        val scaleY = mapH / worldH
+                        val mapScale = min(scaleX, scaleY)
+
+                        val drawOffsetX = (mapW - worldW * mapScale) / 2f
+                        val drawOffsetY = (mapH - worldH * mapScale) / 2f
+
+                        fun toMapX(x: Float) = node.leftPx + drawOffsetX + (x - worldL) * mapScale
+                        fun toMapY(y: Float) = node.topPx + drawOffsetY + (y - worldT) * mapScale
+
+                        currentNodes.forEach { n ->
+                            val mx = toMapX(n.xState.value)
+                            val my = toMapY(n.yState.value)
+                            val mw = n.widthState.value * mapScale
+                            val mh = n.heightState.value * mapScale
 
                             draw.roundRect(
-                                node.leftPx + mx, node.topPx + my, mw, mh, 2f,
+                                mx, my, mw, mh, 2f,
                                 node.clipBoundsPx, n.color
                             )
                         }
+
+                        val density = UiScale.measuredScale
+
+                        val camX = (currentScrollX * density) / currentScale
+                        val camY = (currentScrollY * density) / currentScale
+
+                        val camW = currentViewW / currentScale
+                        val camH = currentViewH / currentScale
+
+                        val viewX = toMapX(camX)
+                        val viewY = toMapY(camY)
+                        val viewW = camW * mapScale
+                        val viewH = camH * mapScale
+                        if (mapW <= viewW || mapH <= viewH) return@UiRenderer
+
+                        draw.rect(
+                            viewX, viewY, viewW, viewH,
+                            node.clipBoundsPx, Color.WHITE.withAlpha(0.3f)
+                        )
                     })
             }
         }
@@ -427,7 +478,6 @@ context(node: UiNode) fun drawDashedArrow(
     val text = node.getTextBuilder(textProps.font)
 
     val arrowSize = 10f * scale
-    // Рисуем не до самого конца, чтобы оставить место для острия стрелки
     val endLimit = length - arrowSize
 
     while (currentPos < endLimit) {
@@ -441,7 +491,6 @@ context(node: UiNode) fun drawDashedArrow(
         currentPos += dashLen + gapLen
     }
 
-    // Рисуем кружок-стрелку в конце (смещенный на радиус, чтобы касаться точки to)
     val arrowCenter = to - (normDir * (arrowSize))
     val angleRad = atan2(normDir.y, normDir.x)
     val angleDeg = Math.toDegrees(angleRad.toDouble()).toFloat()
@@ -461,8 +510,8 @@ context(node: UiNode) fun drawDashedArrow(
         textProps.apply {
             this.text = label
             origin.set(
-                mid.x - font.textDimensions(label).width / 2f,
-                mid.y + font.textDimensions(label).height / 2f,
+                mid.x - font.textDimensions(label).width / 2f * scale,
+                mid.y + font.textDimensions(label).height / 2f * scale,
                 0f
             )
         }

@@ -14,16 +14,31 @@ class GridBackground(
     override fun renderUi(node: UiNode) {
         node.apply {
             getUiPrimitives(UiSurface.Companion.LAYER_BACKGROUND).apply {
-                val cellSize = sectionSize.px * currentZoom
-                val lineThicknessPx = lineWidth.px * currentZoom
+                val minGridStepPx = 20f
+
+                val baseCellSize = sectionSize.px * currentZoom
+
+                var stepMultiplier = 1
+                var effectiveCellSize = baseCellSize
+
+                if (baseCellSize > 0) {
+                    while (effectiveCellSize < minGridStepPx) {
+                        stepMultiplier *= 2
+                        effectiveCellSize = baseCellSize * stepMultiplier
+                    }
+                } else {
+                    return
+                }
+
+                val lineThicknessPx = (lineWidth.px * currentZoom).coerceAtLeast(1f)
 
                 val paddingOffset = Dimensions.PaddingLarge.px * currentZoom
 
-                var startX = (paddingOffset - scrollState.xScrollDp.use() * UiScale.measuredScale) % cellSize
-                var startY = (paddingOffset - scrollState.yScrollDp.use() * UiScale.measuredScale) % cellSize
+                var startX = (paddingOffset - scrollState.xScrollDp.use() * UiScale.measuredScale) % effectiveCellSize
+                var startY = (paddingOffset - scrollState.yScrollDp.use() * UiScale.measuredScale) % effectiveCellSize
 
-                if (startX > 0) startX -= cellSize
-                if (startY > 0) startY -= cellSize
+                if (startX > 0) startX -= effectiveCellSize
+                if (startY > 0) startY -= effectiveCellSize
 
                 var x = startX
                 while (x < widthPx) {
@@ -35,7 +50,7 @@ class GridBackground(
                         clipBoundsPx,
                         lineColor
                     )
-                    x += cellSize
+                    x += effectiveCellSize
                 }
 
                 var y = startY
@@ -48,7 +63,7 @@ class GridBackground(
                         clipBoundsPx,
                         lineColor
                     )
-                    y += cellSize
+                    y += effectiveCellSize
                 }
             }
         }

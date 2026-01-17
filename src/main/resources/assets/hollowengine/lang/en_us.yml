@@ -25,6 +25,7 @@ hollowengine:
     ide:
       .: Integrated Development Environment
       file: File
+      windows: Windows
       edit: Edit
       search: Search
       settings:
@@ -37,6 +38,7 @@ hollowengine:
       autoruns: Auto runs
       translations: Translations
       markdown: Markdown
+      graph: Graph Editor
 
       popups:
         create_folder: "Enter folder name:"

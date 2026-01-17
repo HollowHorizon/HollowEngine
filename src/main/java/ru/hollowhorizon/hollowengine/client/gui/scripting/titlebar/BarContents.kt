@@ -22,6 +22,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.sendToast
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -51,7 +52,7 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
 
     val overlay = remember { ItemPopupMenu<Unit>("Title-File-Overlay") }
     overlay()
-    TextButton("Файл") {
+    TextButton("hollowengine.gui.ide.file".lang) {
         overlay.hide()
         overlay.show(Vec2f(it.screenPosition), SubMenuItem {
             item("Перезагрузить ресурсы", icons.RELOAD_MC) {
@@ -64,7 +65,7 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
     }
     val windowOverlay = remember { ItemPopupMenu<Unit>("Title-Window-Overlay") }
     windowOverlay()
-    TextButton("Окна") {
+    TextButton("hollowengine.gui.ide.windows".lang) {
         windowOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
             val size = LayoutLoader.LAYOUTS.size
             LayoutLoader.LAYOUTS.values.forEachIndexed { i, window ->
