@@ -58,7 +58,7 @@ object StonecutterSetup {
         }
 
         stonecutter.apply {
-            val j21 = eval(stonecutter.minecraftVersion, ">=1.20.5")
+            val j21 = true // eval(stonecutter.minecraftVersion, ">=1.20.5")
 
             java.apply {
                 withSourcesJar()

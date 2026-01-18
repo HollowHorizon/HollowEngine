@@ -9,6 +9,8 @@ object DirectoryManager {
             if (!exists()) mkdirs()
         }.toPath()
     }
+    @JvmField
+    val GEARY = HOLLOW_ENGINE.resolve("geary")
 
     @JvmStatic
     fun File.toReadablePath(): String {
