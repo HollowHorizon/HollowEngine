@@ -89,6 +89,7 @@ dependencies {
     install("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
     install("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
     install("org.jetbrains.kotlinx:atomicfu:0.30.0-beta")
+    install("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
 
     val gearyVersion = "0.28.2"
 

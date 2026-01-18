@@ -123,12 +123,12 @@ fun Tag.save(stream: OutputStream) = this.save(DataOutputStream(stream))
 
 fun DataInputStream.loadAsNBT(): Tag {
     try {
-        return NbtIo.read(this).apply {
-            this@loadAsNBT.close()
-        }
+        return NbtIo.read(this)
     } catch (e: Exception) {
         HollowCore.LOGGER.error("Error while reading nbt!", e)
         return CompoundTag()
+    } finally {
+        close()
     }
 }
 

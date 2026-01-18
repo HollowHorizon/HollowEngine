@@ -10,15 +10,17 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
-class MinecraftAsyncCatcher(val server: MinecraftServer) {
-    fun isAsync(): Boolean {
-        return !server.isSameThread
-    }
+class MinecraftAsyncCatcher(val server: MinecraftServer) : AsyncCatcher {
+    override fun isAsync() = server.isAsync()
+    override fun throwException(message: String) = catchOp(message)
+    fun catchOp(message: String) = server.catchOp(message)
+}
 
-    fun catchOp(message: String) {
-        if (isAsync()) {
-            throw IllegalStateException("Thread " + Thread.currentThread().name + " failed main thread check: " + message)
-        }
+fun MinecraftServer.isAsync(): Boolean = !isSameThread
+
+fun MinecraftServer.catchOp(message: String) {
+    if (isAsync()) {
+        throw IllegalStateException("Thread " + Thread.currentThread().name + " failed main thread check: " + message)
     }
 }
 

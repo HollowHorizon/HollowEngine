@@ -20,23 +20,36 @@ import ru.hollowhorizon.hollowengine.common.components.ComponentContainer;
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityEvent;
+import ru.hollowhorizon.hollowengine.common.geary.WorldManagerKt;
+import ru.hollowhorizon.hollowengine.common.geary.tracking.ConversionKt;
+import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.GearyEntityExtensionsKt;
 
 import java.util.Set;
 
 @Mixin(Entity.class)
-public class EntityMixin implements ComponentDispatcher {
-    @Shadow private Level level;
+public abstract class EntityMixin implements ComponentDispatcher {
     @Unique
     private final ComponentContainer hollowengine$container = new ComponentContainer(this);
+    @Shadow
+    private Level level;
+
+    @Shadow
+    public abstract Level level();
 
     @Inject(method = "saveWithoutId", at = @At("TAIL"))
     private void serializeExtra(CompoundTag tag, CallbackInfoReturnable<CompoundTag> cir) {
         tag.put(ComponentContainer.COMPONENT_TAG, hollowengine$container.save());
+        var geary = new CompoundTag();
+        GearyEntityExtensionsKt.encodeComponentsTo(WorldManagerKt.toGeary(level()), ConversionKt.toGeary((Entity) (Object) this), geary);
+        tag.put("geary", geary);
+
     }
 
     @Inject(method = "load", at = @At("TAIL"))
     private void deserializeExtra(CompoundTag tag, CallbackInfo ci) {
         hollowengine$container.load(tag.getCompound(ComponentContainer.COMPONENT_TAG));
+        var gEntity = ConversionKt.toGeary((Entity) (Object) this);
+        GearyEntityExtensionsKt.loadComponentsFrom(gEntity, (Entity) (Object) this, tag.getCompound("geary"));
     }
 
     @Inject(method = "hurt", at = @At("HEAD"), cancellable = true)
@@ -68,7 +81,7 @@ public class EntityMixin implements ComponentDispatcher {
 
     @Inject(method = "setRemoved", at = @At("HEAD"))
     private void onRemove(Entity.RemovalReason removalReason, CallbackInfo ci) {
-        if(!(((Object) this) instanceof Player)) hollowengine$container.detach();
+        if (!(((Object) this) instanceof Player)) hollowengine$container.detach();
     }
 
     @Override

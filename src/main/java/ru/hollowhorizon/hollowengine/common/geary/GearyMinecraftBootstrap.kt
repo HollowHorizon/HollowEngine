@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.mineinabyss.geary.actions.GearyActions
 import com.mineinabyss.geary.engine.Engine
 import com.mineinabyss.geary.engine.archetypes.ArchetypeEngine
+import com.mineinabyss.geary.helpers.async.IgnoringAsyncCatcher
 import com.mineinabyss.geary.modules.GearyModule
 import com.mineinabyss.geary.modules.geary
 import com.mineinabyss.geary.serialization.dsl.withCommonComponentNames
@@ -17,6 +18,8 @@ import org.koin.dsl.module
 import ru.hollowhorizon.hollowengine.common.coroutines.dispatcher
 import ru.hollowhorizon.hollowengine.common.geary.config.config
 import ru.hollowhorizon.hollowengine.common.geary.di.DI
+import ru.hollowhorizon.hollowengine.common.geary.tracking.EntityTracking
+import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.GearyNBTFormat
 import java.nio.file.Path
 
 class GearyMinecraftBootstrap(
@@ -47,9 +50,11 @@ class GearyMinecraftBootstrap(
 
         module.gearyModule.configure {
             install(GearyActions)
+            install(EntityTracking)
 
             serialization {
                 format("yml", ::YamlFormat)
+                format("nbt", ::GearyNBTFormat)
                 withCommonComponentNames()
             }
 
@@ -73,11 +78,10 @@ class GearyMinecraftBootstrap(
     private fun createEngineModule(config: GearyMinecraftConfig, server: MinecraftServer): GearyModule {
         val engine = com.mineinabyss.geary.modules.ArchetypeEngineModule(
             useSynchronized = true,
-            // Используем твои расширения для диспетчера
             engineThread = { server.dispatcher + CoroutineName("Geary Engine") },
             properties = mapOf(
                 "asyncCatcher.write" to when (config.catch.asyncWrite) {
-                    CatchType.IGNORE -> com.mineinabyss.geary.helpers.async.IgnoringAsyncCatcher()
+                    CatchType.IGNORE -> IgnoringAsyncCatcher()
                     CatchType.WARN -> MinecraftWarningAsyncCatcher(server)
                     CatchType.ERROR -> MinecraftAsyncCatcher(server)
                 }
