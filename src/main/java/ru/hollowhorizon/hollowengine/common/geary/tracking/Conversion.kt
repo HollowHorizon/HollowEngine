@@ -8,7 +8,7 @@ fun MCEntity.toGeary(): GearyEntity = withGeary {
 }
 
 fun MCEntity.toGearyOrNull(): GearyEntity? =
-    withGeary { getAddon(EntityTracking).mc2Geary[this@toGearyOrNull] }
+    withGeary { getAddon(EntityTracking).mc2Geary.getOrCreate(this@toGearyOrNull) }
 
 fun GearyEntity.toMinecraft(): MCEntity? =
     with(world) { get(getAddon(EntityTracking).mcEntityComponent) as? MCEntity }

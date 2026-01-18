@@ -11,6 +11,7 @@ import com.mineinabyss.geary.serialization.dsl.withCommonComponentNames
 import com.mineinabyss.geary.serialization.formats.YamlFormat
 import com.mineinabyss.geary.serialization.serialization
 import kotlinx.coroutines.CoroutineName
+import kotlinx.serialization.builtins.serializer
 import net.minecraft.server.MinecraftServer
 import org.koin.core.module.dsl.bind
 import org.koin.core.module.dsl.withOptions
@@ -53,9 +54,13 @@ class GearyMinecraftBootstrap(
             install(EntityTracking)
 
             serialization {
+                components {
+                    component(String.serializer())
+                }
                 format("yml", ::YamlFormat)
                 format("nbt", ::GearyNBTFormat)
                 withCommonComponentNames()
+
             }
 
         }

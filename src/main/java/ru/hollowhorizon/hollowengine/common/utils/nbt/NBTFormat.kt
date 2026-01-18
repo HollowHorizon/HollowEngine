@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.utils.nbt
 
 import kotlinx.serialization.*
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.SerialKind
@@ -49,8 +50,8 @@ internal val TagModule
             subclass(Long::class)
             subclass(Short::class)
             subclass(Byte::class)
-
         }
+        contextual(String.serializer())
         NBT_TAGS.forEach { entry ->
             entry.value.forEach { kClass ->
                 polymorphic(entry.key as KClass<Object>, kClass as KClass<Object>, kClass.serializer())
@@ -69,7 +70,7 @@ internal val TagModule
     }
 
 open class NBTFormat(context: SerializersModule = EmptySerializersModule()) : SerialFormat, Format<Tag> {
-    override val serializersModule = context + TagModule
+    override val serializersModule = TagModule.overwriteWith(context)
 
     companion object Default : NBTFormat() {
         @JvmField

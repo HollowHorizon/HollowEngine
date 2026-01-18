@@ -11,7 +11,7 @@ inline fun <reified T : GearyComponent> ComponentSerializers.getResourceLocation
 
 fun <T : GearyComponent> ComponentSerializers.getSerializerForResource(
     location: ResourceLocation,
-    baseClass: KClass<in T> = GearyComponent::class
+    baseClass: KClass<in T> = GearyComponent::class,
 ): DeserializationStrategy<out T>? =
     getSerializerFor(location.toSerialName(), baseClass)
 
@@ -25,6 +25,7 @@ fun String.isComponentKey(): Boolean {
         this.startsWith(COMPONENT_PREFIX)
     }
 }
+
 fun String.toComponentKey(): ResourceLocation {
     val location = ResourceLocation.tryParse(this)
         ?: error("Invalid resource location format: $this")
@@ -33,4 +34,7 @@ fun String.toComponentKey(): ResourceLocation {
     else ResourceLocation(location.namespace, "$COMPONENT_PREFIX${location.path}")
 }
 
-fun ResourceLocation.toSerialName(): String = "$namespace:${path.removePrefix(COMPONENT_PREFIX)}"
+fun ResourceLocation.toSerialName(): String {
+    return if (namespace == "minecraft") path.removePrefix(COMPONENT_PREFIX)
+    else "$namespace:${path.removePrefix(COMPONENT_PREFIX)}"
+}

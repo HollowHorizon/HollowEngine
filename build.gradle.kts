@@ -90,6 +90,10 @@ dependencies {
     install("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
     install("org.jetbrains.kotlinx:atomicfu:0.30.0-beta")
     install("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
+    install("org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.10.0-RC")
+    install("com.squareup.okio:okio:3.9.0")
+    install("it.krzeminski:snakeyaml-engine-kmp:4.0.1")
+    install("net.thauvin.erik.urlencoder:urlencoder-lib:1.6.0")
 
     val gearyVersion = "0.28.2"
 
