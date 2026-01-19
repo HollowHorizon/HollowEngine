@@ -5,11 +5,11 @@ import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import net.peanuuutz.tomlkt.Toml
-import ru.hollowhorizon.hollowengine.common.utils.nbt.TagModule
+import ru.hollowhorizon.hollowengine.common.utils.nbt.HollowEngineSerializers
 import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
 
 @PublishedApi
-internal val toml = Toml { serializersModule = TagModule }
+internal val toml = Toml { serializersModule = HollowEngineSerializers }
 
 object TomlFormat : Format<String> {
     override val serializersModule = toml.serializersModule

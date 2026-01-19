@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.utils.nbt
 
+import com.github.quillraven.fleks.Component
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -10,6 +11,8 @@ import net.minecraft.nbt.*
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.common.fleks.Money
+import ru.hollowhorizon.hollowengine.common.fleks.components.Model
 import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
 import ru.hollowhorizon.hollowengine.common.utils.serialization.deserialize
 import ru.hollowhorizon.hollowengine.common.utils.serialization.serialize
@@ -23,7 +26,7 @@ val NBT_TAGS = HashMap<KClass<*>, MutableList<KClass<*>>>()
 
 @OptIn(InternalSerializationApi::class)
 @Suppress("UNCHECKED_CAST")
-internal val TagModule
+internal val HollowEngineSerializers
     get() = SerializersModule {
         contextual(Tag::class, PolymorphicSerializer(Tag::class))
         
@@ -41,6 +44,10 @@ internal val TagModule
             subclass(LongArrayTag::class, ForLongArrayNBT)
             subclass(ListTag::class, ForNbtList)
             subclass(CompoundTag::class, ForCompoundNBT)
+        }
+        polymorphic(Component::class) {
+            subclass(Money::class)
+            subclass(Model::class)
         }
         contextual(Number::class, PolymorphicSerializer(Number::class))
         polymorphic(Number::class) {
@@ -70,7 +77,7 @@ internal val TagModule
     }
 
 open class NBTFormat(context: SerializersModule = EmptySerializersModule()) : SerialFormat, Format<Tag> {
-    override val serializersModule = TagModule.overwriteWith(context)
+    override val serializersModule = HollowEngineSerializers.overwriteWith(context)
 
     companion object Default : NBTFormat() {
         @JvmField

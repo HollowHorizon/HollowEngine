@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.utils.bytebuf
 
 import com.google.common.reflect.TypeToken
-import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.SerialFormat
@@ -11,12 +10,12 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.plus
 import kotlinx.serialization.serializer
 import net.minecraft.network.FriendlyByteBuf
-import ru.hollowhorizon.hollowengine.common.utils.nbt.TagModule
+import ru.hollowhorizon.hollowengine.common.utils.nbt.HollowEngineSerializers
 import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
 
 
 open class ByteBufFormat(context: SerializersModule = EmptySerializersModule()) : SerialFormat, Format<FriendlyByteBuf> {
-    override val serializersModule = context + TagModule
+    override val serializersModule = context + HollowEngineSerializers
 
     companion object Default : ByteBufFormat()
 
