@@ -30,7 +30,7 @@ object HollowEventHandler {
         if (Screen.hasShiftDown() && lang.has(shiftDesc)) event.toolTip.add(desc.mcTranslate)
     }
 
-    //@SubscribeEvent
+    @SubscribeEvent
     fun onLevelSave(event: LevelEvent.Save) {
         val level = event.level as ServerLevel
         val folder = (level.chunkSource.dataStorage as DimensionDataStorageAccessor).dataFolder
@@ -42,7 +42,7 @@ object HollowEventHandler {
         stream.close()
     }
 
-    //@SubscribeEvent
+    @SubscribeEvent
     fun onLevelLoad(event: LevelEvent.Load) {
         val level = event.level as ServerLevel
         val folder = (level.chunkSource.dataStorage as DimensionDataStorageAccessor).dataFolder
@@ -62,19 +62,19 @@ object HollowEventHandler {
         }
     }
 
-    //@SubscribeEvent
+    @SubscribeEvent
     fun onTickLevels(event: TickEvent.Server) {
         event.server.allLevels.forEach {
             (it as ComponentDispatcher).container.update()
         }
     }
 
-    //@SubscribeEvent
+    @SubscribeEvent
     fun onTickClientLevel(event: TickEvent.Client) {
         (event.minecraft.level as? ComponentDispatcher)?.container?.update()
     }
 
-    //@SubscribeEvent
+    @SubscribeEvent
     fun onServerStop(event: ServerEvent.Stoping) {
         event.server.allLevels.forEach {
             (it as ComponentDispatcher).apply {

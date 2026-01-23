@@ -50,7 +50,7 @@ fun onChangeDimension(event: PlayerEvent.ChangeDimension) {
     dispatcher.container.markAllChanged()
 }
 
-//@SubscribeEvent
+@SubscribeEvent
 fun onPlayerLoggedIn(event: PlayerEvent.Join) {
     val dispatcher = event.player.level() as ComponentDispatcher
     dispatcher.container.markAllChanged()

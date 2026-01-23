@@ -89,9 +89,25 @@ dependencies {
     install("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
     install("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
     install("org.jetbrains.kotlinx:atomicfu:0.30.0-beta")
+    install("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
+    install("org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.10.0-RC")
+    install("com.squareup.okio:okio:3.9.0")
+    install("it.krzeminski:snakeyaml-engine-kmp:4.0.1")
+    install("net.thauvin.erik.urlencoder:urlencoder-lib:1.6.0")
 
-    install("io.github.quillraven.fleks:Fleks:2.12")
+    val gearyVersion = "0.28.2"
 
+    install("io.insert-koin:koin-core:4.0.0")
+    install("co.touchlab:kermit:2.0.4")
+    install("co.touchlab:kermit-core:2.0.4")
+    install("androidx.collection:collection:1.4.0")
+    install("org.roaringbitmap:RoaringBitmap:1.0.6")
+    install("com.charleskorn.kaml:kaml:0.104.0")
+
+    install("com.mineinabyss:geary-core:${gearyVersion}")
+    install("com.mineinabyss:geary-prefabs:${gearyVersion}")
+    install("com.mineinabyss:geary-actions:${gearyVersion}")
+    install("com.mineinabyss:geary-serialization:${gearyVersion}")
 
 //    install("de.fabmax.kool:kool-physics-desktop:$koolVersion", true)
 //    install("de.fabmax:physx-jni:2.7.1")

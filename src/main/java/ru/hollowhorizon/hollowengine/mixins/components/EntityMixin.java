@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.mixins.components;
 
-import com.github.quillraven.fleks.World;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
@@ -21,48 +20,36 @@ import ru.hollowhorizon.hollowengine.common.components.ComponentContainer;
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityEvent;
-import ru.hollowhorizon.hollowengine.common.fleks.FleksEntity;
-import ru.hollowhorizon.hollowengine.common.fleks.FleksPlatform;
-import ru.hollowhorizon.hollowengine.common.fleks.FleksWorld;
+import ru.hollowhorizon.hollowengine.common.geary.WorldManagerKt;
+import ru.hollowhorizon.hollowengine.common.geary.tracking.ConversionKt;
+import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.GearyEntityExtensionsKt;
 
 import java.util.Set;
 
 @Mixin(Entity.class)
-public abstract class EntityMixin implements ComponentDispatcher, FleksEntity {
+public abstract class EntityMixin implements ComponentDispatcher {
     @Unique
-    private ComponentContainer hollowengine$container;
+    private final ComponentContainer hollowengine$container = new ComponentContainer(this);
     @Shadow
     private Level level;
-    @Shadow private int id;
-    @Unique
-    private com.github.quillraven.fleks.Entity hollowengine$fleksEntity;
 
     @Shadow
     public abstract Level level();
 
-    @Inject(method = "<init>", at = @At("RETURN"))
-    private void onConstruct(CallbackInfo ci) {
-        this.hollowengine$container = new ComponentContainer(this);
-        World world = ((FleksWorld) level()).getHollowengine$fleksWorld();
-        this.hollowengine$fleksEntity = FleksPlatform.INSTANCE.createEntity(world, (Entity) (Object) this);
-    }
-
     @Inject(method = "saveWithoutId", at = @At("TAIL"))
     private void serializeExtra(CompoundTag tag, CallbackInfoReturnable<CompoundTag> cir) {
         tag.put(ComponentContainer.COMPONENT_TAG, hollowengine$container.save());
-        World world = ((FleksWorld) level()).getHollowengine$fleksWorld();
-        if (hollowengine$fleksEntity != null) {
-            tag.put("fleks:components", FleksPlatform.INSTANCE.saveEntity(world, hollowengine$fleksEntity));
-        }
+        var geary = new CompoundTag();
+        GearyEntityExtensionsKt.encodeComponentsTo(WorldManagerKt.toGeary(level()), ConversionKt.toGeary((Entity) (Object) this), geary);
+        tag.put("geary", geary);
 
     }
 
     @Inject(method = "load", at = @At("TAIL"))
     private void deserializeExtra(CompoundTag tag, CallbackInfo ci) {
         hollowengine$container.load(tag.getCompound(ComponentContainer.COMPONENT_TAG));
-
-        World world = ((FleksWorld) level()).getHollowengine$fleksWorld();
-        FleksPlatform.INSTANCE.loadEntity(world, (Entity) (Object) this, hollowengine$fleksEntity, tag.get("fleks:components"));
+        var gEntity = ConversionKt.toGeary((Entity) (Object) this);
+        GearyEntityExtensionsKt.loadComponentsFrom(gEntity, (Entity) (Object) this, tag.getCompound("geary"));
     }
 
     @Inject(method = "hurt", at = @At("HEAD"), cancellable = true)
@@ -95,23 +82,6 @@ public abstract class EntityMixin implements ComponentDispatcher, FleksEntity {
     @Inject(method = "setRemoved", at = @At("HEAD"))
     private void onRemove(Entity.RemovalReason removalReason, CallbackInfo ci) {
         if (!(((Object) this) instanceof Player)) hollowengine$container.detach();
-
-        if (hollowengine$fleksEntity != null) {
-            World world = ((FleksWorld) level()).getHollowengine$fleksWorld();
-            FleksPlatform.INSTANCE.removeEntity(world, (Entity) (Object) this);
-            hollowengine$fleksEntity = null;
-        }
-    }
-
-    @Inject(method = "setId", at = @At("HEAD"))
-    private void onSetId(int id, CallbackInfo ci) {
-        World world = ((FleksWorld) level()).getHollowengine$fleksWorld();
-        FleksPlatform.INSTANCE.changeId(world, hollowengine$fleksEntity, this.id, id);
-    }
-
-    @Override
-    public @NotNull com.github.quillraven.fleks.Entity getHollowengine$fleksEntity() {
-        return hollowengine$fleksEntity;
     }
 
     @Override
