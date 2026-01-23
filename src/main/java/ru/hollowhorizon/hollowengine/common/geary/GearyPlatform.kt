@@ -13,6 +13,8 @@ import com.mineinabyss.geary.modules.geary
 import com.mineinabyss.geary.serialization.dsl.withCommonComponentNames
 import com.mineinabyss.geary.serialization.formats.YamlFormat
 import com.mineinabyss.geary.serialization.serialization
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import net.minecraft.world.level.Level
 import org.apache.logging.log4j.LogManager
@@ -20,9 +22,14 @@ import org.apache.logging.log4j.MarkerManager
 import org.koin.core.module.dsl.bind
 import org.koin.core.module.dsl.withOptions
 import org.koin.dsl.module
+import ru.hollowhorizon.hollowengine.common.geary.sync.SyncableComponents
 import ru.hollowhorizon.hollowengine.common.geary.tracking.EntityTracking
 import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.GearyNBTFormat
 import org.apache.logging.log4j.Level as LogLevel
+
+@Serializable
+@SerialName("hollowengine:list_of_string")
+class ListString(val list: List<String>)
 
 object GearyPlatform {
     val LOGGER = LogManager.getLogger("Geary")
@@ -31,10 +38,12 @@ object GearyPlatform {
     fun create(level: Level): Geary = geary(createEngineModule(level)) {
         install(GearyActions)
         install(EntityTracking)
+        install(SyncableComponents)
 
         serialization {
             components {
                 component(String.serializer())
+                component(ListString.serializer())
             }
             format("yml", ::YamlFormat)
             format("nbt", ::GearyNBTFormat)

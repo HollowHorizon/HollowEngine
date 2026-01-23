@@ -8,11 +8,15 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
-import ru.hollowhorizon.hollowengine.client.gui.scripting.AccordionColumnLayout
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IDEFile
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
+import ru.hollowhorizon.hollowengine.common.geary.components.AdvancedModelComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.GenericEditor
+import ru.hollowhorizon.hollowengine.common.geary.components.InteractionComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.Model
+import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 
 class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
     val npcName = mutableStateOf("")
@@ -69,7 +73,7 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
                     ).width(Dimensions.PaddingMedium)
                 }) {
                     modifier.layout(ColumnLayout).width(Grow.Std)
-                        .margin(end=Dimensions.PaddingMedium)
+                        .margin(end = Dimensions.PaddingMedium)
                     Editor()
                 }
                 Box(Grow.Std) {
@@ -112,19 +116,26 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
                 .align(AlignmentX.Center, AlignmentY.Center)
         }
 
-        Category(icons.EYE, "Основная информация") {
-            TextProperty("Отображаемое имя", npcName, "имя")
-            TextProperty("Модель", modelController.model, "путь к модели")
-            TextProperty("Масштаб", remember("1.0"), "Масштаб")
-        }
-        Category(icons.INTERACTION, "Взаимодействие") {
-            BoolProperty("Можно взаимодействовать?", remember(false))
-            TextProperty("Триггер при взаимодействии", remember("interact.bc"), "путь к скрипту")
-        }
-        Category(icons.BOX, "Выпадающие предметы") {
-            TextProperty("Опыт за убийство", remember("10"), "количество очков опыта")
-            ItemListProperty()
-        }
+        GenericEditor(remember { mutableStateOf(Model("hollowengine:models/entity/player_model.gltf", 1f)) })
+        GenericEditor(remember { mutableStateOf(TransformComponent()) })
+        GenericEditor(remember { mutableStateOf(InteractionComponent()) })
+        GenericEditor(remember { mutableStateOf(AdvancedModelComponent()) })
+
+
+
+//        Category(icons.EYE, "Основная информация") {
+//            TextProperty("Отображаемое имя", npcName, "имя")
+//            TextProperty("Модель", modelController.model, "путь к модели")
+//            TextProperty("Масштаб", remember("1.0"), "Масштаб")
+//        }
+//        Category(icons.INTERACTION, "Взаимодействие") {
+//            BoolProperty("Можно взаимодействовать?", remember(false))
+//            TextProperty("Триггер при взаимодействии", remember("interact.bc"), "путь к скрипту")
+//        }
+//        Category(icons.BOX, "Выпадающие предметы") {
+//            TextProperty("Опыт за убийство", remember("10"), "количество очков опыта")
+//            ItemListProperty()
+//        }
     }
 
     fun UiScope.EditorButtons() {
@@ -193,140 +204,6 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
         }
     }
 
-    fun UiScope.Category(icon: ResourceLocation, name: String, block: ColumnScope.() -> Unit) {
-        Column(Grow.Std) {
-            modifier.margin(Dimensions.PaddingMedium)
-                .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingMedium))
-                .border(
-                    RoundRectBorder(
-                        ColorTheme.UI.BackgroundAccent,
-                        Dimensions.PaddingMedium,
-                        Dimensions.PaddingSmall * 0.5f
-                    )
-                )
-
-            val isExpanded = remember(true)
-
-            Row(Grow.Std) {
-                modifier.margin(Dimensions.PaddingMedium)
-                    .padding(Dimensions.PaddingMedium)
-
-                Image(icon) {
-                    modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                }
-
-                Text(name) {
-                    modifier
-                        .font(remember {
-                            MsdfFont(ColorTheme.Fonts.MONOCRAFT, 16f)
-                        })
-                        .textColor(Color.WHITE)
-                        .margin(Dimensions.PaddingMedium)
-                        .align(AlignmentX.Start, AlignmentY.Center)
-                }
-                Box(Grow.Std) {}
-
-                Arrow(if (isExpanded.use()) ArrowScope.ROTATION_UP else ArrowScope.ROTATION_RIGHT) {
-                    modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                        .margin(Dimensions.PaddingMedium)
-                        .colors(
-                            ColorTheme.UI.BackgroundAccent,
-                            ColorTheme.UI.WhiteReplacement
-                        ).alignY(AlignmentY.Center)
-                        .onClick {
-                            isExpanded.set(!isExpanded.value)
-                        }
-                }
-            }
-
-
-            val height by animateFloatAsState(if (isExpanded.use()) 1f else 0f)
-
-            if (isExpanded.use() || height > 0) {
-                Box(Grow.Std, Dimensions.PaddingSmall * 0.5f) {
-                    modifier.backgroundColor(ColorTheme.UI.BackgroundAccent)
-                }
-                Column(Grow(1f)) {
-                    modifier
-                        .layout(AccordionColumnLayout(height))
-                        .padding(Dimensions.PaddingHuge)
-
-                    block()
-                }
-            }
-        }
-    }
-
-    fun UiScope.TextProperty(label: String, field: MutableStateValue<String>, hint: String = "") {
-        Column(Grow.Std) {
-            Text(label) {
-                modifier
-                    .font(remember {
-                        MsdfFont(ColorTheme.Fonts.MONOCRAFT, 16f)
-                    })
-                    .textColor(ColorTheme.UI.WhiteReplacement)
-                    .padding(vertical = Dimensions.PaddingMedium)
-                    .align(AlignmentX.Start, AlignmentY.Center)
-            }
-
-            Box(Grow.Std) {
-                modifier.padding(Dimensions.PaddingMedium)
-                    .background(RoundRectBackground(ColorTheme.UI.BackgroundDarker, Dimensions.PaddingMedium))
-                    .border(
-                        RoundRectBorder(
-                            ColorTheme.UI.BackgroundAccent,
-                            Dimensions.PaddingMedium,
-                            Dimensions.PaddingSmall * 0.5f
-                        )
-                    )
-
-                TextField(field.use()) {
-                    modifier
-                        .onChange { field.set(it) }
-                        .hint(hint)
-                        .width(Grow.Std)
-                        .colors(
-                            ColorTheme.UI.WhiteReplacement,
-                            ColorTheme.UI.WhiteReplacement.withAlpha(0.5f),
-                            ColorTheme.CodeWindow.Selection,
-                            ColorTheme.UI.WhiteReplacement,
-                            ColorTheme.UI.BackgroundAccent.withAlpha(0f),
-                            ColorTheme.UI.BackgroundAccent.withAlpha(0.5f)
-                        )
-                }
-            }
-        }
-    }
-
-    fun UiScope.BoolProperty(label: String, field: MutableStateValue<Boolean>) {
-        Row(Grow.Std) {
-            modifier.padding(Dimensions.PaddingMedium)
-                .background(RoundRectBackground(ColorTheme.UI.BackgroundDarker, Dimensions.PaddingMedium))
-                .border(
-                    RoundRectBorder(
-                        ColorTheme.UI.BackgroundAccent,
-                        Dimensions.PaddingMedium,
-                        Dimensions.PaddingSmall * 0.5f
-                    )
-                )
-
-            Checkbox(field.use()) {
-                modifier.onToggle { field.set(it) }
-                    .alignY(AlignmentY.Center)
-                    .colors(
-                        borderColor = ColorTheme.Accents.Main,
-                        backgroundColor = ColorTheme.UI.BackgroundElements,
-                        fillColor = ColorTheme.Accents.Main,
-                        checkMarkColor = Color.WHITE
-                    )
-                    .margin(Dimensions.PaddingMedium)
-            }
-
-            Text(label) {
-                modifier.alignY(AlignmentY.Center)
-            }
-        }
-    }
 
     fun UiScope.ItemListProperty() {
         ItemProperty(ItemStack(Items.DIRT, 5))
