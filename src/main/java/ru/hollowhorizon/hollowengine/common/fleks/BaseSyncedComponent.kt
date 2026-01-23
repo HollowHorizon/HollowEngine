@@ -15,19 +15,16 @@ import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 abstract class BaseSyncedComponent<T> : SyncedComponent<T> {
     override fun World.onAdd(entity: Entity) {
         val level = inject<Level>()
-        if (shouldSync() && !level.isClientSide && entity.has(EntityComponent)) {
+        if (shouldSync() && !level.isClientSide) {
             val mcEntity = entity[EntityComponent].entity
-            ComponentUpdatePacket(
-                mcEntity.id,
-                Snapshot(listOf(this@BaseSyncedComponent as Component<out @Contextual Any>), listOf())
-            )
+            ComponentUpdatePacket(mcEntity.id, Snapshot(listOf(this@BaseSyncedComponent as Component<out @Contextual Any>), listOf()))
                 .sendTrackingEntityAndSelf(mcEntity)
         }
     }
 
     override fun World.onRemove(entity: Entity) {
         val level = inject<Level>()
-        if (shouldSync() && !level.isClientSide && entity.has(EntityComponent)) {
+        if (shouldSync() && !level.isClientSide) {
             val mcEntity = entity[EntityComponent].entity
             ComponentRemovePacket(mcEntity.id, type().id)
                 .sendTrackingEntityAndSelf(mcEntity)
@@ -36,24 +33,18 @@ abstract class BaseSyncedComponent<T> : SyncedComponent<T> {
 }
 
 @Serializable
-abstract class MutableSyncedComponent<out T : Any> : BaseSyncedComponent<@UnsafeVariance T>() {
+abstract class MutableSyncedComponent<out T: Any> : BaseSyncedComponent<@UnsafeVariance T>() {
     @Transient
     private var dirty: Boolean = true
 
     override fun World.onAdd(entity: Entity) {
-        if (inject<Level>().isClientSide) return
         val system = system<ComponentSyncSystem>()
         system.startTracking(entity, this@MutableSyncedComponent)
     }
 
     override fun World.onRemove(entity: Entity) {
-        if (inject<Level>().isClientSide) return
         val system = system<ComponentSyncSystem>()
         system.stopTracking(entity, this@MutableSyncedComponent)
-        if (entity.hasNo(EntityComponent)) return
-        val mcEntity = entity[EntityComponent].entity
-        ComponentRemovePacket(mcEntity.id, type().id)
-            .sendTrackingEntityAndSelf(mcEntity)
     }
 
     protected fun markDirty() {

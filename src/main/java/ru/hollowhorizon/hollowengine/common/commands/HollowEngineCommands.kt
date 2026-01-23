@@ -29,8 +29,6 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
-import ru.hollowhorizon.hollowengine.common.fleks.components.Model
-import ru.hollowhorizon.hollowengine.common.fleks.fleks
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.utils.*
@@ -110,41 +108,17 @@ private fun CommandExtension.registerComponentCommands() {
 
 private fun CommandExtension.registerComponentAddCommands() {
     "add" {
-        "hollowengine:model" {
-            executes {
-                val player = source.playerOrException
-                player.level().fleks.apply {
-                    player.fleks.configure {
-                        it += Model("hollowengine:models/entity/player_model.gltf".rl)
-                    }
-                }
-
-                1
-            }
-        }
-        // registerEntityComponentCommand { entity, component -> entity.container.attach(component) }
-        // registerLevelComponentCommand { level, component -> level.container.attach(component) }
-        // registerServerComponentCommand { server, component -> server.container.attach(component) }
+        registerEntityComponentCommand { entity, component -> entity.container.attach(component) }
+        registerLevelComponentCommand { level, component -> level.container.attach(component) }
+        registerServerComponentCommand { server, component -> server.container.attach(component) }
     }
 }
 
 private fun CommandExtension.registerComponentRemoveCommands() {
     "remove" {
-        "hollowengine:model" {
-            executes {
-                val player = source.playerOrException
-                player.level().fleks.apply {
-                    player.fleks.configure {
-                        it -= Model
-                    }
-                }
-
-                1
-            }
-        }
-    //registerEntityComponentCommand { entity, component -> entity.container.detach(component) }
-        //registerLevelComponentCommand { level, component -> level.container.detach(component) }
-        //registerServerComponentCommand { server, component -> server.container.detach(component) }
+        registerEntityComponentCommand { entity, component -> entity.container.detach(component) }
+        registerLevelComponentCommand { level, component -> level.container.detach(component) }
+        registerServerComponentCommand { server, component -> server.container.detach(component) }
     }
 }
 
@@ -185,7 +159,7 @@ private fun CommandExtension.registerGlobalsCommands() {
                     (source.server as ComponentDispatcher).container.get<BlocksSystem>("hollowengine:blocks_system".rl)?.globals
                         ?: return@executes FAILURE
 
-                if (variables.keys.isEmpty()) {
+                if(variables.keys.isEmpty()) {
                     sendSuccess { "There are no variables here yet".literal }
                 } else {
                     sendSuccess { "'$variable': ${variables[variable].toString()}".literal }
