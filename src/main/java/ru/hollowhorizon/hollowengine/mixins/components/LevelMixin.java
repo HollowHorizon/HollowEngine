@@ -59,7 +59,7 @@ public abstract class LevelMixin implements ComponentDispatcher, GearyProvider {
         profiler.pop();
     }
 
-    @Inject(method = "close", at = @At("TAIL"))
+    @Inject(method = "close", at = @At("TAIL"), remap = false)
     private void onClose(CallbackInfo ci) {
         hollowengine$geary.getApplication().close();
     }
