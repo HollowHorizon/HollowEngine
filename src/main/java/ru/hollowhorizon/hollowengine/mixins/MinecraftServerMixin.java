@@ -32,8 +32,6 @@ import ru.hollowhorizon.hollowengine.common.coroutines.SingleThreadDispatcher;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent;
 import ru.hollowhorizon.hollowengine.common.events.server.ServerEvent;
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager;
-import ru.hollowhorizon.hollowengine.common.geary.GearyMinecraftBootstrap;
 import ru.hollowhorizon.hollowengine.common.utils.ForgeKotlinKt;
 
 import java.net.Proxy;
@@ -47,11 +45,6 @@ public abstract class MinecraftServerMixin implements ServerDispatcher {
     private SingleThreadDispatcher hollowcore$dispatcher;
     @Unique
     private CoroutineScope hollowcore$coroutineScope;
-    @Unique GearyMinecraftBootstrap hollowcore$geary;
-
-    @Shadow
-    @Final
-    protected LevelStorageSource.LevelStorageAccess storageSource;
 
     @Shadow
     @Final
@@ -69,14 +62,12 @@ public abstract class MinecraftServerMixin implements ServerDispatcher {
     private void onInit(Thread serverThread, LevelStorageSource.LevelStorageAccess storageSource, PackRepository packRepository, WorldStem worldStem, Proxy proxy, DataFixer fixerUpper, Services services, ChunkProgressListenerFactory progressListenerFactory, CallbackInfo ci) {
         hollowcore$dispatcher = new SingleThreadDispatcher("MinecraftServer.dispatcher", serverThread);
         hollowcore$coroutineScope = CoroutineScopeKt.CoroutineScope(SupervisorJob(null).plus(hollowcore$dispatcher));
-        hollowcore$geary = new GearyMinecraftBootstrap((MinecraftServer) (Object) this, DirectoryManager.GEARY);
     }
 
     @Inject(method = "runServer", at = @At("HEAD"))
     private void onRun(CallbackInfo ci) {
         ForgeKotlinKt.setCurrentServer((MinecraftServer) (Object) this);
         EventBus.post(new ServerEvent.Starting((MinecraftServer) (Object) this));
-        hollowcore$geary.onServerStarting();
     }
 
     @Inject(method = "createLevels", at = @At("TAIL"))
@@ -90,7 +81,6 @@ public abstract class MinecraftServerMixin implements ServerDispatcher {
 
     @Inject(method = "tickServer", at = @At("HEAD"))
     protected void essential$runTasks(CallbackInfo ci) {
-        hollowcore$geary.onTick();
         hollowcore$dispatcher.runTasks();
     }
 
@@ -100,7 +90,6 @@ public abstract class MinecraftServerMixin implements ServerDispatcher {
 
         hollowcore$dispatcher.runTasks();
         EventBus.post(new ServerEvent.Stoping((MinecraftServer) (Object) this));
-        hollowcore$geary.onServerStopping();
     }
 
     @Inject(method = "stopServer", at = @At("RETURN"))

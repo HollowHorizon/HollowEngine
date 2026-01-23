@@ -4,6 +4,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.RelativeMovement;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -20,27 +21,35 @@ import ru.hollowhorizon.hollowengine.common.components.ComponentContainer;
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityEvent;
-import ru.hollowhorizon.hollowengine.common.geary.WorldManagerKt;
-import ru.hollowhorizon.hollowengine.common.geary.tracking.ConversionKt;
+import ru.hollowhorizon.hollowengine.common.geary.api.EntityProvider;
+import ru.hollowhorizon.hollowengine.common.geary.api.GearyHelper;
 import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.GearyEntityExtensionsKt;
 
 import java.util.Set;
 
 @Mixin(Entity.class)
-public abstract class EntityMixin implements ComponentDispatcher {
+public abstract class EntityMixin implements ComponentDispatcher, EntityProvider {
     @Unique
-    private final ComponentContainer hollowengine$container = new ComponentContainer(this);
+    private ComponentContainer hollowengine$container = new ComponentContainer(this);
+    @Unique
+    private long hollowengine$entity;
     @Shadow
     private Level level;
 
     @Shadow
     public abstract Level level();
 
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void onInit(EntityType<?> entityType, Level level, CallbackInfo ci) {
+        hollowengine$container = new ComponentContainer(this);
+        hollowengine$entity = GearyHelper.create(level(), (Entity) (Object) this);
+    }
+
     @Inject(method = "saveWithoutId", at = @At("TAIL"))
     private void serializeExtra(CompoundTag tag, CallbackInfoReturnable<CompoundTag> cir) {
         tag.put(ComponentContainer.COMPONENT_TAG, hollowengine$container.save());
         var geary = new CompoundTag();
-        GearyEntityExtensionsKt.encodeComponentsTo(WorldManagerKt.toGeary(level()), ConversionKt.toGeary((Entity) (Object) this), geary);
+        GearyEntityExtensionsKt.encodeComponentsTo(GearyHelper.getGeary(level()), hollowengine$entity, geary);
         tag.put("geary", geary);
 
     }
@@ -48,8 +57,7 @@ public abstract class EntityMixin implements ComponentDispatcher {
     @Inject(method = "load", at = @At("TAIL"))
     private void deserializeExtra(CompoundTag tag, CallbackInfo ci) {
         hollowengine$container.load(tag.getCompound(ComponentContainer.COMPONENT_TAG));
-        var gEntity = ConversionKt.toGeary((Entity) (Object) this);
-        GearyEntityExtensionsKt.loadComponentsFrom(gEntity, (Entity) (Object) this, tag.getCompound("geary"));
+        GearyEntityExtensionsKt.loadComponentsFrom(hollowengine$entity, (Entity) (Object) this, tag.getCompound("geary"));
     }
 
     @Inject(method = "hurt", at = @At("HEAD"), cancellable = true)
@@ -81,11 +89,19 @@ public abstract class EntityMixin implements ComponentDispatcher {
 
     @Inject(method = "setRemoved", at = @At("HEAD"))
     private void onRemove(Entity.RemovalReason removalReason, CallbackInfo ci) {
-        if (!(((Object) this) instanceof Player)) hollowengine$container.detach();
+        if (!(((Object) this) instanceof Player)) {
+            hollowengine$container.detach();
+            GearyHelper.removeEntity(level(), hollowengine$entity);
+        }
     }
 
     @Override
     public @NotNull ComponentContainer getContainer() {
         return hollowengine$container;
+    }
+
+    @Override
+    public long getHollowengine$entity() {
+        return hollowengine$entity;
     }
 }
