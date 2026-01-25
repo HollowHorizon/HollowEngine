@@ -35,6 +35,8 @@ public abstract class EntityMixin implements ComponentDispatcher, EntityProvider
     private long hollowengine$entity;
     @Shadow
     private Level level;
+    @Shadow
+    private int id;
 
     @Shadow
     public abstract Level level();
@@ -81,6 +83,12 @@ public abstract class EntityMixin implements ComponentDispatcher, EntityProvider
         }
     }
 
+    @Inject(method = "setLevel", at = @At("HEAD"))
+    private void onSetLevel(Level level, CallbackInfo ci) {
+        // Обновляем сущность под новый мир
+        hollowengine$entity = GearyHelper.move(level(), level, hollowengine$entity, (Entity) (Object) this);
+    }
+
     @Inject(method = "teleportTo(Lnet/minecraft/server/level/ServerLevel;DDDLjava/util/Set;FF)Z", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setRemoved(Lnet/minecraft/world/entity/Entity$RemovalReason;)V"), locals = LocalCapture.CAPTURE_FAILHARD)
     private void afterEntityTeleportedToWorld(ServerLevel level, double x, double y, double z, Set<RelativeMovement> relativeMovements, float yRot, float xRot, CallbackInfoReturnable<Boolean> cir, float clampXRot, Entity newEntity) {
         Entity originalEntity = (Entity) (Object) this;
@@ -91,9 +99,15 @@ public abstract class EntityMixin implements ComponentDispatcher, EntityProvider
     private void onRemove(Entity.RemovalReason removalReason, CallbackInfo ci) {
         if (!(((Object) this) instanceof Player)) {
             hollowengine$container.detach();
-            GearyHelper.removeEntity(level(), hollowengine$entity);
+            GearyHelper.removeEntity(level(), id);
         }
     }
+
+    @Inject(method = "setId", at = @At("HEAD"))
+    private void onSetId(int id, CallbackInfo ci) {
+        GearyHelper.changeId(level, this.id, id);
+    }
+
 
     @Override
     public @NotNull ComponentContainer getContainer() {

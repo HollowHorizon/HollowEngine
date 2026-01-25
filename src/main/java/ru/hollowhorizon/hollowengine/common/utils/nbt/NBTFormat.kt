@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.utils.nbt
 
+import com.mineinabyss.geary.datatypes.Component
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -10,6 +11,8 @@ import net.minecraft.nbt.*
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.common.geary.ListString
+import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
 import ru.hollowhorizon.hollowengine.common.utils.serialization.deserialize
 import ru.hollowhorizon.hollowengine.common.utils.serialization.serialize
@@ -26,7 +29,11 @@ val NBT_TAGS = HashMap<KClass<*>, MutableList<KClass<*>>>()
 internal val TagModule
     get() = SerializersModule {
         contextual(Tag::class, PolymorphicSerializer(Tag::class))
-        
+
+        polymorphic(Component::class) {
+            subclass(ListString.serializer())
+            subclass(Model.serializer())
+        }
         polymorphic(Tag::class) {
             subclass(ByteTag::class, ForByteNBT)
             subclass(ShortTag::class, ForShortNBT)

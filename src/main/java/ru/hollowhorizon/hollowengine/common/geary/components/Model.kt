@@ -6,6 +6,16 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialInfo
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import net.minecraft.client.renderer.entity.LivingEntityRenderer
+import net.minecraft.client.renderer.texture.OverlayTexture
+import net.minecraft.util.Mth
+import net.minecraft.world.entity.LivingEntity
+import org.joml.Quaternionf
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
+import ru.hollowhorizon.hollowengine.common.geary.api.entity
 
 @SerialInfo
 @Target(AnnotationTarget.PROPERTY)
@@ -31,7 +41,42 @@ data class Model(
     val model: String,
     @EditorRange(min = 0f, max = 100f)
     val scale: Float,
-)
+) {
+    val attachment by lazy {
+        ModelAttachment(model)
+    }
+}
+
+@SubscribeEvent
+fun onRender(event: RenderEntityEvent.Pre) {
+    val fleks = event.entity.entity
+
+    val model = fleks.get<Model>() ?: return
+
+    with(event) {
+        poseStack.pushPose()
+
+        var overlay = OverlayTexture.NO_OVERLAY
+        if (this.entity is LivingEntity) {
+            poseStack.mulPose(
+                Quaternionf().rotateY(
+                    -Mth.rotLerp(
+                        partialTicks,
+                        entity.yBodyRotO,
+                        entity.yBodyRot
+                    ) * Mth.DEG_TO_RAD
+                )
+            )
+            overlay = LivingEntityRenderer.getOverlayCoords(entity, 0f)
+        }
+
+        model.attachment.pipeline.render(RenderContext(poseStack, buffer, packedLight, overlay))
+        poseStack.popPose()
+
+        isCanceled = true
+
+    }
+}
 
 @Serializable
 @SerialName("hollowengine:transform")
@@ -60,7 +105,7 @@ data class TransformComponent(
     @EditorName("Масштаб")
     @EditorRange(0.1f, 10f)
     @EditorIcon("hollowengine:textures/gui/icons/maximize.svg")
-    val scale: Float = 1f
+    val scale: Float = 1f,
 )
 
 @Serializable
@@ -83,7 +128,7 @@ data class InteractionComponent(
 
     @EditorName("Скрипт события")
     @EditorIcon("hollowengine:textures/gui/icons/file_kts.svg")
-    val scriptPath: String = "scripts/npc/dialogue_start.kts"
+    val scriptPath: String = "scripts/npc/dialogue_start.kts",
 )
 
 @Serializable
@@ -107,5 +152,5 @@ data class AdvancedModelComponent(
 
     @EditorName("Анимация покоя")
     @EditorIcon("hollowengine:textures/gui/icons/pose_editor.png")
-    val idleAnimation: String = "idle_loop"
+    val idleAnimation: String = "idle_loop",
 )

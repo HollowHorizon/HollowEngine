@@ -29,6 +29,9 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
+import ru.hollowhorizon.hollowengine.common.geary.api.entity
+import ru.hollowhorizon.hollowengine.common.geary.components.Model
+import ru.hollowhorizon.hollowengine.common.geary.sync.setSyncing
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.utils.*
@@ -127,6 +130,26 @@ private fun CommandExtension.registerUtilityCommands() {
         executes {
             copyHandItemToClipboard(source.playerOrException)
             SUCCESS
+        }
+    }
+
+    "geary" {
+        "hollowengine:model" {
+            "add" {
+                executes {
+                    val player = source.playerOrException
+                    player.entity.setSyncing(Model("hollowengine:models/entity/player_model.gltf", 1f))
+                    SUCCESS
+                }
+            }
+
+            "remove" {
+                executes {
+                    val player = source.playerOrException
+                    player.entity.remove<Model>()
+                    SUCCESS
+                }
+            }
         }
     }
 
