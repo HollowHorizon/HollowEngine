@@ -23,6 +23,7 @@ import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
 import kotlin.reflect.KClass
 
 object Syncs
+object SaveOnDeath
 
 inline fun <reified T : Component> Entity.setSyncing(
     component: T,
@@ -35,13 +36,14 @@ inline fun <reified T : Component> Entity.setSyncing(
     return component
 }
 
-inline fun <reified T : Component> Geary.registerSyncing() {
+inline fun <reified T : Component> Geary.registerSyncing(saveOnDeath: Boolean = false) {
     val componentId = componentId<T>()
     val name = serializers.getSerialNameFor(T::class)?.toComponentKey()
         ?: error("SerialName not registered for ${T::class.simpleName}")
     componentId.toGeary().apply {
         set(name)
         add<Syncs>()
+        if (saveOnDeath) add<SaveOnDeath>()
     }
 }
 
@@ -56,7 +58,7 @@ sealed interface ComponentSyncPacket : HollowPacket {
 @Serializable
 data class ComponentUpdatePacket(
     override val entityId: Int,
-    val component: @Polymorphic Component
+    val component: @Polymorphic Component,
 ) : ComponentSyncPacket {
     override fun handle(player: Player) {
         val geary = level.geary
@@ -71,7 +73,7 @@ data class ComponentUpdatePacket(
 @Serializable
 data class ComponentRemovePacket(
     override val entityId: Int,
-    val componentTypeId: @Serializable(ForResourceLocation::class) ResourceLocation
+    val componentTypeId: @Serializable(ForResourceLocation::class) ResourceLocation,
 ) : ComponentSyncPacket {
     override fun handle(player: Player) {
         val geary = level.geary

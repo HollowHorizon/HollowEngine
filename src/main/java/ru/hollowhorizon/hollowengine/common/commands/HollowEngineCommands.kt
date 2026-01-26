@@ -135,18 +135,18 @@ private fun CommandExtension.registerUtilityCommands() {
 
     "geary" {
         "hollowengine:model" {
-            "add" {
+            "add"(arg("entity", EntityArgument.entity())) {
                 executes {
-                    val player = source.playerOrException
-                    player.entity.setSyncing(Model("hollowengine:models/entity/player_model.gltf", 1f))
+                    val entity = EntityArgument.getEntity(this, "entity")
+                    entity.entity.setSyncing(Model("hollowengine:models/entity/player_model.gltf", 1f))
                     SUCCESS
                 }
             }
 
-            "remove" {
+            "remove"(arg("entity", EntityArgument.entity())) {
                 executes {
-                    val player = source.playerOrException
-                    player.entity.remove<Model>()
+                    val entity = EntityArgument.getEntity(this, "entity")
+                    entity.entity.remove<Model>()
                     SUCCESS
                 }
             }
