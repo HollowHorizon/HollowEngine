@@ -94,6 +94,7 @@ private fun UiScope.MarkdownListItem(
             } else {
                 bullet(index, listNumber, listIndicator)
             }
+            modifier.alignY(AlignmentY.Center)
         }
 
         // Render list item content

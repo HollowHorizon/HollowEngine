@@ -8,7 +8,7 @@ import java.util.*
 
 class TextLineBuilder {
     val spans = mutableListOf<Pair<String, TextAttributes>>()
-    private var style = TextAttributes(MsdfFont(ColorTheme.Fonts.MONOCRAFT), ColorTheme.UI.WhiteReplacement)
+    private var style = TextAttributes(MsdfFont(ColorTheme.Fonts.MONOCRAFT, 16f), ColorTheme.UI.WhiteReplacement)
     private val attributes = Stack<TextAttributes>()
 
     fun pushStyle(
