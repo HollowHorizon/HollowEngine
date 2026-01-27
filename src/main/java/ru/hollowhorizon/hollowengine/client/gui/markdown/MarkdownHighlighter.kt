@@ -3,13 +3,29 @@ package ru.hollowhorizon.hollowengine.client.gui.markdown
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
-import org.intellij.markdown.MarkdownElementTypes
-import org.intellij.markdown.MarkdownTokenTypes
+import org.intellij.markdown.MarkdownElementTypes.ATX_1
+import org.intellij.markdown.MarkdownElementTypes.ATX_2
+import org.intellij.markdown.MarkdownElementTypes.ATX_3
+import org.intellij.markdown.MarkdownElementTypes.ATX_4
+import org.intellij.markdown.MarkdownElementTypes.ATX_5
+import org.intellij.markdown.MarkdownElementTypes.ATX_6
+import org.intellij.markdown.MarkdownElementTypes.CODE_BLOCK
+import org.intellij.markdown.MarkdownElementTypes.CODE_FENCE
+import org.intellij.markdown.MarkdownElementTypes.IMAGE
+import org.intellij.markdown.MarkdownElementTypes.ORDERED_LIST
+import org.intellij.markdown.MarkdownElementTypes.PARAGRAPH
+import org.intellij.markdown.MarkdownElementTypes.UNORDERED_LIST
+import org.intellij.markdown.MarkdownTokenTypes.Companion.BLOCK_QUOTE
+import org.intellij.markdown.MarkdownTokenTypes.Companion.EOL
+import org.intellij.markdown.MarkdownTokenTypes.Companion.HORIZONTAL_RULE
+import org.intellij.markdown.MarkdownTokenTypes.Companion.TEXT
 import org.intellij.markdown.ast.ASTNode
-import org.intellij.markdown.flavours.gfm.GFMElementTypes
+import org.intellij.markdown.flavours.gfm.GFMElementTypes.TABLE
 import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.intellij.markdown.parser.MarkdownParser
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme.Fonts.MONOCRAFT
+import ru.hollowhorizon.hollowengine.client.gui.markdown.components.*
 
 
 data class MarkdownStyle(
@@ -124,14 +140,13 @@ fun UiScope.MarkdownViewer(
     block: UiScope.() -> Unit = {},
 ) {
     val parsedTree = rememberTarget(markdownSource) {
-        val parser = MarkdownParser(GFMFlavourDescriptor()) // CommonMark не поддерживает таблицы :>
+        val parser = MarkdownParser(GFMFlavourDescriptor())
         parser.buildMarkdownTreeFromString(markdownSource)
     }
 
     Box(Grow.Std, FitContent) {
         block()
 
-        // В теории это работает так: создаётся contentWidth, при первом кадре рассчитывает доступные размеры в onMeasured, и уже во 2 кадре использует их для переноса строк
         val contentWidth = remember(0f)
 
         modifier.onMeasured {
@@ -139,62 +154,47 @@ fun UiScope.MarkdownViewer(
         }
 
         Column(Grow.Std, Grow.MinFit) {
-
-            renderMarkdownNode(parsedTree, markdownSource, style, contentWidth.value)
+            MarkdownElement(parsedTree, markdownSource, style, contentWidth.value)
         }
     }
 }
 
-fun UiScope.renderMarkdownNode(
+fun UiScope.MarkdownElement(
     node: ASTNode,
-    source: String,
+    content: String,
     style: MarkdownStyle,
     availableWidth: Float,
+    includeSpacer: Boolean = true,
 ) {
-    node.children.forEach { child ->
-        when (child.type) {
-            MarkdownElementTypes.PARAGRAPH -> {
-                MarkdownParagraph(child, source, style)
-            }
+    if (includeSpacer) Box { modifier.height(MarkdownPadding.block) }
 
-            MarkdownElementTypes.ATX_1 -> {
-                MarkdownHeader(child, source, style.h1Font, style.textColor, availableWidth)
-            }
-
-            MarkdownElementTypes.ATX_2 -> {
-                MarkdownHeader(child, source, style.h2Font, style.textColor, availableWidth)
-            }
-
-            MarkdownElementTypes.ATX_3 -> {
-                MarkdownHeader(child, source, style.h3Font, style.textColor, availableWidth)
-            }
-
-            MarkdownElementTypes.ATX_4 -> {
-                MarkdownHeader(child, source, style.h4Font, style.textColor, availableWidth)
-            }
-
-            MarkdownElementTypes.ATX_5 -> {
-                MarkdownHeader(child, source, style.h5Font, style.textColor, availableWidth)
-            }
-
-            MarkdownElementTypes.ATX_6 -> {
-                MarkdownHeader(child, source, style.h6Font, style.textColor, availableWidth)
-            }
-
-
-            MarkdownElementTypes.CODE_BLOCK, MarkdownElementTypes.CODE_FENCE, MarkdownTokenTypes.CODE_FENCE_CONTENT -> {
-                MarkdownCodeBlock(child, source, style)
-            }
-
-            MarkdownElementTypes.IMAGE -> {
-                MarkdownImage(child, source, style)
-            }
-
-            GFMElementTypes.TABLE -> MarkdownTable(child, source, style)
-
-            else -> {
-                renderMarkdownNode(child, source, style, availableWidth)
+    when (node.type) {
+        TEXT, PARAGRAPH -> MarkdownText(node, content, style)
+        EOL -> {}
+        CODE_FENCE -> MarkdownCodeFence(content, node, style)
+        CODE_BLOCK -> MarkdownCodeBlock(content, node, style)
+        ATX_1 -> MarkdownHeader(node, content, style.h1Font, style.textColor, availableWidth)
+        ATX_2 -> MarkdownHeader(node, content, style.h2Font, style.textColor, availableWidth)
+        ATX_3 -> MarkdownHeader(node, content, style.h3Font, style.textColor, availableWidth)
+        ATX_4 -> MarkdownHeader(node, content, style.h4Font, style.textColor, availableWidth)
+        ATX_5 -> MarkdownHeader(node, content, style.h5Font, style.textColor, availableWidth)
+        ATX_6 -> MarkdownHeader(node, content, style.h6Font, style.textColor, availableWidth)
+        BLOCK_QUOTE -> MarkdownBlockQuote(content, node, style, availableWidth)
+        ORDERED_LIST -> MarkdownOrderedList(content, node, style, availableWidth)
+        UNORDERED_LIST -> MarkdownBulletList(content, node, style, availableWidth)
+        IMAGE -> MarkdownImage(node, content, style)
+        HORIZONTAL_RULE -> {
+            Box {
+                modifier.width(Grow.Std).height(MarkdownDimens.dividerThickness)
+                    .backgroundColor(ColorTheme.UI.WhiteReplacement)
             }
         }
+
+        TABLE -> MarkdownTable(node, content, style)
+        else -> {}
+    }
+
+    node.children.forEach { child ->
+        MarkdownElement(child, content, style, availableWidth, includeSpacer)
     }
 }

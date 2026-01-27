@@ -10,9 +10,7 @@ import org.intellij.markdown.ast.getTextInNode
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.AttributedText
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
-import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 
 fun UiScope.MarkdownParagraph(
     node: ASTNode,
@@ -40,46 +38,6 @@ fun UiScope.MarkdownParagraph(
     }
 }
 
-fun UiScope.MarkdownHeader(
-    node: ASTNode,
-    source: String,
-    font: MsdfFont,
-    color: Color,
-    maxWidth: Float,
-) {
-    val text = node.getTextInNode(source).toString().trim { it == '#' || it.isWhitespace() }
-    val spans = listOf(text to TextAttributes(font, color))
-
-    val visualLines = rememberTarget(node, maxWidth) {
-        wrapText(spans, maxWidth)
-    }
-
-    Column(width = Grow.Std) {
-        modifier.padding(top = Dp(16f), bottom = Dp(8f))
-        visualLines.forEach { line ->
-            AttributedText(line) {
-                modifier.width(Grow.Std)
-            }
-        }
-    }
-}
-
-fun UiScope.MarkdownCodeBlock(node: ASTNode, source: String, style: MarkdownStyle) {
-    val text = node.children.filter { it.type == MarkdownTokenTypes.CODE_FENCE_CONTENT }
-        .joinToString("\n") { it.getTextInNode(source) }
-    val lines = ScriptingEnvironment.INSTANCE.analyzer.highlight("hightlight.kts", text, -1)
-        .map { it.toKool(style.bodyFont) }
-    Column(width = Grow.Std) {
-        modifier.padding(Dimensions.PaddingMedium)
-            .background(RoundRectBackground(style.codeBackgroundColor, Dimensions.PaddingMedium))
-
-        lines.forEach { line ->
-            AttributedText(line) {
-                modifier.width(Grow.Std)
-            }
-        }
-    }
-}
 
 fun UiScope.MarkdownImage(node: ASTNode, source: String, style: MarkdownStyle) {
     val text = node.getTextInNode(source).toString()
