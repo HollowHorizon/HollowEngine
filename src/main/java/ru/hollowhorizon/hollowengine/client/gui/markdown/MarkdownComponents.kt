@@ -50,7 +50,7 @@ fun UiScope.MarkdownImage(node: ASTNode, source: String, style: MarkdownStyle) {
         Image(rawUrl) {
             modifier
                 .padding(vertical = Dp(8f))
-                .width(Grow.Std).height(Grow.MinFit)
+                .width(Grow.Std).height(150.dp)
         }
 
         // Опционально: отобразить подпись (alt text), если она есть

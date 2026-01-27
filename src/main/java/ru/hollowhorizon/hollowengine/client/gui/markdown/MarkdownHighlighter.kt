@@ -13,7 +13,6 @@ import org.intellij.markdown.MarkdownElementTypes.CODE_BLOCK
 import org.intellij.markdown.MarkdownElementTypes.CODE_FENCE
 import org.intellij.markdown.MarkdownElementTypes.IMAGE
 import org.intellij.markdown.MarkdownElementTypes.ORDERED_LIST
-import org.intellij.markdown.MarkdownElementTypes.PARAGRAPH
 import org.intellij.markdown.MarkdownElementTypes.UNORDERED_LIST
 import org.intellij.markdown.MarkdownTokenTypes.Companion.BLOCK_QUOTE
 import org.intellij.markdown.MarkdownTokenTypes.Companion.EOL
@@ -169,7 +168,7 @@ fun UiScope.MarkdownElement(
     if (includeSpacer) Box { modifier.height(MarkdownPadding.block) }
 
     when (node.type) {
-        TEXT, PARAGRAPH -> MarkdownText(node, content, style)
+        TEXT -> MarkdownText(node, content, style)
         EOL -> {}
         CODE_FENCE -> MarkdownCodeFence(content, node, style)
         CODE_BLOCK -> MarkdownCodeBlock(content, node, style)
@@ -179,7 +178,7 @@ fun UiScope.MarkdownElement(
         ATX_4 -> MarkdownHeader(node, content, style.h4Font, style.textColor, availableWidth)
         ATX_5 -> MarkdownHeader(node, content, style.h5Font, style.textColor, availableWidth)
         ATX_6 -> MarkdownHeader(node, content, style.h6Font, style.textColor, availableWidth)
-        BLOCK_QUOTE -> MarkdownBlockQuote(content, node, style, availableWidth)
+        BLOCK_QUOTE -> MarkdownBlockQuote(content, node.parent ?: return, style, availableWidth)
         ORDERED_LIST -> MarkdownOrderedList(content, node, style, availableWidth)
         UNORDERED_LIST -> MarkdownBulletList(content, node, style, availableWidth)
         IMAGE -> MarkdownImage(node, content, style)
@@ -191,10 +190,10 @@ fun UiScope.MarkdownElement(
         }
 
         TABLE -> MarkdownTable(node, content, style)
-        else -> {}
-    }
-
-    node.children.forEach { child ->
-        MarkdownElement(child, content, style, availableWidth, includeSpacer)
+        else -> {
+            node.children.forEach { child ->
+                MarkdownElement(child, content, style, availableWidth, includeSpacer)
+            }
+        }
     }
 }

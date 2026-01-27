@@ -10,6 +10,7 @@ import org.intellij.markdown.MarkdownTokenTypes.Companion.LIST_NUMBER
 import org.intellij.markdown.ast.ASTNode
 import org.intellij.markdown.ast.findChildOfType
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes.CHECK_BOX
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.markdown.MarkdownElement
 import ru.hollowhorizon.hollowengine.client.gui.markdown.MarkdownPadding
@@ -90,15 +91,23 @@ private fun UiScope.MarkdownListItem(
                 Checkbox(checkbox) {
                     modifier.onToggle { checkbox = it }
                     modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
+                        .colors(
+                            ColorTheme.UI.BackgroundAccent,
+                            ColorTheme.UI.BackgroundSecondary,
+                            ColorTheme.UI.BackgroundElements,
+                            ColorTheme.Accents.Main
+                        )
                 }
             } else {
                 bullet(index, listNumber, listIndicator)
             }
-            modifier.alignY(AlignmentY.Center)
+
+            modifier.margin(end = MarkdownPadding.listItemTop)
         }
 
         // Render list item content
         Column {
+            if (checkboxNode == null) modifier.padding(top = MarkdownPadding.listItemTop)
             listModifier()
             child.children.forEach { nestedChild ->
                 MarkdownNestedListItem(
@@ -148,7 +157,15 @@ fun UiScope.MarkdownOrderedList(
     markerModifier: RowScope.() -> Unit = {},
     listModifier: RowScope.() -> Unit = {},
 ) {
-    MarkdownListItems(content, node, style, depth, availableWidth, markerModifier, listModifier) { index, listNumber, child ->
+    MarkdownListItems(
+        content,
+        node,
+        style,
+        depth,
+        availableWidth,
+        markerModifier,
+        listModifier
+    ) { index, listNumber, child ->
         MarkdownText(
             text = LocalOrderedListHandler.transform(
                 type = LIST_NUMBER,
@@ -171,7 +188,15 @@ fun UiScope.MarkdownBulletList(
     markerModifier: RowScope.() -> Unit = {},
     listModifier: RowScope.() -> Unit = {},
 ) {
-    MarkdownListItems(content, node, style, depth, availableWidth, markerModifier, listModifier) { index, listNumber, child ->
+    MarkdownListItems(
+        content,
+        node,
+        style,
+        depth,
+        availableWidth,
+        markerModifier,
+        listModifier
+    ) { index, listNumber, child ->
         MarkdownText(
             text = LocalBulletListHandler.transform(
                 type = LIST_BULLET,
@@ -191,5 +216,5 @@ fun interface BulletHandler {
     fun transform(type: IElementType, bullet: CharSequence?, index: Int, listNumber: Int, depth: Int): String
 }
 
-val LocalBulletListHandler = BulletHandler { _, _, _, _, _ -> "• " }
+val LocalBulletListHandler = BulletHandler { _, _, _, _, _ -> "•" }
 val LocalOrderedListHandler = BulletHandler { _, _, index, listNumber, _ -> "${listNumber + index}. " }

@@ -18,7 +18,7 @@ fun UiScope.MarkdownText(
     }
 
     Column(Grow.Std) {
-        modifier.padding(bottom = Dp(16f))
+        // modifier.padding(bottom = Dp(16f))
 
         val maxWidth = remember(0f)
 
@@ -38,7 +38,7 @@ fun UiScope.MarkdownText(
 
 fun UiScope.MarkdownText(text: String, style: MarkdownStyle, body: UiScope.() -> Unit = {}) {
     Column(Grow.Std) {
-        modifier.padding(bottom = Dp(16f))
+        //modifier.padding(bottom = Dp(16f))
 
         val maxWidth = remember(0f)
 
