@@ -7,6 +7,8 @@ import net.minecraft.world.entity.player.Player.BedSleepingProblem
 import ru.hollowhorizon.hollowengine.common.events.Event
 
 open class PlayerEvent(val player: Player) : Event {
+    val level get() = player.level()
+
     class Clone(player: Player, val oldPlayer: Player, val wasDeath: Boolean) : PlayerEvent(player)
 
     class Join(player: Player) : PlayerEvent(player)

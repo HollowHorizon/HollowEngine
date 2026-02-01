@@ -109,6 +109,7 @@ dependencies {
     install("com.mineinabyss:geary-actions:${gearyVersion}")
     install("com.mineinabyss:geary-serialization:${gearyVersion}")
 
+    implementation("de.kherud:llama:4.2.0")
 //    install("de.fabmax.kool:kool-physics-desktop:$koolVersion", true)
 //    install("de.fabmax:physx-jni:2.7.1")
 //    install("de.fabmax:physx-jni:2.7.1:natives-windows")
