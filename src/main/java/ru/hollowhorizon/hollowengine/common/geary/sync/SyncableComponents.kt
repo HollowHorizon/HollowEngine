@@ -14,7 +14,7 @@ import kotlinx.coroutines.yield
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerPlayer
-import ru.hollowhorizon.hollowengine.api.Synced
+import ru.hollowhorizon.hollowengine.api.Syncable
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityTrackingEvent
@@ -60,7 +60,7 @@ val SyncableComponents = createAddon<SyncableComponentsBuilder, SyncableComponen
     val module = configuration.build()
 
     with(geary) {
-        ComponentRegistry.filter { it.value.hasAnnotation<Synced>() }.forEach {
+        ComponentRegistry.filter { it.value.hasAnnotation<Syncable>() }.forEach {
             registerSyncingNoinline(it.value)
         }
         registerSyncing<Model>(saveOnDeath = true)

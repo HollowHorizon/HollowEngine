@@ -15,7 +15,7 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.api.ParticlesProvider
-import ru.hollowhorizon.hollowengine.api.Synced
+import ru.hollowhorizon.hollowengine.api.Syncable
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
@@ -111,7 +111,7 @@ private fun CommandExtension.registerUtilityCommands() {
     "geary" {
         ComponentRegistry.keys.forEach {
             val c = ComponentRegistry[it]!!
-            val isSyncing = c.value.hasAnnotation<Synced>()
+            val isSyncing = c.value.hasAnnotation<Syncable>()
             "$it" {
                 "add"(arg("entity", EntityArgument.entity())) {
                     executes {

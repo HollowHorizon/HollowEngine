@@ -7,11 +7,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.Mob
-import ru.hollowhorizon.hollowengine.api.Register
+import ru.hollowhorizon.hollowengine.api.Registerable
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.geary.GearyInitializeEvent
 
-@Register
+@Registerable
 @Serializable
 @SerialName("hollowengine:no_ai")
 class NoAi

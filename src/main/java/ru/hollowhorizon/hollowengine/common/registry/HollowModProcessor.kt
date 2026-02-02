@@ -6,7 +6,7 @@ import kotlinx.serialization.serializerOrNull
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.api.Init
-import ru.hollowhorizon.hollowengine.api.Register
+import ru.hollowhorizon.hollowengine.api.Registerable
 import ru.hollowhorizon.hollowengine.api.ReloadListener
 import ru.hollowhorizon.hollowengine.api.utils.Polymorphic
 import ru.hollowhorizon.hollowengine.common.config.Config
@@ -95,7 +95,7 @@ object HollowModProcessor {
                 }
             }
         }
-        registerClassHandler<Register> { type, annotation ->
+        registerClassHandler<Registerable> { type, annotation ->
             val component = type.kotlin
             val serializer = component.serializerOrNull() ?: error("${type.simpleName} must be an object!")
             ComponentRegistry.register(component.findAnnotation<SerialName>()?.value?.rl ?: error("@SerialName not found for class ${type.simpleName}"), ComponentHolder(component, JavaHacks.forceCast(serializer)))

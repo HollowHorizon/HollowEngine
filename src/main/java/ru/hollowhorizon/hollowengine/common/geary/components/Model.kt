@@ -7,16 +7,16 @@ import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import org.joml.Quaternionf
-import ru.hollowhorizon.hollowengine.api.Register
-import ru.hollowhorizon.hollowengine.api.Synced
+import ru.hollowhorizon.hollowengine.api.Registerable
+import ru.hollowhorizon.hollowengine.api.Syncable
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
 
-@Register
-@Synced
+@Registerable
+@Syncable
 @Serializable
 @SerialName("hollowengine:model")
 @EditorIcon("hollowengine:textures/gui/icons/eye.svg")
@@ -62,7 +62,7 @@ fun onRender(event: RenderEntityEvent.Pre) {
     }
 }
 
-@Register
+@Registerable
 @Serializable
 @SerialName("hollowengine:transform")
 @EditorIcon("hollowengine:textures/gui/icons/world.svg")
@@ -93,7 +93,7 @@ data class TransformComponent(
     val scale: Float = 1f,
 )
 
-@Register
+@Registerable
 @Serializable
 @SerialName("hollowengine:interaction")
 @EditorIcon("hollowengine:textures/gui/icons/interaction.svg")
@@ -117,7 +117,7 @@ data class InteractionComponent(
     val scriptPath: String = "scripts/npc/dialogue_start.kts",
 )
 
-@Register
+@Registerable
 @Serializable
 @SerialName("hollowengine:advanced_model")
 @EditorIcon("hollowengine:textures/gui/icons/folder_npcs.svg")

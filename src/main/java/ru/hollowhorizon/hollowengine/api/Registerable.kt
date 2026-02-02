@@ -1,3 +1,3 @@
 package ru.hollowhorizon.hollowengine.api
 
-annotation class Register
+annotation class Registerable
