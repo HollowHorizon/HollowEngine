@@ -51,7 +51,14 @@ fun Entity.setAllSyncablePersisting(
 ) {
     components.forEach {
         if (override || !has(it::class)) {
-            setRelation(world.getAddon(SyncableComponents).syncs, world.componentId(it::class), Syncs, noEvent)
+            val syncs = world.run { componentId(it::class).toGeary().has<Syncs>() }
+            if (syncs) {
+                setRelation(
+                    world.getAddon(SyncableComponents).syncs,
+                    world.componentId(it::class),
+                    Syncs, noEvent
+                )
+            }
             setPersisting(it, it::class, noEvent)
         }
     }

@@ -31,7 +31,7 @@ inline fun <reified T : Component> Entity.setSyncing(
     noEvent: Boolean = false,
 ): T {
     setRelation(world.getAddon(SerializableComponents).persists, world.componentId(kClass), Persists(), noEvent)
-    setRelation(world.getAddon(SyncableComponents).syncs, world.componentId<T>(), Syncs, noEvent)
+    setRelation(world.getAddon(SyncableComponents).syncs, world.componentId(kClass), Syncs, noEvent)
     set(component, kClass, noEvent)
     return component
 }
@@ -40,6 +40,17 @@ inline fun <reified T : Component> Geary.registerSyncing(saveOnDeath: Boolean = 
     val componentId = componentId<T>()
     val name = serializers.getSerialNameFor(T::class)?.toComponentKey()
         ?: error("SerialName not registered for ${T::class.simpleName}")
+    componentId.toGeary().apply {
+        set(name)
+        add<Syncs>()
+        if (saveOnDeath) add<SaveOnDeath>()
+    }
+}
+
+fun Geary.registerSyncingNoinline(type: KClass<*>, saveOnDeath: Boolean = false) {
+    val componentId = componentId(type)
+    val name = serializers.getSerialNameFor(type)?.toComponentKey()
+        ?: error("SerialName not registered for ${type.simpleName}")
     componentId.toGeary().apply {
         set(name)
         add<Syncs>()
@@ -85,4 +96,3 @@ data class ComponentRemovePacket(
     }
 }
 
-//   val tag = world.formats.nbt.encode(world.serializers.getSerializerFor(kClass) as SerializationStrategy<T>, component)

@@ -1,9 +1,5 @@
-@file:OptIn(ExperimentalSerializationApi::class)
-
 package ru.hollowhorizon.hollowengine.common.geary.components
 
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.SerialInfo
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.client.renderer.entity.LivingEntityRenderer
@@ -11,36 +7,24 @@ import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import org.joml.Quaternionf
+import ru.hollowhorizon.hollowengine.api.Register
+import ru.hollowhorizon.hollowengine.api.Synced
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
 
-@SerialInfo
-@Target(AnnotationTarget.PROPERTY)
-annotation class EditorName(val name: String)
-
-@SerialInfo
-@Target(AnnotationTarget.PROPERTY)
-annotation class EditorRange(val min: Float, val max: Float)
-
-@SerialInfo
-@Target(AnnotationTarget.CLASS, AnnotationTarget.PROPERTY)
-annotation class EditorIcon(val icon: String)
-
-@SerialInfo
-@Target(AnnotationTarget.PROPERTY)
-annotation class EditorHidden
-
+@Register
+@Synced
 @Serializable
 @SerialName("hollowengine:model")
 @EditorIcon("hollowengine:textures/gui/icons/eye.svg")
 data class Model(
     @EditorName("Модель")
-    val model: String,
+    val model: String = "hollowengine:models/entity/player_model.gltf",
     @EditorRange(min = 0f, max = 100f)
-    val scale: Float,
+    val scale: Float = 1f,
 ) {
     val attachment by lazy {
         ModelAttachment(model)
@@ -78,6 +62,7 @@ fun onRender(event: RenderEntityEvent.Pre) {
     }
 }
 
+@Register
 @Serializable
 @SerialName("hollowengine:transform")
 @EditorIcon("hollowengine:textures/gui/icons/world.svg")
@@ -108,6 +93,7 @@ data class TransformComponent(
     val scale: Float = 1f,
 )
 
+@Register
 @Serializable
 @SerialName("hollowengine:interaction")
 @EditorIcon("hollowengine:textures/gui/icons/interaction.svg")
@@ -131,6 +117,7 @@ data class InteractionComponent(
     val scriptPath: String = "scripts/npc/dialogue_start.kts",
 )
 
+@Register
 @Serializable
 @SerialName("hollowengine:advanced_model")
 @EditorIcon("hollowengine:textures/gui/icons/folder_npcs.svg")

@@ -1,22 +1,21 @@
 package ru.hollowhorizon.hollowengine.common.commands
 
+import com.mineinabyss.geary.serialization.setPersisting
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import de.fabmax.kool.math.Vec3f
 import kotlinx.serialization.Serializable
-import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.commands.CommandSourceStack
-import net.minecraft.commands.arguments.DimensionArgument
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.coordinates.Vec3Argument
 import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.api.ParticlesProvider
+import ru.hollowhorizon.hollowengine.api.Synced
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
@@ -24,13 +23,12 @@ import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.client.utils.mc
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystem
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
-import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
-import ru.hollowhorizon.hollowengine.common.geary.components.Model
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.geary.sync.setSyncing
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
@@ -39,6 +37,7 @@ import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQue
 import java.io.File
 import kotlin.math.pow
 import kotlin.math.roundToInt
+import kotlin.reflect.full.hasAnnotation
 
 @SubscribeEvent
 fun onRegisterCommands(event: RegisterCommandsEvent) {
@@ -46,7 +45,6 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
         "hollowengine" {
             registerParticleCommands()
             registerModelCommands()
-            registerComponentCommands()
             registerUtilityCommands()
             registerGlobalsCommands()
         }
@@ -102,29 +100,6 @@ private fun CommandExtension.registerModelCommands() {
     }
 }
 
-private fun CommandExtension.registerComponentCommands() {
-    "components" {
-        registerComponentAddCommands()
-        registerComponentRemoveCommands()
-    }
-}
-
-private fun CommandExtension.registerComponentAddCommands() {
-    "add" {
-        registerEntityComponentCommand { entity, component -> entity.container.attach(component) }
-        registerLevelComponentCommand { level, component -> level.container.attach(component) }
-        registerServerComponentCommand { server, component -> server.container.attach(component) }
-    }
-}
-
-private fun CommandExtension.registerComponentRemoveCommands() {
-    "remove" {
-        registerEntityComponentCommand { entity, component -> entity.container.detach(component) }
-        registerLevelComponentCommand { level, component -> level.container.detach(component) }
-        registerServerComponentCommand { server, component -> server.container.detach(component) }
-    }
-}
-
 private fun CommandExtension.registerUtilityCommands() {
     "hand" {
         executes {
@@ -134,20 +109,28 @@ private fun CommandExtension.registerUtilityCommands() {
     }
 
     "geary" {
-        "hollowengine:model" {
-            "add"(arg("entity", EntityArgument.entity())) {
-                executes {
-                    val entity = EntityArgument.getEntity(this, "entity")
-                    entity.entity.setSyncing(Model("hollowengine:models/entity/player_model.gltf", 1f))
-                    SUCCESS
+        ComponentRegistry.keys.forEach {
+            val c = ComponentRegistry[it]!!
+            val isSyncing = c.value.hasAnnotation<Synced>()
+            "$it" {
+                "add"(arg("entity", EntityArgument.entity())) {
+                    executes {
+                        val entity = EntityArgument.getEntity(this, "entity")
+                        if(isSyncing) {
+                            entity.entity.setSyncing(c.create(), c.value)
+                        } else {
+                            entity.entity.setPersisting(c.create(), c.value)
+                        }
+                        SUCCESS
+                    }
                 }
-            }
 
-            "remove"(arg("entity", EntityArgument.entity())) {
-                executes {
-                    val entity = EntityArgument.getEntity(this, "entity")
-                    entity.entity.remove<Model>()
-                    SUCCESS
+                "remove"(arg("entity", EntityArgument.entity())) {
+                    executes {
+                        val entity = EntityArgument.getEntity(this, "entity")
+                        entity.entity.remove(c.value)
+                        SUCCESS
+                    }
                 }
             }
         }
@@ -182,7 +165,7 @@ private fun CommandExtension.registerGlobalsCommands() {
                     (source.server as ComponentDispatcher).container.get<BlocksSystem>("hollowengine:blocks_system".rl)?.globals
                         ?: return@executes FAILURE
 
-                if(variables.keys.isEmpty()) {
+                if (variables.keys.isEmpty()) {
                     sendSuccess { "There are no variables here yet".literal }
                 } else {
                     sendSuccess { "'$variable': ${variables[variable].toString()}".literal }
@@ -233,62 +216,6 @@ private fun removeParticles(particleName: String) {
 }
 // endregion
 
-// region Component Functions
-private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSourceStack>>.registerEntityComponentCommand(
-    action: (ComponentDispatcher, ResourceLocation) -> Unit,
-) {
-    "entity"(
-        arg("entity", EntityArgument.entity()),
-        arg("component", StringArgumentType.string()) { getAvailableComponents() }
-    ) {
-        executes {
-            val entity = EntityArgument.getEntity(this, "entity") as ComponentDispatcher
-            val component = StringArgumentType.getString(this, "component").rl
-            action(entity, component)
-            SUCCESS
-        }
-    }
-}
-
-private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSourceStack>>.registerLevelComponentCommand(
-    action: (ComponentDispatcher, ResourceLocation) -> Unit,
-) {
-    "level"(
-        arg("level", DimensionArgument.dimension()),
-        arg("component", StringArgumentType.string()) { getAvailableComponents() }
-    ) {
-        executes {
-            val level = DimensionArgument.getDimension(this, "level") as ComponentDispatcher
-            val component = StringArgumentType.getString(this, "component").rl
-            action(level, component)
-            SUCCESS
-        }
-    }
-}
-
-private fun CommandEditor<CommandSourceStack, LiteralArgumentBuilder<CommandSourceStack>>.registerServerComponentCommand(
-    action: (ComponentDispatcher, ResourceLocation) -> Unit,
-) {
-    "server"(arg("component", StringArgumentType.string()) { getAvailableComponents() }) {
-        executes {
-            val server = source.server as ComponentDispatcher
-            val component = StringArgumentType.getString(this, "component").rl
-            action(server, component)
-            SUCCESS
-        }
-    }
-}
-
-private fun createEditSuccessMessage(componentLocation: ResourceLocation, propertyName: String, value: String) =
-    "[HollowEngine] ".literal.colored(ChatFormatting.GOLD) +
-            "Property ".literal.colored(0xFFFFFF) +
-            propertyName.literal.colored(ChatFormatting.DARK_PURPLE) +
-            " of component ".literal.colored(0xFFFFFF) +
-            componentLocation.toString().literal.colored(ChatFormatting.GRAY) +
-            " set to ".literal.colored(0xFFFFFF) +
-            value.literal.colored(ChatFormatting.AQUA)
-// endregion
-
 // region Utility Functions
 private fun copyHandItemToClipboard(player: Player) {
     val item = player.mainHandItem
@@ -312,8 +239,6 @@ private fun copyTargetPositionToClipboard(player: Player) {
     val roundedZ = loc.z.roundTo(2)
     CopyTextPacket("pos($roundedX, $roundedY, $roundedZ)").send(player as ServerPlayer)
 }
-
-private fun getAvailableComponents() = ComponentRegistry.map { it.key.toString() }.map { "\"$it\"" }
 
 private fun getAvailableModels(): Collection<String> {
     val defaultModels = listOf(

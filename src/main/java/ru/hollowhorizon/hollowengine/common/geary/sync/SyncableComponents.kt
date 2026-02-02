@@ -9,22 +9,27 @@ import com.mineinabyss.geary.helpers.componentId
 import com.mineinabyss.geary.modules.Geary
 import com.mineinabyss.geary.observers.events.OnRemove
 import com.mineinabyss.geary.observers.events.OnSet
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerPlayer
+import ru.hollowhorizon.hollowengine.api.Synced
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityTrackingEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
-import ru.hollowhorizon.hollowengine.common.geary.ListString
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
 import ru.hollowhorizon.hollowengine.common.geary.api.entityId
 import ru.hollowhorizon.hollowengine.common.geary.api.geary
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.decodeComponents
 import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.encodeComponentsTo
 import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.loadComponentsFrom
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
+import kotlin.reflect.full.hasAnnotation
 
 data class SyncableComponentsBuilder(
     val world: Geary,
@@ -55,7 +60,9 @@ val SyncableComponents = createAddon<SyncableComponentsBuilder, SyncableComponen
     val module = configuration.build()
 
     with(geary) {
-        registerSyncing<ListString>()
+        ComponentRegistry.filter { it.value.hasAnnotation<Synced>() }.forEach {
+            registerSyncingNoinline(it.value)
+        }
         registerSyncing<Model>(saveOnDeath = true)
 
         observeSource<OnSet>().exec {
@@ -98,8 +105,10 @@ fun onClone(event: PlayerEvent.Clone) {
 
     val tag = CompoundTag()
     with(old.level().geary) { old.entityId.encodeComponentsTo(tag) }
-    with(new.level().geary) {
-        new.entity.loadComponentsFrom(tag.decodeComponents())
+    new.server?.coroutineScope?.launch {
+        yield() // Ждём конца тика чтобы пакеты отправились игроку с нужным id
+        with(new.level().geary) {
+            new.entity.loadComponentsFrom(tag.decodeComponents())
+        }
     }
-
 }

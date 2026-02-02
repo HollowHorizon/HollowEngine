@@ -11,8 +11,8 @@ import net.minecraft.nbt.*
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import ru.hollowhorizon.hollowengine.HollowCore
-import ru.hollowhorizon.hollowengine.common.geary.ListString
-import ru.hollowhorizon.hollowengine.common.geary.components.Model
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
+import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
 import ru.hollowhorizon.hollowengine.common.utils.serialization.deserialize
 import ru.hollowhorizon.hollowengine.common.utils.serialization.serialize
@@ -31,8 +31,9 @@ internal val TagModule
         contextual(Tag::class, PolymorphicSerializer(Tag::class))
 
         polymorphic(Component::class) {
-            subclass(ListString.serializer())
-            subclass(Model.serializer())
+            ComponentRegistry.forEach {
+                subclass(it.value, JavaHacks.forceCast(it.serializer))
+            }
         }
         polymorphic(Tag::class) {
             subclass(ByteTag::class, ForByteNBT)

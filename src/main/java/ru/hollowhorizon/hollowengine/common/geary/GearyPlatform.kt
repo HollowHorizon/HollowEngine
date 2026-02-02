@@ -11,19 +11,21 @@ import com.mineinabyss.geary.serialization.formats.YamlFormat
 import com.mineinabyss.geary.serialization.serialization
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.serializer
 import net.minecraft.world.level.Level
 import org.apache.logging.log4j.LogManager
 import org.koin.core.module.dsl.bind
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.withOptions
 import org.koin.dsl.module
-import ru.hollowhorizon.hollowengine.common.geary.components.Model
+import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.post
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.geary.engine.HollowEngineModule
 import ru.hollowhorizon.hollowengine.common.geary.sync.SyncableComponents
 import ru.hollowhorizon.hollowengine.common.geary.tracking.EntityTracking
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MinecraftEntityLookup
 import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.GearyNBTFormat
+import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 
 @Serializable
 @SerialName("hollowengine:list_of_string")
@@ -36,9 +38,9 @@ object GearyPlatform {
     fun create(level: Level): Geary = geary(createEngineModule(level)) {
         serialization {
             components {
-                component(String.serializer())
-                component(ListString.serializer())
-                component(Model.serializer())
+                ComponentRegistry.forEach {
+                    component(it.value, JavaHacks.forceCast(it.serializer))
+                }
             }
             format("yml", ::YamlFormat)
             format("nbt", ::GearyNBTFormat)
@@ -50,6 +52,7 @@ object GearyPlatform {
         install(EntityTracking)
         install(SyncableComponents)
 
+        GearyInitializeEvent(geary).post()
     }.start()
 
     private fun createEngineModule(level: Level): GearyModule {
@@ -69,3 +72,5 @@ object GearyPlatform {
         )
     }
 }
+
+class GearyInitializeEvent(val geary: Geary): Event

@@ -1,26 +1,36 @@
 package ru.hollowhorizon.hollowengine.common.registry
 
+import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.serializerOrNull
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.api.Init
+import ru.hollowhorizon.hollowengine.api.Register
 import ru.hollowhorizon.hollowengine.api.ReloadListener
 import ru.hollowhorizon.hollowengine.api.utils.Polymorphic
 import ru.hollowhorizon.hollowengine.common.config.Config
 import ru.hollowhorizon.hollowengine.common.config.ConfigName
 import ru.hollowhorizon.hollowengine.common.events.*
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.registerPacket
 import ru.hollowhorizon.hollowengine.common.network.registerPackets
 import ru.hollowhorizon.hollowengine.common.registry.system.RegistryManager
+import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 import ru.hollowhorizon.hollowengine.common.utils.Side
 import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBT_TAGS
+import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import kotlin.reflect.full.findAnnotation
 
+@OptIn(InternalSerializationApi::class)
 object HollowModProcessor {
     init {
         val handles = MethodHandles.lookup()
@@ -84,6 +94,11 @@ object HollowModProcessor {
                     }
                 }
             }
+        }
+        registerClassHandler<Register> { type, annotation ->
+            val component = type.kotlin
+            val serializer = component.serializerOrNull() ?: error("${type.simpleName} must be an object!")
+            ComponentRegistry.register(component.findAnnotation<SerialName>()?.value?.rl ?: error("@SerialName not found for class ${type.simpleName}"), ComponentHolder(component, JavaHacks.forceCast(serializer)))
         }
         registerMethodHandler<Init> { method, _ ->
             if (method.isStatic()) {

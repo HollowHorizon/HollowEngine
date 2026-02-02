@@ -20,10 +20,10 @@ object NetworkHelper {
                 while(player.connection == null && !player.isRemoved) {
                     yield() // Если пакет отправляется до инициализации, то ждём каждый тик
                 }
-                if (player.connection != null && !player.isRemoved) {
+                if (player.connection != null) {
                     player.connection.send(hollowPacketV3.asVanillaPacket(true))
                 } else {
-                    HollowEngine.LOGGER.warn("Player ${player.name} removed, but packet still trying to send")
+                    HollowEngine.LOGGER.warn("Player ${player.name.string} removed, but packet still trying to send")
                 }
             }
         }
