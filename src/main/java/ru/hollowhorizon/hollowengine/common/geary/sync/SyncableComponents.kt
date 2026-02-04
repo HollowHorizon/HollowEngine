@@ -106,7 +106,7 @@ fun onClone(event: PlayerEvent.Clone) {
     val tag = CompoundTag()
     with(old.level().geary) { old.entityId.encodeComponentsTo(tag) }
     new.server?.coroutineScope?.launch {
-        yield() // Ждём конца тика чтобы пакеты отправились игроку с нужным id
+        yield() // Т.к. это тот же поток, ждём конца тика чтобы пакеты отправились игроку с нужным id
         with(new.level().geary) {
             new.entity.loadComponentsFrom(tag.decodeComponents())
         }

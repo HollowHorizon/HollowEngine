@@ -17,13 +17,13 @@ object NetworkHelper {
         }
         sendPacketToClient = { player: ServerPlayer, hollowPacketV3: HollowPacket ->
             player.server.coroutineScope.launch {
-                while(player.connection == null && !player.isRemoved) {
+                while(player.connection == null && !player.hasDisconnected()) {
                     yield() // Если пакет отправляется до инициализации, то ждём каждый тик
                 }
-                if (player.connection != null) {
+                if (!player.hasDisconnected()) {
                     player.connection.send(hollowPacketV3.asVanillaPacket(true))
                 } else {
-                    HollowEngine.LOGGER.warn("Player ${player.name.string} removed, but packet still trying to send")
+                    HollowEngine.LOGGER.warn("Player ${player.name.string} removed, but packet ${hollowPacketV3::class.simpleName} still trying to send")
                 }
             }
         }
