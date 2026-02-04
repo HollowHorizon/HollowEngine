@@ -1,27 +1,34 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs
 
+import com.mineinabyss.geary.datatypes.Component
+import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
+import kotlinx.serialization.KSerializer
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IDEFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
-import ru.hollowhorizon.hollowengine.common.geary.components.AdvancedModelComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
+import ru.hollowhorizon.hollowengine.common.geary.components.EditorIcon
 import ru.hollowhorizon.hollowengine.common.geary.components.GenericEditor
-import ru.hollowhorizon.hollowengine.common.geary.components.InteractionComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.Model
-import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
+import ru.hollowhorizon.hollowengine.common.utils.rl
+import kotlin.reflect.full.findAnnotation
 
 class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
     val npcName = mutableStateOf("")
     val modelController = ModelController()
     val isGridVisible = mutableStateOf<Boolean>(true)
+    private val components = mutableStateListOf<EditorComponent>()
 
     override fun save() {
 
@@ -60,6 +67,7 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
             }
             Column(Grow(0.33f), Grow.Std) {
                 modifier.backgroundColor(ColorTheme.UI.BackgroundSecondary)
+                val componentPopup = remember { ItemPopupMenu<Unit>("npc-component-popup") }
 
                 ScrollArea(Grow.Std, Grow.Std, containerModifier = {
                     it.backgroundColor(ColorTheme.UI.BackgroundSecondary)
@@ -80,6 +88,13 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
                     modifier
                         .margin(Dimensions.PaddingMedium)
                         .background(RoundRectBackground(ColorTheme.Accents.Main, Dimensions.PaddingMedium))
+                        .onClick {
+                            componentPopup.show(
+                                Vec2f(it.screenPosition),
+                                buildComponentMenu(componentPopup),
+                                Unit
+                            )
+                        }
 
                     Row {
                         modifier.alignX(AlignmentX.Center)
@@ -100,6 +115,7 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
                         }
                     }
                 }
+                componentPopup()
             }
         }
     }
@@ -116,11 +132,9 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
                 .align(AlignmentX.Center, AlignmentY.Center)
         }
 
-        GenericEditor(remember { mutableStateOf(Model("hollowengine:models/entity/player_model.gltf", 1f)) })
-        GenericEditor(remember { mutableStateOf(TransformComponent()) })
-        GenericEditor(remember { mutableStateOf(InteractionComponent()) })
-        GenericEditor(remember { mutableStateOf(AdvancedModelComponent()) })
-
+        components.forEach { component ->
+            ComponentEditor(component)
+        }
 
 
 //        Category(icons.EYE, "Основная информация") {
@@ -306,5 +320,53 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
                 Text("${item.count}") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
             }
         }
+    }
+
+    private fun addComponent(key: ResourceLocation) {
+        val holder = ComponentRegistry[key] ?: return
+        val component = holder.create()
+        components += EditorComponent(key, holder, mutableStateOf(component))
+    }
+
+    private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("Компоненты") {
+        val existing = components.map { it.key }.toSet()
+        val available = ComponentRegistry.keys
+            .filter { it !in existing }
+            .sortedBy { it.toString() }
+
+        if (available.isEmpty()) {
+            item("Все компоненты добавлены") {}
+        } else {
+            available.forEach { key ->
+                val holder = ComponentRegistry[key] ?: return@forEach
+                val serializer = holder.serializer
+                val displayName = serializer.descriptor.serialName
+                val icon = holder.value.findAnnotation<EditorIcon>()?.icon?.rl
+                item(displayName, icon) {
+                    addComponent(key)
+                    menu.hide()
+                }
+            }
+        }
+    }
+
+    private fun UiScope.ComponentEditor(component: EditorComponent) {
+        @Suppress("UNCHECKED_CAST")
+        val state = component.state as MutableStateValue<Any>
+
+        @Suppress("UNCHECKED_CAST")
+        val serializer = component.holder.serializer as KSerializer<Any>
+        GenericEditor(state, serializer) {
+            components.remove(component)
+        }
+    }
+
+    private data class EditorComponent(
+        val key: ResourceLocation,
+        val holder: ComponentHolder<*>,
+        val state: MutableStateValue<Component>,
+    ) {
+        val displayName: String
+            get() = holder.serializer.descriptor.serialName
     }
 }

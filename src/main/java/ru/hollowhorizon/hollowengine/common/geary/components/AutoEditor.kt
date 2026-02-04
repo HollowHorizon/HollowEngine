@@ -14,6 +14,7 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.AccordionColumnLayout
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
 object AutoEditor {
@@ -25,13 +26,15 @@ object AutoEditor {
 
 inline fun <reified T : Any> UiScope.GenericEditor(
     state: MutableStateValue<T>,
-) {
-    GenericEditor(state, serializer<T>())
+    noinline onRemove: () -> Unit,
+    ) {
+    GenericEditor(state, serializer<T>(), onRemove)
 }
 
 fun <T : Any> UiScope.GenericEditor(
     state: MutableStateValue<T>,
     serializer: KSerializer<T>,
+    onRemove: () -> Unit,
 ) {
     val descriptor = serializer.descriptor
 
@@ -41,7 +44,7 @@ fun <T : Any> UiScope.GenericEditor(
     val displayName = descriptor.annotations.filterIsInstance<EditorName>().firstOrNull()?.name
         ?: descriptor.serialName
 
-    Category(icon.rl, displayName) {
+    Category(icon.rl, displayName, onRemove = onRemove) {
 
         for (i in 0 until descriptor.elementsCount) {
             val elementName = descriptor.getElementName(i)
@@ -57,7 +60,7 @@ fun <T : Any> UiScope.GenericEditor(
             Row(Grow.Std) {
                 Image(icon.rl) {
                     modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                        .margin(vertical=Dimensions.PaddingMedium, horizontal=Dimensions.PaddingNormal)
+                        .margin(vertical = Dimensions.PaddingMedium, horizontal = Dimensions.PaddingNormal)
 
                 }
 
@@ -147,7 +150,7 @@ fun <T : Any> UiScope.GenericEditor(
     }
 }
 
-fun UiScope.Category(icon: ResourceLocation, name: String, block: ColumnScope.() -> Unit) {
+fun UiScope.Category(icon: ResourceLocation, name: String, onRemove: () -> Unit, block: ColumnScope.() -> Unit) {
     Column(Grow.Std) {
         modifier.margin(Dimensions.PaddingMedium)
             .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingMedium))
@@ -190,6 +193,13 @@ fun UiScope.Category(icon: ResourceLocation, name: String, block: ColumnScope.()
                     .onClick {
                         isExpanded.set(!isExpanded.value)
                     }
+            }
+
+            Image(icons.REMOVE) {
+                modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
+                    .margin(end = Dimensions.PaddingSmall)
+                    .alignY(AlignmentY.Center)
+                    .onClick { if (it.isLeftClick) onRemove() }
             }
         }
 
