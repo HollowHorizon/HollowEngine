@@ -3,10 +3,10 @@ package ru.hollowhorizon.hollowengine.client.render
 import com.mojang.blaze3d.platform.Lighting
 import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.systems.RenderSystem
-import com.mojang.blaze3d.vertex.BufferBuilder
-import com.mojang.blaze3d.vertex.PoseStack
-import com.mojang.blaze3d.vertex.VertexConsumer
+import com.mojang.blaze3d.vertex.*
+import de.fabmax.kool.util.Color
 import net.minecraft.client.Minecraft
+import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.RenderType
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher
@@ -21,7 +21,6 @@ import org.joml.Vector3d
 import org.joml.Vector3f
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.kool.EntityModifier
-import ru.hollowhorizon.hollowengine.client.utils.*
 import java.io.File
 import kotlin.math.min
 
@@ -43,7 +42,45 @@ object OpenGLUtils {
             downloadTexture(0, false)
         }.writeToFile(File("hollowengine/framebuffer_debug.png"))
     }
+
+    fun renderGrid(stack: PoseStack, color: Color, size: Int = 10, step: Float = 1f) {
+        val tessellator = Tesselator.getInstance()
+        val buffer = tessellator.builder
+
+        RenderSystem.enableBlend()
+        RenderSystem.defaultBlendFunc()
+        RenderSystem.setShader(GameRenderer::getPositionColorShader)
+        RenderSystem.lineWidth(1.0f)
+
+        buffer.begin(VertexFormat.Mode.DEBUG_LINES, DefaultVertexFormat.POSITION_COLOR)
+
+        val matrix = stack.last().pose()
+
+        for (i in -size..size) {
+            val pos = i * step
+
+            val (r, g, b, a) = if (i == 0) color.withAlpha(0.75f) else color.withAlpha(0.5f)
+
+            buffer.vertex(matrix, -size * step, 0f, pos)
+                .color(r, g, b, a).endVertex()
+            buffer.vertex(matrix, size * step, 0f, pos)
+                .color(r, g, b, a).endVertex()
+
+            buffer.vertex(matrix, pos, 0f, -size * step)
+                .color(r, g, b, a).endVertex()
+            buffer.vertex(matrix, pos, 0f, size * step)
+                .color(r, g, b, a).endVertex()
+        }
+
+        tessellator.end()
+        RenderSystem.disableBlend()
+    }
 }
+
+operator fun Color.component1() = r
+operator fun Color.component2() = g
+operator fun Color.component3() = b
+operator fun Color.component4() = a
 
 private val CUSTOM_IMGUI_LIGHT_0: Vector3f = Vector3f(-0.3f, 1f, 1f).normalize()
 private val CUSTOM_IMGUI_LIGHT_1: Vector3f = Vector3f(0.3f, -1f, -1f).normalize()
@@ -232,7 +269,7 @@ inline fun LivingEntity.use(dispatcher: EntityRenderDispatcher, modifier: Entity
     yBodyRot = modifier.yaw
     yBodyRotO = yBodyRot
     yRot = modifier.yaw * modifier.headRotationModifierY
-    yRotO = yRotOld
+    yRotO = yRot
     xRot = modifier.pitch * modifier.headRotationModifierX
     xRotO = xRot
     yHeadRot = yRot

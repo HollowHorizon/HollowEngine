@@ -1,69 +1,51 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs
 
-import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.modules.ui2.Dp
+import de.fabmax.kool.modules.ui2.UiNode
+import de.fabmax.kool.modules.ui2.UiRenderer
+import de.fabmax.kool.modules.ui2.UiSurface
 import de.fabmax.kool.util.Color
-import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 
 class GridBackground(
     val sectionSize: Dp,
     val currentZoom: Float,
-    val scrollState: ScrollState,
+    val offsetX: Float,
+    val offsetY: Float,
     val lineWidth: Dp,
     val lineColor: Color,
 ) : UiRenderer<UiNode> {
     override fun renderUi(node: UiNode) {
         node.apply {
             getUiPrimitives(UiSurface.Companion.LAYER_BACKGROUND).apply {
-                val minGridStepPx = 20f
-
                 val baseCellSize = sectionSize.px * currentZoom
+                if (baseCellSize <= 0) return
 
-                var stepMultiplier = 1
+                val minGridStepPx = 20f
                 var effectiveCellSize = baseCellSize
 
-                if (baseCellSize > 0) {
-                    while (effectiveCellSize < minGridStepPx) {
-                        stepMultiplier *= 2
-                        effectiveCellSize = baseCellSize * stepMultiplier
-                    }
-                } else {
-                    return
+                while (effectiveCellSize < minGridStepPx) effectiveCellSize *= 2
+                while (effectiveCellSize > minGridStepPx * 4f) effectiveCellSize /= 2
+
+                val lineThicknessPx = lineWidth.px.coerceAtLeast(1f)
+                val halfThickness = lineThicknessPx / 2f
+
+                val gridOriginX = (widthPx / 2f) + (offsetX * currentZoom)
+                val gridOriginY = (heightPx / 2f) + (offsetY * currentZoom)
+
+                val firstLineX = kotlin.math.floor((0f - gridOriginX) / effectiveCellSize).toInt()
+                val lastLineX = kotlin.math.ceil((widthPx - gridOriginX) / effectiveCellSize).toInt()
+
+                val firstLineY = kotlin.math.floor((0f - gridOriginY) / effectiveCellSize).toInt()
+                val lastLineY = kotlin.math.ceil((heightPx - gridOriginY) / effectiveCellSize).toInt()
+
+                for (i in firstLineX..lastLineX) {
+                    val x = gridOriginX + (i * effectiveCellSize)
+                    rect(leftPx + x - halfThickness, topPx, lineThicknessPx, heightPx, clipBoundsPx, lineColor)
                 }
 
-                val lineThicknessPx = (lineWidth.px * currentZoom).coerceAtLeast(1f)
-
-                val paddingOffset = Dimensions.PaddingLarge.px * currentZoom
-
-                var startX = (paddingOffset - scrollState.xScrollDp.use() * UiScale.measuredScale) % effectiveCellSize
-                var startY = (paddingOffset - scrollState.yScrollDp.use() * UiScale.measuredScale) % effectiveCellSize
-
-                if (startX > 0) startX -= effectiveCellSize
-                if (startY > 0) startY -= effectiveCellSize
-
-                var x = startX
-                while (x < widthPx) {
-                    rect(
-                        leftPx + x,
-                        topPx,
-                        lineThicknessPx,
-                        heightPx,
-                        clipBoundsPx,
-                        lineColor
-                    )
-                    x += effectiveCellSize
-                }
-
-                var y = startY
-                while (y < heightPx) {
-                    rect(
-                        leftPx,
-                        topPx + y,
-                        widthPx,
-                        lineThicknessPx,
-                        clipBoundsPx,
-                        lineColor
-                    )
-                    y += effectiveCellSize
+                for (i in firstLineY..lastLineY) {
+                    val y = gridOriginY + (i * effectiveCellSize)
+                    rect(leftPx, topPx + y - halfThickness, widthPx, lineThicknessPx, clipBoundsPx, lineColor)
                 }
             }
         }

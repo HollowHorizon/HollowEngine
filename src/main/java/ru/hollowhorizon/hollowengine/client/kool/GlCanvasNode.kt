@@ -6,7 +6,7 @@ import de.fabmax.kool.KoolContext
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.util.BackendScope
+import de.fabmax.kool.util.SyncedScope
 import kotlinx.coroutines.launch
 import org.joml.Matrix4f
 import org.lwjgl.opengl.GL33
@@ -158,7 +158,8 @@ open class GlCanvasNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, su
 
     override fun render(ctx: KoolContext) {
         super.render(ctx)
-        BackendScope.launch {
+
+        SyncedScope.launch {
             drawGlCanvas(
                 leftPx, topPx,
                 rightPx, bottomPx,

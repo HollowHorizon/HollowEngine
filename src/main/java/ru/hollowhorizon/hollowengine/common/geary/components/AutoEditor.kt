@@ -180,8 +180,8 @@ fun UiScope.Category(icon: ResourceLocation, name: String, onRemove: () -> Unit,
                     .textColor(Color.WHITE)
                     .margin(Dimensions.PaddingMedium)
                     .align(AlignmentX.Start, AlignmentY.Center)
+                    .width(Grow.Std)
             }
-            Box(Grow.Std) {}
 
             Arrow(if (isExpanded.use()) ArrowScope.ROTATION_UP else ArrowScope.ROTATION_RIGHT) {
                 modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)

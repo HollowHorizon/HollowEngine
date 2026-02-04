@@ -75,7 +75,8 @@ class GraphEditor {
                     GridBackground(
                         sectionSize = Dp(40f),
                         currentZoom = scale,
-                        scrollState = scrollState,
+                        offsetX = scrollState.xScrollDp.use() * UiScale.measuredScale,
+                        offsetY = scrollState.yScrollDp.use() * UiScale.measuredScale,
                         lineWidth = Dp(1f),
                         lineColor = gridColor
                     )

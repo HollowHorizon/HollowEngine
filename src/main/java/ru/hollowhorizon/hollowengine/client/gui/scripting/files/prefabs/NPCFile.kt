@@ -7,14 +7,11 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import kotlinx.serialization.KSerializer
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.world.item.ItemStack
-import net.minecraft.world.item.Items
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IDEFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
-import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
@@ -27,7 +24,6 @@ import kotlin.reflect.full.findAnnotation
 class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
     val npcName = mutableStateOf("")
     val modelController = ModelController()
-    val isGridVisible = mutableStateOf<Boolean>(true)
     private val components = mutableStateListOf<EditorComponent>()
 
     override fun save() {
@@ -38,20 +34,6 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
         Row(Grow.Std, Grow.Std) {
 
             Box(Grow(0.66f), Grow.Std) {
-
-                val lineColor by animateColorAsState(
-                    if (isGridVisible.use()) ColorTheme.UI.BackgroundElements.withAlpha(0.65f)
-                    else ColorTheme.UI.BackgroundElements.withAlpha(0f)
-                )
-                modifier.background(
-                    GridBackground(
-                        Dimensions.PaddingExtraLarge,
-                        1f,
-                        modelController.scrollState,
-                        Dimensions.PaddingSmall * 0.5f,
-                        lineColor
-                    )
-                )
                 modelController()
                 Text(npcName.use()) {
                     modifier
@@ -62,7 +44,6 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
                         .zLayer(1000)
                         .align(AlignmentX.Center, AlignmentY.Top)
                 }
-                EditorButtons()
                 EditorInfo()
             }
             Column(Grow(0.33f), Grow.Std) {
@@ -135,33 +116,6 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
         components.forEach { component ->
             ComponentEditor(component)
         }
-
-
-//        Category(icons.EYE, "Основная информация") {
-//            TextProperty("Отображаемое имя", npcName, "имя")
-//            TextProperty("Модель", modelController.model, "путь к модели")
-//            TextProperty("Масштаб", remember("1.0"), "Масштаб")
-//        }
-//        Category(icons.INTERACTION, "Взаимодействие") {
-//            BoolProperty("Можно взаимодействовать?", remember(false))
-//            TextProperty("Триггер при взаимодействии", remember("interact.bc"), "путь к скрипту")
-//        }
-//        Category(icons.BOX, "Выпадающие предметы") {
-//            TextProperty("Опыт за убийство", remember("10"), "количество очков опыта")
-//            ItemListProperty()
-//        }
-    }
-
-    fun UiScope.EditorButtons() {
-        Row {
-            modifier.align(AlignmentX.Start, AlignmentY.Top)
-                .zLayer(1000)
-
-            Toggle(icons.AUTOCOMPLETE_CLASS, remember(false))
-            Toggle(icons.LAYERS, remember(false))
-            Toggle(icons.RECIPES, isGridVisible)
-            Toggle(icons.RELOAD, remember(false))
-        }
     }
 
     fun UiScope.EditorInfo() {
@@ -218,109 +172,6 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
         }
     }
 
-
-    fun UiScope.ItemListProperty() {
-        ItemProperty(ItemStack(Items.DIRT, 5))
-        ItemProperty(ItemStack(Items.DIAMOND, 3))
-        ItemProperty(ItemStack(Items.END_ROD, 1))
-        Row(Grow.Std) {
-            modifier.padding(Dimensions.PaddingMedium)
-                .margin(Dimensions.PaddingMedium)
-                .background(RoundRectBackground(ColorTheme.UI.BackgroundDarker, Dimensions.PaddingMedium))
-                .border(
-                    RoundRectBorder(
-                        ColorTheme.UI.BackgroundAccent,
-                        Dimensions.PaddingMedium,
-                        Dimensions.PaddingSmall * 0.5f
-                    )
-                )
-
-            Image(icons.ADD) {
-                modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                    .margin(Dimensions.PaddingMedium)
-                    .align(AlignmentX.Center, AlignmentY.Center)
-            }
-            Text("Добавить предмет") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
-        }
-    }
-
-    fun UiScope.ItemProperty(item: ItemStack) {
-        Row(Grow.Std) {
-            Image(icons.REMOVE) {
-                modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                    .margin(horizontal = Dimensions.PaddingMedium)
-                    .alignY(AlignmentY.Center)
-            }
-            Row(Grow.Std) {
-                modifier.padding(Dimensions.PaddingMedium)
-                    .margin(Dimensions.PaddingMedium)
-                    .background(RoundRectBackground(ColorTheme.UI.BackgroundDarker, Dimensions.PaddingMedium))
-                    .border(
-                        RoundRectBorder(
-                            ColorTheme.UI.BackgroundAccent,
-                            Dimensions.PaddingMedium,
-                            Dimensions.PaddingSmall * 0.5f
-                        )
-                    )
-
-                Item(item) {
-                    modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                        .margin(Dimensions.PaddingNormal)
-                    modifier.alignY(AlignmentY.Center)
-                }
-
-                Text(item.hoverName.string) {
-                    modifier.alignY(AlignmentY.Center)
-                    modifier.textColor(ColorTheme.UI.WhiteReplacement)
-                }
-
-                Box(Grow.Std) {}
-
-                Arrow(ArrowScope.ROTATION_DOWN) {
-                    modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                        .colors(
-                            ColorTheme.UI.BackgroundAccent,
-                            ColorTheme.UI.WhiteReplacement
-                        ).alignY(AlignmentY.Center)
-                }
-            }
-            Row {
-                modifier.padding(Dimensions.PaddingMedium)
-                    .margin(Dimensions.PaddingMedium)
-                    .background(RoundRectBackground(ColorTheme.UI.BackgroundDarker, Dimensions.PaddingMedium))
-                    .border(
-                        RoundRectBorder(
-                            ColorTheme.UI.BackgroundAccent,
-                            Dimensions.PaddingMedium,
-                            Dimensions.PaddingSmall * 0.5f
-                        )
-                    )
-
-                Text("${item.count * 10}") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
-                Text("%") {
-                    modifier.textColor(ColorTheme.UI.BackgroundAccent).margin(horizontal = Dimensions.PaddingMedium)
-                }
-            }
-            Text("до") {
-                modifier.textColor(ColorTheme.UI.BackgroundAccent)
-                    .alignY(AlignmentY.Center)
-            }
-            Row {
-                modifier.padding(Dimensions.PaddingMedium)
-                    .margin(Dimensions.PaddingMedium)
-                    .background(RoundRectBackground(ColorTheme.UI.BackgroundDarker, Dimensions.PaddingMedium))
-                    .border(
-                        RoundRectBorder(
-                            ColorTheme.UI.BackgroundAccent,
-                            Dimensions.PaddingMedium,
-                            Dimensions.PaddingSmall * 0.5f
-                        )
-                    )
-
-                Text("${item.count}") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
-            }
-        }
-    }
 
     private fun addComponent(key: ResourceLocation) {
         val holder = ComponentRegistry[key] ?: return
