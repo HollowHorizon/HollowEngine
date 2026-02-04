@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs
 
 import com.mojang.blaze3d.vertex.PoseStack
 import de.fabmax.kool.math.MutableVec3f
+import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
@@ -19,9 +20,13 @@ import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.animateSpringFloatAsState
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
+import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.GlCanvasModifier
 import ru.hollowhorizon.hollowengine.client.kool.GlCanvasNode
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
@@ -42,12 +47,13 @@ class ModelController {
             if (ResourceLocation.isValidResourceLocation(new) && new.rl.exists()) {
                 attachment = ModelAttachment(new)
                 animations = attachment.animations.map { it }
+                // Сбрасываем ID анимации при смене модели, чтобы избежать вылета
+                animationId.set(0)
             }
         }
     var attachment: ModelAttachment = ModelAttachment(model.value)
     var animations = attachment.animations.map { it }
     var animationId = mutableStateOf(0)
-    val animationEnabled = mutableStateOf(false)
 
     var scale: Float = 1f
         private set
@@ -100,82 +106,11 @@ class ModelController {
                 }
         }
 
-        Column {
-            modifier.margin(Dimensions.PaddingMedium)
-                .padding(Dimensions.PaddingMedium)
-                .align(AlignmentX.Start, AlignmentY.Bottom)
-                .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingMedium))
-                .border(
-                    RoundRectBorder(
-                        ColorTheme.UI.BackgroundAccent,
-                        Dimensions.PaddingMedium,
-                        Dimensions.PaddingSmall * 0.5f
-                    )
-                )
-                .zLayer(1000)
+        val animationPopup = remember { ItemPopupMenu<Unit>("animation-popup") }
 
-            Text("Предпросмотр анимации") {
-                modifier.font(remember { MsdfFont(ColorTheme.Fonts.MONOCRAFT, 13f) })
-                    .textColor(ColorTheme.UI.WhiteReplacement)
-                    .margin(Dimensions.PaddingMedium)
-            }
+        AnimationControlBar(animationPopup)
 
-            Row(Grow.Std) {
-                Row(Grow.Std) {
-                    modifier.background(RoundRectBackground(ColorTheme.UI.BackgroundDarker, Dimensions.PaddingMedium))
-                        .border(
-                            RoundRectBorder(
-                                ColorTheme.UI.BackgroundAccent,
-                                Dimensions.PaddingMedium,
-                                Dimensions.PaddingSmall * 0.5f
-                            )
-                        )
-                        .alignY(AlignmentY.Center)
-
-                    Text(animations.getOrNull(animationId.use())?.name ?: "Пусто") {
-                        modifier.font(remember { MsdfFont(ColorTheme.Fonts.MONOCRAFT, 14f) })
-                            .textColor(ColorTheme.UI.WhiteReplacement)
-                            .margin(Dimensions.PaddingMedium)
-                            .width(Grow.Std)
-                    }
-                    Arrow(ArrowScope.ROTATION_DOWN) {
-                        modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                            .margin(Dimensions.PaddingMedium)
-                            .colors(
-                                ColorTheme.UI.BackgroundAccent,
-                                ColorTheme.UI.WhiteReplacement
-                            ).alignY(AlignmentY.Center)
-                            .onClick {
-                                animationId.set((animationId.use() + 1) % animations.size)
-                            }
-                    }
-                }
-                Box {
-                    modifier.padding(Dimensions.PaddingMedium)
-                        .margin(start = Dimensions.PaddingMedium)
-                        .background(RoundRectBackground(ColorTheme.UI.BackgroundDarker, Dimensions.PaddingMedium))
-                        .border(
-                            RoundRectBorder(
-                                ColorTheme.UI.BackgroundAccent,
-                                Dimensions.PaddingMedium,
-                                Dimensions.PaddingSmall * 0.5f
-                            )
-                        )
-                        .alignY(AlignmentY.Center)
-                        .onClick {
-                            animationEnabled.set(!animationEnabled.use())
-                            animations.getOrNull(animationId.use())?.apply {
-                                enabled = animationEnabled.use()
-                                wrapMode = WrapMode.Loop
-                            }
-                        }
-
-                    Image(if (animationEnabled.use()) icons.PAUSE else icons.START) {
-                        modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                    }
-                }
-            }
-        }
+        animationPopup()
 
         EditorButtons()
         EditorInfo()
@@ -194,6 +129,158 @@ class ModelController {
                 lineColor
             )
         )
+    }
+
+    private fun UiScope.AnimationControlBar(popup: ItemPopupMenu<Unit>) {
+        Column {
+            val animation = animations.getOrNull(animationId.use())
+
+            modifier.margin(Dimensions.PaddingMedium)
+                .padding(Dimensions.PaddingMedium)
+                .align(AlignmentX.Start, AlignmentY.Bottom)
+                .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingMedium))
+                .border(
+                    RoundRectBorder(
+                        ColorTheme.UI.BackgroundAccent,
+                        Dimensions.PaddingMedium,
+                        Dimensions.PaddingSmall * 0.5f
+                    )
+                )
+                .zLayer(1000)
+
+            Text("Управление анимацией") {
+                modifier.font(remember { MsdfFont(ColorTheme.Fonts.MONOCRAFT, 13f) })
+                    .textColor(ColorTheme.UI.WhiteReplacement)
+                    .margin(bottom = Dimensions.PaddingSmall)
+            }
+
+            Row(Grow.Std) {
+                Box(Grow.Std, Grow.Std) {
+                    val isHovered = remember { mutableStateOf(false) }
+                    modifier
+                        .background(
+                            RoundRectBackground(
+                                animateColorAsState(
+                                    if (isHovered.use()) ColorTheme.UI.BackgroundDarker.mix(
+                                        Color.WHITE,
+                                        0.1f
+                                    ) else ColorTheme.UI.BackgroundDarker
+                                ).use(),
+                                Dimensions.PaddingMedium
+                            )
+                        )
+                        .border(
+                            RoundRectBorder(
+                                animateColorAsState(if (isHovered.use()) ColorTheme.Accents.Main else ColorTheme.UI.BackgroundAccent).use(),
+                                Dimensions.PaddingMedium,
+                                Dimensions.PaddingSmall * 0.5f
+                            )
+                        )
+                        .padding(horizontal = Dimensions.PaddingMedium, vertical = Dimensions.PaddingSmall)
+                        .alignY(AlignmentY.Center)
+                        .onEnter { isHovered.set(true) }
+                        .onExit { isHovered.set(false) }
+                        .onClick {
+                            popup.show(
+                                Vec2f(it.screenPosition),
+                                buildAnimationMenu(popup),
+                                Unit
+                            )
+                        }
+
+                    Row(Grow.Std) {
+                        modifier.alignY(AlignmentY.Center)
+
+                        Text(animations.getOrNull(animationId.use())?.name ?: "Нет анимаций") {
+                            modifier.font(remember { MsdfFont(ColorTheme.Fonts.MONOCRAFT, 14f) })
+                                .textColor(ColorTheme.UI.WhiteReplacement)
+                                .alignY(AlignmentY.Center)
+                                .width(Grow.Std)
+                        }
+
+                        Arrow(ArrowScope.ROTATION_DOWN) {
+                            modifier.size(
+                                Dimensions.PaddingMedium + Dimensions.PaddingNormal,
+                                Dimensions.PaddingMedium + Dimensions.PaddingNormal
+                            )
+                                .margin(start = Dimensions.PaddingSmall)
+                                .colors(
+                                    ColorTheme.UI.BackgroundAccent,
+                                    if (isHovered.use()) Color.WHITE else ColorTheme.UI.WhiteReplacement
+                                )
+                                .alignY(AlignmentY.Center)
+                        }
+                    }
+                }
+
+                Box {
+
+                    val isHovered = remember { mutableStateOf(false) }
+                    modifier
+                        .margin(start = Dimensions.PaddingMedium)
+                        .padding(Dimensions.PaddingNormal)
+                        .background(
+                            RoundRectBackground(
+                                animateColorAsState(
+                                    if (isHovered.use()) ColorTheme.UI.BackgroundDarker.mix(
+                                        Color.WHITE,
+                                        0.1f
+                                    ) else ColorTheme.UI.BackgroundDarker
+                                ).use(),
+                                Dimensions.PaddingMedium
+                            )
+                        )
+                        .border(
+                            RoundRectBorder(
+                                animateColorAsState(if (isHovered.use()) ColorTheme.Accents.Main else ColorTheme.UI.BackgroundAccent).use(),
+                                Dimensions.PaddingMedium,
+                                Dimensions.PaddingSmall * 0.5f
+                            )
+                        )
+                        .alignY(AlignmentY.Center)
+                        .onEnter { isHovered.set(true) }
+                        .onExit { isHovered.set(false) }
+                        .onClick {
+                            animation?.apply {
+                                enabled = !enabled
+                                wrapMode = WrapMode.Loop
+                                blendTime(0.6f, 0.6f)
+                            }
+                        }
+
+                    if (animation != null) Image(if (animation.enabled) icons.PAUSE else icons.START) {
+                        modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
+                            .tint(animateColorAsState(if (animation.enabled) Color.WHITE else ColorTheme.UI.WhiteReplacement).use())
+                    }
+                }
+            }
+
+            if (animation != null && animation.duration > 0f && animation.state == AnimationInstance.State.PLAYING) {
+                val progress = (animation.time / animation.duration).coerceAtMost(1f)
+                Box(Grow(progress), Dimensions.PaddingNormal) {
+                    modifier.margin(top = Dimensions.PaddingMedium)
+                        .background(
+                            RoundRectBackground(
+                                ColorTheme.CodeWindow.Selection,
+                                Dimensions.PaddingSmall
+                            )
+                        )
+                }
+            }
+        }
+    }
+
+    private fun buildAnimationMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("Анимации") {
+        if (animations.isEmpty()) {
+            item("Нет доступных анимаций", null) {}
+        } else {
+            animations.forEachIndexed { index, anim ->
+                item(anim.name) {
+                    animationId.set(index)
+                    menu.hide()
+                }
+            }
+        }
     }
 
     fun UiScope.EditorButtons() {
@@ -248,14 +335,17 @@ class ModelController {
                 tooltipState.set(false)
             }
 
+            val isHovered by modifier.hoverable()
+
             val borderColor by animateColorAsState(
-                if (selected.use()) ColorTheme.Accents.Main
+                if (selected.use()) ColorTheme.Accents.Main.mulRgb(if(isHovered) 1.2f else 1f)
                 else ColorTheme.UI.BackgroundAccent
             )
             val backgroundColor by animateColorAsState(
-                if (selected.use()) ColorTheme.UI.BackgroundElements.mix(
-                    ColorTheme.Accents.Main, 0.5f
-                ) else ColorTheme.UI.BackgroundElements
+                if (selected.use() || isHovered) ColorTheme.UI.BackgroundElements
+                    .mix(ColorTheme.Accents.Main, 0.5f)
+                    .mulRgb(if(isHovered) 1.2f else 1f)
+                else ColorTheme.UI.BackgroundElements
             )
 
             modifier.background(RoundRectBackground(backgroundColor, Dimensions.PaddingMedium))
@@ -300,7 +390,7 @@ class ModelController {
                                         widthPx,
                                         heightPx,
                                         Dimensions.PaddingNormal.px,
-                                        Dimensions.PaddingSmall.px,
+                                        Dimensions.PaddingSmall.px * 0.5f,
                                         border
                                     )
                                 }

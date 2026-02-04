@@ -179,7 +179,11 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
         z: Int,
         crossinline block: ColumnScope.(opacity: Float) -> Unit,
     ) {
-        Column {
+        ScrollArea(containerModifier = {
+            it.height(Grow(1f, max = 500.dp))
+                .background(null)
+        }) {
+
             val opacity = rememberAnimatableFloat(0f)
 
             LaunchedEffect(Unit) {
