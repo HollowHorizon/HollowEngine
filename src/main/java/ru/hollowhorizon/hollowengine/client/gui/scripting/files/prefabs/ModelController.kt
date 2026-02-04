@@ -1,9 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs
 
 import com.mojang.blaze3d.vertex.PoseStack
+import de.fabmax.kool.math.MutableVec3f
+import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
+import de.fabmax.kool.util.Time
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.texture.OverlayTexture
@@ -12,6 +15,7 @@ import net.minecraft.util.Mth
 import org.joml.Matrix4f
 import org.joml.Quaternionf
 import org.lwjgl.opengl.GL33
+import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.animateSpringFloatAsState
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
@@ -21,8 +25,10 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
+import ru.hollowhorizon.hollowengine.client.models.internal.v2.walk
 import ru.hollowhorizon.hollowengine.client.render.OpenGLUtils
 import ru.hollowhorizon.hollowengine.client.utils.exists
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.contracts.ExperimentalContracts
@@ -51,7 +57,10 @@ class ModelController {
     val offsetY = mutableStateOf(0f)
     val yaw = mutableStateOf(0f)
     val pitch = mutableStateOf(0f)
-    val isGridVisible = mutableStateOf(false)
+    val isBoundingBoxVisible = mutableStateOf(false)
+    val isWireframeVisible = mutableStateOf(false)
+    val isGridVisible = mutableStateOf(true)
+    val isAutoRotateEnabled = mutableStateOf(false)
 
     context(scope: UiScope)
     operator fun invoke() = with(scope) {
@@ -60,6 +69,10 @@ class ModelController {
         val smoothedZoom by animateSpringFloatAsState(zoomState)
         scale = smoothedZoom
 
+        if (isAutoRotateEnabled.use()) {
+            this@ModelController.yaw.set((this@ModelController.yaw.value + 20f * Time.deltaT) % 360f)
+        }
+
         val yaw = yaw.use()
         val pitch = pitch.use()
 
@@ -67,6 +80,8 @@ class ModelController {
             modifier.size(Grow.Std, Grow.Std)
                 .margin(Dimensions.PaddingMedium)
                 .showGrid(isGridVisible.use())
+                .showBoundingBox(isBoundingBoxVisible.use())
+                .showWireframe(isWireframeVisible.use())
                 .scale(scale)
                 .yaw(yaw).pitch(pitch)
                 .offsetX(offsetX.use()).offsetY(offsetY.use())
@@ -163,6 +178,7 @@ class ModelController {
         }
 
         EditorButtons()
+        EditorInfo()
 
         val lineColor by animateColorAsState(
             if (isGridVisible.use()) ColorTheme.UI.BackgroundElements.withAlpha(0.65f)
@@ -185,20 +201,51 @@ class ModelController {
             modifier.align(AlignmentX.Start, AlignmentY.Top)
                 .zLayer(1000)
 
-            Toggle(icons.AUTOCOMPLETE_CLASS, remember(false))
-            Toggle(icons.LAYERS, remember(false))
-            Toggle(icons.RECIPES, isGridVisible)
-            Toggle(icons.RELOAD, remember(false))
+            Toggle(icons.AUTOCOMPLETE_CLASS, isBoundingBoxVisible, "Bounding Box")
+            Toggle(icons.LAYERS, isWireframeVisible, "Wireframe")
+            Toggle(icons.RECIPES, isGridVisible, "Сетка")
+            Toggle(icons.RELOAD, isAutoRotateEnabled, "Автоповорот")
         }
     }
 
-    fun UiScope.Toggle(icon: ResourceLocation, selected: MutableStateValue<Boolean>) {
+    fun UiScope.EditorInfo() {
+        Row {
+            modifier.align(AlignmentX.End, AlignmentY.Top)
+                .margin(Dimensions.PaddingMedium)
+                .padding(Dimensions.PaddingMedium)
+                .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingMedium))
+                .border(
+                    RoundRectBorder(
+                        ColorTheme.UI.BackgroundAccent,
+                        Dimensions.PaddingMedium,
+                        Dimensions.PaddingSmall * 0.5f
+                    )
+                )
+                .zLayer(1000)
+
+            Column {
+                Text("Полигонов: ") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
+                Text("Анимаций: ") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
+                Text("Шейп-кеев: ") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
+            }
+            Column {
+                Text("${attachment.triangles}") { modifier.textColor(ColorTheme.UI.BackgroundAccent) }
+                Text("${attachment.animations.size}") { modifier.textColor(ColorTheme.UI.BackgroundAccent) }
+                Text("${attachment.shapekeys}") { modifier.textColor(ColorTheme.UI.BackgroundAccent) }
+            }
+        }
+    }
+
+    fun UiScope.Toggle(icon: ResourceLocation, selected: MutableStateValue<Boolean>, tooltip: String? = null) {
         Box {
             modifier.margin(Dimensions.PaddingMedium)
                 .padding(Dimensions.PaddingMedium)
+            val tooltipState = remember { TooltipState(0.5) }
+            modifier.hoverListener(tooltipState)
 
             modifier.onClick {
                 selected.set(!selected.value)
+                tooltipState.set(false)
             }
 
             val borderColor by animateColorAsState(
@@ -224,22 +271,48 @@ class ModelController {
                 modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
                     .tint(if (selected.use()) Color.WHITE else ColorTheme.UI.WhiteReplacement)
             }
-        }
-    }
 
-    context(scope: UiScope)
-    fun Info() = with(scope) {
-        Column {
-            Text("Полигонов: ") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
-            Text("Анимаций: ") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
-            Text("Шейп-кеев: ") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
-        }
-        Column {
-            Text("${attachment.triangles}") { modifier.textColor(ColorTheme.UI.BackgroundAccent) }
-            Text("${attachment.animations.size}") { modifier.textColor(ColorTheme.UI.BackgroundAccent) }
-            Text("${attachment.shapekeys}") { modifier.textColor(ColorTheme.UI.BackgroundAccent) }
-        }
+            tooltip?.let { text ->
+                Tooltip(tooltipState) {
+                    modifier.layout(CellLayout)
+                        .zLayer(3000)
+                        .margin(
+                            start = modifier.marginStart + Dimensions.PaddingMedium,
+                            top = modifier.marginTop + Dimensions.PaddingMedium
+                        )
+                        .background(UiRenderer { node ->
+                            node.apply {
+                                val backgroundColor = ColorTheme.UI.BackgroundElements
+                                val border = ColorTheme.UI.WhiteReplacement
 
+                                getUiPrimitives(UiSurface.LAYER_BACKGROUND).apply {
+                                    localRoundRect(
+                                        0f,
+                                        0f,
+                                        widthPx,
+                                        heightPx,
+                                        Dimensions.PaddingNormal.px,
+                                        backgroundColor
+                                    )
+                                    localRoundRectBorder(
+                                        0f,
+                                        0f,
+                                        widthPx,
+                                        heightPx,
+                                        Dimensions.PaddingNormal.px,
+                                        Dimensions.PaddingSmall.px,
+                                        border
+                                    )
+                                }
+                            }
+                        })
+
+                    Text(text.lang) {
+                        modifier.padding(sizes.smallGap)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -250,6 +323,8 @@ open class ModelModifier(surface: UiSurface) : GlCanvasModifier(surface) {
     var offsetX by property(0f)
     var offsetY by property(0f)
     var showGrid by property(false)
+    var showBoundingBox by property(false)
+    var showWireframe by property(false)
 }
 
 fun ModelModifier.scale(factor: Float) = apply { this.scale = factor }
@@ -258,6 +333,8 @@ fun ModelModifier.pitch(yaw: Float) = apply { this.pitch = yaw }
 fun ModelModifier.offsetX(offsetX: Float) = apply { this.offsetX = offsetX }
 fun ModelModifier.offsetY(offsetY: Float) = apply { this.offsetY = offsetY }
 fun ModelModifier.showGrid(showGrid: Boolean) = apply { this.showGrid = showGrid }
+fun ModelModifier.showBoundingBox(showBoundingBox: Boolean) = apply { this.showBoundingBox = showBoundingBox }
+fun ModelModifier.showWireframe(showWireframe: Boolean) = apply { this.showWireframe = showWireframe }
 
 interface ModelScope : ImageScope {
     override val modifier: ModelModifier
@@ -302,8 +379,22 @@ inline fun UiScope.Model(
         stack.mulPose(Quaternionf().rotateY(modelConfig.yaw * Mth.DEG_TO_RAD))
 
         if (modifier.showGrid && false) {
-
             OpenGLUtils.renderGrid(stack, ColorTheme.UI.WhiteReplacement)
+        }
+
+        val bounds = if (modelConfig.showBoundingBox) {
+            attachment.calculateBounds()
+        } else {
+            null
+        }
+
+        if (modelConfig.showWireframe) {
+            GL33.glPolygonMode(GL33.GL_FRONT_AND_BACK, GL33.GL_LINE)
+        }
+        val blends = attachment.materials.map { material ->
+            val old = material.texture
+            if (modelConfig.showWireframe) material.texture = "${HollowCore.MODID}:default_color_map".rl
+            old
         }
 
         val bufferSource = Minecraft.getInstance().renderBuffers().bufferSource()
@@ -314,6 +405,62 @@ inline fun UiScope.Model(
             )
         )
         bufferSource.endBatch()
+
+        if (modelConfig.showWireframe) {
+            GL33.glPolygonMode(GL33.GL_FRONT_AND_BACK, GL33.GL_FILL)
+            attachment.materials.forEachIndexed { i, material ->
+                material.texture = blends.getOrNull(i) ?: return@forEachIndexed
+            }
+        }
+
+        bounds?.let { (min, max) ->
+            OpenGLUtils.renderBoundingBox(stack, min, max, ColorTheme.UI.WhiteReplacement.withAlpha(0.75f))
+        }
     }
     modelNode.block()
+}
+
+fun ModelAttachment.calculateBounds(): Pair<Vec3f, Vec3f>? {
+    var minX = Float.POSITIVE_INFINITY
+    var minY = Float.POSITIVE_INFINITY
+    var minZ = Float.POSITIVE_INFINITY
+    var maxX = Float.NEGATIVE_INFINITY
+    var maxY = Float.NEGATIVE_INFINITY
+    var maxZ = Float.NEGATIVE_INFINITY
+    var hasBounds = false
+    val transformed = MutableVec3f()
+
+    nodes.forEach { node ->
+        node.walk().forEach { runtimeNode ->
+            val matrix = runtimeNode.globalMatrix
+            runtimeNode.definition.mesh?.primitives?.forEach { primitive ->
+                val localBounds = primitive.localBounds ?: return@forEach
+                val min = localBounds.first
+                val max = localBounds.second
+
+                fun update(x: Float, y: Float, z: Float) {
+                    matrix.transform(Vec3f(x, y, z), 1f, transformed)
+                    minX = kotlin.math.min(minX, transformed.x)
+                    minY = kotlin.math.min(minY, transformed.y)
+                    minZ = kotlin.math.min(minZ, transformed.z)
+                    maxX = kotlin.math.max(maxX, transformed.x)
+                    maxY = kotlin.math.max(maxY, transformed.y)
+                    maxZ = kotlin.math.max(maxZ, transformed.z)
+                }
+
+                update(min.x, min.y, min.z)
+                update(min.x, min.y, max.z)
+                update(min.x, max.y, min.z)
+                update(min.x, max.y, max.z)
+                update(max.x, min.y, min.z)
+                update(max.x, min.y, max.z)
+                update(max.x, max.y, min.z)
+                update(max.x, max.y, max.z)
+                hasBounds = true
+            }
+        }
+    }
+
+    if (!hasBounds) return null
+    return Vec3f(minX, minY, minZ) to Vec3f(maxX, maxY, maxZ)
 }

@@ -23,6 +23,8 @@ import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix3f
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix4f
 import ru.hollowhorizon.hollowengine.client.utils.toTexture
 import java.nio.FloatBuffer
+import kotlin.math.max
+import kotlin.math.min
 
 class Primitive(
     private var positions: Array<Vec3f>? = null,
@@ -45,6 +47,23 @@ class Primitive(
 
     // Порог для переключения между режимами рендеринга
     val useBatching = positionsCount < 512 && !hasSkinning && morphTargets.isEmpty()
+    val localBounds: Pair<Vec3f, Vec3f>? = positions?.takeIf { it.isNotEmpty() }?.let { positions ->
+        var minX = Float.POSITIVE_INFINITY
+        var minY = Float.POSITIVE_INFINITY
+        var minZ = Float.POSITIVE_INFINITY
+        var maxX = Float.NEGATIVE_INFINITY
+        var maxY = Float.NEGATIVE_INFINITY
+        var maxZ = Float.NEGATIVE_INFINITY
+        positions.forEach { position ->
+            minX = min(minX, position.x)
+            minY = min(minY, position.y)
+            minZ = min(minZ, position.z)
+            maxX = max(maxX, position.x)
+            maxY = max(maxY, position.y)
+            maxZ = max(maxZ, position.z)
+        }
+        Vec3f(minX, minY, minZ) to Vec3f(maxX, maxY, maxZ)
+    }
 
     private var vao = -1
     private var skinningVao = -1
@@ -593,10 +612,10 @@ class Primitive(
     ) {
         val color = material.color
 
-        val renderType = getRenderType()
         if (indices != null) {
             pipeline.addBatchedRenderable {
                 if (!visibilityGetter()) return@addBatchedRenderable
+                val renderType = getRenderType()
                 val vertexConsumer = source.getBuffer(renderType)
                 val pose = stack.last().pose()
                 val normal = stack.last().normal()
@@ -611,6 +630,7 @@ class Primitive(
         } else {
             pipeline.addBatchedRenderable {
                 if (!visibilityGetter()) return@addBatchedRenderable
+                val renderType = getRenderType()
                 val vertexConsumer = source.getBuffer(renderType)
                 val pose = stack.last().pose()
                 val normal = stack.last().normal()

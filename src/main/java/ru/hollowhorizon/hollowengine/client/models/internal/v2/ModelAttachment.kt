@@ -39,7 +39,7 @@ class ModelAttachment(model: Model, parent: Attachment?) : Attachment(parent) {
     private val onUpdates = mutableListOf<ModelAttachment.() -> Unit>()
     val nodes = model.scenes[model.scene].nodes.map { RuntimeNode(it, this) }
     val animations = Animations(model.animations.associate { it.name to AnimationInstance(it) })
-
+    val materials = model.materials
     private val nodeIdToNode = nodes.flatMap { it.walk() }.associateBy { it.definition.index }
     private val nodeIdToTransform = nodeIdToNode.mapValues { it.value.transform }
 

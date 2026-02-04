@@ -14,12 +14,9 @@ import net.minecraft.Util
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.RenderStateShard
 import net.minecraft.client.renderer.RenderType
-import net.minecraft.client.renderer.ShaderInstance
 import net.minecraft.client.renderer.texture.TextureManager
-import net.minecraft.resources.ResourceLocation
 import org.joml.Matrix4f
 import org.lwjgl.opengl.GL13
-import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.client.utils.shouldOverrideShaders
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
 import ru.hollowhorizon.hollowengine.mixins.client.ShaderInstanceAccessor

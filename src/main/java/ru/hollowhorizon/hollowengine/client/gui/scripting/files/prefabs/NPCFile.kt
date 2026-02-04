@@ -44,7 +44,6 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
                         .zLayer(1000)
                         .align(AlignmentX.Center, AlignmentY.Top)
                 }
-                EditorInfo()
             }
             Column(Grow(0.33f), Grow.Std) {
                 modifier.backgroundColor(ColorTheme.UI.BackgroundSecondary)
@@ -115,25 +114,6 @@ class NPCFile(path: String, bytes: ByteArray) : IDEFile(path) {
 
         components.forEach { component ->
             ComponentEditor(component)
-        }
-    }
-
-    fun UiScope.EditorInfo() {
-        Row {
-            modifier.align(AlignmentX.End, AlignmentY.Top)
-                .margin(Dimensions.PaddingMedium)
-                .padding(Dimensions.PaddingMedium)
-                .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, Dimensions.PaddingMedium))
-                .border(
-                    RoundRectBorder(
-                        ColorTheme.UI.BackgroundAccent,
-                        Dimensions.PaddingMedium,
-                        Dimensions.PaddingSmall * 0.5f
-                    )
-                )
-                .zLayer(1000)
-
-            modelController.Info()
         }
     }
 

@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.Lighting
 import com.mojang.blaze3d.platform.NativeImage
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.*
+import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.util.Color
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.GameRenderer
@@ -71,6 +72,46 @@ object OpenGLUtils {
             buffer.vertex(matrix, pos, 0f, size * step)
                 .color(r, g, b, a).endVertex()
         }
+
+        tessellator.end()
+        RenderSystem.disableBlend()
+    }
+
+    fun renderBoundingBox(stack: PoseStack, min: Vec3f, max: Vec3f, color: Color) {
+        val tessellator = Tesselator.getInstance()
+        val buffer = tessellator.builder
+
+        RenderSystem.enableBlend()
+        RenderSystem.defaultBlendFunc()
+        RenderSystem.setShader(GameRenderer::getPositionColorShader)
+        RenderSystem.lineWidth(1.0f)
+
+        buffer.begin(VertexFormat.Mode.DEBUG_LINES, DefaultVertexFormat.POSITION_COLOR)
+
+        val matrix = stack.last().pose()
+        val (r, g, b, a) = color
+
+        fun line(x1: Float, y1: Float, z1: Float, x2: Float, y2: Float, z2: Float) {
+            buffer.vertex(matrix, x1, y1, z1).color(r, g, b, a).endVertex()
+            buffer.vertex(matrix, x2, y2, z2).color(r, g, b, a).endVertex()
+        }
+
+        line(min.x, min.y, min.z, max.x, min.y, min.z)
+        line(min.x, min.y, min.z, min.x, max.y, min.z)
+        line(min.x, min.y, min.z, min.x, min.y, max.z)
+
+        line(max.x, max.y, max.z, min.x, max.y, max.z)
+        line(max.x, max.y, max.z, max.x, min.y, max.z)
+        line(max.x, max.y, max.z, max.x, max.y, min.z)
+
+        line(min.x, max.y, min.z, max.x, max.y, min.z)
+        line(min.x, max.y, min.z, min.x, max.y, max.z)
+
+        line(max.x, min.y, min.z, max.x, max.y, min.z)
+        line(max.x, min.y, min.z, max.x, min.y, max.z)
+
+        line(min.x, min.y, max.z, max.x, min.y, max.z)
+        line(min.x, min.y, max.z, min.x, max.y, max.z)
 
         tessellator.end()
         RenderSystem.disableBlend()
