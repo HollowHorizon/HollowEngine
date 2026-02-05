@@ -17,12 +17,11 @@ import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelM
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
 import ru.hollowhorizon.hollowengine.client.utils.areShadersEnabled
 import ru.hollowhorizon.hollowengine.client.utils.hasShaders
-import ru.hollowhorizon.hollowengine.client.utils.math.MikkTSpaceContext
-import ru.hollowhorizon.hollowengine.client.utils.math.MikktspaceTangentGenerator
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix3f
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix4f
 import ru.hollowhorizon.hollowengine.client.utils.toTexture
 import java.nio.FloatBuffer
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -116,6 +115,14 @@ class Primitive(
 
     fun init() {
         if (useBatching) return
+
+        if (normals == null && positions != null) {
+            recalculateNormals()
+        }
+        if (tangents == null && positions != null && texCoords != null && normals != null) {
+            recalculateTangents()
+        }
+
         val currentVAO = GL33.glGetInteger(GL33.GL_VERTEX_ARRAY_BINDING)
         val currentArrayBuffer = GL33.glGetInteger(GL33.GL_ARRAY_BUFFER_BINDING)
         val currentElementArrayBuffer = GL33.glGetInteger(GL33.GL_ELEMENT_ARRAY_BUFFER_BINDING)
@@ -128,6 +135,115 @@ class Primitive(
         GL33.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER, currentElementArrayBuffer)
 
         releaseCpu()
+    }
+
+    private fun recalculateNormals() {
+        val pos = positions ?: return
+        val count = pos.size
+        val accumNormals = Array(count) { MutableVec3f() }
+
+        val p1 = MutableVec3f()
+        val p2 = MutableVec3f()
+        val p3 = MutableVec3f()
+        val e1 = MutableVec3f()
+        val e2 = MutableVec3f()
+        val nrm = MutableVec3f()
+
+        val getIndex = { i: Int -> indices?.get(i) ?: i }
+        val loops = indices?.size ?: count
+
+        for (i in 0 until loops step 3) {
+            val i1 = getIndex(i)
+            val i2 = getIndex(i + 1)
+            val i3 = getIndex(i + 2)
+
+            if (i1 >= count || i2 >= count || i3 >= count) continue
+
+            p1.set(pos[i1])
+            p2.set(pos[i2])
+            p3.set(pos[i3])
+
+            p2.subtract(p1, e1).norm()
+            p3.subtract(p1, e2).norm()
+
+            e1.cross(e2, nrm).norm()
+
+            p2.subtract(p1, e1)
+            p3.subtract(p1, e2)
+            val area = 0.5f * e1.cross(e2, MutableVec3f()).length()
+
+            nrm.mul(area)
+
+            if (!nrm.x.isNaN() && !nrm.y.isNaN() && !nrm.z.isNaN()) {
+                accumNormals[i1].add(nrm)
+                accumNormals[i2].add(nrm)
+                accumNormals[i3].add(nrm)
+            }
+        }
+
+        normals = Array(count) { i ->
+            val n = accumNormals[i]
+            if (n.sqrLength() > 0.000001f) n.norm() else n.set(0f, 1f, 0f)
+            Vec3f(n.x, n.y, n.z)
+        }
+    }
+
+    private fun recalculateTangents() {
+        val pos = positions ?: return
+        val uvs = texCoords ?: return
+        val norm = normals ?: return
+        val count = pos.size
+
+        val accumTangents = Array(count) { MutableVec3f() }
+
+        val p1 = MutableVec3f(); val p2 = MutableVec3f(); val p3 = MutableVec3f()
+        val uv1 = MutableVec2f(); val uv2 = MutableVec2f(); val uv3 = MutableVec2f()
+        val e1 = MutableVec3f(); val e2 = MutableVec3f()
+        val tan = MutableVec3f()
+
+        val getIndex = { i: Int -> indices?.get(i) ?: i }
+        val loops = indices?.size ?: count
+
+        for (i in 0 until loops step 3) {
+            val i1 = getIndex(i)
+            val i2 = getIndex(i + 1)
+            val i3 = getIndex(i + 2)
+
+            if (i1 >= count || i2 >= count || i3 >= count) continue
+
+            p1.set(pos[i1]); p2.set(pos[i2]); p3.set(pos[i3])
+            uv1.set(uvs[i1]); uv2.set(uvs[i2]); uv3.set(uvs[i3])
+
+            p2.subtract(p1, e1).norm()
+            p3.subtract(p1, e2).norm()
+
+            val du1 = uv2.x - uv1.x
+            val dv1 = uv2.y - uv1.y
+            val du2 = uv3.x - uv1.x
+            val dv2 = uv3.y - uv1.y
+
+            val det = du1 * dv2 - du2 * dv1
+            if (abs(det) < 1e-6f) continue
+
+            val f = 1f / det
+
+            if (!f.isNaN()) {
+                tan.x = f * (dv2 * e1.x - dv1 * e2.x)
+                tan.y = f * (dv2 * e1.y - dv1 * e2.y)
+                tan.z = f * (dv2 * e1.z - dv1 * e2.z)
+
+                accumTangents[i1].add(tan)
+                accumTangents[i2].add(tan)
+                accumTangents[i3].add(tan)
+            }
+        }
+
+        tangents = Array(count) { i ->
+            val t = accumTangents[i]
+            if (t.sqrLength() > 0.000001f) t.norm() else t.set(1f, 0f, 0f)
+
+            Vec4f(t.x, t.y, t.z, 1f)
+        }
     }
 
     private fun initBuffers() {
@@ -185,78 +301,25 @@ class Primitive(
                 GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
                 GL33.glVertexAttribPointer(5, 3, GL33.GL_FLOAT, false, 0, 0)
                 GL33.glEnableVertexAttribArray(5)
-
-                if (tangents == null) positions?.let { positions ->
-                    val tangentBufferData = FloatArray(positions.size * 4)
-
-                    MikktspaceTangentGenerator.genTangSpaceDefault(object : MikkTSpaceContext {
-                        override fun getNumFaces(): Int =
-                            indices?.let { it.size / 3 } ?: (positionsCount / 9)
-
-                        override fun getNumVerticesOfFace(face: Int): Int = 3
-
-                        override fun getPosition(posOut: FloatArray, face: Int, vert: Int) {
-                            val index = getVertexIndex(face, vert)
-                            val p = positions[index]
-                            posOut[0] = p.x; posOut[1] = p.y; posOut[2] = p.z
-                        }
-
-                        override fun getNormal(normOut: FloatArray, face: Int, vert: Int) {
-                            val index = getVertexIndex(face, vert)
-                            val n = normals[index]
-                            normOut[0] = n.x; normOut[1] = n.y; normOut[2] = n.z
-                        }
-
-                        override fun getTexCoord(texOut: FloatArray, face: Int, vert: Int) {
-                            val index = getVertexIndex(face, vert)
-                            val t = texCoords?.get(index)
-                            texOut[0] = t?.x ?: 0f
-                            texOut[1] = t?.y ?: 0f
-                        }
-
-                        private fun getVertexIndex(face: Int, vert: Int): Int {
-                            return indices?.get(face * 3 + vert) ?: (face * 3 + vert)
-                        }
-
-                        override fun setTSpaceBasic(tangent: FloatArray, sign: Float, face: Int, vert: Int) {
-                            val index = getVertexIndex(face, vert)
-                            val offset = index * 4
-
-                            tangentBufferData[offset] = tangent[0]
-                            tangentBufferData[offset + 1] = tangent[1]
-                            tangentBufferData[offset + 2] = tangent[2]
-                            tangentBufferData[offset + 3] = -sign
-                        }
-
-                        override fun setTSpace(
-                            tangent: FloatArray?, biTangent: FloatArray?, magS: Float, magT: Float,
-                            isOrientationPreserving: Boolean, face: Int, vert: Int,
-                        ) {
-                        }
-                    })
-
-                    val tangentsNative = BufferUtils.createFloatBuffer(tangentBufferData.size)
-                    tangentsNative.put(tangentBufferData)
-                    tangentsNative.flip()
-
-                    tangentBuffer = GL33.glGenBuffers()
-                    GL33.glBindBuffer(GL33.GL_ARRAY_BUFFER, tangentBuffer)
-                    GL33.glBufferData(GL33.GL_ARRAY_BUFFER, tangentsNative, GL33.GL_STATIC_DRAW)
-                    GL33.glVertexAttribPointer(9, 4, GL33.GL_FLOAT, false, 0, 0)
-                    GL33.glEnableVertexAttribArray(9)
-                }
             }
 
             tangents?.let { tangents ->
                 val buffer = BufferUtils.createFloatBuffer(tangents.size * 4)
-                for (t in tangents) buffer.put(t.x).put(t.y).put(t.z).put(1f)
+                for (t in tangents) buffer.put(t.x).put(t.y).put(t.z).put(t.w)
                 buffer.flip()
                 morphCommands += { array ->
-                    for (i in 0 until tangents.size * 3) {
-                        var value = tangents[i / 3].get(i % 3)
-                        array.forEachIndexed { j, percent ->
-                            morphTargets[j][GltfMesh.Primitive.ATTRIBUTE_TANGENT]?.let {
-                                value += it[i] * percent
+                    for (i in 0 until tangents.size * 4) {
+                        val component = i % 4
+                        var value = tangents[i / 4].get(component)
+
+                        if (component < 3) {
+                            array.forEachIndexed { j, percent ->
+                                morphTargets[j][GltfMesh.Primitive.ATTRIBUTE_TANGENT]?.let {
+                                    val morphIndex = (i / 4) * 3 + component
+                                    if (morphIndex < it.size) {
+                                        value += it[morphIndex] * percent
+                                    }
+                                }
                             }
                         }
                         buffer.put(i, value)
@@ -372,66 +435,6 @@ class Primitive(
             GL33.glBufferData(GL33.GL_ARRAY_BUFFER, buffer, GL33.GL_STATIC_DRAW)
             GL33.glVertexAttribPointer(3, 3, GL33.GL_FLOAT, false, 0, 0)
             GL33.glEnableVertexAttribArray(3)
-        }
-
-        if (tangents == null && positions != null && texCoords != null && normals != null) {
-            val tangentBufferData = FloatArray(positions!!.size * 4)
-
-            MikktspaceTangentGenerator.genTangSpaceDefault(object : MikkTSpaceContext {
-                override fun getNumFaces(): Int = indices?.let { it.size / 3 } ?: (positionsCount / 9)
-                override fun getNumVerticesOfFace(face: Int): Int = 3
-                override fun getPosition(posOut: FloatArray, face: Int, vert: Int) {
-                    val index = getVertexIndex(face, vert)
-                    val p = positions!![index]
-                    posOut[0] = p.x; posOut[1] = p.y; posOut[2] = p.z
-                }
-
-                override fun getNormal(normOut: FloatArray, face: Int, vert: Int) {
-                    val index = getVertexIndex(face, vert)
-                    val n = normals!![index]
-                    normOut[0] = n.x; normOut[1] = n.y; normOut[2] = n.z
-                }
-
-                override fun getTexCoord(texOut: FloatArray, face: Int, vert: Int) {
-                    val index = getVertexIndex(face, vert)
-                    val t = texCoords!![index]
-                    texOut[0] = t.x; texOut[1] = t.y
-                }
-
-                private fun getVertexIndex(face: Int, vert: Int): Int {
-                    return indices?.get(face * 3 + vert) ?: (face * 3 + vert)
-                }
-
-                override fun setTSpaceBasic(tangent: FloatArray, sign: Float, face: Int, vert: Int) {
-                    val index = getVertexIndex(face, vert)
-                    val offset = index * 4
-                    tangentBufferData[offset] = tangent[0]
-                    tangentBufferData[offset + 1] = tangent[1]
-                    tangentBufferData[offset + 2] = tangent[2]
-                    tangentBufferData[offset + 3] = -sign
-                }
-
-                override fun setTSpace(
-                    t: FloatArray?,
-                    b: FloatArray?,
-                    mS: Float,
-                    mT: Float,
-                    p: Boolean,
-                    f: Int,
-                    v: Int,
-                ) {
-                }
-            })
-
-            val result = Array(positions!!.size) { i ->
-                Vec4f(
-                    tangentBufferData[i * 4],
-                    tangentBufferData[i * 4 + 1],
-                    tangentBufferData[i * 4 + 2],
-                    tangentBufferData[i * 4 + 3]
-                )
-            }
-            tangents = result
         }
 
         tangents?.let { tangents ->
