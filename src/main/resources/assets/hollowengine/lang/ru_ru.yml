@@ -37,6 +37,7 @@ hollowengine:
       autoruns: Автозапуск
       markdown: Markdown
       graph: Редактор графов
+      tags: Теги
 
       popups:
         create_folder: "Введите название папки:"

@@ -39,6 +39,7 @@ hollowengine:
       translations: Translations
       markdown: Markdown
       graph: Graph Editor
+      tags: Tags
 
       popups:
         create_folder: "Enter folder name:"

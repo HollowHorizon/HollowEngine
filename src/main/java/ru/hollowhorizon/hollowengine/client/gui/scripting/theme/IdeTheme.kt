@@ -20,6 +20,8 @@ object IdeTheme {
 
     val sizes = Sizes.large.copy(
         normalText = MsdfFont(ColorTheme.Fonts.MONOCRAFT, Dimensions.FontNormal),
+        smallText = MsdfFont(ColorTheme.Fonts.MONOCRAFT, Dimensions.FontSmall),
+        largeText = MsdfFont(ColorTheme.Fonts.MONOCRAFT, Dimensions.FontLarge),
         borderWidth = Dp.roundToWholePx(1.5f)
     )
     var colors = Colors.darkColors()

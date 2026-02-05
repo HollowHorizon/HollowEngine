@@ -95,6 +95,8 @@ object Dimensions {
     var PaddingExtraLarge = Dp(32f)
 
     var FontNormal = 16f
+    var FontSmall = 12f
+    var FontLarge = 20f
 }
 
 val Dimensions.PaddingLargeSpacing get() = PaddingLarge + PaddingNormal
