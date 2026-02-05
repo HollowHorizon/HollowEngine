@@ -39,7 +39,7 @@ hollowengine:
       translations: Translations
       markdown: Markdown
       graph: Graph Editor
-      tags: Tags
+      tags: Tag Editor
 
       popups:
         create_folder: "Enter folder name:"
@@ -94,6 +94,27 @@ hollowengine:
             .: Players
           utils:
             .: Miscellaneous
+  tags:
+    search_hint: Search tags...
+    filter: Filter
+    filter_types:
+      all: All
+      block: Blocks
+      item: Items
+    new_tag: New Tag
+    deleted: Deleted
+    list_title: Tags
+    entries_count: entries
+    select_hint: Select a tag to view details
+    entries: Entries
+    type: Type
+    restore: Restore
+    delete: Delete
+    add: Add
+    stats:
+      total: Total
+      blocks: Blocks
+      items: Items
 
   hud:
     compilation:

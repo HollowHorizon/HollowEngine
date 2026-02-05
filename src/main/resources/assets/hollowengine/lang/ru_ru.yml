@@ -37,7 +37,7 @@ hollowengine:
       autoruns: Автозапуск
       markdown: Markdown
       graph: Редактор графов
-      tags: Теги
+      tags: Редактор тегов
 
       popups:
         create_folder: "Введите название папки:"
@@ -93,7 +93,27 @@ hollowengine:
             .: Игроки
           utils:
             .: Разное
-
+  tags:
+    search_hint: Поиск тегов...
+    filter: Фильтр
+    filter_types:
+      all: Все
+      block: Блоки
+      item: Предметы
+    new_tag: Новый тег
+    deleted: Удалённые
+    list_title: Теги
+    entries_count: записей
+    select_hint: Выберите тег для просмотра деталей
+    entries: Записи
+    type: Тип
+    restore: Восстановить
+    delete: Удалить
+    add: Добавить
+    stats:
+      total: Всего
+      blocks: Блоки
+      items: Предметы
 
   hud:
     compilation:
