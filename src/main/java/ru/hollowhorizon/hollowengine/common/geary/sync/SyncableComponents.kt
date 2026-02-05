@@ -60,7 +60,7 @@ val SyncableComponents = createAddon<SyncableComponentsBuilder, SyncableComponen
     val module = configuration.build()
 
     with(geary) {
-        ComponentRegistry.filter { it.value.hasAnnotation<Syncable>() }.forEach {
+        ComponentRegistry.asSequence().map { it.value }.filter { it.value.hasAnnotation<Syncable>() }.forEach {
             registerSyncingNoinline(it.value)
         }
         registerSyncing<Model>(saveOnDeath = true)

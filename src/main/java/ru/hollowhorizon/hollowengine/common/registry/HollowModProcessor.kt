@@ -98,7 +98,8 @@ object HollowModProcessor {
         registerClassHandler<Registerable> { type, annotation ->
             val component = type.kotlin
             val serializer = component.serializerOrNull() ?: error("${type.simpleName} must be an object!")
-            ComponentRegistry.register(component.findAnnotation<SerialName>()?.value?.rl ?: error("@SerialName not found for class ${type.simpleName}"), ComponentHolder(component, JavaHacks.forceCast(serializer)))
+            val key = component.findAnnotation<SerialName>()?.value?.rl ?: error("@SerialName not found for class ${type.simpleName}")
+            ComponentRegistry.register(key) { ComponentHolder(component, JavaHacks.forceCast(serializer)) }
         }
         registerMethodHandler<Init> { method, _ ->
             if (method.isStatic()) {

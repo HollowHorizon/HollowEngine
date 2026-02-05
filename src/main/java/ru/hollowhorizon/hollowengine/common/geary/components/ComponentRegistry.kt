@@ -1,20 +1,14 @@
 package ru.hollowhorizon.hollowengine.common.geary.components
 
 import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.common.registry.system.MutableRegistry
+import ru.hollowhorizon.hollowengine.common.registry.system.RegistryManager
+import ru.hollowhorizon.hollowengine.common.utils.rl
 
-object ComponentRegistry : Collection<ComponentHolder<*>> {
-    private val components = hashMapOf<ResourceLocation, ComponentHolder<*>>()
-
+object ComponentRegistry : MutableRegistry<ComponentHolder<*>> by RegistryManager.create("hollowengine:geary_components".rl) {
     fun register(path: ResourceLocation, component: ComponentHolder<*>) {
-        components[path] = component
+        (this as MutableRegistry<ComponentHolder<*>>).register(path) { component }
     }
 
-    operator fun get(path: ResourceLocation) = components[path]
-
-    val keys get() = components.keys
-    override val size: Int get() = components.size
-    override fun isEmpty() = components.isEmpty()
-    override fun contains(element: ComponentHolder<*>) = element in components.values
-    override fun iterator(): Iterator<ComponentHolder<*>> = components.values.iterator()
-    override fun containsAll(elements: Collection<ComponentHolder<*>>) = components.values.containsAll(elements)
+    val keys: Set<ResourceLocation> get() = this.map { it.key }.toSet()
 }

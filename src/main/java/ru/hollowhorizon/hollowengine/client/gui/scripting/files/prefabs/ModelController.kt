@@ -28,6 +28,7 @@ import ru.hollowhorizon.hollowengine.client.kool.GlCanvasNode
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.walk
@@ -44,7 +45,7 @@ import kotlin.math.min
 class ModelController {
     val model = mutableStateOf("hollowengine:models/entity/player_model.gltf")
         .onChange { old, new ->
-            if (ResourceLocation.isValidResourceLocation(new) && new.rl.exists()) {
+            if (ResourceLocation.isValidResourceLocation(new) && new.rl.exists() && HollowModelManager.supports(new.rl)) {
                 attachment = ModelAttachment(new)
                 animations = attachment.animations.map { it }
                 // Сбрасываем ID анимации при смене модели, чтобы избежать вылета
@@ -121,7 +122,7 @@ class ModelController {
         )
         modifier.background(
             GridBackground(
-                Dimensions.PaddingExtraLarge,
+                Dimensions.PaddingExtraLarge * 5f,
                 scale,
                 offsetX.use(),
                 offsetY.use(),

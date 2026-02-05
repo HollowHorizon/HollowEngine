@@ -31,7 +31,7 @@ internal val TagModule
         contextual(Tag::class, PolymorphicSerializer(Tag::class))
 
         polymorphic(Component::class) {
-            ComponentRegistry.forEach {
+            ComponentRegistry.map { it.value }.forEach {
                 subclass(it.value, JavaHacks.forceCast(it.serializer))
             }
         }

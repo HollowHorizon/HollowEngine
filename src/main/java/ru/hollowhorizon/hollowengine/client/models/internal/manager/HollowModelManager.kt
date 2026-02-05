@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.manager
 
+import com.mojang.blaze3d.systems.RenderSystem
 import kotlinx.coroutines.runBlocking
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.texture.AbstractTexture
@@ -37,15 +38,17 @@ object HollowModelManager : ResourceManagerReloadListener {
     }
 
     fun getOrCreate(location: ResourceLocation) = models.computeIfAbsent(location) { model ->
-        runBlocking { loadModel(model) }?.apply { this.model.initGl() } ?: error("Failed to load $location!")
+        runBlocking { loadModel(model) }?.apply { RenderSystem.recordRenderCall { this.model.initGl() } }
+            ?: error("Failed to load $location!")
     }
 
     suspend fun loadModel(location: ResourceLocation): AnimatedModel? {
         val extension = location.path.substringAfterLast('.', "")
-        val loader = loaders.find { extension in it.supportedFormats }
-            ?: error("No suitable model loader found for format .$extension")
 
         try {
+            val loader = loaders.find { extension in it.supportedFormats }
+                ?: error("No suitable model loader found for format .$extension")
+
             return loader.load(location)
         } catch (e: Exception) {
             HollowCore.LOGGER.warn("Model $location failed to load!", e)
@@ -147,6 +150,12 @@ object HollowModelManager : ResourceManagerReloadListener {
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, currentTexture)
 
         createSkinningProgramGL33()
+    }
+
+    fun supports(location: ResourceLocation): Boolean {
+        val extension = location.path.substringAfterLast('.', "")
+
+        return loaders.any { extension in it.supportedFormats }
     }
 
     val allModels get() = models.keys

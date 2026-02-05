@@ -4,11 +4,13 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.toString
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
+import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.StructureKind
 import kotlinx.serialization.json.*
 import kotlinx.serialization.serializer
+import kotlinx.serialization.serializerOrNull
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
@@ -16,6 +18,9 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.AccordionColumnLayout
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.api.utils.Polymorphic
+import kotlin.reflect.KClass
+import kotlin.reflect.full.findAnnotation
 
 object AutoEditor {
     val json = Json {
@@ -27,10 +32,11 @@ object AutoEditor {
 inline fun <reified T : Any> UiScope.GenericEditor(
     state: MutableStateValue<T>,
     noinline onRemove: () -> Unit,
-    ) {
+) {
     GenericEditor(state, serializer<T>(), onRemove)
 }
 
+@OptIn(InternalSerializationApi::class)
 fun <T : Any> UiScope.GenericEditor(
     state: MutableStateValue<T>,
     serializer: KSerializer<T>,
@@ -53,99 +59,128 @@ fun <T : Any> UiScope.GenericEditor(
 
             if (annotations.any { it is EditorHidden }) continue
 
-            val displayName = annotations.filterIsInstance<EditorName>().firstOrNull()?.name ?: elementName
+            val fieldDisplayName = annotations.filterIsInstance<EditorName>().firstOrNull()?.name ?: elementName
             val range = annotations.filterIsInstance<EditorRange>().firstOrNull()
-            val icon = annotations.filterIsInstance<EditorIcon>().firstOrNull()?.icon
+            val fieldIcon = annotations.filterIsInstance<EditorIcon>().firstOrNull()?.icon
                 ?: "hollowengine:textures/gui/icons/autocomplete_class.svg"
+
+            fun updateField(newValue: JsonElement) {
+                val newMap = currentJson.toMutableMap()
+                newMap[elementName] = newValue
+                val newObj = AutoEditor.json.decodeFromJsonElement(serializer, JsonObject(newMap))
+                state.set(newObj)
+            }
+
+            // Check for @Polymorphic
+            val polymorphic = annotations.filterIsInstance<Polymorphic>().firstOrNull()
+            if (polymorphic != null) {
+                PolymorphicField(fieldDisplayName, polymorphic.baseClass, currentJson[elementName] ?: JsonNull) {
+                    updateField(it)
+                }
+                continue
+            }
+
             Row(Grow.Std) {
-                Image(icon.rl) {
+                Image(fieldIcon.rl) {
                     modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
                         .margin(vertical = Dimensions.PaddingMedium, horizontal = Dimensions.PaddingNormal)
-
-                }
-
-                fun updateField(newValue: JsonElement) {
-                    val newMap = currentJson.toMutableMap()
-                    newMap[elementName] = newValue
-                    val newObj = AutoEditor.json.decodeFromJsonElement(serializer, JsonObject(newMap))
-                    state.set(newObj)
                 }
 
                 when (elementDescriptor.kind) {
                     PrimitiveKind.STRING -> {
-                        val proxyState = mutableStateOf<String>(
-                            (currentJson[elementName] as? JsonPrimitive)?.content ?: ""
-                        )
-                        proxyState.onChange { _, newValue ->
-                            updateField(JsonPrimitive(newValue))
-                        }
-                        TextProperty(displayName, proxyState, hint = displayName)
+                        val proxyState = mutableStateOf((currentJson[elementName] as? JsonPrimitive)?.content ?: "")
+                        proxyState.onChange { _, newValue -> updateField(JsonPrimitive(newValue)) }
+                        TextProperty(fieldDisplayName, proxyState, hint = fieldDisplayName)
                     }
 
                     PrimitiveKind.FLOAT -> {
                         val currentVal = (currentJson[elementName] as? JsonPrimitive)?.float ?: 0f
                         val proxyState = mutableStateOf(currentVal)
-                        proxyState.onChange { _, newValue ->
-                            updateField(JsonPrimitive(newValue))
-                        }
-                        FloatProperty(
-                            displayName,
-                            proxyState,
-                            min = range?.min ?: 0f,
-                            max = range?.max ?: 1f
-                        )
+                        proxyState.onChange { _, newValue -> updateField(JsonPrimitive(newValue)) }
+                        FloatProperty(fieldDisplayName, proxyState, min = range?.min ?: 0f, max = range?.max ?: 1f)
                     }
 
-                    PrimitiveKind.DOUBLE -> {
-                        val currentVal = (currentJson[elementName] as? JsonPrimitive)?.double?.toFloat() ?: 0f
-                        val proxyState = mutableStateOf(currentVal)
-                        proxyState.onChange { _, newValue ->
-                            updateField(JsonPrimitive(newValue))
-                        }
-                        FloatProperty(
-                            displayName,
-                            proxyState,
-                            min = range?.min ?: 0f,
-                            max = range?.max ?: Float.MAX_VALUE
-                        )
+                    PrimitiveKind.INT -> {
+                        val currentVal = (currentJson[elementName] as? JsonPrimitive)?.int ?: 0
+                        val proxyState = mutableStateOf(currentVal.toFloat())
+                        proxyState.onChange { _, newValue -> updateField(JsonPrimitive(newValue.toInt())) }
+                        FloatProperty(fieldDisplayName, proxyState, min = range?.min ?: 0f, max = range?.max ?: 100f)
                     }
 
                     PrimitiveKind.BOOLEAN -> {
                         val currentVal = (currentJson[elementName] as? JsonPrimitive)?.boolean ?: false
                         val proxyState = mutableStateOf(currentVal)
-                        proxyState.onChange { _, newValue ->
-                            updateField(JsonPrimitive(newValue))
-                        }
-                        BoolProperty(displayName, proxyState)
+                        proxyState.onChange { _, newValue -> updateField(JsonPrimitive(newValue)) }
+                        BoolProperty(fieldDisplayName, proxyState)
                     }
 
-                    // Если поле само по себе объект (вложенный data class)
                     StructureKind.CLASS -> {
-                        // Рекурсивный вызов редактора
-                        // Нам нужно найти сериалайзер для этого вложенного типа
-                        // К сожалению, из дескриптора нельзя легко достать Serializer,
-                        // поэтому для вложенных объектов лучше всего использовать map/registry или
-                        // ограничиться примитивами пока.
-
-                        // ПРОСТОЙ ВАРИАНТ: Если мы знаем, что вложенные объекты редки,
-                        // можно пропустить.
-                        // СЛОЖНЫЙ ВАРИАНТ: Чтобы это работало рекурсивно, нужно передавать
-                        // список сериалайзеров или использовать ContextualSerialization.
-
-                        // В данном примере я просто выведу категорию-заглушку,
-                        // но полноценная вложенность требует KSerializer<Child>.
-                        /*
-                Category(ResourceLocation(icon), displayName) {
-                     // Тут нужна рекурсия, но нам нужен Serializer<ChildType>
-                }
-                */
+                        // Nested Object Support
+                        val fieldKClass = try {
+                            Class.forName(elementDescriptor.serialName).kotlin
+                        } catch (e: Exception) {
+                            null
+                        }
+                        
+                        val fieldSerializer = fieldKClass?.serializerOrNull() as? KSerializer<Any>
+                        if (fieldSerializer != null) {
+                            val fieldValue = AutoEditor.json.decodeFromJsonElement(fieldSerializer, currentJson[elementName] ?: JsonObject(emptyMap()))
+                            val fieldState = mutableStateOf(fieldValue)
+                            fieldState.onChange { _, newValue -> updateField(AutoEditor.json.encodeToJsonElement(fieldSerializer, newValue)) }
+                            
+                            GenericEditor(fieldState, fieldSerializer) {
+                                // Nested remove logic if needed
+                            }
+                        } else {
+                            Text("Unsupported Nested: ${elementDescriptor.serialName}") { modifier.textColor(Color.RED) }
+                        }
                     }
 
                     else -> {
-                        // Обработка других типов (Int, Long, Enum) по аналогии
+                        Text("Unsupported Type: ${elementDescriptor.kind}") { modifier.textColor(Color.YELLOW) }
                     }
                 }
             }
+        }
+    }
+}
+
+@OptIn(InternalSerializationApi::class)
+fun UiScope.PolymorphicField(label: String, baseClass: KClass<*>, current: JsonElement, onUpdate: (JsonElement) -> Unit) {
+    val implementations = ru.hollowhorizon.hollowengine.common.utils.nbt.NBT_TAGS[baseClass] ?: emptyList<KClass<*>>()
+    val currentType = (current as? JsonObject)?.get("type")?.jsonPrimitive?.content ?: ""
+    
+    Column(Grow.Std) {
+        Text(label) { modifier.textColor(Color.WHITE).margin(Dimensions.PaddingSmall) }
+        
+        // Simplified implementation selection (could be a dropdown)
+        Row {
+            implementations.forEach { impl ->
+                val implSerialName = impl.findAnnotation<kotlinx.serialization.SerialName>()?.value ?: impl.simpleName ?: ""
+                Button(implSerialName) {
+                    modifier.onClick {
+                        val serializer = impl.serializerOrNull() as? KSerializer<Any> ?: return@onClick
+                        val newObj = impl.java.getDeclaredConstructor().newInstance()
+                        val json = AutoEditor.json.encodeToJsonElement(serializer, newObj).jsonObject.toMutableMap()
+                        json["type"] = JsonPrimitive(implSerialName)
+                        onUpdate(JsonObject(json))
+                    }
+                    if (currentType == implSerialName) modifier.backgroundColor(ColorTheme.Accents.Main)
+                }
+            }
+        }
+        
+        val currentImpl = implementations.find { it.findAnnotation<kotlinx.serialization.SerialName>()?.value == currentType }
+        val serializer = currentImpl?.serializerOrNull() as? KSerializer<Any>
+        if (serializer != null) {
+            val value = AutoEditor.json.decodeFromJsonElement(serializer, current)
+            val state = mutableStateOf(value)
+            state.onChange { _, newValue -> 
+                val json = AutoEditor.json.encodeToJsonElement(serializer, newValue).jsonObject.toMutableMap()
+                json["type"] = JsonPrimitive(currentType)
+                onUpdate(JsonObject(json))
+            }
+            GenericEditor(state, serializer) {}
         }
     }
 }

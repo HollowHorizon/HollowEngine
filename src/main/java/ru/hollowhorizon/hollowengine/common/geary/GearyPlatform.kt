@@ -38,7 +38,7 @@ object GearyPlatform {
     fun create(level: Level): Geary = geary(createEngineModule(level)) {
         serialization {
             components {
-                ComponentRegistry.forEach {
+                ComponentRegistry.map { it.value }.forEach {
                     component(it.value, JavaHacks.forceCast(it.serializer))
                 }
             }

@@ -9,7 +9,8 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IDEFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ScriptFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.CodeBlocksFile
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.NPCFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.GLTFFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.PrefabEditorFile
 
 object IdeContent {
     val files = HashMap<String, IDEFile>()
@@ -19,7 +20,9 @@ object IdeContent {
         put(".kts", ::ScriptFile)
         put(".bc", ::CodeBlocksFile)
         put(".txt", ::TextFile)
-        put(".npc", ::NPCFile)
+        put(".gltf") { path, bytes -> GLTFFile(path) }
+        put(".glb") { path, bytes -> GLTFFile(path) }
+        put(".entity.prefab", ::PrefabEditorFile)
     }
 
     fun openFile(path: String, bytes: ByteArray): IDEFile? {
