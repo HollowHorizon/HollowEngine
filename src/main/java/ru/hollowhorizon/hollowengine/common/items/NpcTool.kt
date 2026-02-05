@@ -11,49 +11,56 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.EntityHitResult
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.EntityEditorScreen
 import ru.hollowhorizon.hollowengine.client.utils.open
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
 import ru.hollowhorizon.hollowengine.common.objects.items.CreativeTab
+import ru.hollowhorizon.hollowengine.common.registry.ModItems
 import ru.hollowhorizon.hollowengine.common.registry.ModTabs
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.send
 
 
 class NpcTool : Item(Properties().stacksTo(1)), CreativeTab {
 
-    override fun use(pLevel: Level, pPlayer: Player, pUsedHand: InteractionHand): InteractionResultHolder<ItemStack> {
-        if (pLevel.isClientSide && pUsedHand == InteractionHand.MAIN_HAND && pPlayer.isShiftKeyDown) {
-            ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.EntityEditorScreen(pPlayer).open()
-            return InteractionResultHolder.success(pPlayer.getItemInHand(pUsedHand))
+    override fun use(pLevel: Level, player: Player, pUsedHand: InteractionHand): InteractionResultHolder<ItemStack> {
+        if (pLevel.isClientSide && pUsedHand == InteractionHand.MAIN_HAND && player.isShiftKeyDown) {
+            EntityEditorScreen(player).open()
+            return InteractionResultHolder.success(player.getItemInHand(pUsedHand))
         }
         if (!pLevel.isClientSide && pUsedHand == InteractionHand.MAIN_HAND) {
-            val start: Vec3 = pPlayer.eyePosition
-            val addition: Vec3 = pPlayer.lookAngle.multiply(Vec3(25.0, 25.0, 25.0))
+            val start: Vec3 = player.eyePosition
+            val addition: Vec3 = player.lookAngle.multiply(Vec3(25.0, 25.0, 25.0))
             val result = ProjectileUtil.getEntityHitResult(
-                pPlayer.level(), pPlayer,
+                player.level(), player,
                 start, start.add(addition),
-                pPlayer.boundingBox.expandTowards(addition).inflate(1000000.0)
+                player.boundingBox.expandTowards(addition).inflate(1000000.0)
             ) { true }
 
-            if (result is EntityHitResult) return super.use(pLevel, pPlayer, pUsedHand)
+            if (result is EntityHitResult) return super.use(pLevel, player, pUsedHand)
 
-            val pos = pPlayer.pick(25.0, 0f, false).location
+            val pos = player.pick(25.0, 0f, false).location
 
             val npc = NpcEntity(pLevel)
             npc.setPos(pos)
             pLevel.addFreshEntity(npc)
         }
 
-        return super.use(pLevel, pPlayer, pUsedHand)
+        return super.use(pLevel, player, pUsedHand)
     }
 
     override fun tab() = ModTabs.HOLLOW_ENGINE
 }
 
 @SubscribeEvent
-fun PlayerInteractEvent.EntityInteract.interactHandler() {
-    if (hand == InteractionHand.MAIN_HAND && player.level().isClientSide && player.hasPermissions(2)) {
-        ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.EntityEditorScreen(target).open()
+fun PlayerInteractEvent.EntityInteract.onInteract() {
+    if (hand == InteractionHand.MAIN_HAND && player.mainHandItem.item == ModItems.NPC_TOOL && player.level().isClientSide) {
+        if (player.hasPermissions(2)) {
+            EntityEditorScreen(target).open()
+        } else {
+            player.send("You don't have permission to use this item.")
+        }
         isCanceled = true
     }
 }

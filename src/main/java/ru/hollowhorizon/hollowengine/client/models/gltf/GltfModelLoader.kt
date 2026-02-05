@@ -162,7 +162,7 @@ object GltfModelLoader : ModelLoader {
                             it[4], it[5], it[6], it[7],
                             it[8], it[9], it[10], it[11],
                             it[12], it[13], it[14], it[15],
-                        )
+                        ).transpose(MutableMat4f())
                     )
                 }
                 transform.translate(node.translation?.let { Vec3f(it[0], it[1], it[2]) } ?: MutableVec3f())

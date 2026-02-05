@@ -25,12 +25,13 @@ import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.measureTime
 
 
 object HollowModelManager : ResourceManagerReloadListener {
     lateinit var lightTexture: AbstractTexture
-    private val models = HashMap<ResourceLocation, AnimatedModel>()
+    private val models = ConcurrentHashMap<ResourceLocation, AnimatedModel>()
     var glProgramSkinning = -1
 
     private val loaders = mutableListOf<ModelLoader>().apply {

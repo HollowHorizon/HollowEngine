@@ -14,6 +14,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
+import ru.hollowhorizon.hollowengine.generated.Assets
 
 @Registerable
 @Syncable
@@ -27,7 +28,11 @@ data class Model(
     val scale: Float = 1f,
 ) {
     val attachment by lazy {
-        ModelAttachment(model)
+        try {
+            ModelAttachment(model)
+        } catch (e: Exception) {
+            ModelAttachment(Assets.Hollowengine.Models.ERROR.toString())
+        }
     }
 }
 
