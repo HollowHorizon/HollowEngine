@@ -3,9 +3,7 @@ package ru.hollowhorizon.hollowengine.client.models.internal.animations.interpol
 import de.fabmax.kool.math.MutableQuatF
 import de.fabmax.kool.math.QuatF
 import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.Vec4f
 import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
-import ru.hollowhorizon.hollowengine.client.utils.math.catmullRom
 import ru.hollowhorizon.hollowengine.client.utils.math.conjugate
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.cos
 import kotlin.math.abs
@@ -13,15 +11,15 @@ import kotlin.math.atan2
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-class Vec3Step(keys: FloatArray, values: Array<Vec3f>) : Interpolator<Vec3f>(keys, values) {
+class Vec3Step(keys: FloatArray, values: Array<Vec3f>) : StaticInterpolator<Vec3f>(keys, values) {
     override fun compute(time: Float): Vec3f = values[time.animIndex]
 }
 
-class QuatStep(keys: FloatArray, values: Array<QuatF>) : Interpolator<QuatF>(keys, values) {
+class QuatStep(keys: FloatArray, values: Array<QuatF>) : StaticInterpolator<QuatF>(keys, values) {
     override fun compute(time: Float): QuatF = values[time.animIndex]
 }
 
-class LinearSingle(keys: FloatArray, values: Array<FloatArray>) : Interpolator<FloatArray>(keys, values) {
+class LinearSingle(keys: FloatArray, values: Array<FloatArray>) : StaticInterpolator<FloatArray>(keys, values) {
     override fun compute(time: Float): FloatArray {
         if (time <= keys.first() || keys.size == 1) return values.first()
         else if (time >= keys.last()) return values.last()
@@ -41,7 +39,7 @@ class LinearSingle(keys: FloatArray, values: Array<FloatArray>) : Interpolator<F
 
 }
 
-class Linear(keys: FloatArray, values: Array<Vec3f>) : Interpolator<Vec3f>(keys, values) {
+class Linear(keys: FloatArray, values: Array<Vec3f>) : StaticInterpolator<Vec3f>(keys, values) {
     override fun compute(time: Float): Vec3f {
         if (time <= keys.first() || keys.size == 1) return values.first()
         else if (time >= keys.last()) return values.last()
@@ -58,7 +56,7 @@ class Linear(keys: FloatArray, values: Array<Vec3f>) : Interpolator<Vec3f>(keys,
     }
 }
 
-class SphericalLinear(keys: FloatArray, values: Array<QuatF>) : Interpolator<QuatF>(keys, values) {
+class SphericalLinear(keys: FloatArray, values: Array<QuatF>) : StaticInterpolator<QuatF>(keys, values) {
     override fun compute(time: Float): QuatF {
         if (time <= keys.first() || keys.size == 1) return values.first()
         else if (time >= keys.last()) return values.last()
@@ -81,7 +79,7 @@ class SphericalLinear(keys: FloatArray, values: Array<QuatF>) : Interpolator<Qua
     }
 }
 
-class Catmullrom(keys: FloatArray, values: Array<Vec3f>): Interpolator<Vec3f>(keys, values) {
+class Catmullrom(keys: FloatArray, values: Array<Vec3f>): StaticInterpolator<Vec3f>(keys, values) {
     override fun compute(time: Float): Vec3f {
         if (time <= keys.first()) return values.first()
         if (time >= keys.last()) return values.last()
@@ -109,7 +107,7 @@ class Catmullrom(keys: FloatArray, values: Array<Vec3f>): Interpolator<Vec3f>(ke
 class CatmullromQuat(
     keys: FloatArray,
     values: Array<QuatF>
-) : Interpolator<QuatF>(keys, values) {
+) : StaticInterpolator<QuatF>(keys, values) {
     override fun compute(time: Float): QuatF {
         if (time <= keys.first()) return values.first()
         if (time >= keys.last()) return values.last()

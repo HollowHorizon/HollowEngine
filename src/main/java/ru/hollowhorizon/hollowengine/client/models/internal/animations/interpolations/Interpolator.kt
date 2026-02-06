@@ -1,17 +1,23 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations
 
-import java.util.*
+import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
 
-abstract class Interpolator<T>(val keys: FloatArray, val values: Array<T>) {
-    abstract fun compute(time: Float): T
+interface Interpolator<T> {
+    val duration: Float
 
-    val duration = keys.last()
+    fun compute(time: Float, context: MolangContext = MolangContext.EMPTY): T
+}
 
-    val Float.animIndex: Int
+abstract class StaticInterpolator<T>(val keys: FloatArray, val values: Array<T>) : Interpolator<T> {
+    override val duration = keys.lastOrNull() ?: 0f
+
+    override fun compute(time: Float, context: MolangContext): T = compute(time)
+
+    protected abstract fun compute(time: Float): T
+
+    protected val Float.animIndex: Int
         get() {
-            val index = Arrays.binarySearch(keys, this)
-
-            return if (index >= 0) index
-            else 0.coerceAtLeast(-index - 2)
+            val index = java.util.Arrays.binarySearch(keys, this)
+            return if (index >= 0) index else (-index - 2).coerceAtLeast(0)
         }
 }

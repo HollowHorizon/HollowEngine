@@ -44,7 +44,7 @@ object HollowModelManager : ResourceManagerReloadListener {
     }
 
     suspend fun loadModel(location: ResourceLocation): AnimatedModel? {
-        val extension = location.path.substringAfterLast('.', "")
+        val extension = location.path.substringAfter('.', "")
 
         try {
             val loader = loaders.find { extension in it.supportedFormats }
@@ -154,7 +154,7 @@ object HollowModelManager : ResourceManagerReloadListener {
     }
 
     fun supports(location: ResourceLocation): Boolean {
-        val extension = location.path.substringAfterLast('.', "")
+        val extension = location.path.substringAfter('.', "")
 
         return loaders.any { extension in it.supportedFormats }
     }

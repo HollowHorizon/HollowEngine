@@ -48,6 +48,7 @@ class TreeMap<K : Comparable<K>, V> private constructor(
 
     fun lowestEntry(): Map.Entry<K, V>? = list.firstOrNull()
 
+    fun firstKey(): K? = list.firstOrNull()?.key
     fun lastKey(): K? = list.lastOrNull()?.key
 
     override fun toString(): String = map.toString()

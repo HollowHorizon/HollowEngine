@@ -1,79 +1,128 @@
-@file:OptIn(ExperimentalSerializationApi::class)
-
 package ru.hollowhorizon.hollowengine.client.models.bedrock
 
-import de.fabmax.kool.math.*
+import de.fabmax.kool.math.Vec2f
+import de.fabmax.kool.math.Vec3f
+import de.fabmax.kool.math.deg
 import de.fabmax.kool.scene.TrsTransformF
-import kotlinx.serialization.ExperimentalSerializationApi
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.models.internal.*
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationData
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
+import ru.hollowhorizon.hollowengine.client.utils.exists
 import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation as InternalAnimation
 
 object BedrockModelLoader : ModelLoader {
-
     override val supportedFormats = setOf("geo.json")
 
+    private var index = 0
+
     override suspend fun load(location: ResourceLocation, side: ModelSide): AnimatedModel {
-        val model = convert(JsonFormat.decodeFromStream<BedrockFile>(location.stream), location)
+        val modelData = JsonFormat.decodeFromStream<BedrockFile>(location.stream)
+        val parsedModel = convertGeometry(modelData, location)
 
-        val animationFile = location.withPath(location.path.substringBefore('.') + ".animation.json")
-        val animations = JsonFormat.decodeFromStream<BedrockAnimationFile>(animationFile.stream)
+        val animLocation = location.withPath(location.path.substringBefore('.') + ".animation.json")
+        val animations = try {
+            if (animLocation.exists()) {
+                val animFile = JsonFormat.decodeFromStream<BedrockAnimationFile>(animLocation.stream)
+                convertAnimations(animFile, parsedModel)
+            } else emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
 
-        return AnimatedModel(model)
+        val modelWithAnim = parsedModel.copy(animations = animations)
+        modelWithAnim.isBlockBench = parsedModel.isBlockBench
+        index = 0
+        return AnimatedModel(modelWithAnim)
     }
 
-    fun convert(file: BedrockFile, location: ResourceLocation): Model {
-
-
-        return Model(0, file.geometries.map { Scene(it.convertNodes(location)) }, setOf()).apply {
+    private fun convertGeometry(file: BedrockFile, location: ResourceLocation): Model {
+        val scenes = file.geometries.map { geometry ->
+            Scene(
+                listOf(
+                    NodeDefinition(
+                        index++,
+                        children = geometry.convertNodes(location).toMutableList(),
+                        transform = TrsTransformF().scale(Vec3f(-1 / 16f, 1 / 16f, 1 / 16f))
+                    )
+                )
+            )
+        }
+        return Model(0, scenes, emptySet(), emptyList()).apply {
             isBlockBench = true
         }
     }
 
-    fun BedrockFile.Geometry.convertNodes(location: ResourceLocation): List<NodeDefinition> {
+    private fun BedrockFile.Geometry.convertNodes(location: ResourceLocation): List<NodeDefinition> {
         val material = Material(
             description.color,
-            if (description.texture.contains(':')) description.texture.rl
-            else location.withPath(location.path.substringBeforeLast('/') + '/' + description.texture),
+            location.withPath(location.path.removeSuffix("geo.json") + "png")
+                ?.takeIf { it.exists() } ?: description.texture.rl,
             blend = if (description.textureTranslucent) Material.Blend.BLEND else Material.Blend.OPAQUE,
             doubleSided = true
         )
 
-        return bones.filter { it.parent == null }
-            .map { convertNode(it, material).apply { transform.scale(1 / 16f); baseTransform.scale(1 / 16f) } }
+        val rootBones = bones.filter { it.parent == null }
+
+        return rootBones.map { bone ->
+            convertNodeRecursive(bone, Vec3f.ZERO, material, bones)
+        }
     }
 
-    fun BedrockFile.Geometry.convertNode(bone: BedrockFile.Bone, material: Material): NodeDefinition {
+    context(geometry: BedrockFile.Geometry)
+    private fun convertNodeRecursive(
+        bone: BedrockFile.Bone,
+        parentPivot: Vec3f,
+        material: Material,
+        allBones: List<BedrockFile.Bone>,
+    ): NodeDefinition {
         val transform = TrsTransformF()
 
-        val parent = bones.find { it.name == bone.parent }?.pivot ?: Vec3f.ZERO
-        val localPivot = (bone.pivot - parent) / if (bone.parent == null) 16f else 1f
-        transform.translate(localPivot)
-        transform.rotate(MutableQuatF().rotateByEulers(bone.rotation, EulerOrder.XYZ))
+        val translation = bone.pivot - parentPivot
+        transform.translate(translation)
 
-        val primitives = bone.cubes.map {
-            val mesh = it.toMeshData(bone.pivot, description.textureWidth, description.textureHeight)
+        if (bone.rotation != Vec3f.ZERO) {
+            transform.rotate(bone.rotation.x.deg, bone.rotation.y.deg, bone.rotation.z.deg)
+        }
+
+        val primitives = bone.cubes.map { cube ->
+
+            val meshData = cube.toMeshData(
+                bone.pivot,
+                geometry.description.textureWidth,
+                geometry.description.textureHeight
+            )
 
             Primitive(
-                positions = mesh.vertices.toTypedArray(),
-                normals = mesh.normals.toTypedArray(),
-                texCoords = mesh.uvs.toTypedArray(),
-                indices = mesh.indices.toIntArray(),
+                positions = meshData.vertices.toTypedArray(),
+                normals = meshData.normals.toTypedArray(),
+                texCoords = meshData.uvs.toTypedArray(),
+                indices = meshData.indices.toIntArray(),
                 material = material
             )
         }
+        val nodeMesh = if (primitives.isNotEmpty()) Mesh(primitives, floatArrayOf()) else null
 
-        return NodeDefinition(
-            0,
+        val children = allBones.filter { it.parent == bone.name }
+            .map { child -> convertNodeRecursive(child, bone.pivot, material, allBones) }
+            .toMutableList()
+
+        val nodeDef = NodeDefinition(
+            index = index++,
             name = bone.name,
-            bones.filter { it.parent == bone.name }.map { convertNode(it, material) }.toMutableList(),
-            transform,
-            mesh = Mesh(primitives, floatArrayOf())
+            children = children,
+            transform = transform,
+            mesh = nodeMesh,
+            skin = null
         )
+
+        children.forEach { it.parent = nodeDef }
+        return nodeDef
     }
 
     data class MeshData(
@@ -104,14 +153,13 @@ object BedrockModelLoader : ModelLoader {
             Vec3f(x0, y0, z0), Vec3f(x1, y0, z0), Vec3f(x1, y1, z0), Vec3f(x0, y1, z0), // front
             Vec3f(x0, y0, z1), Vec3f(x1, y0, z1), Vec3f(x1, y1, z1), Vec3f(x0, y1, z1)  // back
         )
-
         val faces = listOf(
-            listOf(0, 1, 2, 3) to Vec3f(0f, 0f, -1f) to "north",
-            listOf(5, 4, 7, 6) to Vec3f(0f, 0f, 1f) to "south",
-            listOf(4, 0, 3, 7) to Vec3f(-1f, 0f, 0f) to "west",
-            listOf(1, 5, 6, 2) to Vec3f(1f, 0f, 0f) to "east",
-            listOf(3, 2, 6, 7) to Vec3f(0f, 1f, 0f) to "up",
-            listOf(4, 5, 1, 0) to Vec3f(0f, -1f, 0f) to "down"
+            listOf(0, 1, 2, 3) to Vec3f(0f, 0f, -16f) to "north",
+            listOf(5, 4, 7, 6) to Vec3f(0f, 0f, 16f) to "south",
+            listOf(4, 0, 3, 7) to Vec3f(-16f, 0f, 0f) to "west",
+            listOf(1, 5, 6, 2) to Vec3f(16f, 0f, 0f) to "east",
+            listOf(3, 2, 6, 7) to Vec3f(0f, 16f, 0f) to "up",
+            listOf(4, 5, 1, 0) to Vec3f(0f, -16f, 0f) to "down"
         )
 
         val uvMap: Map<String, BedrockFile.UvFace?> = when (uv) {
@@ -159,13 +207,12 @@ object BedrockModelLoader : ModelLoader {
 
             indices += indicesForFace.map { start + it }
         }
-
         return MeshData(vertices, normals, uvsOut, indices)
     }
 
     fun generateBoxUVs(boxUv: FloatArray): Map<String, BedrockFile.UvFace> {
         val (u, v) = boxUv
-        val faceSize = 16f // или size.x / .y по логике
+        val faceSize = 16f
 
         return mapOf(
             "north" to BedrockFile.UvFace(floatArrayOf(u + faceSize, v + faceSize), floatArrayOf(faceSize, faceSize)),
@@ -178,5 +225,32 @@ object BedrockModelLoader : ModelLoader {
                 floatArrayOf(faceSize, faceSize)
             ),
         )
+    }
+
+    private fun convertAnimations(file: BedrockAnimationFile, parsedModel: Model): List<InternalAnimation> {
+        return file.animations.map { (name, anim) ->
+            val nodeAnimations = mutableMapOf<Int, AnimationData>()
+
+            anim.bones.forEach { (boneName, channels) ->
+
+                val boneId = parsedModel.findNodeByName(boneName)!!.index
+
+                val translation = channels.position?.let {
+                    BedrockInterpolator(it.frames, BedrockInterpolator.Vec3Converter)
+                }
+                val rotation = channels.rotation?.let {
+                    BedrockInterpolator(it.frames, BedrockInterpolator.QuatConverter)
+                }
+                val scale = channels.scale?.let {
+                    BedrockInterpolator(it.frames, BedrockInterpolator.Vec3Converter)
+                }
+
+                if (translation != null || rotation != null || scale != null) {
+                    nodeAnimations[boneId] = AnimationData(translation, rotation, scale, null)
+                }
+            }
+
+            InternalAnimation(name, nodeAnimations, anim.animationLength ?: 0f)
+        }
     }
 }
