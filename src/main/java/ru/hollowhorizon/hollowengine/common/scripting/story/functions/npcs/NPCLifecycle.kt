@@ -5,7 +5,6 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.models.internal.Transform
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationType
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.literal
@@ -22,8 +21,7 @@ import kotlin.contracts.ExperimentalContracts
  * npc(
  *     pos = Vec3(10.0, 64.0, 10.0),
  *     name = "Guide",
- *     model = "my_mod:models/entity/guide.gltf",
- *     animations = mapOf(AnimationType.IDLE to "my_mod:animations/guide_idle.animation.json")
+ *     model = "my_mod:models/entity/guide.gltf"
  * )
  * ```
  *
@@ -35,7 +33,6 @@ import kotlin.contracts.ExperimentalContracts
  * @param size Пара `(ширина, высота)` хитбокса NPC, влияет на столкновения и взаимодействие.
  * @param attributes Дополнительные числовые параметры NPC (например, `"health"` → `20f`, `"speed"` → `0.3f`), определяют поведение.
  * @param textures Словарь текстур по именам слоёв. Например: `"skin"` → `"modid:textures/entity/custom_skin.png"`.
- * @param animations Карта анимаций, соответствующих типам из [AnimationType]. Позволяет задать разные движения (ходьба, прыжок, атака и т.п.).
  * @param transform Локальные трансформации модели: смещение, поворот и масштаб по всем осям.
  * @param showName Показывать ли имя NPC над головой (аналогично `nameTag` у сущностей Minecraft).
  * @param inverseHeadRotation Если `true`, голова NPC будет поворачиваться в противоположную сторону (например, для камеры от 3-го лица).
@@ -52,7 +49,6 @@ fun npc(
     size: Pair<Float, Float> = 0.6f to 1.8f,
     attributes: Map<String, Float> = emptyMap(),
     textures: Map<String, String> = emptyMap(),
-    animations: Map<AnimationType, String> = emptyMap(),
     transform: Transform = Transform(),
     showName: Boolean = true,
     inverseHeadRotation: Boolean = false,

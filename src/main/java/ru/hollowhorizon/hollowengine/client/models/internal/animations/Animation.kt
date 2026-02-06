@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.client.models.internal.animations
 import de.fabmax.kool.math.QuatF
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.math.Vec4f
-import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
 
 class Animation(
@@ -26,81 +25,6 @@ fun QuatF.array(): FloatArray {
 
 fun Vec4f.array(): FloatArray {
     return floatArrayOf(x, y, z, w)
-}
-
-enum class AnimationType {
-    IDLE, IDLE_SNEAKED, WALK, WALK_SNEAKED, JUMP, HURT,
-    RUN, SWIM, FALL, FLY, SIT, SLEEP, SWING, DEATH;
-
-    companion object {
-        // @formatter:off
-        private val patterns: Map<AnimationType, List<List<String>>> = mapOf(
-            IDLE            to listOf(listOf("idle", "scene")),
-            IDLE_SNEAKED    to listOf(listOf("sneak"), listOf("crouch", "crouth", "idle")),
-            WALK            to listOf(listOf("walk"), listOf("move"), listOf("go")),
-            WALK_SNEAKED    to listOf(listOf("walk", "sneak"), listOf("crouch", "crouth", "walk")),
-            RUN             to listOf(listOf("run"), listOf("dash"), listOf("flee")),
-            JUMP            to listOf(listOf("jump"), listOf("hop"), listOf("leap")),
-            FALL            to listOf(listOf("fall")),
-            FLY             to listOf(listOf("fly"), listOf("glide")),
-            SWIM            to listOf(listOf("swim")),
-            SIT             to listOf(listOf("sit")),
-            SLEEP           to listOf(listOf("sleep"), listOf("rest")),
-            HURT            to listOf(listOf("hurt"), listOf("damage")),
-            SWING           to listOf(listOf("swing"), listOf("attack"), listOf("use")),
-            DEATH           to listOf(listOf("death"), listOf("die"), listOf("dead"))
-        )
-        // @formatter:on
-
-        @JvmStatic
-        fun load(model: AnimatedModel): HashMap<AnimationType, String> {
-            val names = model.animations.keys.toMutableList()
-            val result = hashMapOf<AnimationType, String>()
-
-            // Утилиты поиска
-            fun String.scoreAgainst(keys: List<String>): Int {
-                val lower = lowercase()
-                // +100 за точное совпадение
-                if (lower == keys.joinToString("_")) return 100
-                // +50 за startsWith любого ключевого слова
-                if (keys.any { lower.startsWith(it) }) return 50
-                // +10 за contains всех ключевых слов
-                if (keys.all { lower.contains(it) }) return 10
-                return 0
-            }
-
-            fun List<String>.findBest(keys: List<String>): String? {
-                return this
-                    .asSequence()
-                    .map { it to it.scoreAgainst(keys) }
-                    .filter { it.second > 0 }
-                    .sortedWith(compareByDescending<Pair<String, Int>> { it.second }
-                        .thenByDescending { (name, _) ->
-                            // для speed-анимаций можно учесть цифры в имени
-                            if (keys.any { it in listOf("run", "walk", "sneak") }) {
-                                Regex("""\d+""").find(name)?.value?.toInt() ?: 0
-                            } else 0
-                        })
-                    .map { it.first }
-                    .firstOrNull()
-            }
-
-            for (type in entries) {
-                val keysList = patterns[type] ?: continue
-                var found: String? = null
-                for (keys in keysList) {
-                    found = names.findBest(keys)
-                    if (found != null) break
-                }
-                if (found != null) {
-                    result[type] = found
-                    names.remove(found)
-                }
-            }
-
-            return result
-        }
-    }
 }
 
 class AnimationData(
