@@ -59,14 +59,6 @@ class GpuDeformer(private val primitive: Primitive) {
     }
 
     private fun initSourceAttributes() {
-        // В шейдерах мы используем фиксированные location:
-        // layout (location = 0) in vec4 joint;
-        // layout (location = 1) in vec4 weight;
-        // layout (location = 2) in vec3 position;
-        // layout (location = 3) in vec3 normal;
-        // layout (location = 4) in vec4 tangent;
-
-        // --- Position (Loc 2) ---
         primitive.positions?.let { positions ->
             srcPosBuffer = VboWrapper.createArrayBuffer().apply {
                 val data = positions.toFloatBuffer(3) { v, b -> b.put(v.x).put(v.y).put(v.z) }
@@ -76,7 +68,6 @@ class GpuDeformer(private val primitive: Primitive) {
             }
         }
 
-        // --- Normal (Loc 3) ---
         primitive.normals?.let { normals ->
             srcNorBuffer = VboWrapper.createArrayBuffer().apply {
                 val data = normals.toFloatBuffer(3) { v, b -> b.put(v.x).put(v.y).put(v.z) }
@@ -86,7 +77,6 @@ class GpuDeformer(private val primitive: Primitive) {
             }
         }
 
-        // --- Tangent (Loc 4) ---
         primitive.tangents?.let { tangents ->
             srcTanBuffer = VboWrapper.createArrayBuffer().apply {
                 val data = tangents.toFloatBuffer(4) { v, b -> b.put(v.x).put(v.y).put(v.z).put(v.w) }
@@ -96,7 +86,6 @@ class GpuDeformer(private val primitive: Primitive) {
             }
         }
 
-        // --- Joints & Weights (Loc 0 & 1) ---
         if (primitive.hasSkinning) {
             primitive.joints?.let { joints ->
                 srcJointsBuffer = VboWrapper.createArrayBuffer().apply {
@@ -122,39 +111,32 @@ class GpuDeformer(private val primitive: Primitive) {
 
     private fun initMorphTextures() {
         val morphCount = primitive.morphTargets.size
-        // Размер буфера: Кол-во вершин * Кол-во таргетов * Компоненты (3 для Vec3)
-        // Но TBO возвращает Vec4, поэтому лучше выравнивать, хотя мы используем rgb/xyz
+
         val totalElements = drawCount * morphCount
 
-        val posBuffer = BufferUtils.createFloatBuffer(totalElements * 4) // X Y Z Padding
-        val norBuffer = BufferUtils.createFloatBuffer(totalElements * 4) // X Y Z Padding
-        val tanBuffer = BufferUtils.createFloatBuffer(totalElements * 4) // X Y Z Padding (Tangent usually 3 here)
+        val posBuffer = BufferUtils.createFloatBuffer(totalElements * 4)
+        val norBuffer = BufferUtils.createFloatBuffer(totalElements * 4)
+        val tanBuffer = BufferUtils.createFloatBuffer(totalElements * 4)
 
-        // Заполняем буферы. Порядок: Target 1 [All Verts], Target 2 [All Verts]...
-        // Это соответствует формуле в шейдере: bufferIndex = (targetIndex * vertexCount) + vertexID
         for (targetMap in primitive.morphTargets) {
             val posDeltas = targetMap[GltfMesh.Primitive.ATTRIBUTE_POSITION]
             val norDeltas = targetMap[GltfMesh.Primitive.ATTRIBUTE_NORMAL]
             val tanDeltas = targetMap[GltfMesh.Primitive.ATTRIBUTE_TANGENT]
 
             for (i in 0 until drawCount) {
-                // Position Delta
                 if (posDeltas != null) {
                     posBuffer.put(posDeltas[i * 3]).put(posDeltas[i * 3 + 1]).put(posDeltas[i * 3 + 2]).put(0f)
                 } else {
                     posBuffer.put(0f).put(0f).put(0f).put(0f)
                 }
 
-                // Normal Delta
                 if (norDeltas != null) {
                     norBuffer.put(norDeltas[i * 3]).put(norDeltas[i * 3 + 1]).put(norDeltas[i * 3 + 2]).put(0f)
                 } else {
                     norBuffer.put(0f).put(0f).put(0f).put(0f)
                 }
 
-                // Tangent Delta
                 if (tanDeltas != null) {
-                    // Тангенс в glTF тоже 3 компонента дельты
                     tanBuffer.put(tanDeltas[i * 3]).put(tanDeltas[i * 3 + 1]).put(tanDeltas[i * 3 + 2]).put(0f)
                 } else {
                     tanBuffer.put(0f).put(0f).put(0f).put(0f)
@@ -164,19 +146,16 @@ class GpuDeformer(private val primitive: Primitive) {
 
         posBuffer.flip(); norBuffer.flip(); tanBuffer.flip()
 
-        // Создаем TBO для Позиций
         morphPosBuffer = VboWrapper.createTextureBuffer().apply {
             uploadData(posBuffer)
             morphPosTexture = createTextureFromBuffer(this.id)
         }
 
-        // Создаем TBO для Нормалей
         morphNorBuffer = VboWrapper.createTextureBuffer().apply {
             uploadData(norBuffer)
             morphNorTexture = createTextureFromBuffer(this.id)
         }
 
-        // Создаем TBO для Тангенсов
         morphTanBuffer = VboWrapper.createTextureBuffer().apply {
             uploadData(tanBuffer)
             morphTanTexture = createTextureFromBuffer(this.id)
@@ -184,9 +163,7 @@ class GpuDeformer(private val primitive: Primitive) {
     }
 
     private fun initJointMatrixTexture() {
-        // Буфер для матриц костей. Размер: кол-во костей * 16 float (mat4) * 4 bytes
         jointMatrixBuffer = VboWrapper.createTextureBuffer().apply {
-            // Выделяем память заранее
             allocate(primitive.jointCount * 64L, GL33.GL_DYNAMIC_DRAW)
             jointMatrixTexture = createTextureFromBuffer(this.id)
         }
@@ -195,7 +172,6 @@ class GpuDeformer(private val primitive: Primitive) {
     private fun createTextureFromBuffer(bufferId: Int): Int {
         val textureId = GL11.glGenTextures()
         GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, textureId)
-        // GL_RGBA32F позволяет читать 4 float за раз через texelFetch
         GL31.glTexBuffer(GL31.GL_TEXTURE_BUFFER, GL30.GL_RGBA32F, bufferId)
         return textureId
     }
@@ -203,51 +179,36 @@ class GpuDeformer(private val primitive: Primitive) {
     fun compute(node: SkinGetter) {
         val shaderId: Int
 
-        // Выбираем шейдер и обновляем униформы
         if (primitive.hasSkinning) {
             shaderId = HollowModelManager.glProgramSkinning
             GL20.glUseProgram(shaderId)
 
-            // Обновляем матрицы костей
             updateJointMatrices(node)
 
-            // Биндим TBO матриц костей в слот 0
             GL13.glActiveTexture(GL13.GL_TEXTURE0)
             GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, jointMatrixTexture)
             GL20.glUniform1i(GL20.glGetUniformLocation(shaderId, "jointMatrices"), 0)
         } else {
-            // Используем шейдер чистого морфинга
             shaderId = HollowModelManager.glProgramMorphing
             GL20.glUseProgram(shaderId)
         }
 
-        // Настраиваем униформы для морфинга
         setupMorphUniforms(shaderId)
 
-        // Настраиваем Transform Feedback
-        // Мы говорим OpenGL, в какие буферы писать вывод шейдера
         GL30.glBindBufferBase(GL30.GL_TRANSFORM_FEEDBACK_BUFFER, 0, outPosBufferId)
         GL30.glBindBufferBase(GL30.GL_TRANSFORM_FEEDBACK_BUFFER, 1, outNorBufferId)
         GL30.glBindBufferBase(GL30.GL_TRANSFORM_FEEDBACK_BUFFER, 2, outTanBufferId)
 
-        // Запускаем процесс
         GL30.glBeginTransformFeedback(GL11.GL_POINTS)
         GL30.glBindVertexArray(processingVao)
-
-        // Отключаем растеризацию, так как нам не нужны пиксели, только данные в буферах
         GL11.glEnable(GL30.GL_RASTERIZER_DISCARD)
-
-        // Запускаем "отрисовку" для всех вершин
         GL11.glDrawArrays(GL11.GL_POINTS, 0, drawCount)
-
-        // Завершаем
         GL11.glDisable(GL30.GL_RASTERIZER_DISCARD)
         GL30.glEndTransformFeedback()
 
-        // Очистка
         GL30.glBindVertexArray(0)
         GL20.glUseProgram(0)
-        // Отвязываем буферы TF
+
         GL30.glBindBufferBase(GL30.GL_TRANSFORM_FEEDBACK_BUFFER, 0, 0)
         GL30.glBindBufferBase(GL30.GL_TRANSFORM_FEEDBACK_BUFFER, 1, 0)
         GL30.glBindBufferBase(GL30.GL_TRANSFORM_FEEDBACK_BUFFER, 2, 0)
@@ -255,7 +216,6 @@ class GpuDeformer(private val primitive: Primitive) {
 
     private fun updateJointMatrices(node: SkinGetter) {
         val matrices = node()
-        // Создаем временный буфер для передачи данных
         val buffer = BufferUtils.createFloatBuffer(matrices.size * 16)
         for (m in matrices) {
             buffer.put(m.m00).put(m.m01).put(m.m02).put(m.m03)
@@ -264,8 +224,6 @@ class GpuDeformer(private val primitive: Primitive) {
             buffer.put(m.m30).put(m.m31).put(m.m32).put(m.m33)
         }
         buffer.flip()
-
-        // Обновляем данные в TBO буфере
         jointMatrixBuffer?.bind()
         GL33.glBufferSubData(GL31.GL_TEXTURE_BUFFER, 0, buffer)
         jointMatrixBuffer?.unbind()
@@ -273,29 +231,24 @@ class GpuDeformer(private val primitive: Primitive) {
 
     private fun setupMorphUniforms(shaderId: Int) {
         if (primitive.morphTargets.isNotEmpty()) {
-            // Bind Morph Positions (Unit 1)
             GL13.glActiveTexture(GL13.GL_TEXTURE1)
             GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, morphPosTexture)
             GL20.glUniform1i(GL20.glGetUniformLocation(shaderId, "morphDeltasPosition"), 1)
 
-            // Bind Morph Normals (Unit 2)
             GL13.glActiveTexture(GL13.GL_TEXTURE2)
             GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, morphNorTexture)
             GL20.glUniform1i(GL20.glGetUniformLocation(shaderId, "morphDeltasNormal"), 2)
 
-            // Bind Morph Tangents (Unit 3)
             GL13.glActiveTexture(GL13.GL_TEXTURE3)
             GL11.glBindTexture(GL31.GL_TEXTURE_BUFFER, morphTanTexture)
             GL20.glUniform1i(GL20.glGetUniformLocation(shaderId, "morphDeltasTangent"), 3)
 
-            // Uniforms
             GL20.glUniform1i(GL20.glGetUniformLocation(shaderId, "activeMorphCount"), primitive.morphTargets.size)
             GL20.glUniform1i(GL20.glGetUniformLocation(shaderId, "vertexCount"), drawCount)
 
-            // Weights
             val locWeights = GL20.glGetUniformLocation(shaderId, "morphWeights")
             if (locWeights != -1 && primitive.weights.isNotEmpty()) {
-                val weightArray = FloatArray(64) // Соответствует uniform float morphWeights[64]
+                val weightArray = FloatArray(64)
                 val copyLength = min(primitive.weights.size, 64)
                 System.arraycopy(primitive.weights, 0, weightArray, 0, copyLength)
                 GL20.glUniform1fv(locWeights, weightArray)

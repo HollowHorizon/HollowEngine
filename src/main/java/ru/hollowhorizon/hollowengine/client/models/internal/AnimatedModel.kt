@@ -38,4 +38,8 @@ class AnimatedModel(val model: Model) {
     fun destroy() {
         model.walkNodes().mapNotNull { it.mesh }.flatMap { it.primitives }.forEach(Primitive::destroy)
     }
+
+    companion object {
+        val EMPTY = AnimatedModel(Model(0, listOf(), setOf(), listOf()))
+    }
 }

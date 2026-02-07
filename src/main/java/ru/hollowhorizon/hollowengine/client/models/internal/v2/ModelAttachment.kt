@@ -3,12 +3,16 @@ package ru.hollowhorizon.hollowengine.client.models.internal.v2
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.math.deg
 import de.fabmax.kool.util.Time
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.entity.LivingEntityRenderer
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import org.joml.Quaternionf
-import ru.hollowhorizon.hollowengine.client.models.internal.Model
+import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
@@ -16,14 +20,19 @@ import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderCont
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
 import ru.hollowhorizon.hollowengine.common.components.Component
 import ru.hollowhorizon.hollowengine.common.components.events.on
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 
-fun ModelAttachment(model: String) = ModelAttachment(HollowModelManager.getOrCreate(model.rl).model, null)
-class ModelAttachment(model: Model, parent: Attachment?) : Attachment(parent) {
+fun ModelAttachment(model: String) = ModelAttachment(HollowModelManager.getOrCreate(model.rl), null)
+class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) : Attachment(parent) {
+    val model get() = flow.value.model
+
     init {
-        if (model.isBlockBench) transform.rotate(180f.deg, Vec3f.Y_AXIS)
+        flow.onEach {
+            if(it.model.isBlockBench) transform.rotation.set(180f.deg, Vec3f.Y_AXIS)
+        }.launchIn(Minecraft.getInstance().coroutineScope)
     }
 
     val triangles by lazy {
@@ -37,7 +46,7 @@ class ModelAttachment(model: Model, parent: Attachment?) : Attachment(parent) {
         }
     }
     private val onUpdates = mutableListOf<ModelAttachment.() -> Unit>()
-    val nodes = model.scenes[model.scene].nodes.map { RuntimeNode(it, this) }
+    val nodes = model.scenes.getOrNull(model.scene)?.nodes?.map { RuntimeNode(it, this) } ?: emptyList()
     val animations = Animations(model.animations.associate { it.name to AnimationInstance(it) })
     val materials = model.materials
     private val nodeIdToNode = nodes.flatMap { it.walk() }.associateBy { it.definition.index }

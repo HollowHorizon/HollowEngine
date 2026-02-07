@@ -1,7 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.manager
 
-import com.mojang.blaze3d.systems.RenderSystem
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.texture.AbstractTexture
 import net.minecraft.resources.ResourceLocation
@@ -12,6 +13,7 @@ import org.lwjgl.opengl.GL12
 import org.lwjgl.opengl.GL20
 import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockModelLoader
 import ru.hollowhorizon.hollowengine.client.models.fbx.FbxModelLoader
 import ru.hollowhorizon.hollowengine.client.models.gltf.GltfModelLoader
@@ -19,6 +21,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.obj.ObjModelLoader
 import ru.hollowhorizon.hollowengine.client.textures.GlTexture
 import ru.hollowhorizon.hollowengine.client.utils.stream
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.post
@@ -26,12 +29,11 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.time.measureTime
 
 
 object HollowModelManager : ResourceManagerReloadListener {
     lateinit var lightTexture: AbstractTexture
-    private val models = ConcurrentHashMap<ResourceLocation, AnimatedModel>()
+    private val models = ConcurrentHashMap<ResourceLocation, MutableStateFlow<AnimatedModel>>()
     var glProgramSkinning = -1
     var glProgramMorphing = -1
 
@@ -39,23 +41,30 @@ object HollowModelManager : ResourceManagerReloadListener {
         RegisterModelLoaderEvent(this).post()
     }
 
-    fun getOrCreate(location: ResourceLocation) = models.computeIfAbsent(location) { model ->
-        runBlocking { loadModel(model) }?.apply { RenderSystem.recordRenderCall { this.model.initGl() } }
-            ?: error("Failed to load $location!")
+    fun getOrCreate(location: ResourceLocation): StateFlow<AnimatedModel> {
+        return models.computeIfAbsent(location) {
+            val flow = MutableStateFlow(AnimatedModel.EMPTY)
+
+            Minecraft.getInstance().coroutineScope.launch {
+                try {
+                    val model = loadModel(location) // Ваша suspend функция
+                    flow.value = model
+                } catch (e: Exception) {
+                    HollowEngine.LOGGER.error("Can't load model $location", e)
+                }
+            }
+
+            flow
+        }
     }
 
-    suspend fun loadModel(location: ResourceLocation): AnimatedModel? {
+    suspend fun loadModel(location: ResourceLocation): AnimatedModel {
         val extension = location.path.substringAfter('.', "")
 
-        try {
-            val loader = loaders.find { extension in it.supportedFormats }
-                ?: error("No suitable model loader found for format .$extension")
+        val loader = loaders.find { extension in it.supportedFormats }
+            ?: error("No suitable model loader found for format .$extension")
 
-            return loader.load(location)
-        } catch (e: Exception) {
-            HollowCore.LOGGER.warn("Model $location failed to load!", e)
-            return null
-        }
+        return loader.load(location)
     }
 
     private fun createSkinningProgramGL33() {
@@ -92,27 +101,19 @@ object HollowModelManager : ResourceManagerReloadListener {
     }
 
     override fun onResourceManagerReload(manager: ResourceManager) {
-        models.values.forEach { it.destroy() }
+        models.values.forEach { it.value.destroy() }
         models.clear()
 
-        runBlocking {
-            val time = measureTime {
-                val supportedFormats = loaders.flatMap { it.supportedFormats }.toSet()
-                val loaded =
-                    manager.listResources("models") { it.path.substringAfter('.') in supportedFormats }.keys
-                        .filter { manager.getResource(it.withSuffix(".hemeta")).isPresent }
-                        .mapNotNull { location ->
-                            loadModel(location)?.let { location to it }
-                        }.toMap()
+        val supportedFormats = loaders.flatMap { it.supportedFormats }.toSet()
 
-                models.putAll(loaded)
+        manager.listResources("models") { it.path.substringAfter('.') in supportedFormats }.keys
+            .filter { manager.getResource(it.withSuffix(".hemeta")).isPresent }
+            .forEach { location ->
+                val flow = models.computeIfAbsent(location) { MutableStateFlow(AnimatedModel.EMPTY) }
+                Minecraft.getInstance().coroutineScope.launch {
+                    flow.emit(loadModel(location))
+                }
             }
-
-            HollowCore.LOGGER.info("Loaded ${models.size} models in $time")
-        }
-
-        models.forEach { it.value.model.initGl() }
-
     }
 
     fun initialize() {
@@ -162,8 +163,8 @@ object HollowModelManager : ResourceManagerReloadListener {
 
 
         textureManager.register("${HollowCore.MODID}:default_color_map".rl, GlTexture(defaultColorMap))
-        textureManager.register("${HollowCore.MODID}:default_normal_map".rl, GlTexture(0))
-        textureManager.register("${HollowCore.MODID}:default_specular_map".rl, GlTexture(0))
+        textureManager.register("${HollowCore.MODID}:default_normal_map".rl, GlTexture(defaultNormalMap))
+        textureManager.register("${HollowCore.MODID}:default_specular_map".rl, GlTexture(defaultSpecularMap))
 
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, currentTexture)
 

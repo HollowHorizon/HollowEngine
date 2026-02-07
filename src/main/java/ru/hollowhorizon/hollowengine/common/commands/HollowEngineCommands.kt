@@ -4,6 +4,9 @@ import com.mineinabyss.geary.serialization.setPersisting
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import de.fabmax.kool.math.Vec3f
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.commands.CommandSourceStack
@@ -16,6 +19,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.api.ParticlesProvider
 import ru.hollowhorizon.hollowengine.api.Syncable
+import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
@@ -23,6 +27,7 @@ import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.client.utils.mc
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystem
 import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -116,7 +121,7 @@ private fun CommandExtension.registerUtilityCommands() {
                 "add"(arg("entity", EntityArgument.entity())) {
                     executes {
                         val entity = EntityArgument.getEntity(this, "entity")
-                        if(isSyncing) {
+                        if (isSyncing) {
                             entity.entity.setSyncing(c.create(), c.value)
                         } else {
                             entity.entity.setPersisting(c.create(), c.value)
@@ -281,30 +286,34 @@ class CopyTextPacket(val text: String) : HollowPacket {
 class ShowModelInfoPacket(val model: String) : HollowPacket {
     override fun handle(player: Player) {
         val location = model.rl
-        val hollowModel = HollowModelManager.getOrCreate(location)
+        Minecraft.getInstance().coroutineScope.launch {
+            val hollowModel = HollowModelManager.getOrCreate(location)
+                .filter { it !== AnimatedModel.EMPTY }
+                .first()
 
-        player.sendSystemMessage(
-            "hollowengine.commands.model_animations".mcTranslate(model.substringAfterLast('/'))
-        )
-
-        hollowModel.animations.keys.forEach { anim ->
             player.sendSystemMessage(
-                ("- ".literal + anim.literal)
-                    .onHoverText("hollowengine.tooltips.copy".mcTranslate)
-                    .onClickCopy(anim)
+                "hollowengine.commands.model_animations".mcTranslate(model.substringAfterLast('/'))
             )
-        }
 
-        player.sendSystemMessage(
-            "hollowengine.commands.model_textures".mcTranslate(model.substringAfterLast('/'))
-        )
+            hollowModel.animations.keys.forEach { anim ->
+                player.sendSystemMessage(
+                    ("- ".literal + anim.literal)
+                        .onHoverText("hollowengine.tooltips.copy".mcTranslate)
+                        .onClickCopy(anim)
+                )
+            }
 
-        hollowModel.model.materials.map { it.texture.path.removeSuffix(".png") }.forEach { texture ->
             player.sendSystemMessage(
-                ("- ".literal + texture.literal)
-                    .onHoverText("hollowengine.tooltips.copy".mcTranslate)
-                    .onClickCopy(texture)
+                "hollowengine.commands.model_textures".mcTranslate(model.substringAfterLast('/'))
             )
+
+            hollowModel.model.materials.map { it.texture.path.removeSuffix(".png") }.forEach { texture ->
+                player.sendSystemMessage(
+                    ("- ".literal + texture.literal)
+                        .onHoverText("hollowengine.tooltips.copy".mcTranslate)
+                        .onClickCopy(texture)
+                )
+            }
         }
     }
 }
