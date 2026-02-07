@@ -1,11 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.models.gltf
 
 import de.fabmax.kool.util.Color
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
-import org.joml.Vector4f
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
 
 @Serializable
@@ -28,32 +25,32 @@ data class GltfMaterial(
     val doubleSided: Boolean = false,
 ) {
 
-    suspend fun toMaterial(file: GltfFile, location: ResourceLocation): Material = coroutineScope {
+    fun toMaterial(file: GltfFile, location: ResourceLocation): Material {
         val material = Material()
         val colorList = pbrMetallicRoughness.baseColorFactor
         material.color = Color(colorList[0], colorList[1], colorList[2], colorList[3])
 
         val baseColorTextureDeferred = pbrMetallicRoughness.baseColorTexture?.let {
-            async { it.getTexture(file, location) }
+            it.getTexture(file, location)
         }
         val normalTextureDeferred = this@GltfMaterial.normalTexture?.let {
-            async { it.getTexture(file, location) }
+            it.getTexture(file, location)
         }
         val specularTextureDeferred = pbrMetallicRoughness.metallicRoughnessTexture?.let {
-            async { it.getTexture(file, location) }
+            it.getTexture(file, location)
         }
 
         if(baseColorTextureDeferred != null)
-            material.texture = baseColorTextureDeferred.await()
+            material.texture = baseColorTextureDeferred
         if(normalTextureDeferred != null)
-            material.normalTexture = normalTextureDeferred.await()
+            material.normalTexture = normalTextureDeferred
         if(specularTextureDeferred != null)
-            material.specularTexture = specularTextureDeferred.await()
+            material.specularTexture = specularTextureDeferred
 
         material.blend = if(this@GltfMaterial.alphaMode == "OPAQUE") Material.Blend.OPAQUE else Material.Blend.BLEND
         material.doubleSided = this@GltfMaterial.doubleSided
 
-        material
+        return material
     }
 
     @Serializable

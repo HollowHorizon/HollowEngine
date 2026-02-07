@@ -15,7 +15,7 @@ data class Model(
 
     fun initGl() {
         walkNodes().forEach { node ->
-            node.mesh?.primitives?.forEach { it.init() }
+            //node.mesh?.primitives?.forEach { it.init() }
         }
     }
 

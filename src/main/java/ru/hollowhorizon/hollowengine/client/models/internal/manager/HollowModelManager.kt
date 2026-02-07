@@ -33,6 +33,7 @@ object HollowModelManager : ResourceManagerReloadListener {
     lateinit var lightTexture: AbstractTexture
     private val models = ConcurrentHashMap<ResourceLocation, AnimatedModel>()
     var glProgramSkinning = -1
+    var glProgramMorphing = -1
 
     private val loaders = mutableListOf<ModelLoader>().apply {
         RegisterModelLoaderEvent(this).post()
@@ -58,7 +59,7 @@ object HollowModelManager : ResourceManagerReloadListener {
     }
 
     private fun createSkinningProgramGL33() {
-        val glShader = GL20.glCreateShader(GL20.GL_VERTEX_SHADER)
+        var glShader = GL20.glCreateShader(GL20.GL_VERTEX_SHADER)
         GL20.glShaderSource(
             glShader,
             "hollowengine:shaders/core/gltf_skinning.vsh".rl.stream.readBytes().decodeToString()
@@ -72,6 +73,22 @@ object HollowModelManager : ResourceManagerReloadListener {
             glProgramSkinning, arrayOf<CharSequence>("outPosition", "outNormal", "outTangent"), GL30.GL_SEPARATE_ATTRIBS
         )
         GL20.glLinkProgram(glProgramSkinning)
+
+
+        glShader = GL20.glCreateShader(GL20.GL_VERTEX_SHADER)
+        GL20.glShaderSource(
+            glShader,
+            "hollowengine:shaders/core/gltf_morphing.vsh".rl.stream.readBytes().decodeToString()
+        )
+        GL20.glCompileShader(glShader)
+
+        glProgramMorphing = GL20.glCreateProgram()
+        GL20.glAttachShader(glProgramMorphing, glShader)
+        GL20.glDeleteShader(glShader)
+        GL30.glTransformFeedbackVaryings(
+            glProgramMorphing, arrayOf<CharSequence>("outPosition", "outNormal", "outTangent"), GL30.GL_SEPARATE_ATTRIBS
+        )
+        GL20.glLinkProgram(glProgramMorphing)
     }
 
     override fun onResourceManagerReload(manager: ResourceManager) {
