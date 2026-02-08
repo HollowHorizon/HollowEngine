@@ -37,4 +37,12 @@ class VariableMap {
 
     val keys: Set<String>
         get() = variables.keys
+
+    fun toList(): List<Pair<String, Any?>> {
+        return variables.map { (name, container) -> name to container.toString() }
+    }
+
+    fun entries(): Set<Map.Entry<String, VariableContainer<*>>> {
+        return variables.entries
+    }
 }

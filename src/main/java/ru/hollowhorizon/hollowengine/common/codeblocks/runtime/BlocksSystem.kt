@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.createContainer
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
+import ru.hollowhorizon.hollowengine.common.dev.DevLogs
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -77,3 +78,7 @@ class BlocksSystem(val owner: MinecraftServer) {
 }
 
 class BlocksSystemReloadedEvent: Event
+
+fun BlocksSystem.getDevHistory(scriptPath: String) = DevLogs.getHistory(scriptPath)
+fun BlocksSystem.getDevSlow(scriptPath: String) = DevLogs.getSlow(scriptPath)
+fun BlocksSystem.clearDevHistory() = DevLogs.clear()

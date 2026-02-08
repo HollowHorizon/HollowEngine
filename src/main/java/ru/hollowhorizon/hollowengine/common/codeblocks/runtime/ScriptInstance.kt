@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.execution.scoped
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.dispatcher
+import ru.hollowhorizon.hollowengine.common.dev.DevLogs
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -24,6 +25,8 @@ class ScriptInstance(
     private val executors = ConcurrentHashMap<UUID, ExecutionContext>()
 
     fun start() {
+        DevLogs.startTrace(this)
+
         launchBlockChain(rootBlock, stackToRestore = null)
 
         ownerFile.allBlocks.filterIsInstance<StartBlock>()
@@ -92,8 +95,16 @@ class ScriptInstance(
     }
 
     fun stop() {
+        DevLogs.endTrace(this)
         scope.cancel()
         cleanup()
+    }
+
+    /**
+     * Логирует выполнение блока (вызывается из блоков)
+     */
+    fun logBlockExecution(block: ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel, stackDepth: Int) {
+        DevLogs.logBlockExecution(this, block, stackDepth, localVariables)
     }
 
     private fun cleanup() {
