@@ -20,9 +20,28 @@ class GraphNode(
     val heightState = mutableStateOf(75f)
 }
 
+data class ConnectionProperties(
+    val weight: Float = 1.0f,
+    val condition: String = "",
+    val exitTime: Float? = null,
+    val transitionDuration: Float = 0.25f,
+    val mute: Boolean = false,
+    val extras: MutableMap<String, String> = mutableMapOf()
+) {
+    val hasCondition: Boolean get() = condition.isNotBlank()
+
+    val hasExitTime: Boolean get() = exitTime != null
+
+    companion object {
+        val DEFAULT = ConnectionProperties()
+    }
+}
+
 data class GraphConnection(
     val fromNodeId: String,
     val toNodeId: String,
     val label: String = "",
-    val color: Color = ColorTheme.Accents.Main.withAlpha(0.4f)
+    val color: Color = ColorTheme.Accents.Main.withAlpha(0.4f),
+    val id: String = UUID.randomUUID().toString(),
+    val properties: ConnectionProperties = ConnectionProperties.DEFAULT
 )

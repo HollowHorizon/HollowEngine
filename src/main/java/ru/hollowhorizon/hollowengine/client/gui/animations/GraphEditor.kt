@@ -19,6 +19,7 @@ import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.abs
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.max
 import kotlin.math.atan2
 import kotlin.math.min
+import kotlin.math.sqrt
 
 class GraphEditor {
     val scrollState = ScrollState()
@@ -30,6 +31,9 @@ class GraphEditor {
 
     val selectedNode = mutableStateOf<GraphNode?>(null)
 
+    val selectedConnection = mutableStateOf<GraphConnection?>(null)
+    val hoveredConnection = mutableStateOf<GraphConnection?>(null)
+
     // Drag state
     private var dragNode: GraphNode? = null
     private val dragOffset = MutableVec2f()
@@ -38,9 +42,15 @@ class GraphEditor {
     private val viewportWidth = mutableStateOf(0f)
     private val viewportHeight = mutableStateOf(0f)
 
+    private val lastMousePos = MutableVec2f()
+
+    private var scrollPaneNode: ScrollPaneNode? = null
+
     private val connectionFont by lazy {
         MsdfFont(ColorTheme.Fonts.MONOCRAFT, 14f)
     }
+
+    private val connectionHitThreshold = 8f
 
     init {
         nodes.add(GraphNode(title = "Entry", x = 100f, y = 100f, color = Color("6BC872")))
@@ -100,7 +110,15 @@ class GraphEditor {
 
                 modifier.onClick {
                     if (it.pointer.isLeftButtonClicked) {
-                        selectedNode.set(null)
+                        updateMousePos(it.screenPosition)
+                        val clickedConn = findConnectionAtPoint(lastMousePos.x, lastMousePos.y)
+                        if (clickedConn != null) {
+                            selectedConnection.set(clickedConn)
+                            selectedNode.set(null)
+                        } else {
+                            selectedNode.set(null)
+                            selectedConnection.set(null)
+                        }
                     }
                 }
 
@@ -111,9 +129,28 @@ class GraphEditor {
                     }
                 }
 
+                modifier.onPointer {
+                    updateMousePos(it.screenPosition)
+
+                    val hovered = findConnectionAtPoint(lastMousePos.x, lastMousePos.y)
+                    if (hoveredConnection.value != hovered) {
+                        hoveredConnection.set(hovered)
+                    }
+                }
+
                 ScrollPane(scrollState) {
+                    scrollPaneNode = uiNode.findParentOfType<ScrollPaneNode>() ?: (uiNode as? ScrollPaneNode)
+
                     modifier.layout(CellLayout).onClick {
-                        selectedNode.set(null)
+                        updateMousePos(it.screenPosition)
+                        val clickedConn = findConnectionAtPoint(lastMousePos.x, lastMousePos.y)
+                        if (clickedConn != null) {
+                            selectedConnection.set(clickedConn)
+                            selectedNode.set(null)
+                        } else {
+                            selectedNode.set(null)
+                            selectedConnection.set(null)
+                        }
                     }
 
                     renderConnections(connectionFont)
@@ -130,6 +167,93 @@ class GraphEditor {
         }
     }
 
+    private fun updateMousePos(screenPosition: Vec2f) {
+        val spn = scrollPaneNode
+        if (spn != null) {
+            spn.toLocal(screenPosition, tempVec)
+            lastMousePos.set(tempVec.x, tempVec.y)
+        } else {
+            lastMousePos.set(screenPosition.x, screenPosition.y)
+        }
+    }
+
+    private fun findConnectionAtPoint(px: Float, py: Float): GraphConnection? {
+        val connList = connections
+        var bestConn: GraphConnection? = null
+        var bestDist = Float.MAX_VALUE
+
+        for (conn in connList) {
+            val from = nodes.find { it.id == conn.fromNodeId } ?: continue
+            val to = nodes.find { it.id == conn.toNodeId } ?: continue
+
+            val fromX = from.xState.value
+            val fromY = from.yState.value
+            val fromW = from.widthState.value
+            val fromH = from.heightState.value
+
+            val toX = to.xState.value
+            val toY = to.yState.value
+            val toW = to.widthState.value
+            val toH = to.heightState.value
+
+            val centerA = Vec2f((fromX + fromW / 2) * scale, (fromY + fromH / 2) * scale)
+            val centerB = Vec2f((toX + toW / 2) * scale, (toY + toH / 2) * scale)
+
+            val isBiDirectional = connList.any {
+                it.fromNodeId == conn.toNodeId && it.toNodeId == conn.fromNodeId
+            }
+
+            var targetCenterA = centerA
+            var targetCenterB = centerB
+
+            if (isBiDirectional) {
+                val dir = Vec2f(centerB.x - centerA.x, centerB.y - centerA.y)
+                val len = dir.length()
+                if (len > 0.001f) {
+                    val perp = Vec2f(-dir.y / len, dir.x / len)
+                    val offsetAmount = 15f * scale
+                    val offset = Vec2f(perp.x * offsetAmount, perp.y * offsetAmount)
+
+                    targetCenterA = Vec2f(centerA.x + offset.x, centerA.y + offset.y)
+                    targetCenterB = Vec2f(centerB.x + offset.x, centerB.y + offset.y)
+                }
+            }
+
+            val startPos = getEdgePoint(targetCenterA, fromW * scale, fromH * scale, targetCenterB)
+            val endPos = getEdgePoint(targetCenterB, toW * scale, toH * scale, targetCenterA)
+
+            val dist = pointToSegmentDistance(px, py, startPos.x, startPos.y, endPos.x, endPos.y)
+            if (dist < connectionHitThreshold * scale && dist < bestDist) {
+                bestDist = dist
+                bestConn = conn
+            }
+        }
+
+        return bestConn
+    }
+
+    private fun pointToSegmentDistance(px: Float, py: Float, ax: Float, ay: Float, bx: Float, by: Float): Float {
+        val dx = bx - ax
+        val dy = by - ay
+        val lenSq = dx * dx + dy * dy
+
+        if (lenSq < 0.0001f) {
+            val ex = px - ax
+            val ey = py - ay
+            return sqrt(ex * ex + ey * ey)
+        }
+
+        val t = ((px - ax) * dx + (py - ay) * dy) / lenSq
+        val clampedT = t.coerceIn(0f, 1f)
+
+        val projX = ax + clampedT * dx
+        val projY = ay + clampedT * dy
+
+        val ex = px - projX
+        val ey = py - projY
+        return sqrt(ex * ex + ey * ey)
+    }
+
     private fun UiScope.renderConnections(font: MsdfFont) {
         Box(Grow.Std, Grow.Std) {
             modifier.layout(CellLayout).zLayer(-10)
@@ -141,6 +265,9 @@ class GraphEditor {
                 }
 
                 val connList = connections.use()
+                val currentSelectedConn = selectedConnection.use()
+                val currentHoveredConn = hoveredConnection.use()
+                val currentSelectedNode = selectedNode.use()
 
                 connList.forEach { conn ->
                     val from = nodes.find { it.id == conn.fromNodeId }
@@ -183,10 +310,29 @@ class GraphEditor {
                         val startPos = getEdgePoint(targetCenterA, fromW * scale, fromH * scale, targetCenterB)
                         val endPos = getEdgePoint(targetCenterB, toW * scale, toH * scale, targetCenterA)
 
-                        val color by animateColorAsState(if (selectedNode.value == from) Color.WHITE else conn.color)
+                        // Determine connection color based on selection/hover state
+                        val isSelected = currentSelectedConn?.id == conn.id
+                        val isHovered = currentHoveredConn?.id == conn.id && !isSelected
+                        val isFromNodeSelected = currentSelectedNode == from
+
+                        val baseColor = when {
+                            conn.properties.mute -> ColorTheme.GraphColors.ConnectionMuted
+                            isSelected -> ColorTheme.GraphColors.ConnectionSelected
+                            isHovered -> ColorTheme.GraphColors.ConnectionHovered
+                            isFromNodeSelected -> Color.WHITE
+                            else -> conn.color
+                        }
+
+                        val lineWidth = when {
+                            isSelected -> 3f
+                            isHovered -> 2.5f
+                            else -> 2f
+                        }
+
+                        val color by animateColorAsState(baseColor)
 
                         with(uiNode) {
-                            drawDashedArrow(startPos, endPos, color, scale, conn.label, textProps)
+                            drawDashedArrow(startPos, endPos, color, scale, conn.label, textProps, lineWidth)
                         }
                     }
                 }
@@ -194,10 +340,6 @@ class GraphEditor {
         }
     }
 
-    /**
-     * Вычисляет точку пересечения луча от center к target с границами прямоугольника (шириной w, высотой h),
-     * расположенного в center.
-     */
     private fun getEdgePoint(center: Vec2f, w: Float, h: Float, target: Vec2f): Vec2f {
         val dirX = target.x - center.x
         val dirY = target.y - center.y
@@ -245,6 +387,7 @@ class GraphEditor {
                 if (it.pointer.isLeftButtonDown) {
                     dragNode = node
                     selectedNode.set(node)
+                    selectedConnection.set(null)
                     val parent = uiNode.findParentOfType<ScrollPaneNode>()!!
                     parent.toLocal(it.screenPosition, tempVec)
                     val mouseLogicX = tempVec.x / scale
@@ -266,6 +409,7 @@ class GraphEditor {
                 dragNode = null
             }.onClick {
                 selectedNode.set(node)
+                selectedConnection.set(null)
             }
 
             val nodeColor by animateColorAsState(
@@ -337,14 +481,99 @@ class GraphEditor {
             }
 
             val node = selectedNode.use()
-            if (node != null) {
-                Text(node.title) { modifier.textColor(Color.WHITE) }
-                Text("Pos: ${node.xState.use().toInt()}, ${node.yState.use().toInt()}") {
-                    modifier.textColor(Color.GRAY).margin(top = Dimensions.PaddingSmall)
+            val conn = selectedConnection.use()
+
+            when {
+                node != null -> {
+                    // Node properties
+                    Text(node.title) { modifier.textColor(Color.WHITE) }
+                    Text("Pos: ${node.xState.use().toInt()}, ${node.yState.use().toInt()}") {
+                        modifier.textColor(Color.GRAY).margin(top = Dimensions.PaddingSmall)
+                    }
                 }
-            } else {
-                Text("No selection") { modifier.textColor(Color.GRAY) }
+                conn != null -> {
+                    val fromNode = nodes.find { it.id == conn.fromNodeId }
+                    val toNode = nodes.find { it.id == conn.toNodeId }
+                    val fromName = fromNode?.title ?: "?"
+                    val toName = toNode?.title ?: "?"
+
+                    Text("Connection") {
+                        modifier.textColor(Color.WHITE).font(FontProps(isBold = true))
+                    }
+                    Text("$fromName → $toName") {
+                        modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                            .margin(top = Dimensions.PaddingSmall)
+                    }
+
+                    if (conn.label.isNotEmpty()) {
+                        PropertyRow("Label", conn.label)
+                    }
+
+                    Divider()
+
+                    Text("TRANSITION") {
+                        modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                            .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
+                            .font(FontProps(size = 11f))
+                    }
+
+                    PropertyRow("Weight", "%.2f".format(conn.properties.weight))
+                    PropertyRow("Duration", "%.2fs".format(conn.properties.transitionDuration))
+                    PropertyRow("Muted", if (conn.properties.mute) "Yes" else "No")
+
+                    if (conn.properties.hasExitTime) {
+                        PropertyRow("Exit Time", "%.2f".format(conn.properties.exitTime))
+                    }
+
+                    if (conn.properties.hasCondition) {
+                        Divider()
+                        Text("CONDITION") {
+                            modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                                .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
+                                .font(FontProps(size = 11f))
+                        }
+                        Text(conn.properties.condition) {
+                            modifier.textColor(ColorTheme.Accents.Main)
+                                .margin(top = Dimensions.PaddingSmall)
+                        }
+                    }
+
+                    if (conn.properties.extras.isNotEmpty()) {
+                        Divider()
+                        Text("EXTRAS") {
+                            modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                                .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
+                                .font(FontProps(size = 11f))
+                        }
+                        conn.properties.extras.forEach { (key, value) ->
+                            PropertyRow(key, value)
+                        }
+                    }
+                }
+                else -> {
+                    Text("No selection") { modifier.textColor(Color.GRAY) }
+                }
             }
+        }
+    }
+
+    private fun UiScope.PropertyRow(label: String, value: String) {
+        Row {
+            modifier.margin(top = Dimensions.PaddingSmall).width(Grow.Std)
+            Text("$label:") {
+                modifier.textColor(Color.GRAY).width(Dp(100f)).font(FontProps(size = 12f))
+            }
+            Text(value) {
+                modifier.textColor(Color.WHITE).font(FontProps(size = 12f))
+            }
+        }
+    }
+
+    private fun UiScope.Divider() {
+        Box {
+            modifier.width(Grow.Std).height(Dp(1f))
+                .margin(vertical = Dimensions.PaddingMedium)
+                .background(RectBackground(ColorTheme.UI.BackgroundAccent))
         }
     }
 
@@ -450,6 +679,49 @@ class GraphEditor {
         }
     }
 
+    fun selectConnection(connectionId: String): Boolean {
+        val conn = connections.find { it.id == connectionId }
+        if (conn != null) {
+            selectedConnection.set(conn)
+            selectedNode.set(null)
+            return true
+        }
+        return false
+    }
+
+    fun clearConnectionSelection() {
+        selectedConnection.set(null)
+    }
+
+    fun updateConnectionProperties(connectionId: String, newProperties: ConnectionProperties): GraphConnection? {
+        val index = connections.indexOfFirst { it.id == connectionId }
+        if (index == -1) return null
+
+        val old = connections[index]
+        val updated = old.copy(properties = newProperties)
+        connections[index] = updated
+
+        // Update selection reference if this was the selected connection
+        if (selectedConnection.value?.id == connectionId) {
+            selectedConnection.set(updated)
+        }
+
+        return updated
+    }
+
+    fun getOutgoingConnections(nodeId: String): List<GraphConnection> {
+        return connections.filter { it.fromNodeId == nodeId }
+    }
+
+    fun getIncomingConnections(nodeId: String): List<GraphConnection> {
+        return connections.filter { it.toNodeId == nodeId }
+    }
+
+    fun toggleConnectionMute(connectionId: String): GraphConnection? {
+        val conn = connections.find { it.id == connectionId } ?: return null
+        return updateConnectionProperties(connectionId, conn.properties.copy(mute = !conn.properties.mute))
+    }
+
     private fun Dp.scaled() = Dp(this.value * scale)
 
     private fun FontProps(size: Float = 14f, isBold: Boolean = false) = MsdfFont(
@@ -464,6 +736,7 @@ context(node: UiNode) fun drawDashedArrow(
     scale: Float,
     label: String,
     textProps: TextProps,
+    lineWidth: Float = 2f,
 ) {
     val dir = Vec2f(to.x - from.x, to.y - from.y)
     val length = dir.length()
@@ -487,7 +760,7 @@ context(node: UiNode) fun drawDashedArrow(
         val p2 = Vec2f(from.x + normDir.x * endSegment, from.y + normDir.y * endSegment)
 
         draw.configure(color) {
-            line(p1.x, p1.y, p2.x, p2.y, 2f * scale)
+            line(p1.x, p1.y, p2.x, p2.y, lineWidth * scale)
         }
         currentPos += dashLen + gapLen
     }

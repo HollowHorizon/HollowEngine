@@ -37,6 +37,11 @@ object ColorTheme {
         val StateNormal = Color("606060")    // Серый (Обычные стейты)
 
         val LinkColor = Color("A07040")      // Цвет стрелок (оранжево-коричневый)
+
+        // Connection selection states
+        val ConnectionSelected = Color("FFB74D")  // Яркий оранжевый для выделенной связи
+        val ConnectionHovered = Color("90CAF9")   // Голубой для наведения на связь
+        val ConnectionMuted = Color("616161")     // Серый для отключённых связей
     }
 
     object Accents {
