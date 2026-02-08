@@ -25,8 +25,6 @@ import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.client.utils.mc
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystem
-import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
@@ -51,7 +49,6 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
             registerParticleCommands()
             registerModelCommands()
             registerUtilityCommands()
-            registerGlobalsCommands()
         }
     }
 }
@@ -145,53 +142,6 @@ private fun CommandExtension.registerUtilityCommands() {
         executes {
             copyTargetPositionToClipboard(source.playerOrException)
             SUCCESS
-        }
-    }
-}
-
-private fun CommandExtension.registerGlobalsCommands() {
-    "globals" {
-        "list" {
-            executes {
-                val variables =
-                    (source.server as ComponentDispatcher).container.get<BlocksSystem>("hollowengine:blocks_system".rl)?.globals
-                        ?: return@executes FAILURE
-                sendSuccess { "Global variables: ${variables.keys.joinToString("\n") { "- '$it'" }}".literal }
-            }
-        }
-
-        "get"(arg("name", StringArgumentType.string()) {
-            (currentServer as ComponentDispatcher).container.get<BlocksSystem>("hollowengine:blocks_system".rl)
-                ?.globals?.keys?.map { "\"$it\"" } ?: emptyList()
-        }) {
-            executes {
-                val variable = StringArgumentType.getString(this, "name")
-                val variables =
-                    (source.server as ComponentDispatcher).container.get<BlocksSystem>("hollowengine:blocks_system".rl)?.globals
-                        ?: return@executes FAILURE
-
-                if (variables.keys.isEmpty()) {
-                    sendSuccess { "There are no variables here yet".literal }
-                } else {
-                    sendSuccess { "'$variable': ${variables[variable].toString()}".literal }
-                }
-            }
-        }
-
-        "remove"(arg("name", StringArgumentType.string()) {
-            (currentServer as ComponentDispatcher).container.get<BlocksSystem>("hollowengine:blocks_system".rl)
-                ?.globals?.keys?.map { "\"$it\"" } ?: emptyList()
-        }) {
-            executes {
-                val variable = StringArgumentType.getString(this, "name")
-                val variables =
-                    (source.server as ComponentDispatcher).container.get<BlocksSystem>("hollowengine:blocks_system".rl)?.globals
-                        ?: return@executes FAILURE
-
-                variables.remove(variable)
-
-                sendSuccess { "Variable '$variable' removed!".literal }
-            }
         }
     }
 }

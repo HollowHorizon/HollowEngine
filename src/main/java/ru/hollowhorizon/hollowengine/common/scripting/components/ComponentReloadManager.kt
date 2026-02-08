@@ -3,9 +3,6 @@ package ru.hollowhorizon.hollowengine.common.scripting.components
 import net.minecraft.server.packs.resources.ResourceManager
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.components.Component
-import ru.hollowhorizon.hollowengine.common.components.registry.ComponentEntry
-import ru.hollowhorizon.hollowengine.common.components.registry.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.post
@@ -14,7 +11,6 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
-import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.lang.reflect.ParameterizedType
 import kotlin.reflect.KClass
 
@@ -38,23 +34,6 @@ object ComponentReloadManager : ResourceManagerReloadListener {
             }
             .map { (path, it) -> path to it.getOrThrow().base }
 
-        ComponentRegistry.apply {
-            try {
-                unfreeze()
-                unbake()
-
-                components.forEach { (path, script) ->
-                    unregister("hollowengine:$path".rl)
-
-                    register("hollowengine:$path".rl) {
-                        ComponentEntry(getComponentType(script)) { script.execute<Component<Any>>(it).getOrThrow() }
-                    }
-                }
-            } finally {
-                bake()
-                freeze()
-            }
-        }
 
         ScriptComponentsReloadedEvent().post()
     }

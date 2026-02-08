@@ -8,7 +8,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.RelativeMovement;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -17,8 +16,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
-import ru.hollowhorizon.hollowengine.common.components.ComponentContainer;
-import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityEvent;
 import ru.hollowhorizon.hollowengine.common.geary.api.EntityProvider;
@@ -28,9 +25,7 @@ import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.GearyEntity
 import java.util.Set;
 
 @Mixin(Entity.class)
-public abstract class EntityMixin implements ComponentDispatcher, EntityProvider {
-    @Unique
-    private ComponentContainer hollowengine$container = new ComponentContainer(this);
+public abstract class EntityMixin implements EntityProvider {
     @Unique
     private long hollowengine$entity;
     @Shadow
@@ -43,22 +38,18 @@ public abstract class EntityMixin implements ComponentDispatcher, EntityProvider
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void onInit(EntityType<?> entityType, Level level, CallbackInfo ci) {
-        hollowengine$container = new ComponentContainer(this);
         hollowengine$entity = GearyHelper.create(level(), (Entity) (Object) this);
     }
 
     @Inject(method = "saveWithoutId", at = @At("TAIL"))
     private void serializeExtra(CompoundTag tag, CallbackInfoReturnable<CompoundTag> cir) {
-        tag.put(ComponentContainer.COMPONENT_TAG, hollowengine$container.save());
         var geary = new CompoundTag();
         GearyEntityExtensionsKt.encodeComponentsTo(GearyHelper.getGeary(level()), hollowengine$entity, geary);
         tag.put("geary", geary);
-
     }
 
     @Inject(method = "load", at = @At("TAIL"))
     private void deserializeExtra(CompoundTag tag, CallbackInfo ci) {
-        hollowengine$container.load(tag.getCompound(ComponentContainer.COMPONENT_TAG));
         GearyEntityExtensionsKt.loadComponentsFrom(hollowengine$entity, (Entity) (Object) this, tag.getCompound("geary"));
     }
 
@@ -71,7 +62,7 @@ public abstract class EntityMixin implements ComponentDispatcher, EntityProvider
 
     @Inject(method = "tick", at = @At("TAIL"))
     public void onTick(CallbackInfo ci) {
-        hollowengine$container.update();
+        // Geary components are updated by Geary system automatically
     }
 
     @Inject(method = "changeDimension", at = @At("RETURN"))
@@ -98,7 +89,6 @@ public abstract class EntityMixin implements ComponentDispatcher, EntityProvider
     @Inject(method = "setRemoved", at = @At("HEAD"))
     private void onRemove(Entity.RemovalReason removalReason, CallbackInfo ci) {
         if (!(((Object) this) instanceof Player)) {
-            hollowengine$container.detach();
             GearyHelper.removeEntity(level(), id);
         }
     }
@@ -106,12 +96,6 @@ public abstract class EntityMixin implements ComponentDispatcher, EntityProvider
     @Inject(method = "setId", at = @At("HEAD"))
     private void onSetId(int id, CallbackInfo ci) {
         GearyHelper.changeId(level, this.id, id);
-    }
-
-
-    @Override
-    public @NotNull ComponentContainer getContainer() {
-        return hollowengine$container;
     }
 
     @Override

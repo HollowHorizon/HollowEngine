@@ -13,8 +13,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher;
-import ru.hollowhorizon.hollowengine.common.components.registry.ModComponents;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderPlayerEvent;
 
@@ -33,8 +31,6 @@ public abstract class PlayerRendererMixin extends LivingEntityRenderer<AbstractC
 
     @Inject(method = "getRenderOffset(Lnet/minecraft/client/player/AbstractClientPlayer;F)Lnet/minecraft/world/phys/Vec3;", at = @At("HEAD"), cancellable = true)
     private void onRenderOffset(AbstractClientPlayer entity, float partialTicks, CallbackInfoReturnable<Vec3> cir) {
-        if (((ComponentDispatcher) entity).getContainer().get(ModComponents.INSTANCE.getMODEL_COMPONENT()) != null) {
-            cir.setReturnValue(super.getRenderOffset(entity, partialTicks));
-        }
+        // Old component system check removed - Geary equivalent should be implemented if needed
     }
 }

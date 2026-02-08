@@ -7,7 +7,6 @@ import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.MOVEMENT_FACTOR
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.calculateSpeedViaDeltaMovement
-import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.abs
 
 interface Query {
@@ -42,12 +41,6 @@ interface Query {
                 get() = GLFW.glfwGetTime().toFloat()
         }
     }
-}
-
-fun ComponentDispatcher.createQuery() = when (this) {
-    is LivingEntity -> LivingEntityQuery(this)
-    is BlockEntity -> BlockEntityQuery(this)
-    else -> error("Dispatcher $this not supported yet!")
 }
 
 class BlockEntityQuery(val blockEntity: BlockEntity) : Query {

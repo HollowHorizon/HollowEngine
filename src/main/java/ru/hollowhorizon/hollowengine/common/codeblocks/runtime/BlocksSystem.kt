@@ -9,17 +9,12 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.createContainer
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
-import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.events.Event
-import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.post
-import ru.hollowhorizon.hollowengine.common.events.server.ServerEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
-import ru.hollowhorizon.hollowengine.common.scripting.types.ServerComponent
-import ru.hollowhorizon.hollowengine.common.utils.rl
 
-class BlocksSystem(server: MinecraftServer) : ServerComponent(server) {
+class BlocksSystem(val owner: MinecraftServer) {
     val scripts = mutableMapOf<String, ScriptFile>()
     val globals = VariableMap()
 
@@ -31,7 +26,7 @@ class BlocksSystem(server: MinecraftServer) : ServerComponent(server) {
         include(WorldModule)
     })
 
-    override fun serialize(tag: CompoundTag) {
+    fun serialize(tag: CompoundTag) {
         val scriptsTag = CompoundTag()
         scripts.forEach { (path, script) ->
             scriptsTag.put(path, CompoundTag().apply(script::serialize))
@@ -40,7 +35,7 @@ class BlocksSystem(server: MinecraftServer) : ServerComponent(server) {
         tag.put("globals", CompoundTag().apply(globals::serialize))
     }
 
-    override fun deserialize(tag: CompoundTag) {
+    fun deserialize(tag: CompoundTag) {
         reloadScripts()
         globals.deserialize(tag.getCompound("globals"))
 
@@ -50,7 +45,7 @@ class BlocksSystem(server: MinecraftServer) : ServerComponent(server) {
         }
     }
 
-    override fun onAttach() {
+    fun onAttach() {
         BlocksSystemReloadedEvent().post()
 
     }
@@ -82,8 +77,3 @@ class BlocksSystem(server: MinecraftServer) : ServerComponent(server) {
 }
 
 class BlocksSystemReloadedEvent: Event
-
-@SubscribeEvent
-fun onServerStart(event: ServerEvent.Starting) {
-    (event.server as ComponentDispatcher).container.attach("hollowengine:blocks_system".rl)
-}

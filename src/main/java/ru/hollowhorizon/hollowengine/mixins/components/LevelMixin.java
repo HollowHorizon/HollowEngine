@@ -18,8 +18,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import ru.hollowhorizon.hollowengine.common.components.ComponentContainer;
-import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.blocks.BlockEvent;
 import ru.hollowhorizon.hollowengine.common.geary.GearyPlatform;
@@ -29,15 +27,12 @@ import java.util.EnumSet;
 import java.util.function.Supplier;
 
 @Mixin(Level.class)
-public abstract class LevelMixin implements ComponentDispatcher, GearyProvider {
-    @Unique
-    private ComponentContainer hollowengine$container;
+public abstract class LevelMixin implements GearyProvider {
     @Unique
     private Geary hollowengine$geary;
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void onInit(WritableLevelData levelData, ResourceKey<?> dimension, RegistryAccess registryAccess, Holder<?> dimensionTypeRegistration, Supplier<?> profiler, boolean isClientSide, boolean isDebug, long biomeZoomSeed, int maxChainedNeighborUpdates, CallbackInfo ci) {
-        hollowengine$container = new ComponentContainer(this);
         hollowengine$geary = GearyPlatform.create((Level) (Object) this);
     }
 
@@ -62,11 +57,6 @@ public abstract class LevelMixin implements ComponentDispatcher, GearyProvider {
     @Inject(method = "close", at = @At("TAIL"), remap = false)
     private void onClose(CallbackInfo ci) {
         hollowengine$geary.getApplication().close();
-    }
-
-    @Override
-    public @NotNull ComponentContainer getContainer() {
-        return hollowengine$container;
     }
 
     @Override

@@ -18,8 +18,6 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.GameType
 import net.minecraft.world.level.Level
-import ru.hollowhorizon.hollowengine.common.components.Component
-import ru.hollowhorizon.hollowengine.common.components.ComponentDispatcher
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcMoveControl
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcPathNavigation
@@ -28,21 +26,12 @@ import ru.hollowhorizon.hollowengine.common.registry.ModItems
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
-class NpcComponent(owner: NpcEntity): Component<NpcEntity>(owner) {
-    var hitboxMode by property { HitboxMode.PULLING }
-}
-
 class NpcEntity : PathfinderMob {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY, level)
     constructor(type: EntityType<NpcEntity>, world: Level) : super(type, world)
 
     init {
         moveControl = NpcMoveControl(this)
-        (this as ComponentDispatcher).apply {
-            //container.attach("hollowengine:npcs/main".rl)
-            container.attach("hollowengine:model_component".rl)
-            //attach("hollowengine:animator".rl)
-        }
     }
 
     val goals get() = goalSelector
