@@ -1,9 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.models.internal
 
 //? if >= 1.21 {
-
-/*import com.mojang.blaze3d.vertex.VertexFormat
-import net.minecraft.client.Minecraft
+/*import net.minecraft.client.Minecraft
 *///?} else {
 //?}
 

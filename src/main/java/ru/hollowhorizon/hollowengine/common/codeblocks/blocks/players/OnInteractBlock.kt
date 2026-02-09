@@ -108,9 +108,15 @@ class PlayerInteractWithItem : StartBlock() {
         while (true) {
             val event = await<PlayerInteractEvent.ItemInteract>()
             if (event.player != player()) continue
+            //? if > 1.20.1 {
+            /*if (ItemStack.isSameItemSameComponents(event.itemStack, item)) {
+                return
+            }
+            *///?} else {
             if (ItemStack.isSameItemSameTags(event.itemStack, item)) {
                 return
             }
+            //?}
         }
     }
 

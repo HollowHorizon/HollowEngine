@@ -1,10 +1,15 @@
 //? if fabric {
 package ru.hollowhorizon.hollowengine.fabric.internal
 
-//? if < 1.21
-//? if >= 1.21
-// import net.minecraft.core.component.DataComponentType
+//? if < 1.21 {
+import net.minecraft.world.item.enchantment.Enchantment
+import net.minecraft.world.level.chunk.ChunkStatus
+import net.minecraft.world.entity.decoration.PaintingVariant
+import net.minecraft.world.level.block.entity.BannerPattern
+//?}
 
+//? if >= 1.21
+/*import net.minecraft.core.component.DataComponentType*/
 import net.minecraft.commands.synchronization.ArgumentTypeInfo
 import net.minecraft.core.Registry
 import net.minecraft.core.particles.ParticleType
@@ -23,7 +28,6 @@ import net.minecraft.world.entity.ai.sensing.SensorType
 import net.minecraft.world.entity.ai.village.poi.PoiType
 import net.minecraft.world.entity.animal.CatVariant
 import net.minecraft.world.entity.animal.FrogVariant
-import net.minecraft.world.entity.decoration.PaintingVariant
 import net.minecraft.world.entity.npc.VillagerProfession
 import net.minecraft.world.entity.npc.VillagerType
 import net.minecraft.world.entity.schedule.Activity
@@ -36,11 +40,8 @@ import net.minecraft.world.item.Item
 import net.minecraft.world.item.alchemy.Potion
 import net.minecraft.world.item.crafting.RecipeSerializer
 import net.minecraft.world.item.crafting.RecipeType
-import net.minecraft.world.item.enchantment.Enchantment
 import net.minecraft.world.level.block.Block
-import net.minecraft.world.level.block.entity.BannerPattern
 import net.minecraft.world.level.block.entity.BlockEntityType
-import net.minecraft.world.level.chunk.ChunkStatus
 import net.minecraft.world.level.gameevent.GameEvent
 import net.minecraft.world.level.gameevent.PositionSourceType
 import net.minecraft.world.level.levelgen.blockpredicates.BlockPredicateType

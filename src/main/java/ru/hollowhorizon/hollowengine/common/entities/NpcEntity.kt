@@ -5,7 +5,6 @@ import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
-import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.LivingEntity
@@ -39,7 +38,7 @@ class NpcEntity : PathfinderMob {
     val fakePlayer: ServerPlayer by lazy {
         //? if fabric {
         val player = net.fabricmc.fabric.api.entity.FakePlayer.get(level() as ServerLevel)
-        //?} elif forge {
+        //?} elif forge || neoforge {
         /*val player = net.minecraftforge.common.util.FakePlayerFactory.getMinecraft(level() as ServerLevel)
         *///?}
         player.setGameMode(GameType.CREATIVE)
@@ -72,9 +71,6 @@ class NpcEntity : PathfinderMob {
     override fun canPickUpLoot() = true
     override fun wantsToPickUp(pStack: ItemStack) = false
 
-    override fun dropAllDeathLoot(damageSource: DamageSource) {
-        super.dropAllDeathLoot(damageSource)
-    }
 
     override fun doPush(pEntity: Entity) {
         super.doPush(pEntity)
@@ -108,7 +104,7 @@ class NpcEntity : PathfinderMob {
         }
 
     var name: String
-        get() = displayName.string
+        get() = displayName?.string ?: ""
         set(value) {
             customName = value.literal
             isCustomNameVisible = value.isNotEmpty()
@@ -128,7 +124,12 @@ class NpcEntity : PathfinderMob {
 
     fun setAttributes(attributes: Map<String, Float>) {
         attributes.forEach { (attributeName, value) ->
-            BuiltInRegistries.ATTRIBUTE[attributeName.rl]?.let { attribute ->
+            //? if > 1.20.1 {
+            /*BuiltInRegistries.ATTRIBUTE.getHolder(attributeName.rl).orElseThrow()
+            *///?} else {
+            BuiltInRegistries.ATTRIBUTE[attributeName.rl]
+            //?}
+                ?.let { attribute ->
                 this.attributes.getInstance(attribute)?.let { instance ->
                     instance.baseValue = value.toDouble()
                 }

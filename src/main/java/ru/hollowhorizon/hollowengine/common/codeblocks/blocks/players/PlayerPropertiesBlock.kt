@@ -264,7 +264,11 @@ class PlayerHasItemBlock() : ExpressionBlock() {
 
     override suspend fun execute(): Any? {
         val p = player()
+        //? if > 1.20.1 {
+        /*return p.inventory.items.any { ItemStack.isSameItemSameComponents(it, item) && it.count >= item.count }
+        *///?} else {
         return p.inventory.items.any { ItemStack.isSameItemSameTags(it, item) && it.count >= item.count }
+        //?}
     }
 
     override fun InputSlotScope.composeContent() {
@@ -313,7 +317,12 @@ class PlayerRemoveItemBlock : StatementBlock() {
         val inventory = p.inventory
         for (i in 0 until inventory.containerSize) {
             val stackInSlot = inventory.getItem(i)
+
+            //? if > 1.20.1 {
+            /*if (ItemStack.isSameItemSameComponents(stackInSlot, item)) {
+            *///?} else {
             if (ItemStack.isSameItemSameTags(stackInSlot, item)) {
+            //?}
                 if (stackInSlot.count > item.count) {
                     stackInSlot.shrink(item.count)
                     inventory.setItem(i, stackInSlot)

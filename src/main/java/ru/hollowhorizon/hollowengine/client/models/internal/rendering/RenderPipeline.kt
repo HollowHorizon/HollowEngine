@@ -101,8 +101,14 @@ class ListRenderPipeline : RenderPipeline {
 
         RenderSystem.activeTexture(activeTexture)
 
+        //? if > 1.20.1 {
+        /*RenderSystem.glBindVertexArray(currentVAO)
+        RenderSystem.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER, currentElementArrayBuffer)
+        *///?} else {
+        
         RenderSystem.glBindVertexArray { currentVAO }
         RenderSystem.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER) { currentElementArrayBuffer }
+        //?}
         GlStateManager._glUseProgram(0)
     }
 

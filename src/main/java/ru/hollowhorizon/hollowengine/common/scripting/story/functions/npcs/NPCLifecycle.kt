@@ -1,12 +1,12 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
-import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.models.internal.Transform
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
+import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import kotlin.contracts.ExperimentalContracts
 
@@ -53,7 +53,7 @@ fun npc(
     showName: Boolean = true,
     inverseHeadRotation: Boolean = false,
 ): NpcEntity {
-    assert(ResourceLocation.isValidResourceLocation(model)) {
+    assert(model.isValidRL()) {
         "Non [a-z0-9/._-] character in path of location: $model"
     }
 

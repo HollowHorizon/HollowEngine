@@ -26,7 +26,11 @@ class EntityAddEffectBlock : StatementBlock() {
     var position = Vec2f.ZERO
 
     override suspend fun execute() {
+        //? if > 1.20.1 {
+        /*val effect = BuiltInRegistries.MOB_EFFECT.getHolder(effectRl.rl).orElseThrow()
+        *///?} else {
         val effect = BuiltInRegistries.MOB_EFFECT.get(effectRl.rl) ?: return
+        //?}
         entity().addEffect(MobEffectInstance(effect, duration().toInt(), amplifier().toInt()))
     }
 
@@ -86,7 +90,11 @@ class EntityRemoveEffectBlock : StatementBlock() {
     var position = Vec2f.ZERO
 
     override suspend fun execute() {
+        //? if > 1.20.1 {
+        /*val effect = BuiltInRegistries.MOB_EFFECT.getHolder(effectRl.rl).orElseThrow()
+        *///?} else {
         val effect = BuiltInRegistries.MOB_EFFECT.get(effectRl.rl) ?: return
+        //?}
         entity().removeEffect(effect)
     }
 

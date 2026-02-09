@@ -10,6 +10,7 @@ import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix3f
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix4f
+import ru.hollowhorizon.hollowengine.client.utils.*
 
 class ItemNode(val entity: LivingEntity, val slot: EquipmentSlot, parent: Attachment?): Attachment(parent) {
     override fun collectCommands(pipeline: RenderPipeline) {

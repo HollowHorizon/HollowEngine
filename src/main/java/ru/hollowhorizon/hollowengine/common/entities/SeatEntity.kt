@@ -2,13 +2,13 @@ package ru.hollowhorizon.hollowengine.common.entities
 
 import net.minecraft.core.Direction
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.network.protocol.Packet
+import net.minecraft.network.protocol.game.ClientGamePacketListener
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket
+import net.minecraft.network.syncher.SynchedEntityData
+import net.minecraft.server.level.ServerEntity
 import net.minecraft.util.Mth
-import net.minecraft.world.entity.Entity
-import net.minecraft.world.entity.EntityType
-import net.minecraft.world.entity.EquipmentSlot
-import net.minecraft.world.entity.HumanoidArm
-import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.*
 import net.minecraft.world.entity.vehicle.DismountHelper
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
@@ -44,7 +44,16 @@ class SeatEntity(entityType: EntityType<SeatEntity>, pLevel: Level) : LivingEnti
 
     override fun getMainArm(): HumanoidArm = HumanoidArm.RIGHT
 
+    //? if > 1.20.1 {
+    /*override fun defineSynchedData(builder: SynchedEntityData.Builder) {}
+    override fun getAddEntityPacket(entity: ServerEntity): Packet<ClientGamePacketListener?>? {
+        return ClientboundAddEntityPacket(this, entity)
+    }
+    *///?} else {
     override fun defineSynchedData() {}
+    override fun getPassengersRidingOffset(): Double = 0.0
+    override fun getAddEntityPacket() = ClientboundAddEntityPacket(this)
+    //?}
 
     override fun readAdditionalSaveData(p0: CompoundTag) {}
     override fun getArmorSlots(): Iterable<ItemStack> = emptySet()
@@ -59,11 +68,8 @@ class SeatEntity(entityType: EntityType<SeatEntity>, pLevel: Level) : LivingEnti
 
     override fun addAdditionalSaveData(p0: CompoundTag) {}
 
-    override fun getPassengersRidingOffset(): Double = 0.0
 
     override fun canRide(pVehicle: Entity): Boolean = true
-
-    override fun getAddEntityPacket() = ClientboundAddEntityPacket(this)
 
     override fun getDismountLocationForPassenger(entity: LivingEntity): Vec3 {
         val original = this.direction

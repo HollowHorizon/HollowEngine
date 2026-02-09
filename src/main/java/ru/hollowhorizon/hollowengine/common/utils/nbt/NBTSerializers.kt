@@ -313,7 +313,11 @@ object ForItemStackJson : KSerializer<ItemStack> {
         val ops = RegistryOps.create(JsonOps.INSTANCE, registryAccess)
 
         val gsonElement = ItemStack.CODEC.encodeStart(ops, value)
+            //? if > 1.20.1 {
+            /*.getOrThrow { id -> SerializationException("Failed to serialize ItemStack: $id") }
+            *///?} else {
             .getOrThrow(true) { id -> SerializationException("Failed to serialize ItemStack: $id") }
+            //?}
 
         val jsonPrimitive: JsonElement = JsonFormat.decodeFromString(gsonElement.toString())
 
@@ -329,7 +333,11 @@ object ForItemStackJson : KSerializer<ItemStack> {
         val gsonElement = JsonFormat.encodeToString(jsonElement)
 
         return ItemStack.CODEC.parse(ops, JsonParser.parseString(gsonElement))
+            //? if > 1.20.1 {
+            /*.getOrThrow { id -> SerializationException("Failed to deserialize ItemStack: $id") }
+            *///?} else {
             .getOrThrow(true) { id -> SerializationException("Failed to deserialize ItemStack: $id") }
+            //?}
 
     }
 }

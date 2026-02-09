@@ -176,7 +176,11 @@ private fun copyHandItemToClipboard(player: Player) {
     val item = player.mainHandItem
     val location = "\"" + BuiltInRegistries.ITEM.getKey(item.item).toString() + "\""
     val count = item.count
+    //? if > 1.20.1 {
+    /*val nbt = item.components
+    *///?} else {
     val nbt = item.tag
+    //?}
 
     val itemCommand = when {
         nbt == null && count > 1 -> "item($location, $count)"

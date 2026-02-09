@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.world.schematics
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.core.BlockPos
+import net.minecraft.nbt.NbtAccounter
 import net.minecraft.nbt.NbtIo
 import net.minecraft.resources.ResourceKey
 import net.minecraft.world.level.Level
@@ -27,7 +28,11 @@ class PlaceSchematicBlock : StatementBlock() {
             .orElseThrow()
 
         val schematic = resource.open().use { inputStream ->
+            //? if > 1.20.1 {
+            /*val nbt = NbtIo.readCompressed(inputStream, NbtAccounter.unlimitedHeap())
+            *///?} else {
             val nbt = NbtIo.readCompressed(inputStream)
+            //?}
             SchematicParser.parse(nbt)
         }
 

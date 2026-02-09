@@ -10,7 +10,6 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import kotlinx.serialization.Serializable
 import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader.TOOL_LAYOUT
@@ -29,6 +28,7 @@ import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
+import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.generated.Assets
@@ -122,14 +122,14 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                 Property("Модель") {
                     TextField {
                         modifier.textColor =
-                            if (ResourceLocation.isValidResourceLocation(model) && model.rl in HollowModelManager.allModels) colors.onBackground else Color.DARK_RED
+                            if (model.isValidRL() && model.rl in HollowModelManager.allModels) colors.onBackground else Color.DARK_RED
 
                         modifier.alignY(AlignmentY.Center)
                             .width(Grow.Std)
                             .text(model)
                             .onChange {
                                 model = it
-                                if (ResourceLocation.isValidResourceLocation(it) && it.rl in HollowModelManager.allModels) {
+                                if (model.isValidRL() && it.rl in HollowModelManager.allModels) {
                                     //npc.model = it
                                 }
                             }
@@ -282,11 +282,26 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
         override fun UiScope.compose() {
             modifier.padding(sizes.smallGap)
 
+
             LazyColumn {
-                items(BuiltInRegistries.ATTRIBUTE.filter { npc.attributes.hasAttribute(it) }) { attribute ->
+                items(BuiltInRegistries.ATTRIBUTE
+                    //? if > 1.20.1 {
+
+                    /*.holders().toList()
+                    *///?}
+                    .filter { npc.attributes.hasAttribute(it) }
+                ) { attribute ->
+                    //? if > 1.20.1 {
+                    /*val desc = attribute.value().descriptionId
+                    *///?} else {
                     val desc = attribute.descriptionId
+                    //?}
                     val attributeInstance = npc.getAttribute(attribute)!!
+                    //? if > 1.20.1 {
+                    /*val location = BuiltInRegistries.ATTRIBUTE.getKey(attribute.value())?.toString() ?: "unknown"
+                    *///?} else {
                     val location = BuiltInRegistries.ATTRIBUTE.getKey(attribute)?.toString() ?: "unknown"
+                    //?}
                     Property(desc.lang) {
                         var tempText by remember(attributeInstance.baseValue.toString())
 
@@ -368,7 +383,12 @@ class UpdateAttributePacket(
     override fun handle(player: Player) {
         if (player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
             (player.level().getEntity(npcId) as? LivingEntity)?.let {
-                it.attributes.getInstance(BuiltInRegistries.ATTRIBUTE.get(attribute.rl)!!)?.baseValue = value
+                //? if > 1.20.1 {
+                /*val attr = BuiltInRegistries.ATTRIBUTE.getHolder(attribute.rl).orElseThrow()
+                *///?} else {
+                val attr = BuiltInRegistries.ATTRIBUTE.get(attribute.rl)!!
+                //?}
+                it.attributes.getInstance(attr)?.baseValue = value
             }
         }
     }

@@ -1,14 +1,28 @@
 package ru.hollowhorizon.hollowengine.common.data
 
 import com.google.gson.JsonObject
+//? if > 1.20.1
+/*import net.minecraft.server.packs.PackLocationInfo*/
 import net.minecraft.server.packs.PathPackResources
+import net.minecraft.server.packs.repository.PackSource
 import net.minecraft.server.packs.resources.IoSupplier
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
+import ru.hollowhorizon.hollowengine.common.utils.literal
 import java.io.InputStream
+import java.util.*
 
-object HollowEnginePack : PathPackResources("HollowEngine Folder Resources", DirectoryManager.HOLLOW_ENGINE, true) {
+//? if > 1.20.1 {
+/*object HollowEnginePack : PathPackResources(
+    PackLocationInfo(
+        "HollowEngine Folder Resources", "HollowEngine Folder Resources".literal, PackSource.BUILT_IN,
+        Optional.empty()
+    ), DirectoryManager.HOLLOW_ENGINE
+) {
+    *///?} else {
+    object HollowEnginePack : PathPackResources("HollowEngine Folder Resources", DirectoryManager.HOLLOW_ENGINE, true) {
+    //?}
     private val packMetadata: String = JsonObject().apply {
         add("pack", JsonObject().apply {
             addProperty("description", "HollowEngine Folder Resources")

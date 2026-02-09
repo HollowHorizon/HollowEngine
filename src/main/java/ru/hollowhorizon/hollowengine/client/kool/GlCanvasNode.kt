@@ -10,6 +10,7 @@ import de.fabmax.kool.util.SyncedScope
 import kotlinx.coroutines.launch
 import org.joml.Matrix4f
 import org.lwjgl.opengl.GL33
+import ru.hollowhorizon.hollowengine.client.utils.*
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract

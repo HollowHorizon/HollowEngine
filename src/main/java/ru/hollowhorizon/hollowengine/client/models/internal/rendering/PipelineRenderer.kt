@@ -153,7 +153,11 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
 
         applyMaterial(shader, primitive.material)
 
+        //? if > 1.20.1 {
+        /*RenderSystem.glBindVertexArray(vao)
+        *///?} else {
         RenderSystem.glBindVertexArray(::vao)
+        //?}
         indexBuffer?.bind()
 
         val modelView = Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.last().pose())

@@ -5,13 +5,17 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.*
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.gui.components.AbstractButton
-import net.minecraft.client.gui.components.Button.OnPress
 import net.minecraft.client.gui.narration.NarrationElementOutput
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.resources.ResourceLocation
-import org.joml.Matrix4f
-import ru.hollowhorizon.hollowengine.common.utils.literal
+//? if > 1.20.1 {
+/*import ru.hollowhorizon.hollowengine.client.utils.color
+import ru.hollowhorizon.hollowengine.client.utils.endVertex
+import ru.hollowhorizon.hollowengine.client.utils.uv
+import ru.hollowhorizon.hollowengine.client.utils.vertex
+*///?}
 import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
+import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
 class ImageTextButton(
@@ -51,8 +55,12 @@ class ImageTextButton(
         RenderSystem.setShader(GameRenderer::getPositionTexColorShader)
         val pose = stack.last().pose()
         val tesselator = Tesselator.getInstance()
+        //? if > 1.20.1 {
+        /*val builder = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
+        *///?} else {
         val builder = tesselator.builder
         builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR)
+        //?}
         builder.vertex(pose, x.toFloat(), y.toFloat(), 0f).uv(0f, 0f)
             .color(1f, 1f, 1f, transparency).endVertex()
         builder.vertex(pose, x.toFloat(), (y + height).toFloat(), 0f).uv(0f, 1f)
@@ -61,6 +69,11 @@ class ImageTextButton(
             .color(1f, 1f, 1f, transparency).endVertex()
         builder.vertex(pose, (x + width).toFloat(), y.toFloat(), 0f).uv(1f, 0f)
             .color(1f, 1f, 1f, transparency).endVertex()
+
+        //? if > 1.20.1 {
+        /*BufferUploader.drawWithShader(builder.buildOrThrow())
+        *///?} else {
         tesselator.end()
+        //?}
     }
 }

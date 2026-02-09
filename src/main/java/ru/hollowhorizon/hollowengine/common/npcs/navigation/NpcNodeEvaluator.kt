@@ -1,7 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.npcs.navigation
 
+//? if > 1.20.1 {
+//?} else {
 import net.minecraft.world.level.pathfinder.BlockPathTypes
 import net.minecraft.world.level.pathfinder.Node
+//?}
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator
 
 class NpcNodeEvaluator : WalkNodeEvaluator() {
@@ -11,6 +14,11 @@ class NpcNodeEvaluator : WalkNodeEvaluator() {
         setCanPassDoors(true)
     }
 
+    // TODO: Port on 1.21.1
+
+    //? if > 1.20.1 {
+    //?} else {
+    
     override fun isDiagonalValid(root: Node, xNode: Node?, zNode: Node?, diagonal: Node?): Boolean {
         if (diagonal == null || diagonal.closed) return false
 
@@ -37,4 +45,5 @@ class NpcNodeEvaluator : WalkNodeEvaluator() {
 
         return diagonal.costMalus >= 0.0f && (isZNodeValid || isXNodeValid || isNarrowFence)
     }
+     //?}
 }

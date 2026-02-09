@@ -13,6 +13,7 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.util.RandomSource
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.item.ItemStack
+import ru.hollowhorizon.hollowengine.client.utils.registryAccess
 
 /**
  * Checks if the game is running in a production environment.
@@ -67,6 +68,14 @@ val String.rl: ResourceLocation get() =
     *///?} else {
     ResourceLocation.tryParse(this) ?: error("Unsupported string format: $this")
     //?}
+
+fun String.isValidRL(): Boolean {
+    //? if >= 1.21 {
+    /*return ResourceLocation.tryParse(this) != null
+    *///?} else {
+    return ResourceLocation.isValidResourceLocation(this)
+    //?}
+}
 
 /**
  * Converts a string to a literal Minecraft text component.

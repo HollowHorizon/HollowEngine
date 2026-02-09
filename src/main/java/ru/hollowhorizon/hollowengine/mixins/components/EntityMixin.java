@@ -8,6 +8,8 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.RelativeMovement;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+//? if > 1.20.1
+/*import net.minecraft.world.level.portal.DimensionTransition;*/
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -66,7 +68,11 @@ public abstract class EntityMixin implements EntityProvider {
     }
 
     @Inject(method = "changeDimension", at = @At("RETURN"))
+    //? if > 1.20.1 {
+    /*private void afterWorldChanged(DimensionTransition transition, CallbackInfoReturnable<Entity> cir) {
+    *///?} else {
     private void afterWorldChanged(ServerLevel destination, CallbackInfoReturnable<Entity> cir) {
+    //?}
         Entity ret = cir.getReturnValue();
 
         if (ret != null) {

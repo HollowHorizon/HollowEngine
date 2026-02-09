@@ -61,7 +61,7 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
             Row(Grow.Std, Grow.Std) {
                 Box(Grow(0.66f), Grow.Std) {
                     modelController()
-                    Text("Редактирование сущности: ${target.displayName.string}") {
+                    Text("Редактирование сущности: ${target.displayName?.string}") {
                         modifier
                             .font(remember {
                                 MsdfFont(ColorTheme.Fonts.MONOCRAFT, 24f, weight = MsdfFont.WEIGHT_BOLD)

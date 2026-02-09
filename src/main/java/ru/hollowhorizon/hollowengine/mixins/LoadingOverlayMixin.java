@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.mixins;
 
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.Util;
@@ -47,7 +46,7 @@ public abstract class LoadingOverlayMixin {
 
     @Shadow @Final private ReloadInstance reload;
     @Shadow @Final private Consumer<Optional<Throwable>> onFinish;
-    private static final ResourceLocation HOLLOWENGINE_LOGO_LOCATION = new ResourceLocation("hollowengine:textures/gui/bg/loading.png");
+    private static final ResourceLocation HOLLOWENGINE_LOGO_LOCATION = ForgeKotlinKt.getRl("hollowengine:textures/gui/bg/loading.png");
 
 
     @Inject(method = "registerTextures", at =@At("TAIL"))

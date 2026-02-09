@@ -7,6 +7,7 @@ import de.fabmax.kool.util.Color
 import org.joml.Matrix3f
 import org.joml.Matrix4f
 import ru.hollowhorizon.hollowengine.client.models.internal.*
+import ru.hollowhorizon.hollowengine.client.utils.*
 
 class BatchingRenderer(
     private val primitive: Primitive

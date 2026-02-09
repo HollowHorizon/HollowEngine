@@ -4,6 +4,7 @@ import com.mineinabyss.geary.datatypes.GearyComponent
 import com.mineinabyss.geary.serialization.ComponentSerializers
 import kotlinx.serialization.DeserializationStrategy
 import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.reflect.KClass
 
 inline fun <reified T : GearyComponent> ComponentSerializers.getResourceLocationFor(): ResourceLocation? =
@@ -31,7 +32,7 @@ fun String.toComponentKey(): ResourceLocation {
         ?: error("Invalid resource location format: $this")
 
     return if (location.path.startsWith(COMPONENT_PREFIX)) location
-    else ResourceLocation(location.namespace, "$COMPONENT_PREFIX${location.path}")
+    else "${location.namespace}:$COMPONENT_PREFIX${location.path}".rl
 }
 
 fun ResourceLocation.toSerialName(): String {

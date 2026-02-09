@@ -17,7 +17,7 @@ import net.minecraft.world.level.levelgen.RandomState
 import net.minecraft.world.level.levelgen.blending.Blender
 import java.util.concurrent.CompletableFuture
 
-import com.mojang.serialization.MapCodec
+//? if <= 1.20.1 {
 import java.util.concurrent.Executor
 import com.mojang.serialization.Codec
 import net.minecraft.core.RegistryAccess
@@ -25,6 +25,21 @@ import net.minecraft.world.level.chunk.ChunkGeneratorStructureState
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager
 
 class StoryTellerWorldChunkGenerator(biomeSource: BiomeSource) : ChunkGenerator(biomeSource) {
+//?} else {
+/*import com.mojang.serialization.MapCodec
+import net.minecraft.core.Registry
+import net.minecraft.resources.RegistryOps
+import com.mojang.serialization.Codec
+import net.minecraft.core.RegistryAccess
+import net.minecraft.world.level.chunk.ChunkGeneratorStructureState
+import net.minecraft.world.level.levelgen.structure.StructureSet
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager
+import java.util.concurrent.Executor
+import java.util.*
+
+class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSource: BiomeSource):
+    ChunkGenerator(structures, Optional.empty(), biomeSource) {
+*///?}
     override fun codec() = CODEC
 
     override fun applyCarvers(
@@ -51,7 +66,9 @@ class StoryTellerWorldChunkGenerator(biomeSource: BiomeSource) : ChunkGenerator(
     override fun getGenDepth(): Int = 384
 
     override fun fillFromNoise(
+        //? if <=1.20.1 {
         executor: Executor,
+        //?}
         blender: Blender,
         randomState: RandomState,
         structureManager: StructureManager,
@@ -99,11 +116,22 @@ class StoryTellerWorldChunkGenerator(biomeSource: BiomeSource) : ChunkGenerator(
     }
 
     companion object {
+        //? if >=1.21 {
+        /*val CODEC: MapCodec<StoryTellerWorldChunkGenerator> =
+            RecordCodecBuilder.mapCodec { builder ->
+                builder.group(BiomeSource.CODEC.fieldOf("biome_source").forGetter { it.biomeSource })
+                    .apply(builder, ::StoryTellerWorldChunkGenerator)
+            }
+        *///?} else {
         val CODEC: Codec<StoryTellerWorldChunkGenerator> =
             RecordCodecBuilder.create { instance: RecordCodecBuilder.Instance<StoryTellerWorldChunkGenerator> ->
                 instance.group(
+                    //? if <=1.19.2 {
+                    /*RegistryOps.retrieveRegistry(Registry.STRUCTURE_SET_REGISTRY).forGetter { it.structureSets },
+                    *///?}
                     BiomeSource.CODEC.fieldOf("biome_source").forGetter { it.biomeSource }
                 ).apply(instance, ::StoryTellerWorldChunkGenerator)
             }
+        //?}
     }
 }

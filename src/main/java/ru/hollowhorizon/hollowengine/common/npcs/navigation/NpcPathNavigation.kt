@@ -5,7 +5,11 @@ import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.DoorBlock
+//? if > 1.20.1 {
+/*import net.minecraft.world.level.pathfinder.PathType as BlockPathTypes
+*///?} else {
 import net.minecraft.world.level.pathfinder.BlockPathTypes
+//?}
 import net.minecraft.world.level.pathfinder.PathFinder
 import net.minecraft.world.phys.Vec3
 import kotlin.math.sqrt

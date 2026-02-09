@@ -20,7 +20,11 @@ class ToastPacket(val message: @Serializable(ForTextComponent::class) Component)
 fun Player.sendToast(message: Component) {
     if (this !is ServerPlayer) Minecraft.getInstance().toasts.addToast(
         SystemToast(
+            //? if > 1.20.1 {
+            /*SystemToast.SystemToastId.PERIODIC_NOTIFICATION,
+            *///?} else {
             SystemToast.SystemToastIds.PERIODIC_NOTIFICATION,
+            //?}
             "Уведомление".literal,
             message
         )

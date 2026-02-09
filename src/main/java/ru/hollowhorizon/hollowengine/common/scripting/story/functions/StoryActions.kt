@@ -10,7 +10,12 @@ fun execute(command: String): Int {
         .withPermission(4)
         .withSuppressedOutput()
 
+    //? if > 1.20.1 {
+    /*currentServer.commands.performPrefixedCommand(src, command)
+    return 0
+    *///?} else {
     return currentServer.commands.performPrefixedCommand(src, command)
+    //?}
 }
 
 fun MinecraftServer.getLevel(location: String): ServerLevel =

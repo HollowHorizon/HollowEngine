@@ -35,7 +35,10 @@ import ru.hollowhorizon.hollowengine.client.models.internal.v2.walk
 import ru.hollowhorizon.hollowengine.client.render.OpenGLUtils
 import ru.hollowhorizon.hollowengine.client.utils.exists
 import ru.hollowhorizon.hollowengine.client.utils.lang
+//? if > 1.20.1
+/*import ru.hollowhorizon.hollowengine.client.utils.mulPoseMatrix*/
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
+import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
@@ -45,7 +48,7 @@ import kotlin.math.min
 class ModelController {
     val model = mutableStateOf("hollowengine:models/entity/player_model.gltf")
         .onChange { old, new ->
-            if (ResourceLocation.isValidResourceLocation(new) && new.rl.exists() && HollowModelManager.supports(new.rl)) {
+            if (new.isValidRL() && new.rl.exists() && HollowModelManager.supports(new.rl)) {
                 attachment = ModelAttachment(new)
                 animations = attachment.animations.map { it }
                 // Сбрасываем ID анимации при смене модели, чтобы избежать вылета

@@ -11,6 +11,8 @@ import net.minecraft.world.item.crafting.RecipeType
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IDEFile
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.textLine
+//? if > 1.20.1
+/*import ru.hollowhorizon.hollowengine.client.utils.getTooltipLines*/
 
 class RecipeIDEFile(path: String) : IDEFile(path) {
 
@@ -28,7 +30,11 @@ class RecipeIDEFile(path: String) : IDEFile(path) {
             items(recipes) { chunk ->
                 Row {
                     chunk.forEach {
+                        //? if > 1.20.1 {
+                        /*Recipe(it.value)
+                        *///?} else {
                         Recipe(it)
+                        //?}
                     }
                 }
             }
