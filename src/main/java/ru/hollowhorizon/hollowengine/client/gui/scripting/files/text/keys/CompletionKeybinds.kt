@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.keys
 
 import de.fabmax.kool.input.KeyboardInput
+import de.fabmax.kool.util.logD
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextAreaModifier
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 
@@ -25,6 +26,7 @@ fun onCompletions(event: ScriptAreaKeyEvent) {
         KeyboardInput.KEY_ESC -> {
             if (!event.isPressed) return
             modifier.completions.clear()
+            modifier.completionIndex = 0
             event.isCanceled = true
         }
 
@@ -58,9 +60,16 @@ private fun applyCompletion(
     modifier: ScriptTextAreaModifier,
     event: ScriptAreaKeyEvent,
 ) {
-    if (modifier.completionIndex == -1) return
-    if (modifier.completionIndex >= modifier.completions.size) return
-
-    //modifier.completions[modifier.completionIndex].use(event.area)
+    val completionIndex = modifier.completionIndex
+    
+    if (completionIndex < 0 || completionIndex >= modifier.completions.size) {
+        logD("Completions") { "Invalid completion index: $completionIndex" }
+        return
+    }
+    
+    val completionItem = modifier.completions[completionIndex]
+    
+    event.area.applyCompletion(completionItem)
+    
     event.isCanceled = true
 }

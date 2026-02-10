@@ -22,10 +22,16 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHan
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import kotlin.contracts.ExperimentalContracts
-import kotlin.contracts.InvocationKind
-import kotlin.contracts.contract
 import kotlin.math.max
 import kotlin.math.min
+
+/**
+ * Configuration constants for the text area.
+ */
+private object TextAreaConfig {
+    const val MAX_COMPLETION_ITEMS = 10
+    const val COMPLETION_ITEM_HEIGHT = 24
+}
 
 var errorMessage = ""
 
@@ -141,7 +147,6 @@ fun UiScope.ScriptTextArea(
     scopeName: String? = null,
     block: ScriptTextAreaScope.() -> Unit,
 ) {
-    contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
 
     val textArea = uiNode.createChild(scopeName, TextAreaNode::class, TextAreaNode.factory)
     textArea.listState = state
@@ -178,7 +183,7 @@ fun UiScope.ScriptTextArea(
                         .border(RoundRectBorder(EditorTheme.Popup.border, 8.dp, sizes.borderWidth))
                         .padding(sizes.smallGap * 0.5f)
                         .height(
-                            (24.dp + sizes.smallGap) * completions.size.coerceAtMost(10) + sizes.smallGap
+                            (24.dp + sizes.smallGap) * completions.size.coerceAtMost(TextAreaConfig.MAX_COMPLETION_ITEMS) + sizes.smallGap
                         )
                         .width(Grow(1f, max = FitContent))
                         .zLayer(500)
@@ -487,7 +492,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             if (dotIndex == -1) dotIndex = selectionIndex
             areaModifier.setCompletionX(it.leftPx + line.charIndexToPx(dotIndex) + sizes.smallGap.px)
 
-            val sizeY = (24.dp + sizes.smallGap).px * areaModifier.completions.size.coerceAtMost(10) + 24.dp.px
+            val sizeY = (24.dp + sizes.smallGap).px * areaModifier.completions.size.coerceAtMost(TextAreaConfig.MAX_COMPLETION_ITEMS) + 24.dp.px
             val viewportBottom = surface.viewport.bottomPx
             if (it.bottomPx + sizeY > viewportBottom) {
                 areaModifier.setCompletionY(it.topPx - sizeY)

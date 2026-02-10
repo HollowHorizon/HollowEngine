@@ -28,8 +28,6 @@ class CompilerLoader(
             val implClass = Class.forName(implementationClassName, true, classLoader)
             val initializer = implClass.getDeclaredConstructor().newInstance() as ScriptingEnvironmentInitializer
             initializer.initialize(javaHome, classpath, listOf(
-                ScriptClassProvider("server-component.kts", "ru.hollowhorizon.hollowengine.common.scripting.types.ServerComponent"),
-                ScriptClassProvider("entity-component.kts", "ru.hollowhorizon.hollowengine.common.scripting.types.LivingEntityComponent"),
 
                 ScriptClassProvider(".kts", "kotlin.Any"),
             ), mappings)

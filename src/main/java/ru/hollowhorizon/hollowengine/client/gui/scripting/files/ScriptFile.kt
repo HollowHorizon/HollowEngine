@@ -19,15 +19,16 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadableP
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
 
-class ScriptFile(path: String) :
-    IDEFile(path) {
-
-    constructor(path: String, ignored: ByteArray) : this(path)
+class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
 
     lateinit var modifier: ScriptTextAreaModifier
+        private set
+
     lateinit var area: ScriptTextAreaScope
+        private set
 
     override fun save() {
+        provider.saveToDisk()
     }
 
     private val provider by lazy {
@@ -45,7 +46,7 @@ class ScriptFile(path: String) :
         modifier.background(RoundRectBackground(EditorTheme.bg, sizes.smallGap))
 
         if(!HollowEngine.compilerLoader.isLoaded) {
-            Text("А где HollowEngineCompiler.jar?") {}
+            Text("HollowEngineCompiler.jar not found") {}
             return
         }
 
@@ -134,15 +135,17 @@ class ScriptFile(path: String) :
     }
 
     override fun SubMenuItem<Dockable>.createMenu() {
-        item("Форматировать", icons.ICON_41) {
+        item("Format", icons.ICON_41) {
             try {
                 val original = provider.lines.joinToString("\n") { it.text }
                 val new = Formatter.format(KOTLINLANG_FORMAT, original)
                 if (original == new) return@item
                 provider.setText(new)
                 modifier.onSelectionChanged?.let { it(-1, -1, 0, 0) }
+            } catch (ex: IllegalStateException) {
+                logE { "Formatting error: ${ex.message}" }
             } catch (ex: Exception) {
-                logE { ex.stackTraceToString() }
+                logE { "Unexpected formatting error: ${ex.stackTraceToString()}" }
             }
         }
     }
@@ -163,12 +166,15 @@ private fun ScriptTextAreaScope.installSelectionHandler(
     val selCaretChar = remember(0)
 
     modifier.onSelectionChanged = handler@{ startLine, caretLine, startChar, caretChar ->
-        if (startLine >= provider.size || startLine < 0) return@handler
-        if (caretLine >= provider.size) return@handler
+        // Validate selection bounds
+        if (startLine < 0 || startLine >= provider.size) return@handler
+        if (caretLine < 0 || caretLine >= provider.size) return@handler
+        
         val start = provider[startLine]
-        if (startChar > start.length) return@handler
+        if (startChar < 0 || startChar > start.length) return@handler
+        
         val caret = provider[caretLine]
-        if (caretChar > caret.length) return@handler
+        if (caretChar < 0 || caretChar > caret.length) return@handler
 
         selStartLine.set(startLine)
         selCaretLine.set(caretLine)

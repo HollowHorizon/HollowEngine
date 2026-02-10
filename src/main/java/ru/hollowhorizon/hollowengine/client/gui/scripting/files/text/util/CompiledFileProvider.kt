@@ -21,6 +21,13 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
 import java.io.File
 import java.util.*
 
+private object AnalysisConfig {
+    const val DEBOUNCE_DELAY_MS = 300L
+    const val UNDO_DEBOUNCE_MS = 300L
+    const val WRITE_DEBOUNCE_MS = 500L
+}
+
+@OptIn(FlowPreview::class)
 class CompiledFileProvider(
     val file: File,
     val onDiagnose: (List<Diagnostic>) -> Unit,
@@ -32,15 +39,21 @@ class CompiledFileProvider(
     var currentText: String = file.readText()
         private set(value) {
             field = value
-            file.writeText(value)
+            scheduleWrite(value)
         }
 
-    // --- Async & Debounce Setup ---
-    private val scope = CoroutineScope(KoolDispatchers.Frontend + SupervisorJob())
+    private val scopeJob = SupervisorJob()
+    private val scope = CoroutineScope(KoolDispatchers.Frontend + scopeJob)
+
     private val analysisRequest = MutableSharedFlow<AnalysisParams>(
         replay = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
+
+    private var writeJob: Job? = null
+
+    @Volatile
+    private var latestText: String? = null
 
     private data class AnalysisParams(
         val text: String,
@@ -62,14 +75,32 @@ class CompiledFileProvider(
         // Start the processing loop
         scope.launch {
             analysisRequest
-                .debounce(300L) // 300ms debounce
+                .debounce(AnalysisConfig.DEBOUNCE_DELAY_MS)
                 .collectLatest { params ->
                     processAnalysis(params)
                 }
         }
     }
 
+    fun saveToDisk() {
+        writeJob?.cancel()
+        writeJob = null
+        latestText = null
+        file.writeText(currentText)
+    }
+
+    private fun scheduleWrite(text: String) {
+        writeJob?.cancel()
+        latestText = text
+        writeJob = scope.launch {
+            delay(AnalysisConfig.WRITE_DEBOUNCE_MS)
+            latestText?.let { file.writeText(it) }
+        }
+    }
+
     fun dispose() {
+        writeJob?.cancel()
+        writeJob = null
         scope.cancel()
     }
 
@@ -79,6 +110,10 @@ class CompiledFileProvider(
     private var lastEditTime = 0L
 
     override val size get() = lines.size
+
+    fun getOrNull(index: Int): ScriptTextLine? {
+        return if (index in lines.indices) lines[index] else null
+    }
 
     override fun get(index: Int): ScriptTextLine {
         if (index !in lines.indices) throw IndexOutOfBoundsException("Index $index out of bounds (size: $size)")
@@ -98,42 +133,31 @@ class CompiledFileProvider(
     ): Vec2i {
         val currentTime = System.currentTimeMillis()
 
-        // 1. Prepare Text Update
         val lineBefore = lines[selectionStartLine].text.substring(0, selectionStartChar)
         val lineAfter = lines[selectionEndLine].text.substring(selectionEndChar)
         val newTextFull = lineBefore + replacement + lineAfter
         val newLinesRaw = newTextFull.split('\n')
 
-        // 2. Prepare Undo Action Data
         val oldLinesList = (selectionStartLine..selectionEndLine).map { lines[it] }
         val numLinesToRemove = selectionEndLine - selectionStartLine + 1
 
-        // Create new visual lines (temporarily plain white until highlighted)
         val newTextLines = newLinesRaw.map {
             ScriptTextLine(listOf(it to TextAttributes(font, Color.WHITE)))
         }
 
-        // 3. Apply to Data Structure
         lines.subList(selectionStartLine, selectionStartLine + numLinesToRemove).clear()
         lines.addAll(selectionStartLine, newTextLines)
         currentText = lines.joinToString("\n") { it.text }.replace("\r\n", "\n")
 
-        // 4. Calculate New Caret
         val newCaretLine = selectionStartLine + newLinesRaw.lastIndex
         val newCaretChar = newLinesRaw.last().length - lineAfter.length
 
-        // 5. Handle History (Smart Merge/Debounce)
         handleHistoryUpdate(
             selectionStartLine, selectionStartChar,
             oldLinesList, newTextLines,
             replacement, currentTime
         )
 
-        // 6. Trigger Analysis (Async)
-        // We explicitly call highlightCode synchronously for immediate syntax coloring feedback if possible,
-        // but usually, full analysis goes to background.
-        // Here we do a quick highlight update on the main thread for responsiveness,
-        // and let the heavy analyzer run in background.
         requestAnalysis(selectionStartLine, selectionStartChar)
 
         return Vec2i(newCaretChar, newCaretLine)
@@ -146,12 +170,7 @@ class CompiledFileProvider(
     ) {
         val isSingleCharInsert = replacement.length == 1 && oldLines.size == 1 && oldLines[0].text.length + 1 == newLines[0].text.length
 
-        // Try to merge with previous action if:
-        // 1. Not too much time passed (300ms)
-        // 2. Previous action exists
-        // 3. Previous action was also a simple typing (not a big paste/cut)
-        // 4. We are typing consecutively
-        if (undoStack.isNotEmpty() && (currentTime - lastEditTime) < 300) {
+        if (undoStack.isNotEmpty() && (currentTime - lastEditTime) < AnalysisConfig.UNDO_DEBOUNCE_MS) {
             val lastAction = undoStack.peek()
 
             // Logic for merging: If we are just appending characters on the same line
@@ -233,7 +252,7 @@ class CompiledFileProvider(
                 lines.clear()
                 lines.addAll(colored.map { it.toKool(font) })
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Fallback if highlighting crashes
         }
     }
