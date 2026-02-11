@@ -3,8 +3,9 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.MsdfFont
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
@@ -26,7 +27,7 @@ object CompletionRenderer {
             modifier
                 .background(RectBackground(backgroundColor))
                 .onClick { onClick(completion) }
-                .padding(horizontal = sizes.smallGap, vertical = sizes.smallGap * 0.5f) // Больше воздуха
+                .padding(Dimensions.PaddingNormal) // Больше воздуха
 
             renderTag(completion.tag)
 
@@ -39,14 +40,14 @@ object CompletionRenderer {
 
                 if (typedPrefix.isNotEmpty() && lowerFull.startsWith(lowerPrefix)) {
                     Text(fullText.substring(0, typedPrefix.length)) {
-                        modifier.textColor(EditorTheme.Popup.textMatch).font(MsdfFont(HACK_FONT, 16f))
+                        modifier.textColor(EditorTheme.Popup.textMatch).font(MsdfFont(ColorTheme.Fonts.MONOCRAFT, 16f))
                     }
                     Text(fullText.substring(typedPrefix.length)) {
-                        modifier.textColor(EditorTheme.Popup.textPrimary).font(MsdfFont(HACK_FONT, 16f))
+                        modifier.textColor(EditorTheme.Popup.textPrimary).font(MsdfFont(ColorTheme.Fonts.MONOCRAFT, 16f))
                     }
                 } else {
                     Text(fullText) {
-                        modifier.textColor(EditorTheme.Popup.textPrimary).font(MsdfFont(HACK_FONT, 16f))
+                        modifier.textColor(EditorTheme.Popup.textPrimary).font(MsdfFont(ColorTheme.Fonts.MONOCRAFT, 16f))
                     }
                 }
             }
@@ -58,7 +59,7 @@ object CompletionRenderer {
                         .align(AlignmentX.End, AlignmentY.Center)
                         .margin(start = sizes.gap)
                         .textColor(EditorTheme.Popup.textDim)
-                        .font(MsdfFont(HACK_FONT, 14f)) // Чуть меньше шрифт
+                        .font(MsdfFont(ColorTheme.Fonts.MONOCRAFT, 14f)) // Чуть меньше шрифт
                 }
             }
         }

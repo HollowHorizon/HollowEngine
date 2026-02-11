@@ -16,8 +16,9 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hollowengine.client.HighlightTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
@@ -179,11 +180,11 @@ fun UiScope.ScriptTextArea(
 
                 Popup(modifier.completionX, modifier.completionY) {
                     modifier
-                        .background(RoundRectBackground(EditorTheme.Popup.bg, 8.dp))
-                        .border(RoundRectBorder(EditorTheme.Popup.border, 8.dp, sizes.borderWidth))
-                        .padding(sizes.smallGap * 0.5f)
+                        .background(RoundRectBackground(EditorTheme.Popup.bg, Dimensions.PaddingMedium))
+                        .border(RoundRectBorder(EditorTheme.Popup.border, Dimensions.PaddingMedium, Dimensions.PaddingSmall))
+                        .padding(Dimensions.PaddingSmall)
                         .height(
-                            (24.dp + sizes.smallGap) * completions.size.coerceAtMost(TextAreaConfig.MAX_COMPLETION_ITEMS) + sizes.smallGap
+                            (18f.dp + Dimensions.PaddingMedium) * completions.size.coerceAtMost(TextAreaConfig.MAX_COMPLETION_ITEMS)
                         )
                         .width(Grow(1f, max = FitContent))
                         .zLayer(500)
@@ -192,6 +193,9 @@ fun UiScope.ScriptTextArea(
                         withVerticalScrollbar = true,
                         withHorizontalScrollbar = false,
                         isScrollableHorizontal = true,
+                        containerModifier = {
+                            it.background(null)
+                        },
                         vScrollbarModifier = {
                             it.width(sizes.smallGap).margin(sizes.smallGap * 0.5f)
                                 .zLayer(UiSurface.LAYER_POPUP + UiSurface.LAYER_FLOATING)
@@ -282,7 +286,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         var lineIndex = -1
         lateinit var indents: IntArray
 
-        val font = MsdfFont(HACK_FONT, 18f)
+        val font = MsdfFont(ColorTheme.Fonts.MONOCRAFT, 18f)
 
         override fun render(ctx: KoolContext) {
             if (lineIndex == this@TextAreaNode.modifier.selectionCaretLine && isFocused.use()) {
@@ -310,7 +314,8 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                         if (error.severity.isError()) HighlightTheme.ERROR_ELEMENT
                         else HighlightTheme.KEYWORD.mix(HighlightTheme.ANNOTATION, 0.5f)
                     getPlainBuilder(UiSurface.LAYER_FLOATING).configured(color, clipped = false) {
-                        val leftPos = maxWidth.px + sizes.borderWidth.px + sizes.smallGap.px
+                        val leftPos = maxWidth.px + Dimensions.PaddingHuge.px
+                        
                         for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).coerceAtMost(clipBoundsPx.z - leftPx - 5f).toInt()).step(5)) {
                             val offset = if (i % 2 == 0) 5 else -5
                             line(
@@ -339,7 +344,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                         else
                             EditorTheme.indentGuide.withAlpha(0.3f)
 
-                    getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRect(x, 0f, 1.dp.px, heightPx, color)
+                    getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRect(x, 0f, Dimensions.PaddingSmall.px, heightPx, color)
                 }
             }
         }
@@ -359,6 +364,9 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         block: ScriptTextAreaScope.() -> Unit,
     ) {
         this.lineProvider = lineProvider
+        modifier.margin(horizontal = Dimensions.PaddingNormal).margin(bottom=Dimensions.PaddingNormal)
+            .padding(Dimensions.PaddingHuge)
+            .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, sizes.smallGap))
 
         ScrollPane(listState) {
             modifier.width(Grow.MinFit)
@@ -430,20 +438,18 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                     if (line.length == 0) break
                 }
             }
-            val font = MsdfFont(HACK_FONT, 18f)
+            val font = MsdfFont(ColorTheme.Fonts.MONOCRAFT, 18f)
 
             val lineItem = uiNode.createChild(null, LineItem::class, lineItemFactory)
             lineItem.lineIndex = lineIndex
             lineItem.indents = indentStack.toIntArray()
             lineItem.modifier.width(Grow.Std).layout(RowLayout)
             with(lineItem) {
-                val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp + sizes.smallGap * 2f
+                val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp + Dimensions.PaddingHuge
 
                 Box(maxWidth) {
                     modifier
-                        .background(RectBackground(EditorTheme.gutterBg))
                         .height(Grow.Std)
-                        .padding(horizontal = sizes.smallGap)
                         .alignY(AlignmentY.Center)
 
                     Text((lineIndex + 1).toString()) {
@@ -455,13 +461,11 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                         modifier.font(font).textColor(textColor).align(AlignmentX.End, AlignmentY.Center)
                     }
                 }
-
-                Box(sizes.borderWidth, Grow.Std) { modifier.backgroundColor(EditorTheme.Popup.border) }
+                Box(Dimensions.PaddingHuge) {}
 
                 setupTextLine(line, lineIndex, textAreaMod, lineProvider).apply {
-                    modifier
-                        .alignY(AlignmentY.Center)
-                        .padding(start = sizes.smallGap)
+                    modifier.alignY(AlignmentY.Center)
+                        .padding(vertical = Dimensions.PaddingSmall)
                 }
             }
 
@@ -511,8 +515,6 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             }.onDragStart { selectionHandler.onSelectStart(this, lineIndex, it, true) }
                 .onDrag { selectionHandler.onDrag(it) }.onDragEnd { selectionHandler.onSelectEnd() }
                 .onPointer { selectionHandler.onPointer(this, lineIndex, it) }
-
-            modifier.padding(start = textAreaMod.lineStartPadding, end = textAreaMod.lineEndPadding)
 
             selectionHandler.applySelectionRange(this, line, lineIndex)
         }

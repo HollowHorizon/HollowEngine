@@ -38,7 +38,8 @@ class ScriptingAnalyzerImpl(
 
     internal data class CachedFile(val textHash: Int, val textLength: Int, val file: KtFile)
 
-    private fun getOrCreateFile(name: String, text: String): KtFile {
+    private fun getOrCreateFile(name: String, original: String): KtFile {
+        val text = original.replace("\r\n", "\n")
         val textHash = text.hashCode()
         val textLength = text.length
 

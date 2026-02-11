@@ -10,7 +10,7 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.Font
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.Time
-import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 import kotlin.math.abs
@@ -192,7 +192,7 @@ open class AttributedTextNode(parent: UiNode?, surface: UiSurface)
             }
 
             if (maxH == 0f) {
-                val fallbackFont = MsdfFont(HACK_FONT, 18f)
+                val fallbackFont = MsdfFont(ColorTheme.Fonts.MONOCRAFT, 18f)
                 surface.applyFontScale(fallbackFont, ctx)
                 maxH = fallbackFont.lineHeight
                 maxB = fallbackFont.textDimensions("W").ascentPx

@@ -10,7 +10,7 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
-import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoableAction
 import ru.hollowhorizon.hollowengine.client.utils.offset
@@ -34,7 +34,7 @@ class CompiledFileProvider(
     val onCompletions: (List<CompletionItem>) -> Unit,
 ) : TextLineProvider, TextEditorHandler, UndoRedoHandler {
 
-    val font = MsdfFont(HACK_FONT, 18f)
+    val font = MsdfFont(ColorTheme.Fonts.MONOCRAFT, 18f)
     val lines = ArrayList<ScriptTextLine>()
     var currentText: String = file.readText()
         private set(value) {

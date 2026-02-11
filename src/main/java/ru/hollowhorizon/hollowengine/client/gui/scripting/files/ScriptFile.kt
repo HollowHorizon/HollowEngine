@@ -42,8 +42,7 @@ class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
     }
 
     override fun UiScope.compose() {
-
-        modifier.background(RoundRectBackground(EditorTheme.bg, sizes.smallGap))
+        modifier.background(null)
 
         if(!HollowEngine.compilerLoader.isLoaded) {
             Text("HollowEngineCompiler.jar not found") {}
@@ -51,6 +50,7 @@ class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
         }
 
         Box(Grow.Std, Grow.Std) {
+
             ScriptTextArea(
                 provider,
                 vScrollbarModifier = {

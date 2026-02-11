@@ -10,7 +10,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.apache.logging.log4j.spi.StandardLevel
-import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.common.utils.mutableLazy
 
@@ -91,7 +91,7 @@ class LogMessage(
         val levelFonts = mutableMapOf<StandardLevel, TextAttributes>()
         val messageFonts = mutableMapOf<StandardLevel, TextAttributes>()
 
-        fun updateFonts(baseFont: MsdfFont = MsdfFont(HACK_FONT), baseSize: Float = 16f) {
+        fun updateFonts(baseFont: MsdfFont = MsdfFont(ColorTheme.Fonts.MONOCRAFT), baseSize: Float = 16f) {
             val font = baseFont.copy(baseSize)
 
             timeFont = TextAttributes(font, MdColor.CYAN tone 400)
