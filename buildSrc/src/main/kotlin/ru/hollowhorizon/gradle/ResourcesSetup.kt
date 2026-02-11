@@ -1,6 +1,5 @@
 package ru.hollowhorizon.gradle
 
-import me.fallenbreath.yamlang.YamlangExtension
 import org.gradle.api.Project
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.jvm.tasks.Jar
@@ -19,7 +18,6 @@ object ResourcesSetup {
         modPlatform: String
     ) {
         val sourceSets = project.extensions["sourceSets"] as SourceSetContainer
-        val yamlang = project.extensions["yamlang"] as YamlangExtension
 
         sourceSets["main"].resources.srcDir(project.layout.buildDirectory.dir("generated/resources"))
 
@@ -68,11 +66,6 @@ object ResourcesSetup {
                     )
                 )
             }
-        }
-
-        yamlang.apply {
-            targetSourceSets.set(mutableListOf(sourceSets["main"]))
-            inputDir.set("assets/${modProject.modId}/lang")
         }
     }
 }

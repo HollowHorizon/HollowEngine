@@ -3,7 +3,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import ru.hollowhorizon.gradle.*
 import ru.hollowhorizon.gradle.tasks.GenerateAssetsTask
-
+import ru.hollowhorizon.gradle.tasks.GenerateLangTask
 
 plugins {
     java
@@ -123,14 +123,22 @@ val generateAssets by tasks.registering(GenerateAssetsTask::class) {
     outputDirectory.set(layout.buildDirectory.dir("generated/sources/assets/kotlin"))
 }
 
+val generateLang by tasks.registering(GenerateLangTask::class) {
+    generatedPackage.set("ru.hollowhorizon.hollowengine.generated")
+    langDirectory.set(rootProject.file("src/main/resources/assets/hollowengine/lang"))
+    outputDirectory.set(layout.buildDirectory.dir("generated/sources/hollowengine/lang"))
+}
+
 sourceSets {
     main {
         java.srcDir(generateAssets.map { it.outputDirectory })
+        java.srcDir(generateLang.map { it.outputDirectory })
     }
 }
 
 tasks.withType<KotlinCompile> {
     dependsOn(generateAssets)
+    dependsOn(generateLang)
 }
 
 tasks.withType<Test> {
