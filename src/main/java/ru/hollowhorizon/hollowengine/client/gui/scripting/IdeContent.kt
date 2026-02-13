@@ -21,6 +21,7 @@ object IdeContent {
         put(".bc", ::CodeBlocksFile)
         put(".txt", ::TextFile)
         put(".gltf") { path, bytes -> GLTFFile(path) }
+        put(".fbx") { path, bytes -> GLTFFile(path) }
         put(".glb") { path, bytes -> GLTFFile(path) }
         put(".geo.json") { path, bytes -> GLTFFile(path) }
         put(".entity.prefab", ::PrefabEditorFile)

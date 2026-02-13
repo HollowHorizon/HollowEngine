@@ -10,11 +10,12 @@ import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.models.fbx.TransformationComp
-import ru.hollowhorizon.hollowengine.client.models.internal.Mesh
-import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition
-import ru.hollowhorizon.hollowengine.client.models.internal.Primitive
-import ru.hollowhorizon.hollowengine.client.models.internal.Scene
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
+import ru.hollowhorizon.hollowengine.client.models.internal.*
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationData
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationLoader
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Linear
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.SphericalLinear
 import java.io.IOException
 import kotlin.math.abs
 import ru.hollowhorizon.hollowengine.client.models.fbx.FileGlobalSettings.FrameRate as Fr
@@ -54,16 +55,110 @@ operator fun Array<Mat4f>.get(transf: Tc) = get(transf.i)
 operator fun Array<Mat4f>.set(transf: Tc, mat: Mat4f) = set(transf.i, mat)
 
 fun Document.convert(location: ResourceLocation): InternalModel {
-    return InternalModel(0, listOf(Scene(convertNodes(0L, location))), setOf()).apply {
+    // Сначала конвертируем узлы
+    val nodes = convertNodes(0L, location)
+    val scene = Scene(nodes)
+
+    // Собираем все узлы для анимаций
+    val allNodes = mutableListOf<NodeDefinition>()
+    fun collectNodes(node: NodeDefinition) {
+        allNodes.add(node)
+        node.children.forEach { collectNodes(it) }
+    }
+    nodes.forEach { collectNodes(it) }
+    val nodeMap = allNodes.associateBy { it.index }
+
+    // Конвертируем анимации
+    val animations = animationStacks().mapNotNull { stack ->
+        val intermediateAnim = convertAnimationStackIntermediate(stack)
+        if (intermediateAnim != null) {
+            AnimationLoader.createAnimation(nodeMap, intermediateAnim)
+        } else {
+            null
+        }
+    }
+
+    return InternalModel(0, listOf(scene), setOf(), animations).apply {
         isBlockBench = creator.contains("blockbench", ignoreCase = true)
-        if(isBlockBench) {
-            scenes[scene].nodes.forEach {
+        if (isBlockBench) {
+            scenes[0].nodes.forEach {
                 // BlockBench зачем-то скейлит модели
                 it.transform.scale(0.01)
                 it.baseTransform.scale(0.01)
             }
         }
     }
+}
+
+context(doc: Document)
+fun convertAnimationStackIntermediate(st: AnimationStack): Animation? {
+    val channels = mutableListOf<Channel>()
+
+    // Получаем FPS для конвертации времени
+    val fps = doc.globals?.timeMode ?: FileGlobalSettings.FrameRate._30
+    val custom = doc.globals?.customFrameRate ?: -1f
+    val frameRate = frameRateToDouble(fps, custom.toDouble())
+    val timeScale = 1.0 / frameRate // Конвертация из кадров в секунды
+
+    // Проходим по всем слоям анимации
+    for (layer in st.layers) {
+        // Проходим по всем узлам кривых анимации в слое
+        for (curveNode in layer.nodes()) {
+            val targetModel = curveNode.targetAsModel
+            if (targetModel == null) continue
+
+            val nodeId = targetModel.id.toInt()
+            val propertyName = curveNode.prop
+
+            // Маппинг свойств FBX на пути GLTF
+            val path = when (propertyName) {
+                "Lcl Translation" -> "translation"
+                "Lcl Rotation" -> "rotation"
+                "Lcl Scaling" -> "scale"
+                else -> continue // Пропускаем неизвестные свойства
+            }
+
+            // Получаем кривые для этого свойства
+            val curves = curveNode.curves()
+
+            // Для трансформаций нужно обработать X, Y, Z компоненты
+            when (path) {
+                "translation", "scale" -> {
+                    val xCurve = curves["d|X"]
+                    val yCurve = curves["d|Y"]
+                    val zCurve = curves["d|Z"]
+
+                    if (xCurve != null && yCurve != null && zCurve != null) {
+                        val channel = createVector3ChannelIntermediate(nodeId, path, xCurve, yCurve, zCurve, timeScale)
+                        //if (channel != null) channels.add(channel)
+                    }
+                }
+
+                "rotation" -> {
+                    val xCurve = curves["d|X"]
+                    val yCurve = curves["d|Y"]
+                    val zCurve = curves["d|Z"]
+
+                    if (xCurve != null && yCurve != null && zCurve != null) {
+                        val channel = createRotationChannelIntermediate(
+                            nodeId,
+                            xCurve,
+                            yCurve,
+                            zCurve,
+                            timeScale,
+                            targetModel.rotationOrder
+                        )
+                        //if (channel != null) channels.add(channel)
+                    }
+                }
+            }
+        }
+    }
+
+    if (channels.isEmpty()) return null
+
+    // Создаем промежуточную анимацию
+    return Animation(st.name, channels)
 }
 
 fun Document.convertNodes(parentId: Long, location: ResourceLocation): List<NodeDefinition> {
@@ -84,7 +179,7 @@ fun Document.convertNodes(parentId: Long, location: ResourceLocation): List<Node
 
         if (model != null) {
             val nodeTransform = generateTransformationNodeChain(model)
-            val node = convertModel(model, nodeTransform, location)
+            val node = convertModel(model, nodeTransform, location, this)
 
             node.children.addAll(convertNodes(model.id, location))
 
@@ -193,57 +288,218 @@ fun generateTransformationNodeChain(model: Model): TrsTransformF {
     }
 }
 
-fun convertModel(model: Model, transform: TrsTransformF, location: ResourceLocation): NodeDefinition {
-    val primitives = model.geometry.mapNotNull {
-        (it as? MeshGeometry)?.let { convertMesh(it, model, location) }
+fun Document.getSkinForModel(model: Model): ru.hollowhorizon.hollowengine.client.models.internal.Skin? {
+    // Получаем все соединения от модели к скинам
+    val skinConnections = getConnectionsBySourceSequenced(model.id, "Deformer")
+
+    for (conn in skinConnections) {
+        val skinObj = conn.destinationObject as? ru.hollowhorizon.hollowengine.client.models.fbx.Skin
+        if (skinObj != null) {
+            return convertSkin(skinObj)
+        }
     }
+    return null
+}
+
+fun convertSkin(fbxSkin: ru.hollowhorizon.hollowengine.client.models.fbx.Skin): ru.hollowhorizon.hollowengine.client.models.internal.Skin {
+    val jointsIds = mutableListOf<Int>()
+    val inverseBindMatrices = mutableListOf<de.fabmax.kool.math.Mat4f>()
+
+    for (cluster in fbxSkin.clusters) {
+        cluster.node?.let { model ->
+            jointsIds.add(model.id.toInt())
+            // В FBX transformLink - это матрица бинда в пространстве сустава
+            // Нам нужна обратная матрица бинда (inverse bind matrix)
+            val inverseBindMatrix = MutableMat4f(cluster.transformLink)
+            inverseBindMatrix.invert()
+            inverseBindMatrices.add(inverseBindMatrix)
+        }
+    }
+
+    return ru.hollowhorizon.hollowengine.client.models.internal.Skin(
+        jointsIds,
+        inverseBindMatrices.toTypedArray()
+    )
+}
+
+fun convertModel(model: Model, transform: TrsTransformF, location: ResourceLocation, doc: Document): NodeDefinition {
+    val primitives = model.geometry.mapNotNull {
+        (it as? MeshGeometry)?.let { convertMesh(it, model, location, doc) }
+    }
+
+    val skin = doc.getSkinForModel(model)
 
     return NodeDefinition(
         model.id.toInt(),
         name = model.name.substringAfter("::"),
         mutableListOf(),
         transform,
-        Mesh(primitives, floatArrayOf())
+        Mesh(primitives, floatArrayOf()),
+        skin
     )
 }
 
-fun convertMesh(mesh: MeshGeometry, model: Model, location: ResourceLocation): Primitive {
-    return Primitive(
-        positions = mesh.vertices.toTypedArray(),
-        normals = mesh.normals.toTypedArray(),
-        texCoords = mesh.getTextureCoords(0).map { Vec2f(it.x, 1f-it.y) }.toTypedArray(),
-        tangents = mesh.tangents.map { Vec4f(it.x, it.y, it.z, 1f) }.toTypedArray(),
-        indices = mesh.indices.toIntArray(),
-        material = model.materials[mesh.materials[0]].convert(
-            location,
-            mesh.colors.getOrNull(0)?.getOrNull(0) ?: Vec4f(1f, 1f, 1f, 1f)
-        )
-    )
-}
+fun Document.getSkinDataForMesh(mesh: MeshGeometry, model: Model): Pair<Array<Vec4i>?, Array<Vec4f>?> {
+    // Получаем скин для модели
+    val skin = getSkinForModel(model) ?: return null to null
 
-fun Material.convert(model: ResourceLocation, color: Vec4f): InternalMaterial {
-    var location = InternalMaterial.MISSING_TEXTURE
-    textures["DiffuseColor"]?.media?.let { media ->
-        location = model.withPath(model.path.substringBefore('.')+'/'+media.name.lowercase().filter(ResourceLocation::validPathChar)+".png")
-        if (media.content.isNotEmpty()) {
-            RenderSystem.recordRenderCall {
-                try {
-                    val texture = DynamicTexture(NativeImage.read(media.content))
-                    Minecraft.getInstance().textureManager.register(location, texture)
-                } catch (e: IOException) {
-                    HollowCore.LOGGER.error("Invalid texture $location!")
+    // Создаем массивы для joints и weights
+    val vertexCount = mesh.vertices.size
+    val joints = Array(vertexCount) { Vec4i(0, 0, 0, 0) }
+    val weights = Array(vertexCount) { Vec4f(0f, 0f, 0f, 0f) }
+
+    // Для каждого кластера в скине
+    val fbxSkin = getConnectionsBySourceSequenced(model.id, "Deformer")
+        .mapNotNull { it.destinationObject as? ru.hollowhorizon.hollowengine.client.models.fbx.Skin }
+        .firstOrNull()
+
+    fbxSkin?.clusters?.forEach { cluster ->
+        val jointIndex = skin.jointsIds.indexOf(cluster.node?.id?.toInt() ?: -1)
+        if (jointIndex != -1) {
+            // Для каждой вершины в кластере
+            for (i in cluster.indices.indices) {
+                val vertexIndex = cluster.indices[i]
+                if (vertexIndex < vertexCount) {
+                    val weight = cluster.weights[i]
+
+                    // Находим свободный слот в векторе joints/weights
+                    val jointsVec = joints[vertexIndex]
+                    val weightsVec = weights[vertexIndex]
+
+                    // Ищем первый слот с нулевым весом
+                    when {
+                        weightsVec.x == 0f -> {
+                            joints[vertexIndex] = Vec4i(jointIndex, jointsVec.y, jointsVec.z, jointsVec.w)
+                            weights[vertexIndex] = Vec4f(weight, weightsVec.y, weightsVec.z, weightsVec.w)
+                        }
+
+                        weightsVec.y == 0f -> {
+                            joints[vertexIndex] = Vec4i(jointsVec.x, jointIndex, jointsVec.z, jointsVec.w)
+                            weights[vertexIndex] = Vec4f(weightsVec.x, weight, weightsVec.z, weightsVec.w)
+                        }
+
+                        weightsVec.z == 0f -> {
+                            joints[vertexIndex] = Vec4i(jointsVec.x, jointsVec.y, jointIndex, jointsVec.w)
+                            weights[vertexIndex] = Vec4f(weightsVec.x, weightsVec.y, weight, weightsVec.w)
+                        }
+
+                        weightsVec.w == 0f -> {
+                            joints[vertexIndex] = Vec4i(jointsVec.x, jointsVec.y, jointsVec.z, jointIndex)
+                            weights[vertexIndex] = Vec4f(weightsVec.x, weightsVec.y, weightsVec.z, weight)
+                        }
+                    }
                 }
             }
         }
     }
 
+    // Нормализуем веса
+    for (i in weights.indices) {
+        val w = weights[i]
+        val total = w.x + w.y + w.z + w.w
+        if (total > 0f) {
+            weights[i] = Vec4f(w.x / total, w.y / total, w.z / total, w.w / total)
+        }
+    }
+
+    return joints to weights
+}
+
+fun Document.getMorphTargetsForMesh(mesh: MeshGeometry): List<Map<String, FloatArray>> {
+    // В FBX blend shapes обычно хранятся как отдельные геометрии с соединениями
+    // Для простоты вернем пустой список - реализацию можно добавить позже
+    return emptyList()
+}
+
+fun convertMesh(mesh: MeshGeometry, model: Model, location: ResourceLocation, doc: Document): Primitive {
+    val (joints, jointWeights) = doc.getSkinDataForMesh(mesh, model)
+    val morphTargets = doc.getMorphTargetsForMesh(mesh)
+
+    return Primitive(
+        positions = mesh.vertices.toTypedArray(),
+        normals = mesh.normals.toTypedArray(),
+        texCoords = mesh.getTextureCoords(0).map { Vec2f(it.x, 1f - it.y) }.toTypedArray(),
+        tangents = mesh.tangents.map { Vec4f(it.x, it.y, it.z, 1f) }.toTypedArray(),
+        joints = joints,
+        jointWeights = jointWeights,
+        indices = mesh.indices.toIntArray(),
+        material = model.materials[mesh.materials[0]].convert(
+            location,
+            mesh.colors.getOrNull(0)?.getOrNull(0) ?: Vec4f(1f, 1f, 1f, 1f)
+        ),
+        morphTargets = morphTargets,
+        weights = FloatArray(morphTargets.size) { 0f }
+    )
+}
+
+fun Material.convert(model: ResourceLocation, color: Vec4f): InternalMaterial {
+    var diffuseTexture = InternalMaterial.MISSING_TEXTURE
+    var normalTexture = InternalMaterial.MISSING_NORMAL
+    var specularTexture = InternalMaterial.MISSING_SPECULAR
+
+    // Map FBX texture types to internal texture types
+    textures.forEach { (type, texture) ->
+        texture.media?.let { media ->
+            val textureLocation = model.withPath(
+                model.path.substringBefore('.') + '/' + media.name.lowercase()
+                    .filter(ResourceLocation::validPathChar) + ".png"
+            )
+
+            if (media.content.isNotEmpty()) {
+                RenderSystem.recordRenderCall {
+                    try {
+                        val nativeImage = NativeImage.read(media.content)
+                        val dynamicTexture = DynamicTexture(nativeImage)
+                        Minecraft.getInstance().textureManager.register(textureLocation, dynamicTexture)
+                    } catch (e: IOException) {
+                        HollowCore.LOGGER.error("Invalid texture $textureLocation!")
+                    }
+                }
+            }
+
+            when (type) {
+                "DiffuseColor", "DiffuseFactor" -> diffuseTexture = textureLocation
+                "NormalMap", "Bump", "Normal" -> normalTexture = textureLocation
+                "SpecularColor", "SpecularFactor", "Reflection" -> specularTexture = textureLocation
+                "EmissiveColor", "EmissiveFactor" -> {
+                    // Handle emissive textures if needed
+                }
+                // Add more texture type mappings as needed
+            }
+        }
+    }
+
+    // Get material properties from FBX material
+    val diffuseColor = props("DiffuseColor", Vec3f(0.8f, 0.8f, 0.8f))
+    val diffuseFactor = props("DiffuseFactor", 1.0f)
+    val transparencyFactor = props("TransparencyFactor", 0.0f)
+    val transparencyColor = props("TransparencyColor", Vec3f(0.0f, 0.0f, 0.0f))
+
+    // Calculate final color with transparency
+    val finalColor = Color(
+        diffuseColor.x * diffuseFactor,
+        diffuseColor.y * diffuseFactor,
+        diffuseColor.z * diffuseFactor,
+        1.0f - transparencyFactor
+    )
+
+    // Determine blend mode based on transparency
+    val blend = if (transparencyFactor > 0.01f || color.w < 0.99f) {
+        InternalMaterial.Blend.BLEND
+    } else {
+        InternalMaterial.Blend.OPAQUE
+    }
+
+    // Check if material is double-sided (common in FBX)
+    val doubleSided = props("DoubleSided", 0) != 0
+
     return InternalMaterial(
-        color = Color(color.x, color.y, color.z, color.w),
-        texture = location,
-        // Судя по всему fbx такие параметры не поддерживает,
-        // так что включим их по умолчанию, хоть это и хуже скажется на производительности
-        blend = InternalMaterial.Blend.BLEND,
-        doubleSided = true
+        color = finalColor,
+        texture = diffuseTexture,
+        normalTexture = normalTexture,
+        specularTexture = specularTexture,
+        doubleSided = doubleSided,
+        blend = blend
     )
 }
 
@@ -361,6 +617,297 @@ fun frameRateToDouble(fp: FileGlobalSettings.FrameRate, customFPSVal: Double = -
     Fr.CUSTOM -> customFPSVal
 }
 
-fun convertAnimationStack(st: AnimationStack): Animation? {
-    TODO()
+context(doc: Document)
+fun convertAnimationStack(st: AnimationStack): ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation? {
+    val channels = mutableListOf<Channel>()
+
+    // Получаем FPS для конвертации времени
+    val fps = doc.globals?.timeMode ?: FileGlobalSettings.FrameRate._30
+    val custom = doc.globals?.customFrameRate ?: -1f
+    val frameRate = frameRateToDouble(fps, custom.toDouble())
+    val timeScale = 1.0 / frameRate // Конвертация из кадров в секунды
+
+    // Проходим по всем слоям анимации
+    for (layer in st.layers) {
+        var translation: Interpolator<Vec3f>? = null
+        var rotation: Interpolator<QuatF>? = null
+        var scale: Interpolator<Vec3f>? = null
+
+        for (curveNode in layer.nodes()) {
+            val targetModel = curveNode.targetAsModel
+            if (targetModel == null) continue
+
+            val nodeId = targetModel.id.toInt()
+            val propertyName = curveNode.prop
+
+            // Маппинг свойств FBX на пути GLTF
+            val path = when (propertyName) {
+                "Lcl Translation" -> "translation"
+                "Lcl Rotation" -> "rotation"
+                "Lcl Scaling" -> "scale"
+                else -> continue // Пропускаем неизвестные свойства
+            }
+
+            // Получаем кривые для этого свойства
+            val curves = curveNode.curves()
+
+            // Для трансформаций нужно обработать X, Y, Z компоненты
+            when (path) {
+                "translation" -> {
+                    val xCurve = curves["d|X"]
+                    val yCurve = curves["d|Y"]
+                    val zCurve = curves["d|Z"]
+
+                    if (xCurve != null && yCurve != null && zCurve != null) {
+                        translation = createVector3Channel(nodeId, path, xCurve, yCurve, zCurve, timeScale)
+                    }
+                }
+
+                "rotation" -> {
+                    val xCurve = curves["d|X"]
+                    val yCurve = curves["d|Y"]
+                    val zCurve = curves["d|Z"]
+
+                    if (xCurve != null && yCurve != null && zCurve != null) {
+                        rotation = createRotationChannel(nodeId, xCurve, yCurve, zCurve, timeScale, targetModel.rotationOrder)
+                    }
+                }
+
+                "scale" -> {
+                    val xCurve = curves["d|X"]
+                    val yCurve = curves["d|Y"]
+                    val zCurve = curves["d|Z"]
+
+                    if (xCurve != null && yCurve != null && zCurve != null) {
+                        scale  = createVector3Channel(nodeId, path, xCurve, yCurve, zCurve, timeScale)
+                    }
+                }
+            }
+        }
+        AnimationData(translation, rotation, scale, null)
+    }
+
+    if (channels.isEmpty()) return null
+
+    // Создаем промежуточную анимацию
+    // val animation = ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation(st.name, channels)
+
+    // Конвертируем в финальный формат (нужен доступ к узлам, который будет позже)
+    // Возвращаем null, так как для создания финальной анимации нужны узлы
+    return null
+}
+
+private fun createVector3Channel(
+    nodeId: Int,
+    path: String,
+    xCurve: AnimationCurve,
+    yCurve: AnimationCurve,
+    zCurve: AnimationCurve,
+    timeScale: Double,
+): Interpolator<Vec3f> {
+    // Объединяем все ключевые кадры
+    val allTimes = mutableSetOf<Long>()
+    allTimes.addAll(xCurve.keys)
+    allTimes.addAll(yCurve.keys)
+    allTimes.addAll(zCurve.keys)
+
+    val sortedTimes = allTimes.sorted()
+    val times = sortedTimes.map { (it * timeScale).toFloat() }.toFloatArray()
+
+    // Интерполируем значения для каждого времени
+    val values = mutableListOf<Vec3f>()
+    for (time in sortedTimes) {
+        val x = interpolateCurveValue(xCurve, time)
+        val y = interpolateCurveValue(yCurve, time)
+        val z = interpolateCurveValue(zCurve, time)
+
+        values.add(Vec3f(x, y, z))
+    }
+
+    return Linear(times, values.toTypedArray())
+}
+
+private fun createRotationChannel(
+    nodeId: Int,
+    xCurve: AnimationCurve,
+    yCurve: AnimationCurve,
+    zCurve: AnimationCurve,
+    timeScale: Double,
+    rotationOrder: Model.RotOrder,
+): Interpolator<QuatF> {
+    // Аналогично createVector3Channel, но конвертируем углы Эйлера в кватернионы
+    val allTimes = mutableSetOf<Long>()
+    allTimes.addAll(xCurve.keys)
+    allTimes.addAll(yCurve.keys)
+    allTimes.addAll(zCurve.keys)
+
+    val sortedTimes = allTimes.sorted()
+    val times = sortedTimes.map { (it * timeScale).toFloat() }.toFloatArray()
+
+    val values = mutableListOf<QuatF>()
+    for (time in sortedTimes) {
+        val x = interpolateCurveValue(xCurve, time)
+        val y = interpolateCurveValue(yCurve, time)
+        val z = interpolateCurveValue(zCurve, time)
+
+        values.add(eulerToQuaternion(x, y, z, rotationOrder))
+    }
+
+    return SphericalLinear(times, values.toTypedArray())
+}
+
+private fun getInterpolationType(curve: AnimationCurve): String {
+    // В FBX есть флаги интерполяции, но для простоты используем LINEAR
+    // В реальной реализации нужно анализировать curve.flags и curve.attributes
+    return "LINEAR"
+}
+
+private fun interpolateCurveValue(curve: AnimationCurve, time: Long): Float {
+    if (curve.keys.isEmpty()) return 0f
+    if (curve.keys.size == 1) return curve.values[0]
+
+    // Находим индексы ключевых кадров для интерполяции
+    var idx = 0
+    while (idx < curve.keys.size - 1 && curve.keys[idx + 1] < time) {
+        idx++
+    }
+
+    if (idx >= curve.keys.size - 1) return curve.values.last()
+    if (curve.keys[idx] > time) return curve.values.first()
+
+    val t0 = curve.keys[idx]
+    val t1 = curve.keys[idx + 1]
+    val v0 = curve.values[idx]
+    val v1 = curve.values[idx + 1]
+
+    val alpha = (time - t0).toFloat() / (t1 - t0).toFloat()
+
+    // В зависимости от типа интерполяции
+    return when (getInterpolationType(curve)) {
+        "STEP" -> v0
+        "CUBIC" -> {
+            // Кубическая интерполяция (Hermite)
+            // Для простоты используем линейную
+            v0 + (v1 - v0) * alpha
+        }
+
+        else -> v0 + (v1 - v0) * alpha // LINEAR по умолчанию
+    }
+}
+
+private fun createVector3ChannelIntermediate(
+    nodeId: Int,
+    path: String,
+    xCurve: AnimationCurve,
+    yCurve: AnimationCurve,
+    zCurve: AnimationCurve,
+    timeScale: Double,
+): Interpolator<Vec3f>? {
+    if (xCurve.keys.isEmpty() || yCurve.keys.isEmpty() || zCurve.keys.isEmpty()) return null
+
+    // Определяем тип интерполяции на основе кривых
+    val interpolation = determineInterpolationType(xCurve, yCurve, zCurve)
+
+    // Объединяем все ключевые кадры
+    val allTimes = mutableSetOf<Long>()
+    allTimes.addAll(xCurve.keys)
+    allTimes.addAll(yCurve.keys)
+    allTimes.addAll(zCurve.keys)
+
+    val sortedTimes = allTimes.sorted()
+    val times = sortedTimes.map { (it * timeScale).toFloat() }.toFloatArray()
+
+    // Интерполируем значения для каждого времени
+    val values = mutableListOf<Vec3f>()
+    for (time in sortedTimes) {
+        val x = interpolateCurveValue(xCurve, time)
+        val y = interpolateCurveValue(yCurve, time)
+        val z = interpolateCurveValue(zCurve, time)
+
+        values.add(Vec3f(x, y, z))
+    }
+
+    // Создаем временный аксессор для значений
+    // В реальной реализации нужно создать GltfAccessor
+    return Linear(times, values.toTypedArray())
+}
+
+private fun determineInterpolationType(
+    xCurve: AnimationCurve,
+    yCurve: AnimationCurve,
+    zCurve: AnimationCurve,
+): String {
+    // Определяем общий тип интерполяции для всех трех кривых
+    // Если все кривые имеют одинаковый тип, используем его
+    val xType = getInterpolationType(xCurve)
+    val yType = getInterpolationType(yCurve)
+    val zType = getInterpolationType(zCurve)
+
+    // Если типы разные, используем наиболее распространенный
+    return when {
+        xType == yType && yType == zType -> xType
+        xType == yType -> xType
+        yType == zType -> yType
+        xType == zType -> xType
+        else -> "LINEAR" // По умолчанию
+    }
+}
+
+private fun createRotationChannelIntermediate(
+    nodeId: Int,
+    xCurve: AnimationCurve,
+    yCurve: AnimationCurve,
+    zCurve: AnimationCurve,
+    timeScale: Double,
+    rotationOrder: Model.RotOrder,
+): Interpolator<QuatF>? {
+    if (xCurve.keys.isEmpty() || yCurve.keys.isEmpty() || zCurve.keys.isEmpty()) return null
+
+    // Определяем тип интерполяции
+    val interpolation = determineInterpolationType(xCurve, yCurve, zCurve)
+
+    // Аналогично createVector3Channel, но конвертируем углы Эйлера в кватернионы
+    val allTimes = mutableSetOf<Long>()
+    allTimes.addAll(xCurve.keys)
+    allTimes.addAll(yCurve.keys)
+    allTimes.addAll(zCurve.keys)
+
+    val sortedTimes = allTimes.sorted()
+    val times = sortedTimes.map { (it * timeScale).toFloat() }.toFloatArray()
+
+    val values = mutableListOf<QuatF>()
+    for (time in sortedTimes) {
+        val x = interpolateCurveValue(xCurve, time)
+        val y = interpolateCurveValue(yCurve, time)
+        val z = interpolateCurveValue(zCurve, time)
+
+        // Конвертируем углы Эйлера в кватернион
+        val quat = eulerToQuaternion(x, y, z, rotationOrder)
+        values.add(quat)
+    }
+
+    return SphericalLinear(times, values.toTypedArray())
+}
+
+private fun eulerToQuaternion(x: Float, y: Float, z: Float, order: Model.RotOrder): QuatF {
+    // Конвертируем градусы в радианы
+    val xRad = x.deg
+    val yRad = y.deg
+    val zRad = z.deg
+
+    // Создаем кватернионы для каждой оси
+    val qx = QuatF(xRad, Vec3f.X_AXIS)
+    val qy = QuatF(yRad, Vec3f.Y_AXIS)
+    val qz = QuatF(zRad, Vec3f.Z_AXIS)
+
+    // Умножаем в правильном порядке
+    return when (order) {
+        Model.RotOrder.EulerXYZ -> qz * qy * qx
+        Model.RotOrder.EulerXZY -> qy * qz * qx
+        Model.RotOrder.EulerYZX -> qx * qz * qy
+        Model.RotOrder.EulerYXZ -> qz * qx * qy
+        Model.RotOrder.EulerZXY -> qy * qx * qz
+        Model.RotOrder.EulerZYX -> qx * qy * qz
+        else -> qz * qy * qx // По умолчанию ZYX
+    }
 }
