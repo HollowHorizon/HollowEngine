@@ -80,13 +80,7 @@ fun Document.convert(location: ResourceLocation): InternalModel {
 
     return InternalModel(0, listOf(scene), setOf(), animations).apply {
         isBlockBench = creator.contains("blockbench", ignoreCase = true)
-        if (isBlockBench) {
-            scenes[0].nodes.forEach {
-                // BlockBench зачем-то скейлит модели
-                it.transform.scale(0.01)
-                it.baseTransform.scale(0.01)
-            }
-        }
+       
     }
 }
 
@@ -129,8 +123,8 @@ fun convertAnimationStackIntermediate(st: AnimationStack): Animation? {
                     val zCurve = curves["d|Z"]
 
                     if (xCurve != null && yCurve != null && zCurve != null) {
-                        val channel = createVector3ChannelIntermediate(nodeId, path, xCurve, yCurve, zCurve, timeScale)
-                        //if (channel != null) channels.add(channel)
+                        val channel = createVec3fChannel(nodeId, path, xCurve, yCurve, zCurve, timeScale)
+                        if (channel != null) channels.add(channel)
                     }
                 }
 
@@ -140,7 +134,7 @@ fun convertAnimationStackIntermediate(st: AnimationStack): Animation? {
                     val zCurve = curves["d|Z"]
 
                     if (xCurve != null && yCurve != null && zCurve != null) {
-                        val channel = createRotationChannelIntermediate(
+                        val channel = createQuatChannel(
                             nodeId,
                             xCurve,
                             yCurve,
@@ -148,7 +142,7 @@ fun convertAnimationStackIntermediate(st: AnimationStack): Animation? {
                             timeScale,
                             targetModel.rotationOrder
                         )
-                        //if (channel != null) channels.add(channel)
+                        if (channel != null) channels.add(channel)
                     }
                 }
             }
@@ -340,7 +334,10 @@ fun convertModel(model: Model, transform: TrsTransformF, location: ResourceLocat
 }
 
 fun Document.getSkinDataForMesh(mesh: MeshGeometry, model: Model): Pair<Array<Vec4i>?, Array<Vec4f>?> {
-    // Получаем скин для модели
+    // Получаем скин для геометрии (skin attached to geometry, not model)
+    val fbxSkin = mesh.skin ?: return null to null
+    
+    // Получаем внутренний скин для модели (для получения joint indices)
     val skin = getSkinForModel(model) ?: return null to null
 
     // Создаем массивы для joints и weights
@@ -349,11 +346,7 @@ fun Document.getSkinDataForMesh(mesh: MeshGeometry, model: Model): Pair<Array<Ve
     val weights = Array(vertexCount) { Vec4f(0f, 0f, 0f, 0f) }
 
     // Для каждого кластера в скине
-    val fbxSkin = getConnectionsBySourceSequenced(model.id, "Deformer")
-        .mapNotNull { it.destinationObject as? ru.hollowhorizon.hollowengine.client.models.fbx.Skin }
-        .firstOrNull()
-
-    fbxSkin?.clusters?.forEach { cluster ->
+    fbxSkin.clusters.forEach { cluster ->
         val jointIndex = skin.jointsIds.indexOf(cluster.node?.id?.toInt() ?: -1)
         if (jointIndex != -1) {
             // Для каждой вершины в кластере
@@ -406,9 +399,46 @@ fun Document.getSkinDataForMesh(mesh: MeshGeometry, model: Model): Pair<Array<Ve
 }
 
 fun Document.getMorphTargetsForMesh(mesh: MeshGeometry): List<Map<String, FloatArray>> {
-    // В FBX blend shapes обычно хранятся как отдельные геометрии с соединениями
-    // Для простоты вернем пустой список - реализацию можно добавить позже
-    return emptyList()
+    val morphTargets = mutableListOf<Map<String, FloatArray>>()
+    
+    // Get the blend shape deformer attached to this mesh
+    val blendShape = mesh.blendShape ?: return emptyList()
+    
+    // Iterate through all blend shape channels
+    for (channel in blendShape.channels) {
+        // Each channel can have multiple shapes (but typically has one)
+        for (shape in channel.shapes) {
+            val targetData = mutableMapOf<String, FloatArray>()
+            
+            // Position deltas
+            if (shape.vertices.isNotEmpty()) {
+                val positionDeltas = FloatArray(shape.vertices.size * 3)
+                shape.vertices.forEachIndexed { i, v ->
+                    positionDeltas[i * 3] = v.x
+                    positionDeltas[i * 3 + 1] = v.y
+                    positionDeltas[i * 3 + 2] = v.z
+                }
+                targetData["POSITION"] = positionDeltas
+            }
+            
+            // Normal deltas
+            if (shape.normals.isNotEmpty()) {
+                val normalDeltas = FloatArray(shape.normals.size * 3)
+                shape.normals.forEachIndexed { i, n ->
+                    normalDeltas[i * 3] = n.x
+                    normalDeltas[i * 3 + 1] = n.y
+                    normalDeltas[i * 3 + 2] = n.z
+                }
+                targetData["NORMAL"] = normalDeltas
+            }
+            
+            if (targetData.isNotEmpty()) {
+                morphTargets.add(targetData)
+            }
+        }
+    }
+    
+    return morphTargets
 }
 
 fun convertMesh(mesh: MeshGeometry, model: Model, location: ResourceLocation, doc: Document): Primitive {
@@ -795,14 +825,14 @@ private fun interpolateCurveValue(curve: AnimationCurve, time: Long): Float {
     }
 }
 
-private fun createVector3ChannelIntermediate(
+private fun createVec3fChannel(
     nodeId: Int,
     path: String,
     xCurve: AnimationCurve,
     yCurve: AnimationCurve,
     zCurve: AnimationCurve,
     timeScale: Double,
-): Interpolator<Vec3f>? {
+): Channel? {
     if (xCurve.keys.isEmpty() || yCurve.keys.isEmpty() || zCurve.keys.isEmpty()) return null
 
     // Определяем тип интерполяции на основе кривых
@@ -815,7 +845,7 @@ private fun createVector3ChannelIntermediate(
     allTimes.addAll(zCurve.keys)
 
     val sortedTimes = allTimes.sorted()
-    val times = sortedTimes.map { (it * timeScale).toFloat() }.toFloatArray()
+    val times = sortedTimes.map { (it * timeScale).toFloat() }
 
     // Интерполируем значения для каждого времени
     val values = mutableListOf<Vec3f>()
@@ -827,9 +857,13 @@ private fun createVector3ChannelIntermediate(
         values.add(Vec3f(x, y, z))
     }
 
-    // Создаем временный аксессор для значений
-    // В реальной реализации нужно создать GltfAccessor
-    return Linear(times, values.toTypedArray())
+    return Channel(
+        node = nodeId,
+        path = path,
+        times = times,
+        interpolation = interpolation,
+        values = Vec3fChannelData(values.toTypedArray())
+    )
 }
 
 private fun determineInterpolationType(
@@ -853,27 +887,27 @@ private fun determineInterpolationType(
     }
 }
 
-private fun createRotationChannelIntermediate(
+private fun createQuatChannel(
     nodeId: Int,
     xCurve: AnimationCurve,
     yCurve: AnimationCurve,
     zCurve: AnimationCurve,
     timeScale: Double,
     rotationOrder: Model.RotOrder,
-): Interpolator<QuatF>? {
+): Channel? {
     if (xCurve.keys.isEmpty() || yCurve.keys.isEmpty() || zCurve.keys.isEmpty()) return null
 
     // Определяем тип интерполяции
     val interpolation = determineInterpolationType(xCurve, yCurve, zCurve)
 
-    // Аналогично createVector3Channel, но конвертируем углы Эйлера в кватернионы
+    // Аналогично createVec3fChannel, но конвертируем углы Эйлера в кватернионы
     val allTimes = mutableSetOf<Long>()
     allTimes.addAll(xCurve.keys)
     allTimes.addAll(yCurve.keys)
     allTimes.addAll(zCurve.keys)
 
     val sortedTimes = allTimes.sorted()
-    val times = sortedTimes.map { (it * timeScale).toFloat() }.toFloatArray()
+    val times = sortedTimes.map { (it * timeScale).toFloat() }
 
     val values = mutableListOf<QuatF>()
     for (time in sortedTimes) {
@@ -886,7 +920,13 @@ private fun createRotationChannelIntermediate(
         values.add(quat)
     }
 
-    return SphericalLinear(times, values.toTypedArray())
+    return Channel(
+        node = nodeId,
+        path = "rotation",
+        times = times,
+        interpolation = interpolation,
+        values = QuatfChannelData(values.toTypedArray())
+    )
 }
 
 private fun eulerToQuaternion(x: Float, y: Float, z: Float, order: Model.RotOrder): QuatF {

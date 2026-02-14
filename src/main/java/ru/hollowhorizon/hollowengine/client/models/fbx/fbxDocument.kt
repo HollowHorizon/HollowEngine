@@ -69,7 +69,11 @@ class LazyObject(val id: Long, val element: Element, val doc: Document) {
             //dumpObjectClassInfo( objtype, classtag )
 
             object_ = when {
-                buffer.strncmp("Geometry", obType, length) -> MeshGeometry(id, element, name, doc).takeIf { classtag == "Mesh" }
+                buffer.strncmp("Geometry", obType, length) -> when (classtag) {
+                    "Mesh" -> MeshGeometry(id, element, name, doc)
+                    "Shape" -> ShapeGeometry(id, element, doc, name)
+                    else -> null
+                }
                 buffer.strncmp("NodeAttribute", obType, length) -> when (classtag) {
                     "Camera" -> Camera(id, element, doc, name)
                     "CameraSwitcher" -> CameraSwitcher(id, element, doc, name)
@@ -81,6 +85,8 @@ class LazyObject(val id: Long, val element: Element, val doc: Document) {
                 buffer.strncmp("Deformer", obType, length) -> when (classtag) {
                     "Cluster" -> Cluster(id, element, doc, name)
                     "Skin" -> Skin(id, element, doc, name)
+                    "BlendShape" -> BlendShape(id, element, doc, name)
+                    "BlendShapeChannel" -> BlendShapeChannel(id, element, doc, name)
                     else -> null
                 }
                 buffer.strncmp("Model", obType, length) ->  // FK and IK effectors are not supported
@@ -832,6 +838,67 @@ class Skin(id: Long, element: Element, doc: Document, name: String) : Deformer(i
                 continue
             }
         }
+    }
+}
+
+/** DOM class for blend shape deformers */
+class BlendShape(id: Long, element: Element, doc: Document, name: String) : Deformer(id, element, doc, name) {
+
+    val channels = ArrayList<BlendShapeChannel>()
+
+    init {
+        // resolve assigned blend shape channels
+        val conns = doc.getConnectionsByDestinationSequenced(id, "Deformer")
+
+        channels.ensureCapacity(conns.size)
+        for (con in conns) {
+            val channel = processSimpleConnection<BlendShapeChannel>(con, false, "BlendShapeChannel -> BlendShape", element)
+            if (channel != null) {
+                channels += channel
+                continue
+            }
+        }
+    }
+}
+
+/** DOM class for blend shape channels */
+class BlendShapeChannel(id: Long, element: Element, doc: Document, name: String) : Deformer(id, element, doc, name) {
+
+    val shapes = ArrayList<ShapeGeometry>()
+    var defaultWeight = 0f
+
+    init {
+        // Read default weight from properties
+        defaultWeight = props("DeformPercent", 0f)
+
+        // resolve assigned shapes (geometries)
+        val conns = doc.getConnectionsByDestinationSequenced(id, "Geometry")
+
+        shapes.ensureCapacity(conns.size)
+        for (con in conns) {
+            val shape = processSimpleConnection<ShapeGeometry>(con, false, "Shape -> BlendShapeChannel", element)
+            if (shape != null) {
+                shapes += shape
+                continue
+            }
+        }
+    }
+}
+
+/** DOM class for shape geometries (morph targets) */
+class ShapeGeometry(id: Long, element: Element, doc: Document, name: String) : Geometry(id, element, name, doc) {
+
+    val vertices = ArrayList<Vec3f>()
+    val normals = ArrayList<Vec3f>()
+
+    init {
+        val sc = element.scope
+
+        // Read shape vertices (deltas)
+        sc["Vertices"]?.let { it.parseVec3DataArray(vertices) }
+
+        // Read shape normals (deltas) if present
+        sc["Normals"]?.let { it.parseVec3DataArray(normals) }
     }
 }
 

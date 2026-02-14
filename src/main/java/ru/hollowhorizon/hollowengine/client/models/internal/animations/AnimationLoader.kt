@@ -2,7 +2,7 @@ package ru.hollowhorizon.hollowengine.client.models.internal.animations
 
 import de.fabmax.kool.math.*
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
-import ru.hollowhorizon.hollowengine.client.models.gltf.*
+import ru.hollowhorizon.hollowengine.client.models.internal.ChannelData
 import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.*
 
@@ -53,20 +53,20 @@ object AnimationLoader {
         node: NodeDefinition,
         interpolation: String,
         target: AnimationTarget,
-        outputData: GltfAccessor,
+        outputData: ChannelData,
         timeKeys: FloatArray,
         componentCount: Int = -1,
     ): Interpolator<*> {
         return when (interpolation) {
-            GltfAnimation.Sampler.INTERPOLATION_STEP -> loadStep(node, outputData, timeKeys, target, componentCount)
-            GltfAnimation.Sampler.INTERPOLATION_LINEAR -> loadLinear(node, outputData, timeKeys, target, componentCount)
+            "STEP" -> loadStep(node, outputData, timeKeys, target, componentCount)
+            "LINEAR" -> loadLinear(node, outputData, timeKeys, target, componentCount)
             else -> throw UnsupportedOperationException("Animation type $interpolation not supported yet!")
         }
     }
 
     private fun loadStep(
         node: NodeDefinition,
-        outputData: GltfAccessor,
+        outputData: ChannelData,
         keys: FloatArray,
         target: AnimationTarget,
         componentCount: Int = -1,
@@ -74,31 +74,31 @@ object AnimationLoader {
         return when (target) {
             AnimationTarget.TRANSLATION -> Vec3Step(
                 keys,
-                Vec3fAccessor(outputData).list.map { it - node.baseTransform.translation }.toTypedArray()
+                outputData.asVec3f().map { it - node.baseTransform.translation }.toTypedArray()
             )
 
             AnimationTarget.ROTATION -> QuatStep(
                 keys,
-                Vec4fAccessor(outputData).list.map {
+                outputData.asVec4f().map {
                     MutableQuatF(node.baseTransform.rotation).inverted().mul(it.toQuatF())
                 }.toTypedArray()
             )
 
             AnimationTarget.SCALE -> Vec3Step(
                 keys,
-                Vec3fAccessor(outputData).list.map { it / node.baseTransform.scale }.toTypedArray()
+                outputData.asVec3f().map { it / node.baseTransform.scale }.toTypedArray()
             )
 
             AnimationTarget.WEIGHTS -> LinearSingle(
                 keys,
-                splitListByN(FloatAccessor(outputData).list.toList(), componentCount).toTypedArray()
+                splitListByN(outputData.asFloats(), componentCount).toTypedArray()
             )
         }
     }
 
     private fun loadLinear(
         node: NodeDefinition,
-        outputData: GltfAccessor,
+        outputData: ChannelData,
         keys: FloatArray,
         target: AnimationTarget,
         componentCount: Int = -1,
@@ -106,24 +106,24 @@ object AnimationLoader {
         return when (target) {
             AnimationTarget.TRANSLATION -> Linear(
                 keys,
-                Vec3fAccessor(outputData).list.map { it - node.baseTransform.translation }.toTypedArray()
+                outputData.asVec3f().map { it - node.baseTransform.translation }.toTypedArray()
             )
 
             AnimationTarget.ROTATION -> SphericalLinear(
                 keys,
-                Vec4fAccessor(outputData).list.map {
+                outputData.asVec4f().map {
                     MutableQuatF(node.baseTransform.rotation).inverted().mul(it.toQuatF())
                 }.toTypedArray()
             )
 
             AnimationTarget.SCALE -> Linear(
                 keys,
-                Vec3fAccessor(outputData).list.map { it / node.baseTransform.scale }.toTypedArray()
+                outputData.asVec3f().map { it / node.baseTransform.scale }.toTypedArray()
             )
 
             AnimationTarget.WEIGHTS -> LinearSingle(
                 keys,
-                splitListByN(FloatAccessor(outputData).list.toList(), componentCount).toTypedArray()
+                splitListByN(outputData.asFloats(), componentCount).toTypedArray()
             )
         }
     }
