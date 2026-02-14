@@ -54,9 +54,28 @@ enum class TransformationComp {
 operator fun Array<Mat4f>.get(transf: Tc) = get(transf.i)
 operator fun Array<Mat4f>.set(transf: Tc, mat: Mat4f) = set(transf.i, mat)
 
+const val BBSCALE = 100f
+
 fun Document.convert(location: ResourceLocation): InternalModel {
+    val isBlockBenchModel = creator.contains("blockbench", ignoreCase = true)
+    
     // Сначала конвертируем узлы
-    val nodes = convertNodes(0L, location)
+    val rawNodes = convertNodes(0L, location)
+    
+    // For BlockBench models, wrap all nodes in a root node with 1/16 scale
+    // BlockBench uses 16 units per block, Minecraft uses 1 unit per block
+    val nodes = if (isBlockBenchModel && rawNodes.isNotEmpty()) {
+        listOf(
+            NodeDefinition(
+                index = -1, // Special root node
+                children = rawNodes.toMutableList(),
+                transform = TrsTransformF().scale(Vec3f(1f / BBSCALE, 1f / BBSCALE, 1f / BBSCALE))
+            )
+        )
+    } else {
+        rawNodes
+    }
+    
     val scene = Scene(nodes)
 
     // Собираем все узлы для анимаций
@@ -79,8 +98,7 @@ fun Document.convert(location: ResourceLocation): InternalModel {
     }
 
     return InternalModel(0, listOf(scene), setOf(), animations).apply {
-        isBlockBench = creator.contains("blockbench", ignoreCase = true)
-       
+        isBlockBench = isBlockBenchModel
     }
 }
 
@@ -88,11 +106,12 @@ context(doc: Document)
 fun convertAnimationStackIntermediate(st: AnimationStack): Animation? {
     val channels = mutableListOf<Channel>()
 
-    // Получаем FPS для конвертации времени
-    val fps = doc.globals?.timeMode ?: FileGlobalSettings.FrameRate._30
-    val custom = doc.globals?.customFrameRate ?: -1f
-    val frameRate = frameRateToDouble(fps, custom.toDouble())
-    val timeScale = 1.0 / frameRate // Конвертация из кадров в секунды
+    // FBX stores time in "FBX time units" where 1 second = 46186158000 FBX time units
+    // This is the FBX SDK's definition (FBX_KTIME)
+    // Keyframe times are stored as absolute time values in FBX time units, NOT as frame numbers
+    // Therefore, frameRate from global settings is NOT needed for time conversion
+    val FBX_TIME_UNITS_PER_SECOND = 46186158000.0
+    val timeScale = 1.0 / FBX_TIME_UNITS_PER_SECOND // Convert from FBX time units to seconds
 
     // Проходим по всем слоям анимации
     for (layer in st.layers) {
@@ -151,8 +170,13 @@ fun convertAnimationStackIntermediate(st: AnimationStack): Animation? {
 
     if (channels.isEmpty()) return null
 
+    // Clean animation name by removing FBX internal prefixes
+    val cleanName = st.name
+        .removePrefix("AnimStack::")
+        .removePrefix("AnimationStack::")
+
     // Создаем промежуточную анимацию
-    return Animation(st.name, channels)
+    return Animation(cleanName, channels)
 }
 
 fun Document.convertNodes(parentId: Long, location: ResourceLocation): List<NodeDefinition> {
@@ -317,8 +341,9 @@ fun convertSkin(fbxSkin: ru.hollowhorizon.hollowengine.client.models.fbx.Skin): 
 }
 
 fun convertModel(model: Model, transform: TrsTransformF, location: ResourceLocation, doc: Document): NodeDefinition {
+    val isBlockBenchModel = doc.creator.contains("blockbench", ignoreCase = true)
     val primitives = model.geometry.mapNotNull {
-        (it as? MeshGeometry)?.let { convertMesh(it, model, location, doc) }
+        (it as? MeshGeometry)?.let { convertMesh(it, model, location, doc, isBlockBenchModel) }
     }
 
     val skin = doc.getSkinForModel(model)
@@ -441,13 +466,21 @@ fun Document.getMorphTargetsForMesh(mesh: MeshGeometry): List<Map<String, FloatA
     return morphTargets
 }
 
-fun convertMesh(mesh: MeshGeometry, model: Model, location: ResourceLocation, doc: Document): Primitive {
+fun convertMesh(mesh: MeshGeometry, model: Model, location: ResourceLocation, doc: Document, isBlockBench: Boolean = false): Primitive {
     val (joints, jointWeights) = doc.getSkinDataForMesh(mesh, model)
     val morphTargets = doc.getMorphTargetsForMesh(mesh)
+    
+    // For BlockBench models, normals need to be scaled by 16 to compensate for the 1/16 model scale
+    // This is because normals represent surface orientation and need proper magnitude for lighting
+    val normals = if (isBlockBench) {
+        mesh.normals.map { Vec3f(it.x * BBSCALE, it.y * BBSCALE, it.z * BBSCALE) }.toTypedArray()
+    } else {
+        mesh.normals.toTypedArray()
+    }
 
     return Primitive(
         positions = mesh.vertices.toTypedArray(),
-        normals = mesh.normals.toTypedArray(),
+        normals = normals,
         texCoords = mesh.getTextureCoords(0).map { Vec2f(it.x, 1f - it.y) }.toTypedArray(),
         tangents = mesh.tangents.map { Vec4f(it.x, it.y, it.z, 1f) }.toTypedArray(),
         joints = joints,
@@ -651,11 +684,13 @@ context(doc: Document)
 fun convertAnimationStack(st: AnimationStack): ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation? {
     val channels = mutableListOf<Channel>()
 
-    // Получаем FPS для конвертации времени
-    val fps = doc.globals?.timeMode ?: FileGlobalSettings.FrameRate._30
-    val custom = doc.globals?.customFrameRate ?: -1f
-    val frameRate = frameRateToDouble(fps, custom.toDouble())
-    val timeScale = 1.0 / frameRate // Конвертация из кадров в секунды
+    // FBX stores time in "FBX time units" where 1 second = 46186158000 FBX time units
+    // This is the FBX SDK's definition (FBX_KTIME)
+    val FBX_TIME_UNITS_PER_SECOND = 46186158000.0
+    val timeScale = 1.0 / FBX_TIME_UNITS_PER_SECOND // Convert from FBX time units to seconds
+
+    // Note: frameRate from globals is NOT used for keyframe time conversion
+    // FBX keyframe times are already in FBX time units, not in frames
 
     // Проходим по всем слоям анимации
     for (layer in st.layers) {
