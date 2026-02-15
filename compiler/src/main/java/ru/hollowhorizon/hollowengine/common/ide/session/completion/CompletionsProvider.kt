@@ -35,8 +35,9 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.keywordCompletionItem
 import ru.hollowhorizon.hollowengine.logE
 
 fun ScriptingAnalyzerImpl.createCompletions(file: KtFile, offset: Int): List<CompletionItem> {
-    val file = createFileForCompletion(file, offset + 1)
-    val element = file.findElementAt(offset) ?: return emptyList()
+    val safeOffset = offset.coerceIn(0, file.textLength)
+    val file = createFileForCompletion(file, safeOffset + 1)
+    val element = file.findElementAt(safeOffset) ?: return emptyList()
     val ktElement = element.parentOfType<KtElement>(withSelf = true) ?: return emptyList()
 
     try {
@@ -49,12 +50,14 @@ fun ScriptingAnalyzerImpl.createCompletions(file: KtFile, offset: Int): List<Com
 }
 
 private fun createFileForCompletion(original: KtFile, offset: Int): KtFile {
-    val textWithInsertedFakeIdentifier = original.text.replaceRange(offset, offset, COMPLETION_FAKE_IDENTIFIER)
+    val safeOffset = offset.coerceIn(0, original.textLength)
+    val textWithInsertedFakeIdentifier = original.text.replaceRange(safeOffset, safeOffset, COMPLETION_FAKE_IDENTIFIER)
     val copyKtFile =
         KtPsiFactory(original.project, markGenerated = true, eventSystemEnabled = true).createFile(
             original.name,
             textWithInsertedFakeIdentifier
         )
+
     copyKtFile.contextModule = original.virtualFile.kaModule
     copyKtFile.virtualFile.kaModule = copyKtFile.contextModule
     copyKtFile.originalFile = original

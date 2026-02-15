@@ -253,7 +253,7 @@ class CompiledFileProvider(
                 analysisState.diagnostics.addAll(diagnostics)
             }
         } catch (e: Exception) {
-            logD { "Analysis failed: ${e.message}" }
+            logD { "Analysis failed: ${e.stackTraceToString()}" }
         }
     }
 
