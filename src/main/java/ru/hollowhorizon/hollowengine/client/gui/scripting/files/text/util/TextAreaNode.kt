@@ -431,39 +431,24 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     private fun setText(lineProvider: TextLineProvider) {
         val textAreaMod = this@TextAreaNode.modifier
 
-        val indentStack = mutableListOf<Int>()
+        val indentManager = IndentStackManager()
         for (i in 0..<linesHolder.state.itemsFrom.use().coerceAtMost(lineProvider.size)) {
             val line = lineProvider[i]
             val indentIndex = line.text.indexOfFirst { it != ' ' }
-
-            indentIndex.let {
-                if (it == -1 && line.length != 0) return@let
-                while (it <= (indentStack.lastOrNull() ?: 0) && indentStack.isNotEmpty()) {
-                    indentStack.removeLastOrNull()
-                    if (line.length == 0) break
-                }
-                if (it > 0 && it != indentStack.lastOrNull()) {
-                    indentStack.add(it)
-                }
-            }
+            indentManager.update(indentIndex, line.length)
         }
         selectionController.updateSelectionRange()
         linesHolder.indices(lineProvider.size) { lineIndex ->
             if (lineIndex >= lineProvider.size) return@indices
             val line = lineProvider[lineIndex]
             val indentIndex = line.text.indexOfFirst { it != ' ' }
-            indentIndex.let {
-                if (it == -1 && line.length != 0) return@let
-                while (it <= (indentStack.lastOrNull() ?: 0) && indentStack.isNotEmpty()) {
-                    indentStack.removeLastOrNull()
-                    if (line.length == 0) break
-                }
-            }
+            indentManager.popToIndent(indentIndex, line.length)
+            
             val font = MsdfFont(ColorTheme.Fonts.MONOCRAFT, 18f)
 
             val lineItem = uiNode.createChild(null, LineItem::class, lineItemFactory)
             lineItem.lineIndex = lineIndex
-            lineItem.indents = indentStack.toIntArray()
+            lineItem.indents = indentManager.getIndents()
             lineItem.modifier.width(Grow.Std).layout(RowLayout)
             with(lineItem) {
                 val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp + Dimensions.PaddingHuge
@@ -490,11 +475,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                 }
             }
 
-            indentIndex.let {
-                if (it > 0 && it != indentStack.lastOrNull()) {
-                    indentStack.add(it)
-                }
-            }
+            indentManager.pushIndent(indentIndex)
         }
     }
 
@@ -944,6 +925,69 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         val factory: (UiNode, UiSurface) -> TextAreaNode = { parent, surface -> TextAreaNode(parent, surface) }
     }
+}
+
+/**
+ * Manages the indent stack for tracking indentation levels in the text editor.
+ * Used for rendering indent guides and smart indentation features.
+ */
+private class IndentStackManager {
+    private val stack = mutableListOf<Int>()
+    
+    /**
+     * Updates the indent stack based on the current line's indent index.
+     * Performs both pop and push operations in one call.
+     * @param indentIndex The column index of the first non-space character, or -1 if line is all spaces
+     * @param lineLength The length of the current line
+     */
+    fun update(indentIndex: Int, lineLength: Int) {
+        if (indentIndex == -1 && lineLength != 0) return
+        
+        while (indentIndex <= (stack.lastOrNull() ?: 0) && stack.isNotEmpty()) {
+            stack.removeLastOrNull()
+            if (lineLength == 0) break
+        }
+        
+        if (indentIndex > 0 && indentIndex != stack.lastOrNull()) {
+            stack.add(indentIndex)
+        }
+    }
+    
+    /**
+     * Pops indent levels that are greater than or equal to the current indent.
+     * Used for split operation where indents need to be captured after pop but before push.
+     * @param indentIndex The column index of the first non-space character, or -1 if line is all spaces
+     * @param lineLength The length of the current line
+     */
+    fun popToIndent(indentIndex: Int, lineLength: Int) {
+        if (indentIndex == -1 && lineLength != 0) return
+        
+        while (indentIndex <= (stack.lastOrNull() ?: 0) && stack.isNotEmpty()) {
+            stack.removeLastOrNull()
+            if (lineLength == 0) break
+        }
+    }
+    
+    /**
+     * Pushes a new indent level if applicable.
+     * Used for split operation after indents have been captured.
+     * @param indentIndex The column index of the first non-space character
+     */
+    fun pushIndent(indentIndex: Int) {
+        if (indentIndex > 0 && indentIndex != stack.lastOrNull()) {
+            stack.add(indentIndex)
+        }
+    }
+    
+    /**
+     * Returns a copy of the current indent positions.
+     */
+    fun getIndents(): IntArray = stack.toIntArray()
+    
+    /**
+     * Returns the current indent level (stack size).
+     */
+    val indentLevel: Int get() = stack.size
 }
 
 interface TextLineProvider {
