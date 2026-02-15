@@ -23,6 +23,8 @@ class TextInputController(
     private val applyCompletion: () -> Unit,
 ) : TextEditorHandler {
 
+    private val completionManager = CompletionManager(modifier, completionsListState)
+
     init {
         EditorDefaultCommands.ensureRegistered()
         EditorDefaultKeys.ensureRegistered()
@@ -61,7 +63,7 @@ class TextInputController(
             KeyboardInput.KEY_ESC -> {
                 selectionController.clearSelection()
                 requestFocusNone()
-                modifier.completions.clear()
+                completionManager.close()
             }
 
             KeyboardInput.KEY_CURSOR_LEFT, KeyboardInput.KEY_CURSOR_RIGHT,
@@ -85,10 +87,7 @@ class TextInputController(
             inputController = this,
             historyManager = provider as UndoRedoHandler,
             hasCompletions = modifier.completions.isNotEmpty(),
-            getCompletionsSize = { modifier.completions.size },
-            getCompletionIndex = { modifier.completionIndex },
-            setCompletionIndex = { modifier.setCompletionIndex(it) },
-            completionsListState = completionsListState(),
+            completion = completionManager,
         )
         val commandKey = KeyMap.resolve(event, ctx) ?: return false
         return CommandRegistry.execute(commandKey, ctx)
@@ -124,6 +123,7 @@ class TextInputController(
     private fun handleNavigation(keyEvent: KeyEvent) {
         val isShift = keyEvent.isShiftDown
         val isCtrl = keyEvent.isCtrlDown
+        val provider = lineProvider()
 
         when (keyEvent.keyCode) {
             KeyboardInput.KEY_CURSOR_LEFT -> selectionController.moveCaretLeft(wordWise = isCtrl, select = isShift)
@@ -136,16 +136,18 @@ class TextInputController(
             KeyboardInput.KEY_END -> selectionController.moveCaretLineEnd(select = isShift)
             else -> {}
         }
+
+        completionManager.onCaretMoved(provider)
     }
 
     fun applyCompletion() {
         applyCompletion.invoke()
     }
-fun clearCompletions() {
-        modifier.completions.clear()
+
+    fun clearCompletions() {
+        completionManager.close()
     }
 
-    
     private fun handleKeyRelease(keyEvent: KeyEvent) {
         tryExecuteKeyBinding(keyEvent)
     }
@@ -164,11 +166,14 @@ fun clearCompletions() {
             )
         }
         selectionController.selectionChanged(caretPos.y, caretPos.y, caretPos.x, caretPos.x)
+        completionManager.onCompletionsOpened(lineProvider())
     }
 
     // Вероятно в будущем лучше протянуть всю логику сюда напрямую, но там пока сложная логика для подсветки, так что пока её не трогал
     override fun insertText(line: Int, caret: Int, insertion: String): Vec2i {
-        return modifier.editorHandler?.insertText(line, caret, insertion) ?: Vec2i(caret, line)
+        val pos = modifier.editorHandler?.insertText(line, caret, insertion) ?: Vec2i(caret, line)
+        completionManager.onCompletionsOpened(lineProvider())
+        return pos
     }
 
     override fun replaceText(
@@ -178,12 +183,14 @@ fun clearCompletions() {
         selectionEndChar: Int,
         replacement: String,
     ): Vec2i {
-        return modifier.editorHandler?.replaceText(
+        val pos = modifier.editorHandler?.replaceText(
             selectionStartLine,
             selectionEndLine,
             selectionStartChar,
             selectionEndChar,
             replacement
         ) ?: Vec2i(selectionStartChar, selectionEndChar)
+        completionManager.onCompletionsOpened(lineProvider())
+        return pos
     }
 }

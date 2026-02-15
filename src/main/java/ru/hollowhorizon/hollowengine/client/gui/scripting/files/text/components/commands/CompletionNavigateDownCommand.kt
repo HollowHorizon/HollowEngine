@@ -11,13 +11,14 @@ class CompletionNavigateDownCommand : Command {
     }
 
     override fun execute(c: EditorCommandContext): Boolean {
-        val idx = c.getCompletionIndex()
-        val size = c.getCompletionsSize()
+        val mgr = c.completion ?: return false
+        val idx = mgr.index()
+        val size = mgr.size()
         if (size <= 0) return false
 
         val next = if (idx < size - 1) idx + 1 else 0
-        c.setCompletionIndex(next)
-        c.completionsListState?.scrollToItem?.set(next)
+        mgr.setIndex(next)
+        mgr.scrollTo(next)
         return true
     }
 

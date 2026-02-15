@@ -12,8 +12,5 @@ class EditorCommandContext(
     val inputController: TextInputController,
     val historyManager: UndoRedoHandler,
     val hasCompletions: Boolean,
-    val getCompletionsSize: () -> Int,
-    val getCompletionIndex: () -> Int,
-    val setCompletionIndex: (Int) -> Unit,
-    val completionsListState: LazyListState?,
+    val completion: CompletionManager?,
 )

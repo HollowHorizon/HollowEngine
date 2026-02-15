@@ -11,8 +11,7 @@ class CompletionCancelCommand : Command {
     }
 
     override fun execute(c: EditorCommandContext): Boolean {
-        c.inputController.clearCompletions()
-        c.setCompletionIndex(0)
+        (c.completion ?: return false).close()
         return true
     }
 

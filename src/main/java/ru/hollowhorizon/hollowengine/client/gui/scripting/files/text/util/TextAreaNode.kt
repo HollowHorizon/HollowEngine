@@ -155,7 +155,6 @@ fun UiScope.ScriptTextArea(
         afterContent = {
             val completions = textArea.modifier.completions
             if (completions.isNotEmpty()) {
-                
                 Popup(textArea.completionX.use(), textArea.completionY.use()) {
                     modifier
                         .background(RoundRectBackground(EditorTheme.Popup.bg, Dimensions.PaddingMedium))
@@ -490,12 +489,16 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         if (this@TextAreaNode.modifier.onSelectionChanged != null) {
             modifier.onClick {
+                inputController.clearCompletions()
                 when (it.pointer.leftButtonRepeatedClickCount) {
                     1 -> selectionController.onSelectStart(this, lineIndex, it, false)
                     2 -> selectionController.selectWord(this, line.text, lineIndex, it)
                     3 -> selectionController.selectLine(this, line.text, lineIndex)
                 }
-            }.onDragStart { selectionController.onSelectStart(this, lineIndex, it, true) }
+            }.onDragStart {
+                inputController.clearCompletions()
+                selectionController.onSelectStart(this, lineIndex, it, true)
+            }
                 .onDrag { selectionController.onDrag(it) }.onDragEnd { selectionController.onSelectEnd() }
                 .onPointer { selectionController.onPointer(this, lineIndex, it) }
 
