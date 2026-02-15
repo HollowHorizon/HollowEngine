@@ -12,13 +12,21 @@ open class Geometry(id: Long, element: Element, name: String, doc: Document) : O
     /** Get the Skin attached to this geometry or NULL */
     var skin: Skin? = null
 
+    /** Get the BlendShape attached to this geometry or NULL */
+    var blendShape: BlendShape? = null
+
     init {
         val conns = doc.getConnectionsByDestinationSequenced(id, "Deformer")
         for (con in conns) {
             val sk = processSimpleConnection<Skin>(con, false, "Skin -> Geometry", element)
             if (sk != null) {
                 skin = sk
-                break
+                continue
+            }
+            val bs = processSimpleConnection<BlendShape>(con, false, "BlendShape -> Geometry", element)
+            if (bs != null) {
+                blendShape = bs
+                continue
             }
         }
     }

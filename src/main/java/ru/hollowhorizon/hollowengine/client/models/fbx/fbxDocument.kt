@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.models.fbx
 
-import de.fabmax.kool.math.Mat3f
 import de.fabmax.kool.math.Mat4f
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.math.Vec3f
@@ -9,8 +8,6 @@ import ru.hollowhorizon.hollowengine.client.models.util.bool
 import ru.hollowhorizon.hollowengine.client.models.util.strncmp
 import ru.hollowhorizon.hollowengine.client.models.util.trimNUL
 import java.util.*
-import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
 
 class LazyObject(val id: Long, val element: Element, val doc: Document) {
 
@@ -26,7 +23,15 @@ class LazyObject(val id: Long, val element: Element, val doc: Document) {
 
     fun get(dieOnError: Boolean = false): Object? {
 
-        if (isBeingConstructed || failedToConstruct) return null
+        if (isBeingConstructed) {
+            domWarning("Object is being constructed (circular dependency?), returning null for id=$id", element)
+            return null
+        }
+        
+        if (failedToConstruct) {
+            domWarning("Object previously failed to construct, returning null for id=$id", element)
+            return null
+        }
 
         if (object_ != null) return object_
 
@@ -69,19 +74,34 @@ class LazyObject(val id: Long, val element: Element, val doc: Document) {
             //dumpObjectClassInfo( objtype, classtag )
 
             object_ = when {
-                buffer.strncmp("Geometry", obType, length) -> MeshGeometry(id, element, name, doc).takeIf { classtag == "Mesh" }
+                buffer.strncmp("Geometry", obType, length) -> when (classtag) {
+                    "Mesh" -> MeshGeometry(id, element, name, doc)
+                    "Shape" -> ShapeGeometry(id, element, doc, name)
+                    else -> {
+                        domWarning("Unknown Geometry classtag: '$classtag' for object '$name'", element)
+                        null
+                    }
+                }
                 buffer.strncmp("NodeAttribute", obType, length) -> when (classtag) {
                     "Camera" -> Camera(id, element, doc, name)
                     "CameraSwitcher" -> CameraSwitcher(id, element, doc, name)
                     "Light" -> Light(id, element, doc, name)
                     "Null" -> Null(id, element, doc, name)
                     "LimbNode" -> LimbNode(id, element, doc, name)
-                    else -> null
+                    else -> {
+                        domWarning("Unknown NodeAttribute classtag: '$classtag' for object '$name'", element)
+                        null
+                    }
                 }
                 buffer.strncmp("Deformer", obType, length) -> when (classtag) {
                     "Cluster" -> Cluster(id, element, doc, name)
                     "Skin" -> Skin(id, element, doc, name)
-                    else -> null
+                    "BlendShape" -> BlendShape(id, element, doc, name)
+                    "BlendShapeChannel" -> BlendShapeChannel(id, element, doc, name)
+                    else -> {
+                        domWarning("Unknown Deformer classtag: '$classtag' for object '$name'", element)
+                        null
+                    }
                 }
                 buffer.strncmp("Model", obType, length) ->  // FK and IK effectors are not supported
                     Model(id, element, doc, name).takeIf { classtag != "IKEffector" && classtag != "FKEffector" }
@@ -94,7 +114,10 @@ class LazyObject(val id: Long, val element: Element, val doc: Document) {
                 // note: order matters for these two
                 buffer.strncmp("AnimationCurve", obType, length) -> AnimationCurve(id, element, name, doc)
                 buffer.strncmp("AnimationCurveNode", obType, length) -> AnimationCurveNode(id, element, name, doc)
-                else -> object_
+                else -> {
+                    domWarning("Unknown object type: '${key.stringContents}' (classtag='$classtag', name='$name')", element)
+                    null
+                }
             }
         } catch (ex: Exception) {
             flags = flags wo Flags.BEING_CONSTRUCTED
@@ -107,7 +130,8 @@ class LazyObject(val id: Long, val element: Element, val doc: Document) {
         }
 
         if (object_ == null) {
-            //DOMError("failed to convert element to DOM object, class: " + classtag + ", name: " + name,&element);
+            // Log the reason for failure to help debugging
+            domWarning("failed to convert element to DOM object, class: '$classtag', name: '$name', key: '${key}'", element)
         }
 
         flags = flags wo Flags.BEING_CONSTRUCTED
@@ -565,7 +589,7 @@ class AnimationCurve(id: Long, element: Element, name: String, doc: Document) : 
 
         // check if the key times are well-ordered
         for (i in 0 until keys.size - 1)
-            if (keys[i] <= keys[i + 1])
+            if (keys[i] > keys[i + 1])
                 domError("the keyframes are not in ascending order", keyTime)
 
         sc["KeyAttrDataFloat"]?.parseFloatsDataArray(attributes)
@@ -688,7 +712,7 @@ class AnimationLayer(id: Long, element: Element, name: String, val doc: Document
         for (con in conns) {
 
             // link should not go to a property
-            if (con.prop.isEmpty()) continue
+            if (con.prop.isNotEmpty()) continue
 
             val ob = con.sourceObject
             if (ob == null) {
@@ -832,6 +856,67 @@ class Skin(id: Long, element: Element, doc: Document, name: String) : Deformer(i
                 continue
             }
         }
+    }
+}
+
+/** DOM class for blend shape deformers */
+class BlendShape(id: Long, element: Element, doc: Document, name: String) : Deformer(id, element, doc, name) {
+
+    val channels = ArrayList<BlendShapeChannel>()
+
+    init {
+        // resolve assigned blend shape channels
+        val conns = doc.getConnectionsByDestinationSequenced(id, "Deformer")
+
+        channels.ensureCapacity(conns.size)
+        for (con in conns) {
+            val channel = processSimpleConnection<BlendShapeChannel>(con, false, "BlendShapeChannel -> BlendShape", element)
+            if (channel != null) {
+                channels += channel
+                continue
+            }
+        }
+    }
+}
+
+/** DOM class for blend shape channels */
+class BlendShapeChannel(id: Long, element: Element, doc: Document, name: String) : Deformer(id, element, doc, name) {
+
+    val shapes = ArrayList<ShapeGeometry>()
+    var defaultWeight = 0f
+
+    init {
+        // Read default weight from properties
+        defaultWeight = props("DeformPercent", 0f)
+
+        // resolve assigned shapes (geometries)
+        val conns = doc.getConnectionsByDestinationSequenced(id, "Geometry")
+
+        shapes.ensureCapacity(conns.size)
+        for (con in conns) {
+            val shape = processSimpleConnection<ShapeGeometry>(con, false, "Shape -> BlendShapeChannel", element)
+            if (shape != null) {
+                shapes += shape
+                continue
+            }
+        }
+    }
+}
+
+/** DOM class for shape geometries (morph targets) */
+class ShapeGeometry(id: Long, element: Element, doc: Document, name: String) : Geometry(id, element, name, doc) {
+
+    val vertices = ArrayList<Vec3f>()
+    val normals = ArrayList<Vec3f>()
+
+    init {
+        val sc = element.scope
+
+        // Read shape vertices (deltas)
+        sc["Vertices"]?.let { it.parseVec3DataArray(vertices) }
+
+        // Read shape normals (deltas) if present
+        sc["Normals"]?.let { it.parseVec3DataArray(normals) }
     }
 }
 

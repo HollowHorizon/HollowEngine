@@ -22,7 +22,9 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
 
     init {
         flow.onEach {
-            if(it.model.isBlockBench) transform.rotation.set(180f.deg, Vec3f.Y_AXIS)
+            if(it.model.isBlockBench) {
+                transform.rotation.set(180f.deg, Vec3f.Y_AXIS)
+            }
         }.launchIn(Minecraft.getInstance().coroutineScope)
     }
 

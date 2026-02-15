@@ -75,6 +75,8 @@ val Byte.isSpace get() = this == SP.code.toByte() || this == HT.code.toByte()
 val Char.isSpace get() = this == SP || this == HT
 
 fun ByteBuffer.strncmp(string: String, ptr: Int = position(), length: Int = string.length): Boolean {
+    // If lengths don't match, the strings can't be equal
+    if (length != string.length) return false
     for (i in 0 until length)
         if (get(ptr + i).toInt().toChar() != string[i])
             return false

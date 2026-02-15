@@ -190,7 +190,7 @@ object GltfModelLoader : ModelLoader {
             path = channel.target.path,
             times = timeValues.toList(),
             interpolation = sampler.interpolation,
-            values = accessors[sampler.output]
+            values = GltfChannelData(accessors[sampler.output])
         )
     }
 
