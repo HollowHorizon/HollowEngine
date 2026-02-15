@@ -4,9 +4,11 @@ import net.minecraft.core.BlockPos
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.entity.player.Player.BedSleepingProblem
+import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.common.events.Event
 
 open class PlayerEvent(val player: Player) : Event {
+    val level: Level get() = player.level()
     class Clone(player: Player, val oldPlayer: Player, val wasDeath: Boolean) : PlayerEvent(player)
 
     class Join(player: Player) : PlayerEvent(player)
