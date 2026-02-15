@@ -21,6 +21,15 @@ object EditorDefaultKeys {
         KeyMap.bind(KeyBinding(key('/'), ctrl = true), ToggleLineCommentCommand.Key)
 
         KeyMap.bind(
+            KeyBinding(key('l'), ctrl = true, alt = true, trigger = KeyBinding.Trigger.Released),
+            ReformatCommand.Key
+        )
+        KeyMap.bind(
+            KeyBinding(KeyboardInput.KEY_F4, trigger = KeyBinding.Trigger.Released),
+            GoToDefinitionCommand.Key
+        )
+
+        KeyMap.bind(
             KeyBinding(KeyboardInput.KEY_CURSOR_UP, trigger = KeyBinding.Trigger.Pressed),
             CompletionNavigateUpCommand.Key,
             priority = 50

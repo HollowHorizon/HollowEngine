@@ -13,7 +13,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextLi
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.bracketPairs
 
 class TextInputController(
-    private val modifier: ScriptTextAreaModifier,
+    val modifier: ScriptTextAreaModifier,
     private val selectionController: TextSelectionController,
     private val lineProvider: () -> TextLineProvider,
     private val completionsListState: () -> de.fabmax.kool.modules.ui2.LazyListState?,

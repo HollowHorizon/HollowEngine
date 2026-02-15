@@ -20,6 +20,8 @@ object EditorDefaultCommands {
         CommandRegistry.register(CompletionCancelCommand.Key, CompletionCancelCommand())
         CommandRegistry.register(CompletionNavigateUpCommand.Key, CompletionNavigateUpCommand())
         CommandRegistry.register(CompletionNavigateDownCommand.Key, CompletionNavigateDownCommand())
+        CommandRegistry.register(ReformatCommand.Key, ReformatCommand())
+        CommandRegistry.register(GoToDefinitionCommand.Key, GoToDefinitionCommand())
         CommandRegistry.register(IndentCommand.Key, IndentCommand())
         CommandRegistry.register(UnindentCommand.Key, UnindentCommand())
         CommandRegistry.register(ToggleLineCommentCommand.Key, ToggleLineCommentCommand())
