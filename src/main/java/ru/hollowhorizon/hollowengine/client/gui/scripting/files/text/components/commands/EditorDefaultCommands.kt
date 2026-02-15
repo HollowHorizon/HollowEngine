@@ -15,6 +15,9 @@ object EditorDefaultCommands {
         CommandRegistry.register(PasteCommand.Key, PasteCommand())
         CommandRegistry.register(UndoCommand.Key, UndoCommand())
         CommandRegistry.register(RedoCommand.Key, RedoCommand())
+        CommandRegistry.register(ApplyCompletionCommand.Key, ApplyCompletionCommand())
+        CommandRegistry.register(IndentCommand.Key, IndentCommand())
+        CommandRegistry.register(UnindentCommand.Key, UnindentCommand())
         CommandRegistry.register(ToggleLineCommentCommand.Key, ToggleLineCommentCommand())
     }
 }

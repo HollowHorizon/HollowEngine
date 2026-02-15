@@ -2,8 +2,10 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components
 
 interface CommandKey
 
-fun interface Command {
+interface Command {
     fun execute(c: EditorCommandContext): Boolean
+
+    fun canExecute(c: EditorCommandContext): Boolean = true
 }
 
 object CommandRegistry {
@@ -15,5 +17,9 @@ object CommandRegistry {
 
     fun execute(key: CommandKey, ctx: EditorCommandContext): Boolean {
         return commands[key]?.execute(ctx) ?: false
+    }
+
+    fun canExecute(key: CommandKey, ctx: EditorCommandContext): Boolean {
+        return commands[key]?.canExecute(ctx) ?: false
     }
 }

@@ -283,8 +283,6 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         requestFocusNone = { surface.requestFocus(null) },
         applyBrackets = { open, close -> applyBrackets(open, close) },
         handleEnter = { handleEnter() },
-        indentSelection = { indentSelection() },
-        unindentSelection = { unindentSelection() },
         applyCompletion = {
             applyCompletion(modifier.completions.getOrNull(modifier.completionIndex) ?: return@TextInputController)
         }
@@ -639,87 +637,6 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             // возвращаем каретку между скобками
             selectionController.moveCaretLeft(wordWise = false, select = false)
         }
-    }
-
-    private fun indentSelection() {
-        val editor = modifier.editorHandler ?: return
-
-        // Определяем границы выделения
-        val fromLine = selectionController.selectionFromLine
-        val toLine = selectionController.selectionToLine
-
-        // Если нет выделения — просто вставляем INDENT_SIZE пробелов в текущую строку
-        if (fromLine == toLine && selectionController.isEmptySelection) {
-            val caretLine = selectionController.selectionCaretLine
-            val caretChar = selectionController.selectionCaretChar
-            // Вставляем INDENT_SIZE пробелов перед кареткой
-            editor.insertText(caretLine, caretChar, " ".repeat(TextAreaConfig.INDENT_SIZE))
-            // Сдвигаем каретку вправо на INDENT_SIZE
-            selectionController.selectionChanged(caretLine, caretLine, caretChar + TextAreaConfig.INDENT_SIZE, caretChar + TextAreaConfig.INDENT_SIZE)
-            return
-        }
-
-        // Для каждой строки в диапазоне вставляем INDENT_SIZE пробелов в начало
-        for (line in fromLine..toLine) {
-            editor.insertText(line, 0, " ".repeat(TextAreaConfig.INDENT_SIZE))
-        }
-
-        // Обновляем координаты выделения: сдвигаем отступы начала и конца
-        val newFromChar = selectionController.selectionFromChar + TextAreaConfig.INDENT_SIZE
-        val newToChar = selectionController.selectionToChar + TextAreaConfig.INDENT_SIZE
-        selectionController.selectionChanged(fromLine, toLine, newFromChar, newToChar)
-    }
-
-    private fun unindentSelection() {
-        val editor = modifier.editorHandler ?: return
-
-        // 1) Нет выделения → удаляем до INDENT_SIZE пробелов прямо перед кареткой
-        if (selectionController.isEmptySelection) {
-            val line = selectionController.selectionCaretLine
-            val char = selectionController.selectionCaretChar
-            val text = lineProvider[line].text
-            // сколько пробелов подряд перед кареткой?
-            val spacesToRemove = text.take(char).takeLastWhile { it == ' ' }.length.coerceAtMost(TextAreaConfig.INDENT_SIZE)
-
-            if (spacesToRemove > 0) {
-                editor.replaceText(
-                    line, line, char - spacesToRemove, char, ""
-                )
-                // ставим каретку на место после удаления
-                selectionController.selectionChanged(
-                    line, line, char - spacesToRemove, char - spacesToRemove
-                )
-            }
-            return
-        }
-
-        // 2) Есть выделение → для каждой строки удаляем до INDENT_SIZE пробелов в начале
-        val fromLine = selectionController.selectionFromLine
-        val toLine = selectionController.selectionToLine
-
-        var removedAtStart = 0
-        var removedAtEnd = 0
-
-        for (line in fromLine..toLine) {
-            val text = lineProvider[line].text
-            val count = text.takeWhile { it == ' ' }.length.coerceAtMost(TextAreaConfig.INDENT_SIZE)
-
-            if (count > 0) {
-                editor.replaceText(
-                    line, line, 0, count, ""
-                )
-                if (line == fromLine) removedAtStart = count
-                if (line == toLine) removedAtEnd = count
-            }
-        }
-
-        // Пересчитываем границы выделения, чтобы оно «повисло» на том же тексте
-        val newFromChar = (selectionController.selectionFromChar - removedAtStart).coerceAtLeast(0)
-        val newToChar = (selectionController.selectionToChar - removedAtEnd).coerceAtLeast(0)
-
-        selectionController.selectionChanged(
-            fromLine, toLine, newFromChar, newToChar
-        )
     }
 
     companion object {

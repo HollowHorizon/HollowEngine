@@ -9,5 +9,6 @@ class EditorCommandContext(
     val selection: TextSelectionController,
     val lineProvider: TextLineProvider,
     val inputController: TextInputController,
-    val historyManager: UndoRedoHandler
+    val historyManager: UndoRedoHandler,
+    val hasCompletions: Boolean,
 )

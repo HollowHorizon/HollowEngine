@@ -19,8 +19,6 @@ class TextInputController(
     private val requestFocusNone: () -> Unit,
     private val applyBrackets: (String, Char) -> Unit,
     private val handleEnter: () -> Unit,
-    private val indentSelection: () -> Unit,
-    private val unindentSelection: () -> Unit,
     private val applyCompletion: () -> Unit,
 ) : TextEditorHandler {
 
@@ -40,6 +38,8 @@ class TextInputController(
     }
 
     private fun handleCharTyped(keyEvent: KeyEvent) {
+        if (tryExecuteKeyBinding(keyEvent)) return
+
         val char = keyEvent.typedChar.toString()
         val closing = bracketPairs[keyEvent.localKeyCode.code.toChar()]
 
@@ -76,15 +76,16 @@ class TextInputController(
     }
 
     private fun tryExecuteKeyBinding(event: KeyEvent): Boolean {
-        val commandKey = KeyMap.resolve(event) ?: return false
         val provider = lineProvider()
         val ctx = EditorCommandContext(
             event = event,
             selection = selectionController,
             lineProvider = provider,
             inputController = this,
-            historyManager = provider as UndoRedoHandler
+            historyManager = provider as UndoRedoHandler,
+            hasCompletions = modifier.completions.isNotEmpty(),
         )
+        val commandKey = KeyMap.resolve(event, ctx) ?: return false
         return CommandRegistry.execute(commandKey, ctx)
     }
 
@@ -153,14 +154,12 @@ class TextInputController(
         }
     }
 
+    fun applyCompletion() {
+        applyCompletion.invoke()
+    }
+
     private fun handleKeyRelease(keyEvent: KeyEvent) {
-        if (keyEvent.keyCode == KeyboardInput.KEY_TAB) {
-            if (modifier.completions.isNotEmpty()) {
-                applyCompletion()
-                return
-            }
-            if (keyEvent.isShiftDown) unindentSelection() else indentSelection()
-        }
+        tryExecuteKeyBinding(keyEvent)
     }
 
     fun editText(text: String) {

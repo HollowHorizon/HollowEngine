@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.keymap
 
+import de.fabmax.kool.input.KeyboardInput
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.commands.*
 import de.fabmax.kool.input.UniversalKeyCode as key
 
@@ -18,5 +19,21 @@ object EditorDefaultKeys {
         KeyMap.bind(KeyBinding(key('Z'), ctrl = true, shift = true), RedoCommand.Key)
         KeyMap.bind(KeyBinding(key('Y'), ctrl = true), RedoCommand.Key)
         KeyMap.bind(KeyBinding(key('/'), ctrl = true), ToggleLineCommentCommand.Key)
+
+        KeyMap.bind(
+            KeyBinding(KeyboardInput.KEY_TAB, trigger = KeyBinding.Trigger.Released),
+            ApplyCompletionCommand.Key,
+            priority = 100
+        )
+        KeyMap.bind(
+            KeyBinding(KeyboardInput.KEY_TAB, shift = true, trigger = KeyBinding.Trigger.Released),
+            UnindentCommand.Key,
+            priority = 10
+        )
+        KeyMap.bind(
+            KeyBinding(KeyboardInput.KEY_TAB, trigger = KeyBinding.Trigger.Released),
+            IndentCommand.Key,
+            priority = 0
+        )
     }
 }
