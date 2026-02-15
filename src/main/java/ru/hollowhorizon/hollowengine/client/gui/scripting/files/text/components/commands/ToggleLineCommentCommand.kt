@@ -6,19 +6,26 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.
 
 class ToggleLineCommentCommand : Command {
     override fun execute(c: EditorCommandContext): Boolean {
-        // TODO: Доделать логику для нескольких строк сразу
-        val sl = c.selection.selectionStartLine
-        val sc = c.selection.selectionStartChar
-        if (c.lineProvider.size == 0 || sl >= c.lineProvider.size) return false
-        val text = c.lineProvider[sl].text
-        val trimmed = text.trimStart()
+        val fromLine = c.selection.selectionFromLine
+        val toLine = c.selection.selectionToLine
 
-        if (trimmed.startsWith("//")) {
-            val commentIndex = trimmed.indexOf("//")
-            c.inputController.replaceText(sl, sl, commentIndex, commentIndex + 2, "")
-        } else {
+        if (c.lineProvider.size == 0) return false
+        if (fromLine !in 0 until c.lineProvider.size) return false
+
+        for (line in fromLine..toLine.coerceAtMost(c.lineProvider.lastIndex)) {
+            val text = c.lineProvider[line].text
             val indentSize = text.indexOfFirst { it != ' ' }.let { if (it == -1) 0 else it }
-            c.inputController.insertText(sl, indentSize, "//")
+            val afterIndent = text.drop(indentSize)
+
+            if (afterIndent.startsWith("//")) {
+                val removeFrom = indentSize
+                var removeTo = (indentSize + 2).coerceAtMost(text.length)
+                if (text.getOrNull(removeTo) == ' ') removeTo += 1
+
+                c.inputController.replaceText(line, line, removeFrom, removeTo, "")
+            } else {
+                c.inputController.insertText(line, indentSize, "//")
+            }
         }
 
         return true
