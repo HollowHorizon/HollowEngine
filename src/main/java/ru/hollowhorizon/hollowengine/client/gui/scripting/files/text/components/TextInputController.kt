@@ -88,7 +88,7 @@ class TextInputController(
             lineProvider = provider,
             inputController = this,
             historyManager = provider as UndoRedoHandler,
-            hasCompletions = modifier.completions.isNotEmpty(),
+            hasCompletions = completionManager.isOpen,
             completion = completionManager,
         )
         val commandKey = KeyMap.resolve(event, ctx) ?: return false

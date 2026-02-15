@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components
 
 import de.fabmax.kool.modules.ui2.LazyListState
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.CompiledFileProvider
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextAreaModifier
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextCaretNavigation
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextLineProvider
@@ -27,6 +28,7 @@ class CompletionManager(
     fun close() {
         modifier.completions.clear()
         modifier.setCompletionIndex(0)
+        (modifier.editorHandler as? CompiledFileProvider)?.analysisState?.completions?.clear()
         anchorLine = -1
         anchorFromChar = -1
         anchorToChar = -1

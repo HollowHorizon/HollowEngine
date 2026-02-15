@@ -215,12 +215,17 @@ class CompiledFileProvider(
 
     private fun requestAnalysis(line: Int, char: Int) {
         val textSnapshot = currentText
+        val safeLine = line.coerceIn(0, textSnapshot.lines().lastIndex.coerceAtLeast(0))
+        val safeChar = runCatching {
+            val ln = textSnapshot.lines().getOrNull(safeLine) ?: ""
+            char.coerceIn(0, ln.length)
+        }.getOrDefault(0)
 
         scope.launch {
             withContext(Dispatchers.IO) {
-                analyzer.highlightCode(textSnapshot, line, char)
+                analyzer.highlightCode(textSnapshot, safeLine, safeChar)
             }
-            analysisRequest.emit(AnalysisParams(textSnapshot, line, char))
+            analysisRequest.emit(AnalysisParams(textSnapshot, safeLine, safeChar))
         }
     }
 
@@ -228,7 +233,13 @@ class CompiledFileProvider(
         val (txt, line, char) = params
         try {
             // 1. Completions
-            val offset = offset(txt, line, char)
+            val safeLine = line.coerceIn(0, txt.lines().lastIndex.coerceAtLeast(0))
+            val safeChar = runCatching {
+                val ln = txt.lines().getOrNull(safeLine) ?: ""
+                char.coerceIn(0, ln.length)
+            }.getOrDefault(0)
+
+            val offset = offset(txt, safeLine, safeChar)
             val completions = analyzer.completions(file.name, txt, offset)
 
             // 2. Diagnostics

@@ -153,7 +153,9 @@ fun UiScope.ScriptTextArea(
         vScrollbarModifier,
         hScrollbarModifier,
         afterContent = {
-            val completions = textArea.modifier.completions
+            val handler = textArea.modifier.editorHandler
+            val provider = handler as? CompiledFileProvider
+            val completions = provider?.analysisState?.completions ?: textArea.modifier.completions
             if (completions.isNotEmpty()) {
                 Popup(textArea.completionX.use(), textArea.completionY.use()) {
                     modifier
@@ -298,7 +300,10 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             super.render(ctx)
 
             val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp + sizes.smallGap * 2f
-            this@TextAreaNode.modifier.errors.filter { lineIndex in it.range.start.line..it.range.end.line }
+            val handler = this@TextAreaNode.modifier.editorHandler
+            val provider = handler as? CompiledFileProvider
+            val errors = provider?.analysisState?.diagnostics ?: this@TextAreaNode.modifier.errors
+            errors.filter { lineIndex in it.range.start.line..it.range.end.line }
                 .forEach { error ->
                     val text = lineProvider[lineIndex].text
                     val (startPos, endPos) = if (text.isEmpty()) {
@@ -512,6 +517,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
     fun applyCompletion(item: CompletionItem) {
         val handler = modifier.editorHandler ?: return
+        val provider = handler as? CompiledFileProvider
         var lineIdx = modifier.selectionCaretLine
         val charIdx = modifier.selectionCaretChar
 
@@ -538,6 +544,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         }
 
         modifier.completions.clear()
+        provider?.analysisState?.completions?.clear()
         surface.requestFocus(this)
     }
 
