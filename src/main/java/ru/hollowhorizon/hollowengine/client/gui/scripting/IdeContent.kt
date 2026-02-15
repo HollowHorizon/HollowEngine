@@ -18,6 +18,9 @@ object IdeContent {
 
     private val fileTypes: Map<String, (String, ByteArray) -> IDEFile> = buildMap {
         put(".kts", ::ScriptFile)
+        put(".kt", ::ScriptFile)
+        put(".json", ::ScriptFile)
+
         put(".bc", ::CodeBlocksFile)
         put(".txt", ::TextFile)
         put(".gltf") { path, bytes -> GLTFFile(path) }

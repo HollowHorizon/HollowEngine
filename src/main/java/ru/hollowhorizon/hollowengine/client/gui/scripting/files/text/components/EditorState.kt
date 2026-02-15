@@ -8,7 +8,7 @@ import java.io.File
 
 class EditorState(
     val file: File,
-    val language: EditorLanguageService = KotlinEditorLanguageService,
+    val language: EditorLanguageService = EditorLanguageService(file.extension),
 ) {
     val provider: CompiledFileProvider = CompiledFileProvider(file, language.analyzer)
 

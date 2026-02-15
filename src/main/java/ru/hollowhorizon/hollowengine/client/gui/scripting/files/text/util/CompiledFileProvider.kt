@@ -45,7 +45,7 @@ class CompiledFileProvider(
 
     val font = MsdfFont(ColorTheme.Fonts.MONOCRAFT, 18f)
     val lines = ArrayList<ScriptTextLine>()
-    var currentText: String = file.readText()
+    var currentText: String = file.readText().replace("\t", " ".repeat(TextAreaConfig.INDENT_SIZE))
         private set(value) {
             field = value
             scheduleWrite(value)

@@ -17,7 +17,6 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.offset
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
 
 class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
@@ -77,7 +76,7 @@ class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
 
                 installSelectionHandler(editorState.provider) { startLine, caretLine, startChar, caretChar ->
                     editorState.provider.lines.clear()
-                    val code = ScriptingEnvironment.INSTANCE.analyzer.highlight(
+                    val code = editorState.language.analyzer.highlight(
                         name,
                         editorState.provider.currentText,
                         offset(editorState.provider.currentText, startLine, startChar)
