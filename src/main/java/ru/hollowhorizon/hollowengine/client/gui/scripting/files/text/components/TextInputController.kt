@@ -16,6 +16,7 @@ class TextInputController(
     private val modifier: ScriptTextAreaModifier,
     private val selectionController: TextSelectionController,
     private val lineProvider: () -> TextLineProvider,
+    private val completionsListState: () -> de.fabmax.kool.modules.ui2.LazyListState?,
     private val requestFocusNone: () -> Unit,
     private val applyBrackets: (String, Char) -> Unit,
     private val handleEnter: () -> Unit,
@@ -84,6 +85,10 @@ class TextInputController(
             inputController = this,
             historyManager = provider as UndoRedoHandler,
             hasCompletions = modifier.completions.isNotEmpty(),
+            getCompletionsSize = { modifier.completions.size },
+            getCompletionIndex = { modifier.completionIndex },
+            setCompletionIndex = { modifier.setCompletionIndex(it) },
+            completionsListState = completionsListState(),
         )
         val commandKey = KeyMap.resolve(event, ctx) ?: return false
         return CommandRegistry.execute(commandKey, ctx)
@@ -120,27 +125,6 @@ class TextInputController(
         val isShift = keyEvent.isShiftDown
         val isCtrl = keyEvent.isCtrlDown
 
-        if (modifier.completions.isNotEmpty() && !isCtrl) {
-            when (keyEvent.keyCode) {
-                KeyboardInput.KEY_CURSOR_UP -> {
-                    modifier.setCompletionIndex((modifier.completionIndex - 1 + modifier.completions.size) % modifier.completions.size)
-                    return
-                }
-
-                KeyboardInput.KEY_CURSOR_DOWN -> {
-                    modifier.setCompletionIndex((modifier.completionIndex + 1) % modifier.completions.size)
-                    return
-                }
-
-                KeyboardInput.KEY_ENTER, KeyboardInput.KEY_NP_ENTER -> {
-                    applyCompletion()
-                    return
-                }
-
-                else -> {}
-            }
-        }
-
         when (keyEvent.keyCode) {
             KeyboardInput.KEY_CURSOR_LEFT -> selectionController.moveCaretLeft(wordWise = isCtrl, select = isShift)
             KeyboardInput.KEY_CURSOR_RIGHT -> selectionController.moveCaretRight(wordWise = isCtrl, select = isShift)
@@ -157,7 +141,11 @@ class TextInputController(
     fun applyCompletion() {
         applyCompletion.invoke()
     }
+fun clearCompletions() {
+        modifier.completions.clear()
+    }
 
+    
     private fun handleKeyRelease(keyEvent: KeyEvent) {
         tryExecuteKeyBinding(keyEvent)
     }

@@ -21,6 +21,32 @@ object EditorDefaultKeys {
         KeyMap.bind(KeyBinding(key('/'), ctrl = true), ToggleLineCommentCommand.Key)
 
         KeyMap.bind(
+            KeyBinding(KeyboardInput.KEY_CURSOR_UP, trigger = KeyBinding.Trigger.Pressed),
+            CompletionNavigateUpCommand.Key,
+            priority = 50
+        )
+        KeyMap.bind(
+            KeyBinding(KeyboardInput.KEY_CURSOR_DOWN, trigger = KeyBinding.Trigger.Pressed),
+            CompletionNavigateDownCommand.Key,
+            priority = 50
+        )
+        KeyMap.bind(
+            KeyBinding(KeyboardInput.KEY_ENTER, trigger = KeyBinding.Trigger.Pressed),
+            CompletionAcceptCommand.Key,
+            priority = 50
+        )
+        KeyMap.bind(
+            KeyBinding(KeyboardInput.KEY_NP_ENTER, trigger = KeyBinding.Trigger.Pressed),
+            CompletionAcceptCommand.Key,
+            priority = 50
+        )
+        KeyMap.bind(
+            KeyBinding(KeyboardInput.KEY_ESC, trigger = KeyBinding.Trigger.Pressed),
+            CompletionCancelCommand.Key,
+            priority = 50
+        )
+
+        KeyMap.bind(
             KeyBinding(KeyboardInput.KEY_TAB, trigger = KeyBinding.Trigger.Released),
             ApplyCompletionCommand.Key,
             priority = 100

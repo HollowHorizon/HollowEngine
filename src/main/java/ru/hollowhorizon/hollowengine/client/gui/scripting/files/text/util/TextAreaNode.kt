@@ -68,12 +68,8 @@ open class ScriptTextAreaModifier(surface: UiSurface) : UiModifier(surface) {
     val errors by property(mutableListOf<Diagnostic>())
 
     var completionIndex by property(0)
-    var completionX: Float by property(0f)
-    var completionY: Float by property(0f)
 
     var setCompletionIndex: (Int) -> Unit by property { {} }
-    var setCompletionX: (Float) -> Unit by property { {} }
-    var setCompletionY: (Float) -> Unit by property { {} }
 }
 
 fun <T : ScriptTextAreaModifier> T.lineStartPadding(padding: Dp): T {
@@ -141,15 +137,11 @@ fun UiScope.ScriptTextArea(
         .onWheelY { state.scrollDpY(it.pointer.scroll.y * TextAreaConfig.SCROLL_WHEEL_Y_MULTIPLIER) }
 
     var completionIndex: Int by textArea.remember(0)
-    var completionX: Float by textArea.remember(0f)
-    var completionY: Float by textArea.remember(0f)
+    textArea.completionX = remember(0f)
+    textArea.completionY = remember(0f)
     textArea.modifier.completionIndex = completionIndex
-    textArea.modifier.completionX = completionX
-    textArea.modifier.completionY = completionY
 
     textArea.modifier.setCompletionIndex = { completionIndex = it }
-    textArea.modifier.setCompletionX = { completionX = it }
-    textArea.modifier.setCompletionY = { completionY = it }
 
     textArea.lineProvider = lineProvider
     textArea.setupContent(
@@ -163,8 +155,8 @@ fun UiScope.ScriptTextArea(
         afterContent = {
             val completions = textArea.modifier.completions
             if (completions.isNotEmpty()) {
-
-                Popup(modifier.completionX, modifier.completionY) {
+                
+                Popup(textArea.completionX.use(), textArea.completionY.use()) {
                     modifier
                         .background(RoundRectBackground(EditorTheme.Popup.bg, Dimensions.PaddingMedium))
                         .border(RoundRectBorder(EditorTheme.Popup.border, Dimensions.PaddingMedium, Dimensions.PaddingSmall))
@@ -267,6 +259,9 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     lateinit var listState: LazyListState
     override lateinit var linesHolder: LazyListNode
 
+    lateinit var completionX: MutableStateValue<Float>
+    lateinit var completionY: MutableStateValue<Float>
+
     private val selectionController = TextSelectionController(
         owner = this,
         modifier = modifier,
@@ -280,6 +275,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         modifier = modifier,
         selectionController = selectionController,
         lineProvider = { lineProvider },
+        completionsListState = { if (this::completionsList.isInitialized) completionsList else null },
         requestFocusNone = { surface.requestFocus(null) },
         applyBrackets = { open, close -> applyBrackets(open, close) },
         handleEnter = { handleEnter() },
@@ -481,14 +477,14 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
             var dotIndex = TextCaretNavigation.startOfExpression(line.text, selectionIndex)
             if (dotIndex == -1) dotIndex = selectionIndex
-            areaModifier.setCompletionX(it.leftPx + line.charIndexToPx(dotIndex) + sizes.smallGap.px)
+            completionX.set(it.leftPx + line.charIndexToPx(dotIndex) + sizes.smallGap.px)
 
             val sizeY = (24.dp + sizes.smallGap).px * areaModifier.completions.size.coerceAtMost(TextAreaConfig.MAX_COMPLETION_ITEMS) + 24.dp.px
             val viewportBottom = surface.viewport.bottomPx
             if (it.bottomPx + sizeY > viewportBottom) {
-                areaModifier.setCompletionY(it.topPx - sizeY)
+                completionY.set(it.topPx - sizeY)
             } else {
-                areaModifier.setCompletionY(it.bottomPx)
+                completionY.set(it.bottomPx)
             }
         }
 

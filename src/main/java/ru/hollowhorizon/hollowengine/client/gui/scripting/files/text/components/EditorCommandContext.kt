@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components
 
 import de.fabmax.kool.input.KeyEvent
+import de.fabmax.kool.modules.ui2.LazyListState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextLineProvider
 
@@ -11,4 +12,8 @@ class EditorCommandContext(
     val inputController: TextInputController,
     val historyManager: UndoRedoHandler,
     val hasCompletions: Boolean,
+    val getCompletionsSize: () -> Int,
+    val getCompletionIndex: () -> Int,
+    val setCompletionIndex: (Int) -> Unit,
+    val completionsListState: LazyListState?,
 )
