@@ -9,6 +9,7 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.logE
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
@@ -25,17 +26,11 @@ class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
         private set
 
     override fun save() {
-        provider.saveToDisk()
+        editorState.saveToDisk()
     }
 
-    private val provider by lazy {
-        CompiledFileProvider(filePath.fromReadablePath(), {
-            modifier.errors.clear()
-            modifier.errors.addAll(it)
-        }) {
-            modifier.completions.clear()
-            modifier.completions.addAll(it)
-        }
+    private val editorState by lazy {
+        EditorState(filePath.fromReadablePath())
     }
 
     private var isDisposed = false
@@ -51,7 +46,7 @@ class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
         Box(Grow.Std, Grow.Std) {
 
             ScriptTextArea(
-                provider,
+                editorState.lines,
                 vScrollbarModifier = {
                     it.width(sizes.smallGap)
                         .colors(
@@ -73,17 +68,24 @@ class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
                 },
             ) {
                 this@ScriptFile.modifier = modifier
-                installSelectionHandler(provider) { startLine, caretLine, startChar, caretChar ->
-                    provider.lines.clear()
+
+                modifier.errors.clear()
+                modifier.errors.addAll(editorState.analysis.diagnostics)
+
+                modifier.completions.clear()
+                modifier.completions.addAll(editorState.analysis.completions)
+
+                installSelectionHandler(editorState.provider) { startLine, caretLine, startChar, caretChar ->
+                    editorState.provider.lines.clear()
                     val code = ScriptingEnvironment.INSTANCE.analyzer.highlight(
                         name,
-                        provider.currentText,
-                        offset(provider.currentText, startLine, startChar)
+                        editorState.provider.currentText,
+                        offset(editorState.provider.currentText, startLine, startChar)
                     )
-                    provider.lines.addAll(code.map { it.toKool(provider.font) })
+                    editorState.provider.lines.addAll(code.map { it.toKool(editorState.provider.font) })
                 }
 
-                modifier.editorHandler(provider)
+                modifier.editorHandler(editorState.editor)
             }
             Row {
                 modifier.align(AlignmentX.End, AlignmentY.Top)
@@ -106,7 +108,7 @@ class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
                                 .alignY(AlignmentY.Center)
                         }
                         Text(errors.toString()) {
-                            modifier.font(provider.font)
+                            modifier.font(editorState.provider.font)
                                 .margin(horizontal = sizes.smallGap)
                         }
                     }
@@ -123,7 +125,7 @@ class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
                                 .alignY(AlignmentY.Center)
                         }
                         Text(warnings.toString()) {
-                            modifier.font(provider.font)
+                            modifier.font(editorState.provider.font)
                                 .margin(horizontal = sizes.smallGap)
                         }
                     }
@@ -135,10 +137,10 @@ class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
     override fun SubMenuItem<Dockable>.createMenu() {
         item("Format", icons.ICON_41) {
             try {
-                val original = provider.lines.joinToString("\n") { it.text }
+                val original = editorState.provider.lines.joinToString("\n") { it.text }
                 val new = Formatter.format(KOTLINLANG_FORMAT, original)
                 if (original == new) return@item
-                provider.setText(new)
+                editorState.provider.setText(new)
                 modifier.onSelectionChanged?.let { it(-1, -1, 0, 0) }
             } catch (ex: IllegalStateException) {
                 logE { "Formatting error: ${ex.message}" }
@@ -152,7 +154,7 @@ class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
         super.close()
         if (!isDisposed && HollowEngine.compilerLoader.isLoaded) {
             isDisposed = true
-            provider.dispose()
+            editorState.dispose()
         }
     }
 }

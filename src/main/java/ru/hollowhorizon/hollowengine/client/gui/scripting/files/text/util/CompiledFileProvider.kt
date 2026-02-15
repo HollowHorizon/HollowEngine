@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util
 
 import de.fabmax.kool.math.Vec2i
+import de.fabmax.kool.modules.ui2.mutableStateListOf
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.KoolDispatchers
 import de.fabmax.kool.util.MsdfFont
@@ -27,12 +28,20 @@ private object AnalysisConfig {
     const val WRITE_DEBOUNCE_MS = 500L
 }
 
+class EditorAnalysisState {
+    val completions: MutableList<CompletionItem> = mutableStateListOf()
+    val diagnostics: MutableList<Diagnostic> = mutableStateListOf()
+}
+
 @OptIn(FlowPreview::class)
 class CompiledFileProvider(
     val file: File,
-    val onDiagnose: (List<Diagnostic>) -> Unit,
-    val onCompletions: (List<CompletionItem>) -> Unit,
+    private val analyzer: ScriptingAnalyzer,
 ) : TextLineProvider, TextEditorHandler, UndoRedoHandler {
+
+    constructor(file: File) : this(file, ScriptingEnvironment.INSTANCE.analyzer)
+
+    val analysisState = EditorAnalysisState()
 
     val font = MsdfFont(ColorTheme.Fonts.MONOCRAFT, 18f)
     val lines = ArrayList<ScriptTextLine>()
@@ -205,11 +214,13 @@ class CompiledFileProvider(
     }
 
     private fun requestAnalysis(line: Int, char: Int) {
-        // Highlight immediately locally (fast regex or lexical check could go here)
-        ScriptingEnvironment.INSTANCE.analyzer.highlightCode(line, char)
-        // Queue heavy analysis
+        val textSnapshot = currentText
+
         scope.launch {
-            analysisRequest.emit(AnalysisParams(currentText, line, char))
+            withContext(Dispatchers.IO) {
+                analyzer.highlightCode(textSnapshot, line, char)
+            }
+            analysisRequest.emit(AnalysisParams(textSnapshot, line, char))
         }
     }
 
@@ -218,39 +229,41 @@ class CompiledFileProvider(
         try {
             // 1. Completions
             val offset = offset(txt, line, char)
-            val completions = ScriptingEnvironment.INSTANCE.analyzer.completions(file.name, txt, offset)
+            val completions = analyzer.completions(file.name, txt, offset)
 
             // 2. Diagnostics
-            val diagnostics = ScriptingEnvironment.INSTANCE.analyzer.diagnostic(file.name, txt)
+            val diagnostics = analyzer.diagnostic(file.name, txt)
 
             withContext(KoolDispatchers.Frontend) {
-                onCompletions(completions)
-                onDiagnose(diagnostics)
+                analysisState.completions.clear()
+                analysisState.completions.addAll(completions)
+
+                analysisState.diagnostics.clear()
+                analysisState.diagnostics.addAll(diagnostics)
             }
         } catch (e: Exception) {
             logD { "Analysis failed: ${e.message}" }
         }
     }
 
-    private fun ScriptingAnalyzer.highlightCode(selectionStartLine: Int, selectionStartChar: Int) {
-        // This runs on Main Thread, should be fast.
-        // If 'highlight' is slow, it should also move to background,
-        // but usually syntax highlighting needs to be synchronous to avoid "flashing".
+    private suspend fun ScriptingAnalyzer.highlightCode(
+        textSnapshot: String,
+        selectionStartLine: Int,
+        selectionStartChar: Int,
+    ) {
         try {
-            val offset = offset(currentText, selectionStartLine, selectionStartChar)
-            val colored = highlight(file.name, currentText, offset)
+            val off = offset(textSnapshot, selectionStartLine, selectionStartChar)
+            val colored = highlight(file.name, textSnapshot, off)
 
-            // Update lines in place efficiently
-            // Note: 'colored' size must match 'lines' size usually.
-            if (colored.size == lines.size) {
-                for (i in colored.indices) {
-                    // Replace line content without triggering generic list change events if possible,
-                    // but here we just swap the object or update internal attributes.
-                    lines[i] = colored[i].toKool(font)
+            withContext(KoolDispatchers.Frontend) {
+                if (colored.size == lines.size) {
+                    for (i in colored.indices) {
+                        lines[i] = colored[i].toKool(font)
+                    }
+                } else {
+                    lines.clear()
+                    lines.addAll(colored.map { it.toKool(font) })
                 }
-            } else {
-                lines.clear()
-                lines.addAll(colored.map { it.toKool(font) })
             }
         } catch (_: Exception) {
             // Fallback if highlighting crashes
@@ -294,7 +307,7 @@ class CompiledFileProvider(
         currentText = lines.joinToString("\n") { it.text }
 
         // Update syntax highlight after undo/redo
-        ScriptingEnvironment.INSTANCE.analyzer.highlightCode(finalCaretLine, finalCaretChar)
+        requestAnalysis(finalCaretLine, finalCaretChar)
 
         onSelectionChanged?.invoke(finalCaretLine, finalCaretLine, finalCaretChar, finalCaretChar)
     }
