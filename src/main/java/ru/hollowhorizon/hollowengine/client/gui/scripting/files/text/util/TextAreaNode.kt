@@ -2,12 +2,9 @@
 
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util
 
-import de.fabmax.kool.Clipboard
 import de.fabmax.kool.KoolContext
 import de.fabmax.kool.input.KeyEvent
-import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.PointerInput
-import de.fabmax.kool.input.UniversalKeyCode
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.math.Vec2i
 import de.fabmax.kool.modules.ui2.*
@@ -17,7 +14,7 @@ import ru.hollowhorizon.hollowengine.client.HighlightTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextInputController
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextSelectionController
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
@@ -303,6 +300,21 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         isFocused = { isFocused.use() }
     )
 
+    private val inputController = TextInputController(
+        modifier = modifier,
+        selectionController = selectionController,
+        lineProvider = { lineProvider },
+        requestFocusNone = { surface.requestFocus(null) },
+        editText = { editText(it) },
+        applyBrackets = { open, close -> applyBrackets(open, close) },
+        handleEnter = { handleEnter() },
+        indentSelection = { indentSelection() },
+        unindentSelection = { unindentSelection() },
+        applyCompletion = {
+            applyCompletion(modifier.completions.getOrNull(modifier.completionIndex) ?: return@TextInputController)
+        }
+    )
+
     private inner class LineItem(parent: UiNode?, surface: UiSurface) : RowNode(parent, surface) {
         var lineIndex = -1
         lateinit var indents: IntArray
@@ -523,191 +535,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     }
 
     override fun onKeyEvent(keyEvent: KeyEvent) {
-
-        if (keyEvent.isCharTyped) {
-            handleCharTyped(keyEvent)
-        } else if (keyEvent.isPressed) {
-            handleKeyPress(keyEvent)
-        } else if (keyEvent.isReleased) {
-            handleKeyRelease(keyEvent)
-        }
-    }
-
-    private fun handleCharTyped(keyEvent: KeyEvent) {
-        val char = keyEvent.typedChar.toString()
-        val closing = bracketPairs[keyEvent.localKeyCode.code.toChar()]
-
-        if (closing == null) {
-            editText(char)
-        } else {
-            applyBrackets(char, closing)
-        }
-    }
-
-    private fun handleKeyPress(keyEvent: KeyEvent) {
-        // Navigation & Deletion
-        when (keyEvent.keyCode) {
-            KeyboardInput.KEY_BACKSPACE -> handleBackspace(keyEvent)
-            KeyboardInput.KEY_DEL -> handleDelete(keyEvent)
-            KeyboardInput.KEY_ENTER, KeyboardInput.KEY_NP_ENTER -> handleEnter()
-            KeyboardInput.KEY_ESC -> {
-                selectionController.clearSelection()
-                surface.requestFocus(null)
-                // Clear completions
-                modifier.completions.clear()
-            }
-            // Navigation arrows
-            KeyboardInput.KEY_CURSOR_LEFT, KeyboardInput.KEY_CURSOR_RIGHT,
-            KeyboardInput.KEY_CURSOR_UP, KeyboardInput.KEY_CURSOR_DOWN,
-            KeyboardInput.KEY_PAGE_UP, KeyboardInput.KEY_PAGE_DOWN,
-            KeyboardInput.KEY_HOME, KeyboardInput.KEY_END,
-            KeyboardInput.KEY_TAB,
-                -> handleNavigation(keyEvent)
-
-            else -> handleShortcuts(keyEvent)
-        }
-    }
-
-    private fun handleShortcuts(keyEvent: KeyEvent) {
-        if (keyEvent.isCtrlDown) {
-            when (keyEvent.keyCode) {
-                KEY_CODE_SELECT_ALL -> selectionController.selectAll()
-                KEY_CODE_PASTE -> Clipboard.getStringFromClipboard { it?.let { editText(it) } }
-                KEY_CODE_COPY -> selectionController.copySelection()?.let { Clipboard.copyToClipboard(it) }
-                KEY_CODE_CUT -> selectionController.copySelection()?.let {
-                    Clipboard.copyToClipboard(it)
-                    editText("")
-                }
-
-                KEY_CODE_UNDO -> {
-                    if (keyEvent.isShiftDown) {
-                        (lineProvider as? UndoRedoHandler)?.redo { sl, el, sc, ec ->
-                            selectionController.selectionChanged(sl, el, sc, ec)
-                        }
-                    } else {
-                        (lineProvider as? UndoRedoHandler)?.undo { sl, el, sc, ec ->
-                            selectionController.selectionChanged(sl, el, sc, ec)
-                        }
-                    }
-                }
-
-                else -> {}
-            }
-        } else {
-            // Autocomplete navigation
-            if (modifier.completions.isNotEmpty()) {
-                when (keyEvent.keyCode) {
-                    UniversalKeyCode(' ') -> { /* Could trigger completion confirm if Ctrl+Space logic exists */
-                    }
-
-                    else -> {}
-                }
-            }
-        }
-    }
-
-    private fun handleBackspace(keyEvent: KeyEvent) {
-        if (selectionController.isEmptySelection) {
-            selectionController.moveCaretLeft(wordWise = keyEvent.isCtrlDown, select = true)
-        }
-        // Smart bracket deletion logic
-        val startChar = selectionController.caretLine?.text?.getOrNull(modifier.selectionCaretChar)
-        editText("") // Delete content
-        val nextChar = selectionController.caretLine?.text?.getOrNull(modifier.selectionCaretChar)
-
-        // If we deleted an opening bracket and the next char is the closing one, delete it too
-        bracketPairs[startChar]?.let { closing ->
-            if (nextChar == closing) {
-                // Just delete the next char
-                modifier.editorHandler?.replaceText(
-                    selectionController.selectionCaretLine, selectionController.selectionCaretLine,
-                    selectionController.selectionCaretChar, selectionController.selectionCaretChar + 1,
-                    ""
-                )
-            }
-        }
-    }
-
-    private fun handleDelete(keyEvent: KeyEvent) {
-        if (selectionController.isEmptySelection) {
-            selectionController.moveCaretRight(wordWise = keyEvent.isCtrlDown, select = true)
-        }
-        editText("")
-    }
-
-    private fun handleEnter() {
-        if (modifier.completions.isNotEmpty()) {
-            applyCompletion(modifier.completions.getOrNull(modifier.completionIndex) ?: return)
-            return
-        }
-
-        val line = selectionController.caretLine ?: return
-        val text = line.text
-        val caretPos = selectionController.selectionCaretChar.coerceAtMost(text.length)
-
-        // Smart Indentation
-        var whitespaces = text.takeWhile { it == ' ' }.length
-
-        val isLPar = text.substring(0, caretPos).trimEnd().endsWith("{")
-        val isRPar = text.substring(caretPos).trimStart().startsWith("}")
-
-        if (isLPar) whitespaces += TextAreaConfig.INDENT_SIZE
-
-        // If hitting enter between {} ->
-        // {
-        //     |
-        // }
-        if (isLPar && isRPar) {
-            val baseIndent = (whitespaces - TextAreaConfig.INDENT_SIZE).coerceAtLeast(0)
-            val indentStr = " ".repeat(whitespaces)
-            val closeIndentStr = " ".repeat(baseIndent)
-
-            editText("\n$indentStr\n$closeIndentStr")
-            // Move caret back up to the middle line
-            selectionController.moveCaretLineUp(select = false)
-            selectionController.moveCaretLineEnd(select = false)
-        } else {
-            editText("\n" + " ".repeat(whitespaces))
-        }
-    }
-
-    private fun handleNavigation(keyEvent: KeyEvent) {
-        val isShift = keyEvent.isShiftDown
-        val isCtrl = keyEvent.isCtrlDown
-
-        // If completions are visible, Up/Down/Enter controls the popup
-        if (modifier.completions.isNotEmpty() && !isCtrl) {
-            when (keyEvent.keyCode) {
-                KeyboardInput.KEY_CURSOR_UP -> {
-                    modifier.setCompletionIndex((modifier.completionIndex - 1 + modifier.completions.size) % modifier.completions.size)
-                    return
-                }
-
-                KeyboardInput.KEY_CURSOR_DOWN -> {
-                    modifier.setCompletionIndex((modifier.completionIndex + 1) % modifier.completions.size)
-                    return
-                }
-
-                KeyboardInput.KEY_ENTER, KeyboardInput.KEY_NP_ENTER -> {
-                    applyCompletion(modifier.completions[modifier.completionIndex])
-                    return
-                }
-
-                else -> {}
-            }
-        }
-
-        when (keyEvent.keyCode) {
-            KeyboardInput.KEY_CURSOR_LEFT -> selectionController.moveCaretLeft(wordWise = isCtrl, select = isShift)
-            KeyboardInput.KEY_CURSOR_RIGHT -> selectionController.moveCaretRight(wordWise = isCtrl, select = isShift)
-            KeyboardInput.KEY_CURSOR_UP -> selectionController.moveCaretLineUp(select = isShift)
-            KeyboardInput.KEY_CURSOR_DOWN -> selectionController.moveCaretLineDown(select = isShift)
-            KeyboardInput.KEY_PAGE_UP -> selectionController.moveCaretPageUp(select = isShift)
-            KeyboardInput.KEY_PAGE_DOWN -> selectionController.moveCaretPageDown(select = isShift)
-            KeyboardInput.KEY_HOME -> selectionController.moveCaretLineStart(select = isShift)
-            KeyboardInput.KEY_END -> selectionController.moveCaretLineEnd(select = isShift)
-            else -> {}
-        }
+        inputController.onKeyEvent(keyEvent)
     }
 
     fun applyCompletion(item: CompletionItem) {
@@ -776,14 +604,33 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         return 1
     }
 
-    private fun handleKeyRelease(keyEvent: KeyEvent) {
-        if (keyEvent.keyCode == KeyboardInput.KEY_TAB) {
-            if (modifier.completions.isNotEmpty()) {
-                applyCompletion(modifier.completions.getOrNull(modifier.completionIndex) ?: return)
-                return
-            }
+    private fun handleEnter() {
+        if (modifier.completions.isNotEmpty()) {
+            applyCompletion(modifier.completions.getOrNull(modifier.completionIndex) ?: return)
+            return
+        }
 
-            if (keyEvent.isShiftDown) unindentSelection() else indentSelection()
+        val line = selectionController.caretLine ?: return
+        val text = line.text
+        val caretPos = selectionController.selectionCaretChar.coerceAtMost(text.length)
+
+        var whitespaces = text.takeWhile { it == ' ' }.length
+
+        val isLPar = text.substring(0, caretPos).trimEnd().endsWith("{")
+        val isRPar = text.substring(caretPos).trimStart().startsWith("}")
+
+        if (isLPar) whitespaces += TextAreaConfig.INDENT_SIZE
+
+        if (isLPar && isRPar) {
+            val baseIndent = (whitespaces - TextAreaConfig.INDENT_SIZE).coerceAtLeast(0)
+            val indentStr = " ".repeat(whitespaces)
+            val closeIndentStr = " ".repeat(baseIndent)
+
+            editText("\n$indentStr\n$closeIndentStr")
+            selectionController.moveCaretLineUp(select = false)
+            selectionController.moveCaretLineEnd(select = false)
+        } else {
+            editText("\n" + " ".repeat(whitespaces))
         }
     }
 
@@ -917,29 +764,13 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     }
 
     companion object {
-        private val KEY_CODE_SELECT_ALL = UniversalKeyCode('A')
-        private val KEY_CODE_CUT = UniversalKeyCode('X')
-        private val KEY_CODE_COPY = UniversalKeyCode('C')
-        private val KEY_CODE_PASTE = UniversalKeyCode('V')
-        private val KEY_CODE_UNDO = UniversalKeyCode('Z')
-
         val factory: (UiNode, UiSurface) -> TextAreaNode = { parent, surface -> TextAreaNode(parent, surface) }
     }
 }
 
-/**
- * Manages the indent stack for tracking indentation levels in the text editor.
- * Used for rendering indent guides and smart indentation features.
- */
 private class IndentStackManager {
     private val stack = mutableListOf<Int>()
     
-    /**
-     * Updates the indent stack based on the current line's indent index.
-     * Performs both pop and push operations in one call.
-     * @param indentIndex The column index of the first non-space character, or -1 if line is all spaces
-     * @param lineLength The length of the current line
-     */
     fun update(indentIndex: Int, lineLength: Int) {
         if (indentIndex == -1 && lineLength != 0) return
         
@@ -953,12 +784,6 @@ private class IndentStackManager {
         }
     }
     
-    /**
-     * Pops indent levels that are greater than or equal to the current indent.
-     * Used for split operation where indents need to be captured after pop but before push.
-     * @param indentIndex The column index of the first non-space character, or -1 if line is all spaces
-     * @param lineLength The length of the current line
-     */
     fun popToIndent(indentIndex: Int, lineLength: Int) {
         if (indentIndex == -1 && lineLength != 0) return
         
@@ -968,25 +793,14 @@ private class IndentStackManager {
         }
     }
     
-    /**
-     * Pushes a new indent level if applicable.
-     * Used for split operation after indents have been captured.
-     * @param indentIndex The column index of the first non-space character
-     */
     fun pushIndent(indentIndex: Int) {
         if (indentIndex > 0 && indentIndex != stack.lastOrNull()) {
             stack.add(indentIndex)
         }
     }
     
-    /**
-     * Returns a copy of the current indent positions.
-     */
     fun getIndents(): IntArray = stack.toIntArray()
     
-    /**
-     * Returns the current indent level (stack size).
-     */
     val indentLevel: Int get() = stack.size
 }
 
