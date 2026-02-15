@@ -54,8 +54,9 @@ fun highlightCode(file: KtFile, offset: Int): List<TextLine> {
     val lineCount = code.lines().size
     val builder = LineBuilder(arrayListOf())
 
-    val elementAtCaret = file.findElementAt(offset).takeIfSelectable()
-        ?: file.findElementAt(offset - 1).takeIfSelectable()
+    val safeOffset = offset.coerceIn(0, file.textLength)
+    val elementAtCaret = file.findElementAt(safeOffset).takeIfSelectable()
+        ?: if (safeOffset > 0) file.findElementAt(safeOffset - 1).takeIfSelectable() else null
 
     analyze(file) {
         val hints = provideHints(file)
