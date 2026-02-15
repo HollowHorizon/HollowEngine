@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components
 
 import de.fabmax.kool.input.KeyEvent
 import de.fabmax.kool.input.KeyboardInput
+import de.fabmax.kool.math.Vec2i
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.commands.EditorDefaultCommands
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.keymap.EditorDefaultKeys
@@ -21,7 +22,7 @@ class TextInputController(
     private val indentSelection: () -> Unit,
     private val unindentSelection: () -> Unit,
     private val applyCompletion: () -> Unit,
-) : TextEditorHandler by modifier.editorHandler ?: TextEditorHandler.EMPTY {
+) : TextEditorHandler {
 
     init {
         EditorDefaultCommands.ensureRegistered()
@@ -176,5 +177,26 @@ class TextInputController(
             )
         }
         selectionController.selectionChanged(caretPos.y, caretPos.y, caretPos.x, caretPos.x)
+    }
+
+    // Вероятно в будущем лучше протянуть всю логику сюда напрямую, но там пока сложная логика для подсветки, так что пока её не трогал
+    override fun insertText(line: Int, caret: Int, insertion: String): Vec2i {
+        return modifier.editorHandler?.insertText(line, caret, insertion) ?: Vec2i(caret, line)
+    }
+
+    override fun replaceText(
+        selectionStartLine: Int,
+        selectionEndLine: Int,
+        selectionStartChar: Int,
+        selectionEndChar: Int,
+        replacement: String,
+    ): Vec2i {
+        return modifier.editorHandler?.replaceText(
+            selectionStartLine,
+            selectionEndLine,
+            selectionStartChar,
+            selectionEndChar,
+            replacement
+        ) ?: Vec2i(selectionStartChar, selectionEndChar)
     }
 }

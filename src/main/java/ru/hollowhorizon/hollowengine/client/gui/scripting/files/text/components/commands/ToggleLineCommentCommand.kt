@@ -6,6 +6,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.
 
 class ToggleLineCommentCommand : Command {
     override fun execute(c: EditorCommandContext): Boolean {
+        // TODO: Доделать логику для нескольких строк сразу
         val sl = c.selection.selectionStartLine
         val sc = c.selection.selectionStartChar
         if (c.lineProvider.size == 0 || sl >= c.lineProvider.size) return false
