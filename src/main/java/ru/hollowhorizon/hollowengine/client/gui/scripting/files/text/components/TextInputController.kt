@@ -1,10 +1,11 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components
 
-import de.fabmax.kool.Clipboard
 import de.fabmax.kool.input.KeyEvent
 import de.fabmax.kool.input.KeyboardInput
-import de.fabmax.kool.input.UniversalKeyCode
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.commands.EditorDefaultCommands
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.keymap.EditorDefaultKeys
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.keymap.KeyMap
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextAreaModifier
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextEditorHandler
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextLineProvider
@@ -15,13 +16,18 @@ class TextInputController(
     private val selectionController: TextSelectionController,
     private val lineProvider: () -> TextLineProvider,
     private val requestFocusNone: () -> Unit,
-    private val editText: (String) -> Unit,
     private val applyBrackets: (String, Char) -> Unit,
     private val handleEnter: () -> Unit,
     private val indentSelection: () -> Unit,
     private val unindentSelection: () -> Unit,
     private val applyCompletion: () -> Unit,
-) {
+) : TextEditorHandler by modifier.editorHandler ?: TextEditorHandler.EMPTY {
+
+    init {
+        EditorDefaultCommands.ensureRegistered()
+        EditorDefaultKeys.ensureRegistered()
+    }
+
     fun onKeyEvent(keyEvent: KeyEvent) {
         if (keyEvent.isCharTyped) {
             handleCharTyped(keyEvent)
@@ -44,6 +50,8 @@ class TextInputController(
     }
 
     private fun handleKeyPress(keyEvent: KeyEvent) {
+        if (tryExecuteKeyBinding(keyEvent)) return
+
         when (keyEvent.keyCode) {
             KeyboardInput.KEY_BACKSPACE -> handleBackspace(keyEvent)
             KeyboardInput.KEY_DEL -> handleDelete(keyEvent)
@@ -61,46 +69,22 @@ class TextInputController(
             KeyboardInput.KEY_TAB,
                 -> handleNavigation(keyEvent)
 
-            else -> handleShortcuts(keyEvent)
+            else -> {
+            }
         }
     }
 
-    private fun handleShortcuts(keyEvent: KeyEvent) {
-        if (keyEvent.isCtrlDown) {
-            when (keyEvent.keyCode) {
-                KEY_CODE_SELECT_ALL -> selectionController.selectAll()
-                KEY_CODE_PASTE -> Clipboard.getStringFromClipboard { it?.let { editText(it) } }
-                KEY_CODE_COPY -> selectionController.copySelection()?.let { Clipboard.copyToClipboard(it) }
-                KEY_CODE_CUT -> selectionController.copySelection()?.let {
-                    Clipboard.copyToClipboard(it)
-                    editText("")
-                }
-
-                KEY_CODE_UNDO -> {
-                    val provider = lineProvider()
-                    if (keyEvent.isShiftDown) {
-                        (provider as? UndoRedoHandler)?.redo { sl, el, sc, ec ->
-                            selectionController.selectionChanged(sl, el, sc, ec)
-                        }
-                    } else {
-                        (provider as? UndoRedoHandler)?.undo { sl, el, sc, ec ->
-                            selectionController.selectionChanged(sl, el, sc, ec)
-                        }
-                    }
-                }
-
-                else -> {}
-            }
-        } else {
-            if (modifier.completions.isNotEmpty()) {
-                when (keyEvent.keyCode) {
-                    UniversalKeyCode(' ') -> {
-                    }
-
-                    else -> {}
-                }
-            }
-        }
+    private fun tryExecuteKeyBinding(event: KeyEvent): Boolean {
+        val commandKey = KeyMap.resolve(event) ?: return false
+        val provider = lineProvider()
+        val ctx = EditorCommandContext(
+            event = event,
+            selection = selectionController,
+            lineProvider = provider,
+            inputController = this,
+            historyManager = provider as UndoRedoHandler
+        )
+        return CommandRegistry.execute(commandKey, ctx)
     }
 
     private fun handleBackspace(keyEvent: KeyEvent) {
@@ -178,11 +162,19 @@ class TextInputController(
         }
     }
 
-    private companion object {
-        val KEY_CODE_SELECT_ALL = UniversalKeyCode('A')
-        val KEY_CODE_CUT = UniversalKeyCode('X')
-        val KEY_CODE_COPY = UniversalKeyCode('C')
-        val KEY_CODE_PASTE = UniversalKeyCode('V')
-        val KEY_CODE_UNDO = UniversalKeyCode('Z')
+    fun editText(text: String) {
+        val editor = modifier.editorHandler ?: return
+        val caretPos = if (selectionController.isEmptySelection) {
+            editor.insertText(selectionController.selectionCaretLine, selectionController.selectionCaretChar, text)
+        } else {
+            editor.replaceText(
+                selectionController.selectionFromLine,
+                selectionController.selectionToLine,
+                selectionController.selectionFromChar,
+                selectionController.selectionToChar,
+                text
+            )
+        }
+        selectionController.selectionChanged(caretPos.y, caretPos.y, caretPos.x, caretPos.x)
     }
 }

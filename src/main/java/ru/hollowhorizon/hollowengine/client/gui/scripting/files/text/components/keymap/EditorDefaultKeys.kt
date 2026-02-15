@@ -1,0 +1,22 @@
+package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.keymap
+
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.commands.*
+import de.fabmax.kool.input.UniversalKeyCode as key
+
+object EditorDefaultKeys {
+    private var registered = false
+
+    fun ensureRegistered() {
+        if (registered) return
+        registered = true
+
+        KeyMap.bind(KeyBinding(key('A'), ctrl = true), SelectAllCommand.Key)
+        KeyMap.bind(KeyBinding(key('V'), ctrl = true), PasteCommand.Key)
+        KeyMap.bind(KeyBinding(key('C'), ctrl = true), CopyCommand.Key)
+        KeyMap.bind(KeyBinding(key('X'), ctrl = true), CutCommand.Key)
+        KeyMap.bind(KeyBinding(key('Z'), ctrl = true), UndoCommand.Key)
+        KeyMap.bind(KeyBinding(key('Z'), ctrl = true, shift = true), RedoCommand.Key)
+        KeyMap.bind(KeyBinding(key('Y'), ctrl = true), RedoCommand.Key)
+        KeyMap.bind(KeyBinding(key('/'), ctrl = true), ToggleLineCommentCommand.Key)
+    }
+}

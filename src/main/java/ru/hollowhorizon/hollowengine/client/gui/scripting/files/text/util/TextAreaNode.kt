@@ -20,30 +20,6 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import kotlin.contracts.ExperimentalContracts
 
-/**
- * Configuration constants for the text area.
- */
-private object TextAreaConfig {
-    // Completion settings
-    const val MAX_COMPLETION_ITEMS = 10
-    const val COMPLETION_ITEM_HEIGHT = 24
-
-    // Indentation
-    const val INDENT_SIZE = 4
-    const val INDENT_GUIDE_OFFSET = 0.5f
-    const val INDENT_GUIDE_ACTIVE_ALPHA = 0.8f
-    const val INDENT_GUIDE_INACTIVE_ALPHA = 0.3f
-
-    // Squiggly line (error underline) rendering
-    const val SQUIGGLY_STEP = 5
-    const val SQUIGGLY_AMPLITUDE = 5
-    const val SQUIGGLY_LINE_WIDTH = 3f
-
-    // Scroll settings
-    const val SCROLL_WHEEL_X_MULTIPLIER = -20f
-    const val SCROLL_WHEEL_Y_MULTIPLIER = -50f
-}
-
 var errorMessage = ""
 
 internal val bracketPairs = mapOf(
@@ -305,7 +281,6 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         selectionController = selectionController,
         lineProvider = { lineProvider },
         requestFocusNone = { surface.requestFocus(null) },
-        editText = { editText(it) },
         applyBrackets = { open, close -> applyBrackets(open, close) },
         handleEnter = { handleEnter() },
         indentSelection = { indentSelection() },
@@ -626,11 +601,11 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             val indentStr = " ".repeat(whitespaces)
             val closeIndentStr = " ".repeat(baseIndent)
 
-            editText("\n$indentStr\n$closeIndentStr")
+            inputController.editText("\n$indentStr\n$closeIndentStr")
             selectionController.moveCaretLineUp(select = false)
             selectionController.moveCaretLineEnd(select = false)
         } else {
-            editText("\n" + " ".repeat(whitespaces))
+            inputController.editText("\n" + " ".repeat(whitespaces))
         }
     }
 
@@ -659,8 +634,8 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         } else {
             // --- нет выделения: поведение как раньше ---
-            editText(char)
-            editText(closing.toString())
+            inputController.editText(char)
+            inputController.editText(closing.toString())
             // возвращаем каретку между скобками
             selectionController.moveCaretLeft(wordWise = false, select = false)
         }
@@ -747,61 +722,9 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         )
     }
 
-    private fun editText(text: String) {
-        val editor = modifier.editorHandler ?: return
-        val caretPos = if (selectionController.isEmptySelection) {
-            editor.insertText(selectionController.selectionCaretLine, selectionController.selectionCaretChar, text)
-        } else {
-            editor.replaceText(
-                selectionController.selectionFromLine,
-                selectionController.selectionToLine,
-                selectionController.selectionFromChar,
-                selectionController.selectionToChar,
-                text
-            )
-        }
-        selectionController.selectionChanged(caretPos.y, caretPos.y, caretPos.x, caretPos.x)
-    }
-
     companion object {
         val factory: (UiNode, UiSurface) -> TextAreaNode = { parent, surface -> TextAreaNode(parent, surface) }
     }
-}
-
-private class IndentStackManager {
-    private val stack = mutableListOf<Int>()
-    
-    fun update(indentIndex: Int, lineLength: Int) {
-        if (indentIndex == -1 && lineLength != 0) return
-        
-        while (indentIndex <= (stack.lastOrNull() ?: 0) && stack.isNotEmpty()) {
-            stack.removeLastOrNull()
-            if (lineLength == 0) break
-        }
-        
-        if (indentIndex > 0 && indentIndex != stack.lastOrNull()) {
-            stack.add(indentIndex)
-        }
-    }
-    
-    fun popToIndent(indentIndex: Int, lineLength: Int) {
-        if (indentIndex == -1 && lineLength != 0) return
-        
-        while (indentIndex <= (stack.lastOrNull() ?: 0) && stack.isNotEmpty()) {
-            stack.removeLastOrNull()
-            if (lineLength == 0) break
-        }
-    }
-    
-    fun pushIndent(indentIndex: Int) {
-        if (indentIndex > 0 && indentIndex != stack.lastOrNull()) {
-            stack.add(indentIndex)
-        }
-    }
-    
-    fun getIndents(): IntArray = stack.toIntArray()
-    
-    val indentLevel: Int get() = stack.size
 }
 
 interface TextLineProvider {
@@ -824,4 +747,26 @@ interface TextEditorHandler {
         selectionEndChar: Int,
         replacement: String,
     ): Vec2i
+
+    companion object {
+        val EMPTY = object : TextEditorHandler {
+            override fun insertText(
+                line: Int,
+                caret: Int,
+                insertion: String,
+            ): Vec2i {
+                return Vec2i(caret, line)
+            }
+
+            override fun replaceText(
+                selectionStartLine: Int,
+                selectionEndLine: Int,
+                selectionStartChar: Int,
+                selectionEndChar: Int,
+                replacement: String,
+            ): Vec2i {
+                return Vec2i(selectionStartChar, selectionStartLine)
+            }
+        }
+    }
 }
