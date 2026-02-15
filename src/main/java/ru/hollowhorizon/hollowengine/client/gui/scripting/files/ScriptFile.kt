@@ -24,9 +24,6 @@ class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
     lateinit var modifier: ScriptTextAreaModifier
         private set
 
-    lateinit var area: ScriptTextAreaScope
-        private set
-
     override fun save() {
         provider.saveToDisk()
     }
@@ -40,6 +37,8 @@ class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
             modifier.completions.addAll(it)
         }
     }
+
+    private var isDisposed = false
 
     override fun UiScope.compose() {
         modifier.background(null)
@@ -74,7 +73,6 @@ class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
                 },
             ) {
                 this@ScriptFile.modifier = modifier
-                this@ScriptFile.area = this
                 installSelectionHandler(provider) { startLine, caretLine, startChar, caretChar ->
                     provider.lines.clear()
                     val code = ScriptingEnvironment.INSTANCE.analyzer.highlight(
@@ -152,7 +150,10 @@ class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
 
     override fun close() {
         super.close()
-        if(HollowEngine.compilerLoader.isLoaded) provider.dispose()
+        if (!isDisposed && HollowEngine.compilerLoader.isLoaded) {
+            isDisposed = true
+            provider.dispose()
+        }
     }
 }
 

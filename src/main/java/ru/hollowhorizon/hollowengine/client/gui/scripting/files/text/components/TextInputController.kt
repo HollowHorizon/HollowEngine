@@ -25,9 +25,11 @@ class TextInputController(
 
     private val completionManager = CompletionManager(modifier, completionsListState)
 
-    init {
-        EditorDefaultCommands.ensureRegistered()
-        EditorDefaultKeys.ensureRegistered()
+    companion object {
+        init {
+            EditorDefaultCommands.ensureRegistered()
+            EditorDefaultKeys.ensureRegistered()
+        }
     }
 
     fun onKeyEvent(keyEvent: KeyEvent) {
