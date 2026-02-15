@@ -27,8 +27,24 @@ import kotlin.contracts.ExperimentalContracts
  * Configuration constants for the text area.
  */
 private object TextAreaConfig {
+    // Completion settings
     const val MAX_COMPLETION_ITEMS = 10
     const val COMPLETION_ITEM_HEIGHT = 24
+
+    // Indentation
+    const val INDENT_SIZE = 4
+    const val INDENT_GUIDE_OFFSET = 0.5f
+    const val INDENT_GUIDE_ACTIVE_ALPHA = 0.8f
+    const val INDENT_GUIDE_INACTIVE_ALPHA = 0.3f
+
+    // Squiggly line (error underline) rendering
+    const val SQUIGGLY_STEP = 5
+    const val SQUIGGLY_AMPLITUDE = 5
+    const val SQUIGGLY_LINE_WIDTH = 3f
+
+    // Scroll settings
+    const val SCROLL_WHEEL_X_MULTIPLIER = -20f
+    const val SCROLL_WHEEL_Y_MULTIPLIER = -50f
 }
 
 var errorMessage = ""
@@ -148,8 +164,8 @@ fun UiScope.ScriptTextArea(
 
     val textArea = uiNode.createChild(scopeName, TextAreaNode::class, TextAreaNode.factory)
     textArea.listState = state
-    textArea.modifier.size(width, height).onWheelX { state.scrollDpX(it.pointer.scroll.x * -20f) }
-        .onWheelY { state.scrollDpY(it.pointer.scroll.y * -50f) }
+    textArea.modifier.size(width, height).onWheelX { state.scrollDpX(it.pointer.scroll.x * TextAreaConfig.SCROLL_WHEEL_X_MULTIPLIER) }
+        .onWheelY { state.scrollDpY(it.pointer.scroll.y * TextAreaConfig.SCROLL_WHEEL_Y_MULTIPLIER) }
 
     var completionIndex: Int by textArea.remember(0)
     var completionX: Float by textArea.remember(0f)
@@ -321,10 +337,10 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                     getPlainBuilder(UiSurface.LAYER_FLOATING).configured(color, clipped = false) {
                         val leftPos = maxWidth.px + Dimensions.PaddingHuge.px
                         
-                        for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).coerceAtMost(clipBoundsPx.z - leftPx - 5f).toInt()).step(5)) {
-                            val offset = if (i % 2 == 0) 5 else -5
+                        for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).coerceAtMost(clipBoundsPx.z - leftPx - TextAreaConfig.SQUIGGLY_AMPLITUDE.toFloat()).toInt()).step(TextAreaConfig.SQUIGGLY_STEP)) {
+                            val offset = if (i % 2 == 0) TextAreaConfig.SQUIGGLY_AMPLITUDE else -TextAreaConfig.SQUIGGLY_AMPLITUDE
                             line(
-                                Vec2f(i.toFloat(), heightPx + offset), Vec2f(i + 5f, heightPx - offset), 3f
+                                Vec2f(i.toFloat(), heightPx + offset), Vec2f(i + TextAreaConfig.SQUIGGLY_STEP.toFloat(), heightPx - offset), TextAreaConfig.SQUIGGLY_LINE_WIDTH
                             )
                         }
 
@@ -342,12 +358,12 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                 val guideStartX = textNode.leftPx - this.leftPx + textNode.paddingStartPx
 
                 for (i in indents) {
-                    val x = guideStartX + i * spaceWidth - sizes.smallGap.px * 0.5f
+                    val x = guideStartX + i * spaceWidth - sizes.smallGap.px * TextAreaConfig.INDENT_GUIDE_OFFSET
                     val color =
                         if (selectionController.selectionCaretChar == i && lineIndex == this@TextAreaNode.modifier.selectionCaretLine)
-                            EditorTheme.indentGuide.withAlpha(0.8f)
+                            EditorTheme.indentGuide.withAlpha(TextAreaConfig.INDENT_GUIDE_ACTIVE_ALPHA)
                         else
-                            EditorTheme.indentGuide.withAlpha(0.3f)
+                            EditorTheme.indentGuide.withAlpha(TextAreaConfig.INDENT_GUIDE_INACTIVE_ALPHA)
 
                     getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRect(x, 0f, Dimensions.PaddingSmall.px, heightPx, color)
                 }
@@ -574,15 +590,15 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     private fun handleShortcuts(keyEvent: KeyEvent) {
         if (keyEvent.isCtrlDown) {
             when (keyEvent.keyCode) {
-                UniversalKeyCode('A') -> selectionController.selectAll()
-                UniversalKeyCode('V') -> Clipboard.getStringFromClipboard { it?.let { editText(it) } }
-                UniversalKeyCode('C') -> selectionController.copySelection()?.let { Clipboard.copyToClipboard(it) }
-                UniversalKeyCode('X') -> selectionController.copySelection()?.let {
+                KEY_CODE_SELECT_ALL -> selectionController.selectAll()
+                KEY_CODE_PASTE -> Clipboard.getStringFromClipboard { it?.let { editText(it) } }
+                KEY_CODE_COPY -> selectionController.copySelection()?.let { Clipboard.copyToClipboard(it) }
+                KEY_CODE_CUT -> selectionController.copySelection()?.let {
                     Clipboard.copyToClipboard(it)
                     editText("")
                 }
 
-                UniversalKeyCode('Z') -> {
+                KEY_CODE_UNDO -> {
                     if (keyEvent.isShiftDown) {
                         (lineProvider as? UndoRedoHandler)?.redo { sl, el, sc, ec ->
                             selectionController.selectionChanged(sl, el, sc, ec)
@@ -654,14 +670,14 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         val isLPar = text.substring(0, caretPos).trimEnd().endsWith("{")
         val isRPar = text.substring(caretPos).trimStart().startsWith("}")
 
-        if (isLPar) whitespaces += 4
+        if (isLPar) whitespaces += TextAreaConfig.INDENT_SIZE
 
         // If hitting enter between {} ->
         // {
         //     |
         // }
         if (isLPar && isRPar) {
-            val baseIndent = (whitespaces - 4).coerceAtLeast(0)
+            val baseIndent = (whitespaces - TextAreaConfig.INDENT_SIZE).coerceAtLeast(0)
             val indentStr = " ".repeat(whitespaces)
             val closeIndentStr = " ".repeat(baseIndent)
 
@@ -829,38 +845,38 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         val fromLine = selectionController.selectionFromLine
         val toLine = selectionController.selectionToLine
 
-        // Если нет выделения — просто вставляем 4 пробела в текущую строку
+        // Если нет выделения — просто вставляем INDENT_SIZE пробелов в текущую строку
         if (fromLine == toLine && selectionController.isEmptySelection) {
             val caretLine = selectionController.selectionCaretLine
             val caretChar = selectionController.selectionCaretChar
-            // Вставляем 4 пробела перед кареткой
-            editor.insertText(caretLine, caretChar, "    ")
-            // Сдвигаем каретку вправо на 4
-            selectionController.selectionChanged(caretLine, caretLine, caretChar + 4, caretChar + 4)
+            // Вставляем INDENT_SIZE пробелов перед кареткой
+            editor.insertText(caretLine, caretChar, " ".repeat(TextAreaConfig.INDENT_SIZE))
+            // Сдвигаем каретку вправо на INDENT_SIZE
+            selectionController.selectionChanged(caretLine, caretLine, caretChar + TextAreaConfig.INDENT_SIZE, caretChar + TextAreaConfig.INDENT_SIZE)
             return
         }
 
-        // Для каждой строки в диапазоне вставляем 4 пробела в начало
+        // Для каждой строки в диапазоне вставляем INDENT_SIZE пробелов в начало
         for (line in fromLine..toLine) {
-            editor.insertText(line, 0, "    ")
+            editor.insertText(line, 0, " ".repeat(TextAreaConfig.INDENT_SIZE))
         }
 
         // Обновляем координаты выделения: сдвигаем отступы начала и конца
-        val newFromChar = selectionController.selectionFromChar + 4
-        val newToChar = selectionController.selectionToChar + 4
+        val newFromChar = selectionController.selectionFromChar + TextAreaConfig.INDENT_SIZE
+        val newToChar = selectionController.selectionToChar + TextAreaConfig.INDENT_SIZE
         selectionController.selectionChanged(fromLine, toLine, newFromChar, newToChar)
     }
 
     private fun unindentSelection() {
         val editor = modifier.editorHandler ?: return
 
-        // 1) Нет выделения → удаляем до 4 пробелов прямо перед кареткой
+        // 1) Нет выделения → удаляем до INDENT_SIZE пробелов прямо перед кареткой
         if (selectionController.isEmptySelection) {
             val line = selectionController.selectionCaretLine
             val char = selectionController.selectionCaretChar
             val text = lineProvider[line].text
             // сколько пробелов подряд перед кареткой?
-            val spacesToRemove = text.take(char).takeLastWhile { it == ' ' }.length.coerceAtMost(4)
+            val spacesToRemove = text.take(char).takeLastWhile { it == ' ' }.length.coerceAtMost(TextAreaConfig.INDENT_SIZE)
 
             if (spacesToRemove > 0) {
                 editor.replaceText(
@@ -874,7 +890,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             return
         }
 
-        // 2) Есть выделение → для каждой строки удаляем до 4 пробелов в начале
+        // 2) Есть выделение → для каждой строки удаляем до INDENT_SIZE пробелов в начале
         val fromLine = selectionController.selectionFromLine
         val toLine = selectionController.selectionToLine
 
@@ -883,7 +899,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
         for (line in fromLine..toLine) {
             val text = lineProvider[line].text
-            val count = text.takeWhile { it == ' ' }.length.coerceAtMost(4)
+            val count = text.takeWhile { it == ' ' }.length.coerceAtMost(TextAreaConfig.INDENT_SIZE)
 
             if (count > 0) {
                 editor.replaceText(
@@ -924,6 +940,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         private val KEY_CODE_CUT = UniversalKeyCode('X')
         private val KEY_CODE_COPY = UniversalKeyCode('C')
         private val KEY_CODE_PASTE = UniversalKeyCode('V')
+        private val KEY_CODE_UNDO = UniversalKeyCode('Z')
 
         val factory: (UiNode, UiSurface) -> TextAreaNode = { parent, surface -> TextAreaNode(parent, surface) }
     }
