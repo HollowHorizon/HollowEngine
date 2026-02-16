@@ -6,7 +6,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.Script
 data class UndoableAction(
     val startLine: Int,
     val startChar: Int,
-    val caretLine: Int,
+    var caretLine: Int,
     var caretChar: Int,
     val oldLines: List<ScriptTextLine>,
     var newLines: List<ScriptTextLine>,

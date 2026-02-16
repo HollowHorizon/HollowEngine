@@ -19,12 +19,14 @@ class ApplyBracketsCommand : Command {
             val selectedText = c.selection.copySelection() ?: return false
             val editor = c.inputController.modifier.editorHandler ?: return false
 
-            editor.replaceText(
+            // Сохраняем позицию каретки после замены текста
+            val newPos = editor.replaceText(
                 fromLine, toLine, fromChar, toChar, "$char$selectedText$closing"
             )
 
+            // Обновляем выделение на обёрнутый текст, используя позицию из replaceText
             c.selection.selectionChanged(
-                fromLine, toLine, fromChar + 1, fromChar + 1 + selectedText.length
+                newPos.y, newPos.y, newPos.x, newPos.x + selectedText.length
             )
         } else {
             c.inputController.editText(char)

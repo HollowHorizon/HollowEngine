@@ -46,6 +46,13 @@ class CompletionManager(
         if (line !in 0 until lineProvider.size) return
 
         val text = lineProvider[line].text
+        // Не открываем автодополнение для пустых строк (кроме случая, когда это действительно нужно)
+        if (text.isEmpty()) {
+            // Закрываем автодополнение для пустых строк, чтобы избежать ложных срабатываний
+            close()
+            return
+        }
+        
         val caret = modifier.selectionCaretChar.coerceIn(0, text.length)
         val idx = (caret - 1).coerceAtLeast(0)
 
