@@ -12,7 +12,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.Compil
 
 class ReformatCommand : Command {
     override fun canExecute(c: EditorCommandContext): Boolean {
-        val e = c.event
+        val e = c.event ?: return false
         return e.isReleased && e.isCtrlDown && e.isAltDown && e.keyCode == UniversalKeyCode('l')
     }
 

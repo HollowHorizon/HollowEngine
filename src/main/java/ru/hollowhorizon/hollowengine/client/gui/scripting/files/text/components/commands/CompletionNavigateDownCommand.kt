@@ -7,6 +7,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.
 
 class CompletionNavigateDownCommand : Command {
     override fun canExecute(c: EditorCommandContext): Boolean {
+        if (c.event == null) return false
         return c.hasCompletions && !c.event.isCtrlDown && c.event.keyCode == KeyboardInput.KEY_CURSOR_DOWN
     }
 

@@ -57,7 +57,7 @@ object EditorDefaultKeys {
 
         KeyMap.bind(
             KeyBinding(KeyboardInput.KEY_TAB, trigger = KeyBinding.Trigger.Released),
-            ApplyCompletionCommand.Key,
+            ApplyCompletionItemCommand.Key,
             priority = 100
         )
         KeyMap.bind(

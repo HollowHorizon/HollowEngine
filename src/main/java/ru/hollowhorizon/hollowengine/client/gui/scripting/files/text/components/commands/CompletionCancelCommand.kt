@@ -7,7 +7,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.
 
 class CompletionCancelCommand : Command {
     override fun canExecute(c: EditorCommandContext): Boolean {
-        return c.hasCompletions && c.event.keyCode == KeyboardInput.KEY_ESC
+        return c.hasCompletions && c.event?.keyCode == KeyboardInput.KEY_ESC
     }
 
     override fun execute(c: EditorCommandContext): Boolean {

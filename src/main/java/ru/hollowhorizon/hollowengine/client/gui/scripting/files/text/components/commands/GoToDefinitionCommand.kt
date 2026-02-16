@@ -8,6 +8,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.Compil
 
 class GoToDefinitionCommand : Command {
     override fun canExecute(c: EditorCommandContext): Boolean {
+        if (c.event == null) return false
         return c.event.isReleased && c.event.keyCode == KeyboardInput.KEY_F4
     }
 

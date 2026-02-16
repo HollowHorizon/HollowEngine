@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.utils.nbt
 
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.SealedSerializationApi
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.SerialKind
 import kotlinx.serialization.descriptors.StructureKind
@@ -17,7 +17,7 @@ internal inline fun <T> missingField(
     return defaultValue()
 }
 
-@OptIn(Serializable::class)
+@OptIn(SealedSerializationApi::class)
 internal sealed class PublicisedListLikeDescriptor(val elementDesc: SerialDescriptor) : SerialDescriptor {
     override val kind: SerialKind get() = StructureKind.LIST
     override val elementsCount: Int = 1
