@@ -15,7 +15,6 @@ object EditorDefaultCommands {
         CommandRegistry.register(PasteCommand.Key, PasteCommand())
         CommandRegistry.register(UndoCommand.Key, UndoCommand())
         CommandRegistry.register(RedoCommand.Key, RedoCommand())
-        CommandRegistry.register(ApplyCompletionCommand.Key, ApplyCompletionCommand())
         CommandRegistry.register(CompletionAcceptCommand.Key, CompletionAcceptCommand())
         CommandRegistry.register(CompletionCancelCommand.Key, CompletionCancelCommand())
         CommandRegistry.register(CompletionNavigateUpCommand.Key, CompletionNavigateUpCommand())
@@ -25,5 +24,8 @@ object EditorDefaultCommands {
         CommandRegistry.register(IndentCommand.Key, IndentCommand())
         CommandRegistry.register(UnindentCommand.Key, UnindentCommand())
         CommandRegistry.register(ToggleLineCommentCommand.Key, ToggleLineCommentCommand())
+        CommandRegistry.register(InsertNewlineCommand.Key, InsertNewlineCommand())
+        CommandRegistry.register(ApplyBracketsCommand.Key, ApplyBracketsCommand())
+        CommandRegistry.register(ApplyCompletionItemCommand.Key, ApplyCompletionItemCommand())
     }
 }

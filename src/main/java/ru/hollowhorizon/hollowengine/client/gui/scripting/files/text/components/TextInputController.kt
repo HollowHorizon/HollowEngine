@@ -4,7 +4,9 @@ import de.fabmax.kool.input.KeyEvent
 import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.math.Vec2i
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.commands.ApplyBracketsCommand
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.commands.EditorDefaultCommands
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.commands.InsertNewlineCommand
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.keymap.EditorDefaultKeys
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.keymap.KeyMap
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextAreaModifier
@@ -16,14 +18,10 @@ class TextInputController(
     val modifier: ScriptTextAreaModifier,
     private val selectionController: TextSelectionController,
     private val lineProvider: () -> TextLineProvider,
-    private val completionsListState: () -> de.fabmax.kool.modules.ui2.LazyListState?,
     private val requestFocusNone: () -> Unit,
-    private val applyBrackets: (String, Char) -> Unit,
-    private val handleEnter: () -> Unit,
-    private val applyCompletion: () -> Unit,
+    private val completionManager: CompletionManager,
 ) : TextEditorHandler {
 
-    private val completionManager = CompletionManager(modifier, completionsListState)
 
     companion object {
         init {
@@ -51,8 +49,17 @@ class TextInputController(
         if (closing == null) {
             editText(char)
         } else {
-            applyBrackets(char, closing)
+            executeBracketsCommand(char, closing)
         }
+    }
+
+    private fun executeBracketsCommand(char: String, closing: Char) {
+        val provider = lineProvider()
+        val ctx = createContext(provider).apply {
+            bracketChar = char
+            bracketClosing = closing
+        }
+        CommandRegistry.execute(ApplyBracketsCommand.Key, ctx)
     }
 
     private fun handleKeyPress(keyEvent: KeyEvent) {
@@ -61,7 +68,7 @@ class TextInputController(
         when (keyEvent.keyCode) {
             KeyboardInput.KEY_BACKSPACE -> handleBackspace(keyEvent)
             KeyboardInput.KEY_DEL -> handleDelete(keyEvent)
-            KeyboardInput.KEY_ENTER, KeyboardInput.KEY_NP_ENTER -> handleEnter()
+            KeyboardInput.KEY_ENTER, KeyboardInput.KEY_NP_ENTER -> executeNewlineCommand()
             KeyboardInput.KEY_ESC -> {
                 selectionController.clearSelection()
                 requestFocusNone()
@@ -80,9 +87,8 @@ class TextInputController(
         }
     }
 
-    private fun tryExecuteKeyBinding(event: KeyEvent): Boolean {
-        val provider = lineProvider()
-        val ctx = EditorCommandContext(
+    private fun createContext(provider: TextLineProvider, event: KeyEvent? = null): EditorCommandContext {
+        return EditorCommandContext(
             event = event,
             selection = selectionController,
             lineProvider = provider,
@@ -91,8 +97,19 @@ class TextInputController(
             hasCompletions = completionManager.isOpen,
             completion = completionManager,
         )
+    }
+
+    private fun tryExecuteKeyBinding(event: KeyEvent): Boolean {
+        val provider = lineProvider()
+        val ctx = createContext(provider, event)
         val commandKey = KeyMap.resolve(event, ctx) ?: return false
         return CommandRegistry.execute(commandKey, ctx)
+    }
+
+    private fun executeNewlineCommand() {
+        val provider = lineProvider()
+        val ctx = createContext(provider)
+        CommandRegistry.execute(InsertNewlineCommand.Key, ctx)
     }
 
     private fun handleBackspace(keyEvent: KeyEvent) {
@@ -143,7 +160,7 @@ class TextInputController(
     }
 
     fun applyCompletion() {
-        applyCompletion.invoke()
+        //TODO: applyCompletion.invoke()
     }
 
     fun clearCompletions() {

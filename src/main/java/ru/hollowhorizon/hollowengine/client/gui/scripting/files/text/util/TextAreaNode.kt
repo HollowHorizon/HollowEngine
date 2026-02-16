@@ -14,13 +14,12 @@ import ru.hollowhorizon.hollowengine.client.HighlightTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextInputController
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextSelectionController
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.*
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.commands.ApplyCompletionItemCommand
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import kotlin.contracts.ExperimentalContracts
-
-var errorMessage = ""
 
 internal val bracketPairs = mapOf(
     '(' to ')', '[' to ']', '{' to '}', '<' to '>', '"' to '"', '\'' to '\''
@@ -67,9 +66,7 @@ open class ScriptTextAreaModifier(surface: UiSurface) : UiModifier(surface) {
     val completions by property(mutableListOf<CompletionItem>())
     val errors by property(mutableListOf<Diagnostic>())
 
-    var completionIndex by property(0)
-
-    var setCompletionIndex: (Int) -> Unit by property { {} }
+    var errorMessage: String by property("")
 }
 
 fun <T : ScriptTextAreaModifier> T.lineStartPadding(padding: Dp): T {
@@ -133,15 +130,13 @@ fun UiScope.ScriptTextArea(
 
     val textArea = uiNode.createChild(scopeName, TextAreaNode::class, TextAreaNode.factory)
     textArea.listState = state
-    textArea.modifier.size(width, height).onWheelX { state.scrollDpX(it.pointer.scroll.x * TextAreaConfig.SCROLL_WHEEL_X_MULTIPLIER) }
+    textArea.modifier.size(width, height)
+        .onWheelX { state.scrollDpX(it.pointer.scroll.x * TextAreaConfig.SCROLL_WHEEL_X_MULTIPLIER) }
         .onWheelY { state.scrollDpY(it.pointer.scroll.y * TextAreaConfig.SCROLL_WHEEL_Y_MULTIPLIER) }
 
-    var completionIndex: Int by textArea.remember(0)
+    textArea.completionIndex = remember(0)
     textArea.completionX = remember(0f)
     textArea.completionY = remember(0f)
-    textArea.modifier.completionIndex = completionIndex
-
-    textArea.modifier.setCompletionIndex = { completionIndex = it }
 
     textArea.lineProvider = lineProvider
     textArea.setupContent(
@@ -160,7 +155,13 @@ fun UiScope.ScriptTextArea(
                 Popup(textArea.completionX.use(), textArea.completionY.use()) {
                     modifier
                         .background(RoundRectBackground(EditorTheme.Popup.bg, Dimensions.PaddingMedium))
-                        .border(RoundRectBorder(EditorTheme.Popup.border, Dimensions.PaddingMedium, Dimensions.PaddingSmall))
+                        .border(
+                            RoundRectBorder(
+                                EditorTheme.Popup.border,
+                                Dimensions.PaddingMedium,
+                                Dimensions.PaddingSmall
+                            )
+                        )
                         .padding(Dimensions.PaddingSmall)
                         .height(
                             (18f.dp + Dimensions.PaddingMedium) * completions.size.coerceAtMost(TextAreaConfig.MAX_COMPLETION_ITEMS)
@@ -212,7 +213,7 @@ fun UiScope.ScriptTextArea(
                         itemsIndexed(completions) { index, completion ->
                             CompletionRenderer.renderCompletion(
                                 completion,
-                                this@setupContent.modifier.completionIndex == index,
+                                textArea.completionIndex.use() == index,
                                 typedPrefix
                             ) { textArea.applyCompletion(it) }
                         }
@@ -222,7 +223,8 @@ fun UiScope.ScriptTextArea(
         }) {
         this.block()
 
-        if (errorMessage.isNotEmpty()) {
+        val currentError = textArea.modifier.errorMessage
+        if (currentError.isNotEmpty()) {
             surface.triggerUpdate()
             val pos = PointerInput.primaryPointer.pos
             Popup(pos.x, pos.y) {
@@ -239,13 +241,13 @@ fun UiScope.ScriptTextArea(
 
                 modifier.width(Grow(1f, max = FitContent))
 
-                Text(errorMessage) {
+                Text(currentError) {
                     modifier.margin(sizes.smallGap).isWrapText(true).width(Grow.Std)
                 }
             }
         }
 
-        errorMessage = ""
+        textArea.modifier.errorMessage = ""
     }
 }
 
@@ -262,6 +264,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
     lateinit var completionX: MutableStateValue<Float>
     lateinit var completionY: MutableStateValue<Float>
+    lateinit var completionIndex: MutableStateValue<Int>
 
     private val selectionController = TextSelectionController(
         owner = this,
@@ -272,17 +275,13 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         isFocused = { isFocused.use() }
     )
 
+    private val completionManager = CompletionManager(modifier, { completionIndex }) { if (this::completionsList.isInitialized) completionsList else null }
     private val inputController = TextInputController(
         modifier = modifier,
         selectionController = selectionController,
         lineProvider = { lineProvider },
-        completionsListState = { if (this::completionsList.isInitialized) completionsList else null },
         requestFocusNone = { surface.requestFocus(null) },
-        applyBrackets = { open, close -> applyBrackets(open, close) },
-        handleEnter = { handleEnter() },
-        applyCompletion = {
-            applyCompletion(modifier.completions.getOrNull(modifier.completionIndex) ?: return@TextInputController)
-        }
+        completionManager = completionManager,
     )
 
     private inner class LineItem(parent: UiNode?, surface: UiSurface) : RowNode(parent, surface) {
@@ -292,17 +291,26 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         val font = MsdfFont(ColorTheme.Fonts.MONOCRAFT, 18f)
 
         override fun render(ctx: KoolContext) {
+            renderCurrentLineBackground()
+            super.render(ctx)
+            renderDiagnostics()
+            renderIndentGuides()
+        }
+
+        private fun renderCurrentLineBackground() {
             if (lineIndex == this@TextAreaNode.modifier.selectionCaretLine && isFocused.use()) {
                 getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRect(
                     0f, 0f, widthPx, heightPx, EditorTheme.currentLineBg
                 )
             }
-            super.render(ctx)
+        }
 
+        private fun renderDiagnostics() {
             val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp + sizes.smallGap * 2f
             val handler = this@TextAreaNode.modifier.editorHandler
             val provider = handler as? CompiledFileProvider
             val errors = provider?.analysisState?.diagnostics ?: this@TextAreaNode.modifier.errors
+
             errors.filter { lineIndex in it.range.start.line..it.range.end.line }
                 .forEach { error ->
                     val text = lineProvider[lineIndex].text
@@ -319,39 +327,55 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                     val color =
                         if (error.severity.isError()) HighlightTheme.ERROR_ELEMENT
                         else HighlightTheme.KEYWORD.mix(HighlightTheme.ANNOTATION, 0.5f)
+
                     getPlainBuilder(UiSurface.LAYER_FLOATING).configured(color, clipped = false) {
                         val leftPos = maxWidth.px + Dimensions.PaddingHuge.px
-                        
-                        for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).coerceAtMost(clipBoundsPx.z - leftPx - TextAreaConfig.SQUIGGLY_AMPLITUDE.toFloat()).toInt()).step(TextAreaConfig.SQUIGGLY_STEP)) {
-                            val offset = if (i % 2 == 0) TextAreaConfig.SQUIGGLY_AMPLITUDE else -TextAreaConfig.SQUIGGLY_AMPLITUDE
+
+                        val rangeEnd = clipBoundsPx.z - leftPx - TextAreaConfig.SQUIGGLY_AMPLITUDE.toFloat()
+                        for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).coerceAtMost(rangeEnd)
+                            .toInt()).step(
+                            TextAreaConfig.SQUIGGLY_STEP
+                        )) {
+                            val offset =
+                                if (i % 2 == 0) TextAreaConfig.SQUIGGLY_AMPLITUDE else -TextAreaConfig.SQUIGGLY_AMPLITUDE
                             line(
-                                Vec2f(i.toFloat(), heightPx + offset), Vec2f(i + TextAreaConfig.SQUIGGLY_STEP.toFloat(), heightPx - offset), TextAreaConfig.SQUIGGLY_LINE_WIDTH
+                                Vec2f(i.toFloat(), heightPx + offset),
+                                Vec2f(
+                                    i + TextAreaConfig.SQUIGGLY_STEP.toFloat(),
+                                    heightPx - offset
+                                ),
+                                TextAreaConfig.SQUIGGLY_LINE_WIDTH
                             )
                         }
 
                         val mouse = PointerInput.primaryPointer
-
-                        if (mouse.pos.x in leftPx+leftPos + startPos..leftPx+leftPos + endPos && mouse.pos.y in topPx..bottomPx) {
-                            errorMessage = error.message
+                        val fromX = leftPx + leftPos + startPos
+                        val toX = leftPx + leftPos + endPos
+                        if (mouse.pos.x in fromX..toX && mouse.pos.y in topPx..bottomPx) {
+                            this@TextAreaNode.modifier.errorMessage = error.message
                         }
                     }
                 }
+        }
 
+        private fun renderIndentGuides() {
             val textNode = children.getOrNull(2)
-            if (indents.isNotEmpty() && textNode != null) {
-                val spaceWidth = font.charWidth(' ').dp.px
-                val guideStartX = textNode.leftPx - this.leftPx + textNode.paddingStartPx
+            if (indents.isEmpty() || textNode == null) return
 
-                for (i in indents) {
-                    val x = guideStartX + i * spaceWidth - sizes.smallGap.px * TextAreaConfig.INDENT_GUIDE_OFFSET
-                    val color =
-                        if (selectionController.selectionCaretChar == i && lineIndex == this@TextAreaNode.modifier.selectionCaretLine)
-                            EditorTheme.indentGuide.withAlpha(TextAreaConfig.INDENT_GUIDE_ACTIVE_ALPHA)
-                        else
-                            EditorTheme.indentGuide.withAlpha(TextAreaConfig.INDENT_GUIDE_INACTIVE_ALPHA)
+            val spaceWidth = font.charWidth(' ').dp.px
+            val guideStartX = textNode.leftPx - this.leftPx + textNode.paddingStartPx
 
-                    getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRect(x, 0f, Dimensions.PaddingSmall.px, heightPx, color)
-                }
+            for (i in indents) {
+                val x =
+                    guideStartX + i * spaceWidth - sizes.smallGap.px * TextAreaConfig.INDENT_GUIDE_OFFSET
+                val color =
+                    if (selectionController.selectionCaretChar == i && lineIndex == this@TextAreaNode.modifier.selectionCaretLine)
+                        EditorTheme.indentGuide.withAlpha(TextAreaConfig.INDENT_GUIDE_ACTIVE_ALPHA)
+                    else
+                        EditorTheme.indentGuide.withAlpha(TextAreaConfig.INDENT_GUIDE_INACTIVE_ALPHA)
+
+                getUiPrimitives(UiSurface.LAYER_BACKGROUND)
+                    .localRect(x, 0f, Dimensions.PaddingSmall.px, heightPx, color)
             }
         }
     }
@@ -370,7 +394,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         block: ScriptTextAreaScope.() -> Unit,
     ) {
         this.lineProvider = lineProvider
-        modifier.margin(horizontal = Dimensions.PaddingNormal).margin(bottom=Dimensions.PaddingNormal)
+        modifier.margin(horizontal = Dimensions.PaddingNormal).margin(bottom = Dimensions.PaddingNormal)
             .padding(Dimensions.PaddingHuge)
             .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, sizes.smallGap))
 
@@ -428,7 +452,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             val line = lineProvider[lineIndex]
             val indentIndex = line.text.indexOfFirst { it != ' ' }
             indentManager.popToIndent(indentIndex, line.length)
-            
+
             val font = MsdfFont(ColorTheme.Fonts.MONOCRAFT, 18f)
 
             val lineItem = uiNode.createChild(null, LineItem::class, lineItemFactory)
@@ -483,7 +507,8 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             if (dotIndex == -1) dotIndex = selectionIndex
             completionX.set(it.leftPx + line.charIndexToPx(dotIndex) + sizes.smallGap.px)
 
-            val sizeY = (24.dp + sizes.smallGap).px * areaModifier.completions.size.coerceAtMost(TextAreaConfig.MAX_COMPLETION_ITEMS) + 24.dp.px
+            val sizeY =
+                (24.dp + sizes.smallGap).px * areaModifier.completions.size.coerceAtMost(TextAreaConfig.MAX_COMPLETION_ITEMS) + 24.dp.px
             val viewportBottom = surface.viewport.bottomPx
             if (it.bottomPx + sizeY > viewportBottom) {
                 completionY.set(it.topPx - sizeY)
@@ -516,133 +541,24 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     }
 
     fun applyCompletion(item: CompletionItem) {
-        val handler = modifier.editorHandler ?: return
-        val provider = handler as? CompiledFileProvider
-        var lineIdx = modifier.selectionCaretLine
-        val charIdx = modifier.selectionCaretChar
-
-        if (item is CompletionItem.Declaration && item.import && !item.fqName.isNullOrBlank()) {
-            val linesAdded = ensureImport(item.fqName, handler)
-            lineIdx += linesAdded
+        val provider = lineProvider
+        val ctx = EditorCommandContext(
+            event = null,
+            selection = selectionController,
+            lineProvider = provider,
+            inputController = inputController,
+            historyManager = provider as? UndoRedoHandler ?: return,
+            hasCompletions = modifier.completions.isNotEmpty(),
+            completion = null,
+        ).apply {
+            completionItem = item
         }
-
-        val lineText = lineProvider[lineIdx].text
-
-        val startIdx = runCatching {
-            lineText.substring(0, charIdx).indexOfLast { !it.isLetterOrDigit() } + 1
-        }.getOrElse { charIdx }
-
-        val replaceStart = if (startIdx == -1) charIdx else startIdx
-
-        val newPos = handler.replaceText(lineIdx, lineIdx, replaceStart, charIdx, item.insert)
-
-        if (item.moveCaret != 0) {
-            val customCaretX = newPos.x + item.moveCaret
-            selectionController.selectionChanged(newPos.y, newPos.y, customCaretX, customCaretX)
-        } else {
-            selectionController.selectionChanged(newPos.y, newPos.y, newPos.x, newPos.x)
-        }
-
+        
+        CommandRegistry.execute(ApplyCompletionItemCommand.Key, ctx)
+        
         modifier.completions.clear()
-        provider?.analysisState?.completions?.clear()
+        (modifier.editorHandler as? CompiledFileProvider)?.analysisState?.completions?.clear()
         surface.requestFocus(this)
-    }
-
-    private fun ensureImport(fqName: String, handler: TextEditorHandler): Int {
-        val importLine = "import $fqName"
-
-        val textLines = (0 until lineProvider.size).map { lineProvider[it].text }
-
-        if (textLines.any { it.trim() == importLine }) return 0
-
-        var insertIndex = 0
-        var foundPackage = false
-        var lastImportIndex = -1
-
-        for ((i, line) in textLines.withIndex()) {
-            val trimmed = line.trim()
-            if (trimmed.startsWith("package ")) {
-                foundPackage = true
-                insertIndex = i + 1
-            } else if (trimmed.startsWith("import ")) {
-                lastImportIndex = i
-                if (importLine < trimmed) {
-                    insertIndex = i
-                    break
-                } else {
-                    insertIndex = i + 1
-                }
-            } else if (trimmed.isNotBlank() && lastImportIndex != -1) {
-                break
-            }
-        }
-
-        val textToInsert = if (insertIndex == 0 && !foundPackage) "$importLine\n" else "$importLine\n"
-        handler.insertText(insertIndex, 0, textToInsert)
-
-        return 1
-    }
-
-    private fun handleEnter() {
-        if (modifier.completions.isNotEmpty()) {
-            applyCompletion(modifier.completions.getOrNull(modifier.completionIndex) ?: return)
-            return
-        }
-
-        val line = selectionController.caretLine ?: return
-        val text = line.text
-        val caretPos = selectionController.selectionCaretChar.coerceAtMost(text.length)
-
-        var whitespaces = text.takeWhile { it == ' ' }.length
-
-        val isLPar = text.substring(0, caretPos).trimEnd().endsWith("{")
-        val isRPar = text.substring(caretPos).trimStart().startsWith("}")
-
-        if (isLPar) whitespaces += TextAreaConfig.INDENT_SIZE
-
-        if (isLPar && isRPar) {
-            val baseIndent = (whitespaces - TextAreaConfig.INDENT_SIZE).coerceAtLeast(0)
-            val indentStr = " ".repeat(whitespaces)
-            val closeIndentStr = " ".repeat(baseIndent)
-
-            inputController.editText("\n$indentStr\n$closeIndentStr")
-            selectionController.moveCaretLineUp(select = false)
-            selectionController.moveCaretLineEnd(select = false)
-        } else {
-            inputController.editText("\n" + " ".repeat(whitespaces))
-        }
-    }
-
-    private fun applyBrackets(char: String, closing: Char) {
-        if (!selectionController.isEmptySelection) {
-            // Границы выделения
-            val fromLine = selectionController.selectionFromLine
-            val toLine = selectionController.selectionToLine
-            val fromChar = selectionController.selectionFromChar
-            val toChar = selectionController.selectionToChar
-
-            // Получаем текст выделения
-            val selectedText = selectionController.copySelection() ?: return
-            val editor = modifier.editorHandler ?: return
-
-
-            // Заменяем выделение на обёртку (открывающая + оригинал + закрывающая)
-            editor.replaceText(
-                fromLine, toLine, fromChar, toChar, "$char$selectedText$closing"
-            )
-
-            // Ставим новое выделение ровно на ту же часть, но внутри скобок
-            selectionController.selectionChanged(
-                fromLine, toLine, fromChar + 1, fromChar + 1 + selectedText.length
-            )
-
-        } else {
-            // --- нет выделения: поведение как раньше ---
-            inputController.editText(char)
-            inputController.editText(closing.toString())
-            // возвращаем каретку между скобками
-            selectionController.moveCaretLeft(wordWise = false, select = false)
-        }
     }
 
     companion object {
