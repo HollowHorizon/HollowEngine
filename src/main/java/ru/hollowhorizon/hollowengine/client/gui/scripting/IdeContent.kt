@@ -6,6 +6,7 @@ import de.fabmax.kool.modules.ui2.docking.Dockable
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.insertItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IDEFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageIDEFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ScriptFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.CodeBlocksFile
@@ -28,6 +29,8 @@ object IdeContent {
         put(".glb") { path, bytes -> GLTFFile(path) }
         put(".geo.json") { path, bytes -> GLTFFile(path) }
         put(".entity.prefab", ::PrefabEditorFile)
+
+        put(".png") { path, bytes -> ImageIDEFile(path, bytes) }
     }
 
     fun openFile(path: String, bytes: ByteArray): IDEFile? {
