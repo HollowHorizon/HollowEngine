@@ -5,8 +5,8 @@ import de.fabmax.kool.modules.ui2.docking.DockNode
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.insertItem
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IDEFile
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageIDEFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.EditorFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ScriptFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.CodeBlocksFile
@@ -14,10 +14,10 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.GLTFFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.PrefabEditorFile
 
 object IdeContent {
-    val files = HashMap<String, IDEFile>()
+    val files = HashMap<String, EditorFile>()
     var fileTree = FileNode.EMPTY
 
-    private val fileTypes: Map<String, (String, ByteArray) -> IDEFile> = buildMap {
+    private val fileTypes: Map<String, (String, ByteArray) -> EditorFile> = buildMap {
         put(".kts", ::ScriptFile)
         put(".kt", ::ScriptFile)
         put(".json", ::ScriptFile)
@@ -30,10 +30,10 @@ object IdeContent {
         put(".geo.json") { path, bytes -> GLTFFile(path) }
         put(".entity.prefab", ::PrefabEditorFile)
 
-        put(".png") { path, bytes -> ImageIDEFile(path, bytes) }
+        put(".png") { path, bytes -> ImageFile(path, bytes) }
     }
 
-    fun openFile(path: String, bytes: ByteArray): IDEFile? {
+    fun openFile(path: String, bytes: ByteArray): EditorFile? {
 
         // Get or Create file
         val file = files.getOrPut(path) {
@@ -52,7 +52,7 @@ object IdeContent {
         return file
     }
 
-    fun openFile(node: IDEFile) {
+    fun openFile(node: EditorFile) {
         val dock = ScriptingEnvironmentOverlay.dock
 
         files.getOrPut(node.filePath) {

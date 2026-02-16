@@ -14,7 +14,7 @@ import net.minecraft.world.item.crafting.Recipe
 import net.minecraft.world.item.crafting.RecipeType
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.recipe.RecipeIDEFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.recipe.RecipeEditorFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.generated.Assets
@@ -37,7 +37,7 @@ class RecipeEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.recipes", 
                         .width(Grow.Std)
                         .backgroundColor(color)
                         .onClick {
-                            IdeContent.openFile(RecipeIDEFile("files.recipes"))
+                            IdeContent.openFile(RecipeEditorFile("files.recipes"))
                         }
 
                     //? if > 1.20.1 {

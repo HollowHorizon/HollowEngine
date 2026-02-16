@@ -19,7 +19,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 
-abstract class IDEFile(
+abstract class EditorFile(
     val filePath: String,
 ) : Layout, Composable {
     final override val dockable = UiDockable(filePath, ScriptingEnvironmentOverlay.dock)
@@ -62,7 +62,7 @@ abstract class IDEFile(
                 overlay.hide()
                 overlay.show(Vec2f(event.screenPosition), menu, dockable)
             })
-            if (!isCollapsed.use()) this@IDEFile()
+            if (!isCollapsed.use()) this@EditorFile()
         }
     }
 

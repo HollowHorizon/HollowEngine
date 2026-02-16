@@ -5,7 +5,7 @@ import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 
-class TextFile(path: String) : IDEFile(path) {
+class TextFile(path: String) : EditorFile(path) {
     override val icon: ResourceLocation = icons.FILE
 
     constructor(path: String, ignored: ByteArray) : this(path)

@@ -19,7 +19,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
 
-class ScriptFile(path: String, bytes: ByteArray) : IDEFile(path) {
+class ScriptFile(path: String, bytes: ByteArray) : EditorFile(path) {
 
     lateinit var modifier: ScriptTextAreaModifier
         private set

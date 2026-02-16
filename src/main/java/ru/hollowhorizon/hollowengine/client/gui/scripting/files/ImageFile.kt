@@ -15,8 +15,8 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import kotlin.math.floor
 
-class ImageIDEFile(path: String, var image: ByteArray) :
-    IDEFile(path) {
+class ImageFile(path: String, var image: ByteArray) :
+    EditorFile(path) {
 
     private var pixels: IntArray = IntArray(0)
     private var imgW: Int = 0

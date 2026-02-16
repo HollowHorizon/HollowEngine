@@ -2,9 +2,9 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs
 
 import de.fabmax.kool.modules.ui2.*
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IDEFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.EditorFile
 
-abstract class ModelEditorFile(path: String) : IDEFile(path) {
+abstract class ModelEditorFile(path: String) : EditorFile(path) {
     val modelController = ModelController()
 
     override fun UiScope.compose() {

@@ -8,13 +8,13 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.TooltipFlag
 import net.minecraft.world.item.crafting.CraftingRecipe
 import net.minecraft.world.item.crafting.RecipeType
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.IDEFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.EditorFile
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.textLine
 //? if > 1.20.1
 /*import ru.hollowhorizon.hollowengine.client.utils.getTooltipLines*/
 
-class RecipeIDEFile(path: String) : IDEFile(path) {
+class RecipeEditorFile(path: String) : EditorFile(path) {
 
     override fun save() {}
 
