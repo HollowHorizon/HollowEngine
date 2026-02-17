@@ -241,26 +241,31 @@ class TextSelectionController(
     }
 
     fun moveCaretLineUp(select: Boolean) {
+        if (modifier.editorConfig.singleLine) return
         moveCaretToLine(selectionCaretLine - 1, select)
     }
 
     fun moveCaretLineDown(select: Boolean) {
+        if (modifier.editorConfig.singleLine) return
         moveCaretToLine(selectionCaretLine + 1, select)
     }
 
     fun moveCaretPageUp(select: Boolean) {
+        if (modifier.editorConfig.singleLine) return
         val bottomLinePad = 2
         val numPageLines = max(1, linesHolder().state.numVisibleItems - bottomLinePad)
         moveCaretToLine(selectionCaretLine - numPageLines, select)
     }
 
     fun moveCaretPageDown(select: Boolean) {
+        if (modifier.editorConfig.singleLine) return
         val bottomLinePad = 2
         val numPageLines = max(1, linesHolder().state.numVisibleItems - bottomLinePad)
         moveCaretToLine(selectionCaretLine + numPageLines, select)
     }
 
     private fun moveCaretToLine(targetLine: Int, select: Boolean) {
+        if (modifier.editorConfig.singleLine) return
         val lp = lineProvider()
         val line = caretLine ?: return
         val caretX = line.charIndexToPx(selectionCaretChar)

@@ -68,6 +68,8 @@ class ScriptFile(path: String, bytes: ByteArray) : EditorFile(path) {
             ) {
                 this@ScriptFile.modifier = modifier
 
+                modifier.editorConfig = editorState.config
+
                 modifier.errors.clear()
                 modifier.errors.addAll(editorState.analysis.diagnostics)
 

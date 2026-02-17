@@ -17,6 +17,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.commands.ApplyCompletionItemCommand
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextEditorConfig
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import kotlin.contracts.ExperimentalContracts
@@ -67,6 +68,8 @@ open class ScriptTextAreaModifier(surface: UiSurface) : UiModifier(surface) {
     val errors by property(mutableListOf<Diagnostic>())
 
     var errorMessage: String by property("")
+
+    var editorConfig: TextEditorConfig by property(TextEditorConfig())
 }
 
 fun <T : ScriptTextAreaModifier> T.lineStartPadding(padding: Dp): T {
@@ -306,7 +309,12 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         }
 
         private fun renderDiagnostics() {
-            val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp + sizes.smallGap * 2f
+            val maxWidth =
+                if (this@TextAreaNode.modifier.editorConfig.showLineNumbers) {
+                    font.textDimensions(lineProvider.size.toString()).width.dp + sizes.smallGap * 2f
+                } else {
+                    Dp(0f)
+                }
             val handler = this@TextAreaNode.modifier.editorHandler
             val provider = handler as? CompiledFileProvider
             val errors = provider?.analysisState?.diagnostics ?: this@TextAreaNode.modifier.errors
@@ -394,9 +402,11 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         block: ScriptTextAreaScope.() -> Unit,
     ) {
         this.lineProvider = lineProvider
-        modifier.margin(horizontal = Dimensions.PaddingNormal).margin(bottom = Dimensions.PaddingNormal)
-            .padding(Dimensions.PaddingHuge)
-            .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, sizes.smallGap))
+        if (modifier.editorConfig.showBackground) {
+            modifier.margin(horizontal = Dimensions.PaddingNormal).margin(bottom = Dimensions.PaddingNormal)
+                .padding(Dimensions.PaddingHuge)
+                .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, sizes.smallGap))
+        }
 
         ScrollPane(listState) {
             modifier.width(Grow.MinFit)
@@ -413,7 +423,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             afterContent.invoke(this@TextAreaNode)
         }
 
-        if (withVerticalScrollbar) {
+        if (withVerticalScrollbar && modifier.editorConfig.showVerticalScrollbar) {
             VerticalScrollbar {
                 lazyListAware(
                     listState,
@@ -424,7 +434,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                 )
             }
         }
-        if (withHorizontalScrollbar) {
+        if (withHorizontalScrollbar && modifier.editorConfig.showHorizontalScrollbar) {
             HorizontalScrollbar {
                 lazyListAware(
                     listState,
@@ -462,21 +472,23 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             with(lineItem) {
                 val maxWidth = font.textDimensions(lineProvider.size.toString()).width.dp + Dimensions.PaddingHuge
 
-                Box(maxWidth) {
-                    modifier
-                        .height(Grow.Std)
-                        .alignY(AlignmentY.Center)
+                if (this@TextAreaNode.modifier.editorConfig.showLineNumbers) {
+                    Box(maxWidth) {
+                        modifier
+                            .height(Grow.Std)
+                            .alignY(AlignmentY.Center)
 
-                    Text((lineIndex + 1).toString()) {
-                        val textColor = if (lineIndex == this@TextAreaNode.modifier.selectionCaretLine)
-                            EditorTheme.gutterText.mix(Color.WHITE, 0.75f)
-                        else
-                            EditorTheme.gutterText
+                        Text((lineIndex + 1).toString()) {
+                            val textColor = if (lineIndex == this@TextAreaNode.modifier.selectionCaretLine)
+                                EditorTheme.gutterText.mix(Color.WHITE, 0.75f)
+                            else
+                                EditorTheme.gutterText
 
-                        modifier.font(font).textColor(textColor).align(AlignmentX.End, AlignmentY.Center)
+                            modifier.font(font).textColor(textColor).align(AlignmentX.End, AlignmentY.Center)
+                        }
                     }
+                    Box(Dimensions.PaddingHuge) {}
                 }
-                Box(Dimensions.PaddingHuge) {}
 
                 setupTextLine(line, lineIndex, textAreaMod, lineProvider).apply {
                     modifier.alignY(AlignmentY.Center)
@@ -517,7 +529,9 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             }
         }
 
-        if (this@TextAreaNode.modifier.onSelectionChanged != null) {
+        if (this@TextAreaNode.modifier.onSelectionChanged != null &&
+            this@TextAreaNode.modifier.editorConfig.showSelectionAndCaret
+        ) {
             modifier.onClick {
                 inputController.clearCompletions()
                 when (it.pointer.leftButtonRepeatedClickCount) {

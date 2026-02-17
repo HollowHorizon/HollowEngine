@@ -44,7 +44,11 @@ class TextInputController(
         if (tryExecuteKeyBinding(keyEvent)) return
 
         val char = keyEvent.typedChar.toString()
-        val closing = bracketPairs[keyEvent.localKeyCode.code.toChar()]
+        val closing = if (modifier.editorConfig.enableAutoBrackets) {
+            bracketPairs[keyEvent.localKeyCode.code.toChar()]
+        } else {
+            null
+        }
 
         if (closing == null) {
             editText(char)
@@ -68,7 +72,9 @@ class TextInputController(
         when (keyEvent.keyCode) {
             KeyboardInput.KEY_BACKSPACE -> handleBackspace(keyEvent)
             KeyboardInput.KEY_DEL -> handleDelete(keyEvent)
-            KeyboardInput.KEY_ENTER, KeyboardInput.KEY_NP_ENTER -> executeNewlineCommand()
+            KeyboardInput.KEY_ENTER, KeyboardInput.KEY_NP_ENTER -> if (!modifier.editorConfig.singleLine) {
+                executeNewlineCommand()
+            }
             KeyboardInput.KEY_ESC -> {
                 selectionController.clearSelection()
                 requestFocusNone()
@@ -100,6 +106,7 @@ class TextInputController(
     }
 
     private fun tryExecuteKeyBinding(event: KeyEvent): Boolean {
+        if (!modifier.editorConfig.enableKeyMap) return false
         val provider = lineProvider()
         val ctx = createContext(provider, event)
         val commandKey = KeyMap.resolve(event, ctx) ?: return false
@@ -119,6 +126,7 @@ class TextInputController(
 
         val startChar = selectionController.caretLine?.text?.getOrNull(modifier.selectionCaretChar)
         editText("")
+        if (!modifier.editorConfig.enableAutoBrackets) return
         val nextChar = selectionController.caretLine?.text?.getOrNull(modifier.selectionCaretChar)
 
         bracketPairs[startChar]?.let { closing ->
