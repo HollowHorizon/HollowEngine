@@ -19,6 +19,10 @@ class AnimationControllerFile(path: String, bytes: ByteArray) : EditorFile(path)
     private val editor = GraphEditor()
 
     init {
+        editor.onModelPathChanged = { path ->
+            loadModelAnimations(path)
+        }
+        
         if (bytes.isNotEmpty()) {
             try {
                 val jsonString = bytes.toString(Charsets.UTF_8)
@@ -104,28 +108,9 @@ class AnimationControllerFile(path: String, bytes: ByteArray) : EditorFile(path)
     }
 
     override fun UiScope.compose() {
-        Column(Grow.Std, Grow.Std) {
+        Row(Grow.Std, Grow.Std) {
             modifier.margin(Dimensions.PaddingNormal)
-
-            // Simple header with model path info
-            Row(Grow.Std) {
-                modifier.padding(Dimensions.PaddingSmall)
-                    .background(
-                        RoundRectBackground(
-                            ColorTheme.UI.BackgroundSecondary,
-                            Dimensions.PaddingSmall
-                        )
-                    )
-
-                Text("Model: ${editor.modelPath.use()}") {
-                    modifier.textColor(ColorTheme.UI.WhiteReplacement)
-                }
-            }
-
-            Row(Grow.Std, Grow.Std) {
-                modifier.margin(top = Dimensions.PaddingNormal)
-                editor.EditorLayout()
-            }
+            editor.EditorLayout()
         }
     }
 }

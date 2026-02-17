@@ -14,10 +14,13 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.findParentOfType
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.GridBackground
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
+import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.ComboBox
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.abs
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.max
 import kotlin.math.atan2
@@ -51,6 +54,8 @@ class GraphEditor {
 
     val modelPath = mutableStateOf("hollowengine:models/entity/player_model.gltf")
     val availableAnimations = mutableStateListOf<String>()
+    
+    var onModelPathChanged: ((String) -> Unit)? = null
 
     private val connectionFont by lazy {
         MsdfFont(ColorTheme.Fonts.MONOCRAFT, 14f)
@@ -140,6 +145,8 @@ class GraphEditor {
                     scrollState.scrollDpX(it.pointer.scroll.x * -20f)
                 }
 
+                val contextMenu = remember { ItemPopupMenu<Vec2f>("graph-context-menu") }
+
                 modifier.onClick {
                     if (it.pointer.isLeftButtonClicked) {
                         updateMousePos(it.screenPosition)
@@ -150,6 +157,20 @@ class GraphEditor {
                         } else {
                             selectedNode.set(null)
                             selectedConnection.set(null)
+                        }
+                    } else if(it.pointer.isRightButtonClicked) {
+                        updateMousePos(it.screenPosition)
+
+                        val clickedConn = findConnectionAtPoint(lastMousePos.x, lastMousePos.y)
+                        val clickedNode = nodes.find { node ->
+                            val x = node.xState.value * scale
+                            val y = node.yState.value * scale
+                            val w = node.widthState.value * scale
+                            val h = node.heightState.value * scale
+                            lastMousePos.x in x..(x + w) && lastMousePos.y in y..(y + h)
+                        }
+                        if (clickedConn == null && clickedNode == null) {
+                            contextMenu.show(it.screenPosition, buildContextMenu(contextMenu), it.screenPosition)
                         }
                     }
                 }
@@ -193,9 +214,101 @@ class GraphEditor {
                 }
 
                 MiniMap()
+                
+                contextMenu()
             }
 
             PropertyPanel()
+        }
+    }
+
+    private fun buildContextMenu(menu: ItemPopupMenu<Vec2f>): SubMenuItem<Vec2f> = SubMenuItem("Создать состояние") {
+        item("Начальное состояние", icons.ADD) {
+            val pos = menu.item
+            val spn = scrollPaneNode
+            if (spn != null && pos != null) {
+                spn.toLocal(pos, tempVec)
+                val x = tempVec.x / scale
+                val y = tempVec.y / scale
+                val entry = GraphNode(
+                    title = "Entry",
+                    x = x,
+                    y = y,
+                    color = Color("6BC872"),
+                    type = NodeType.ENTRY,
+                )
+                nodes.add(entry)
+                selectedNode.set(entry)
+                menu.hide()
+            }
+        }
+        
+        item("Любое состояние", icons.ADD) {
+            val pos = menu.item
+            val spn = scrollPaneNode
+            if (spn != null && pos != null) {
+                spn.toLocal(pos, tempVec)
+                val x = tempVec.x / scale
+                val y = tempVec.y / scale
+                val anyState = GraphNode(
+                    title = "Any State",
+                    x = x,
+                    y = y,
+                    color = Color("548AF7"),
+                    type = NodeType.ANY,
+                )
+                nodes.add(anyState)
+                selectedNode.set(anyState)
+                menu.hide()
+            }
+        }
+        
+        val anims = availableAnimations
+        if (anims.isNotEmpty()) {
+            subMenu("Из анимации") {
+                anims.forEach { animName ->
+                    item(animName) {
+                        val pos = menu.item
+                        val spn = scrollPaneNode
+                        if (spn != null && pos != null) {
+                            spn.toLocal(pos, tempVec)
+                            val x = tempVec.x / scale
+                            val y = tempVec.y / scale
+                            val state = GraphNode(
+                                title = animName,
+                                x = x,
+                                y = y,
+                                color = Color("5F6677"),
+                                type = NodeType.STATE,
+                                animationName = animName,
+                            )
+                            nodes.add(state)
+                            selectedNode.set(state)
+                            menu.hide()
+                        }
+                    }
+                }
+            }
+        }
+        
+        item("Пустое состояние", icons.ADD) {
+            val pos = menu.item
+            val spn = scrollPaneNode
+            if (spn != null && pos != null) {
+                spn.toLocal(pos, tempVec)
+                val x = tempVec.x / scale
+                val y = tempVec.y / scale
+                val state = GraphNode(
+                    title = "New State",
+                    x = x,
+                    y = y,
+                    color = Color("5F6677"),
+                    type = NodeType.STATE,
+                )
+                nodes.add(state)
+                selectedNode.set(state)
+                menu.hide()
+            }
         }
     }
 
@@ -506,41 +619,37 @@ class GraphEditor {
         val node = selectedNode.use()
         val conn = selectedConnection.use()
 
-        Column(scopeName = when {
+        Column(width = Grow.Std, scopeName = when {
             node != null -> "Node-Editor"
             conn != null -> "Connection-Editor"
             else -> "No-Selection"
         }) {
-            modifier.width(Dp(300f)).height(Grow.Std).background(RectBackground(ColorTheme.UI.BackgroundSecondary))
+            modifier.width(Dp(350f)).height(Grow.Std).background(RectBackground(ColorTheme.UI.BackgroundSecondary))
                 .padding(Dimensions.PaddingLarge).zLayer(1000)
 
             Text("ПАРАМЕТРЫ") {
                 modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                    .font(FontProps(size = 16f, isBold = true))
                     .margin(bottom = Dimensions.PaddingLarge)
             }
-
 
             when {
                 node != null -> {
                     Text("СОСТОЯНИЕ") {
-                        modifier.textColor(Color.WHITE).font(FontProps(isBold = true))
-                    }
-
-                    Text("Название: ${node.title}") {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
-                            .margin(top = Dimensions.PaddingSmall)
+                            .font(FontProps(size = 14f, isBold = true))
+                            .margin(bottom = Dimensions.PaddingSmall)
                     }
 
-                    Text("Координаты: ${node.xState.use().toInt()}, ${node.yState.use().toInt()}") {
-                        modifier.textColor(Color.GRAY).margin(top = Dimensions.PaddingSmall)
-                    }
+                    PropertyTextField("Название", node.title) { node.title = it }
+                    PropertyReadOnlyField("Координаты", "${node.xState.use().toInt()}, ${node.yState.use().toInt()}")
 
                     Divider()
 
                     Text("ОСНОВНОЕ") {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                            .font(FontProps(size = 14f))
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
-                            .font(FontProps(size = 11f))
                     }
 
                     // Node type: Entry / Any / State
@@ -550,14 +659,20 @@ class GraphEditor {
                         NodeType.STATE -> 2
                     }
                     val typeState = remember(typeIndex)
-                    ComboBox(
-                        preview = "Тип состояния",
-                        items = listOf(
+                    val typePreview = when (typeState.use()) {
+                        0 -> "Начало"
+                        1 -> "Любое состояние"
+                        else -> "Состояние"
+                    }
+                    PropertyComboBox(
+                        "Тип",
+                        typePreview,
+                        listOf(
                             Composable { Text("Начало") { modifier.textColor(ColorTheme.UI.WhiteReplacement) } },
                             Composable { Text("Любое состояние") { modifier.textColor(ColorTheme.UI.WhiteReplacement) } },
                             Composable { Text("Состояние") { modifier.textColor(ColorTheme.UI.WhiteReplacement) } },
                         ),
-                        itemIndex = typeState,
+                        typeState,
                     )
                     when (typeState.use()) {
                         0 -> node.type = NodeType.ENTRY
@@ -570,20 +685,17 @@ class GraphEditor {
                     if (anims.isNotEmpty()) {
                         val currentIndex = anims.indexOfFirst { it == node.animationName }.coerceAtLeast(-1)
                         val indexState = remember(currentIndex)
+                        val animPreview = if (currentIndex >= 0) anims[currentIndex] else "Не выбрано"
 
-                        Text("Анимация") {
-                            modifier.textColor(Color.GRAY)
-                                .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
-                        }
-
-                        ComboBox(
-                            preview = if (node.animationName.isEmpty()) "Выберите анимацию" else node.animationName,
-                            items = anims.map { name ->
+                        PropertyComboBox(
+                            "Анимация",
+                            animPreview,
+                            anims.map { name ->
                                 Composable {
                                     Text(name) { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
                                 }
                             },
-                            itemIndex = indexState,
+                            indexState,
                         )
 
                         val idx = indexState.use()
@@ -596,39 +708,37 @@ class GraphEditor {
 
                     Text("ВОСПРОИЗВЕДЕНИЕ") {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                            .font(FontProps(size = 14f))
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
-                            .font(FontProps(size = 11f))
                     }
 
                     // Wrap mode
                     val wrapItems = WrapMode.entries.toList()
                     val wrapIndex = wrapItems.indexOf(node.wrapMode).coerceAtLeast(0)
                     val wrapState = remember(wrapIndex)
-                    ComboBox(
-                        preview = node.wrapMode.name,
-                        items = wrapItems.map { mode ->
+                    PropertyComboBox(
+                        "Режим",
+                        node.wrapMode.name,
+                        wrapItems.map { mode ->
                             Composable {
                                 Text(mode.name) { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
                             }
                         },
-                        itemIndex = wrapState,
+                        wrapState,
                     )
                     val wi = wrapState.use()
                     if (wi in wrapItems.indices) node.wrapMode = wrapItems[wi]
 
-                    // Speed
                     PropertyFloatField("Скорость", node.speed) { node.speed = it }
-                    // Weight
                     PropertyFloatField("Вес", node.weight) { node.weight = it }
-                    // Priority
                     PropertyIntField("Приоритет", node.priority) { node.priority = it }
 
                     Divider()
 
                     Text("СМЕШИВАНИЕ") {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                            .font(FontProps(size = 14f))
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
-                            .font(FontProps(size = 11f))
                     }
 
                     PropertyFloatField("Появление", node.fadeIn) { node.fadeIn = it }
@@ -638,14 +748,16 @@ class GraphEditor {
                     val curves = Interpolation.entries.toList()
                     val curveIndex = curves.indexOf(node.blendCurve).coerceAtLeast(0)
                     val curveState = remember(curveIndex)
-                    ComboBox(
-                        preview = node.blendCurve.name,
-                        items = curves.map { c ->
+
+                    PropertyComboBox(
+                        "Кривая",
+                        node.blendCurve.name,
+                        curves.map { c ->
                             Composable {
-                                Text(c.name) { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
+                                Text(c.name.lowercase()) { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
                             }
                         },
-                        itemIndex = curveState,
+                        curveState,
                     )
                     val ci = curveState.use()
                     if (ci in curves.indices) node.blendCurve = curves[ci]
@@ -654,8 +766,8 @@ class GraphEditor {
 
                     Text("ПЕРЕЗАПИСАТЬ") {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                            .font(FontProps(size = 14f))
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
-                            .font(FontProps(size = 11f))
                     }
 
                     ToggleRow("Смещение", node.overrideTranslation) { node.overrideTranslation = it }
@@ -668,28 +780,18 @@ class GraphEditor {
                     val fromName = fromNode?.title ?: "?"
                     val toName = toNode?.title ?: "?"
 
-                    Text("Связь") {
-                        modifier.textColor(Color.WHITE).font(FontProps(isBold = true))
+                    Text("СВЯЗЬ") {
+                        modifier.textColor(Color.WHITE)
+                            .font(FontProps(size = 14f, isBold = true))
+                            .margin(bottom = Dimensions.PaddingSmall)
                     }
-                    Text("$fromName → $toName") {
-                        modifier.textColor(ColorTheme.UI.WhiteReplacement)
-                            .margin(top = Dimensions.PaddingSmall)
-                    }
+                    PropertyReadOnlyField("Переход", "$fromName → $toName")
 
-                    Text("Название") {
-                        modifier.textColor(Color.GRAY).margin(top = Dimensions.PaddingSmall)
-                    }
-                    val labelText: MutableStateValue<String> = remember(conn.label)
-                    TextField(labelText.use()) {
-                        modifier.width(Grow.Std)
-                            .margin(top = Dimensions.PaddingSmall)
-                        modifier.onChange { new ->
-                            labelText.set(new)
-                            val idx = connections.indexOfFirst { it.id == conn.id }
-                            if (idx != -1) {
-                                connections[idx] = connections[idx].copy(label = new)
-                                selectedConnection.set(connections[idx])
-                            }
+                    PropertyTextField("Название", conn.label) { new ->
+                        val idx = connections.indexOfFirst { it.id == conn.id }
+                        if (idx != -1) {
+                            connections[idx] = connections[idx].copy(label = new)
+                            selectedConnection.set(connections[idx])
                         }
                     }
 
@@ -697,8 +799,8 @@ class GraphEditor {
 
                     Text("ПЕРЕХОД") {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                            .font(FontProps(size = 14f))
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
-                            .font(FontProps(size = 11f))
                     }
 
                     var props = conn.properties
@@ -720,7 +822,7 @@ class GraphEditor {
                         updateConnectionProperties(conn.id, props)
                     }
 
-                    PropertyFloatField("Время завершения", props.exitTime ?: 0f) {
+                    PropertyFloatField("Время завер.", props.exitTime ?: 0f) {
                         val value = it
                         props = props.copy(exitTime = value)
                         updateConnectionProperties(conn.id, props)
@@ -730,38 +832,118 @@ class GraphEditor {
 
                     Text("УСЛОВИЕ (Kotlin)") {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                            .font(FontProps(size = 14f))
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
-                            .font(FontProps(size = 11f))
                     }
                     var condText = remember(props.condition)
-                    TextField(condText.use()) {
-                        modifier.width(Grow.Std)
-                            .height(Dp(80f))
-                            .margin(top = Dimensions.PaddingSmall)
-                        modifier.onChange { new ->
-                            condText.set(new)
-                            props = props.copy(condition = new)
-                            updateConnectionProperties(conn.id, props)
+                    Row {
+                        modifier.margin(top = Dimensions.PaddingSmall).width(Grow.Std)
+                        Text("Условие:") {
+                            modifier.textColor(Color.GRAY).width(Dp(100f)).font(FontProps(size = 12f))
+                                .alignY(AlignmentY.Top)
+                                .margin(top = Dimensions.PaddingSmall)
+                        }
+                        TextField(condText.use()) {
+                            modifier.width(Grow.Std)
+                                .alignY(AlignmentY.Top)
+
+                            modifier.onChange { new ->
+                                condText.set(new)
+                                props = props.copy(condition = new)
+                                updateConnectionProperties(conn.id, props)
+                            }
                         }
                     }
 
                     Divider()
 
-                    ToggleRow("Muted", props.mute) {
+                    ToggleRow("Отключено", props.mute) {
                         props = props.copy(mute = it)
                         updateConnectionProperties(conn.id, props)
                     }
                 }
                 else -> {
-                    Text("Ничего не выбрано") { modifier.textColor(Color.GRAY) }
+                    Text("КОНТРОЛЛЕР") {
+                        modifier.textColor(Color.WHITE)
+                            .font(FontProps(size = 14f, isBold = true))
+                            .margin(bottom = Dimensions.PaddingSmall)
+                    }
+
+                    PropertyTextField("Модель", modelPath.value) { newPath ->
+                        modelPath.set(newPath)
+                        onModelPathChanged?.invoke(newPath)
+                    }
+
+                    val anims = availableAnimations.use()
+                    if (anims.isNotEmpty()) {
+                        PropertyReadOnlyField("Анимаций доступно", anims.size.toString())
+                    } else {
+                        PropertyReadOnlyField("Анимаций доступно", "0")
+                    }
                 }
+            }
+        }
+    }
+
+    private fun UiScope.PropertyComboBox(
+        label: String,
+        preview: String,
+        items: List<Composable>,
+        itemIndex: MutableStateValue<Int>,
+    ) {
+        Row(Grow.Std) {
+            modifier.margin(Dimensions.PaddingNormal).width(Grow.Std)
+            Text("$label:") {
+                modifier.textColor(Color.GRAY).width(Grow.Std).font(FontProps(size = 12f))
+                    .alignY(AlignmentY.Center)
+            }
+            Box {
+                modifier.align(AlignmentX.End, AlignmentY.Center)
+
+                ComboBox(preview, items, itemIndex)
+            }
+        }
+    }
+
+    private fun UiScope.PropertyTextField(label: String, value: String, onChange: (String) -> Unit) {
+        Row {
+            modifier.margin(Dimensions.PaddingNormal).width(Grow.Std)
+            Text("$label:") {
+                modifier.textColor(Color.GRAY).width(Dp(100f)).font(FontProps(size = 12f))
+                    .alignY(AlignmentY.Center)
+
+            }
+            val textState = remember(value)
+            TextField(textState.use()) {
+                modifier.width(Grow.Std)
+                    .colors(lineColor = ColorTheme.UI.BackgroundAccent, lineColorFocused = ColorTheme.UI.WhiteReplacement)
+
+                modifier.onChange { new ->
+                    textState.set(new)
+                    onChange(new)
+                }.alignY(AlignmentY.Center)
+            }
+        }
+    }
+
+    private fun UiScope.PropertyReadOnlyField(label: String, value: String) {
+        Row {
+            modifier.margin(Dimensions.PaddingNormal).width(Grow.Std)
+            Text("$label:") {
+                modifier.textColor(Color.GRAY).width(Dp(100f)).font(FontProps(size = 12f))
+                    .alignY(AlignmentY.Center)
+            }
+            Text(value) {
+                modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                    .font(FontProps(size = 12f))
+                    .alignY(AlignmentY.Center)
             }
         }
     }
 
     private fun UiScope.PropertyFloatField(label: String, value: Float, onChange: (Float) -> Unit) {
         Row {
-            modifier.margin(top = Dimensions.PaddingSmall).width(Grow.Std)
+            modifier.margin(Dimensions.PaddingNormal).width(Grow.Std)
             Text("$label:") {
                 modifier.textColor(Color.GRAY).width(Dp(100f)).font(FontProps(size = 12f))
                     .alignY(AlignmentY.Center)
@@ -769,6 +951,7 @@ class GraphEditor {
             val textState = remember(value.toString())
             TextField(textState.use()) {
                 modifier.width(Grow.Std)
+                    .colors(lineColor = ColorTheme.UI.BackgroundAccent, lineColorFocused = ColorTheme.UI.WhiteReplacement)
                 modifier.onChange { new ->
                     textState.set(new)
                     new.toFloatOrNull()?.let(onChange)
@@ -779,24 +962,27 @@ class GraphEditor {
 
     private fun UiScope.PropertyIntField(label: String, value: Int, onChange: (Int) -> Unit) {
         Row {
-            modifier.margin(top = Dimensions.PaddingSmall).width(Grow.Std)
+            modifier.margin(Dimensions.PaddingNormal).width(Grow.Std)
             Text("$label:") {
                 modifier.textColor(Color.GRAY).width(Dp(100f)).font(FontProps(size = 12f))
+                    .alignY(AlignmentY.Center)
             }
-            var textState = remember(value.toString())
+            val textState = remember(value.toString())
             TextField(textState.use()) {
                 modifier.width(Grow.Std)
+                    .colors(lineColor = ColorTheme.UI.BackgroundAccent, lineColorFocused = ColorTheme.UI.WhiteReplacement)
+
                 modifier.onChange { new ->
                     textState.set(new)
                     new.toIntOrNull()?.let(onChange)
-                }
+                }.alignY(AlignmentY.Center)
             }
         }
     }
 
     private fun UiScope.ToggleRow(label: String, value: Boolean, onChange: (Boolean) -> Unit) {
         Row {
-            modifier.margin(top = Dimensions.PaddingSmall).width(Grow.Std)
+            modifier.margin(Dimensions.PaddingNormal).width(Grow.Std)
             Text("$label:") {
                 modifier.textColor(Color.GRAY).width(Dp(100f)).font(FontProps(size = 12f))
                     .alignY(AlignmentY.Center)
@@ -807,15 +993,16 @@ class GraphEditor {
                     state.set(it)
                     onChange(it)
                 }.alignY(AlignmentY.Center)
+                    .colors(borderColor = ColorTheme.UI.BackgroundAccent, backgroundColor = ColorTheme.UI.BackgroundSecondary)
             }
         }
     }
 
     private fun UiScope.Divider() {
         Box {
-            modifier.width(Grow.Std).height(Dp(1f))
+            modifier.width(Grow.Std).height(Dimensions.PaddingSmall)
                 .margin(vertical = Dimensions.PaddingMedium)
-                .background(RectBackground(ColorTheme.UI.BackgroundAccent))
+                .background(RectBackground(ColorTheme.UI.WhiteReplacement))
         }
     }
 

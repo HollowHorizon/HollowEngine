@@ -23,13 +23,12 @@ object ComboBox {
                 .zLayer(100_000_000)
                 .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, sizes.smallGap))
                 .border(RoundRectBorder(ColorTheme.UI.BackgroundElements, sizes.smallGap, sizes.borderWidth))
-                .padding(sizes.smallGap)
                 .height((24.dp + sizes.smallGap * 2) * min(7, items.size) + sizes.gap)
 
             LazyColumn(
                 withHorizontalScrollbar = false,
                 isScrollableHorizontal = false,
-                containerModifier = { it.background(null).margin(sizes.smallGap) },
+                containerModifier = { it.background(null) },
                 vScrollbarModifier = { it.zLayer(UiSurface.LAYER_POPUP + UiSurface.LAYER_FLOATING) }
             ) {
                 itemsIndexed(items) { i, item ->
@@ -66,7 +65,6 @@ object ComboBox {
             val color by animateColorAsState(if(isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary, tween(easing = Easing.easeOutQuart))
 
             modifier.padding(horizontal=Dimensions.PaddingMedium, vertical=Dimensions.PaddingNormal)
-                .margin(horizontal=Dimensions.PaddingMedium)
                 .alignY(AlignmentY.Center)
             modifier.background(RoundRectBackground(color, sizes.smallGap))
 
@@ -76,7 +74,8 @@ object ComboBox {
             if (id == -1) {
                 Text(preview) {
                     modifier.alignY(AlignmentY.Center)
-                        .margin(end = sizes.smallGap)
+                        .margin(end = Dimensions.PaddingSmall)
+                        .textColor(ColorTheme.UI.WhiteReplacement)
                 }
             } else {
                 items[id]()
