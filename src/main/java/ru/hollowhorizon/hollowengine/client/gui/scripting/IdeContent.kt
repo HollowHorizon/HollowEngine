@@ -12,6 +12,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.CodeBlocksFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.GLTFFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.PrefabEditorFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.animations.AnimationControllerFile
 
 object IdeContent {
     val files = HashMap<String, EditorFile>()
@@ -20,6 +21,8 @@ object IdeContent {
     private val fileTypes: Map<String, (String, ByteArray) -> EditorFile> = buildMap {
         put(".kts", ::ScriptFile)
         put(".kt", ::ScriptFile)
+        // Controllers have a more specific extension and must be checked before generic .json
+        put(".controller.json", ::AnimationControllerFile)
         put(".json", ::ScriptFile)
 
         put(".bc", ::CodeBlocksFile)

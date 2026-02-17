@@ -4,7 +4,6 @@ import de.fabmax.kool.KeyValueStore
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
@@ -21,9 +20,9 @@ object ComboBox {
             var hoveredIndex by remember(-1)
 
             modifier
-                .zLayer(UiSurface.LAYER_POPUP + UiSurface.LAYER_FLOATING)
-                .background(RoundRectBackground(colors.background, sizes.smallGap))
-                .border(RoundRectBorder(Color("3C3C4AFF"), sizes.smallGap, sizes.borderWidth))
+                .zLayer(100_000_000)
+                .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, sizes.smallGap))
+                .border(RoundRectBorder(ColorTheme.UI.BackgroundElements, sizes.smallGap, sizes.borderWidth))
                 .padding(sizes.smallGap)
                 .height((24.dp + sizes.smallGap * 2) * min(7, items.size) + sizes.gap)
 
@@ -36,8 +35,8 @@ object ComboBox {
                 itemsIndexed(items) { i, item ->
                     Box {
                         modifier
-                            .padding(sizes.smallGap * 0.5f)
-                            .margin(sizes.smallGap * 0.5f)
+                            .padding(Dimensions.PaddingNormal)
+                            .margin(Dimensions.PaddingSmall)
                             .width(Grow.Std)
                             .onEnter { hoveredIndex = i }
                             .onExit { hoveredIndex = -1 }
@@ -49,7 +48,7 @@ object ComboBox {
                             }
                         if (i == hoveredIndex) {
                             modifier
-                                .background(RoundRectBackground(ColorTheme.UI.BackgroundGeneral, sizes.smallGap))
+                                .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, sizes.smallGap))
                         }
                         if (items.size > 7) {
                             // make some space for the scrollbar

@@ -14,7 +14,10 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.findParentOfType
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.GridBackground
+import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.ComboBox
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
+import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.abs
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.max
 import kotlin.math.atan2
@@ -46,6 +49,9 @@ class GraphEditor {
 
     private var scrollPaneNode: ScrollPaneNode? = null
 
+    val modelPath = mutableStateOf("hollowengine:models/entity/player_model.gltf")
+    val availableAnimations = mutableStateListOf<String>()
+
     private val connectionFont by lazy {
         MsdfFont(ColorTheme.Fonts.MONOCRAFT, 14f)
     }
@@ -53,16 +59,42 @@ class GraphEditor {
     private val connectionHitThreshold = 8f
 
     init {
-        nodes.add(GraphNode(title = "Entry", x = 100f, y = 100f, color = Color("6BC872")))
-        nodes.add(GraphNode(title = "Idle", x = 100f, y = 250f, color = Color("EB903F")))
-        nodes.add(GraphNode(title = "Run", x = 100f, y = 450f, color = Color("5F6677")))
-        nodes.add(GraphNode(title = "Frontflip", x = 400f, y = 100f, color = Color("5F6677")))
-        nodes.add(GraphNode(title = "Any State", x = 600f, y = 150f, color = Color("548AF7")))
+        val entry = GraphNode(
+            title = "Entry",
+            x = 100f,
+            y = 100f,
+            color = Color("6BC872"),
+            type = NodeType.ENTRY,
+        )
+        val idle = GraphNode(
+            title = "Idle",
+            x = 100f,
+            y = 250f,
+            color = Color("EB903F"),
+        )
+        val run = GraphNode(
+            title = "Run",
+            x = 100f,
+            y = 450f,
+            color = Color("5F6677"),
+        )
+        val frontflip = GraphNode(
+            title = "Frontflip",
+            x = 400f,
+            y = 100f,
+            color = Color("5F6677"),
+        )
+        val anyState = GraphNode(
+            title = "Any State",
+            x = 600f,
+            y = 150f,
+            color = Color("548AF7"),
+            type = NodeType.ANY,
+        )
 
-        connections.add(GraphConnection(nodes[0].id, nodes[1].id, "auto"))
-        connections.add(GraphConnection(nodes[1].id, nodes[2].id, "speed > 0"))
-        connections.add(GraphConnection(nodes[2].id, nodes[1].id, "stop"))
-        connections.add(GraphConnection(nodes[1].id, nodes[3].id, "jump"))
+        nodes.addAll(listOf(entry, idle, run, frontflip, anyState))
+
+        connections.add(GraphConnection(entry.id, idle.id, "auto"))
     }
 
     context(scope: UiScope) fun EditorLayout() = with(scope) {
@@ -85,8 +117,8 @@ class GraphEditor {
                     GridBackground(
                         sectionSize = Dp(40f),
                         currentZoom = scale,
-                        offsetX = scrollState.xScrollDp.use() * UiScale.measuredScale,
-                        offsetY = scrollState.yScrollDp.use() * UiScale.measuredScale,
+                        offsetX = -scrollState.xScrollDp.use() * UiScale.measuredScale,
+                        offsetY = -scrollState.yScrollDp.use() * UiScale.measuredScale,
                         lineWidth = Dp(1f),
                         lineColor = gridColor
                     )
@@ -471,25 +503,164 @@ class GraphEditor {
     }
 
     private fun UiScope.PropertyPanel() {
-        Column {
+        val node = selectedNode.use()
+        val conn = selectedConnection.use()
+
+        Column(scopeName = when {
+            node != null -> "Node-Editor"
+            conn != null -> "Connection-Editor"
+            else -> "No-Selection"
+        }) {
             modifier.width(Dp(300f)).height(Grow.Std).background(RectBackground(ColorTheme.UI.BackgroundSecondary))
                 .padding(Dimensions.PaddingLarge).zLayer(1000)
 
-            Text("PROPERTIES") {
+            Text("ПАРАМЕТРЫ") {
                 modifier.textColor(ColorTheme.UI.WhiteReplacement)
                     .margin(bottom = Dimensions.PaddingLarge)
             }
 
-            val node = selectedNode.use()
-            val conn = selectedConnection.use()
 
             when {
                 node != null -> {
-                    // Node properties
-                    Text(node.title) { modifier.textColor(Color.WHITE) }
-                    Text("Pos: ${node.xState.use().toInt()}, ${node.yState.use().toInt()}") {
+                    Text("СОСТОЯНИЕ") {
+                        modifier.textColor(Color.WHITE).font(FontProps(isBold = true))
+                    }
+
+                    Text("Название: ${node.title}") {
+                        modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                            .margin(top = Dimensions.PaddingSmall)
+                    }
+
+                    Text("Координаты: ${node.xState.use().toInt()}, ${node.yState.use().toInt()}") {
                         modifier.textColor(Color.GRAY).margin(top = Dimensions.PaddingSmall)
                     }
+
+                    Divider()
+
+                    Text("ОСНОВНОЕ") {
+                        modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                            .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
+                            .font(FontProps(size = 11f))
+                    }
+
+                    // Node type: Entry / Any / State
+                    val typeIndex = when (node.type) {
+                        NodeType.ENTRY -> 0
+                        NodeType.ANY -> 1
+                        NodeType.STATE -> 2
+                    }
+                    val typeState = remember(typeIndex)
+                    ComboBox(
+                        preview = "Тип состояния",
+                        items = listOf(
+                            Composable { Text("Начало") { modifier.textColor(ColorTheme.UI.WhiteReplacement) } },
+                            Composable { Text("Любое состояние") { modifier.textColor(ColorTheme.UI.WhiteReplacement) } },
+                            Composable { Text("Состояние") { modifier.textColor(ColorTheme.UI.WhiteReplacement) } },
+                        ),
+                        itemIndex = typeState,
+                    )
+                    when (typeState.use()) {
+                        0 -> node.type = NodeType.ENTRY
+                        1 -> node.type = NodeType.ANY
+                        else -> node.type = NodeType.STATE
+                    }
+
+                    // Animation selection
+                    val anims = availableAnimations.use()
+                    if (anims.isNotEmpty()) {
+                        val currentIndex = anims.indexOfFirst { it == node.animationName }.coerceAtLeast(-1)
+                        val indexState = remember(currentIndex)
+
+                        Text("Анимация") {
+                            modifier.textColor(Color.GRAY)
+                                .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
+                        }
+
+                        ComboBox(
+                            preview = if (node.animationName.isEmpty()) "Выберите анимацию" else node.animationName,
+                            items = anims.map { name ->
+                                Composable {
+                                    Text(name) { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
+                                }
+                            },
+                            itemIndex = indexState,
+                        )
+
+                        val idx = indexState.use()
+                        if (idx in anims.indices) {
+                            node.animationName = anims[idx]
+                        }
+                    }
+
+                    Divider()
+
+                    Text("ВОСПРОИЗВЕДЕНИЕ") {
+                        modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                            .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
+                            .font(FontProps(size = 11f))
+                    }
+
+                    // Wrap mode
+                    val wrapItems = WrapMode.entries.toList()
+                    val wrapIndex = wrapItems.indexOf(node.wrapMode).coerceAtLeast(0)
+                    val wrapState = remember(wrapIndex)
+                    ComboBox(
+                        preview = node.wrapMode.name,
+                        items = wrapItems.map { mode ->
+                            Composable {
+                                Text(mode.name) { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
+                            }
+                        },
+                        itemIndex = wrapState,
+                    )
+                    val wi = wrapState.use()
+                    if (wi in wrapItems.indices) node.wrapMode = wrapItems[wi]
+
+                    // Speed
+                    PropertyFloatField("Скорость", node.speed) { node.speed = it }
+                    // Weight
+                    PropertyFloatField("Вес", node.weight) { node.weight = it }
+                    // Priority
+                    PropertyIntField("Приоритет", node.priority) { node.priority = it }
+
+                    Divider()
+
+                    Text("СМЕШИВАНИЕ") {
+                        modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                            .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
+                            .font(FontProps(size = 11f))
+                    }
+
+                    PropertyFloatField("Появление", node.fadeIn) { node.fadeIn = it }
+                    PropertyFloatField("Затухание", node.fadeOut) { node.fadeOut = it }
+
+                    // Blend curve
+                    val curves = Interpolation.entries.toList()
+                    val curveIndex = curves.indexOf(node.blendCurve).coerceAtLeast(0)
+                    val curveState = remember(curveIndex)
+                    ComboBox(
+                        preview = node.blendCurve.name,
+                        items = curves.map { c ->
+                            Composable {
+                                Text(c.name) { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
+                            }
+                        },
+                        itemIndex = curveState,
+                    )
+                    val ci = curveState.use()
+                    if (ci in curves.indices) node.blendCurve = curves[ci]
+
+                    Divider()
+
+                    Text("ПЕРЕЗАПИСАТЬ") {
+                        modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                            .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
+                            .font(FontProps(size = 11f))
+                    }
+
+                    ToggleRow("Смещение", node.overrideTranslation) { node.overrideTranslation = it }
+                    ToggleRow("Поворот", node.overrideRotation) { node.overrideRotation = it }
+                    ToggleRow("Масштаб", node.overrideScale) { node.overrideScale = it }
                 }
                 conn != null -> {
                     val fromNode = nodes.find { it.id == conn.fromNodeId }
@@ -497,7 +668,7 @@ class GraphEditor {
                     val fromName = fromNode?.title ?: "?"
                     val toName = toNode?.title ?: "?"
 
-                    Text("Connection") {
+                    Text("Связь") {
                         modifier.textColor(Color.WHITE).font(FontProps(isBold = true))
                     }
                     Text("$fromName → $toName") {
@@ -505,66 +676,137 @@ class GraphEditor {
                             .margin(top = Dimensions.PaddingSmall)
                     }
 
-                    if (conn.label.isNotEmpty()) {
-                        PropertyRow("Label", conn.label)
+                    Text("Название") {
+                        modifier.textColor(Color.GRAY).margin(top = Dimensions.PaddingSmall)
+                    }
+                    val labelText: MutableStateValue<String> = remember(conn.label)
+                    TextField(labelText.use()) {
+                        modifier.width(Grow.Std)
+                            .margin(top = Dimensions.PaddingSmall)
+                        modifier.onChange { new ->
+                            labelText.set(new)
+                            val idx = connections.indexOfFirst { it.id == conn.id }
+                            if (idx != -1) {
+                                connections[idx] = connections[idx].copy(label = new)
+                                selectedConnection.set(connections[idx])
+                            }
+                        }
                     }
 
                     Divider()
 
-                    Text("TRANSITION") {
+                    Text("ПЕРЕХОД") {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
                             .font(FontProps(size = 11f))
                     }
 
-                    PropertyRow("Weight", "%.2f".format(conn.properties.weight))
-                    PropertyRow("Duration", "%.2fs".format(conn.properties.transitionDuration))
-                    PropertyRow("Muted", if (conn.properties.mute) "Yes" else "No")
+                    var props = conn.properties
 
-                    if (conn.properties.hasExitTime) {
-                        PropertyRow("Exit Time", "%.2f".format(conn.properties.exitTime))
+                    PropertyFloatField("Вес", props.weight) {
+                        props = props.copy(weight = it)
+                        updateConnectionProperties(conn.id, props)
+                    }
+                    PropertyFloatField("Время", props.duration) {
+                        props = props.copy(duration = it)
+                        updateConnectionProperties(conn.id, props)
+                    }
+                    PropertyFloatField("Появление", props.fadeIn) {
+                        props = props.copy(fadeIn = it)
+                        updateConnectionProperties(conn.id, props)
+                    }
+                    PropertyFloatField("Затухание", props.fadeOut) {
+                        props = props.copy(fadeOut = it)
+                        updateConnectionProperties(conn.id, props)
                     }
 
-                    if (conn.properties.hasCondition) {
-                        Divider()
-                        Text("CONDITION") {
-                            modifier.textColor(ColorTheme.UI.WhiteReplacement)
-                                .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
-                                .font(FontProps(size = 11f))
-                        }
-                        Text(conn.properties.condition) {
-                            modifier.textColor(ColorTheme.Accents.Main)
-                                .margin(top = Dimensions.PaddingSmall)
+                    PropertyFloatField("Время завершения", props.exitTime ?: 0f) {
+                        val value = it
+                        props = props.copy(exitTime = value)
+                        updateConnectionProperties(conn.id, props)
+                    }
+
+                    Divider()
+
+                    Text("УСЛОВИЕ (Kotlin)") {
+                        modifier.textColor(ColorTheme.UI.WhiteReplacement)
+                            .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
+                            .font(FontProps(size = 11f))
+                    }
+                    var condText = remember(props.condition)
+                    TextField(condText.use()) {
+                        modifier.width(Grow.Std)
+                            .height(Dp(80f))
+                            .margin(top = Dimensions.PaddingSmall)
+                        modifier.onChange { new ->
+                            condText.set(new)
+                            props = props.copy(condition = new)
+                            updateConnectionProperties(conn.id, props)
                         }
                     }
 
-                    if (conn.properties.extras.isNotEmpty()) {
-                        Divider()
-                        Text("EXTRAS") {
-                            modifier.textColor(ColorTheme.UI.WhiteReplacement)
-                                .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
-                                .font(FontProps(size = 11f))
-                        }
-                        conn.properties.extras.forEach { (key, value) ->
-                            PropertyRow(key, value)
-                        }
+                    Divider()
+
+                    ToggleRow("Muted", props.mute) {
+                        props = props.copy(mute = it)
+                        updateConnectionProperties(conn.id, props)
                     }
                 }
                 else -> {
-                    Text("No selection") { modifier.textColor(Color.GRAY) }
+                    Text("Ничего не выбрано") { modifier.textColor(Color.GRAY) }
                 }
             }
         }
     }
 
-    private fun UiScope.PropertyRow(label: String, value: String) {
+    private fun UiScope.PropertyFloatField(label: String, value: Float, onChange: (Float) -> Unit) {
+        Row {
+            modifier.margin(top = Dimensions.PaddingSmall).width(Grow.Std)
+            Text("$label:") {
+                modifier.textColor(Color.GRAY).width(Dp(100f)).font(FontProps(size = 12f))
+                    .alignY(AlignmentY.Center)
+            }
+            val textState = remember(value.toString())
+            TextField(textState.use()) {
+                modifier.width(Grow.Std)
+                modifier.onChange { new ->
+                    textState.set(new)
+                    new.toFloatOrNull()?.let(onChange)
+                }.alignY(AlignmentY.Center)
+            }
+        }
+    }
+
+    private fun UiScope.PropertyIntField(label: String, value: Int, onChange: (Int) -> Unit) {
         Row {
             modifier.margin(top = Dimensions.PaddingSmall).width(Grow.Std)
             Text("$label:") {
                 modifier.textColor(Color.GRAY).width(Dp(100f)).font(FontProps(size = 12f))
             }
-            Text(value) {
-                modifier.textColor(Color.WHITE).font(FontProps(size = 12f))
+            var textState = remember(value.toString())
+            TextField(textState.use()) {
+                modifier.width(Grow.Std)
+                modifier.onChange { new ->
+                    textState.set(new)
+                    new.toIntOrNull()?.let(onChange)
+                }
+            }
+        }
+    }
+
+    private fun UiScope.ToggleRow(label: String, value: Boolean, onChange: (Boolean) -> Unit) {
+        Row {
+            modifier.margin(top = Dimensions.PaddingSmall).width(Grow.Std)
+            Text("$label:") {
+                modifier.textColor(Color.GRAY).width(Dp(100f)).font(FontProps(size = 12f))
+                    .alignY(AlignmentY.Center)
+            }
+            val state = remember(value)
+            Checkbox(state.use()) {
+                modifier.onToggle {
+                    state.set(it)
+                    onChange(it)
+                }.alignY(AlignmentY.Center)
             }
         }
     }
@@ -727,6 +969,89 @@ class GraphEditor {
     private fun FontProps(size: Float = 14f, isBold: Boolean = false) = MsdfFont(
         ColorTheme.Fonts.MONOCRAFT, size * scale, weight = if (isBold) MsdfFont.WEIGHT_BOLD else MsdfFont.WEIGHT_REGULAR
     )
+
+    fun toGraph(): AnimationControllerGraph {
+        val nodeData = nodes.map { node ->
+            GraphNodeData(
+                id = node.id,
+                title = node.title,
+                x = node.xState.value,
+                y = node.yState.value,
+                type = node.type,
+                animationName = node.animationName,
+                wrapMode = node.wrapMode,
+                speed = node.speed,
+                weight = node.weight,
+                priority = node.priority,
+                fadeIn = node.fadeIn,
+                fadeOut = node.fadeOut,
+                blendCurve = node.blendCurve,
+                overrideTranslation = node.overrideTranslation,
+                overrideRotation = node.overrideRotation,
+                overrideScale = node.overrideScale,
+                extras = node.extras.toMap(),
+            )
+        }
+        val connectionData = connections.map { conn ->
+            GraphConnectionData(
+                id = conn.id,
+                fromNodeId = conn.fromNodeId,
+                toNodeId = conn.toNodeId,
+                label = conn.label,
+                properties = conn.properties
+            )
+        }
+        return AnimationControllerGraph(modelPath.value, nodeData, connectionData)
+    }
+
+    fun loadGraph(graph: AnimationControllerGraph) {
+        nodes.clear()
+        connections.clear()
+
+        modelPath.set(graph.modelPath)
+
+        graph.nodes.forEach { data ->
+            val color = when (data.title) {
+                "Entry" -> Color("6BC872")
+                "Any State" -> Color("548AF7")
+                else -> Color("5F6677")
+            }
+            nodes.add(
+                GraphNode(
+                    id = data.id,
+                    title = data.title,
+                    x = data.x,
+                    y = data.y,
+                    color = color,
+                    type = data.type,
+                    animationName = data.animationName,
+                    wrapMode = data.wrapMode,
+                    speed = data.speed,
+                    weight = data.weight,
+                    priority = data.priority,
+                    fadeIn = data.fadeIn,
+                    fadeOut = data.fadeOut,
+                    blendCurve = data.blendCurve,
+                    overrideTranslation = data.overrideTranslation,
+                    overrideRotation = data.overrideRotation,
+                    overrideScale = data.overrideScale,
+                    extras = data.extras.toMutableMap(),
+                )
+            )
+        }
+
+        graph.connections.forEach { data ->
+            connections.add(
+                GraphConnection(
+                    fromNodeId = data.fromNodeId,
+                    toNodeId = data.toNodeId,
+                    label = data.label,
+                    id = data.id,
+                    properties = data.properties,
+                )
+            )
+        }
+    }
 }
 
 context(node: UiNode) fun drawDashedArrow(
