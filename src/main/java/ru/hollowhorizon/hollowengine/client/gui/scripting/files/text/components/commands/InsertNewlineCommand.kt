@@ -4,7 +4,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.CommandKey
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.CommandRegistry
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorCommandContext
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextAreaConfig
 
 
 class InsertNewlineCommand : Command {
@@ -23,10 +22,11 @@ class InsertNewlineCommand : Command {
         val isLPar = text.substring(0, caretPos).trimEnd().endsWith("{")
         val isRPar = text.substring(caretPos).trimStart().startsWith("}")
 
-        if (isLPar) whitespaces += TextAreaConfig.INDENT_SIZE
+        val indentSize = c.state.config.indentSize
+        if (isLPar) whitespaces += indentSize
 
         if (isLPar && isRPar) {
-            val baseIndent = (whitespaces - TextAreaConfig.INDENT_SIZE).coerceAtLeast(0)
+            val baseIndent = (whitespaces - indentSize).coerceAtLeast(0)
             val indentStr = " ".repeat(whitespaces)
             val closeIndentStr = " ".repeat(baseIndent)
 

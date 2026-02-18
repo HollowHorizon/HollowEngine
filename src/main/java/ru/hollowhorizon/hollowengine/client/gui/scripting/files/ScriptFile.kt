@@ -10,6 +10,7 @@ import de.fabmax.kool.util.logE
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorState
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextSource
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
@@ -29,7 +30,7 @@ class ScriptFile(path: String, bytes: ByteArray) : EditorFile(path) {
     }
 
     private val editorState by lazy {
-        EditorState(filePath.fromReadablePath())
+        EditorState(TextSource.File(filePath.fromReadablePath()))
     }
 
     private var isDisposed = false
@@ -45,7 +46,7 @@ class ScriptFile(path: String, bytes: ByteArray) : EditorFile(path) {
         Box(Grow.Std, Grow.Std) {
 
             ScriptTextArea(
-                editorState.lines,
+                editorState,
                 vScrollbarModifier = {
                     it.width(sizes.smallGap)
                         .colors(

@@ -14,12 +14,12 @@ import kotlinx.coroutines.flow.debounce
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoableAction
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorState
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextSource
 import ru.hollowhorizon.hollowengine.client.utils.offset
-import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
-import java.io.File
 import java.util.*
 
 private object AnalysisConfig {
@@ -35,30 +35,11 @@ class EditorAnalysisState {
 
 @OptIn(FlowPreview::class)
 class CompiledFileProvider(
-    private val file: File? = null,
-    private val name: String? = null,
-    initialText: String? = null,
+    private val source: TextSource,
+    private val state: EditorState,
     private val analyzer: ScriptingAnalyzer,
     private val autoSave: Boolean = true,
 ) : TextLineProvider, TextEditorHandler, UndoRedoHandler {
-
-    constructor(file: File, analyzer: ScriptingAnalyzer) : this(
-        file = file,
-        name = null,
-        initialText = null,
-        analyzer = analyzer,
-        autoSave = true
-    )
-
-    constructor(file: File) : this(file, ScriptingEnvironment.INSTANCE.analyzer)
-
-    constructor(name: String, analyzer: ScriptingAnalyzer, initialText: String = "") : this(
-        file = null,
-        name = name,
-        initialText = initialText,
-        analyzer = analyzer,
-        autoSave = false
-    )
 
     val analysisState = EditorAnalysisState()
 
@@ -67,14 +48,12 @@ class CompiledFileProvider(
 
     var onTextChanged: ((String) -> Unit)? = null
 
-    var currentText: String = initialText
-        ?.replace("\t", " ".repeat(TextAreaConfig.INDENT_SIZE))
-        ?: file?.readText()?.replace("\t", " ".repeat(TextAreaConfig.INDENT_SIZE))
-        ?: ""
+    var currentText: String = source.text
+        .replace("\t", " ".repeat(state.config.indentSize))
         private set(value) {
             field = value
             onTextChanged?.invoke(value)
-            if (autoSave && file != null) {
+            if (autoSave) {
                 scheduleWrite(value)
             }
         }
@@ -92,13 +71,10 @@ class CompiledFileProvider(
     @Volatile
     private var latestText: String? = null
 
-    private val sourceName: String
-        get() = name ?: file?.name ?: "unknown"
-
     private data class AnalysisParams(
         val text: String,
         val line: Int,
-        val char: Int
+        val char: Int,
     )
 
     init {
@@ -120,16 +96,15 @@ class CompiledFileProvider(
         writeJob?.cancel()
         writeJob = null
         latestText = null
-        file?.writeText(currentText)
+        source.save(currentText)
     }
 
     private fun scheduleWrite(text: String) {
-        if (file == null) return
         writeJob?.cancel()
         latestText = text
         writeJob = scope.launch {
             delay(AnalysisConfig.WRITE_DEBOUNCE_MS)
-            latestText?.let { file.writeText(it) }
+            latestText?.let { source.save(it) }
         }
     }
 
@@ -143,6 +118,7 @@ class CompiledFileProvider(
     private val undoStack = Stack<UndoableAction>()
     private val redoStack = Stack<UndoableAction>()
     private var lastEditTime = 0L
+
 
     override val size get() = lines.size
 
@@ -210,7 +186,7 @@ class CompiledFileProvider(
         startLine: Int, startChar: Int,
         finalCaretLine: Int, finalCaretChar: Int,
         oldLines: List<ScriptTextLine>, newLines: List<ScriptTextLine>,
-        replacement: String, currentTime: Long
+        replacement: String, currentTime: Long,
     ) {
         val isSingleCharInsert = replacement.length == 1 &&
                 oldLines.size == 1 &&
@@ -273,8 +249,8 @@ class CompiledFileProvider(
             }.getOrDefault(0)
 
             val offset = offset(txt, safeLine, safeChar)
-            val completions = analyzer.completions(sourceName, txt, offset)
-            val diagnostics = analyzer.diagnostic(sourceName, txt)
+            val completions = analyzer.completions(source.name, txt, offset)
+            val diagnostics = analyzer.diagnostic(source.name, txt)
 
             withContext(KoolDispatchers.Frontend) {
                 val currentTextSnapshot = lines.joinToString("\n") { it.text }
@@ -301,7 +277,7 @@ class CompiledFileProvider(
     ) {
         try {
             val off = offset(textSnapshot, selectionStartLine, selectionStartChar)
-            val colored = highlight(sourceName, textSnapshot, off)
+            val colored = highlight(source.name, textSnapshot, off)
 
             withContext(KoolDispatchers.Frontend) {
                 val currentTextSnapshot = lines.joinToString("\n") { it.text }

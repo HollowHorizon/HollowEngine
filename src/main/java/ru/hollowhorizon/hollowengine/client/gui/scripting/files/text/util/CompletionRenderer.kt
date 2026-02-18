@@ -18,6 +18,7 @@ object CompletionRenderer {
         isSelected: Boolean,
         typedPrefix: String,
         onClick: (CompletionItem) -> Unit,
+        font: MsdfFont = MsdfFont(ColorTheme.Fonts.MONOCRAFT, 16f),
     ): Unit = with(scope) {
         Row(Grow.Std) {
             val isHovered by modifier.hoverable()
@@ -32,7 +33,7 @@ object CompletionRenderer {
             renderTag(completion.tag)
 
             Row {
-                modifier.align(AlignmentX.Start, AlignmentY.Center).margin(start = sizes.gap)
+                modifier.align(AlignmentX.Start, AlignmentY.Center).margin(start = Dimensions.PaddingMedium)
 
                 val fullText = completion.show + ((completion as? CompletionItem.Declaration)?.middle ?: "")
                 val lowerFull = fullText.lowercase()
@@ -40,14 +41,14 @@ object CompletionRenderer {
 
                 if (typedPrefix.isNotEmpty() && lowerFull.startsWith(lowerPrefix)) {
                     Text(fullText.substring(0, typedPrefix.length)) {
-                        modifier.textColor(EditorTheme.Popup.textMatch).font(MsdfFont(ColorTheme.Fonts.MONOCRAFT, 16f))
+                        modifier.textColor(EditorTheme.Popup.textMatch).font(font)
                     }
                     Text(fullText.substring(typedPrefix.length)) {
-                        modifier.textColor(EditorTheme.Popup.textPrimary).font(MsdfFont(ColorTheme.Fonts.MONOCRAFT, 16f))
+                        modifier.textColor(EditorTheme.Popup.textPrimary).font(font)
                     }
                 } else {
                     Text(fullText) {
-                        modifier.textColor(EditorTheme.Popup.textPrimary).font(MsdfFont(ColorTheme.Fonts.MONOCRAFT, 16f))
+                        modifier.textColor(EditorTheme.Popup.textPrimary).font(font)
                     }
                 }
             }
@@ -57,9 +58,9 @@ object CompletionRenderer {
                 Text(completion.tail) {
                     modifier
                         .align(AlignmentX.End, AlignmentY.Center)
-                        .margin(start = sizes.gap)
+                        .margin(start = Dimensions.PaddingMedium)
                         .textColor(EditorTheme.Popup.textDim)
-                        .font(MsdfFont(ColorTheme.Fonts.MONOCRAFT, 14f)) // Чуть меньше шрифт
+                        .font(font.derive(font.sizePts * 0.875f)) // Чуть меньше шрифт
                 }
             }
         }

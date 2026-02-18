@@ -15,7 +15,9 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.markdown.rememberTarget
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.GridBackground
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextEditorConfig
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextSource
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.CompiledFileProvider
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextArea
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
@@ -841,24 +843,20 @@ class GraphEditor {
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
                     }
                     val condProvider = rememberTarget(conn.id) {
-                        CompiledFileProvider(
-                            name = "transition_${conn.id}.kts",
-                            analyzer = ScriptingEnvironment.INSTANCE.analyzer,
-                            initialText = props.condition,
-                        ).also { provider ->
-                            provider.onTextChanged = { raw ->
-                                // single-line: strip newlines just in case (paste etc.)
-                                val sanitized = raw.replace("\r", " ").replace("\n", " ")
-                                if (sanitized != raw) provider.setText(sanitized)
-                                val next = props.copy(condition = sanitized)
-                                props = next
-                                updateConnectionProperties(conn.id, next)
-                            }
+                        val state = EditorState(TextSource.Memory("transition_${conn.id}.kts", props.condition))
+                        state.provider.onTextChanged = { raw ->
+                            // single-line: strip newlines just in case (paste etc.)
+                            val sanitized = raw.replace("\r", " ").replace("\n", " ")
+                            if (sanitized != raw) state.provider.setText(sanitized)
+                            val next = props.copy(condition = sanitized)
+                            props = next
+                            updateConnectionProperties(conn.id, next)
                         }
+                        state
                     }
                     // keep provider in sync when switching between connections
-                    if (condProvider.currentText != props.condition) {
-                        condProvider.setText(props.condition)
+                    if (condProvider.provider.currentText != props.condition) {
+                        condProvider.provider.setText(props.condition)
                     }
 
                     Row {
@@ -870,7 +868,7 @@ class GraphEditor {
                         }
 
                         ScriptTextArea(
-                            lineProvider = condProvider,
+                            condProvider,
                             width = Grow.Std,
                             height = Dp(34f),
                             withVerticalScrollbar = false,
@@ -887,13 +885,13 @@ class GraphEditor {
                                 enableKeyMap = true,
                                 enableAutoBrackets = true,
                             )
-                            modifier.editorHandler = (condProvider)
+                            modifier.editorHandler = (condProvider.provider)
 
                             // take completions/diagnostics from provider
                             modifier.completions.clear()
-                            modifier.completions.addAll(condProvider.analysisState.completions)
+                            modifier.completions.addAll(condProvider.provider.analysisState.completions)
                             modifier.errors.clear()
-                            modifier.errors.addAll(condProvider.analysisState.diagnostics)
+                            modifier.errors.addAll(condProvider.provider.analysisState.diagnostics)
 
                             installDefaultSelectionHandler()
                         }

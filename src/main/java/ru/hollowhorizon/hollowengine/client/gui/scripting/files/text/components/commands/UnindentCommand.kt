@@ -3,17 +3,18 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.Command
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.CommandKey
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorCommandContext
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextAreaConfig
 
 class UnindentCommand : Command {
     override fun execute(c: EditorCommandContext): Boolean {
+        val indentSize = c.state.config.indentSize
+        
         if (c.selection.isEmptySelection) {
             val line = c.selection.selectionCaretLine
             val char = c.selection.selectionCaretChar
             val text = c.lineProvider[line].text
 
             val spacesToRemove = text.take(char).takeLastWhile { it == ' ' }.length
-                .coerceAtMost(TextAreaConfig.INDENT_SIZE)
+                .coerceAtMost(indentSize)
 
             if (spacesToRemove > 0) {
                 c.inputController.replaceText(line, line, char - spacesToRemove, char, "")
@@ -30,7 +31,7 @@ class UnindentCommand : Command {
 
         for (line in fromLine..toLine) {
             val text = c.lineProvider[line].text
-            val count = text.takeWhile { it == ' ' }.length.coerceAtMost(TextAreaConfig.INDENT_SIZE)
+            val count = text.takeWhile { it == ' ' }.length.coerceAtMost(indentSize)
 
             if (count > 0) {
                 c.inputController.replaceText(line, line, 0, count, "")

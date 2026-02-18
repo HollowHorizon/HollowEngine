@@ -1,15 +1,14 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util
 
 /**
- * Configuration constants for the text area.
+ * Configuration constants for the text editor.
  */
-object TextAreaConfig {
+object TextEditorConstants {
     // Completion settings
     const val MAX_COMPLETION_ITEMS = 10
     const val COMPLETION_ITEM_HEIGHT = 24
 
-    // Indentation
-    const val INDENT_SIZE = 4
+    // Indentation guides
     const val INDENT_GUIDE_OFFSET = 0.5f
     const val INDENT_GUIDE_ACTIVE_ALPHA = 0.8f
     const val INDENT_GUIDE_INACTIVE_ALPHA = 0.3f

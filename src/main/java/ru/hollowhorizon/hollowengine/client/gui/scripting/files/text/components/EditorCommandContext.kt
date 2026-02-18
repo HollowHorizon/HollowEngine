@@ -7,6 +7,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 
 class EditorCommandContext(
     val event: KeyEvent?,
+    val state: EditorState,
     val selection: TextSelectionController,
     val lineProvider: TextLineProvider,
     val inputController: TextInputController,

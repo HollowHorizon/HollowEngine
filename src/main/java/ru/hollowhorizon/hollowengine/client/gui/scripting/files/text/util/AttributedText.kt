@@ -11,6 +11,7 @@ import de.fabmax.kool.util.Font
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.Time
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 import kotlin.math.abs
@@ -324,7 +325,7 @@ open class AttributedTextNode(parent: UiNode?, surface: UiSurface)
         val y = yBase - dims.yBaseline
 
         if (hint.backgroundColor != null) {
-            getUiPrimitives().localRoundRect(x, paddingTopPx + (innerHeightPx - h)/2f, w, h, sizes.smallGap.px * 0.5f, hint.backgroundColor)
+            getUiPrimitives().localRoundRect(x, paddingTopPx + (innerHeightPx - h)/2f, w, h, Dimensions.PaddingNormal.px * 0.5f, hint.backgroundColor)
         }
 
         val builder = getTextBuilder(mainFont)

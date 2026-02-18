@@ -116,7 +116,7 @@ fun <T : ScriptTextAreaModifier> T.setSelectionRange(startLine: Int, caretLine: 
 
 @OptIn(ExperimentalContracts::class)
 fun UiScope.ScriptTextArea(
-    lineProvider: TextLineProvider,
+    editorState: EditorState,
     width: Dimension = Grow.Std,
     height: Dimension = Grow.Std,
     withVerticalScrollbar: Boolean = true,
@@ -132,17 +132,18 @@ fun UiScope.ScriptTextArea(
 
     val textArea = uiNode.createChild(scopeName, TextAreaNode::class, TextAreaNode.factory)
     textArea.listState = state
+    textArea.editorState = editorState
     textArea.modifier.size(width, height)
-        .onWheelX { state.scrollDpX(it.pointer.scroll.x * TextAreaConfig.SCROLL_WHEEL_X_MULTIPLIER) }
-        .onWheelY { state.scrollDpY(it.pointer.scroll.y * TextAreaConfig.SCROLL_WHEEL_Y_MULTIPLIER) }
+        .onWheelX { state.scrollDpX(it.pointer.scroll.x * TextEditorConstants.SCROLL_WHEEL_X_MULTIPLIER) }
+        .onWheelY { state.scrollDpY(it.pointer.scroll.y * TextEditorConstants.SCROLL_WHEEL_Y_MULTIPLIER) }
 
     textArea.completionIndex = remember(0)
     textArea.completionX = remember(0f)
     textArea.completionY = remember(0f)
 
-    textArea.lineProvider = lineProvider
+    textArea.lineProvider = editorState.provider
     textArea.setupContent(
-        lineProvider,
+        editorState.provider,
         withVerticalScrollbar,
         withHorizontalScrollbar,
         scrollbarColor,
@@ -166,7 +167,7 @@ fun UiScope.ScriptTextArea(
                         )
                         .padding(Dimensions.PaddingSmall)
                         .height(
-                            (18f.dp + Dimensions.PaddingMedium) * completions.size.coerceAtMost(TextAreaConfig.MAX_COMPLETION_ITEMS)
+                            (18f.dp + Dimensions.PaddingMedium) * completions.size.coerceAtMost(TextEditorConstants.MAX_COMPLETION_ITEMS)
                         )
                         .width(Grow(1f, max = FitContent))
                         .zLayer(100_000_000)
@@ -179,7 +180,7 @@ fun UiScope.ScriptTextArea(
                             it.background(null)
                         },
                         vScrollbarModifier = {
-                            it.width(sizes.smallGap).margin(sizes.smallGap * 0.5f)
+                            it.width(Dimensions.PaddingNormal).margin(Dimensions.PaddingNormal * 0.5f)
                                 .zLayer(UiSurface.LAYER_POPUP + UiSurface.LAYER_FLOATING)
                                 .colors(
                                     trackColor = EditorTheme.Scrollbar.trackColor,
@@ -189,7 +190,7 @@ fun UiScope.ScriptTextArea(
                                 )
                         },
                         hScrollbarModifier = {
-                            it.height(sizes.smallGap).margin(sizes.smallGap * 0.5f)
+                            it.height(Dimensions.PaddingNormal).margin(Dimensions.PaddingNormal * 0.5f)
                                 .zLayer(UiSurface.LAYER_POPUP + UiSurface.LAYER_FLOATING)
                                 .colors(
                                     trackColor = EditorTheme.Scrollbar.trackColor,
@@ -201,23 +202,27 @@ fun UiScope.ScriptTextArea(
                         scrollPaneModifier = {
                             it.allowOverscrollY = false
                         }) {
-                        modifier.margin(end = sizes.gap)
+                        modifier.margin(end = Dimensions.PaddingMedium)
 
                         textArea.completionsList = (this as LazyListNode).state
 
-                        val currentLine = lineProvider[textArea.modifier.selectionCaretLine].text
+                        val currentLine = editorState.provider[textArea.modifier.selectionCaretLine].text
                         val currentCharIdx = textArea.modifier.selectionCaretChar
                         val prefixStart = TextCaretNavigation.startOfExpression(currentLine, currentCharIdx)
                         val typedPrefix = if (prefixStart != -1 && prefixStart < currentCharIdx) {
                             currentLine.substring(prefixStart, currentCharIdx)
                         } else ""
 
+                        val font = textArea.modifier.editorConfig.font.derive(16f)
+
                         itemsIndexed(completions) { index, completion ->
                             CompletionRenderer.renderCompletion(
-                                completion,
-                                textArea.completionIndex.use() == index,
-                                typedPrefix
-                            ) { textArea.applyCompletion(it) }
+                                completion = completion,
+                                isSelected = textArea.completionIndex.use() == index,
+                                typedPrefix = typedPrefix,
+                                font = font,
+                                onClick = { textArea.applyCompletion(it) }
+                            )
                         }
                     }
                 }
@@ -233,10 +238,10 @@ fun UiScope.ScriptTextArea(
                 modifier.background(UiRenderer { node ->
                     node.apply {
                         getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRoundRect(
-                            0f, 0f, widthPx, heightPx, sizes.smallGap.px, colors.background
+                            0f, 0f, widthPx, heightPx, Dimensions.PaddingNormal.px, colors.background
                         )
                         getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRoundRectBorder(
-                            0f, 0f, widthPx, heightPx, sizes.smallGap.px, sizes.borderWidth.px, colors.primaryVariant
+                            0f, 0f, widthPx, heightPx, Dimensions.PaddingNormal.px, Dimensions.PaddingSmall.px, colors.primaryVariant
                         )
                     }
                 }).zLayer(100_000_000)
@@ -244,7 +249,7 @@ fun UiScope.ScriptTextArea(
                 modifier.width(Grow(1f, max = FitContent))
 
                 Text(currentError) {
-                    modifier.margin(sizes.smallGap).isWrapText(true).width(Grow.Std)
+                    modifier.margin(Dimensions.PaddingNormal).isWrapText(true).width(Grow.Std)
                 }
             }
         }
@@ -259,6 +264,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     override val isFocused = mutableStateOf(false)
 
     lateinit var lineProvider: TextLineProvider
+    lateinit var editorState: EditorState
     lateinit var completionsList: LazyListState
 
     lateinit var listState: LazyListState
@@ -280,6 +286,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
     private val completionManager = CompletionManager(modifier, { completionIndex }) { if (this::completionsList.isInitialized) completionsList else null }
     private val inputController = TextInputController(
         modifier = modifier,
+        state = { editorState },
         selectionController = selectionController,
         lineProvider = { lineProvider },
         requestFocusNone = { surface.requestFocus(null) },
@@ -290,7 +297,8 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         var lineIndex = -1
         lateinit var indents: IntArray
 
-        val font = MsdfFont(ColorTheme.Fonts.MONOCRAFT, 18f)
+        val font: MsdfFont
+            get() = this@TextAreaNode.modifier.editorConfig.font
 
         override fun render(ctx: KoolContext) {
             renderCurrentLineBackground()
@@ -310,7 +318,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         private fun renderDiagnostics() {
             val maxWidth =
                 if (this@TextAreaNode.modifier.editorConfig.showLineNumbers) {
-                    font.textDimensions(lineProvider.size.toString()).width.dp + sizes.smallGap * 2f
+                    font.textDimensions(lineProvider.size.toString()).width.dp + Dimensions.PaddingNormal * 2f
                 } else {
                     Dp(0f)
                 }
@@ -338,20 +346,20 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                     getPlainBuilder(UiSurface.LAYER_FLOATING).configured(color, clipped = false) {
                         val leftPos = maxWidth.px + Dimensions.PaddingHuge.px
 
-                        val rangeEnd = clipBoundsPx.z - leftPx - TextAreaConfig.SQUIGGLY_AMPLITUDE.toFloat()
+                        val rangeEnd = clipBoundsPx.z - leftPx - TextEditorConstants.SQUIGGLY_AMPLITUDE.toFloat()
                         for (i in ((leftPos + startPos).toInt()..(leftPos + endPos).coerceAtMost(rangeEnd)
                             .toInt()).step(
-                            TextAreaConfig.SQUIGGLY_STEP
+                            TextEditorConstants.SQUIGGLY_STEP
                         )) {
                             val offset =
-                                if (i % 2 == 0) TextAreaConfig.SQUIGGLY_AMPLITUDE else -TextAreaConfig.SQUIGGLY_AMPLITUDE
+                                if (i % 2 == 0) TextEditorConstants.SQUIGGLY_AMPLITUDE else -TextEditorConstants.SQUIGGLY_AMPLITUDE
                             line(
                                 Vec2f(i.toFloat(), heightPx + offset),
                                 Vec2f(
-                                    i + TextAreaConfig.SQUIGGLY_STEP.toFloat(),
+                                    i + TextEditorConstants.SQUIGGLY_STEP.toFloat(),
                                     heightPx - offset
                                 ),
-                                TextAreaConfig.SQUIGGLY_LINE_WIDTH
+                                TextEditorConstants.SQUIGGLY_LINE_WIDTH
                             )
                         }
 
@@ -374,12 +382,12 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
             for (i in indents) {
                 val x =
-                    guideStartX + i * spaceWidth - sizes.smallGap.px * TextAreaConfig.INDENT_GUIDE_OFFSET
+                    guideStartX + i * spaceWidth - Dimensions.PaddingNormal.px * TextEditorConstants.INDENT_GUIDE_OFFSET
                 val color =
                     if (selectionController.selectionCaretChar == i && lineIndex == this@TextAreaNode.modifier.selectionCaretLine)
-                        EditorTheme.indentGuide.withAlpha(TextAreaConfig.INDENT_GUIDE_ACTIVE_ALPHA)
+                        EditorTheme.indentGuide.withAlpha(TextEditorConstants.INDENT_GUIDE_ACTIVE_ALPHA)
                     else
-                        EditorTheme.indentGuide.withAlpha(TextAreaConfig.INDENT_GUIDE_INACTIVE_ALPHA)
+                        EditorTheme.indentGuide.withAlpha(TextEditorConstants.INDENT_GUIDE_INACTIVE_ALPHA)
 
                 getUiPrimitives(UiSurface.LAYER_BACKGROUND)
                     .localRect(x, 0f, Dimensions.PaddingSmall.px, heightPx, color)
@@ -404,7 +412,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         if (modifier.editorConfig.showBackground) {
             modifier.margin(horizontal = Dimensions.PaddingNormal).margin(bottom = Dimensions.PaddingNormal)
                 .padding(Dimensions.PaddingHuge)
-                .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, sizes.smallGap))
+                .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, Dimensions.PaddingNormal))
         }
 
         ScrollPane(listState) {
@@ -448,6 +456,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
     private fun setText(lineProvider: TextLineProvider) {
         val textAreaMod = this@TextAreaNode.modifier
+        val font = textAreaMod.editorConfig.font
 
         val indentManager = IndentStackManager()
         for (i in 0..<linesHolder.state.itemsFrom.use().coerceAtMost(lineProvider.size)) {
@@ -461,8 +470,6 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             val line = lineProvider[lineIndex]
             val indentIndex = line.text.indexOfFirst { it != ' ' }
             indentManager.popToIndent(indentIndex, line.length)
-
-            val font = MsdfFont(ColorTheme.Fonts.MONOCRAFT, 18f)
 
             val lineItem = uiNode.createChild(null, LineItem::class, lineItemFactory)
             lineItem.lineIndex = lineIndex
@@ -516,10 +523,10 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
 
             var dotIndex = TextCaretNavigation.startOfExpression(line.text, selectionIndex)
             if (dotIndex == -1) dotIndex = selectionIndex
-            completionX.set(it.leftPx + line.charIndexToPx(dotIndex) + sizes.smallGap.px)
+            completionX.set(it.leftPx + line.charIndexToPx(dotIndex) + Dimensions.PaddingNormal.px)
 
             val sizeY =
-                (24.dp + sizes.smallGap).px * areaModifier.completions.size.coerceAtMost(TextAreaConfig.MAX_COMPLETION_ITEMS) + 24.dp.px
+                (24.dp + Dimensions.PaddingNormal).px * areaModifier.completions.size.coerceAtMost(TextEditorConstants.MAX_COMPLETION_ITEMS) + 24.dp.px
             val viewportBottom = surface.viewport.bottomPx
             if (it.bottomPx + sizeY > viewportBottom) {
                 completionY.set(it.topPx - sizeY)
@@ -557,6 +564,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         val provider = lineProvider
         val ctx = EditorCommandContext(
             event = null,
+            state = editorState,
             selection = selectionController,
             lineProvider = provider,
             inputController = inputController,

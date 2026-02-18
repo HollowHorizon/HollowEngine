@@ -16,6 +16,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.bracke
 
 class TextInputController(
     val modifier: ScriptTextAreaModifier,
+    private val state: () -> EditorState,
     private val selectionController: TextSelectionController,
     private val lineProvider: () -> TextLineProvider,
     private val requestFocusNone: () -> Unit,
@@ -96,6 +97,7 @@ class TextInputController(
     private fun createContext(provider: TextLineProvider, event: KeyEvent? = null): EditorCommandContext {
         return EditorCommandContext(
             event = event,
+            state = state(),
             selection = selectionController,
             lineProvider = provider,
             inputController = this,
