@@ -35,20 +35,48 @@ class EditorAnalysisState {
 
 @OptIn(FlowPreview::class)
 class CompiledFileProvider(
-    val file: File,
+    private val file: File? = null,
+    private val name: String? = null,
+    initialText: String? = null,
     private val analyzer: ScriptingAnalyzer,
+    private val autoSave: Boolean = true,
 ) : TextLineProvider, TextEditorHandler, UndoRedoHandler {
 
+    constructor(file: File, analyzer: ScriptingAnalyzer) : this(
+        file = file,
+        name = null,
+        initialText = null,
+        analyzer = analyzer,
+        autoSave = true
+    )
+
     constructor(file: File) : this(file, ScriptingEnvironment.INSTANCE.analyzer)
+
+    constructor(name: String, analyzer: ScriptingAnalyzer, initialText: String = "") : this(
+        file = null,
+        name = name,
+        initialText = initialText,
+        analyzer = analyzer,
+        autoSave = false
+    )
 
     val analysisState = EditorAnalysisState()
 
     val font = MsdfFont(ColorTheme.Fonts.MONOCRAFT, 18f)
     val lines = ArrayList<ScriptTextLine>()
-    var currentText: String = file.readText().replace("\t", " ".repeat(TextAreaConfig.INDENT_SIZE))
+
+    var onTextChanged: ((String) -> Unit)? = null
+
+    var currentText: String = initialText
+        ?.replace("\t", " ".repeat(TextAreaConfig.INDENT_SIZE))
+        ?: file?.readText()?.replace("\t", " ".repeat(TextAreaConfig.INDENT_SIZE))
+        ?: ""
         private set(value) {
             field = value
-            scheduleWrite(value)
+            onTextChanged?.invoke(value)
+            if (autoSave && file != null) {
+                scheduleWrite(value)
+            }
         }
 
     private val scopeJob = SupervisorJob()
@@ -64,6 +92,9 @@ class CompiledFileProvider(
     @Volatile
     private var latestText: String? = null
 
+    private val sourceName: String
+        get() = name ?: file?.name ?: "unknown"
+
     private data class AnalysisParams(
         val text: String,
         val line: Int,
@@ -71,23 +102,17 @@ class CompiledFileProvider(
     )
 
     init {
-        // Initial setup
         val initialLines = currentText.lines().map {
-            // Simple initial highlight, will be overwritten by analyzer shortly
             ScriptTextLine(listOf(it to TextAttributes(font, Color.WHITE)))
         }
         lines.addAll(initialLines)
 
-        // Trigger initial analysis
         requestAnalysis(0, 0)
 
-        // Start the processing loop
         scope.launch {
             analysisRequest
                 .debounce(AnalysisConfig.DEBOUNCE_DELAY_MS)
-                .collectLatest { params ->
-                    processAnalysis(params)
-                }
+                .collectLatest { params -> processAnalysis(params) }
         }
     }
 
@@ -95,10 +120,11 @@ class CompiledFileProvider(
         writeJob?.cancel()
         writeJob = null
         latestText = null
-        file.writeText(currentText)
+        file?.writeText(currentText)
     }
 
     private fun scheduleWrite(text: String) {
+        if (file == null) return
         writeJob?.cancel()
         latestText = text
         writeJob = scope.launch {
@@ -142,7 +168,6 @@ class CompiledFileProvider(
     ): Vec2i {
         val currentTime = System.currentTimeMillis()
 
-        // Проверка границ для безопасности
         val safeStartLine = selectionStartLine.coerceIn(0, lines.lastIndex.coerceAtLeast(0))
         val safeEndLine = selectionEndLine.coerceIn(0, lines.lastIndex.coerceAtLeast(0))
         val startLineText = lines[safeStartLine].text
@@ -187,28 +212,26 @@ class CompiledFileProvider(
         oldLines: List<ScriptTextLine>, newLines: List<ScriptTextLine>,
         replacement: String, currentTime: Long
     ) {
-        val isSingleCharInsert = replacement.length == 1 && oldLines.size == 1 && oldLines[0].text.length + 1 == newLines[0].text.length
+        val isSingleCharInsert = replacement.length == 1 &&
+                oldLines.size == 1 &&
+                oldLines[0].text.length + 1 == newLines[0].text.length
 
         if (undoStack.isNotEmpty() && (currentTime - lastEditTime) < AnalysisConfig.UNDO_DEBOUNCE_MS) {
             val lastAction = undoStack.peek()
 
-            // Logic for merging: If we are just appending characters on the same line
             if (lastAction.canMerge && isSingleCharInsert &&
                 lastAction.caretLine == startLine &&
-                lastAction.caretChar == startChar) {
-
-                // Update the existing action instead of pushing a new one
-                lastAction.newLines = newLines // Update result
+                lastAction.caretChar == startChar
+            ) {
+                lastAction.newLines = newLines
                 lastAction.caretLine = finalCaretLine
                 lastAction.caretChar = finalCaretChar
-                // startLine/startChar remain the same (start of the group)
-
                 lastEditTime = currentTime
                 redoStack.clear()
                 return
             }
         }
-        
+
         val action = UndoableAction(
             startLine = startLine,
             startChar = startChar,
@@ -243,7 +266,6 @@ class CompiledFileProvider(
     private suspend fun processAnalysis(params: AnalysisParams) = withContext(Dispatchers.Default) {
         val (txt, line, char) = params
         try {
-            // 1. Completions
             val safeLine = line.coerceIn(0, txt.lines().lastIndex.coerceAtLeast(0))
             val safeChar = runCatching {
                 val ln = txt.lines().getOrNull(safeLine) ?: ""
@@ -251,21 +273,14 @@ class CompiledFileProvider(
             }.getOrDefault(0)
 
             val offset = offset(txt, safeLine, safeChar)
-            val completions = analyzer.completions(file.name, txt, offset)
-
-            // 2. Diagnostics
-            val diagnostics = analyzer.diagnostic(file.name, txt)
+            val completions = analyzer.completions(sourceName, txt, offset)
+            val diagnostics = analyzer.diagnostic(sourceName, txt)
 
             withContext(KoolDispatchers.Frontend) {
-                // Проверяем, что текст не изменился с момента запроса анализа
                 val currentTextSnapshot = lines.joinToString("\n") { it.text }
-                if (currentTextSnapshot != txt) {
-                    // Текст изменился, пропускаем обновление автодополнений
-                    return@withContext
-                }
-                
+                if (currentTextSnapshot != txt) return@withContext
+
                 analysisState.completions.clear()
-                // Не добавляем автодополнения для пустых строк
                 val safeLineText = txt.lines().getOrNull(safeLine) ?: ""
                 if (safeLineText.isNotBlank() || completions.isEmpty()) {
                     analysisState.completions.addAll(completions)
@@ -286,31 +301,17 @@ class CompiledFileProvider(
     ) {
         try {
             val off = offset(textSnapshot, selectionStartLine, selectionStartChar)
-            val colored = highlight(file.name, textSnapshot, off)
+            val colored = highlight(sourceName, textSnapshot, off)
 
             withContext(KoolDispatchers.Frontend) {
-                // Проверяем, что текст не изменился с момента запроса анализа
                 val currentTextSnapshot = lines.joinToString("\n") { it.text }
-                if (currentTextSnapshot != textSnapshot) {
-                    // Текст изменился, пропускаем обновление подсветки
-                    return@withContext
-                }
-                
+                if (currentTextSnapshot != textSnapshot) return@withContext
+
                 if (colored.size == lines.size) {
-                    // Обновляем только стили, сохраняя текст
                     for (i in colored.indices) {
-                        val oldLine = lines[i]
-                        val newLine = colored[i].toKool(font)
-                        // Сохраняем текст из старой строки, если он совпадает по длине
-                        if (oldLine.text == newLine.text || oldLine.text.length == newLine.text.length) {
-                            lines[i] = newLine
-                        } else {
-                            // Текст изменился, используем новый
-                            lines[i] = newLine
-                        }
+                        lines[i] = colored[i].toKool(font)
                     }
                 } else {
-                    // Количество строк изменилось - полная замена
                     lines.clear()
                     lines.addAll(colored.map { it.toKool(font) })
                 }
@@ -326,46 +327,40 @@ class CompiledFileProvider(
         replaceText(0, lines.lastIndex.coerceAtLeast(0), 0, lines.lastOrNull()?.length ?: 0, text)
     }
 
-    private fun applyAction(action: UndoableAction, isUndo: Boolean, onSelectionChanged: ((Int, Int, Int, Int) -> Unit)?) {
+    private fun applyAction(
+        action: UndoableAction,
+        isUndo: Boolean,
+        onSelectionChanged: ((Int, Int, Int, Int) -> Unit)?,
+    ) {
         val linesToRemove = if (isUndo) action.newLines else action.oldLines
         val linesToInsert = if (isUndo) action.oldLines else action.newLines
 
-        // Calculate Caret Position AFTER operation
         val finalCaretLine: Int
         val finalCaretChar: Int
-
         if (isUndo) {
-            // Go back to where we started before the edit
             finalCaretLine = action.startLine.coerceIn(0, lines.lastIndex.coerceAtLeast(0))
             val lineText = if (finalCaretLine < lines.size) lines[finalCaretLine].text else ""
             finalCaretChar = action.startChar.coerceIn(0, lineText.length)
         } else {
-            // Go to where we ended up after the edit
             finalCaretLine = action.caretLine.coerceIn(0, lines.lastIndex.coerceAtLeast(0))
             val lineText = if (finalCaretLine < lines.size) lines[finalCaretLine].text else ""
             finalCaretChar = action.caretChar.coerceIn(0, lineText.length)
         }
 
         val startLineIndex = action.startLine.coerceIn(0, lines.lastIndex.coerceAtLeast(0))
-
-        // Safe removal
         if (startLineIndex >= 0 && startLineIndex + linesToRemove.size <= lines.size) {
             lines.subList(startLineIndex, startLineIndex + linesToRemove.size).clear()
         } else {
-            lines.clear() // Fallback panic
+            lines.clear()
         }
-
         lines.addAll(startLineIndex, linesToInsert)
         currentText = lines.joinToString("\n") { it.text }
 
-        // Обновляем позицию каретки с учётом новых строк после undo/redo
         val actualFinalLine = finalCaretLine.coerceIn(0, lines.lastIndex.coerceAtLeast(0))
         val actualLineText = if (actualFinalLine < lines.size) lines[actualFinalLine].text else ""
         val actualFinalChar = finalCaretChar.coerceIn(0, actualLineText.length)
 
-        // Update syntax highlight after undo/redo
         requestAnalysis(actualFinalLine, actualFinalChar)
-
         onSelectionChanged?.invoke(actualFinalLine, actualFinalLine, actualFinalChar, actualFinalChar)
     }
 

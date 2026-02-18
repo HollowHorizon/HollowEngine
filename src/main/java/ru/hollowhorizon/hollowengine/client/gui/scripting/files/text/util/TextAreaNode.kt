@@ -17,7 +17,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.UndoRedoHandler
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.commands.ApplyCompletionItemCommand
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextEditorConfig
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
 import kotlin.contracts.ExperimentalContracts
@@ -170,7 +169,7 @@ fun UiScope.ScriptTextArea(
                             (18f.dp + Dimensions.PaddingMedium) * completions.size.coerceAtMost(TextAreaConfig.MAX_COMPLETION_ITEMS)
                         )
                         .width(Grow(1f, max = FitContent))
-                        .zLayer(500)
+                        .zLayer(100_000_000)
 
                     LazyColumn(
                         withVerticalScrollbar = true,
@@ -240,7 +239,7 @@ fun UiScope.ScriptTextArea(
                             0f, 0f, widthPx, heightPx, sizes.smallGap.px, sizes.borderWidth.px, colors.primaryVariant
                         )
                     }
-                }).zLayer(300)
+                }).zLayer(100_000_000)
 
                 modifier.width(Grow(1f, max = FitContent))
 
@@ -301,7 +300,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         }
 
         private fun renderCurrentLineBackground() {
-            if (lineIndex == this@TextAreaNode.modifier.selectionCaretLine && isFocused.use()) {
+            if (lineIndex == this@TextAreaNode.modifier.selectionCaretLine && isFocused.use() || this@TextAreaNode.modifier.editorConfig.singleLine) {
                 getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRect(
                     0f, 0f, widthPx, heightPx, EditorTheme.currentLineBg
                 )

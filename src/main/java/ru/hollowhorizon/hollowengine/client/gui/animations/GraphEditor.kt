@@ -13,7 +13,11 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.configure
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.findParentOfType
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.gui.markdown.rememberTarget
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.GridBackground
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextEditorConfig
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.CompiledFileProvider
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextArea
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.ComboBox
@@ -21,6 +25,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.abs
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.max
 import kotlin.math.atan2
@@ -835,23 +840,62 @@ class GraphEditor {
                             .font(FontProps(size = 14f))
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
                     }
-                    var condText = remember(props.condition)
+                    val condProvider = rememberTarget(conn.id) {
+                        CompiledFileProvider(
+                            name = "transition_${conn.id}.kts",
+                            analyzer = ScriptingEnvironment.INSTANCE.analyzer,
+                            initialText = props.condition,
+                        ).also { provider ->
+                            provider.onTextChanged = { raw ->
+                                // single-line: strip newlines just in case (paste etc.)
+                                val sanitized = raw.replace("\r", " ").replace("\n", " ")
+                                if (sanitized != raw) provider.setText(sanitized)
+                                val next = props.copy(condition = sanitized)
+                                props = next
+                                updateConnectionProperties(conn.id, next)
+                            }
+                        }
+                    }
+                    // keep provider in sync when switching between connections
+                    if (condProvider.currentText != props.condition) {
+                        condProvider.setText(props.condition)
+                    }
+
                     Row {
                         modifier.margin(top = Dimensions.PaddingSmall).width(Grow.Std)
                         Text("Условие:") {
                             modifier.textColor(Color.GRAY).width(Dp(100f)).font(FontProps(size = 12f))
-                                .alignY(AlignmentY.Top)
+                                .alignY(AlignmentY.Center)
                                 .margin(top = Dimensions.PaddingSmall)
                         }
-                        TextField(condText.use()) {
-                            modifier.width(Grow.Std)
-                                .alignY(AlignmentY.Top)
 
-                            modifier.onChange { new ->
-                                condText.set(new)
-                                props = props.copy(condition = new)
-                                updateConnectionProperties(conn.id, props)
-                            }
+                        ScriptTextArea(
+                            lineProvider = condProvider,
+                            width = Grow.Std,
+                            height = Dp(34f),
+                            withVerticalScrollbar = false,
+                            withHorizontalScrollbar = true,
+                        ) {
+                            // minimal embedded editor config
+                            modifier.editorConfig = TextEditorConfig(
+                                showLineNumbers = false,
+                                showBackground = false,
+                                showVerticalScrollbar = false,
+                                showHorizontalScrollbar = false,
+                                showSelectionAndCaret = true,
+                                singleLine = true,
+                                enableKeyMap = true,
+                                enableAutoBrackets = true,
+                            )
+                            modifier.editorHandler = (condProvider)
+
+                            // take completions/diagnostics from provider
+                            modifier.completions.clear()
+                            modifier.completions.addAll(condProvider.analysisState.completions)
+                            modifier.errors.clear()
+                            modifier.errors.addAll(condProvider.analysisState.diagnostics)
+
+                            installDefaultSelectionHandler()
                         }
                     }
 
