@@ -13,13 +13,7 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.configure
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.findParentOfType
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
-import ru.hollowhorizon.hollowengine.client.gui.markdown.rememberTarget
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.GridBackground
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorState
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextEditorConfig
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextSource
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.CompiledFileProvider
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextArea
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.ComboBox
@@ -27,7 +21,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
-import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.abs
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.max
 import kotlin.math.atan2
@@ -837,70 +830,9 @@ class GraphEditor {
 
                     Divider()
 
-                    Text("УСЛОВИЕ (Kotlin)") {
-                        modifier.textColor(ColorTheme.UI.WhiteReplacement)
-                            .font(FontProps(size = 14f))
-                            .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
-                    }
-                    val condProvider = rememberTarget(conn.id) {
-                        val state = EditorState(TextSource.Memory("transition_${conn.id}.kts", props.condition))
-                        state.provider.onTextChanged = { raw ->
-                            // single-line: strip newlines just in case (paste etc.)
-                            val sanitized = raw.replace("\r", " ").replace("\n", " ")
-                            if (sanitized != raw) state.provider.setText(sanitized)
-                            val next = props.copy(condition = sanitized)
-                            props = next
-                            updateConnectionProperties(conn.id, next)
-                        }
-                        state
-                    }
-                    // keep provider in sync when switching between connections
-                    if (condProvider.provider.currentText != props.condition) {
-                        condProvider.provider.setText(props.condition)
-                    }
-
-                    Row {
-                        modifier.margin(top = Dimensions.PaddingSmall).width(Grow.Std)
-                        Text("Условие:") {
-                            modifier.textColor(Color.GRAY).width(Dp(100f)).font(FontProps(size = 12f))
-                                .alignY(AlignmentY.Center)
-                                .margin(top = Dimensions.PaddingSmall)
-                        }
-
-                        ScriptTextArea(
-                            condProvider,
-                            width = Grow.Std,
-                            height = Dp(34f),
-                            withVerticalScrollbar = false,
-                            withHorizontalScrollbar = true,
-                        ) {
-                            // minimal embedded editor config
-                            modifier.editorConfig = TextEditorConfig(
-                                showLineNumbers = false,
-                                showBackground = false,
-                                showVerticalScrollbar = false,
-                                showHorizontalScrollbar = false,
-                                showSelectionAndCaret = true,
-                                singleLine = true,
-                                enableKeyMap = true,
-                                enableAutoBrackets = true,
-                            )
-                            modifier.editorHandler = (condProvider.provider)
-
-                            // take completions/diagnostics from provider
-                            modifier.completions.clear()
-                            modifier.completions.addAll(condProvider.provider.analysisState.completions)
-                            modifier.errors.clear()
-                            modifier.errors.addAll(condProvider.provider.analysisState.diagnostics)
-
-                            installDefaultSelectionHandler()
-                        }
-                    }
-
-                    Divider()
-
-                    ToggleRow("Отключено", props.mute) {
-                        props = props.copy(mute = it)
+                    PropertyTextField("Условие", props.condition) { new ->
+                        val value = new
+                        props = props.copy(condition = value)
                         updateConnectionProperties(conn.id, props)
                     }
                 }

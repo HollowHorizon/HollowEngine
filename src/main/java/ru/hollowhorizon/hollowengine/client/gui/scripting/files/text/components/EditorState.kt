@@ -1,6 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components
 
 import de.fabmax.kool.util.MsdfFont
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.CompiledFileProvider
@@ -9,6 +11,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextEd
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextLineProvider
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 
+@Serializable
 data class TextEditorConfig(
     var showLineNumbers: Boolean = true,
     var showBackground: Boolean = true,
@@ -19,9 +22,11 @@ data class TextEditorConfig(
     var enableKeyMap: Boolean = true,
     var enableAutoBrackets: Boolean = true,
     var fontSize: Float = Dimensions.FontNormal,
-    var font: MsdfFont = MsdfFont(ColorTheme.Fonts.MONOCRAFT, Dimensions.FontNormal),
     var indentSize: Int = 4,
-)
+) {
+    @Transient
+    var font: MsdfFont = MsdfFont(ColorTheme.Fonts.MONOCRAFT, Dimensions.FontNormal)
+}
 
 interface TextSource {
     val name: String
