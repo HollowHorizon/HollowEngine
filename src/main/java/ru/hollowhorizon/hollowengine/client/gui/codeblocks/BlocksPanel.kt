@@ -203,7 +203,8 @@ class BlocksPanel(val editor: BlockEditor) {
             val isHovered by modifier.hoverable()
             val color by animateColorAsState(if (isHovered) ColorTheme.UI.BackgroundAccent else ColorTheme.UI.BackgroundSecondary)
             modifier.background(RoundRectBackground(color, Dimensions.PaddingNormal))
-                .onClick { if (it.pointer.isLeftButtonClicked) isMinimized.set(!isMinimized.use()) }
+                .onClick { if (it.pointer.isLeftButtonEvent) isMinimized.set(!isMinimized.use()) }
+                .zLayer(100_000_000)
 
             Image(if (isMinimized.use()) icons.MAXIMIZE else icons.MINIMIZE) {
                 modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)

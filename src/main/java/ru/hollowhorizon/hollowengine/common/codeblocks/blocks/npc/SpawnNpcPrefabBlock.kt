@@ -1,16 +1,18 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc
 
-import com.mineinabyss.geary.helpers.temporaryEntity
+import com.mineinabyss.geary.datatypes.Component
+import com.mineinabyss.geary.prefabs.PrefabKey
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
-import com.mineinabyss.geary.prefabs.entityOfOrNull
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
@@ -18,12 +20,10 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
-import ru.hollowhorizon.hollowengine.common.geary.api.geary
 import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.setAllSyncablePersisting
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.formats
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.serializers
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.utils.yaml.YamlFormat
 
 @Serializable
 @SerialName("hollowengine:npc/spawn_prefab")
@@ -38,14 +38,22 @@ class SpawnNpcPrefabBlock(
 
     @Serializable
     private data class PrefabYaml(
-        val components: List<PrefabComponentYaml> = emptyList(),
+        val components: Map<String, String> = emptyMap(),
+        val prefabs: Set<PrefabKey> = emptySet(),
     )
 
-    @Serializable
-    private data class PrefabComponentYaml(
-        val key: String,
-        val data: String,
-    )
+    @Transient
+    private val prefabSerializersModule: SerializersModule = SerializersModule {
+        polymorphic(Any::class) {
+            ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry.map { it.value }.forEach { holder ->
+                @Suppress("UNCHECKED_CAST")
+                subclass(
+                    holder.value as kotlin.reflect.KClass<Any>,
+                    holder.serializer as kotlinx.serialization.KSerializer<Any>
+                )
+            }
+        }
+    }
 
     override suspend fun execute(): Any? {
         val server: MinecraftServer = currentServer
@@ -65,35 +73,27 @@ class SpawnNpcPrefabBlock(
         val file = prefabPath.fromReadablePath()
         if (file.exists()) {
             val yaml = file.readText()
-            val prefabYaml = YamlFormat.decodeFromString<PrefabYaml>(yaml)
+            val prefabYaml = YamlFormat.decodeFromString(PrefabYaml.serializer(), yaml, prefabSerializersModule)
 
-            if (prefabYaml.components.isNotEmpty()) {
-                val geary = npc.level().geary
-                geary.temporaryEntity { prefabEntity ->
-                    val decodedComponents =
-                        ArrayList<com.mineinabyss.geary.datatypes.Component>(prefabYaml.components.size)
-                    prefabYaml.components.forEach { comp ->
-                        val key = comp.key.rl
-                        val holder =
-                            ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry.getOrNull(key)
-                                ?: return@forEach
+            val decodedComponents = ArrayList<Component>(prefabYaml.components.size)
+            prefabYaml.components.forEach { (keyString, data) ->
+                val key = keyString.rl
+                val holder = ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry.getOrNull(key)
+                    ?: return@forEach
 
-                        @Suppress("UNCHECKED_CAST")
-                        val serializer = holder.serializer as kotlinx.serialization.KSerializer<Any>
-                        val decoded = runCatching { YamlFormat.yaml.decodeFromString(serializer, comp.data) }
-                            .getOrNull() as? com.mineinabyss.geary.datatypes.Component
-                            ?: return@forEach
+                @Suppress("UNCHECKED_CAST")
+                val serializer = holder.serializer as kotlinx.serialization.KSerializer<Any>
+                val decoded = runCatching { YamlFormat.decodeFromString(serializer, data, prefabSerializersModule) }
+                    .getOrNull()
+                    ?: return@forEach
 
-                        decodedComponents += decoded
-                    }
-
-                    if (decodedComponents.isNotEmpty()) {
-                        prefabEntity.setAllSyncablePersisting(decodedComponents)
-                    }
-
-                    npc.entity.extend(prefabEntity)
-                }
+                decodedComponents += decoded
             }
+
+            if (decodedComponents.isNotEmpty()) {
+                npc.entity.setAllSyncablePersisting(decodedComponents)
+            }
+
         }
 
         return npc

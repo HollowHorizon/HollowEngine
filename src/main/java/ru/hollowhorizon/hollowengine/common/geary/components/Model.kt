@@ -1,9 +1,12 @@
 package ru.hollowhorizon.hollowengine.common.geary.components
 
 import de.fabmax.kool.util.Time
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.entity.LivingEntityRenderer
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.Mth
@@ -15,6 +18,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.controller.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationSystem
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -79,6 +83,8 @@ data class Model(
     }
 }
 
+private var updateJob: Job? = null
+
 @SubscribeEvent
 fun onRender(event: RenderEntityEvent.Pre) {
     val fleks = event.entity.entity
@@ -88,7 +94,11 @@ fun onRender(event: RenderEntityEvent.Pre) {
     // Обновляем анимации если они включены
     model.animationSystem?.let { animationSystem ->
         if (event.entity is LivingEntity) {
-            model.getOrCreateController()?.update(event.entity as LivingEntity, Time.deltaT)
+            if(updateJob?.isActive == false) {
+                updateJob = Minecraft.getInstance().coroutineScope.launch {
+                    model.getOrCreateController()?.update(event.entity as LivingEntity, Time.deltaT)
+                }
+            }
             animationSystem.update(Time.deltaT)
         }
     }

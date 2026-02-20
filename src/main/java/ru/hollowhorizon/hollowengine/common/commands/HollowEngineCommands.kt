@@ -34,6 +34,8 @@ import ru.hollowhorizon.hollowengine.common.geary.api.entity
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.geary.sync.setSyncing
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystem
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.clearDevHistory
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.utils.*
@@ -144,6 +146,100 @@ private fun CommandExtension.registerUtilityCommands() {
         executes {
             copyTargetPositionToClipboard(source.playerOrException)
             SUCCESS
+        }
+    }
+}
+
+private fun CommandExtension.registerCodeBlocksCommands() {
+    "codeblocks" {
+        requires { hasPermission(2) }
+
+        "reload" {
+            executes {
+                val system = BlocksSystemSavedData.get(source.server)
+                system.reloadScripts()
+                sendSuccess { "CodeBlocks: reloaded scripts".literal }
+            }
+        }
+
+        "list" {
+            executes {
+                val system = BlocksSystemSavedData.get(source.server)
+                if (system.scripts.isEmpty()) {
+                    sendSuccess { "CodeBlocks: no scripts loaded".literal }
+                } else {
+                    sendSuccess { "CodeBlocks scripts:".literal }
+                    system.scripts.keys.sorted().forEach { p ->
+                        source.sendSuccess({ "- $p".literal }, false)
+                    }
+                }
+                SUCCESS
+            }
+        }
+
+        "start"(arg("path", StringArgumentType.greedyString())) {
+            executes {
+                val system = BlocksSystemSavedData.get(source.server)
+                system.reloadScripts()
+                val path = StringArgumentType.getString(this, "path")
+                val script = system.scripts[path]
+                if (script == null) {
+                    sendFailure("CodeBlocks: script not found: $path".literal)
+                } else {
+                    script.stopAll()
+                    script.startAllTriggers()
+                    sendSuccess { "CodeBlocks: started $path".literal }
+                }
+            }
+        }
+
+        "stop"(arg("path", StringArgumentType.greedyString())) {
+            executes {
+                val system = BlocksSystemSavedData.get(source.server)
+                val path = StringArgumentType.getString(this, "path")
+                val script = system.scripts[path]
+                if (script == null) {
+                    sendFailure("CodeBlocks: script not found: $path".literal)
+                } else {
+                    script.stopAll()
+                    sendSuccess { "CodeBlocks: stopped $path".literal }
+                }
+            }
+        }
+
+        "globals" {
+            "list" {
+                executes {
+                    val system = BlocksSystemSavedData.get(source.server)
+                    if (system.globals.keys.isEmpty()) {
+                        sendSuccess { "CodeBlocks globals: empty".literal }
+                    } else {
+                        sendSuccess { "CodeBlocks globals:".literal }
+                        system.globals.keys.sorted().forEach { k ->
+                            source.sendSuccess({ "- $k".literal }, false)
+                        }
+                    }
+                    SUCCESS
+                }
+            }
+
+            "clear" {
+                executes {
+                    val system = BlocksSystemSavedData.get(source.server)
+                    system.globals.keys.toList().forEach(system.globals::remove)
+                    sendSuccess { "CodeBlocks globals cleared".literal }
+                }
+            }
+        }
+
+        "dev" {
+            "clear" {
+                executes {
+                    val system = BlocksSystemSavedData.get(source.server)
+                    system.clearDevHistory()
+                    sendSuccess { "CodeBlocks dev history cleared".literal }
+                }
+            }
         }
     }
 }

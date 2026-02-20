@@ -60,7 +60,7 @@ class AnimationInstance(private val animation: Animation) {
         when (wrapMode) {
             WrapMode.Once -> {
                 if (time >= animation.duration) {
-
+                    weight = 0f
                 }
             }
 

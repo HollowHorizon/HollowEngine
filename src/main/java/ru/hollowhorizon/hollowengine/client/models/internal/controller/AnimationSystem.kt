@@ -2,11 +2,7 @@ package ru.hollowhorizon.hollowengine.client.models.internal.controller
 
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.AnimatableFloat
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
 
 class AnimationSystem(val model: ModelAttachment) {
@@ -33,6 +29,7 @@ class AnimationSystem(val model: ModelAttachment) {
         from: String? = null,
         to: String? = null,
         duration: Float = 0.33f,
+        wrapMode: WrapMode = WrapMode.Loop,
         easing: Easing.Easing = Easing.smooth,
     ) {
         val original = from?.let { model.animations[it] }
@@ -44,7 +41,7 @@ class AnimationSystem(val model: ModelAttachment) {
         val animatable = AnimatableFloat(0f)
 
         target?.time = 0f
-        target?.wrapMode = WrapMode.Loop
+        target?.wrapMode = wrapMode
 
         animatable.onChange { old, new ->
             target?.weight = new

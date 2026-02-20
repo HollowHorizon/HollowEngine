@@ -7,6 +7,8 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
@@ -14,18 +16,26 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.EditorIcon
 import ru.hollowhorizon.hollowengine.common.geary.components.GenericEditor
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.formats
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.serializers
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.utils.yaml.YamlFormat
 import kotlin.reflect.full.findAnnotation
 
 class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
     private val components = mutableStateListOf<EditorComponent>()
+
+    private val prefabSerializersModule: SerializersModule = SerializersModule {
+        polymorphic(Any::class) {
+            ComponentRegistry.map { it.value }.forEach { holder ->
+                @Suppress("UNCHECKED_CAST")
+                subclass(holder.value as kotlin.reflect.KClass<Any>, holder.serializer as KSerializer<Any>)
+            }
+        }
+    }
 
     @Serializable
     private data class PrefabYaml(
@@ -37,8 +47,8 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
         if (bytes.isNotEmpty()) {
             runCatching {
                 val yaml = bytes.toString(Charsets.UTF_8)
-                val geary = modelController.mcEntity.level().geary
-                val prefab = geary.formats.get("yml").decode(geary.serializers.serializersModule.serializer(), yaml) as PrefabYaml
+                val prefab = YamlFormat.withModule(prefabSerializersModule)
+                    .decodeFromString(PrefabYaml.serializer(), yaml)
 
                 prefab.components.forEach { (keyString, data) ->
                     val key = keyString.rl
@@ -46,7 +56,7 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
 
                     @Suppress("UNCHECKED_CAST")
                     val serializer = holder.serializer as KSerializer<Any>
-                    val decoded = geary.formats.get("yml").decode(serializer, data)
+                    val decoded = YamlFormat.decodeFromString(serializer, data, prefabSerializersModule)
 
                     @Suppress("UNCHECKED_CAST")
                     val state = mutableStateOf(decoded as Component)
@@ -66,20 +76,19 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
 
         val prefab = PrefabYaml(
             components = run {
-                val geary = modelController.mcEntity.level().geary
                 components.associate { ec ->
                     val component = ec.state.value
                     val key = ec.key.toString()
 
                     @Suppress("UNCHECKED_CAST")
                     val serializer = ec.holder.serializer as KSerializer<Any>
-                    key to geary.formats.get("yml").encode(serializer, component)
+                    key to YamlFormat.encodeToString(serializer, component, prefabSerializersModule)
                 }
             }
         )
 
-        val geary = modelController.mcEntity.level().geary
-        val text = geary.formats.get("yml").encode(geary.serializers.serializersModule.serializer(), prefab)
+        val text = YamlFormat.withModule(prefabSerializersModule)
+            .encodeToString(PrefabYaml.serializer(), prefab)
         file.writeText(text)
     }
 

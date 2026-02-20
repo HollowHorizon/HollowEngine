@@ -7,7 +7,6 @@ import de.fabmax.kool.util.*
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.PuzzleShapes.drawInnerShadow
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
-
 import ru.hollowhorizon.hollowengine.common.codeblocks.isExpression
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
@@ -15,7 +14,6 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.EndBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.mixins.kool.UiNodeAccessor
 import kotlin.math.max
-import kotlin.math.min
 
 class ScratchBlockBackground(
     val block: BlockModel,
@@ -41,7 +39,7 @@ class ScratchBlockBackground(
         val notchX = gap
         val r = smallGap
 
-        val w = node.widthPx - if(isTrigger) Dimensions.PaddingMedium.px * zoom else 0f
+        val w = node.widthPx - 0f
         val h = node.heightPx
         val x = 0f
         val y = 0f
@@ -68,7 +66,7 @@ class ScratchBlockBackground(
                 points.add(Vec3f(x, tyStart, 0f))
             }
         } else {
-            val rTopLeft = if (isTrigger) gap * 1.5f else r
+            val rTopLeft = r
 
             PuzzleShapes.addBezier(points, x, y + rTopLeft, x, y, x + rTopLeft, y)
             if (hasPrev) {
@@ -78,57 +76,6 @@ class ScratchBlockBackground(
                 points.add(Vec3f(x + notchX + notchWidth, y, 0f))
             }
             PuzzleShapes.addBezier(points, x + w - r, y, x + w, y, x + w, y + r)
-
-            if (isTrigger) {
-                val cy = y + h / 2f
-
-                val totalR = (h * 0.25f)
-                val filletR = r * 0.5f
-
-                val k = 0.55228f
-
-                val yTopStart = cy - totalR
-                val yTopArc = cy - totalR + filletR * 0.5f
-                val yBottomArc = cy + totalR - filletR * 0.5f
-                val yBottomEnd = cy + totalR
-
-                val innerR = totalR - filletR * 0.5f
-
-                points.add(Vec3f(x + w, yTopStart, 0f))
-
-                PuzzleShapes.addCubicBezier(
-                    points,
-                    x + w, yTopStart,
-                    x + w, yTopStart + filletR * k,
-                    x + w - filletR + filletR * k, yTopArc,
-                    x + w - filletR, yTopArc,
-                )
-
-                PuzzleShapes.addCubicBezier(
-                    points,
-                    x + w - filletR, yTopArc,
-                    x + w - filletR - innerR * k, yTopArc,
-                    x + w - totalR, cy - innerR * k,
-                    x + w - totalR, cy
-                )
-
-                PuzzleShapes.addCubicBezier(
-                    points,
-                    x + w - totalR, cy,
-                    x + w - totalR, cy + innerR * k,
-                    x + w - filletR - innerR * k, yBottomArc,
-                    x + w - filletR, yBottomArc
-                )
-
-                PuzzleShapes.addCubicBezier(
-                    points,
-                    x + w - filletR, yBottomArc,
-                    x + w - filletR + filletR * k, yBottomArc,
-                    x + w, yBottomEnd - filletR * k,
-                    x + w, yBottomEnd
-                )
-
-            }
 
             PuzzleShapes.addBezier(points, x + w, y + h - r, x + w, y + h, x + w - r, y + h)
 

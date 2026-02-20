@@ -5,8 +5,8 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
-import ru.hollowhorizon.hollowengine.common.geary.api.geary
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
@@ -28,7 +28,7 @@ class NpcAnimationTransitionPacket(
         val system = model.animationSystem ?: return
 
         system.scope.launch {
-            system.transition(from = from, to = to, duration = duration, easing = Easing.smooth)
+            system.transition(from = from, to = to, duration = duration, easing = Easing.smooth, wrapMode = WrapMode.Once)
         }
     }
 }
