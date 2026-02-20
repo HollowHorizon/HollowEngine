@@ -24,6 +24,7 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -194,7 +195,15 @@ class StartScriptPacket(val path: String) : HollowPacket {
             val file = path.fromReadablePath()
 
             if (file.name.endsWith(".bc")) {
-                TODO()
+                val server = player.server ?: return
+                val blocksSystem = BlocksSystemSavedData.get(server)
+                blocksSystem.reloadScripts()
+
+                val script = blocksSystem.scripts[path]
+                if (script != null) {
+                    script.stopAll()
+                    script.startAllTriggers()
+                }
             } else {
                 val result = ScriptingEnvironment.INSTANCE.compiler.compile(file)
                 if (result.isFailure) {

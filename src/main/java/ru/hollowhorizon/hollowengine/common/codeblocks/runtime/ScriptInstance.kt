@@ -28,10 +28,6 @@ class ScriptInstance(
         DevLogs.startTrace(this)
 
         launchBlockChain(rootBlock, stackToRestore = null)
-
-        ownerFile.allBlocks.filterIsInstance<StartBlock>()
-            .filter { !it.isGlobal.value }
-            .forEach { monitorLocalTrigger(it) }
     }
 
     fun resume() {
@@ -44,37 +40,7 @@ class ScriptInstance(
                 launchBlockChain(triggerBlock, stackToRestore = context.stack)
             }
         }
-
-        ownerFile.allBlocks.filterIsInstance<StartBlock>()
-            .filter { !it.isGlobal.value }
-            .forEach { trigger ->
-                // Если этот триггер сейчас не выполняется (не был восстановлен), запускаем слушатель
-                if (!executors.containsKey(trigger.uuid)) {
-                    // Если мы перезапускаем скрипт, то наверное старые слушатели, которые завершились уже не нужны?
-                } else {
-                    monitorLocalTrigger(trigger)
-                }
-            }
     }
-
-    private fun monitorLocalTrigger(trigger: StartBlock) {
-        scope.launch {
-            while (isActive) {
-                try {
-                    withContext(ScriptContextElement(this@ScriptInstance)) {
-                        trigger.trigger()
-                    }
-                    executors[trigger.uuid]?.job?.cancelAndJoin()
-                    launchBlockChain(trigger, stackToRestore = null)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    delay(1000)
-                }
-            }
-        }
-    }
-
 
     private fun launchBlockChain(startBlock: StartBlock, stackToRestore: BlockFrameStackElement?) {
         val stackElement = stackToRestore ?: BlockFrameStackElement(this)

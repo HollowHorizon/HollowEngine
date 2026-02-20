@@ -43,9 +43,6 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockM
                     put("x", JsonPrimitive(block.positionX.value))
                     put("y", JsonPrimitive(block.positionY.value))
                 }
-                if (block is StartBlock) {
-                    put("isGlobal", block.isGlobal.value)
-                }
                 put("isCollapsed", JsonPrimitive(block.isCollapsed.value))
             }
         })
@@ -116,9 +113,6 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockM
             }
             jsonObject["isCollapsed"]?.jsonPrimitive?.booleanOrNull?.let { isCollapsed ->
                 currentBlock.isCollapsed.set(isCollapsed)
-            }
-            jsonObject["isGlobal"]?.takeIf { currentBlock is StartBlock }?.jsonPrimitive?.booleanOrNull?.let { mode ->
-                (currentBlock as StartBlock).isGlobal.set(mode)
             }
         }
 

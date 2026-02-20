@@ -2,20 +2,17 @@ package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.modules.ui2.*
-import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.scene.geometry.MeshBuilder
 import de.fabmax.kool.util.*
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.PuzzleShapes.drawInnerShadow
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
-import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
-import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
+
 import ru.hollowhorizon.hollowengine.common.codeblocks.isExpression
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.EndBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.mixins.kool.UiNodeAccessor
 import kotlin.math.max
 import kotlin.math.min
@@ -186,43 +183,7 @@ class ScratchBlockBackground(
             if (drawInnerShadow) drawInnerShadow(points, zoom)
         }
 
-        if (block is StartBlock) {
-            val layer = surface.getMeshLayer(modifier.zLayer)
-
-            val local = ImageManager.load(icons.AUTOCOMPLETE_CLASS, SamplerMode.LINEAR)
-            val global = ImageManager.load(icons.GLOBAL, SamplerMode.LINEAR)
-            val localMesh = layer.addImage(local)
-            val globalMesh = layer.addImage(global)
-
-            Image(localMesh, local, 1f - triggerFactor)
-            Image(globalMesh, global, triggerFactor)
-        }
-    }
-
-    private fun UiNode.Image(
-        mesh: ImageMesh,
-        texture: Texture2d,
-        factor: Float
-    ) {
-        mesh.builder.clear()
-        mesh.builder.configure(color.withAlpha(factor)) {
-            rect {
-                isCenteredOrigin = false
-
-                generateTexCoords()
-                mirrorTexCoordsY()
-
-                val imgW = texture.width
-                val imgH = texture.height
-                val cx = widthPx - Dimensions.PaddingMedium.px * zoom
-                val cy = heightPx * 0.5f
-
-                val s = min(innerWidthPx / imgW, innerHeightPx / imgH) * 0.35f
-                origin.set(cx - imgW * s * 0.5f, cy - imgH * s * 0.5f, 0f)
-                size.set(imgW * s, imgH * s)
-            }
-        }
-        mesh.applyShader(texture, null)
+        // No special overlay for triggers
     }
 }
 

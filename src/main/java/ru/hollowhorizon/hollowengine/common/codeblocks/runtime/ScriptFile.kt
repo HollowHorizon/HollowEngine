@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 import kotlinx.coroutines.*
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
-import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.SetVarBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.createContainer
@@ -28,29 +27,11 @@ class ScriptFile(
 
     private val scope = CoroutineScope(system.owner.dispatcher + SupervisorJob(system.owner.coroutineScope.coroutineContext.job))
 
-    fun startGlobalTriggers() {
+    fun startAllTriggers() {
         allBlocks.filterIsInstance<StartBlock>()
-            .filter { it.isGlobal.value }
             .forEach { trigger ->
-                monitorGlobalTrigger(trigger)
+                launchNewInstance(trigger)
             }
-    }
-
-    private fun monitorGlobalTrigger(trigger: StartBlock) {
-        scope.launch {
-            while (isActive) {
-                try {
-                    trigger.trigger()
-
-                    launchNewInstance(trigger)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    HollowCore.LOGGER.error("Error in global trigger monitor: $path", e)
-                    cancel("Error in global trigger monitor: $path")
-                }
-            }
-        }
     }
 
     private fun launchNewInstance(rootBlock: StartBlock): ScriptInstance {

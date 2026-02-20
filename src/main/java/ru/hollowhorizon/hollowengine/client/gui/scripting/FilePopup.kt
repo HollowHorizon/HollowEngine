@@ -83,7 +83,7 @@ class FilePopup : Composable {
                     if (node.treePath.startsWith("prefabs")) {
                         subMenu(ACTIONS("create.prefab"), icons.CREATE_FILE) {
                             item("НИП", icons.NPCS) {
-                                fileExtension = ".npc"
+                                fileExtension = ".entity.prefab"
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                             }
                         }

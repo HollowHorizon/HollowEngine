@@ -72,8 +72,6 @@ class BlocksSystem(val owner: MinecraftServer) {
                     HollowCore.LOGGER.error("Failed to load script: $readablePath", e)
                 }
             }
-
-        scripts.values.forEach { it.startGlobalTriggers() }
     }
 }
 

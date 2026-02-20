@@ -347,20 +347,6 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
         Box {
             modifier.apply(blockModifier)
 
-            val isTrigger = block is StartBlock
-
-            if (isTrigger) {
-                val modeSize = Dimensions.PaddingHuge * scale
-                modifier.padding(end = modeSize)
-                    .onClick {
-                        if (it.position.x > uiNode.widthPx - modeSize.px && it.pointer.isLeftButtonClicked) {
-                            block.toggleMode()
-                        } else {
-                            it.isConsumed = false
-                        }
-                    }
-            }
-
             val isUnused = block.parentsWithSelf.none { it is StartBlock } && block.root in rootBlocks
             val isSelected = controller.selectedBlocks.use().contains(block)
             val baseColor = block.resolveColor(isGhost, isUnused, isSelected)
@@ -370,7 +356,7 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
                 tween(0.2f, Easing.easeOutQuart)
             )
             val factor by animateFloatAsState(
-                if (isTrigger && block.isGlobal.use()) 1f else 0f,
+                0f,
                 tween(0.2f, Easing.easeOutQuart)
             )
 

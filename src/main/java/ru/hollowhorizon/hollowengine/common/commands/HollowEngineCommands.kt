@@ -33,6 +33,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.geary.sync.setSyncing
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.utils.*
@@ -49,6 +50,7 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
             registerParticleCommands()
             registerModelCommands()
             registerUtilityCommands()
+            registerCodeBlocksCommands()
         }
     }
 }

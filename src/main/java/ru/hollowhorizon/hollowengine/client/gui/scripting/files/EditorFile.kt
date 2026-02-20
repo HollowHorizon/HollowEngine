@@ -93,6 +93,7 @@ abstract class EditorFile(
     }
 
     override fun close() {
+        save()
         surface?.let {
             IdeContent.files.values.remove(this)
             ScriptingEnvironmentOverlay.dock.removeDockableSurface(it)

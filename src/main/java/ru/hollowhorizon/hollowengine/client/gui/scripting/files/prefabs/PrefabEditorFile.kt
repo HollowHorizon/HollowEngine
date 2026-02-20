@@ -6,6 +6,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
@@ -17,14 +18,69 @@ import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.EditorIcon
 import ru.hollowhorizon.hollowengine.common.geary.components.GenericEditor
+import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.formats
+import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.serializers
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.reflect.full.findAnnotation
 
 class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
     private val components = mutableStateListOf<EditorComponent>()
 
+    @Serializable
+    private data class PrefabYaml(
+        val components: Map<String, String> = emptyMap(),
+        val prefabs: Set<com.mineinabyss.geary.prefabs.PrefabKey> = emptySet(),
+    )
+
+    init {
+        if (bytes.isNotEmpty()) {
+            runCatching {
+                val yaml = bytes.toString(Charsets.UTF_8)
+                val geary = modelController.mcEntity.level().geary
+                val prefab = geary.formats.get("yml").decode(geary.serializers.serializersModule.serializer(), yaml) as PrefabYaml
+
+                prefab.components.forEach { (keyString, data) ->
+                    val key = keyString.rl
+                    val holder = ComponentRegistry.getOrNull(key) ?: return@forEach
+
+                    @Suppress("UNCHECKED_CAST")
+                    val serializer = holder.serializer as KSerializer<Any>
+                    val decoded = geary.formats.get("yml").decode(serializer, data)
+
+                    @Suppress("UNCHECKED_CAST")
+                    val state = mutableStateOf(decoded as Component)
+                    hookModelPreview(key, state)
+                    components += EditorComponent(key, holder, state)
+                }
+            }
+        }
+    }
+
     override fun save() {
-        // TODO: Реализовать сохранение в .entity.prefab (JSON)
+        val file = filePath.fromReadablePath()
+        if (!file.exists()) {
+            file.parentFile.mkdirs()
+            file.createNewFile()
+        }
+
+        val prefab = PrefabYaml(
+            components = run {
+                val geary = modelController.mcEntity.level().geary
+                components.associate { ec ->
+                    val component = ec.state.value
+                    val key = ec.key.toString()
+
+                    @Suppress("UNCHECKED_CAST")
+                    val serializer = ec.holder.serializer as KSerializer<Any>
+                    key to geary.formats.get("yml").encode(serializer, component)
+                }
+            }
+        )
+
+        val geary = modelController.mcEntity.level().geary
+        val text = geary.formats.get("yml").encode(geary.serializers.serializersModule.serializer(), prefab)
+        file.writeText(text)
     }
 
     override fun UiScope.composeSidebar() {
@@ -102,17 +158,20 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
         val component = holder.create()
         val state = mutableStateOf(component)
 
+        hookModelPreview(key, state)
+
+        components += EditorComponent(key, holder, state)
+    }
+
+    private fun hookModelPreview(key: ResourceLocation, state: MutableStateValue<Component>) {
         if (key == "hollowengine:model".rl) {
             state.onChange { _, newValue ->
                 val modelPath = (newValue as? ru.hollowhorizon.hollowengine.common.geary.components.Model)?.model
                 if (modelPath != null) modelController.model.set(modelPath)
             }
-            // Initial trigger
-            val modelPath = (component as? ru.hollowhorizon.hollowengine.common.geary.components.Model)?.model
+            val modelPath = (state.value as? ru.hollowhorizon.hollowengine.common.geary.components.Model)?.model
             if (modelPath != null) modelController.model.set(modelPath)
         }
-
-        components += EditorComponent(key, holder, state)
     }
 
     private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("Компоненты") {

@@ -91,7 +91,7 @@ class InputSlotScope(
                 tween(0.2f, Easing.easeOutQuart)
             )
             val factor by animateFloatAsState(
-                if (parentBlock is StartBlock && parentBlock.isGlobal.use()) 1f else 0f,
+                0f,
                 tween(0.2f, Easing.easeOutQuart)
             )
             Box {

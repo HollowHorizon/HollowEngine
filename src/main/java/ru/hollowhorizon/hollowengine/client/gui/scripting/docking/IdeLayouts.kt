@@ -9,6 +9,5 @@ fun loadLayouts(event: LoadLayoutEvent) {
     event.provide("hollowengine.gui.ide.console", ::ConsolePanel)
     event.provide("hollowengine.gui.ide.docs", ::DocsPanel)
     event.provide("hollowengine.gui.ide.markdown", ::MarkdownEditorPanel)
-    event.provide("hollowengine.gui.ide.graph", ::GraphEditorPanel)
     event.provide("hollowengine.gui.ide.tags", ::TagEditorPanel)
 }
