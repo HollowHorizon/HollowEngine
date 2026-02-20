@@ -28,8 +28,19 @@ class CompilerLoader(
             val implClass = Class.forName(implementationClassName, true, classLoader)
             val initializer = implClass.getDeclaredConstructor().newInstance() as ScriptingEnvironmentInitializer
             initializer.initialize(javaHome, classpath, listOf(
-
+                // Standard Kotlin scripts
                 ScriptClassProvider(".kts", "kotlin.Any"),
+                // Animation controller scripts - extends AnimationController base class
+                ScriptClassProvider(
+                    extension = ".animation-controller.kts",
+                    baseClass = "ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationController",
+                    defaultImports = listOf(
+                        "net.minecraft.world.entity.LivingEntity",
+                        "ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationController",
+                        "ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode",
+                        "ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment"
+                    )
+                ),
             ), mappings)
 
             isLoaded = true

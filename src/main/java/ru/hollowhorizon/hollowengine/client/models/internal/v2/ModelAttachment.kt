@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationInstance
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
@@ -64,7 +64,6 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
         onUpdates.forEach { it() }
 
         for (animation in animations) {
-            if (!animation.enabled) continue
             animation.update(nodeIdToTransform, dt)
         }
     }

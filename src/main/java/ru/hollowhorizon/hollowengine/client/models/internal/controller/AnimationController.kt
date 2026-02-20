@@ -1,31 +1,56 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.controller
 
-import net.minecraft.client.Minecraft
-import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
-import kotlin.math.abs
 
-private val LivingEntity.animationSpeed: Float
-    get() = calculateSpeedViaDeltaMovement(this)
-const val MOVEMENT_FACTOR = (1 / 256f)
-fun LivingEntity.isMoving() = abs(animationSpeed) >= MOVEMENT_FACTOR
+class AnimationController(val entity: LivingEntity, val system: AnimationSystem) {
+    var currentState: State
+    val idle: State
+    val walk: State
+    val run: State
+    val lay: State
 
-fun calculateSpeedViaDeltaMovement(entity: LivingEntity): Float {
-    // 1) берём горизонтальную часть вектора скорости (блоки/тик)
-    val vel = entity.deltaMovement
-    val dx = vel.x.toFloat()
-    val dz = vel.z.toFloat()
+    init {
+        idle = State("idle") {
+            if(entity.isMoving) {
+                system.transition(from="idle", to="walk")
+                currentState = walk
+            } else if (entity.isShiftKeyDown) {
+                system.transition(from="idle", to="lay")
+                currentState = lay
+            }
+        }
+        walk = State("walk") {
+            if(entity.isSprinting) {
+                system.transition(from="walk", to="run")
+                currentState = run
+            } else if (!entity.isMoving) {
+                system.transition(from="walk",to="idle")
+                currentState = idle
+            }
+        }
+        run = State("run") {
+            if(!entity.isMoving) {
+                system.transition(from="run",to="idle")
+                currentState = idle
+            } else if(!entity.isSprinting) {
+                system.transition(from="run",to="walk")
+                currentState = walk
+            }
+        }
+        lay = State("lay") {
+            if(!entity.isShiftKeyDown) {
+                system.transition(from="lay", to="idle")
+                currentState = idle
+            }
+        }
 
-    // 2) вектор «вперед» по ориентации тела
-    val yawRad = Math.toRadians(entity.yBodyRot.toDouble()).toFloat()
-    val forwardX = -Mth.sin(yawRad)
-    val forwardZ = Mth.cos(yawRad)
+        currentState = idle
 
-    // 3) проекция вектора скорости на вектор «вперед» (чтобы знать направленную скорость)
-    val dot = dx * forwardX + dz * forwardZ
-    
-    val deltaRot = entity.yBodyRot - entity.yBodyRotO
-    
-    // 4) переводим блоки/тик → блоки/сек
-    return (dot * 20f + deltaRot / 10f) * if(Minecraft.getInstance().isPaused) 0f else 1f
+        system.onUpdate {
+            currentState.onUpdate()
+        }
+    }
+
+    data class State(val animation: String, val onUpdate: suspend () -> Unit = {})
+
 }

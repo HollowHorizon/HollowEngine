@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.geary.components
 
+import de.fabmax.kool.util.Time
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.client.renderer.entity.LivingEntityRenderer
@@ -9,6 +10,7 @@ import net.minecraft.world.entity.LivingEntity
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.api.Registerable
 import ru.hollowhorizon.hollowengine.api.Syncable
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationSystem
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -26,6 +28,8 @@ data class Model(
     val model: String = "hollowengine:models/entity/player_model.gltf",
     @EditorRange(min = 0f, max = 100f)
     val scale: Float = 1f,
+    @EditorName("Включить анимации")
+    val enableAnimations: Boolean = true,
 ) {
     val attachment by lazy {
         try {
@@ -34,6 +38,16 @@ data class Model(
             ModelAttachment(Assets.Hollowengine.Models.ERROR.toString())
         }
     }
+    
+    val animationSystem: AnimationSystem? by lazy {
+        if (enableAnimations) {
+            try {
+                AnimationSystem(attachment)
+            } catch (e: Exception) {
+                null
+            }
+        } else null
+    }
 }
 
 @SubscribeEvent
@@ -41,6 +55,13 @@ fun onRender(event: RenderEntityEvent.Pre) {
     val fleks = event.entity.entity
 
     val model = fleks.get<Model>() ?: return
+
+    // Обновляем анимации если они включены
+    model.animationSystem?.let { controller ->
+        if (event.entity is LivingEntity) {
+            controller.update(Time.deltaT)
+        }
+    }
 
     with(event) {
         poseStack.pushPose()

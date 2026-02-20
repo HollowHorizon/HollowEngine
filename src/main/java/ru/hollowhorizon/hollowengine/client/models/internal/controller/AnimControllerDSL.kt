@@ -5,6 +5,7 @@ import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.scene.TrsTransformF
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation

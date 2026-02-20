@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs
 
+//? if > 1.20.1
+/*import ru.hollowhorizon.hollowengine.client.utils.mulPoseMatrix*/
 import com.mojang.blaze3d.vertex.PoseStack
 import de.fabmax.kool.math.MutableVec3f
 import de.fabmax.kool.math.Vec2f
@@ -26,7 +28,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.GlCanvasModifier
 import ru.hollowhorizon.hollowengine.client.kool.GlCanvasNode
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
-import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
@@ -35,8 +36,6 @@ import ru.hollowhorizon.hollowengine.client.models.internal.v2.walk
 import ru.hollowhorizon.hollowengine.client.render.OpenGLUtils
 import ru.hollowhorizon.hollowengine.client.utils.exists
 import ru.hollowhorizon.hollowengine.client.utils.lang
-//? if > 1.20.1
-/*import ru.hollowhorizon.hollowengine.client.utils.mulPoseMatrix*/
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -246,20 +245,20 @@ class ModelController {
                         .onExit { isHovered.set(false) }
                         .onClick {
                             animation?.apply {
-                                enabled = !enabled
+                                weight = 1f - weight
                                 wrapMode = WrapMode.Loop
-                                blendTime(0.6f, 0.6f)
+                                //blendTime(0.6f, 0.6f)
                             }
                         }
 
-                    if (animation != null) Image(if (animation.enabled) icons.PAUSE else icons.START) {
+                    if (animation != null) Image(if (animation.weight == 1f) icons.PAUSE else icons.START) {
                         modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                            .tint(animateColorAsState(if (animation.enabled) Color.WHITE else ColorTheme.UI.WhiteReplacement).use())
+                            .tint(animateColorAsState(if (animation.weight == 1f) Color.WHITE else ColorTheme.UI.WhiteReplacement).use())
                     }
                 }
             }
 
-            if (animation != null && animation.duration > 0f && animation.state == AnimationInstance.State.PLAYING) {
+            if (animation != null && animation.duration > 0f && animation.weight > 0f) {
                 val progress = (animation.time / animation.duration).coerceAtMost(1f)
                 Box(Grow(progress), Dimensions.PaddingNormal) {
                     modifier.margin(top = Dimensions.PaddingMedium)
