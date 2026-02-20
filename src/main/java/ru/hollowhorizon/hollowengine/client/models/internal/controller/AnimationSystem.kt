@@ -4,6 +4,7 @@ import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.AnimatableFloat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
@@ -12,6 +13,8 @@ class AnimationSystem(val model: ModelAttachment) {
 
     val dispatcher = AnimationDispatcher("Animation System")
     val scope = CoroutineScope(SupervisorJob() + dispatcher)
+
+    private val transitionJobs = HashMap<String, Job>()
 
     fun update(dt: Float) {
         dispatcher.update(dt)
@@ -29,11 +32,14 @@ class AnimationSystem(val model: ModelAttachment) {
     suspend fun transition(
         from: String? = null,
         to: String? = null,
-        fadeTime: Float = 0.33f,
+        duration: Float = 0.33f,
         easing: Easing.Easing = Easing.smooth,
     ) {
         val original = from?.let { model.animations[it] }
         val target = to?.let { model.animations[it] }
+
+        val key = "${from ?: ""}->${to ?: ""}"
+        transitionJobs.remove(key)?.cancel()
 
         val animatable = AnimatableFloat(0f)
 
@@ -45,6 +51,9 @@ class AnimationSystem(val model: ModelAttachment) {
             original?.weight = 1f - new
         }
 
-        animatable.animateTo(1f, fadeTime, easing)
+        val job = scope.launch {
+            animatable.animateTo(1f, duration, easing)
+        }
+        transitionJobs[key] = job
     }
 }

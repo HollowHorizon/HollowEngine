@@ -108,19 +108,17 @@ class AnimationControllerFile(path: String, bytes: ByteArray) : EditorFile(path)
                 }
 
                 buildString {
-                    append("        state(\n")
-                    append("            name = \"$stateName\",\n")
-                    append("            animationName = \"$animName\",\n")
-                    append("            wrapMode = $wrapMode,\n")
-                    append("            speed = ${node.speed}f,\n")
-                    append("            weight = ${node.weight}f,\n")
-                    append("            priority = ${node.priority},\n")
-                    append("            fadeIn = ${node.fadeIn}f,\n")
-                    append("            fadeOut = ${node.fadeOut}f,\n")
-                    append("            overrideTranslation = ${node.overrideTranslation},\n")
-                    append("            overrideRotation = ${node.overrideRotation},\n")
-                    append("            overrideScale = ${node.overrideScale}\n")
-                    append("        )\n")
+                    append("            state(\n")
+                    append("                name = \"$stateName\",\n")
+                    append("                animationName = \"$animName\",\n")
+                    append("                wrapMode = $wrapMode,\n")
+                    append("                speed = ${node.speed}f,\n")
+                    append("                weight = ${node.weight}f,\n")
+                    append("                priority = ${node.priority},\n")
+                    append("                overrideTranslation = ${node.overrideTranslation},\n")
+                    append("                overrideRotation = ${node.overrideRotation},\n")
+                    append("                overrideScale = ${node.overrideScale}\n")
+                    append("            )\n")
                 }
             }
 
@@ -136,12 +134,7 @@ class AnimationControllerFile(path: String, bytes: ByteArray) : EditorFile(path)
                 val toStateName = toNode.title.ifEmpty { toNode.animationName.ifEmpty { "state_${toNode.id.take(6)}" } }
 
                 buildString {
-                    append("        // Entry transition: ENTRY -> \"$toStateName\"\n")
-                    append("        entryTransition(\n")
-                    append("            toState = \"$toStateName\",\n")
-                    append("            fadeIn = ${conn.properties.fadeIn}f,\n")
-                    append("            fadeOut = ${conn.properties.fadeOut}f\n")
-                    append("        )\n")
+                    append("            entry(\"$toStateName\")\n")
                 }
             }
 
@@ -158,13 +151,11 @@ class AnimationControllerFile(path: String, bytes: ByteArray) : EditorFile(path)
                 val conditionBody = conn.properties.condition.ifBlank { "true" }
 
                 buildString {
-                    append("        transitionFromAny(\n")
-                    append("            toState = \"$toStateName\",\n")
-                    append("            condition = { $conditionBody },\n")
-                    append("            duration = ${conn.properties.duration}f,\n")
-                    append("            fadeIn = ${conn.properties.fadeIn}f,\n")
-                    append("            fadeOut = ${conn.properties.fadeOut}f\n")
-                    append("        )\n")
+                    append("            any(\n")
+                    append("                toState = \"$toStateName\",\n")
+                    append("                duration = ${conn.properties.duration}f,\n")
+                    append("                condition = { $conditionBody },\n")
+                    append("            )\n")
                 }
             }
 
@@ -182,37 +173,28 @@ class AnimationControllerFile(path: String, bytes: ByteArray) : EditorFile(path)
                 val toStateName = toNode.title.ifEmpty { toNode.animationName.ifEmpty { "state_${toNode.id.take(6)}" } }
 
                 val conditionBody = conn.properties.condition.ifBlank { "true" }
-                val exitTimeArg = conn.properties.exitTime?.let { "exitTime = ${it}f" } ?: ""
 
                 buildString {
-                    append("        transition(\n")
-                    append("            fromState = \"$fromStateName\",\n")
-                    append("            toState = \"$toStateName\",\n")
-                    append("            condition = { $conditionBody },\n")
-                    append("            duration = ${conn.properties.duration}f,\n")
-                    if (exitTimeArg.isNotEmpty()) {
-                        append("            $exitTimeArg,\n")
-                    }
-                    append("            fadeIn = ${conn.properties.fadeIn}f,\n")
-                    append("            fadeOut = ${conn.properties.fadeOut}f\n")
-                    append("        )\n")
+                    append("            transition(\n")
+                    append("                fromState = \"$fromStateName\",\n")
+                    append("                toState = \"$toStateName\",\n")
+                    append("                duration = ${conn.properties.duration}f,\n")
+                    append("                condition = { $conditionBody },\n")
+                    append("            )\n")
                 }
             }
         
         // Combine all transitions
         val allTransitions = buildString {
             if (entryTransitions.isNotEmpty()) {
-                append("        // Entry transitions (initial state)\n")
                 append(entryTransitions)
                 append("\n")
             }
             if (anyStateTransitions.isNotEmpty()) {
-                append("        // Transitions from ANY state\n")
                 append(anyStateTransitions)
                 append("\n")
             }
             if (stateTransitions.isNotEmpty()) {
-                append("        // State-to-state transitions\n")
                 append(stateTransitions)
             }
         }
@@ -230,9 +212,8 @@ class AnimationControllerFile(path: String, bytes: ByteArray) : EditorFile(path)
             appendLine()
             appendLine("import net.minecraft.world.entity.LivingEntity")
             appendLine("import ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationController")
+            appendLine("import ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationSystem")
             appendLine("import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode")
-            appendLine("import ru.hollowhorizon.hollowengine.client.models.internal.controller.calculateSpeedViaDeltaMovement")
-            appendLine("import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment")
             appendLine()
             appendLine("/**")
             appendLine(" * Generated Animation Controller for model: ${graph.modelPath}")
@@ -245,33 +226,10 @@ class AnimationControllerFile(path: String, bytes: ByteArray) : EditorFile(path)
                 appendLine(" * Muted Transitions: $mutedTransitionsCount (excluded from generated code)")
             }
             appendLine(" */")
-            appendLine("class $className(modelAttachment: ModelAttachment) : AnimationController(modelAttachment) {")
-            appendLine()
-            appendLine("    init {")
-            appendLine("        // Define animation states")
+            appendLine("configure {")
             appendLine(stateDefinitions)
-            appendLine()
-            appendLine("        // Define transitions with conditions")
             appendLine(allTransitions)
-            appendLine("    }")
-            appendLine()
-            appendLine("    /**")
-            appendLine("     * Update method called every frame.")
-            appendLine("     * Evaluates transition conditions and manages animation state.")
-            appendLine("     * ")
-            appendLine("     * @param entity The LivingEntity this controller is attached to")
-            appendLine("     * @param dt Delta time in seconds since last frame")
-            appendLine("     */")
-            appendLine("    override fun update(entity: LivingEntity, dt: Float) {")
-            appendLine("        // Call base implementation for standard state machine logic")
-            appendLine("        super.update(entity, dt)")
-            appendLine("        ")
-            appendLine("        // Add custom per-frame logic here if needed")
-            appendLine("    }")
             appendLine("}")
-            appendLine()
-            appendLine("// Factory function for easy instantiation")
-            appendLine("fun createController(modelAttachment: ModelAttachment): $className = $className(modelAttachment)")
         }
 
         try {

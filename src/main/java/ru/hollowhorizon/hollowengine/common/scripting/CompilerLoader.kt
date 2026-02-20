@@ -37,8 +37,8 @@ class CompilerLoader(
                     defaultImports = listOf(
                         "net.minecraft.world.entity.LivingEntity",
                         "ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationController",
+                        "ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationSystem",
                         "ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode",
-                        "ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment"
                     )
                 ),
             ), mappings)

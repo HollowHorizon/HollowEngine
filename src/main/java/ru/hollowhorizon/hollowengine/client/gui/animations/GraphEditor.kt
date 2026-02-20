@@ -741,9 +741,6 @@ class GraphEditor {
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
                     }
 
-                    PropertyFloatField("Появление", node.fadeIn) { node.fadeIn = it }
-                    PropertyFloatField("Затухание", node.fadeOut) { node.fadeOut = it }
-
                     // Blend curve
                     val curves = Interpolation.entries.toList()
                     val curveIndex = curves.indexOf(node.blendCurve).coerceAtLeast(0)
@@ -809,16 +806,8 @@ class GraphEditor {
                         props = props.copy(weight = it)
                         updateConnectionProperties(conn.id, props)
                     }
-                    PropertyFloatField("Время", props.duration) {
+                    PropertyFloatField("Длительность", props.duration) {
                         props = props.copy(duration = it)
-                        updateConnectionProperties(conn.id, props)
-                    }
-                    PropertyFloatField("Появление", props.fadeIn) {
-                        props = props.copy(fadeIn = it)
-                        updateConnectionProperties(conn.id, props)
-                    }
-                    PropertyFloatField("Затухание", props.fadeOut) {
-                        props = props.copy(fadeOut = it)
                         updateConnectionProperties(conn.id, props)
                     }
 
@@ -1144,8 +1133,6 @@ class GraphEditor {
                 speed = node.speed,
                 weight = node.weight,
                 priority = node.priority,
-                fadeIn = node.fadeIn,
-                fadeOut = node.fadeOut,
                 blendCurve = node.blendCurve,
                 overrideTranslation = node.overrideTranslation,
                 overrideRotation = node.overrideRotation,
@@ -1190,8 +1177,6 @@ class GraphEditor {
                     speed = data.speed,
                     weight = data.weight,
                     priority = data.priority,
-                    fadeIn = data.fadeIn,
-                    fadeOut = data.fadeOut,
                     blendCurve = data.blendCurve,
                     overrideTranslation = data.overrideTranslation,
                     overrideRotation = data.overrideRotation,

@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.geary.components
 import de.fabmax.kool.util.Time
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import net.minecraft.client.renderer.entity.LivingEntityRenderer
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.Mth
@@ -10,27 +11,34 @@ import net.minecraft.world.entity.LivingEntity
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.api.Registerable
 import ru.hollowhorizon.hollowengine.api.Syncable
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationController
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationSystem
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 @Registerable
 @Syncable
 @Serializable
 @SerialName("hollowengine:model")
+
 @EditorIcon("hollowengine:textures/gui/icons/eye.svg")
 data class Model(
     @EditorName("Модель")
     val model: String = "hollowengine:models/entity/player_model.gltf",
+    @EditorName("Контроллер анимаций")
+    val controllerScript: String = "player_model.animation-controller.kts",
     @EditorRange(min = 0f, max = 100f)
     val scale: Float = 1f,
     @EditorName("Включить анимации")
     val enableAnimations: Boolean = true,
 ) {
+
     val attachment by lazy {
         try {
             ModelAttachment(model)
@@ -48,6 +56,27 @@ data class Model(
             }
         } else null
     }
+
+    @Transient
+    private var controllerCache: AnimationController? = null
+
+    fun getOrCreateController(): AnimationController? {
+        if (controllerScript.isBlank()) return null
+        controllerCache?.let { return it }
+
+        val system = animationSystem ?: return null
+        if (!ru.hollowhorizon.hollowengine.HollowEngine.compilerLoader.isLoaded) return null
+
+        val file = DirectoryManager.HOLLOW_ENGINE.resolve("scripts").resolve(controllerScript).toFile()
+        if (!file.exists()) return null
+
+        val compiled = ScriptingEnvironment.INSTANCE.compiler.compile(file).getOrNull() ?: return null
+        val instance = compiled.base.execute<AnimationController>(system).getOrNull()
+            ?: compiled.base.execute<AnimationController>().getOrNull()
+            ?: return null
+        controllerCache = instance
+        return instance
+    }
 }
 
 @SubscribeEvent
@@ -57,9 +86,10 @@ fun onRender(event: RenderEntityEvent.Pre) {
     val model = fleks.get<Model>() ?: return
 
     // Обновляем анимации если они включены
-    model.animationSystem?.let { controller ->
+    model.animationSystem?.let { animationSystem ->
         if (event.entity is LivingEntity) {
-            controller.update(Time.deltaT)
+            model.getOrCreateController()?.update(event.entity as LivingEntity, Time.deltaT)
+            animationSystem.update(Time.deltaT)
         }
     }
 
