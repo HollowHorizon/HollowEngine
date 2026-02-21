@@ -14,26 +14,31 @@ import kotlin.test.*
 
 // --- Mocks ---
 
-class MockBlockProvider : BlockProvider("Test", BlockCategory("Test", Color.WHITE, null))
+class MockBlockProvider : BlockProvider("Test", BlockCategory("Test", null))
 
 // Minimal implementation of concrete blocks for testing
 class TestStatementBlock() : StatementBlock() {
+    override val color: Color get() = Color.WHITE
     override suspend fun execute() {}
     override fun InputSlotScope.composeContent() {}
 }
 
 class TestContainerBlock() : StatementBlock(), ContainerBlock {
+    override val color: Color get() = Color.WHITE
     override suspend fun execute() {}
     override fun InputSlotScope.composeContent() {}
 }
 
 class TestExpressionBlock(type: ExpressionType) : ExpressionBlock() {
+    override val color: Color get() = Color.WHITE
     override val expressionType: ExpressionType = type
     override suspend fun execute() {}
     override fun InputSlotScope.composeContent() {}
 }
 
 class TestConsumerBlock(inputName: String = "VALUE", inputType: ExpressionType) : StatementBlock() {
+    override val color: Color get() = Color.WHITE
+
     init {
         inputTypes[inputName] = inputType
     }
