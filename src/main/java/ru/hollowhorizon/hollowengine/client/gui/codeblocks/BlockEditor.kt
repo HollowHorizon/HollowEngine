@@ -259,7 +259,7 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
 
     context(scope: UiScope)
     private fun renderBlockNode(block: BlockModel, isGhost: Boolean, canDrag: Boolean, isPreview: Boolean = false): Unit = with(scope) {
-        block.applyDefaults(recursive = false)
+        block.applyDefaults(recursive = true)
         Column {
             modifier.width(FitContent)
             val isHovered = remember { mutableStateOf(false) }

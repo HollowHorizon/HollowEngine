@@ -88,9 +88,9 @@ class BlockPosBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<BlockPos>()
 
-    val x by input<Number>()
-    val y by input<Number>()
-    val z by input<Number>()
+    val x by inputDefault<Number> { NumberBlock(0.0) }
+    val y by inputDefault<Number> { NumberBlock(0.0) }
+    val z by inputDefault<Number> { NumberBlock(0.0) }
 
     override suspend fun execute(): BlockPos {
         return BlockPos(x().toInt(), y().toInt(), z().toInt())

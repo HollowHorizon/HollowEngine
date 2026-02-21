@@ -9,6 +9,8 @@ import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.StringValueBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.PositionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
@@ -22,8 +24,8 @@ class SpawnNpcBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<NpcEntity>()
 
-    val pos by input<Vec3>("pos")
-    val name by input<String>("npc")
+    val pos by inputDefault<Vec3>("pos") { PositionBlock() }
+    val name by inputDefault<String>("npc") { StringValueBlock("Vitalik") }
 
     override suspend fun execute(): Any? {
 

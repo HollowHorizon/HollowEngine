@@ -18,6 +18,9 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.NumberBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.BlockPosBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.PositionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentFile
@@ -29,7 +32,7 @@ class UpdateBlockBlock : StatementBlock() {
     override val color: Color get() = CodeBlocksColors.WORLDS
 
     val world by input<ResourceKey<Level>>()
-    val pos by input<BlockPos>("pos")
+    val pos by inputDefault<BlockPos>("pos") { BlockPosBlock() }
 
     override suspend fun execute() {
         val level = currentFile().system.owner.getLevel(world()) ?: return
@@ -51,7 +54,7 @@ class SetBlockBlock: StatementBlock() {
     override val color: Color get() = CodeBlocksColors.WORLDS
 
     val world by input<ResourceKey<Level>>()
-    val pos by input<BlockPos>("pos")
+    val pos by inputDefault<BlockPos>("pos") { BlockPosBlock() }
     val blockState by input<BlockState>("blockState")
 
     override suspend fun execute() {
@@ -77,7 +80,8 @@ class GetBlockBlock: ExpressionBlock() {
     override val color: Color get() = CodeBlocksColors.WORLDS
 
     val world by input<ResourceKey<Level>>()
-    val pos by input<BlockPos>("pos")
+    val pos by inputDefault<BlockPos>("pos") { BlockPosBlock() }
+
     @Transient
     override val expressionType: ExpressionType = typeOf<BlockState>()
     override suspend fun execute(): BlockState {
@@ -85,6 +89,7 @@ class GetBlockBlock: ExpressionBlock() {
         val pos = pos()
         return level.getBlockState(pos)
     }
+
     override fun InputSlotScope.composeContent() {
         DefaultText("Получить блок в")
         InputSlot(pos)
@@ -99,7 +104,7 @@ class RemoveBlockBlock : StatementBlock() {
     override val color: Color get() = CodeBlocksColors.WORLDS
 
     val world by input<ResourceKey<Level>>()
-    val pos by input<BlockPos>("pos")
+    val pos by inputDefault<BlockPos>("pos") { BlockPosBlock() }
 
     override suspend fun execute() {
         val level = currentFile().system.owner.getLevel(world()) ?: return
@@ -121,7 +126,7 @@ class RotateBlockBlock: StatementBlock() {
     override val color: Color get() = CodeBlocksColors.WORLDS
 
     val world by input<ResourceKey<Level>>()
-    val pos by input<BlockPos>("pos")
+    val pos by inputDefault<BlockPos>("pos") { BlockPosBlock() }
     val rotation by input<Rotation>("rotation")
 
     override suspend fun execute() {
@@ -150,7 +155,7 @@ class SpawnEntityBlock: ExpressionBlock() {
 
     val world by input<ResourceKey<Level>>()
     val entityType by input<EntityType<*>>("entityType")
-    val position by input<Vec3>("pos")
+    val position by inputDefault<Vec3>("pos") { PositionBlock() }
 
     override suspend fun execute() {
         val level = currentFile().system.owner.getLevel(world()) ?: return
@@ -180,7 +185,8 @@ class HasSkyAtBlock: ExpressionBlock() {
     override val color: Color get() = CodeBlocksColors.WORLDS
 
     val world by input<ResourceKey<Level>>()
-    val pos by input<BlockPos>("pos")
+    val pos by inputDefault<BlockPos>("pos") { BlockPosBlock() }
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
     override suspend fun execute(): Boolean {
@@ -188,6 +194,7 @@ class HasSkyAtBlock: ExpressionBlock() {
         val pos = pos()
         return level.canSeeSky(pos)
     }
+
     override fun InputSlotScope.composeContent() {
         DefaultText("По координатам")
         InputSlot(pos)
@@ -202,12 +209,14 @@ class GetTimeBlock: ExpressionBlock() {
     override val color: Color get() = CodeBlocksColors.WORLDS
 
     val world by input<ResourceKey<Level>>()
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Long>()
     override suspend fun execute(): Long {
         val level = currentFile().system.owner.getLevel(world()) ?: throw IllegalStateException("Level not found: ${world()}")
         return level.dayTime
     }
+
     override fun InputSlotScope.composeContent() {
         DefaultText("Время в мире")
         InputSlot(world)
@@ -220,7 +229,7 @@ class SetTimeBlock: StatementBlock() {
     override val color: Color get() = CodeBlocksColors.WORLDS
 
     val world by input<ResourceKey<Level>>()
-    val time by input<Number>("time")
+    val time by inputDefault<Number>("time") { NumberBlock(0.0) }
 
     override suspend fun execute() {
         val level = currentFile().system.owner.getLevel(world()) ?: return

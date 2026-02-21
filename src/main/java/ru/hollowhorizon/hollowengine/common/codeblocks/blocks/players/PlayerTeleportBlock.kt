@@ -14,6 +14,8 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.GetOverworldBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.PositionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
 @Serializable
@@ -22,8 +24,8 @@ class PlayerTeleportBlock : StatementBlock() {
     override val color: Color get() = CodeBlocksColors.PLAYERS
 
     val player by input<Player>()
-    val pos by input<Vec3>()
-    val dimension by input<ResourceKey<Level>>("dimension")
+    val pos by inputDefault<Vec3> { PositionBlock() }
+    val dimension by inputDefault<ResourceKey<Level>>("dimension") { GetOverworldBlock() }
 
     override suspend fun execute() {
         val p = player()

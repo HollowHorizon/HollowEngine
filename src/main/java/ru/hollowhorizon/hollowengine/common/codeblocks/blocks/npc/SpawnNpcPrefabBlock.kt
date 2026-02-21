@@ -16,6 +16,8 @@ import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.GetOverworldBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.PositionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
@@ -36,8 +38,8 @@ class SpawnNpcPrefabBlock(
     @Transient
     override val expressionType = typeOf<NpcEntity>()
 
-    val pos by input<Vec3>("pos")
-    val dimension by input<ResourceKey<Level>>("dimension")
+    val pos by inputDefault<Vec3>("pos") { PositionBlock() }
+    val dimension by inputDefault<ResourceKey<Level>>("dimension") { GetOverworldBlock() }
 
     @Serializable
     private data class PrefabYaml(

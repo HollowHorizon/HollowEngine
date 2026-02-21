@@ -32,8 +32,8 @@ class MathBlock(var op: MathOp = MathOp.ADD) : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Number>()
 
-    val a by input<Number>("a")
-    val b by input<Number>("b")
+    val a by inputDefault<Number>("a") { NumberBlock(0.0) }
+    val b by inputDefault<Number>("b") { NumberBlock(0.0) }
 
     override suspend fun execute(): Any? {
         val a = a().toDouble()
@@ -80,8 +80,8 @@ class RandomNumberBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Number>()
 
-    val min by input<Number>("min")
-    val max by input<Number>("max")
+    val min by inputDefault<Number>("min") { NumberBlock(0.0) }
+    val max by inputDefault<Number>("max") { NumberBlock(1.0) }
 
     override suspend fun execute(): Any? {
         val minVal = min().toDouble()
@@ -111,8 +111,8 @@ class CompareBlock(var op: CompareOp = CompareOp.EQUALS) : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Boolean>()
 
-    val a by input<Number>("a")
-    val b by input<Number>("b")
+    val a by inputDefault<Number>("a") { NumberBlock(0.0) }
+    val b by inputDefault<Number>("b") { NumberBlock(0.0) }
 
     override suspend fun execute(): Any? {
         val resA = a().toDouble()
@@ -162,8 +162,8 @@ class LogicBlock(var op: LogicOp = LogicOp.AND) : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Boolean>()
 
-    val a by input<Boolean>("a")
-    val b by input<Boolean>("b")
+    val a by inputDefault<Boolean>("a") { BoolBlock(true) }
+    val b by inputDefault<Boolean>("b") { BoolBlock(true) }
 
     override suspend fun execute(): Any? {
         val resA = a()
@@ -209,7 +209,7 @@ class NotBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Boolean>()
 
-    val value by input<Boolean>("value")
+    val value by inputDefault<Boolean>("value") { BoolBlock(true) }
 
     override suspend fun execute(): Any? {
         return !(value())

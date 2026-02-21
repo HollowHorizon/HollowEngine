@@ -49,7 +49,7 @@ class WhileBlock : StatementBlock(), ContainerBlock {
 class DelayBlock : StatementBlock() {
     override val color: Color get() = CodeBlocksColors.GENERAL
 
-    val time by input<Number>("time")
+    val time by inputDefault<Number>("time") { NumberBlock(1.0) }
 
     override suspend fun execute() {
         val frame = coroutineContext[BlockFrame.Key] ?: error("Block frame not found")
