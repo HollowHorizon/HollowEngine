@@ -314,8 +314,12 @@ private fun CommandExtension.registerScriptCommands() {
                     HollowEngine.LOGGER.error("Script evaluation failed", exception)
                 } else {
                     val script = result.getOrThrow()
-                    script.start()
-                    sendSuccess { "Script evaluated successfully".literal }
+                    val result = script.execute<Any>()
+                    if(result.isSuccess) {
+                        sendSuccess { "Script evaluated successfully: ${result.getOrThrow()}".literal }
+                    } else {
+                        sendFailure("Script evaluation failed: ${result.exceptionOrNull()}".literal)
+                    }
                 }
                 SUCCESS
             }
