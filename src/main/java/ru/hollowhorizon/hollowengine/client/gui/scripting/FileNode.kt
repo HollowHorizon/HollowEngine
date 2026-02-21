@@ -112,9 +112,9 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
     fun UiScope.draw(filter: String) {
         val filePopup = remember(::FilePopup)
 
-        LazyColumn(
+        ScrollArea(
             containerModifier = { it.backgroundColor(null) },
-            scrollPaneModifier = { it.width(FitContent).margin(horizontal = Dimensions.PaddingNormal) },
+            // scrollPaneModifier = { it.width(FitContent).margin(horizontal = Dimensions.PaddingNormal) },
             vScrollbarModifier = {
                 it.width(Dimensions.PaddingMedium).colors(
                     ColorTheme.UI.BackgroundElements,
@@ -133,10 +133,10 @@ open class FileNode(val treeName: String, val treePath: String, var depth: Int =
             },
             withHorizontalScrollbar = true
         ) {
-
             filePopup()
+            modifier.layout(ColumnLayout).width(Grow.MinFit).margin(horizontal = Dimensions.PaddingNormal)
 
-            itemsIndexed(walk(filter)) { i, item ->
+            walk(filter).forEachIndexed { i, item ->
                 sceneObjectItem(item) {
                     modifier.onClick {
                         if (it.pointer.isRightButtonClicked) {

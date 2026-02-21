@@ -44,7 +44,6 @@ setupEnviroment(container, kotlinVersion, includeKotlin = false)
 repositories {
     maven("https://jitpack.io")
     maven("https://maven.blamejared.com/")
-    maven("https://repo.mineinabyss.com/releases")
     mavenLocal()
     flatDir { dirs(rootProject.file("libs")) }
 }
@@ -95,11 +94,10 @@ dependencies {
     install("it.krzeminski:snakeyaml-engine-kmp:4.0.1")
     install("net.thauvin.erik.urlencoder:urlencoder-lib:1.6.0")
 
-    val gearyVersion = "0.28.2"
+    val gearyVersion = "0.28"
 
     install("io.insert-koin:koin-core:4.0.0")
-    install("co.touchlab:kermit:2.0.4")
-    install("co.touchlab:kermit-core:2.0.4")
+    install("co.touchlab:kermit-core-mcfriendly:2.0.4")
     install("androidx.collection:collection:1.4.0")
     install("org.roaringbitmap:RoaringBitmap:1.0.6")
     install("com.charleskorn.kaml:kaml:0.104.0")
@@ -108,6 +106,7 @@ dependencies {
     install("com.mineinabyss:geary-prefabs:${gearyVersion}")
     install("com.mineinabyss:geary-actions:${gearyVersion}")
     install("com.mineinabyss:geary-serialization:${gearyVersion}")
+    install("org.jetbrains.kotlinx:kotlinx-io-bytestring:0.8.2")
 
 //    install("de.fabmax.kool:kool-physics-desktop:$koolVersion", true)
 //    install("de.fabmax:physx-jni:2.7.1")

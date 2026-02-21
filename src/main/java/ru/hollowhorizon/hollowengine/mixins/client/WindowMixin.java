@@ -35,7 +35,7 @@ public class WindowMixin {
             if (target == GLFW.GLFW_CONTEXT_VERSION_MAJOR) {
                 value = major;
                 type = "major";
-            } else if (target == GLFW.GLFW_CONTEXT_VERSION_MINOR) {
+            } else {
                 value = minor;
                 type = "minor";
             }
