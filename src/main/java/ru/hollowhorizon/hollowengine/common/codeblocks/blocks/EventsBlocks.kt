@@ -5,6 +5,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
 @Serializable
@@ -18,7 +19,7 @@ class SendEventBlock(var eventName: String = "MyEvent") : StatementBlock() {
     override fun InputSlotScope.composeContent() {
         Text("Отправить сообщение") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         TextField(eventName) {
-            modifier.width(FitContent).margin(horizontal = sizes.smallGap)
+            modifier.width(FitContent).margin(horizontal = Dimensions.PaddingSmall.scaled())
                 .hint("Название сообщения").font(font)
                 .alignY(AlignmentY.Center)
                 .onChange { eventName = it; notifyChanged() }

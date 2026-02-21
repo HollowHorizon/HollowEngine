@@ -9,6 +9,7 @@ import kotlinx.serialization.Transient
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -38,7 +39,7 @@ class PlayerHasRecipeBlock : ExpressionBlock() {
             modifier.text(recipeRl).width(200.dp).onChange {
                 recipeRl = it
                 //TODO: Add popup logic here fetching from player.level().recipeManager.recipes
-            }.alignY(AlignmentY.Center).margin(start = sizes.smallGap)
+            }.alignY(AlignmentY.Center).margin(start = Dimensions.PaddingSmall.scaled())
         }
     }
 }

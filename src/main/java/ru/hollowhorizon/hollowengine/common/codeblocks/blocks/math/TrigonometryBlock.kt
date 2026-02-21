@@ -6,6 +6,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import kotlin.math.*
@@ -38,9 +39,9 @@ class TrigonometryBlock(var op: TrigOp = TrigOp.SIN) : ExpressionBlock() {
     override fun InputSlotScope.composeContent() {
         Box {
             modifier
-                .margin(horizontal = 4.dp)
-                .padding(horizontal = 4.dp, vertical = 2.dp)
-                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), sizes.largeGap))
+                .margin(horizontal = Dimensions.PaddingNormal.scaled())
+                .padding(Dimensions.PaddingNormal.scaled())
+                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), Dimensions.PaddingNormal.scaled()))
                 .onClick {
                     if (it.pointer.isLeftButtonClicked) {
                         val values = TrigOp.entries
@@ -49,7 +50,8 @@ class TrigonometryBlock(var op: TrigOp = TrigOp.SIN) : ExpressionBlock() {
                     surface.triggerUpdate()
                     notifyChanged()
                 }
-                .zLayer(UiSurface.LAYER_DEFAULT)
+                .zLayer(modifier.zLayer + 10)
+                .alignY(AlignmentY.Center)
 
             Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center).bold() }
         }

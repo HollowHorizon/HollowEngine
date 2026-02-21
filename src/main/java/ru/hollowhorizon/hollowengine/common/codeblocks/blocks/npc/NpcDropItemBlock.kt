@@ -8,6 +8,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
@@ -33,16 +34,16 @@ class NpcDropItemBlock : StatementBlock() {
         Text("НИП") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
         Box(Grow.Std) { }
-        Text("Бросает:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap).bold() }
-        Box(sizes.largeGap * 1.5f, sizes.largeGap * 1.5f) {
+        Text("Бросает:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled()).bold() }
+        Box(Dimensions.PaddingLarge.scaled(), Dimensions.PaddingLarge.scaled()) {
             modifier.alignY(AlignmentY.Center)
-                .border(RoundRectBorder(Color.WHITE, sizes.smallGap, sizes.borderWidth))
+                .border(RoundRectBorder(Color.WHITE, Dimensions.PaddingSmall.scaled(), Dimensions.PaddingSmall.scaled()))
 
             Item(item) {
                 val isHovered by modifier.hoverable()
                 val size by animateFloatAsState(if (isHovered) 1.5f else 1.2f)
 
-                modifier.size(sizes.largeGap * size, sizes.largeGap * size)
+                modifier.size(Dimensions.PaddingHuge.scaled() * size, Dimensions.PaddingHuge.scaled() * size)
                     .align(AlignmentX.Center, AlignmentY.Center)
                     .onClick {
                         popup.popupContent = {
@@ -52,7 +53,7 @@ class NpcDropItemBlock : StatementBlock() {
                             }
                         }
 
-                        popup.show(Vec2f(uiNode.rightPx + sizes.smallGap.px, uiNode.topPx))
+                        popup.show(Vec2f(uiNode.rightPx + Dimensions.PaddingSmall.scaled().px, uiNode.topPx))
                     }
             }
         }

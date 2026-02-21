@@ -209,17 +209,19 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
         block: BlockModel,
         isGhost: Boolean = false,
         canDrag: Boolean = true,
+        isPreview: Boolean = false,
     ): Unit = with(scope) {
         val currentZoom = scale
         val isRoot = rootBlocks.use().contains(block)
 
         Column {
             modifier.width(FitContent)
-            val additionalZLayer = if (!canDrag) modifier.zLayer else 0
+            val additionalZLayer = if (!canDrag || isPreview) modifier.zLayer else 0
             modifier.configureBlockPositionAndLayer(block, isRoot, currentZoom)
             modifier.zLayer(modifier.zLayer + additionalZLayer)
 
-            if (block.isStatement()) {
+            // Skip drop targets for preview blocks
+            if (!isPreview && block.isStatement()) {
                 if (controller.canAttachBefore(block) && !controller.isDragging(block)) {
                     Column(Grow.Std) {
                         GhostPlaceholder(block)
@@ -229,10 +231,11 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
             }
 
             Box {
-                renderBlockNode(block, isGhost, canDrag)
+                renderBlockNode(block, isGhost, canDrag, isPreview)
             }
 
-            if (block.isStatement()) {
+            // Skip drop targets for preview blocks
+            if (!isPreview && block.isStatement()) {
                 val next = block.next
 
                 if (!controller.isDragging(block)) {
@@ -249,19 +252,20 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
                         }
                     }
                 }
-                next?.let { next -> renderBlockTree(next, isGhost, canDrag) }
+                next?.let { next -> renderBlockTree(next, isGhost, canDrag, isPreview) }
             }
         }
     }
 
     context(scope: UiScope)
-    private fun renderBlockNode(block: BlockModel, isGhost: Boolean, canDrag: Boolean): Unit = with(scope) {
+    private fun renderBlockNode(block: BlockModel, isGhost: Boolean, canDrag: Boolean, isPreview: Boolean = false): Unit = with(scope) {
         Column {
             modifier.width(FitContent)
             val isHovered = remember { mutableStateOf(false) }
 
             Column {
-                if (block.isStatement() && block.parent == null && canDrag && block.parentBlock == null) {
+                // Skip drop targets for preview blocks
+                if (!isPreview && block.isStatement() && block.parent == null && canDrag && block.parentBlock == null) {
                     Box {
                         modifier.width(Grow.Std)
                             .height(Dimensions.PaddingHuge * scale)
@@ -269,8 +273,8 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
                     }
                 }
 
-                BlockHeaderVisual(isHovered, block, isGhost) {
-                    if (canDrag) {
+                BlockHeaderVisual(isHovered, block, isGhost, isPreview) {
+                    if (canDrag && !isPreview) {
                         modifier.setupDragHandler(block, controller)
                             .onClick {
                                 if (it.isRightClick) {
@@ -287,20 +291,26 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
                                 }
                             }
                     }
-                    modifier
-                        .onEnter { isHovered.set(true) }
-                        .onHover { PointerInput.cursorShape = CursorShape.HAND }
-                        .onExit { isHovered.set(false) }
+                    // Only apply hover effects if not a preview
+                    if (!isPreview) {
+                        modifier
+                            .onEnter { isHovered.set(true) }
+                            .onHover { PointerInput.cursorShape = CursorShape.HAND }
+                            .onExit { isHovered.set(false) }
+                    }
                 }
             }
 
             // Body
             if (block is ContainerBlock && !block.isCollapsed.use()) {
-                renderContainerBody(block, isHovered.use(), isGhost)
+                renderContainerBody(block, isHovered.use(), isGhost, isPreview)
             }
 
-            modifier.onPositioned {
-                controller.registerBlockBounds(block, it, scale)
+            // Skip registering bounds for preview blocks
+            if (!isPreview) {
+                modifier.onPositioned {
+                    controller.registerBlockBounds(block, it, scale)
+                }
             }
         }
     }
@@ -310,8 +320,9 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
         block: T,
         isParentHovered: Boolean,
         isGhost: Boolean,
+        isPreview: Boolean = false,
     ): Unit where T : BlockModel, T : ContainerBlock = with(scope) {
-        with(InputSlotScope(this@BlockEditor, scope, block, isParentHovered, isGhost)) {
+        with(InputSlotScope(this@BlockEditor, scope, block, isParentHovered, isGhost, isPreview)) {
             with(block) { composeBody() }
         }
 
@@ -329,7 +340,8 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
             val isSelected = controller.selectedBlocks.use().contains(block)
             modifier.background(ContainerFooterBackground(animatedColor, scale, block !is EndBlock, isSelected))
 
-            if (!controller.isDragging(block)) {
+            // Skip drop targets for preview blocks
+            if (!isPreview && !controller.isDragging(block)) {
                 Box {
                     modifier.width(Grow.Std).alignY(AlignmentY.Bottom).height(Grow(0.45f))
                     controller.addDropTarget(DropAction.AttachAfter(block as StatementBlock), uiNode)
@@ -342,17 +354,18 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
         isHovered: MutableStateValue<Boolean>,
         block: BlockModel,
         isGhost: Boolean,
+        isPreview: Boolean = false,
         blockModifier: UiModifier.() -> Unit,
     ) {
         Box {
             modifier.apply(blockModifier)
 
             val isUnused = block.parentsWithSelf.none { it is StartBlock } && block.root in rootBlocks
-            val isSelected = controller.selectedBlocks.use().contains(block)
+            val isSelected = !isPreview && controller.selectedBlocks.use().contains(block)
             val baseColor = block.resolveColor(isGhost, isUnused, isSelected)
 
             val animatedColor by animateColorAsState(
-                if (isHovered.use()) baseColor else baseColor.mulRgb(0.9f),
+                if (isHovered.use() && !isPreview) baseColor else baseColor.mulRgb(0.9f),
                 tween(0.2f, Easing.easeOutQuart)
             )
             val factor by animateFloatAsState(
@@ -377,7 +390,7 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
                     vertical = Dimensions.PaddingMedium.scaled()
                 ).alignY(AlignmentY.Center)
 
-                with(InputSlotScope(this@BlockEditor, this@Row, block, isHovered.use(), isGhost)) {
+                with(InputSlotScope(this@BlockEditor, this@Row, block, isHovered.use(), isGhost, isPreview)) {
                     with(block) {
                         if (block.isCollapsed.use()) {
                             composeContentCollapsed()
@@ -388,7 +401,8 @@ open class BlockEditor(val provider: BlockProvider, val notifyChanged: () -> Uni
                 }
             }
 
-            if (!controller.isDragging(block) && !block.isExpression()) {
+            // Skip drop targets for preview blocks
+            if (!isPreview && !controller.isDragging(block) && !block.isExpression()) {
                 Box {
                     modifier.width(Grow.Std).height(Grow(0.25f)).alignY(AlignmentY.Top)
                     controller.addDropTarget(DropAction.InsertBefore(block), uiNode)

@@ -14,6 +14,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.api.extensions.PlayerExtension
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
@@ -224,21 +225,21 @@ class PlayerSetRespawn : StatementBlock() {
                 Box(Grow.Std) {}
                 Arrow(if (isExpanded) ArrowScope.ROTATION_DOWN else ArrowScope.ROTATION_RIGHT) {
                     modifier.onClick { isExpanded = !isExpanded }
-                        .size(sizes.gap * 1.5f, sizes.gap * 1.5f)
+                        .size(Dimensions.PaddingNormal.scaled() * 1.5f, Dimensions.PaddingNormal.scaled() * 1.5f)
                         .alignY(AlignmentY.Center)
-                        .margin(horizontal = sizes.smallGap)
+                        .margin(horizontal = Dimensions.PaddingSmall.scaled())
                         .dragListener(object : Draggable {})
                         .colors(arrowColor = Color.WHITE.mulRgb(0.9f), arrowHoverColor = Color.WHITE)
                 }
             }
             if (isExpanded) {
-                Box { modifier.margin(sizes.smallGap * 0.5f) }
+                Box { modifier.margin(Dimensions.PaddingSmall.scaled() * 0.5f) }
                 Row(Grow.Std) {
                     Text("Принудительно: ") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                     Box(Grow.Std) {  }
                     InputSlot(forced)
                 }
-                Box { modifier.margin(sizes.smallGap * 0.5f) }
+                Box { modifier.margin(Dimensions.PaddingSmall.scaled() * 0.5f) }
                 Row(Grow.Std) {
                     Text("Уведомить игрока? ") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                     Box(Grow.Std) {  }
@@ -275,17 +276,17 @@ class PlayerHasItemBlock() : ExpressionBlock() {
         Text("Игрок") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
         Text("имеет предмет") {
-            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap).bold()
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled()).bold()
         }
-        Box(sizes.largeGap * 1.5f, sizes.largeGap * 1.5f) {
+        Box(Dimensions.PaddingHuge.scaled() * 1.5f, Dimensions.PaddingHuge.scaled() * 1.5f) {
             modifier.alignY(AlignmentY.Center)
-                .border(RoundRectBorder(Color.WHITE, sizes.smallGap, sizes.borderWidth))
+                .border(RoundRectBorder(Color.WHITE, Dimensions.PaddingSmall.scaled(), Dimensions.PaddingSmall.scaled()))
 
             Item(item) {
                 val isHovered by modifier.hoverable()
                 val size by animateFloatAsState(if (isHovered) 1.5f else 1.2f)
 
-                modifier.size(sizes.largeGap * size, sizes.largeGap * size)
+                modifier.size(Dimensions.PaddingHuge.scaled() * size, Dimensions.PaddingHuge.scaled() * size)
                     .align(AlignmentX.Center, AlignmentY.Center)
                     .onClick {
                         popup.popupContent = {
@@ -295,7 +296,7 @@ class PlayerHasItemBlock() : ExpressionBlock() {
                             }
                         }
 
-                        popup.show(Vec2f(uiNode.rightPx + sizes.smallGap.px, uiNode.topPx))
+                        popup.show(Vec2f(uiNode.rightPx + Dimensions.PaddingSmall.scaled().px, uiNode.topPx))
                     }
             }
         }
@@ -338,17 +339,17 @@ class PlayerRemoveItemBlock : StatementBlock() {
         Text("Удалить из инвентаря") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
         Text("предмет") {
-            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap).bold()
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled()).bold()
         }
-        Box(sizes.largeGap * 1.5f, sizes.largeGap * 1.5f) {
+        Box(Dimensions.PaddingHuge.scaled() * 1.5f, Dimensions.PaddingHuge.scaled() * 1.5f) {
             modifier.alignY(AlignmentY.Center)
-                .border(RoundRectBorder(Color.WHITE, sizes.smallGap, sizes.borderWidth))
+                .border(RoundRectBorder(Color.WHITE, Dimensions.PaddingSmall.scaled(), Dimensions.PaddingSmall.scaled()))
 
             Item(item) {
                 val isHovered by modifier.hoverable()
                 val size by animateFloatAsState(if (isHovered) 1.5f else 1.2f)
 
-                modifier.size(sizes.largeGap * size, sizes.largeGap * size)
+                modifier.size(Dimensions.PaddingHuge.scaled() * size, Dimensions.PaddingHuge.scaled() * size)
                     .align(AlignmentX.Center, AlignmentY.Center)
                     .onClick {
                         popup.popupContent = {
@@ -358,7 +359,7 @@ class PlayerRemoveItemBlock : StatementBlock() {
                             }
                         }
 
-                        popup.show(Vec2f(uiNode.rightPx + sizes.smallGap.px, uiNode.topPx))
+                        popup.show(Vec2f(uiNode.rightPx + Dimensions.PaddingSmall.scaled().px, uiNode.topPx))
                     }
             }
         }

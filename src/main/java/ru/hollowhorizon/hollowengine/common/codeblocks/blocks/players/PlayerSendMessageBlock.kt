@@ -6,6 +6,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.utils.literal
 
@@ -28,9 +29,9 @@ class PlayerSendMessageBlock : StatementBlock() {
         ComboBox {
             modifier.width(FitContent).items(listOf("Чат", "Панель действий"))
                 .alignY(AlignmentY.Center)
-                .background(RoundRectBackground(Color.BLACK.withAlpha(0.15f), sizes.smallGap))
+                .background(RoundRectBackground(Color.BLACK.withAlpha(0.15f), Dimensions.PaddingSmall.scaled()))
                 .zLayer(modifier.zLayer + 10)
-                .margin(sizes.smallGap).padding(sizes.smallGap)
+                .margin(Dimensions.PaddingSmall.scaled()).padding(Dimensions.PaddingSmall.scaled())
                 .selectedIndex(if (overlay) 1 else 0)
                 .onItemSelected { overlay = (it == 1) }
         }

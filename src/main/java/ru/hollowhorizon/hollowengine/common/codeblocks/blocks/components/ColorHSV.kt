@@ -5,9 +5,10 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 
 @Serializable(with = ColorHSVSerializer::class)
-class ColorHSV() : Composable {
+class ColorHSV() {
     @Transient
     val hue = mutableStateOf(0f)
 
@@ -29,14 +30,15 @@ class ColorHSV() : Composable {
 
     private val popup = AutoPopup()
 
-    override fun UiScope.compose() {
-        Box(sizes.largeGap * 1.5f, sizes.largeGap * 1.5f) {
-            modifier.background(RoundRectBackground(toColor(), sizes.smallGap))
+    context(scope: UiScope)
+    operator fun invoke(scale: Float): Unit = with(scope) {
+        Box(Dimensions.PaddingLarge * scale, Dimensions.PaddingLarge * scale) {
+            modifier.background(RoundRectBackground(toColor(), Dimensions.PaddingSmall * scale))
                 .zLayer(modifier.zLayer + 800)
-                .border(RoundRectBorder(Color.WHITE, sizes.smallGap, sizes.borderWidth))
+                .border(RoundRectBorder(Color.WHITE, Dimensions.PaddingSmall * scale, Dimensions.PaddingSmall * scale))
                 .onClick {
                     popup.popupContent = {
-                        modifier.padding(sizes.smallGap)
+                        modifier.padding(Dimensions.PaddingSmall * scale)
                             .zLayer(100_100_100)
 
                         ColorChooserH(
@@ -47,8 +49,9 @@ class ColorHSV() : Composable {
                             hexString = hexString
                         )
                     }
-                    popup.show(Vec2f(uiNode.rightPx + sizes.smallGap.px, uiNode.topPx))
+                    popup.show(Vec2f(uiNode.rightPx + Dimensions.PaddingSmall.px, uiNode.topPx))
                 }
+                .alignY(AlignmentY.Center)
         }
         popup()
     }

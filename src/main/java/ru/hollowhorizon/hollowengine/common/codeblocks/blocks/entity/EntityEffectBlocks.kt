@@ -11,6 +11,7 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.effect.MobEffectInstance
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -39,11 +40,13 @@ class EntityAddEffectBlock : StatementBlock() {
         InputSlot(entity)
 
         Box {
-            modifier.alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap)
+            modifier.alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled())
             TextField {
                 modifier
                     .text(effectRl)
-                    .width(150.dp)
+                    .width(FitContent)
+                    .margin(Dimensions.PaddingNormal.scaled())
+                    .font(font)
                     .onChange {
                         effectRl = it
                         position = Vec2f(uiNode.leftPx, uiNode.bottomPx)
@@ -65,7 +68,7 @@ class EntityAddEffectBlock : StatementBlock() {
                     LazyColumn(FitContent, 350.dp) {
                         items(completions) { res ->
                             Box(Grow.Std) {
-                                modifier.backgroundColor(Color("252930FF")).padding(sizes.smallGap)
+                                modifier.backgroundColor(Color("252930FF")).padding(Dimensions.PaddingSmall.scaled())
                                     .onClick { effectRl = res }
                                 Text(res) { modifier.font(MsdfFont(MONOCRAFT, 18f)).textColor(Color.WHITE).zLayer(UiSurface.LAYER_POPUP) }
                             }
@@ -104,7 +107,7 @@ class EntityRemoveEffectBlock : StatementBlock() {
         Text("эффект") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
 
         Box {
-            modifier.alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap)
+            modifier.alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled())
             TextField {
                 modifier
                     .text(effectRl)
@@ -130,7 +133,7 @@ class EntityRemoveEffectBlock : StatementBlock() {
                     LazyColumn {
                         items(completions) { res ->
                             Box(Grow.Std) {
-                                modifier.backgroundColor(Color("252930FF")).padding(sizes.smallGap)
+                                modifier.backgroundColor(Color("252930FF")).padding(Dimensions.PaddingSmall.scaled())
                                     .onClick { effectRl = res }
                                 Text(res) { modifier.font(MsdfFont(MONOCRAFT, 18f)).textColor(Color.WHITE) }
                             }

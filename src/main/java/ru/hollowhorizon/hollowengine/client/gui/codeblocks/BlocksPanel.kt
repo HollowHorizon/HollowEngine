@@ -35,7 +35,8 @@ class BlocksPanel(val editor: BlockEditor) {
                 .onDrag { editor.dragState.drag(it.screenPosition) }
                 .onDragEnd { editor.dragState.endDrag() }
 
-            editor.renderBlockTree(entry.previewItem, canDrag = false)
+            // Render block as preview (no highlighting, no drop targets, no dragging)
+            editor.renderBlockTree(entry.previewItem, isPreview = true, canDrag = false)
 
         }
     }

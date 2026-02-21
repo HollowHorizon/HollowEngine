@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.GameType
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -39,6 +40,11 @@ class PlayerGameModeBlock : StatementBlock() {
 
         ComboBox {
             modifier.width(FitContent).items(listOf("Выживание", "Творческий", "Приключение", "Наблюдатель"))
+                .font(font)
+                .background(RoundRectBackground(Color.BLACK.withAlpha(0.15f), Dimensions.PaddingSmall.scaled()))
+                .zLayer(modifier.zLayer + 10)
+                .margin(Dimensions.PaddingSmall.scaled()).padding(Dimensions.PaddingSmall.scaled())
+                .alignY(AlignmentY.Center)
             modifier.selectedIndex(modeInt)
             modifier.onItemSelected { modeInt = it }
         }
@@ -64,6 +70,11 @@ class PlayerCheckGamemodeBlock : ExpressionBlock() {
         Text("в режиме") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         ComboBox {
             modifier.width(FitContent).items(listOf("Выживание", "Творческий", "Приключение", "Наблюдатель"))
+                .font(font)
+                .background(RoundRectBackground(Color.BLACK.withAlpha(0.15f), Dimensions.PaddingSmall.scaled()))
+                .zLayer(modifier.zLayer + 10)
+                .margin(Dimensions.PaddingSmall.scaled()).padding(Dimensions.PaddingSmall.scaled())
+                .alignY(AlignmentY.Center)
             modifier.selectedIndex(modeInt)
             modifier.onItemSelected { modeInt = it }
         }

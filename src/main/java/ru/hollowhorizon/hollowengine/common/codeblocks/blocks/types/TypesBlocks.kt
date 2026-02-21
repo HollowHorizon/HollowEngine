@@ -35,12 +35,14 @@ class PositionBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("X") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("(") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("X") { modifier.textColor(Color("FF474D")).alignY(AlignmentY.Center).bold() }
         InputSlot(x)
-        Text("Y") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("Y") { modifier.textColor(Color("4CAF50")).alignY(AlignmentY.Center).bold() }
         InputSlot(y)
-        Text("Z") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("Z") { modifier.textColor(Color("42A5F5")).alignY(AlignmentY.Center).bold() }
         InputSlot(z)
+        Text(")") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         Image("hollowengine:textures/gui/icons/copy.svg") {
             modifier.size(Dimensions.PaddingHuge.scaled(), Dimensions.PaddingHuge.scaled())
                 .margin(Dimensions.PaddingNormal.scaled())
@@ -59,16 +61,20 @@ class PositionBlock : ExpressionBlock() {
 
     private fun InputSlotScope.pastePlayerCoords() {
         val pos = Minecraft.getInstance().player?.position() ?: Vec3.ZERO
-        inputs["x"] = NumberBlock(pos.x).also {
+        inputs["x"] = NumberBlock(pos.x.formatDecimals()).also {
             it.parentBlock = this@PositionBlock; it.color = MdColor.AMBER; it.parentInputName = "x"
         }
-        inputs["y"] = NumberBlock(pos.y).also {
+        inputs["y"] = NumberBlock(pos.y.formatDecimals()).also {
             it.parentBlock = this@PositionBlock; it.color = MdColor.AMBER; it.parentInputName = "y"
         }
-        inputs["z"] = NumberBlock(pos.z).also {
+        inputs["z"] = NumberBlock(pos.z.formatDecimals()).also {
             it.parentBlock = this@PositionBlock; it.color = MdColor.AMBER; it.parentInputName = "z"
         }
         notifyChanged()
+    }
+    
+    private fun Double.formatDecimals(): Double {
+        return (this * 1000.0).toInt() / 1000.0
     }
 }
 
@@ -87,15 +93,17 @@ class BlockPosBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("X") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("[") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("X") { modifier.textColor(Color("FF474D")).alignY(AlignmentY.Center).bold() }
         InputSlot(x)
-        Text("Y") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("Y") { modifier.textColor(Color("4CAF50")).alignY(AlignmentY.Center).bold() }
         InputSlot(y)
-        Text("Z") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("Z") { modifier.textColor(Color("42A5F5")).alignY(AlignmentY.Center).bold() }
         InputSlot(z)
+        Text("]") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         Image("hollowengine:textures/gui/icons/copy.svg") {
-            modifier.size(sizes.largeGap * 1.5f, sizes.largeGap * 1.5f)
-                .margin(sizes.smallGap)
+            modifier.size(Dimensions.PaddingHuge.scaled(), Dimensions.PaddingHuge.scaled())
+                .margin(Dimensions.PaddingNormal.scaled())
                 .align(AlignmentX.End, AlignmentY.Center)
 
             val isHovered by modifier.hoverable()
@@ -110,14 +118,14 @@ class BlockPosBlock : ExpressionBlock() {
     }
 
     private fun InputSlotScope.pastePlayerCoords() {
-        val pos = Minecraft.getInstance().player?.position() ?: Vec3.ZERO
-        inputs["x"] = NumberBlock(pos.x).also {
+        val pos = Minecraft.getInstance().player?.blockPosition() ?: BlockPos.ZERO
+        inputs["x"] = NumberBlock(pos.x.toDouble()).also {
             it.parentBlock = this@BlockPosBlock; it.color = MdColor.AMBER; it.parentInputName = "x"
         }
-        inputs["y"] = NumberBlock(pos.y).also {
+        inputs["y"] = NumberBlock(pos.y.toDouble()).also {
             it.parentBlock = this@BlockPosBlock; it.color = MdColor.AMBER; it.parentInputName = "y"
         }
-        inputs["z"] = NumberBlock(pos.z).also {
+        inputs["z"] = NumberBlock(pos.z.toDouble()).also {
             it.parentBlock = this@BlockPosBlock; it.color = MdColor.AMBER; it.parentInputName = "z"
         }
         notifyChanged()

@@ -5,21 +5,23 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.execution.InputValue
 import ru.hollowhorizon.hollowengine.common.codeblocks.isExpression
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.parentsWithSelf
 import ru.hollowhorizon.hollowengine.common.codeblocks.root
-import ru.hollowhorizon.hollowengine.common.codeblocks.execution.InputValue
 
 class InputSlotScope(
     private val editor: BlockEditor, uiScope: UiScope,
     val parentBlock: BlockModel,
     val isHovered: Boolean,
     val isGhost: Boolean,
+    private val isPreview: Boolean = false,
 ) : UiScope by uiScope {
 
-    fun Dp.scaled() = this * editor.scale
+    val scale: Float get() = editor.scale
+    fun Dp.scaled() = this * scale
 
     val boldFont = editor.getFont(Dimensions.FontNormal, isBold = true)
     val font = editor.getFont(Dimensions.FontNormal - 1f)
@@ -32,7 +34,7 @@ class InputSlotScope(
     fun UiScope.InputSlot(name: String, type: ExpressionType) = with(editor) {
         parentBlock.inputTypes[name] = type
         val attached = parentBlock.inputs[name]
-        val isTargeted = editor.controller.canAttachToInput(parentBlock, name) && !editor.controller.isStatementSlot
+        val isTargeted = !isPreview && editor.controller.canAttachToInput(parentBlock, name) && !editor.controller.isStatementSlot
 
         Box {
             modifier.align(AlignmentX.End, AlignmentY.Center).margin(horizontal = Dimensions.PaddingMedium.scaled())
@@ -40,11 +42,14 @@ class InputSlotScope(
             if (attached != null) {
                 if (editor.controller.draggingBlock == attached) EmptySlotVisual(isTargeted)
                 else {
-                    renderBlockTree(attached)
+                    renderBlockTree(attached, isPreview = isPreview)
                     if (isTargeted) modifier.border(RectBorder(Color.WHITE, 2.dp.scaled()))
                 }
             } else {
-                editor.controller.addDropTarget(DropAction.AttachToInput(parentBlock, name, false), uiNode)
+                // Skip drop targets for preview blocks
+                if (!isPreview) {
+                    editor.controller.addDropTarget(DropAction.AttachToInput(parentBlock, name, false), uiNode)
+                }
 
                 val dragBlock = editor.controller.draggingBlock
                 if (isTargeted && dragBlock?.isExpression() == true) GhostPlaceholder(dragBlock)
@@ -78,7 +83,7 @@ class InputSlotScope(
 
     fun UiScope.BodySlot(name: String) = with(editor) {
         val attached = parentBlock.inputs[name]
-        val isTargeted = editor.controller.canAttachToInput(parentBlock, name) && editor.controller.isStatementSlot
+        val isTargeted = !isPreview && editor.controller.canAttachToInput(parentBlock, name) && editor.controller.isStatementSlot
 
         Row {
             modifier.width(Grow.Std)
@@ -118,11 +123,14 @@ class InputSlotScope(
                             )
                         )
                     }
-                    editor.controller.addDropTarget(DropAction.AttachToInput(parentBlock, name, true), uiNode)
+                    // Skip drop targets for preview blocks
+                    if (!isPreview) {
+                        editor.controller.addDropTarget(DropAction.AttachToInput(parentBlock, name, true), uiNode)
+                    }
                 }
 
                 if (attached != null) {
-                    renderBlockTree(attached, isGhost)
+                    renderBlockTree(attached, isGhost, isPreview = isPreview)
                 }
             }
         }

@@ -53,11 +53,9 @@ class MathBlock(var op: MathOp = MathOp.ADD) : ExpressionBlock() {
         // Кликабельный текст для смены операции
         Box {
             modifier
-                .size(sizes.largeGap.scaled(), sizes.largeGap.scaled())
                 .alignY(AlignmentY.Center)
-                .margin(horizontal = 4.dp.scaled())
-                .padding(horizontal = 4.dp.scaled(), vertical = 2.dp.scaled())
-                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), sizes.largeGap.scaled()))
+                .padding(Dimensions.PaddingNormal.scaled())
+                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), Dimensions.PaddingNormal.scaled()))
                 .onClick {
                     if (it.pointer.isLeftButtonClicked) {
                         val values = MathOp.entries
@@ -68,7 +66,7 @@ class MathBlock(var op: MathOp = MathOp.ADD) : ExpressionBlock() {
                 }
                 .zLayer(modifier.zLayer + 10)
 
-            Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center).alignY(AlignmentY.Center).bold() }
+            Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center, AlignmentY.Center).bold() }
         }
 
         InputSlot(b)
@@ -133,10 +131,9 @@ class CompareBlock(var op: CompareOp = CompareOp.EQUALS) : ExpressionBlock() {
         // Кликабельный текст для смены операции
         Box {
             modifier
-                .size(Dimensions.PaddingLarge.scaled(), Dimensions.PaddingLarge.scaled()).alignY(AlignmentY.Center)
-                .margin(horizontal = Dimensions.PaddingNormal.scaled())
-                .padding(horizontal = Dimensions.PaddingNormal.scaled(), vertical = Dimensions.PaddingSmall.scaled())
-                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), sizes.largeGap))
+                .alignY(AlignmentY.Center)
+                .padding(Dimensions.PaddingNormal.scaled())
+                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), Dimensions.PaddingNormal.scaled()))
                 .onClick {
                     if (it.pointer.isLeftButtonClicked) {
                         val values = CompareOp.entries
@@ -145,10 +142,9 @@ class CompareBlock(var op: CompareOp = CompareOp.EQUALS) : ExpressionBlock() {
                     surface.triggerUpdate()
                     notifyChanged()
                 }
-                .alignY(AlignmentY.Center)
                 .zLayer(modifier.zLayer + 10)
 
-            Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center).alignY(AlignmentY.Center).bold() }
+            Text(op.symbol) { modifier.textColor(Color.WHITE).align(AlignmentX.Center, AlignmentY.Center).bold() }
         }
 
         InputSlot(b)
@@ -178,10 +174,9 @@ class LogicBlock(var op: LogicOp = LogicOp.AND) : ExpressionBlock() {
         InputSlot(a)
         Box {
             modifier
-                .size(Dimensions.PaddingHuge.scaled(), Dimensions.PaddingHuge.scaled())
                 .alignY(AlignmentY.Center)
-                .padding(horizontal = Dimensions.PaddingNormal.scaled())
-                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), Dimensions.PaddingHuge.scaled()))
+                .padding(Dimensions.PaddingNormal.scaled())
+                .background(RoundRectBackground(Color.BLACK.withAlpha(0.3f), Dimensions.PaddingNormal.scaled()))
                 .onClick {
                     if (it.pointer.isLeftButtonClicked) {
                         val values = LogicOp.entries
@@ -193,7 +188,7 @@ class LogicBlock(var op: LogicOp = LogicOp.AND) : ExpressionBlock() {
                 .zLayer(modifier.zLayer + 10)
 
             Text(op.symbol) {
-                modifier.textColor(Color.WHITE).alignX(AlignmentX.Center).alignY(AlignmentY.Center).bold()
+                modifier.textColor(Color.WHITE).align(AlignmentX.Center, AlignmentY.Center).bold()
             }
         }
 
@@ -251,13 +246,13 @@ class TestBlock : ExpressionBlock() {
                 Box(Grow.Std) {}
                 InputSlot(test)
             }
-            Box { modifier.size(Grow.Std, sizes.gap) }
+            Box { modifier.size(Grow.Std, Dimensions.PaddingNormal.scaled()) }
             Row(Grow.Std) {
                 Text("Если истина") { modifier.bold() }
                 Box(Grow.Std) {}
                 InputSlot(thenBranch)
             }
-            Box { modifier.size(Grow.Std, sizes.gap) }
+            Box { modifier.size(Grow.Std, Dimensions.PaddingNormal.scaled()) }
             Row(Grow.Std) {
                 Text("Если ложь") { modifier.bold() }
                 Box(Grow.Std) {}
@@ -275,8 +270,16 @@ class NumberBlock(var value: Double = 0.0) : ExpressionBlock() {
 
     override suspend fun execute() = value
 
+    private fun formatValue(): String {
+        return if (value == value.toLong().toDouble()) {
+            value.toLong().toString()
+        } else {
+            String.format("%.3f", value).trimEnd('0').trimEnd('.')
+        }
+    }
+
     override fun InputSlotScope.composeContent() {
-        TextField(value.toString()) {
+        TextField(formatValue()) {
             modifier
                 .font(font)
                 .onChange { value = it.toDoubleOrNull() ?: 0.0; notifyChanged() }

@@ -36,7 +36,7 @@ class TextComponentBlock : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(text)
-        textColor()
+        textColor(scale)
     }
 }
 

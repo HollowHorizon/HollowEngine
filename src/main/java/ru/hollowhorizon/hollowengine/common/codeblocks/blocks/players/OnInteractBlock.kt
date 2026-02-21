@@ -10,6 +10,7 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
@@ -67,17 +68,17 @@ class PlayerInteractWithBlock : StatementBlock() {
         Text("Игрок") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
         Text("взаимодействует с блоком") {
-            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap).bold()
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled()).bold()
         }
-        Box(sizes.largeGap * 1.5f, sizes.largeGap * 1.5f) {
+        Box(Dimensions.PaddingLarge.scaled(), Dimensions.PaddingLarge.scaled()) {
             modifier.alignY(AlignmentY.Center)
-                .border(RoundRectBorder(Color.WHITE, sizes.smallGap, sizes.borderWidth))
+                .border(RoundRectBorder(Color.WHITE, Dimensions.PaddingSmall.scaled(), Dimensions.PaddingSmall.scaled()))
 
             Item(item) {
                 val isHovered by modifier.hoverable()
                 val size by animateFloatAsState(if (isHovered) 1.5f else 1.2f)
 
-                modifier.size(sizes.largeGap * size, sizes.largeGap * size)
+                modifier.size(Dimensions.PaddingHuge.scaled() * size, Dimensions.PaddingHuge.scaled() * size)
                     .align(AlignmentX.Center, AlignmentY.Center)
                     .onClick {
                         popup.popupContent = {
@@ -87,7 +88,7 @@ class PlayerInteractWithBlock : StatementBlock() {
                             }
                         }
 
-                        popup.show(Vec2f(uiNode.rightPx + sizes.smallGap.px, uiNode.topPx))
+                        popup.show(Vec2f(uiNode.rightPx + Dimensions.PaddingSmall.scaled().px, uiNode.topPx))
                     }
             }
         }
@@ -124,17 +125,17 @@ class PlayerInteractWithItem : StartBlock() {
         Text("Игрок") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
         Text("использует") {
-            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap).bold()
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled()).bold()
         }
-        Box(sizes.largeGap * 1.5f, sizes.largeGap * 1.5f) {
+        Box(Dimensions.PaddingLarge.scaled(), Dimensions.PaddingLarge.scaled()) {
             modifier.alignY(AlignmentY.Center)
-                .border(RoundRectBorder(Color.WHITE, sizes.smallGap, sizes.borderWidth))
+                .border(RoundRectBorder(Color.WHITE, Dimensions.PaddingSmall.scaled(), Dimensions.PaddingSmall.scaled()))
 
             Item(item) {
                 val isHovered by modifier.hoverable()
                 val size by animateFloatAsState(if (isHovered) 1.5f else 1.2f)
 
-                modifier.size(sizes.largeGap * size, sizes.largeGap * size)
+                modifier.size(Dimensions.PaddingHuge.scaled() * size, Dimensions.PaddingHuge.scaled() * size)
                     .align(AlignmentX.Center, AlignmentY.Center)
                     .onClick {
                         popup.popupContent = {
@@ -144,7 +145,7 @@ class PlayerInteractWithItem : StartBlock() {
                             }
                         }
 
-                        popup.show(Vec2f(uiNode.rightPx + sizes.smallGap.px, uiNode.topPx))
+                        popup.show(Vec2f(uiNode.rightPx + Dimensions.PaddingSmall.scaled().px, uiNode.topPx))
                     }
             }
         }
