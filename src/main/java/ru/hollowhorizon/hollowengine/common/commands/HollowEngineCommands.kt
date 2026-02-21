@@ -30,6 +30,10 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.start
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.geary.sync.setSyncing
@@ -53,6 +57,7 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
             registerModelCommands()
             registerUtilityCommands()
             registerCodeBlocksCommands()
+            registerScriptCommands()
         }
     }
 }
@@ -242,6 +247,93 @@ private fun CommandExtension.registerCodeBlocksCommands() {
             }
         }
     }
+}
+
+private fun CommandExtension.registerScriptCommands() {
+    "script" {
+        requires { hasPermission(2) }
+
+        "run"(arg("path", StringArgumentType.greedyString()) { getAvailableScripts() }) {
+            executes {
+                if (!HollowEngine.compilerLoader.isLoaded) {
+                    return@executes sendFailure("Scripting environment is not loaded. Please check if HollowEngineCompiler.jar exists.".literal)
+                }
+
+                val path = StringArgumentType.getString(this, "path")
+                val file = path.fromReadablePath()
+
+                if (!file.exists()) {
+                    return@executes sendFailure("Script file not found: $path".literal)
+                }
+
+                val result = ScriptingEnvironment.INSTANCE.compiler.compile(file)
+                if (result.isFailure) {
+                    val exception = result.exceptionOrNull()
+                    sendFailure("Script compilation failed: ${exception?.message ?: "Unknown error"}".literal)
+                    HollowEngine.LOGGER.error("Script compilation failed", exception)
+                } else {
+                    val script = result.getOrThrow()
+                    script.start()
+                    sendSuccess { "Script started: $path".literal }
+                }
+                SUCCESS
+            }
+        }
+
+        "list" {
+            executes {
+                if (!HollowEngine.compilerLoader.isLoaded) {
+                    return@executes sendFailure("Scripting environment is not loaded.".literal)
+                }
+
+                val scripts = getAvailableScripts()
+                if (scripts.isEmpty()) {
+                    sendSuccess { "No .kts scripts found in hollowengine/scripts/".literal }
+                } else {
+                    sendSuccess { "Available Kotlin scripts:".literal }
+                    scripts.sorted().forEach { scriptPath ->
+                        source.sendSuccess({ "- $scriptPath".literal }, false)
+                    }
+                }
+                SUCCESS
+            }
+        }
+
+        "eval"(arg("code", StringArgumentType.greedyString())) {
+            executes {
+                if (!HollowEngine.compilerLoader.isLoaded) {
+                    return@executes sendFailure("Scripting environment is not loaded.".literal)
+                }
+
+                val code = StringArgumentType.getString(this, "code")
+                val result = ScriptingEnvironment.INSTANCE.compiler.compile("eval", code)
+
+                if (result.isFailure) {
+                    val exception = result.exceptionOrNull()
+                    sendFailure("Script evaluation failed: ${exception?.message ?: "Unknown error"}".literal)
+                    HollowEngine.LOGGER.error("Script evaluation failed", exception)
+                } else {
+                    val script = result.getOrThrow()
+                    script.start()
+                    sendSuccess { "Script evaluated successfully".literal }
+                }
+                SUCCESS
+            }
+        }
+    }
+}
+
+private fun getAvailableScripts(): Collection<String> {
+    val scriptsDir = DirectoryManager.HOLLOW_ENGINE.resolve("scripts").toFile()
+    if (!scriptsDir.exists()) {
+        scriptsDir.mkdirs()
+        return emptyList()
+    }
+
+    return scriptsDir.walk()
+        .filter { it.isFile && it.name.endsWith(".kts") }
+        .map { it.toReadablePath() }
+        .toList()
 }
 
 // region Particle Functions
