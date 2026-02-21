@@ -33,6 +33,9 @@ abstract class BlockModel {
     val inputs = mutableMapOf<String, BlockModel>()
 
     @Transient
+    private val inputDefaults = mutableMapOf<String, () -> BlockModel>()
+
+    @Transient
     val inputTypes = mutableMapOf<String, ExpressionType>()
 
     @Transient
@@ -55,11 +58,37 @@ abstract class BlockModel {
         if (T::class == Any::class) AnyType else typeOf<T>()
     )
 
+    inline fun <reified T : Any> inputDefault(
+        name: String? = null,
+        noinline default: () -> BlockModel,
+    ) = InputDelegate<T>(
+        name,
+        if (T::class == Any::class) AnyType else typeOf<T>(),
+        default
+    )
+
+    fun setInputDefault(slotName: String, default: () -> BlockModel) {
+        inputDefaults[slotName] = default
+    }
+
+    fun applyDefaults(recursive: Boolean = true) {
+        inputDefaults.forEach { (slotName, factory) ->
+            if (inputs[slotName] == null) {
+                val block = factory()
+                attachInput(slotName, block)
+            }
+        }
+
+        if (recursive) {
+            inputs.values.forEach { it.applyDefaults(true) }
+            (this as? StatementBlock)?.next?.applyDefaults(true)
+        }
+    }
+
     inline fun <reified T : Any> inputList(name: String? = null) = InputListDelegate<T>(
         name,
         if (T::class == Any::class) AnyType else typeOf<T>()
     )
-
 
     abstract suspend fun execute(): Any?
 

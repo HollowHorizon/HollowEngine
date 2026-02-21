@@ -7,8 +7,13 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
-class InputDelegate<T : Any>(var name: String?, val type: ExpressionType) :
+class InputDelegate<T : Any>(
+    var name: String?,
+    val type: ExpressionType,
+    private val defaultFactory: (() -> BlockModel)? = null,
+) :
     ReadOnlyProperty<BlockModel, InputValue<T>> {
+
     lateinit var thisRef: BlockModel
     private val interpreter: Lazy<BlockModelInterpreter<T>> = lazy {
         val block = thisRef.inputs[name] ?: error("Input $name not attached!")
@@ -22,6 +27,10 @@ class InputDelegate<T : Any>(var name: String?, val type: ExpressionType) :
     operator fun provideDelegate(thisRef: BlockModel, property: KProperty<*>): InputDelegate<T> {
         name = name ?: property.name
         this.thisRef = thisRef
+
+        defaultFactory?.let { factory ->
+            thisRef.setInputDefault(name!!, factory)
+        }
         return this
     }
 

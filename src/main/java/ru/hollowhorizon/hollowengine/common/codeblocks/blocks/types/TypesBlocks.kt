@@ -26,9 +26,9 @@ class PositionBlock : ExpressionBlock() {
     @Transient
     override val expressionType = typeOf<Vec3>()
 
-    val x by input<Number>()
-    val y by input<Number>()
-    val z by input<Number>()
+    val x by inputDefault<Number> { NumberBlock(0.0) }
+    val y by inputDefault<Number> { NumberBlock(0.0) }
+    val z by inputDefault<Number> { NumberBlock(0.0) }
 
     override suspend fun execute(): Any? {
         return Vec3(x().toDouble(), y().toDouble(), z().toDouble())
