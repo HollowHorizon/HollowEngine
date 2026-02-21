@@ -306,7 +306,7 @@ private fun CommandExtension.registerScriptCommands() {
                 }
 
                 val code = StringArgumentType.getString(this, "code")
-                val result = ScriptingEnvironment.INSTANCE.compiler.compile("eval", code)
+                val result = ScriptingEnvironment.INSTANCE.compiler.compile("eval.kts", code)
 
                 if (result.isFailure) {
                     val exception = result.exceptionOrNull()
