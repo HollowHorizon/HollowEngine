@@ -7,12 +7,15 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 
 @Serializable
 @SerialName("hollowengine:string_type")
 class StringValueBlock(var value: String) : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.TYPES
+
     @Transient
     override val expressionType = typeOf<String>()
 

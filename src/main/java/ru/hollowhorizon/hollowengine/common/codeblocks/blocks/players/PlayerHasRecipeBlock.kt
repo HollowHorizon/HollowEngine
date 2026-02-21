@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -18,6 +19,8 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
 @Serializable
 @SerialName("hollowengine:player/recipe_unlocked")
 class PlayerHasRecipeBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
     val player by input<Player>()

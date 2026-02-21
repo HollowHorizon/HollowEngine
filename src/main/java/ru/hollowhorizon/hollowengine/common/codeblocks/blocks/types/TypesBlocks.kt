@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types
 
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.MdColor
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -15,6 +14,7 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.NumberBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
@@ -23,6 +23,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 @Serializable
 @SerialName("hollowengine:types/location")
 class PositionBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.TYPES
+
     @Transient
     override val expressionType = typeOf<Vec3>()
 
@@ -62,13 +64,13 @@ class PositionBlock : ExpressionBlock() {
     private fun InputSlotScope.pastePlayerCoords() {
         val pos = Minecraft.getInstance().player?.position() ?: Vec3.ZERO
         inputs["x"] = NumberBlock(pos.x.formatDecimals()).also {
-            it.parentBlock = this@PositionBlock; it.color = MdColor.AMBER; it.parentInputName = "x"
+            it.parentBlock = this@PositionBlock; it.parentInputName = "x"
         }
         inputs["y"] = NumberBlock(pos.y.formatDecimals()).also {
-            it.parentBlock = this@PositionBlock; it.color = MdColor.AMBER; it.parentInputName = "y"
+            it.parentBlock = this@PositionBlock; it.parentInputName = "y"
         }
         inputs["z"] = NumberBlock(pos.z.formatDecimals()).also {
-            it.parentBlock = this@PositionBlock; it.color = MdColor.AMBER; it.parentInputName = "z"
+            it.parentBlock = this@PositionBlock; it.parentInputName = "z"
         }
         notifyChanged()
     }
@@ -81,6 +83,8 @@ class PositionBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:types/block_pos")
 class BlockPosBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.TYPES
+
     @Transient
     override val expressionType = typeOf<BlockPos>()
 
@@ -120,13 +124,13 @@ class BlockPosBlock : ExpressionBlock() {
     private fun InputSlotScope.pastePlayerCoords() {
         val pos = Minecraft.getInstance().player?.blockPosition() ?: BlockPos.ZERO
         inputs["x"] = NumberBlock(pos.x.toDouble()).also {
-            it.parentBlock = this@BlockPosBlock; it.color = MdColor.AMBER; it.parentInputName = "x"
+            it.parentBlock = this@BlockPosBlock; it.parentInputName = "x"
         }
         inputs["y"] = NumberBlock(pos.y.toDouble()).also {
-            it.parentBlock = this@BlockPosBlock; it.color = MdColor.AMBER; it.parentInputName = "y"
+            it.parentBlock = this@BlockPosBlock; it.parentInputName = "y"
         }
         inputs["z"] = NumberBlock(pos.z.toDouble()).also {
-            it.parentBlock = this@BlockPosBlock; it.color = MdColor.AMBER; it.parentInputName = "z"
+            it.parentBlock = this@BlockPosBlock; it.parentInputName = "z"
         }
         notifyChanged()
     }
@@ -135,6 +139,8 @@ class BlockPosBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:types/world/overworld")
 class GetOverworldBlock: ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.WORLDS
+
     @Transient
     override val expressionType = typeOf<ResourceKey<Level>>()
 
@@ -148,6 +154,8 @@ class GetOverworldBlock: ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:types/world/nether")
 class GetNetherBlock: ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.WORLDS
+
     @Transient
     override val expressionType = typeOf<ResourceKey<Level>>()
 
@@ -161,6 +169,8 @@ class GetNetherBlock: ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:types/world/the_end")
 class GetTheEndBlock: ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.WORLDS
+
     @Transient
     override val expressionType = typeOf<ResourceKey<Level>>()
 

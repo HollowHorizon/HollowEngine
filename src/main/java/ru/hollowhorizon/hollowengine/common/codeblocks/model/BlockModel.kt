@@ -26,8 +26,7 @@ abstract class BlockModel {
     @Transient
     var parentInputName: String? = null
 
-    @Transient
-    var color: Color = Color.Companion.RED
+    abstract val color: Color
 
     @Transient
     val inputs = mutableMapOf<String, BlockModel>()

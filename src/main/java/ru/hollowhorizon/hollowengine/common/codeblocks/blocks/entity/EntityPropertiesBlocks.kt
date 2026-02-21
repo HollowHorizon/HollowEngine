@@ -16,6 +16,7 @@ import net.minecraft.world.entity.Pose
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -24,6 +25,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 @Serializable
 @SerialName("hollowengine:entity/is_attackable")
 class EntityIsAttackable : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -43,6 +46,8 @@ class EntityIsAttackable : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/is_swimming")
 class EntityIsSwimming : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -62,6 +67,8 @@ class EntityIsSwimming : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/is_underwater")
 class EntityIsUnderwater : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -81,6 +88,8 @@ class EntityIsUnderwater : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/is_alive")
 class EntityIsAlive : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -100,6 +109,8 @@ class EntityIsAlive : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/is_aggressive")
 class EntityIsAggressive : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -119,6 +130,8 @@ class EntityIsAggressive : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/is_on_fire")
 class EntityIsOnFire : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -138,6 +151,8 @@ class EntityIsOnFire : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/is_in_lava")
 class EntityIsInLava : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -157,6 +172,8 @@ class EntityIsInLava : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/is_invisible")
 class EntityIsInvisible : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -177,6 +194,8 @@ class EntityIsInvisible : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/is_invulnerable")
 class EntityIsInvulnerable : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -196,6 +215,8 @@ class EntityIsInvulnerable : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/is_standing")
 class EntityIsStanding : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -215,6 +236,8 @@ class EntityIsStanding : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/is_sleeping")
 class EntityIsSleeping : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -234,6 +257,8 @@ class EntityIsSleeping : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/is_crouching")
 class EntityIsCrouching : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -253,6 +278,8 @@ class EntityIsCrouching : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/is_sitting")
 class EntityIsSitting : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -274,6 +301,8 @@ class EntityIsSitting : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/is_running")
 class EntityIsRunning : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -293,6 +322,8 @@ class EntityIsRunning : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/get_main_hand_item")
 class EntityGetMainHandItem : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -312,6 +343,8 @@ class EntityGetMainHandItem : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/get_off_hand_item")
 class EntityGetOffHandItem : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -331,6 +364,8 @@ class EntityGetOffHandItem : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/get_look_angle")
 class EntityGetLookAngle : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -350,6 +385,8 @@ class EntityGetLookAngle : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/get_name")
 class EntityGetName : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -369,6 +406,8 @@ class EntityGetName : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/get_position")
 class EntityGetPosition : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
 
     @Transient
@@ -388,6 +427,8 @@ class EntityGetPosition : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:entity/hurt")
 class EntityHurtBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>()
     val amount by input<Number>()
 
@@ -406,6 +447,8 @@ class EntityHurtBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:entity/remove")
 class RemoveEntityBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>()
 
     override suspend fun execute() {
@@ -421,6 +464,8 @@ class RemoveEntityBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:entity/clear_fire")
 class EntityClearFire : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>()
 
     override suspend fun execute() {
@@ -436,6 +481,8 @@ class EntityClearFire : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:entity/push")
 class PushEntityBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>()
     val position by input<Vec3>()
 
@@ -456,6 +503,8 @@ class PushEntityBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:entity/swing_main_hand")
 class SwingMainHandBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>()
 
     override suspend fun execute() {
@@ -472,6 +521,8 @@ class SwingMainHandBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:entity/swing_off_hand")
 class SwingOffHandBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>()
 
     override suspend fun execute() {

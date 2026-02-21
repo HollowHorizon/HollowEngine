@@ -15,6 +15,7 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
@@ -30,6 +31,8 @@ import ru.hollowhorizon.hollowengine.common.utils.yaml.YamlFormat
 class SpawnNpcPrefabBlock(
     val prefabPath: String = "",
 ) : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.NPCS
+
     @Transient
     override val expressionType = typeOf<NpcEntity>()
 

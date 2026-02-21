@@ -6,11 +6,14 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
 @Serializable
 @SerialName("hollowengine:print")
 class PrintBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.GENERAL
+
     val msg by input<Any>("msg")
 
     override suspend fun execute() {

@@ -10,6 +10,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.GameType
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -18,6 +19,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 @Serializable
 @SerialName("hollowengine:player/gamemode")
 class PlayerGameModeBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     val player by input<Player>()
     var modeInt = 0 // 0=Survival, 1=Creative, 2=Adventure, 3=Spectator
 
@@ -54,6 +57,8 @@ class PlayerGameModeBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:player/check_gamemode")
 class PlayerCheckGamemodeBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
     val player by input<Player>()

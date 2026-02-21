@@ -7,6 +7,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -17,6 +18,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.walk
 @Serializable
 @SerialName("hollowengine:events/set_global")
 class SetGlobalVarBlock(override var variableName: String = "var") : StatementBlock(), VariableProvider {
+    override val color: Color get() = CodeBlocksColors.GLOBALS
+
     override val expressionType get() = (inputs["value"] as? ExpressionBlock)?.expressionType ?: AnyType
     override val isGlobal = true
 
@@ -47,6 +50,8 @@ class SetGlobalVarBlock(override var variableName: String = "var") : StatementBl
 @Serializable
 @SerialName("hollowengine:variables/get_global")
 class GetGlobalVarBlock(var varName: String = "var") : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.GLOBALS
+
     override val expressionType: ExpressionType
         get() {
             val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.variableName == varName }
@@ -71,6 +76,8 @@ class GetGlobalVarBlock(var varName: String = "var") : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:variables/get_inline_global")
 class GetGlobalVarInlineBlock(val name: String) : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.GLOBALS
+
     override val expressionType: ExpressionType
         get() {
             val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.variableName == name }

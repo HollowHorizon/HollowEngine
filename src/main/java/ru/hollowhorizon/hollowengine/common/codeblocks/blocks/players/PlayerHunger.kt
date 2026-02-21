@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -18,6 +19,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 @Serializable
 @SerialName("hollowengine:player/set_food")
 class PlayerSetFoodBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     val entity by input<Player>("player")
     val food by input<Number>("food")
 
@@ -36,6 +39,8 @@ class PlayerSetFoodBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:player/add_exhaustion")
 class PlayerAddExhaustionBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     val entity by input<Player>("player")
     val exhaustion by input<Number>("exhaustion")
 
@@ -54,6 +59,8 @@ class PlayerAddExhaustionBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:player/set_saturation")
 class PlayerSetSaturationBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     val entity by input<Player>()
     val saturation by input<Number>()
 
@@ -72,6 +79,8 @@ class PlayerSetSaturationBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:player/get_saturation")
 class PlayerGetSaturationBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val entity by input<Player>()
@@ -89,6 +98,8 @@ class PlayerGetSaturationBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:player/get_food")
 class PlayerGetFoodBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val entity by input<Player>()

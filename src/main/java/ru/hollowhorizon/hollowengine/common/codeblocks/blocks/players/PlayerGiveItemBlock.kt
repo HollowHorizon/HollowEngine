@@ -13,12 +13,15 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStackJson
 
 @Serializable
 @SerialName("hollowengine:player/give_item")
 class PlayerGiveItemBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     val player by input<Player>()
     var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
 

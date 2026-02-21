@@ -8,6 +8,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import kotlin.math.E
@@ -16,6 +17,8 @@ import kotlin.math.PI
 @Serializable
 @SerialName("hollowengine:math/pi_const")
 class PiBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.MATH
+
     @Transient
     override val expressionType = typeOf<Number>()
 
@@ -31,6 +34,8 @@ class PiBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:math/e_const")
 class EBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.MATH
+
     @Transient
     override val expressionType = typeOf<Number>()
 

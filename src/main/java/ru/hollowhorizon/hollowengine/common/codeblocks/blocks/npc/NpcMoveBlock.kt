@@ -8,6 +8,7 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -17,6 +18,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.move
 @Serializable
 @SerialName("hollowengine:npc/move")
 class NpcMoveBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.NPCS
+
     val npc by input<NpcEntity>("npc")
     val target by input<Any>("target")
     val speed by input<Number>("speed")

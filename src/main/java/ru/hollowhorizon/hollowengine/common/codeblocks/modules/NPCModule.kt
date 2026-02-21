@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.modules
 
-import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockCategoryBuilder
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockEntry
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockModule
@@ -10,7 +9,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 
 object NPCModule : BlockModule {
     override fun BlockCategoryBuilder.build() {
-        categoryAfter(2, "НИПы", Color("7EB542"), icons.NPCS) {
+        categoryAfter(2, "НИПы", icons.NPCS) {
             block("Создать", ::SpawnNpcBlock)
             block("Удалить", ::DespawnNpcBlock)
 
@@ -31,7 +30,7 @@ object NPCModule : BlockModule {
                         BlockEntry(
                             "Создать $name",
                             icons.NPCS,
-                            { SpawnNpcPrefabBlock(readablePath).also { it.color = Color("7EB542") } },
+                            { SpawnNpcPrefabBlock(readablePath) },
                             SpawnNpcPrefabBlock::class
                         )
                     }

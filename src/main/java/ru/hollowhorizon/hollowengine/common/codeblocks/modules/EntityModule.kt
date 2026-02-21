@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.modules
 
-import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockCategoryBuilder
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.entity.*
@@ -9,7 +8,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.entity.attributes.
 
 object EntityModule : BlockModule {
     override fun BlockCategoryBuilder.build() {
-        category("Сущности", Color("1a8a01"), icons.NPCS) {
+        category("Сущности", icons.NPCS) {
             // --- Свойства и Геттеры ---
             block("Получить координаты") { EntityGetPosition() }
             block("Получить имя") { EntityGetName() }

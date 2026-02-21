@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentServer
@@ -20,6 +21,8 @@ import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 @Serializable
 @SerialName("hollowengine:player/get_by_name")
 class GetPlayerByNameBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Player>()
     val playerName by input<String>("name")

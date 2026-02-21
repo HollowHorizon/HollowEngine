@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.modules
 
-import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockCategoryBuilder
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.world.*
@@ -8,7 +7,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.world.schematics.P
 
 object WorldModule : BlockModule {
     override fun BlockCategoryBuilder.build() {
-        categoryAfter(0, "Мир", Color("ba9307"), icons.WORLD) {
+        categoryAfter(0, "Мир", icons.WORLD) {
             block("Установить блок", ::SetBlockBlock)
             block("Обновить блок", ::UpdateBlockBlock)
             block("Сломать блок", ::RemoveBlockBlock)
@@ -22,7 +21,7 @@ object WorldModule : BlockModule {
             block("Получить погоду", ::GetWeatherBlock)
             block("Изменить погоду", ::SetWeatherBlock)
 
-            category("Структуры", Color("6234c7"), icons.STRUCTURES) {
+            category("Структуры", icons.STRUCTURES) {
                 block("Разместить схематику", ::PlaceSchematicBlock)
             }
         }

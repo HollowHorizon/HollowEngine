@@ -5,6 +5,7 @@ import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockEntry
+import ru.hollowhorizon.hollowengine.common.codeblocks.isExpression
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 
 class DragState(val editor: BlockEditor) : Composable {
@@ -26,9 +27,9 @@ class DragState(val editor: BlockEditor) : Composable {
         if (item == null) {
             if (pos in editor.controller) {
                 val newItem = entry?.createItem() ?: return
-                // PaddingMedium это отступ из Box'а внутри Panel, PaddingHuge это начальный отступ блока для дроп-зоны
+                val blockOffset = if (newItem.isExpression()) 0f else -Dimensions.PaddingHuge.px * editor.scale
                 newItem.positionX.set(x + Dimensions.PaddingMedium.px)
-                newItem.positionY.set(y + Dimensions.PaddingMedium.px - Dimensions.PaddingHuge.px * editor.scale)
+                newItem.positionY.set(y + Dimensions.PaddingMedium.px + blockOffset)
                 editor.rootBlocks.add(newItem)
                 editor.notifyChanged()
                 editor.controller.handleDragStart(newItem, blockPosition - dragOffset.value, dragOffset.value)

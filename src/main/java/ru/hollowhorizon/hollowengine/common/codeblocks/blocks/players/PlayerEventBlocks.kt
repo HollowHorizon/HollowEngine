@@ -9,6 +9,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.LivingEntityDeathEvent
@@ -17,6 +18,8 @@ import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 @Serializable
 @SerialName("hollowengine:events/player_join")
 class OnPlayerJoinBlock : StartBlock() {
+    override val color: Color get() = CodeBlocksColors.EVENTS
+
     private val player by input<Player>("player")
 
     override suspend fun trigger() {
@@ -35,6 +38,8 @@ class OnPlayerJoinBlock : StartBlock() {
 @Serializable
 @SerialName("hollowengine:events/player_death")
 class OnPlayerDeathBlock : StartBlock() {
+    override val color: Color get() = CodeBlocksColors.EVENTS
+
     private val player by input<Player>("player")
 
     override suspend fun trigger() {

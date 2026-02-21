@@ -1,10 +1,12 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components
 
+import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.network.chat.Component
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -13,6 +15,8 @@ import ru.hollowhorizon.hollowengine.common.utils.*
 @Serializable
 @SerialName("hollowengine:component/text_component")
 class TextComponentBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.TYPES
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Component>()
 
@@ -43,6 +47,8 @@ class TextComponentBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:component/text_merger")
 class TextMergerBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.TYPES
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Component>()
 

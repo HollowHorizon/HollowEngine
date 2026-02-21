@@ -18,6 +18,7 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -29,6 +30,8 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
 @Serializable
 @SerialName("hollowengine:player/get_health")
 class PlayerHealthBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val player by input<Player>()
@@ -46,6 +49,8 @@ class PlayerHealthBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:player/get_max_health")
 class PlayerMaxHealthBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val player by input<Player>()
@@ -63,6 +68,8 @@ class PlayerMaxHealthBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:player/heal")
 class PlayerHealBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     val player by input<Player>()
     val amount by input<Number>()
 
@@ -81,6 +88,8 @@ class PlayerHealBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:player/set_health")
 class PlayerSetHealthBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     val player by input<Player>()
     val health by input<Number>()
 
@@ -99,6 +108,8 @@ class PlayerSetHealthBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:player/give_xp_points")
 class PlayerGiveXpPointsBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     val player by input<Player>()
     val amount by input<Number>()
 
@@ -117,6 +128,8 @@ class PlayerGiveXpPointsBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:player/give_xp_levels")
 class PlayerGiveXpLevelsBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     val player by input<Player>()
     val levels by input<Number>()
 
@@ -135,6 +148,8 @@ class PlayerGiveXpLevelsBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:player/remove_xp_levels")
 class PlayerRemoveXpLevelsBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     val player by input<Player>()
     val levels by input<Number>()
 
@@ -153,6 +168,8 @@ class PlayerRemoveXpLevelsBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:player/get_xp_points")
 class GetPlayerXpPointsBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val player by input<Player>()
@@ -169,6 +186,8 @@ class GetPlayerXpPointsBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:player/get_xp_levels")
 class GetPlayerXpLevelsBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val player by input<Player>()
@@ -185,6 +204,8 @@ class GetPlayerXpLevelsBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:player/close_gui")
 class PlayerCloseGuiBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     val player by input<Player>()
 
     override suspend fun execute() {
@@ -200,6 +221,8 @@ class PlayerCloseGuiBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:player/set_respawn")
 class PlayerSetRespawn : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     val player by input<Player>()
     val dimension by input<String>()
     val pos by input<Vec3>()
@@ -255,6 +278,8 @@ class PlayerSetRespawn : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:player/has_item")
 class PlayerHasItemBlock() : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Boolean>()
     val player by input<Player>()
@@ -307,6 +332,8 @@ class PlayerHasItemBlock() : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:player/remove_item")
 class PlayerRemoveItemBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.PLAYERS
+
     val player by input<Player>()
     var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
 

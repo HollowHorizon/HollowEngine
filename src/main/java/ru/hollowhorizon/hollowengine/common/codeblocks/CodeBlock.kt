@@ -16,7 +16,6 @@ fun <T : BlockModel> T.deepCopy(provider: BlockProvider): T {
     val clone = format.json.decodeFromString(PolymorphicSerializer(BlockModel::class), jsonString)
 
     clone.uuid = UUID.randomUUID()
-    clone.color = color
     (clone as? StatementBlock)?.parent = null
     clone.parentBlock = null
     clone.parentInputName = null

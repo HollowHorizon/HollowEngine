@@ -5,6 +5,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.remember
@@ -12,6 +13,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.remember
 @Serializable
 @SerialName("hollowengine:control/if-else")
 class IfElseBlock : StatementBlock(), ContainerBlock {
+    override val color: Color get() = CodeBlocksColors.LOGIC
+
     val condition by input<Boolean>("condition")
     val thenBranch by input<Unit>("then")
     val elseBranch by input<Unit>("else")
@@ -42,6 +45,8 @@ class IfElseBlock : StatementBlock(), ContainerBlock {
 @Serializable
 @SerialName("hollowengine:control/if")
 class IfBlock : StatementBlock(), ContainerBlock {
+    override val color: Color get() = CodeBlocksColors.LOGIC
+
     val condition by input<Boolean>("condition")
     val thenBranch by input<Unit>("then")
 

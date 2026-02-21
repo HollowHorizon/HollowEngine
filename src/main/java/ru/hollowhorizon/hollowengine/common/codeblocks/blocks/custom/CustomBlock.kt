@@ -5,6 +5,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.EndBlock
@@ -13,6 +14,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 @Serializable
 @SerialName("hollowengine:custom/custom_block")
 class CustomBlock(var function: String = ""): StartBlock(), ContainerBlock, EndBlock {
+    override val color: Color get() = CodeBlocksColors.FUNCTIONS
+
     val body by input<Unit>("body")
 
     override suspend fun trigger() {

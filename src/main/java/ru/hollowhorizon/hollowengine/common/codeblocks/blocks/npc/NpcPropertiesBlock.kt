@@ -12,6 +12,7 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.calculateSpeedViaDeltaMovement
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -21,6 +22,8 @@ import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 @Serializable
 @SerialName("hollowengine:npcs/get_health")
 class NpcHealthBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.NPCS
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val npc by input<NpcEntity>()
@@ -38,6 +41,8 @@ class NpcHealthBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:npcs/get_max_health")
 class NpcMaxHealthBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.NPCS
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val npc by input<NpcEntity>()
@@ -55,6 +60,8 @@ class NpcMaxHealthBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:npcs/get_speed")
 class NpcSpeedBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.NPCS
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val npc by input<NpcEntity>()
@@ -72,6 +79,8 @@ class NpcSpeedBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:npcs/distance_to")
 class NpcDistanceToBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.NPCS
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val npc by input<NpcEntity>()
@@ -103,6 +112,8 @@ class NpcDistanceToBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:npcs/teleport")
 class NpcTeleportBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.NPCS
+
     val npc by input<NpcEntity>()
     val position by input<Vec3>()
 
@@ -123,6 +134,8 @@ class NpcTeleportBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:npcs/set_target")
 class NpcSetTargetBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.NPCS
+
     val npc by input<NpcEntity>()
     val target by input<LivingEntity>()
 
@@ -140,6 +153,8 @@ class NpcSetTargetBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:npcs/clear_target")
 class NpcClearTargetBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.NPCS
+
     val npc by input<NpcEntity>()
 
     override suspend fun execute() {
@@ -156,6 +171,8 @@ class NpcClearTargetBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:npcs/set_name")
 class NpcSetNameBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.NPCS
+
     val npc by input<NpcEntity>()
     val name by input<String>()
 
@@ -174,6 +191,8 @@ class NpcSetNameBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:npcs/heal")
 class NpcHealBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.NPCS
+
     val npc by input<NpcEntity>()
     val amount by input<Number>()
 
@@ -191,6 +210,8 @@ class NpcHealBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:npcs/hurt")
 class NpcHurtBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.NPCS
+
     val npc by input<NpcEntity>()
     val amount by input<Number>()
 
@@ -209,6 +230,8 @@ class NpcHurtBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:npcs/set_health")
 class NpcSetHealthBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.NPCS
+
     val npc by input<NpcEntity>()
     val health by input<Number>()
 

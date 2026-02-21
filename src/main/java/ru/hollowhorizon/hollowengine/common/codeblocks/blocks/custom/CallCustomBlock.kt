@@ -1,8 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom
 
+import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.CodeBlockInterpreter
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -11,6 +13,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentFile
 @Serializable
 @SerialName("hollowengine:custom/call_custom_block")
 class CallCustomBlock(val function: String) : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.FUNCTIONS
 
     override suspend fun execute() {
         val file = currentFile()

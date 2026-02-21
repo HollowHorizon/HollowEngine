@@ -11,6 +11,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import kotlin.math.PI
@@ -18,6 +19,8 @@ import kotlin.math.PI
 @Serializable
 @SerialName("hollowengine:math/distance_to")
 class DistanceToBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.MATH
+
     val from by input<Vec3>("from")
     val to by input<Vec3>("to")
 
@@ -41,6 +44,8 @@ class DistanceToBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:math/vector_length")
 class VectorLengthBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.MATH
+
     val vector by input<Vec3>("vector")
 
     @Transient
@@ -59,6 +64,8 @@ class VectorLengthBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:math/normalize_vector")
 class NormalizeVectorBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.MATH
+
     val vector by input<Vec3>("vector")
 
     @Transient
@@ -77,6 +84,8 @@ class NormalizeVectorBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:math/vector_multiply_scalar")
 class VectorMultiplyScalarBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.MATH
+
     val vector by input<Vec3>("vector")
     val scalar by input<Number>("scalar")
 
@@ -104,6 +113,8 @@ class VectorMultiplyScalarBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:math/vector_get_x")
 class VectorGetXBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.MATH
+
     val vector by input<Vec3>("vector")
 
     @Transient
@@ -122,6 +133,8 @@ class VectorGetXBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:math/vector_get_y")
 class VectorGetYBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.MATH
+
     val vector by input<Vec3>("vector")
 
     @Transient
@@ -140,6 +153,8 @@ class VectorGetYBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:math/vector_get_z")
 class VectorGetZBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.MATH
+
     val vector by input<Vec3>("vector")
 
     @Transient

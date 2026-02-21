@@ -8,11 +8,8 @@ import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
-import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
-import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
-import ru.hollowhorizon.hollowengine.common.codeblocks.expressionTypeOrNull
+import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import kotlin.random.Random
 
 enum class MathOp(val symbol: String) {
@@ -30,6 +27,8 @@ enum class CompareOp(val symbol: String) {
 @Serializable
 @SerialName("hollowengine:math/operation")
 class MathBlock(var op: MathOp = MathOp.ADD) : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.MATH
+
     @Transient
     override val expressionType = typeOf<Number>()
 
@@ -76,6 +75,8 @@ class MathBlock(var op: MathOp = MathOp.ADD) : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:math/random")
 class RandomNumberBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.MATH
+
     @Transient
     override val expressionType = typeOf<Number>()
 
@@ -105,6 +106,8 @@ class RandomNumberBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:math/compare")
 class CompareBlock(var op: CompareOp = CompareOp.EQUALS) : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.LOGIC
+
     @Transient
     override val expressionType = typeOf<Boolean>()
 
@@ -154,6 +157,8 @@ class CompareBlock(var op: CompareOp = CompareOp.EQUALS) : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:math/logic")
 class LogicBlock(var op: LogicOp = LogicOp.AND) : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.LOGIC
+
     @Transient
     override val expressionType = typeOf<Boolean>()
 
@@ -199,6 +204,8 @@ class LogicBlock(var op: LogicOp = LogicOp.AND) : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:math/not")
 class NotBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.LOGIC
+
     @Transient
     override val expressionType = typeOf<Boolean>()
 
@@ -217,6 +224,8 @@ class NotBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:math/test")
 class TestBlock : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.LOGIC
+
     override val expressionType: ExpressionType
         get() {
             val parentType = parentBlock?.expressionTypeOrNull
@@ -265,6 +274,8 @@ class TestBlock : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:number")
 class NumberBlock(var value: Double = 0.0) : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.TYPES
+
     @Transient
     override val expressionType = typeOf<Number>()
 
@@ -296,6 +307,8 @@ class NumberBlock(var value: Double = 0.0) : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:boolen")
 class BoolBlock(var value: Boolean = true) : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.TYPES
+
     @Transient
     override val expressionType = typeOf<Boolean>()
 

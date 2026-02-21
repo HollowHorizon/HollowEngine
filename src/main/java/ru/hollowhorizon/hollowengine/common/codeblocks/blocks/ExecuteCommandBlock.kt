@@ -8,12 +8,15 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentFile
 
 @Serializable
 @SerialName("hollowengine:server/command")
 class ExecuteCommandBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.GENERAL
+
     val cmd by input<String>("cmd")
 
     override suspend fun execute() {

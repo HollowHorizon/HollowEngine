@@ -9,6 +9,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockFrame
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.remember
@@ -17,6 +18,8 @@ import kotlin.coroutines.coroutineContext
 @Serializable
 @SerialName("hollowengine:loops/repeat")
 class RepeatBlock : StatementBlock(), ContainerBlock {
+    override val color get() = CodeBlocksColors.LOOPS
+
     val times by input<Number>("times")
     val body by input<Unit>("body")
 

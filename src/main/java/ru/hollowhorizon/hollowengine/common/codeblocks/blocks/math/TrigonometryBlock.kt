@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import kotlin.math.*
@@ -19,6 +20,8 @@ enum class TrigOp(val symbol: String) {
 @Serializable
 @SerialName("hollowengine:math/trig_op")
 class TrigonometryBlock(var op: TrigOp = TrigOp.SIN) : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.MATH
+
     @Transient
     override val expressionType = typeOf<Number>()
 

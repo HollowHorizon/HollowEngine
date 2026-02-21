@@ -13,12 +13,15 @@ import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
 @Serializable
 @SerialName("hollowengine:entity/add_effect")
 class EntityAddEffectBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>()
     val duration by input<Number>()
     val amplifier by input<Number>()
@@ -88,6 +91,8 @@ class EntityAddEffectBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:entity/remove_effect")
 class EntityRemoveEffectBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>()
     var effectRl: String = "minecraft:speed"
     var position = Vec2f.ZERO

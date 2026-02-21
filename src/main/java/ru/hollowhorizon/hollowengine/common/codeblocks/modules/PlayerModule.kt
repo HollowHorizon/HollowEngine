@@ -1,13 +1,12 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.modules
 
-import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockCategoryBuilder
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.*
 
 object PlayerModule : BlockModule {
     override fun BlockCategoryBuilder.build() {
-        categoryAfter(2, "Игроки", Color("4287F5"), icons.PLAYERS) {
+        categoryAfter(2, "Игроки", icons.PLAYERS) {
             block("Телепортировать") { PlayerTeleportBlock() }
             block("Установить точку возрождения") { PlayerSetRespawn() }
             block("Отправить сообщение") { PlayerSendMessageBlock() }

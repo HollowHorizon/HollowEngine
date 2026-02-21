@@ -11,6 +11,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockFrame
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.forget
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -20,6 +21,8 @@ import kotlin.coroutines.coroutineContext
 @Serializable
 @SerialName("hollowengine:loops/while")
 class WhileBlock : StatementBlock(), ContainerBlock {
+    override val color: Color get() = CodeBlocksColors.LOOPS
+
     val condition by input<Boolean>("cond")
     val body by input<Unit>("body")
 
@@ -44,6 +47,8 @@ class WhileBlock : StatementBlock(), ContainerBlock {
 @Serializable
 @SerialName("hollowengine:control/delay")
 class DelayBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.GENERAL
+
     val time by input<Number>("time")
 
     override suspend fun execute() {

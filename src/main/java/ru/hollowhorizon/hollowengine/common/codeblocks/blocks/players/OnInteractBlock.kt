@@ -14,6 +14,7 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.events.await
@@ -23,6 +24,8 @@ import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStackJson
 @Serializable
 @SerialName("hollowengine:events/interact_block/entity")
 class PlayerInteractWithEntity : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.EVENTS
+
     val player by input<Player>("player")
     val entity by input<LivingEntity>("entity")
 
@@ -48,6 +51,8 @@ class PlayerInteractWithEntity : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:events/interact_block/block")
 class PlayerInteractWithBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.EVENTS
+
     val player by input<Player>("player")
     var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
 
@@ -99,6 +104,8 @@ class PlayerInteractWithBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:events/interact_block/item")
 class PlayerInteractWithItem : StartBlock() {
+    override val color: Color get() = CodeBlocksColors.EVENTS
+
     val player by input<Player>("player")
     var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
 

@@ -47,14 +47,16 @@ class BlocksPanel(val editor: BlockEditor) {
 
         Column(Grow.Std, scopeName = category.name) {
             modifier.margin(Dimensions.PaddingMedium)
+            val blockColor = category.blocks.firstOrNull()?.previewItem?.color
+                ?: Color.WHITE
 
             Row(width = Grow.Std) {
                 val isHovered by modifier.hoverable()
                 val color by animateColorAsState(
-                    if (isHovered) category.color.mix(
+                    if (isHovered) blockColor.mix(
                         Color.WHITE,
                         0.33f
-                    ) else category.color
+                    ) else blockColor
                 )
 
                 modifier.padding(Dimensions.PaddingMedium)
@@ -74,7 +76,7 @@ class BlocksPanel(val editor: BlockEditor) {
                     Image(it) {
                         modifier.size(Dimensions.PaddingLarge, Dimensions.PaddingLarge)
                             .margin(horizontal = Dimensions.PaddingHuge)
-                            .tint(category.color)
+                            .tint(blockColor)
                     }
                 }
 
@@ -99,7 +101,7 @@ class BlocksPanel(val editor: BlockEditor) {
                         .size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
                         .margin(horizontal = Dimensions.PaddingMedium)
                         .alignY(AlignmentY.Center)
-                        .colors(category.color, category.color.mix(Color.WHITE, 0.5f))
+                        .colors(blockColor, blockColor.mix(Color.WHITE, 0.5f))
                 }
             }
 
@@ -109,7 +111,7 @@ class BlocksPanel(val editor: BlockEditor) {
                     modifier.padding(horizontal = Dimensions.PaddingNormal)
                         .layout(AccordionColumnLayout(animation))
                         .backgroundColor(
-                            category.color.mix(Color.BLACK, 0.5f).mix(ColorTheme.UI.BackgroundSecondary, 0.5f)
+                            blockColor.mix(Color.BLACK, 0.5f).mix(ColorTheme.UI.BackgroundSecondary, 0.5f)
                         )
 
                     category.items(editor).forEach { item ->

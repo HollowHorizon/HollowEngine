@@ -6,12 +6,12 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
-import ru.hollowhorizon.hollowengine.common.codeblocks.findColorFor
 import ru.hollowhorizon.hollowengine.common.codeblocks.flatten
 import ru.hollowhorizon.hollowengine.common.codeblocks.isRoot
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+
 import java.util.*
 
 class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockModel>> {
@@ -71,8 +71,6 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockM
             } catch (e: Exception) {
                 throw SerializationException("Failed to decode block at index $index: ${e.message}", e)
             }
-
-            block.color = format.blockModule.findColorFor(block)
 
             nodeMap[block.uuid] = block
             jsonMap[block.uuid] = jsonObject

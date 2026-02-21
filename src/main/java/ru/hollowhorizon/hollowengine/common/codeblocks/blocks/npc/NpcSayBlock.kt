@@ -5,6 +5,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.say
@@ -12,6 +13,8 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.say
 @Serializable
 @SerialName("hollowengine:npc/say")
 class NpcSayBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.NPCS
+
     val npc by input<NpcEntity>("npc")
     val text by input<String>("text")
 

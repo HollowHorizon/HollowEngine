@@ -11,6 +11,7 @@ import kotlinx.serialization.Transient
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -18,6 +19,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 @Serializable
 @SerialName("hollowengine:entity/raycast")
 class EntityPickBlock: ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
     val distance by input<Number>("distance")
 

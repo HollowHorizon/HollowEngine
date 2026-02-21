@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.world
 
+import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -14,6 +15,7 @@ import net.minecraft.world.level.block.Rotation
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
@@ -24,6 +26,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 @Serializable
 @SerialName("hollowengine:world/update_block")
 class UpdateBlockBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.WORLDS
+
     val world by input<ResourceKey<Level>>()
     val pos by input<BlockPos>("pos")
 
@@ -44,6 +48,8 @@ class UpdateBlockBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:world/set_block")
 class SetBlockBlock: StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.WORLDS
+
     val world by input<ResourceKey<Level>>()
     val pos by input<BlockPos>("pos")
     val blockState by input<BlockState>("blockState")
@@ -68,6 +74,8 @@ class SetBlockBlock: StatementBlock() {
 @Serializable
 @SerialName("hollowengine:world/get_block")
 class GetBlockBlock: ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.WORLDS
+
     val world by input<ResourceKey<Level>>()
     val pos by input<BlockPos>("pos")
     @Transient
@@ -88,6 +96,8 @@ class GetBlockBlock: ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:world/remove_block")
 class RemoveBlockBlock : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.WORLDS
+
     val world by input<ResourceKey<Level>>()
     val pos by input<BlockPos>("pos")
 
@@ -108,6 +118,8 @@ class RemoveBlockBlock : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:world/rotate_block")
 class RotateBlockBlock: StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.WORLDS
+
     val world by input<ResourceKey<Level>>()
     val pos by input<BlockPos>("pos")
     val rotation by input<Rotation>("rotation")
@@ -134,6 +146,8 @@ class RotateBlockBlock: StatementBlock() {
 @Serializable
 @SerialName("hollowengine:world/spawn_entity")
 class SpawnEntityBlock: ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.WORLDS
+
     val world by input<ResourceKey<Level>>()
     val entityType by input<EntityType<*>>("entityType")
     val position by input<Vec3>("pos")
@@ -163,6 +177,8 @@ class SpawnEntityBlock: ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:world/has_sky_at")
 class HasSkyAtBlock: ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.WORLDS
+
     val world by input<ResourceKey<Level>>()
     val pos by input<BlockPos>("pos")
     @Transient
@@ -183,6 +199,8 @@ class HasSkyAtBlock: ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:world/get_time")
 class GetTimeBlock: ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.WORLDS
+
     val world by input<ResourceKey<Level>>()
     @Transient
     override val expressionType: ExpressionType = typeOf<Long>()
@@ -199,6 +217,8 @@ class GetTimeBlock: ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:world/set_time")
 class SetTimeBlock: StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.WORLDS
+
     val world by input<ResourceKey<Level>>()
     val time by input<Number>("time")
 
@@ -220,6 +240,8 @@ enum class Weather { CLEAR, RAIN, THUNDER }
 @Serializable
 @SerialName("hollowengine:world/get_weather")
 class GetWeatherBlock: ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.WORLDS
+
     val world by input<ResourceKey<Level>>()
     @Transient
     override val expressionType: ExpressionType = typeOf<Weather>()
@@ -240,6 +262,8 @@ class GetWeatherBlock: ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:world/set_weather")
 class SetWeatherBlock: StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.WORLDS
+
     val world by input<ResourceKey<Level>>("world")
     val weather by input<Weather>("weather")
 

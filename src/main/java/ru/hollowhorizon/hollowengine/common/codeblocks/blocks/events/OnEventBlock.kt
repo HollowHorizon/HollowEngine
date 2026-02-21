@@ -8,11 +8,14 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 
 @Serializable
 @SerialName("hollowengine:events/receive")
 class OnEventBlock(var eventName: String = "MyEvent") : StartBlock() {
+    override val color: Color get() = CodeBlocksColors.EVENTS
+
     @Transient
     var restartOnTrigger = mutableStateOf(true)
 

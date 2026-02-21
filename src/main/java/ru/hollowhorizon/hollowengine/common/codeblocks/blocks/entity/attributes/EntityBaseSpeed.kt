@@ -12,16 +12,18 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.ai.attributes.AttributeModifier
 import net.minecraft.world.entity.ai.attributes.Attributes
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
-import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.util.*
 
 @Serializable
 @SerialName("hollowengine:entity/set_speed_modifier")
 class EntitySetBaseSpeed : StatementBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     val entity by input<LivingEntity>("entity")
     val speed by input<Number>("speed")
 
@@ -60,6 +62,8 @@ class EntitySetBaseSpeed : StatementBlock() {
 @Serializable
 @SerialName("hollowengine:player/get_speed_modifier")
 class EntityGetBaseSpeed : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.ENTITIES
+
     @Transient
     override val expressionType: ExpressionType = typeOf<Number>()
     val entity by input<LivingEntity>()

@@ -7,6 +7,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -23,6 +24,8 @@ interface VariableProvider {
 @Serializable
 @SerialName("hollowengine:events/set")
 class SetVarBlock(override var variableName: String = "var") : StatementBlock(), VariableProvider {
+    override val color: Color get() = CodeBlocksColors.LOCALS
+
     override val expressionType get() = (inputs["value"] as? ExpressionBlock)?.expressionType ?: AnyType
     override val isGlobal = false
 
@@ -53,6 +56,8 @@ class SetVarBlock(override var variableName: String = "var") : StatementBlock(),
 @Serializable
 @SerialName("hollowengine:variables/get")
 class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.LOCALS
+
     override val expressionType: ExpressionType
         get() {
             val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.variableName == varName }
@@ -77,6 +82,8 @@ class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
 @Serializable
 @SerialName("hollowengine:variables/get_inline")
 class GetVarInlineBlock(val name: String) : ExpressionBlock() {
+    override val color: Color get() = CodeBlocksColors.LOCALS
+
     override val expressionType: ExpressionType
         get() {
             val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.variableName == name }
