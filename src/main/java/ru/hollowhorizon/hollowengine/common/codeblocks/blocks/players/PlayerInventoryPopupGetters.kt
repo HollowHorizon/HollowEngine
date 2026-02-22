@@ -6,8 +6,8 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import net.minecraft.world.item.Items
 import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.state.BlockState
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope

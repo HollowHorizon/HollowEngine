@@ -10,7 +10,6 @@ import de.fabmax.kool.util.SyncedScope
 import kotlinx.coroutines.launch
 import org.joml.Matrix4f
 import org.lwjgl.opengl.GL33
-import ru.hollowhorizon.hollowengine.client.utils.*
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -236,7 +235,7 @@ open class GlCanvasNode(parent: UiNode?, surface: UiSurface) : UiNode(parent, su
         val matrix4fstack = RenderSystem.getModelViewStack()
         matrix4fstack.pushPose()
         matrix4fstack.setIdentity()
-        matrix4fstack.translate(0.0f, 0.0f, -3000.0f + modifier.zLayer)
+        matrix4fstack.translate(0.0f, 0.0f, -3000.0f)
         RenderSystem.applyModelViewMatrix()
 
         // Очищаем участок где будем рисовать
