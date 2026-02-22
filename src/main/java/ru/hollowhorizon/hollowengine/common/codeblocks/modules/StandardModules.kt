@@ -9,9 +9,14 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CallCustomB
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnStartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.math.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.items.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.nbt.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.PlayerSelectedBlockPopupBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.PlayerSelectedItemPopupBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
+
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 @PublishedApi
@@ -63,6 +68,60 @@ object StandardModules {
             block("Логический тип") { BoolBlock() }
             block("Координаты") { PositionBlock() }
             block("Координаты блока") { BlockPosBlock() }
+
+            block("Выбрать предмет (Popup)") { PlayerSelectedItemPopupBlock() }
+            block("Выбрать блок (Popup)") { PlayerSelectedBlockPopupBlock() }
+
+            category("Предметы", icons.TYPES) {
+                block("Пустой?") { ItemStackIsEmptyBlock() }
+                block("Количество") { ItemStackGetCountBlock() }
+                block("Макс. стак") { ItemStackGetMaxStackSizeBlock() }
+                block("Имеет прочность?") { ItemStackIsDamageableBlock() }
+                block("Урон") { ItemStackGetDamageBlock() }
+                block("Макс. урон") { ItemStackGetMaxDamageBlock() }
+                block("Прочность") { ItemStackGetDurabilityBlock() }
+                block("Сравнить предмет") { ItemStackAreItemsEqualBlock() }
+                block("Сравнить стак") { ItemStackAreStacksEqualBlock() }
+                block("Сравнить предмет+NBT") { ItemStackSameItemAndTagBlock() }
+                block("Зачарован?") { ItemStackIsEnchantedBlock() }
+                block("Имеет чар?") { ItemStackHasEnchantBlock() }
+                block("Уровень чара") { ItemStackGetEnchantLevelBlock() }
+                block("Еда?") { ItemStackIsFoodBlock() }
+                block("Редкость") { ItemStackGetRarityBlock() }
+                block("ID") { ItemStackGetIdBlock() }
+
+                block("В теге?") { ItemStackHasItemTagBlock() }
+
+                block("Получить NBT") { ItemStackGetNbtBlock() }
+                block("Установить NBT") { ItemStackSetNbtBlock() }
+                block("Очистить NBT") { ItemStackClearNbtBlock() }
+            }
+
+            category("NBT", icons.TYPES) {
+                block("{}") { NbtNewCompoundBlock() }
+                block("[]") { NbtNewListBlock() }
+                block("NBT из SNBT") { NbtParseCompoundBlock() }
+                block("SNBT") { NbtToSnbtBlock() }
+                block("Содержит ключ?") { NbtContainsKeyBlock() }
+                block("Удалить ключ") { NbtRemoveKeyBlock() }
+                block("Слить") { NbtMergeBlock() }
+
+                block("Получить String") { NbtGetStringBlock() }
+                block("Получить Int") { NbtGetIntBlock() }
+                block("Получить Boolean") { NbtGetBooleanBlock() }
+                block("Получить Compound") { NbtGetCompoundBlock() }
+
+                block("Установить String") { NbtSetStringBlock() }
+                block("Установить Int") { NbtSetIntBlock() }
+                block("Установить Boolean") { NbtSetBooleanBlock() }
+                block("Установить Compound") { NbtSetCompoundBlock() }
+
+                block("Размер списка") { NbtListSizeBlock() }
+                block("Список: String по индексу") { NbtListGetStringBlock() }
+                block("Список: Compound по индексу") { NbtListGetCompoundBlock() }
+                block("Список: добавить String") { NbtListAddStringBlock() }
+                block("Список: удалить индекс") { NbtListRemoveBlock() }
+            }
 
             block("Получить игрока", ::GetPlayerByNameBlock)
 

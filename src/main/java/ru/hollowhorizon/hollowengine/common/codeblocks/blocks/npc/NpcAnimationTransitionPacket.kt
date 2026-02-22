@@ -18,6 +18,7 @@ class NpcAnimationTransitionPacket(
     val from: String? = null,
     val to: String? = null,
     val duration: Float = 0.33f,
+    val wrapMode: WrapMode = WrapMode.Once,
 ) : HollowPacket {
     override fun handle(player: Player) {
         val level = Minecraft.getInstance().level ?: return
@@ -28,7 +29,7 @@ class NpcAnimationTransitionPacket(
         val system = model.animationSystem ?: return
 
         system.scope.launch {
-            system.transition(from = from, to = to, duration = duration, easing = Easing.smooth, wrapMode = WrapMode.Once)
+            system.transition(from = from, to = to, duration = duration, easing = Easing.smooth, wrapMode = wrapMode)
         }
     }
 }

@@ -15,6 +15,7 @@ object EntityModule : BlockModule {
             block("Вектор взгляда") { EntityGetLookAngle() }
             block("Предмет в главной руке") { EntityGetMainHandItem() }
             block("Предмет в левой руке") { EntityGetOffHandItem() }
+            block("Экипировка") { EntityGetEquipmentBlock() }
             block("Получить модификатор скорости") { EntityGetBaseSpeed() }
 
             // --- Проверки (Booleans) ---

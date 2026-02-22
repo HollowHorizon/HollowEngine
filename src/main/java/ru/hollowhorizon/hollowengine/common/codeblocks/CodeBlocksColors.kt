@@ -7,6 +7,8 @@ object CodeBlocksColors {
     val MATH = Color("58B2EA")
     val LOGIC = Color("1DB07D")
     val TYPES = Color("F3BD3E")
+    val ITEMS = Color("F08C2E")
+    val NBT = Color("9B59B6")
     val WORLDS = Color("ba9307")
     val STRUCTURES = Color("6234c7")
     val VARIABLES = Color("7248DD")

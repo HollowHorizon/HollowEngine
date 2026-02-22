@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.modules
 
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockCategoryBuilder
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockModule
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.entity.PlayerGetInventoryItemBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.*
 
 object PlayerModule : BlockModule {
@@ -16,6 +17,8 @@ object PlayerModule : BlockModule {
             block("Удалить предмет") { PlayerRemoveItemBlock() }
             block("Проверить наличие предмета") { PlayerHasItemBlock() }
             block("Знает ли рецепт") { PlayerHasRecipeBlock() }
+
+            block("Получить предмет из слота") { PlayerGetInventoryItemBlock() }
 
             block("Задать сытость") { PlayerSetFoodBlock() }
             block("Задать насыщение") { PlayerSetSaturationBlock() }
