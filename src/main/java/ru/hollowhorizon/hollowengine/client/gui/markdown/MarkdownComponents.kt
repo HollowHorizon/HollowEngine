@@ -10,33 +10,9 @@ import org.intellij.markdown.ast.getTextInNode
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.gui.markdown.components.FlowText
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextAttributes
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
-
-fun UiScope.MarkdownParagraph(
-    node: ASTNode,
-    source: String,
-    style: MarkdownStyle,
-) {
-    val spans = collectSpans(node, source, TextAttributes(style.bodyFont, style.textColor), style)
-
-    Column(Grow.Std) {
-        modifier.padding(bottom = Dp(16f))
-
-        val maxWidth = remember(0f)
-
-        modifier.onMeasured {
-            maxWidth.set(it.innerWidthPx)
-        }
-
-        val visualLines = wrapText(spans, maxWidth.use())
-
-        visualLines.forEach { line ->
-            AttributedText(line) {
-                modifier.width(Grow.Std)
-            }
-        }
-    }
-}
 
 
 fun UiScope.MarkdownImage(node: ASTNode, source: String, style: MarkdownStyle) {
@@ -176,10 +152,10 @@ private fun UiScope.MarkdownTableCell(
                 style
             )
 
-            AttributedText(TextLine(sanitize(spans))) {
+            FlowText(spans) {
                 modifier
                     .width(Grow.Std)
-                    .textAlignX(alignment)
+                    .flowAlignX(alignment)
             }
         }
     }
@@ -208,70 +184,6 @@ private fun parseTableAlignments(tableNode: ASTNode, source: String): List<Align
     return alignments
 }
 
-private fun wrapText(spans: List<Pair<String, TextAttributes>>, maxWidth: Float): List<TextLine> {
-    val visualLines = mutableListOf<TextLine>()
-    var currentLineSpans = mutableListOf<Pair<String, TextAttributes>>()
-    var currentLineWidth = 0f
-
-    val effectiveWidth = maxWidth - 1f
-
-    for ((text, attrs) in spans) {
-        val parts = text.split(Regex("\\s+"))
-
-        for (i in parts.indices) {
-            val word = parts[i]
-            if (word.isEmpty()) continue
-
-            val wordWidth = measureStringWidth(word + " ", attrs.font)
-
-            if (currentLineWidth + wordWidth > effectiveWidth && currentLineWidth > 0) {
-                visualLines.add(TextLine(sanitize(currentLineSpans)))
-                currentLineSpans = mutableListOf()
-                currentLineWidth = 0f
-            }
-
-            currentLineSpans.add(word to attrs)
-            currentLineWidth += wordWidth
-
-            if (i < parts.size - 1) {
-                val space = " "
-                val spaceWidth = measureStringWidth(space, attrs.font)
-
-                currentLineSpans.add(space to attrs)
-                currentLineWidth += spaceWidth
-            }
-        }
-
-        if (text.endsWith(" ") || text.endsWith("\n")) {
-            val space = " "
-            val spaceWidth = measureStringWidth(space, attrs.font)
-            currentLineSpans.add(space to attrs)
-            currentLineWidth += spaceWidth
-        }
-    }
-
-    if (currentLineSpans.isNotEmpty()) {
-        visualLines.add(TextLine(sanitize(currentLineSpans)))
-    }
-
-    return visualLines
-}
-
-private fun measureStringWidth(str: String, font: MsdfFont): Float {
-    var w = 0f
-    for (c in str) {
-        w += font.charWidth(c)
-    }
-    return w
-}
-
-/**
- * Исправленная функция сбора спанов.
- * Реализован рекурсивный обход дерева (Visitor), что позволяет:
- * 1. Корректно обрабатывать вложенность (напр. **Жирный _курсив_**).
- * 2. Игнорировать ошибки разметки (незакрытые теги обрабатываются как текст).
- * 3. Поддерживать кастомную логику цветов в ссылках.
- */
 private fun collectSpans(
     node: ASTNode,
     source: String,
@@ -281,14 +193,8 @@ private fun collectSpans(
     val result = mutableListOf<Pair<String, TextAttributes>>()
 
     fun visit(currentNode: ASTNode, currentAttr: TextAttributes) {
-        // Если у ноды есть дети, рекурсивно обходим их, модифицируя атрибуты
-        // Если детей нет (Leaf node), выводим текст
-
-        // Специфическая обработка типов нод
         when (currentNode.type) {
-            // --- Контейнеры (меняют стиль для детей) ---
             MarkdownElementTypes.STRONG -> {
-                // Вложенный обход с жирным шрифтом
                 currentNode.children.forEach {
                     visit(
                         it,
@@ -298,7 +204,6 @@ private fun collectSpans(
             }
 
             MarkdownElementTypes.EMPH -> {
-                // Вложенный обход с курсивом
                 currentNode.children.forEach {
                     visit(
                         it,
@@ -308,7 +213,6 @@ private fun collectSpans(
             }
 
             MarkdownElementTypes.INLINE_LINK -> {
-                // Логика ссылок и цветов
                 val destinationNode = currentNode.children.find { it.type == MarkdownElementTypes.LINK_DESTINATION }
                 val textNode = currentNode.children.find { it.type == MarkdownElementTypes.LINK_TEXT }
 
@@ -322,8 +226,6 @@ private fun collectSpans(
                     currentAttr.copy(color = style.linkColor)
                 }
 
-                // Обрабатываем содержимое текста ссылки (там тоже может быть форматирование)
-                // LINK_TEXT обычно содержит [ content ], нам нужен content
                 textNode?.children?.forEach { child ->
                     if (child.type != MarkdownTokenTypes.LBRACKET && child.type != MarkdownTokenTypes.RBRACKET) {
                         visit(child, linkAttr)
@@ -332,18 +234,14 @@ private fun collectSpans(
             }
 
             MarkdownElementTypes.CODE_SPAN -> {
-                // Код внутри строки. Текст внутри берется буквально, но со своим шрифтом
                 val codeAttr = currentAttr.copy(font = style.codeFont, background = style.codeBackgroundColor)
                 currentNode.children.forEach { child ->
-                    // Пропускаем сами тики (`), если они есть как отдельные токены, но обычно текст внутри
                     if (child.type == MarkdownTokenTypes.TEXT || child.type == MarkdownTokenTypes.CODE_FENCE_CONTENT) {
-                        // В коде не анэскейпим символы
                         result.add(child.getTextInNode(source).toString() to codeAttr)
                     }
                 }
             }
 
-            // --- Листовые ноды (Текст) ---
             MarkdownTokenTypes.TEXT,
             MarkdownTokenTypes.WHITE_SPACE,
             MarkdownTokenTypes.COLON,
@@ -352,10 +250,7 @@ private fun collectSpans(
             MarkdownTokenTypes.LBRACKET,
             MarkdownTokenTypes.RBRACKET,
                 -> {
-                // Обычный текст: нужно обработать экранирование
                 val text = currentNode.getTextInNode(source).toString()
-                // Исправляем экранирование: заменяем `\*` на `*` и т.д.
-                // Простейший вариант - убрать слэш, если за ним идет символ.
                 val unescaped = unescapeMarkdown(text)
                 result.add(unescaped to currentAttr)
             }
@@ -364,15 +259,8 @@ private fun collectSpans(
                 result.add("`" to currentAttr)
             }
 
-            // Если мы попали сюда с контейнером, который не обработали выше (например, PARAGRAPH при первом вызове),
-            // просто идем вглубь
             else -> {
-                if (currentNode.children.isNotEmpty()) {
-                    currentNode.children.forEach { visit(it, currentAttr) }
-                } else {
-                    // Fallback для неизвестных токенов - просто печатаем их текст
-                    // Но лучше игнорировать служебные символы разметки, если они не обработаны выше
-                }
+                currentNode.children.forEach { visit(it, currentAttr) }
             }
         }
     }
@@ -381,22 +269,19 @@ private fun collectSpans(
     return result
 }
 
-// Функция для снятия экранирования (например, "foo\*bar" -> "foo*bar")
 private fun unescapeMarkdown(text: String): String {
     if (!text.contains('\\')) return text
     val sb = StringBuilder(text.length)
     var escaped = false
     for (c in text) {
         if (escaped) {
-            sb.append(c)
             escaped = false
         } else if (c == '\\') {
             escaped = true
-        } else {
-            sb.append(c)
+            continue
         }
+        sb.append(c)
     }
-    // Если строка заканчивается на \, добавляем его (хотя в markdown это редкость)
     if (escaped) sb.append('\\')
     return sb.toString()
 }

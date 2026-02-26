@@ -13,6 +13,7 @@ import org.intellij.markdown.MarkdownElementTypes.CODE_BLOCK
 import org.intellij.markdown.MarkdownElementTypes.CODE_FENCE
 import org.intellij.markdown.MarkdownElementTypes.IMAGE
 import org.intellij.markdown.MarkdownElementTypes.ORDERED_LIST
+import org.intellij.markdown.MarkdownElementTypes.PARAGRAPH
 import org.intellij.markdown.MarkdownElementTypes.UNORDERED_LIST
 import org.intellij.markdown.MarkdownTokenTypes.Companion.BLOCK_QUOTE
 import org.intellij.markdown.MarkdownTokenTypes.Companion.EOL
@@ -146,14 +147,9 @@ fun UiScope.MarkdownViewer(
     Box(Grow.Std, FitContent) {
         block()
 
-        val contentWidth = remember(0f)
-
-        modifier.onMeasured {
-            contentWidth.set(it.innerWidthPx)
-        }
 
         Column(Grow.Std, Grow.MinFit) {
-            MarkdownElement(parsedTree, markdownSource, style, contentWidth.value)
+            MarkdownElement(parsedTree, markdownSource, style)
         }
     }
 }
@@ -162,25 +158,24 @@ fun UiScope.MarkdownElement(
     node: ASTNode,
     content: String,
     style: MarkdownStyle,
-    availableWidth: Float,
     includeSpacer: Boolean = true,
 ) {
     if (includeSpacer) Box { modifier.height(MarkdownPadding.block) }
 
     when (node.type) {
-        TEXT -> MarkdownText(node, content, style)
+        PARAGRAPH, TEXT -> MarkdownText(node, content, style)
         EOL -> {}
         CODE_FENCE -> MarkdownCodeFence(content, node, style)
         CODE_BLOCK -> MarkdownCodeBlock(content, node, style)
-        ATX_1 -> MarkdownHeader(node, content, style.h1Font, style.textColor, availableWidth)
-        ATX_2 -> MarkdownHeader(node, content, style.h2Font, style.textColor, availableWidth)
-        ATX_3 -> MarkdownHeader(node, content, style.h3Font, style.textColor, availableWidth)
-        ATX_4 -> MarkdownHeader(node, content, style.h4Font, style.textColor, availableWidth)
-        ATX_5 -> MarkdownHeader(node, content, style.h5Font, style.textColor, availableWidth)
-        ATX_6 -> MarkdownHeader(node, content, style.h6Font, style.textColor, availableWidth)
-        BLOCK_QUOTE -> MarkdownBlockQuote(content, node.parent ?: return, style, availableWidth)
-        ORDERED_LIST -> MarkdownOrderedList(content, node, style, availableWidth)
-        UNORDERED_LIST -> MarkdownBulletList(content, node, style, availableWidth)
+        ATX_1 -> MarkdownHeader(node, content, style.h1Font, style.textColor)
+        ATX_2 -> MarkdownHeader(node, content, style.h2Font, style.textColor)
+        ATX_3 -> MarkdownHeader(node, content, style.h3Font, style.textColor)
+        ATX_4 -> MarkdownHeader(node, content, style.h4Font, style.textColor)
+        ATX_5 -> MarkdownHeader(node, content, style.h5Font, style.textColor)
+        ATX_6 -> MarkdownHeader(node, content, style.h6Font, style.textColor)
+        BLOCK_QUOTE -> MarkdownBlockQuote(content, node.parent ?: return, style)
+        ORDERED_LIST -> MarkdownOrderedList(content, node, style)
+        UNORDERED_LIST -> MarkdownBulletList(content, node, style)
         IMAGE -> MarkdownImage(node, content, style)
         HORIZONTAL_RULE -> {
             Box {
@@ -192,7 +187,7 @@ fun UiScope.MarkdownElement(
         TABLE -> MarkdownTable(node, content, style)
         else -> {
             node.children.forEach { child ->
-                MarkdownElement(child, content, style, availableWidth, includeSpacer)
+                MarkdownElement(child, content, style, includeSpacer)
             }
         }
     }

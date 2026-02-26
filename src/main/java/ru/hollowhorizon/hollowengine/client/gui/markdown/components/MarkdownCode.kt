@@ -8,8 +8,6 @@ import org.intellij.markdown.ast.getTextInNode
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.markdown.MarkdownStyle
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.AttributedText
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.ScriptTextLine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextAttributes
 
 fun UiScope.MarkdownCodeFence(
@@ -59,9 +57,9 @@ fun UiScope.MarkdownCode(code: String, language: String, style: MarkdownStyle) {
             .background(RoundRectBackground(style.codeBackgroundColor, Dimensions.PaddingMedium))
 
         code.lines()
-            .map { ScriptTextLine(listOf(it to TextAttributes(style.codeFont, ColorTheme.UI.WhiteReplacement))) }
-            .forEach { line ->
-                AttributedText(line) {
+            .map { listOf(it to TextAttributes(style.codeFont, ColorTheme.UI.WhiteReplacement)) }
+            .forEach { spans ->
+                FlowText(spans) {
                     modifier.width(Grow.Std)
                 }
             }

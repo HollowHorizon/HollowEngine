@@ -94,6 +94,9 @@ dependencies {
     install("it.krzeminski:snakeyaml-engine-kmp:4.0.1")
     install("net.thauvin.erik.urlencoder:urlencoder-lib:1.6.0")
 
+    install("androidx.compose.runtime:runtime:1.10.3")
+
+
     val gearyVersion = "0.28"
 
     install("io.insert-koin:koin-core:4.0.0")

@@ -11,7 +11,6 @@ fun UiScope.MarkdownBlockQuote(
     content: String,
     node: ASTNode,
     style: MarkdownStyle,
-    availableWidth: Float,
 ) {
     val blockQuoteThickness = MarkdownDimens.blockQuoteThickness
     val blockQuote = MarkdownPadding.blockQuote
@@ -30,7 +29,7 @@ fun UiScope.MarkdownBlockQuote(
                 if (child.type == MarkdownTokenTypes.BLOCK_QUOTE) {
                     // if block quote is nested, and comes after non block quote, add padding
                     if (!priorNestedQuote && index != 0) Box { modifier.height(blockQuoteText.bottom) }
-                    MarkdownBlockQuote(content = content, node = child, style = style, availableWidth = availableWidth)
+                    MarkdownBlockQuote(content = content, node = child, style = style)
                     priorNestedQuote = true
                 } else if (child.type == EOL) {
                     Box { modifier.height(Dp(style.bodyFont.sizePts)) }
@@ -43,7 +42,6 @@ fun UiScope.MarkdownBlockQuote(
                         content = content,
                         style = style,
                         includeSpacer = false,
-                        availableWidth = availableWidth
                     )
                     // if last item, add bottom padding
                     if (index == node.children.lastIndex) Box { modifier.height(blockQuoteText.bottom) }

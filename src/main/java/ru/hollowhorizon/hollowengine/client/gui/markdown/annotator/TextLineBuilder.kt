@@ -1,9 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.gui.markdown.annotator
 
-import de.fabmax.kool.modules.ui2.TextAttributes
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextAttributes
 import java.util.*
 
 class TextLineBuilder {

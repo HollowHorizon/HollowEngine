@@ -22,7 +22,6 @@ fun UiScope.MarkdownListItems(
     node: ASTNode,
     style: MarkdownStyle,
     depth: Int = 0,
-    availableWidth: Float,
     markerModifier: RowScope.() -> Unit = {},
     listModifier: RowScope.() -> Unit = {},
     bullet: UiScope.(index: Int, listNumber: Int, child: ASTNode?) -> Unit,
@@ -53,7 +52,6 @@ fun UiScope.MarkdownListItems(
                     listModifier = listModifier,
                     bullet = bullet,
                     style = style,
-                    availableWidth = availableWidth
                 )
                 index++
             }
@@ -68,7 +66,6 @@ private fun UiScope.MarkdownListItem(
     style: MarkdownStyle,
     index: Int,
     listNumber: Int,
-    availableWidth: Float,
     markerModifier: RowScope.() -> Unit,
     listModifier: RowScope.() -> Unit,
     bullet: UiScope.(index: Int, listNumber: Int, child: ASTNode?) -> Unit,
@@ -114,7 +111,6 @@ private fun UiScope.MarkdownListItem(
                     nestedChild = nestedChild,
                     content = content,
                     style = style,
-                    availableWidth = availableWidth
                 )
             }
         }
@@ -125,15 +121,14 @@ private fun UiScope.MarkdownNestedListItem(
     nestedChild: ASTNode,
     content: String,
     style: MarkdownStyle,
-    availableWidth: Float,
 ) {
     when (nestedChild.type) {
         ORDERED_LIST -> {
-            MarkdownOrderedList(content, nestedChild, style, availableWidth)
+            MarkdownOrderedList(content, nestedChild, style)
         }
 
         UNORDERED_LIST -> {
-            MarkdownBulletList(content, nestedChild, style, availableWidth)
+            MarkdownBulletList(content, nestedChild, style)
         }
 
         else -> {
@@ -141,7 +136,6 @@ private fun UiScope.MarkdownNestedListItem(
                 node = nestedChild,
                 content = content,
                 includeSpacer = false,
-                availableWidth = availableWidth,
                 style = style,
             )
         }
@@ -152,7 +146,6 @@ fun UiScope.MarkdownOrderedList(
     content: String,
     node: ASTNode,
     style: MarkdownStyle,
-    availableWidth: Float,
     depth: Int = 0,
     markerModifier: RowScope.() -> Unit = {},
     listModifier: RowScope.() -> Unit = {},
@@ -162,7 +155,6 @@ fun UiScope.MarkdownOrderedList(
         node,
         style,
         depth,
-        availableWidth,
         markerModifier,
         listModifier
     ) { index, listNumber, child ->
@@ -183,7 +175,6 @@ fun UiScope.MarkdownBulletList(
     content: String,
     node: ASTNode,
     style: MarkdownStyle,
-    availableWidth: Float,
     depth: Int = 0,
     markerModifier: RowScope.() -> Unit = {},
     listModifier: RowScope.() -> Unit = {},
@@ -193,7 +184,6 @@ fun UiScope.MarkdownBulletList(
         node,
         style,
         depth,
-        availableWidth,
         markerModifier,
         listModifier
     ) { index, listNumber, child ->
