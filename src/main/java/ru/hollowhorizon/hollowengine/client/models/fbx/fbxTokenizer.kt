@@ -131,7 +131,6 @@ class Token(
         get() {
             if (type != TokenType.DATA) parseError("expected TOK_DATA token", this)
             if (isBinary) {
-                TODO()
                 if (buffer[begin].toInt().toChar() != 'L') parseError("failed to parse Int64, unexpected data type", this)
                 return buffer.getLong(begin + 1)
             }
@@ -160,8 +159,6 @@ class Token(
 }
 
 fun tokenize(outputTokens: ArrayList<Token>, input: ByteBuffer) {
-
-//    assert(input.isNotEmpty())  // TODO
 
     // line and column numbers numbers are one-based
     var line = 1

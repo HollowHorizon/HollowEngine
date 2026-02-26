@@ -9,19 +9,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonDecoder
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.boolean
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.double
-import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.long
-import kotlinx.serialization.json.longOrNull
-import net.minecraft.world.item.ItemStack
+import kotlinx.serialization.json.*
 import java.util.stream.Stream
 
 sealed interface DynamicValue {
@@ -78,7 +66,12 @@ object UniversalOps : DynamicOps<DynamicValue> {
         list: DynamicValue?,
         value: DynamicValue?,
     ): DataResult<DynamicValue?>? {
-        TODO("Not yet implemented")
+        val listValue = list as? DynamicValue.Arr
+        return if (listValue != null) {
+            DataResult.success(DynamicValue.Arr(listValue.list + (value ?: DynamicValue.Null)))
+        } else {
+            DataResult.success(if (value != null) DynamicValue.Arr(listOf(value)) else DynamicValue.Arr(kotlin.collections.emptyList()))
+        }
     }
 
     override fun mergeToMap(
@@ -86,7 +79,15 @@ object UniversalOps : DynamicOps<DynamicValue> {
         key: DynamicValue?,
         value: DynamicValue?,
     ): DataResult<DynamicValue?>? {
-        TODO("Not yet implemented")
+        val mapValue = map as? DynamicValue.Obj
+        val keyStr = (key as? DynamicValue.Prim)?.value as? String
+        return if (mapValue != null && keyStr != null) {
+            DataResult.success(DynamicValue.Obj(mapValue.map + (keyStr to (value ?: DynamicValue.Null))))
+        } else if (keyStr != null) {
+            DataResult.success(DynamicValue.Obj(mapOf(keyStr to (value ?: DynamicValue.Null))))
+        } else {
+            DataResult.success(DynamicValue.Obj(kotlin.collections.emptyMap()))
+        }
     }
 
     override fun getMapValues(input: DynamicValue): DataResult<Stream<Pair<DynamicValue, DynamicValue>>> =
@@ -105,7 +106,12 @@ object UniversalOps : DynamicOps<DynamicValue> {
         }.toMap())
 
     override fun getStream(input: DynamicValue): DataResult<Stream<DynamicValue>> {
-        TODO("Not yet implemented")
+        return when (input) {
+            is DynamicValue.Arr -> DataResult.success(input.list.stream())
+            is DynamicValue.Obj -> DataResult.success(input.map.values.stream())
+            is DynamicValue.Prim -> DataResult.success(Stream.of(input))
+            DynamicValue.Null -> DataResult.success(Stream.empty())
+        }
     }
 
     override fun createList(input: Stream<DynamicValue>): DynamicValue =
@@ -115,7 +121,10 @@ object UniversalOps : DynamicOps<DynamicValue> {
         input: DynamicValue?,
         key: String?,
     ): DynamicValue? {
-        TODO("Not yet implemented")
+        if (input is DynamicValue.Obj && key != null) {
+            return DynamicValue.Obj(input.map - key)
+        }
+        return input ?: DynamicValue.Null
     }
 
 }
@@ -146,6 +155,7 @@ class CodecSerializer<T>(private val codec: Codec<T>) : KSerializer<T> {
                 null -> encoder.encodeNull()
                 else -> encoder.encodeString(v.toString())
             }
+
             is DynamicValue.Arr -> {
                 val composite = encoder.beginCollection(descriptor, value.list.size)
                 value.list.forEachIndexed { i, elem ->
@@ -153,6 +163,7 @@ class CodecSerializer<T>(private val codec: Codec<T>) : KSerializer<T> {
                 }
                 composite.endStructure(descriptor)
             }
+
             is DynamicValue.Obj -> {
                 val composite = encoder.beginStructure(descriptor)
                 for ((k, v) in value.map)
@@ -160,6 +171,7 @@ class CodecSerializer<T>(private val codec: Codec<T>) : KSerializer<T> {
                         .also { encodeDynamic(encoder, v) }
                 composite.endStructure(descriptor)
             }
+
             DynamicValue.Null -> encoder.encodeNull()
         }
     }
@@ -181,6 +193,7 @@ class CodecSerializer<T>(private val codec: Codec<T>) : KSerializer<T> {
                 else -> DynamicValue.Prim(json.content)
             }
         }
+
         JsonNull -> DynamicValue.Null
     }
 }

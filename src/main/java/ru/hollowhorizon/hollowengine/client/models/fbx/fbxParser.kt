@@ -98,7 +98,7 @@ class Element(val keyToken: Token, parser: Parser) {
     inline fun <reified T> parseVectorDataArray(out: ArrayList<T>) = when (T::class) {
         Vec2f::class -> parseVec2DataArray(out as ArrayList<Vec2f>)
         Vec3f::class -> parseVec3DataArray(out as ArrayList<Vec3f>)
-        Vec4f::class  -> TODO()
+        Vec4f::class -> parseVec4DataArray(out as ArrayList<Vec4f>)
         else              -> throw Exception("Got reified type ${T::class.java.simpleName} instead of a valid vector type")
     }
 
@@ -211,7 +211,7 @@ class Element(val keyToken: Token, parser: Parser) {
     }
 
     /** read an array of float3 tuples */
-    fun parseVec3DataArray(out: ArrayList<Vec3f>) { // TODO consider returning directly `out`
+    fun parseVec3DataArray(out: ArrayList<Vec3f>) {
         out.clear()
 
         if (tokens.isEmpty()) parseError("unexpected empty element", this)
@@ -269,8 +269,8 @@ class Element(val keyToken: Token, parser: Parser) {
         }
     }
 
-    /** read an array of float3 tuples */
-    fun parseVec2DataArray(out: ArrayList<Vec2f>) { // TODO consider returning directly `out`
+    /** read an array of float2 tuples */
+    fun parseVec2DataArray(out: ArrayList<Vec2f>) {
 
         out.clear()
 
@@ -326,6 +326,58 @@ class Element(val keyToken: Token, parser: Parser) {
                 out += Vec2f(
                     x = a.tokens[i++].parseAsFloat,
                     y = a.tokens[i++].parseAsFloat)
+        }
+    }
+
+    /** read an array of float4 tuples */
+    fun parseVec4DataArray(out: ArrayList<Vec4f>) {
+        out.clear()
+
+        if (tokens.isEmpty()) parseError("unexpected empty element", this)
+
+        if (tokens[0].isBinary) {
+            begin = tokens[0].begin
+            val end = tokens[0].end
+
+            readBinaryDataArrayHead(::begin, end, ::type, ::count)
+
+            if (count % 4 != 0) parseError("number of floats is not a multiple of four (4) (binary)", this)
+
+            if (count == 0) return
+
+            if (type != 'd' && type != 'f') parseError("expected float or double array (binary)", this)
+
+            val buff = readBinaryDataArray(type, count, ::begin, end)
+
+            assert(begin == end && buff.rem == count * if (type == 'd') 8 else 4)
+
+            val count4 = count / 4
+            out.ensureCapacity(count4)
+
+            if (type == 'd') {
+                val d = buff.asDoubleBuffer()
+                for (i in 0 until count4) out += Vec4f(d.get().toFloat(), d.get().toFloat(), d.get().toFloat(), d.get().toFloat())
+            } else if (type == 'f') {
+                val f = buff.asFloatBuffer()
+                for (i in 0 until count4) out += Vec4f(f.get(), f.get(), f.get(), f.get())
+            }
+        } else {
+            val dim = tokens[0].parseAsDim
+
+            out.ensureCapacity(dim.toInt())
+
+            val a = getRequiredElement(scope, "a", this)
+
+            if (a.tokens.size % 4 != 0)
+                parseError("number of floats is not a multiple of four (4)", this)
+
+            var i = 0
+            while (i < a.tokens.size)
+                out += Vec4f(
+                    x = a.tokens[i++].parseAsFloat,
+                    y = a.tokens[i++].parseAsFloat,
+                    z = a.tokens[i++].parseAsFloat,
+                    w = a.tokens[i++].parseAsFloat)
         }
     }
 
