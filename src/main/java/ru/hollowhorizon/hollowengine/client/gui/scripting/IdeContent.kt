@@ -7,46 +7,27 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
 import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.insertItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.EditorFile
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ImageFile
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.ScriptFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFile
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.animations.AnimationControllerFile
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.CodeBlocksFile
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.GLTFFile
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.ItemPrefabEditorFile
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.PrefabEditorFile
 
 object IdeContent {
     val files = HashMap<String, EditorFile>()
     var fileTree = FileNode.EMPTY
-
-    private val fileTypes: Map<String, (String, ByteArray) -> EditorFile> = buildMap {
-        put(".kts", ::ScriptFile)
-        put(".kt", ::ScriptFile)
-        // Controllers have a more specific extension and must be checked before generic .json
-        put(".controller.json", ::AnimationControllerFile)
-        put(".json", ::ScriptFile)
-
-        put(".bc", ::CodeBlocksFile)
-        put(".txt", ::TextFile)
-        put(".gltf") { path, bytes -> GLTFFile(path) }
-        put(".fbx") { path, bytes -> GLTFFile(path) }
-        put(".glb") { path, bytes -> GLTFFile(path) }
-        put(".geo.json") { path, bytes -> GLTFFile(path) }
-        put(".entity.prefab", ::PrefabEditorFile)
-        put(".item.prefab", ::ItemPrefabEditorFile)
-
-        put(".png") { path, bytes -> ImageFile(path, bytes) }
+    
+    init {
+        FileTypeRegistry.initialize()
     }
 
     fun openFile(path: String, bytes: ByteArray): EditorFile? {
         try {
-
-
-            // Get or Create file
             val file = files.getOrPut(path) {
-                val generator = fileTypes.firstNotNullOf { if (path.endsWith(it.key)) it.value else null }
-                val localFile = generator(path, bytes)
+                val fileType = FileTypeRegistry.findType(path)
+                
+                val localFile = if (fileType != null) {
+                    fileType.resolve(path, bytes)
+                } else {
+                    tryOpenAsText(path, bytes)
+                } ?: throw IllegalStateException("Failed to create file for: $path")
+                
                 localFile.open()
 
                 val projectLeaf = LayoutLoader.LAYOUTS["hollowengine.gui.ide.project_tree"]?.dockable?.dockedTo?.value
@@ -61,6 +42,38 @@ object IdeContent {
         } catch (e: Exception) {
             HollowEngine.LOGGER.warn("Can't open $path", e)
             return null
+        }
+    }
+
+    private fun isBinaryContent(bytes: ByteArray): Boolean {
+        if (bytes.isEmpty()) return false
+        
+        var nullCount = 0
+        var nonPrintableCount = 0
+        val sampleSize = minOf(bytes.size, 8192)
+        
+        for (i in 0 until sampleSize) {
+            val b = bytes[i].toInt() and 0xFF
+            if (b == 0) {
+                nullCount++
+            } else if (b < 32 && b != 9 && b != 10 && b != 13) {
+                nonPrintableCount++
+            }
+        }
+        
+        val threshold = sampleSize / 100
+        return nullCount > threshold || nonPrintableCount > (sampleSize / 10)
+    }
+
+    private fun tryOpenAsText(path: String, bytes: ByteArray): EditorFile? {
+        if (isBinaryContent(bytes)) {
+            return null
+        }
+        
+        return try {
+            TextFile(path, bytes)
+        } catch (e: Exception) {
+            null
         }
     }
 
