@@ -16,6 +16,7 @@ import net.minecraft.world.entity.Pose
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
@@ -39,7 +40,7 @@ class EntityIsAttackable : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("можно атаковать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_is_attackable".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -60,7 +61,7 @@ class EntityIsSwimming : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("плавает") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_is_swimming".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -81,7 +82,7 @@ class EntityIsUnderwater : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("под водой") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_is_underwater".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -102,7 +103,7 @@ class EntityIsAlive : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("жива") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_is_alive".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -123,7 +124,7 @@ class EntityIsAggressive : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("в данный момент агрессивна") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_is_aggressive".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -144,7 +145,7 @@ class EntityIsOnFire : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("горит") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_is_on_fire".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -165,7 +166,7 @@ class EntityIsInLava : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("в лаве") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_is_in_lava".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -186,7 +187,7 @@ class EntityIsInvisible : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("невидима") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_is_invisible".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -208,7 +209,7 @@ class EntityIsInvulnerable : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("неуязвима") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_is_invulnerable".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -229,7 +230,7 @@ class EntityIsStanding : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("стоит") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_is_standing".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -250,7 +251,7 @@ class EntityIsSleeping : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("спит") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_is_sleeping".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -271,7 +272,7 @@ class EntityIsCrouching : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("крадётся") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.is_crouching".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -292,7 +293,7 @@ class EntityIsSitting : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("сидит") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.is_sitting".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -315,7 +316,7 @@ class EntityIsRunning : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("бежит") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_is_running".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -335,7 +336,7 @@ class EntityGetMainHandItem : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Предмет в главной руке") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.get_main_hand".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
     }
 }
@@ -356,7 +357,7 @@ class EntityGetOffHandItem : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Предмет в вспомогательной руке") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.get_off_hand".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
     }
 }
@@ -377,7 +378,7 @@ class EntityGetLookAngle : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Вектор взгляда сущности") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.get_look_angle".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
     }
 }
@@ -398,7 +399,7 @@ class EntityGetName : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Имя сущности") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.get_name".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
     }
 }
@@ -419,7 +420,7 @@ class EntityGetPosition : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Координаты сущности") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.get_position".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
     }
 }
@@ -439,7 +440,7 @@ class EntityHurtBlock : StatementBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(entity)
-        Text("получает урон") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_hurt".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(amount)
     }
 }
@@ -456,7 +457,7 @@ class RemoveEntityBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Удалить сущность") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_remove".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
     }
 }
@@ -473,7 +474,7 @@ class EntityClearFire : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Потушить сущность") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_clear_fire".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
     }
 }
@@ -493,9 +494,9 @@ class PushEntityBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Толкнуть") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_push".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
-        Text("в направлении") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(position)
     }
 }
@@ -513,7 +514,7 @@ class SwingMainHandBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Махнуть главной рукой") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_swing_main".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
     }
 }
@@ -531,7 +532,7 @@ class SwingOffHandBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Махнуть вспомогательной рукой") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_swing_off".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
     }
 }

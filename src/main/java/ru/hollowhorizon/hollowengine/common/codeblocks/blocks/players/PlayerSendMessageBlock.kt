@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.utils.literal
@@ -26,11 +27,11 @@ class PlayerSendMessageBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Сообщение") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_send_message".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
 
         ComboBox {
-            modifier.width(FitContent).items(listOf("Чат", "Панель действий"))
+            modifier.width(FitContent).items(listOf("hollowengine.gui.codeblocks.label.player_chat".lang, "hollowengine.gui.codeblocks.label.player_action_bar".lang))
                 .alignY(AlignmentY.Center)
                 .background(RoundRectBackground(Color.BLACK.withAlpha(0.15f), Dimensions.PaddingSmall.scaled()))
                 .zLayer(modifier.zLayer + 10)
@@ -39,7 +40,7 @@ class PlayerSendMessageBlock : StatementBlock() {
                 .onItemSelected { overlay = (it == 1) }
         }
 
-        Text("текст:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_text".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(text)
     }
 }

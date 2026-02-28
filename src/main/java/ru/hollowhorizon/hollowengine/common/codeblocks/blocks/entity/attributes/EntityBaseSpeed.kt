@@ -12,6 +12,7 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.ai.attributes.AttributeModifier
 import net.minecraft.world.entity.ai.attributes.Attributes
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
@@ -52,9 +53,9 @@ class EntitySetBaseSpeed : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Задать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.set_speed_modifier".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
-        Text("модификатор скорости") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(speed)
     }
 }
@@ -77,7 +78,7 @@ class EntityGetBaseSpeed : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Модификатор скорости") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.get_speed_modifier".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
     }
 }

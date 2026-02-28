@@ -10,6 +10,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.GameType
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
@@ -38,11 +39,16 @@ class PlayerGameModeBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Режим игры") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_gamemode".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
 
         ComboBox {
-            modifier.width(FitContent).items(listOf("Выживание", "Творческий", "Приключение", "Наблюдатель"))
+            modifier.width(FitContent).items(listOf(
+                "hollowengine.gui.codeblocks.label.gamemode_survival".lang,
+                "hollowengine.gui.codeblocks.label.gamemode_creative".lang,
+                "hollowengine.gui.codeblocks.label.gamemode_adventure".lang,
+                "hollowengine.gui.codeblocks.label.gamemode_spectator".lang
+            ))
                 .font(font)
                 .background(RoundRectBackground(Color.BLACK.withAlpha(0.15f), Dimensions.PaddingSmall.scaled()))
                 .zLayer(modifier.zLayer + 10)
@@ -70,11 +76,16 @@ class PlayerCheckGamemodeBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Игрок") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
-        Text("в режиме") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_in_gamemode".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         ComboBox {
-            modifier.width(FitContent).items(listOf("Выживание", "Творческий", "Приключение", "Наблюдатель"))
+            modifier.width(FitContent).items(listOf(
+                "hollowengine.gui.codeblocks.label.gamemode_survival".lang,
+                "hollowengine.gui.codeblocks.label.gamemode_creative".lang,
+                "hollowengine.gui.codeblocks.label.gamemode_adventure".lang,
+                "hollowengine.gui.codeblocks.label.gamemode_spectator".lang
+            ))
                 .font(font)
                 .background(RoundRectBackground(Color.BLACK.withAlpha(0.15f), Dimensions.PaddingSmall.scaled()))
                 .zLayer(modifier.zLayer + 10)

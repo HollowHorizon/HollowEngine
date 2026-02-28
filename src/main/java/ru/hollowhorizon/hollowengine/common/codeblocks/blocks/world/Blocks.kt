@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.world
 
 import de.fabmax.kool.util.Color
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -41,9 +42,9 @@ class UpdateBlockBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Обновить блок в")
+        DefaultText("hollowengine.gui.codeblocks.label.world_update_block_in".lang)
         InputSlot(pos)
-        DefaultText("в мире")
+        DefaultText("hollowengine.gui.codeblocks.label.world_in_world".lang)
         InputSlot(world)
     }
 }
@@ -65,11 +66,11 @@ class SetBlockBlock: StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Установить блок")
+        DefaultText("hollowengine.gui.codeblocks.label.world_set_block".lang)
         InputSlot(blockState)
-        DefaultText("в")
+        DefaultText("hollowengine.gui.codeblocks.label.world_to".lang)
         InputSlot(pos)
-        DefaultText("в мире")
+        DefaultText("hollowengine.gui.codeblocks.label.world_in_world".lang)
         InputSlot(world)
     }
 }
@@ -91,9 +92,9 @@ class GetBlockBlock: ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Получить блок в")
+        DefaultText("hollowengine.gui.codeblocks.label.world_get_block_in".lang)
         InputSlot(pos)
-        DefaultText("в мире")
+        DefaultText("hollowengine.gui.codeblocks.label.world_in_world".lang)
         InputSlot(world)
     }
 }
@@ -113,9 +114,9 @@ class RemoveBlockBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Удалить блок в")
+        DefaultText("hollowengine.gui.codeblocks.label.world_remove_block_in".lang)
         InputSlot(pos)
-        DefaultText("в мире")
+        DefaultText("hollowengine.gui.codeblocks.label.world_in_world".lang)
         InputSlot(world)
     }
 }
@@ -139,11 +140,11 @@ class RotateBlockBlock: StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Повернуть блок в")
+        DefaultText("hollowengine.gui.codeblocks.label.world_rotate_block_in".lang)
         InputSlot(pos)
-        DefaultText("в направлении")
+        DefaultText("hollowengine.gui.codeblocks.label.world_in_direction".lang)
         InputSlot(rotation)
-        DefaultText("в мире")
+        DefaultText("hollowengine.gui.codeblocks.label.world_in_world".lang)
         InputSlot(world)
     }
 }
@@ -167,11 +168,11 @@ class SpawnEntityBlock: ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Призвать сущность")
+        DefaultText("hollowengine.gui.codeblocks.label.world_spawn_entity".lang)
         InputSlot(entityType)
-        DefaultText("в координатах")
+        DefaultText("hollowengine.gui.codeblocks.label.world_at_coords".lang)
         InputSlot(position)
-        DefaultText("в мире")
+        DefaultText("hollowengine.gui.codeblocks.label.world_in_world".lang)
         InputSlot(world)
     }
 
@@ -196,9 +197,9 @@ class HasSkyAtBlock: ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("По координатам")
+        DefaultText("hollowengine.gui.codeblocks.label.world_at_coords".lang)
         InputSlot(pos)
-        DefaultText("видно небо в мире")
+        DefaultText("hollowengine.gui.codeblocks.label.world_can_see_sky".lang)
         InputSlot(world)
     }
 }
@@ -218,7 +219,7 @@ class GetTimeBlock: ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Время в мире")
+        DefaultText("hollowengine.gui.codeblocks.label.world_time_in".lang)
         InputSlot(world)
     }
 }
@@ -237,9 +238,9 @@ class SetTimeBlock: StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Установить время в мире")
+        DefaultText("hollowengine.gui.codeblocks.label.world_set_time_in".lang)
         InputSlot(world)
-        DefaultText("в")
+        DefaultText("hollowengine.gui.codeblocks.label.world_to".lang)
         InputSlot(time)
     }
 }
@@ -263,7 +264,7 @@ class GetWeatherBlock: ExpressionBlock() {
         }
     }
     override fun InputSlotScope.composeContent() {
-        DefaultText("Погода в мире")
+        DefaultText("hollowengine.gui.codeblocks.label.world_weather_in".lang)
         InputSlot(world)
     }
 }
@@ -291,9 +292,9 @@ class SetWeatherBlock: StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Установить погоду")
+        DefaultText("hollowengine.gui.codeblocks.label.world_set_weather".lang)
         InputSlot(weather)
-        DefaultText("в мире")
+        DefaultText("hollowengine.gui.codeblocks.label.world_in_world".lang)
         InputSlot(world)
     }
 }

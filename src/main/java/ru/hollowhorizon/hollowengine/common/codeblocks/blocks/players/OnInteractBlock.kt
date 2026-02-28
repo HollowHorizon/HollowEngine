@@ -14,6 +14,7 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -39,9 +40,9 @@ class PlayerInteractWithEntity : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Игрок") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
-        Text("взаимодействует с") {
+        Text("hollowengine.gui.codeblocks.label.player_interacts_with".lang) {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(start = 5.dp).bold()
         }
         InputSlot(entity)
@@ -70,9 +71,9 @@ class PlayerInteractWithBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Игрок") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
-        Text("взаимодействует с блоком") {
+        Text("hollowengine.gui.codeblocks.label.player_interacts_with_block".lang) {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled()).bold()
         }
         Box(Dimensions.PaddingLarge.scaled(), Dimensions.PaddingLarge.scaled()) {
@@ -129,9 +130,9 @@ class PlayerInteractWithItem : StartBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Игрок") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
-        Text("использует") {
+        Text("hollowengine.gui.codeblocks.label.player_uses".lang) {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled()).bold()
         }
         Box(Dimensions.PaddingLarge.scaled(), Dimensions.PaddingLarge.scaled()) {

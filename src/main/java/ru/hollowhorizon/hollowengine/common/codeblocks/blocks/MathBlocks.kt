@@ -8,6 +8,7 @@ import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import kotlin.random.Random
@@ -91,11 +92,11 @@ class RandomNumberBlock : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         Row(Grow.Std) {
-            Text("Случайное от") {
+            Text("hollowengine.gui.codeblocks.label.random_from".lang) {
                 modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
             }
             InputSlot(min)
-            Text("до") {
+            Text("hollowengine.gui.codeblocks.label.to".lang) {
                 modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
             }
             InputSlot(max)
@@ -216,7 +217,7 @@ class NotBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Не") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.not".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(value)
     }
 }
@@ -251,19 +252,19 @@ class TestBlock : ExpressionBlock() {
             modifier.padding(horizontal = 10.dp, vertical = 6.dp).alignY(AlignmentY.Center)
 
             Row(Grow.Std) {
-                Text("Выбрать по") { modifier.bold() }
+                Text("hollowengine.gui.codeblocks.label.select_by".lang) { modifier.bold() }
                 Box(Grow.Std) {}
                 InputSlot(test)
             }
             Box { modifier.size(Grow.Std, Dimensions.PaddingNormal.scaled()) }
             Row(Grow.Std) {
-                Text("Если истина") { modifier.bold() }
+                Text("hollowengine.gui.codeblocks.label.if_true".lang) { modifier.bold() }
                 Box(Grow.Std) {}
                 InputSlot(thenBranch)
             }
             Box { modifier.size(Grow.Std, Dimensions.PaddingNormal.scaled()) }
             Row(Grow.Std) {
-                Text("Если ложь") { modifier.bold() }
+                Text("hollowengine.gui.codeblocks.label.if_true".lang) { modifier.bold() }
                 Box(Grow.Std) {}
                 InputSlot(elseBranch)
             }

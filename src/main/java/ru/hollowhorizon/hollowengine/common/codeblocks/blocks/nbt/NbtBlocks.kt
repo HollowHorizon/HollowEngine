@@ -9,9 +9,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.Tag
 import net.minecraft.nbt.TagParser
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.StringValueBlock
@@ -49,7 +49,7 @@ class NbtParseCompoundBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("NBT из") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.nbt_parse".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(snbt)
     }
 }
@@ -67,7 +67,7 @@ class NbtToSnbtBlock : ExpressionBlock() {
     override suspend fun execute(): String = tag().toString()
 
     override fun InputSlotScope.composeContent() {
-        Text("SNBT") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_to_snbt".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(tag)
     }
 }
@@ -91,7 +91,7 @@ class NbtContainsKeyBlock : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(tag)
-        Text("содержит") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_contains".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(key)
     }
 }
@@ -115,9 +115,9 @@ class NbtRemoveKeyBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Удалить") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_remove".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(key)
-        Text("из") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_from".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(tag)
     }
 }
@@ -140,7 +140,7 @@ class NbtMergeBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Слить") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_merge".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(a)
         Text("+") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(b)
@@ -161,9 +161,9 @@ class NbtGetStringBlock : ExpressionBlock() {
     override suspend fun execute(): String = tag().getString(key())
 
     override fun InputSlotScope.composeContent() {
-        Text("Строка") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_get_string".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(key)
-        Text("из") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_from".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(tag)
     }
 }
@@ -182,9 +182,9 @@ class NbtGetIntBlock : ExpressionBlock() {
     override suspend fun execute(): Number = tag().getInt(key())
 
     override fun InputSlotScope.composeContent() {
-        Text("Число") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_get_int".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(key)
-        Text("из") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_from".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(tag)
     }
 }
@@ -203,9 +203,9 @@ class NbtGetBooleanBlock : ExpressionBlock() {
     override suspend fun execute(): Boolean = tag().getBoolean(key())
 
     override fun InputSlotScope.composeContent() {
-        Text("Логический") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.nbt_get_boolean".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(key)
-        Text("из") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_from".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(tag)
     }
 }
@@ -224,9 +224,9 @@ class NbtGetCompoundBlock : ExpressionBlock() {
     override suspend fun execute(): CompoundTag = tag().getCompound(key())
 
     override fun InputSlotScope.composeContent() {
-        Text("Compound") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_get_compound".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(key)
-        Text("из") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_from".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(tag)
     }
 }
@@ -250,7 +250,7 @@ class NbtSetStringBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Установить") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_set".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(key)
         Text("=") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(value)
@@ -276,7 +276,7 @@ class NbtSetIntBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Установить") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_set".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(key)
         Text("=") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(value)
@@ -302,7 +302,7 @@ class NbtSetBooleanBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Установить") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_set".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(key)
         Text("=") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(value)
@@ -328,7 +328,7 @@ class NbtSetCompoundBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Установить") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.nbt_set".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(key)
         Text("=") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(value)

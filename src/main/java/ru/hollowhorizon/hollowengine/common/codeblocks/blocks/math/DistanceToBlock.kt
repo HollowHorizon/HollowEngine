@@ -11,6 +11,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -30,11 +31,11 @@ class DistanceToBlock : ExpressionBlock() {
     override suspend fun execute() = PI
 
     override fun InputSlotScope.composeContent() {
-        Text("Расстояние между") {
+        Text("hollowengine.gui.codeblocks.label.distance_between".lang) {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
         }
         InputSlot(from)
-        Text("и") {
+        Text("hollowengine.gui.codeblocks.label.entity_and".lang) {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
         }
         InputSlot(to)
@@ -54,7 +55,7 @@ class VectorLengthBlock : ExpressionBlock() {
     override suspend fun execute() = vector().length()
 
     override fun InputSlotScope.composeContent() {
-        Text("Длина вектора") {
+        Text("hollowengine.gui.codeblocks.label.vector_length".lang) {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
         }
         InputSlot(vector)
@@ -74,7 +75,7 @@ class NormalizeVectorBlock : ExpressionBlock() {
     override suspend fun execute(): Vec3 = vector().normalize()
 
     override fun InputSlotScope.composeContent() {
-        Text("Нормализовать") {
+        Text("hollowengine.gui.codeblocks.label.vector_normalize".lang) {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
         }
         InputSlot(vector)
@@ -99,11 +100,11 @@ class VectorMultiplyScalarBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Умножить вектор") {
+        Text("hollowengine.gui.codeblocks.label.vector_multiply".lang) {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
         }
         InputSlot(vector)
-        Text("на скаляр") {
+        Text("hollowengine.gui.codeblocks.label.vector_by_scalar".lang) {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
         }
         InputSlot(scalar)
@@ -123,7 +124,7 @@ class VectorGetXBlock : ExpressionBlock() {
     override suspend fun execute(): Double = vector().x
 
     override fun InputSlotScope.composeContent() {
-        Text("Координата X вектора") {
+        Text("hollowengine.gui.codeblocks.label.vector_get_x".lang) {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
         }
         InputSlot(vector)
@@ -143,7 +144,7 @@ class VectorGetYBlock : ExpressionBlock() {
     override suspend fun execute(): Double = vector().y
 
     override fun InputSlotScope.composeContent() {
-        Text("Координата Y вектора") {
+        Text("hollowengine.gui.codeblocks.label.vector_get_y".lang) {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
         }
         InputSlot(vector)
@@ -163,7 +164,7 @@ class VectorGetZBlock : ExpressionBlock() {
     override suspend fun execute(): Double = vector().z
 
     override fun InputSlotScope.composeContent() {
-        Text("Координата Z вектора") {
+        Text("hollowengine.gui.codeblocks.label.vector_get_z".lang) {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
         }
         InputSlot(vector)

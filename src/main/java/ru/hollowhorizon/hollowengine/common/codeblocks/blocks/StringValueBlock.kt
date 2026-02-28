@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
@@ -23,7 +24,7 @@ class StringValueBlock(var value: String) : ExpressionBlock() {
     override fun InputSlotScope.composeContent() {
         TextField(value) {
             modifier.onChange { value = it; notifyChanged() }
-                .hint("Значение").font(font)
+                .hint("hollowengine.gui.codeblocks.hint.value".lang).font(font)
                 .colors(
                     lineColor = Color.WHITE,
                     textColor = Color.WHITE,

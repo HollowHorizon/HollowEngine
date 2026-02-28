@@ -6,6 +6,7 @@ import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
@@ -33,13 +34,13 @@ class SetGlobalVarBlock(override var variableName: String = "var") : StatementBl
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Присвоить (G):") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.variable_assign".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         // Поле ввода имени переменной
         TextField(variableName) {
             modifier.width(FitContent).margin(horizontal = 5.dp.scaled())
                 .alignY(AlignmentY.Center)
                 .onChange { variableName = it }
-                .hint("Имя переменной").font(font)
+                .hint("hollowengine.gui.codeblocks.label.variable_name".lang).font(font)
                 .colors(textColor = Color.WHITE, lineColor = Color.WHITE)
         }
         Text("=") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
@@ -67,7 +68,7 @@ class GetGlobalVarBlock(var varName: String = "var") : ExpressionBlock() {
             modifier.width(FitContent).margin(start = 5.dp.scaled())
                 .alignY(AlignmentY.Center)
                 .onChange { varName = it }
-                .hint("Имя переменной (G)").font(font)
+                .hint("hollowengine.gui.codeblocks.label.variable_name".lang).font(font)
                 .colors(textColor = Color.WHITE, lineColor = Color.WHITE)
         }
     }
@@ -89,7 +90,7 @@ class GetGlobalVarInlineBlock(val name: String) : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Значение переменной (G)") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.variable_name".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         Text("\"$name\"") {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center)
                 .margin(start = 5.dp.scaled()).regular()

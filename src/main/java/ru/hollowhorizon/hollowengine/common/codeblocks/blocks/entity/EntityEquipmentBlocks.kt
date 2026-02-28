@@ -17,6 +17,7 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
@@ -48,11 +49,18 @@ class EntityGetEquipmentBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Экипировка") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_equipment".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
         // Keep simple selection as ComboBox is fine here
         ComboBox {
-            modifier.width(FitContent).items(listOf("Главная рука", "Левая рука", "Шлем", "Нагрудник", "Поножи", "Ботинки"))
+            modifier.width(FitContent).items(listOf(
+                "hollowengine.gui.codeblocks.label.equipment_main_hand".lang,
+                "hollowengine.gui.codeblocks.label.equipment_off_hand".lang,
+                "hollowengine.gui.codeblocks.label.equipment_head".lang,
+                "hollowengine.gui.codeblocks.label.equipment_chest".lang,
+                "hollowengine.gui.codeblocks.label.equipment_legs".lang,
+                "hollowengine.gui.codeblocks.label.equipment_feet".lang
+            ))
                 .font(font)
                 .background(de.fabmax.kool.modules.ui2.RoundRectBackground(Color.BLACK.withAlpha(0.15f), Dimensions.PaddingSmall.scaled()))
                 .zLayer(modifier.zLayer + 10)
@@ -86,7 +94,7 @@ class PlayerGetInventoryItemBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Инвентарь") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_inventory".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
 
         val current = runCatching { Minecraft.getInstance().player!!.inventory.getItem(slotInt.coerceIn(0, 40)) }.getOrDefault(ItemStack.EMPTY)

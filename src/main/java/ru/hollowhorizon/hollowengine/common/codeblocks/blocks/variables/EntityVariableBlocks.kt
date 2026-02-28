@@ -7,10 +7,10 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
@@ -32,16 +32,16 @@ class SetEntityVarBlock(var varName: String = "var") : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Для")
+        Text("hollowengine.gui.codeblocks.label.for_entity".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
-        Text("присвоить: ") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.variable_name".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
 
         // Поле ввода имени переменной
         TextField(varName) {
             modifier.width(FitContent).margin(horizontal = 5.dp.scaled())
                 .alignY(AlignmentY.Center)
                 .onChange { varName = it }
-                .hint("Имя переменной").font(font)
+                .hint("hollowengine.gui.codeblocks.label.variable_name".lang).font(font)
                 .colors(textColor = Color.WHITE, lineColor = Color.WHITE)
         }
         Text("=") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
@@ -71,10 +71,10 @@ class GetEntityVarBlock(var varName: String = "var") : ExpressionBlock() {
             modifier.width(FitContent).margin(start = 5.dp.scaled())
                 .alignY(AlignmentY.Center)
                 .onChange { varName = it }
-                .hint("Имя переменной").font(font)
+                .hint("hollowengine.gui.codeblocks.label.variable_name".lang).font(font)
                 .colors(textColor = Color.WHITE, lineColor = Color.WHITE)
         }
-        DefaultText("  у")
+        Text("hollowengine.gui.codeblocks.label.for_entity".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
     }
 }
@@ -97,8 +97,8 @@ class GetEntityVarInlineBlock(val name: String) : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Значение переменной") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-        Text("\"$name\" у") {
+        Text("hollowengine.gui.codeblocks.label.variable_name".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("\"$name\" " + "hollowengine.gui.codeblocks.label.for_entity".lang) {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center)
                 .margin(start = 5.dp.scaled()).regular()
         }

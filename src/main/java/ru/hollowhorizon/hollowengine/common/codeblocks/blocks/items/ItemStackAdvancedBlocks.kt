@@ -13,13 +13,12 @@ import net.minecraft.core.registries.Registries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.tags.TagKey
 import net.minecraft.world.item.ItemStack
-import net.minecraft.world.item.enchantment.Enchantment
 import net.minecraft.world.item.enchantment.EnchantmentHelper
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
@@ -44,7 +43,7 @@ class ItemStackHasItemTagBlock : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(stack)
-        Text("в теге") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.item_has_tag".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(tagId)
     }
 }
@@ -73,9 +72,9 @@ class ItemStackGetEnchantLevelBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("уровень чара") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.item_get_enchant_level".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(enchantmentId)
-        Text("в") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.variable_for".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(stack)
     }
 }
@@ -105,7 +104,7 @@ class ItemStackHasEnchantBlock : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(stack)
-        Text("имеет чар") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.item_has_enchant".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(enchantmentId)
     }
 }
@@ -129,7 +128,7 @@ class ItemStackGetNbtBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("NBT") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.item_get_nbt".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(stack)
     }
 }
@@ -156,9 +155,9 @@ class ItemStackSetNbtBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Установить NBT") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.item_set_nbt".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(tag)
-        Text("в") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.variable_for".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(stack)
     }
 }
@@ -184,34 +183,7 @@ class ItemStackClearNbtBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Очистить NBT") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.item_clear_nbt".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(stack)
-    }
-}
-
-@Serializable
-@SerialName("hollowengine:item/is_same_item_and_tag")
-class ItemStackSameItemAndTagBlock : ExpressionBlock() {
-    override val color: Color get() = CodeBlocksColors.ITEMS
-
-    val a by input<ItemStack>("a")
-    val b by input<ItemStack>("b")
-
-    @Transient
-    override val expressionType: ExpressionType = typeOf<Boolean>()
-
-    override suspend fun execute(): Boolean {
-        //? if > 1.20.1 {
-        /*return ItemStack.isSameItemSameComponents(a(), b())
-        *///?} else {
-        return ItemStack.isSameItemSameTags(a(), b())
-        //?}
-    }
-
-    override fun InputSlotScope.composeContent() {
-        InputSlot(a)
-        Text("=") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-        InputSlot(b)
-        Text("(item+nbt)") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }

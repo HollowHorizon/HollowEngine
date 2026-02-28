@@ -18,6 +18,7 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
@@ -41,7 +42,7 @@ class PlayerHealthBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Здоровье игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_health".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }
 }
@@ -60,7 +61,7 @@ class PlayerMaxHealthBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Макс. здоровье игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_max_health".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }
 }
@@ -78,9 +79,9 @@ class PlayerHealBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Вылечить") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_heal".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
-        Text("на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_by".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(amount)
     }
 }
@@ -98,9 +99,9 @@ class PlayerSetHealthBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Установить здоровье") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_set_health".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
-        Text("равным") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_to".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(health)
     }
 }
@@ -118,9 +119,9 @@ class PlayerGiveXpPointsBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Выдать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_give".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(amount)
-        Text("единиц опыта игроку") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_xp_points".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }
 }
@@ -138,9 +139,9 @@ class PlayerGiveXpLevelsBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Выдать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_give".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(levels)
-        Text("уровней опыта игроку") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_xp_levels".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }
 }
@@ -158,9 +159,9 @@ class PlayerRemoveXpLevelsBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Снять") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_remove".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(levels)
-        Text("уровней опыта у игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_xp_levels_from".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }
 }
@@ -178,7 +179,7 @@ class GetPlayerXpPointsBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("очки опыта игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_xp_points_of".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }
 }
@@ -196,7 +197,7 @@ class GetPlayerXpLevelsBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("уровни опыта игрока") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_xp_levels_of".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }
 }
@@ -213,7 +214,7 @@ class PlayerCloseGuiBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Закрыть интерфейс у") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player_close_gui".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(player)
     }
 }
@@ -239,157 +240,26 @@ class PlayerSetRespawn : StatementBlock() {
         Column(Grow.Std) {
             var isExpanded by remember(false)
             Row(Grow.Std) {
-                Text("Возрождать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                Text("hollowengine.gui.codeblocks.label.player_respawn".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                 InputSlot(player)
-                Text("в") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                Text("hollowengine.gui.codeblocks.label.player_to".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                 InputSlot(dimension)
-                Text("на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                Text("hollowengine.gui.codeblocks.label.player_at".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                 InputSlot(pos)
                 Box(Grow.Std) {}
                 Arrow(if (isExpanded) ArrowScope.ROTATION_DOWN else ArrowScope.ROTATION_RIGHT) {
-                    modifier.onClick { isExpanded = !isExpanded }
-                        .size(Dimensions.PaddingNormal.scaled() * 1.5f, Dimensions.PaddingNormal.scaled() * 1.5f)
-                        .alignY(AlignmentY.Center)
-                        .margin(horizontal = Dimensions.PaddingSmall.scaled())
-                        .dragListener(object : Draggable {})
-                        .colors(arrowColor = Color.WHITE.mulRgb(0.9f), arrowHoverColor = Color.WHITE)
+                    modifier.alignY(AlignmentY.Center)
+                        .onClick { isExpanded = !isExpanded }
                 }
             }
             if (isExpanded) {
-                Box { modifier.margin(Dimensions.PaddingSmall.scaled() * 0.5f) }
                 Row(Grow.Std) {
-                    Text("Принудительно: ") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-                    Box(Grow.Std) {  }
+                    Text("hollowengine.gui.codeblocks.label.player_forced".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                     InputSlot(forced)
-                }
-                Box { modifier.margin(Dimensions.PaddingSmall.scaled() * 0.5f) }
-                Row(Grow.Std) {
-                    Text("Уведомить игрока? ") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-                    Box(Grow.Std) {  }
+                    Text("hollowengine.gui.codeblocks.label.player_send_message".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                     InputSlot(sendMessage)
                 }
             }
         }
-    }
-}
-
-
-
-@Serializable
-@SerialName("hollowengine:player/has_item")
-class PlayerHasItemBlock() : ExpressionBlock() {
-    override val color: Color get() = CodeBlocksColors.PLAYERS
-
-    @Transient
-    override val expressionType: ExpressionType = typeOf<Boolean>()
-    val player by input<Player>()
-    var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
-
-    @Transient
-    val popup = AutoPopup(true, true)
-
-    override suspend fun execute(): Any? {
-        val p = player()
-        //? if > 1.20.1 {
-        /*return p.inventory.items.any { ItemStack.isSameItemSameComponents(it, item) && it.count >= item.count }
-        *///?} else {
-        return p.inventory.items.any { ItemStack.isSameItemSameTags(it, item) && it.count >= item.count }
-        //?}
-    }
-
-    override fun InputSlotScope.composeContent() {
-        Text("Игрок") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-        InputSlot(player)
-        Text("имеет предмет") {
-            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled()).bold()
-        }
-        Box(Dimensions.PaddingHuge.scaled() * 1.5f, Dimensions.PaddingHuge.scaled() * 1.5f) {
-            modifier.alignY(AlignmentY.Center)
-                .border(RoundRectBorder(Color.WHITE, Dimensions.PaddingSmall.scaled(), Dimensions.PaddingSmall.scaled()))
-
-            Item(item) {
-                val isHovered by modifier.hoverable()
-                val size by animateFloatAsState(if (isHovered) 1.5f else 1.2f)
-
-                modifier.size(Dimensions.PaddingHuge.scaled() * size, Dimensions.PaddingHuge.scaled() * size)
-                    .align(AlignmentX.Center, AlignmentY.Center)
-                    .onClick {
-                        popup.popupContent = {
-                            InventoryPicker.select {
-                                item = it
-                                popup.hide()
-                            }
-                        }
-
-                        popup.show(Vec2f(uiNode.rightPx + Dimensions.PaddingSmall.scaled().px, uiNode.topPx))
-                    }
-            }
-        }
-        popup()
-    }
-}
-
-@Serializable
-@SerialName("hollowengine:player/remove_item")
-class PlayerRemoveItemBlock : StatementBlock() {
-    override val color: Color get() = CodeBlocksColors.PLAYERS
-
-    val player by input<Player>()
-    var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
-
-    @Transient
-    val popup = AutoPopup(true, true)
-
-    override suspend fun execute() {
-        val p = player()
-        val inventory = p.inventory
-        for (i in 0 until inventory.containerSize) {
-            val stackInSlot = inventory.getItem(i)
-
-            //? if > 1.20.1 {
-            /*if (ItemStack.isSameItemSameComponents(stackInSlot, item)) {
-            *///?} else {
-            if (ItemStack.isSameItemSameTags(stackInSlot, item)) {
-            //?}
-                if (stackInSlot.count > item.count) {
-                    stackInSlot.shrink(item.count)
-                    inventory.setItem(i, stackInSlot)
-                } else {
-                    inventory.setItem(i, ItemStack.EMPTY)
-                }
-                break
-            }
-        }
-    }
-
-    override fun InputSlotScope.composeContent() {
-        Text("Удалить из инвентаря") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-        InputSlot(player)
-        Text("предмет") {
-            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled()).bold()
-        }
-        Box(Dimensions.PaddingHuge.scaled() * 1.5f, Dimensions.PaddingHuge.scaled() * 1.5f) {
-            modifier.alignY(AlignmentY.Center)
-                .border(RoundRectBorder(Color.WHITE, Dimensions.PaddingSmall.scaled(), Dimensions.PaddingSmall.scaled()))
-
-            Item(item) {
-                val isHovered by modifier.hoverable()
-                val size by animateFloatAsState(if (isHovered) 1.5f else 1.2f)
-
-                modifier.size(Dimensions.PaddingHuge.scaled() * size, Dimensions.PaddingHuge.scaled() * size)
-                    .align(AlignmentX.Center, AlignmentY.Center)
-                    .onClick {
-                        popup.popupContent = {
-                            InventoryPicker.select {
-                                item = it
-                                popup.hide()
-                            }
-                        }
-
-                        popup.show(Vec2f(uiNode.rightPx + Dimensions.PaddingSmall.scaled().px, uiNode.topPx))
-                    }
-            }
-        }
-        popup()
     }
 }

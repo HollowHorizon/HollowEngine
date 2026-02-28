@@ -8,6 +8,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
@@ -29,7 +30,7 @@ class NpcStopAnimationBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Остановить анимацию") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.stop_animation".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
         Text("=") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(animation)

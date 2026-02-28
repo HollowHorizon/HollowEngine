@@ -13,6 +13,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Rarity
 import net.minecraft.world.item.enchantment.EnchantmentHelper
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
@@ -34,7 +35,7 @@ class ItemStackIsEmptyBlock : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(stack)
-        Text("пустой") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.item_is_empty".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -51,7 +52,7 @@ class ItemStackGetCountBlock : ExpressionBlock() {
     override suspend fun execute(): Number = stack().count
 
     override fun InputSlotScope.composeContent() {
-        Text("кол-во") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.item_get_count".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(stack)
     }
 }
@@ -69,7 +70,7 @@ class ItemStackGetMaxStackSizeBlock : ExpressionBlock() {
     override suspend fun execute(): Number = stack().maxStackSize
 
     override fun InputSlotScope.composeContent() {
-        Text("макс. стак") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.item_max_stack".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(stack)
     }
 }
@@ -88,7 +89,7 @@ class ItemStackIsDamageableBlock : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(stack)
-        Text("имеет прочность") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.item_is_damageable".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -105,7 +106,7 @@ class ItemStackGetDamageBlock : ExpressionBlock() {
     override suspend fun execute(): Number = stack().damageValue
 
     override fun InputSlotScope.composeContent() {
-        Text("урон") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.item_get_damage".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(stack)
     }
 }
@@ -123,7 +124,7 @@ class ItemStackGetMaxDamageBlock : ExpressionBlock() {
     override suspend fun execute(): Number = stack().maxDamage
 
     override fun InputSlotScope.composeContent() {
-        Text("макс. урон") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.item_get_max_damage".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(stack)
     }
 }
@@ -144,7 +145,7 @@ class ItemStackGetDurabilityBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("прочность") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.item_get_durability".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(stack)
     }
 }
@@ -166,7 +167,7 @@ class ItemStackAreItemsEqualBlock : ExpressionBlock() {
         InputSlot(a)
         Text("=") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(b)
-        Text("(предмет)") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.item_are_items_equal".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -187,7 +188,7 @@ class ItemStackAreStacksEqualBlock : ExpressionBlock() {
         InputSlot(a)
         Text("=") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(b)
-        Text("(стак)") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.item_same_item_and_tag".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -208,7 +209,7 @@ class ItemStackIsEnchantedBlock : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(stack)
-        Text("зачарован") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.item_is_enchanted".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -233,7 +234,7 @@ class ItemStackIsFoodBlock : ExpressionBlock() {
 
     override fun InputSlotScope.composeContent() {
         InputSlot(stack)
-        Text("еда") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.item_is_food".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
     }
 }
 
@@ -253,7 +254,7 @@ class ItemStackGetRarityBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("редкость") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.item_get_rarity".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(stack)
     }
 }
@@ -274,7 +275,7 @@ class ItemStackGetIdBlock : ExpressionBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("id") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.item_get_id".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(stack)
     }
 }

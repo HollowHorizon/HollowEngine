@@ -14,6 +14,7 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.NumberBlock
@@ -147,7 +148,7 @@ class GetOverworldBlock: ExpressionBlock() {
     override suspend fun execute(): ResourceKey<Level> = Level.OVERWORLD
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Обычный Мир")
+        DefaultText("hollowengine.gui.codeblocks.block.get_overworld".lang)
     }
 }
 
@@ -162,7 +163,7 @@ class GetNetherBlock: ExpressionBlock() {
     override suspend fun execute(): ResourceKey<Level> = Level.NETHER
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Незер")
+        DefaultText("hollowengine.gui.codeblocks.block.get_nether".lang)
     }
 }
 
@@ -177,6 +178,6 @@ class GetTheEndBlock: ExpressionBlock() {
     override suspend fun execute(): ResourceKey<Level> = Level.END
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Энд")
+        DefaultText("hollowengine.gui.codeblocks.block.get_end".lang)
     }
 }

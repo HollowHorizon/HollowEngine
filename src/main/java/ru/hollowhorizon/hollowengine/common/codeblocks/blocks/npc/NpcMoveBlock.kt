@@ -8,6 +8,7 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -37,13 +38,13 @@ class NpcMoveBlock : StatementBlock() {
     override fun InputSlotScope.composeContent() {
         Column(Grow.Std) {
             Row(Grow.Std) {
-                Text("НИП") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                Text("hollowengine.gui.codeblocks.label.npc".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                 Box(Grow.Std) {  }
                 InputSlot(npc)
             }
             Box { modifier.margin(Dimensions.PaddingNormal.scaled()) }
             Row(Grow.Std) {
-                Text("Идёт на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                Text("hollowengine.gui.codeblocks.label.npc_moves_to".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                 Box(Grow.Std) {  }
                 InputSlot("target", ExpressionType.anyOf(
                     typeOf<Vec3>(),
@@ -52,7 +53,7 @@ class NpcMoveBlock : StatementBlock() {
             }
             Box { modifier.margin(Dimensions.PaddingNormal.scaled()) }
             Row(Grow.Std) {
-                Text("Со скоростью") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                Text("hollowengine.gui.codeblocks.label.npc_speed".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                 Box(Grow.Std) {  }
                 InputSlot(speed)
             }

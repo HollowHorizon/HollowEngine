@@ -5,6 +5,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemReloadedEvent
@@ -22,7 +23,7 @@ class OnStartBlock : StartBlock() {
     override suspend fun execute() {}
 
     override fun InputSlotScope.composeContent() {
-        Text("При запуске скрипта") {
+        Text("hollowengine.gui.codeblocks.block.on_start".lang) {
             modifier.width(FitContent).align(AlignmentX.Center, AlignmentY.Center)
                 .bold()
         }

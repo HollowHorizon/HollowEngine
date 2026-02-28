@@ -6,6 +6,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 
@@ -21,7 +22,7 @@ class PrintBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Напечатать") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.print".lang) { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
         Box(Grow.Companion.Std) {}
         InputSlot(msg)
     }

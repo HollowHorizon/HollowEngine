@@ -5,8 +5,9 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
@@ -35,13 +36,18 @@ class NpcPlayAnimationBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Запустить анимацию") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.play_animation".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
         Text("=") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(animation)
-        Text("режим") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.npc_animation_mode".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         ComboBox {
-            modifier.width(FitContent).items(listOf("Один раз", "Цикл", "Последний кадр", "Пинг-понг"))
+            modifier.width(FitContent).items(listOf(
+                "hollowengine.gui.codeblocks.label.animation_once".lang,
+                "hollowengine.gui.codeblocks.label.animation_loop".lang,
+                "hollowengine.gui.codeblocks.label.animation_clamp".lang,
+                "hollowengine.gui.codeblocks.label.animation_pingpong".lang
+            ))
                 .font(font)
                 .background(RoundRectBackground(Color.BLACK.withAlpha(0.15f), Dimensions.PaddingSmall.scaled()))
                 .zLayer(modifier.zLayer + 10)

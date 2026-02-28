@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.modules
 
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockCategoryBuilder
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.entity.*
@@ -8,50 +9,47 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.entity.attributes.
 
 object EntityModule : BlockModule {
     override fun BlockCategoryBuilder.build() {
-        category("Сущности", icons.NPCS) {
+        category("hollowengine.gui.codeblocks.category.entities".lang, icons.NPCS) {
             // --- Свойства и Геттеры ---
-            block("Получить координаты") { EntityGetPosition() }
-            block("Получить имя") { EntityGetName() }
-            block("Вектор взгляда") { EntityGetLookAngle() }
-            block("Предмет в главной руке") { EntityGetMainHandItem() }
-            block("Предмет в левой руке") { EntityGetOffHandItem() }
-            block("Экипировка") { EntityGetEquipmentBlock() }
-            block("Получить модификатор скорости") { EntityGetBaseSpeed() }
+            block("hollowengine.gui.codeblocks.block.get_position".lang) { EntityGetPosition() }
+            block("hollowengine.gui.codeblocks.block.get_name".lang) { EntityGetName() }
+            block("hollowengine.gui.codeblocks.block.get_look_angle".lang) { EntityGetLookAngle() }
+            block("hollowengine.gui.codeblocks.block.get_main_hand".lang) { EntityGetMainHandItem() }
+            block("hollowengine.gui.codeblocks.block.get_off_hand".lang) { EntityGetOffHandItem() }
+            block("hollowengine.gui.codeblocks.block.get_equipment".lang) { EntityGetEquipmentBlock() }
+            block("hollowengine.gui.codeblocks.block.get_speed_modifier".lang) { EntityGetBaseSpeed() }
 
             // --- Проверки (Booleans) ---
-            block("Жива?") { EntityIsAlive() }
-            block("Агрессивна?") { EntityIsAggressive() }
-            block("Можно атаковать?") { EntityIsAttackable() }
-            block("Невидима?") { EntityIsInvisible() }
-            block("Неуязвима?") { EntityIsInvulnerable() }
+            block("hollowengine.gui.codeblocks.block.is_alive".lang) { EntityIsAlive() }
+            block("hollowengine.gui.codeblocks.block.is_aggressive".lang) { EntityIsAggressive() }
+            block("hollowengine.gui.codeblocks.block.is_attackable".lang) { EntityIsAttackable() }
+            block("hollowengine.gui.codeblocks.block.is_invisible".lang) { EntityIsInvisible() }
+            block("hollowengine.gui.codeblocks.block.is_invulnerable".lang) { EntityIsInvulnerable() }
 
             // Проверки окружения
-            block("Плавает?") { EntityIsSwimming() }
-            block("Под водой?") { EntityIsUnderwater() }
-            block("В огне?") { EntityIsOnFire() }
-            block("В лаве?") { EntityIsInLava() }
+            block("hollowengine.gui.codeblocks.block.is_swimming".lang) { EntityIsSwimming() }
+            block("hollowengine.gui.codeblocks.block.is_underwater".lang) { EntityIsUnderwater() }
+            block("hollowengine.gui.codeblocks.block.is_on_fire".lang) { EntityIsOnFire() }
+            block("hollowengine.gui.codeblocks.block.is_in_lava".lang) { EntityIsInLava() }
 
             // Проверки позы
-            block("Стоит?") { EntityIsStanding() }
-            block("Крадется?") { EntityIsCrouching() }
-            block("Сидит?") { EntityIsCrouching() }
-            block("Бежит?") { EntityIsRunning() }
-            block("Спит?") { EntityIsSleeping() }
+            block("hollowengine.gui.codeblocks.block.is_standing".lang) { EntityIsStanding() }
+            block("hollowengine.gui.codeblocks.block.is_crouching".lang) { EntityIsCrouching() }
+            block("hollowengine.gui.codeblocks.block.is_sitting".lang) { EntityIsSitting() }
+            block("hollowengine.gui.codeblocks.block.is_running".lang) { EntityIsRunning() }
+            block("hollowengine.gui.codeblocks.block.is_sleeping".lang) { EntityIsSleeping() }
 
             // --- Действия ---
-            block("Нанести урон") { EntityHurtBlock() }
-            block("Потушить") { EntityClearFire() }
-            block("Удалить сущность") { RemoveEntityBlock() }
-            block("Толкнуть") { PushEntityBlock() }
-            block("Махнуть главной рукой") { SwingMainHandBlock() }
-            block("Махнуть левой рукой") { SwingOffHandBlock() }
-            block("Задать модификатор скорости") { EntitySetBaseSpeed() }
+            block("hollowengine.gui.codeblocks.block.entity_hurt".lang) { EntityHurtBlock() }
+            block("hollowengine.gui.codeblocks.block.clear_fire".lang) { EntityClearFire() }
+            block("hollowengine.gui.codeblocks.block.remove_entity".lang) { RemoveEntityBlock() }
+            block("hollowengine.gui.codeblocks.block.push".lang) { PushEntityBlock() }
+            block("hollowengine.gui.codeblocks.block.swing_main".lang) { SwingMainHandBlock() }
+            block("hollowengine.gui.codeblocks.block.swing_off".lang) { SwingOffHandBlock() }
+            block("hollowengine.gui.codeblocks.block.set_speed_modifier".lang) { EntitySetBaseSpeed() }
 
             // --- Старое ---
-            block("Рейкастинг") { EntityPickBlock() }
-            block("Угол между") { EntityAngleBlock() }
-            block("Добавить эффект") { EntityAddEffectBlock() }
-            block("Убрать эффект") { EntityRemoveEffectBlock() }
+            block("hollowengine.gui.codeblocks.block.raycast".lang) { EntityPickBlock() }
         }
     }
 }

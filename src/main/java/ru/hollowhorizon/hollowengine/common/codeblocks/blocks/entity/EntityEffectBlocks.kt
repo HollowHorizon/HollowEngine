@@ -13,6 +13,7 @@ import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -39,7 +40,7 @@ class EntityAddEffectBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Наложить на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_add_effect".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
 
         Box {
@@ -81,9 +82,9 @@ class EntityAddEffectBlock : StatementBlock() {
             }
         }
 
-        Text("длит.") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_effect_duration".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(duration)
-        Text("уровень") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_effect_level".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(amplifier)
     }
 }
@@ -107,9 +108,9 @@ class EntityRemoveEffectBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Снять с") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_remove_effect".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(entity)
-        Text("эффект") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_effect".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
 
         Box {
             modifier.alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled())

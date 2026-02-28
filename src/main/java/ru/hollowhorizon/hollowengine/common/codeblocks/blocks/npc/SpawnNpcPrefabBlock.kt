@@ -15,6 +15,7 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.GetOverworldBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.PositionBlock
@@ -107,19 +108,19 @@ class SpawnNpcPrefabBlock(
     override fun InputSlotScope.composeContent() {
         Column(Grow.Std) {
             Row(Grow.Std) {
-                Text("Создать ${prefabPath.removeSuffix(".entity.prefab").ifBlank { "null" }}") {
+                Text("${"hollowengine.gui.codeblocks.block.spawn_prefab".lang} ${prefabPath.removeSuffix(".entity.prefab").ifBlank { "null" }}") {
                     modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
                 }
             }
             Box { modifier.margin(Dimensions.PaddingNormal.scaled()) }
             Row(Grow.Std) {
-                Text("Измерение:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                Text("hollowengine.gui.codeblocks.label.npc_dimension".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                 Box(Grow.Std) {}
                 InputSlot(dimension)
             }
             Box { modifier.margin(Dimensions.PaddingNormal.scaled()) }
             Row(Grow.Std) {
-                Text("Позиция:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                Text("hollowengine.gui.codeblocks.label.npc_position".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                 Box(Grow.Std) {}
                 InputSlot(pos)
             }

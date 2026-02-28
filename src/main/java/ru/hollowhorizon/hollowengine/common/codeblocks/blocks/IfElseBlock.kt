@@ -5,6 +5,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -28,7 +29,7 @@ class IfElseBlock : StatementBlock(), ContainerBlock {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Если") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.if_block".lang) { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
         Box(Grow.Companion.Std) {}
         InputSlot(condition)
     }
@@ -36,7 +37,7 @@ class IfElseBlock : StatementBlock(), ContainerBlock {
     override fun InputSlotScope.composeBody() {
         BodySlot("then")
 
-        SectionSeparator("Иначе")
+        SectionSeparator("hollowengine.gui.codeblocks.label.else_branch".lang)
 
         BodySlot("else")
     }
@@ -57,7 +58,7 @@ class IfBlock : StatementBlock(), ContainerBlock {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("Если") { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.if_block".lang) { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
         Box(Grow.Companion.Std) {}
         InputSlot(condition)
     }

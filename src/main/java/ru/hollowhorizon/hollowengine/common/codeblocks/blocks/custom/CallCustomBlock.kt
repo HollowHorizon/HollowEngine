@@ -4,6 +4,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.CodeBlockInterpreter
@@ -27,6 +28,6 @@ class CallCustomBlock(val function: String) : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Вызвать '$function'")
+        DefaultText("hollowengine.gui.codeblocks.block.call_function".lang(function))
     }
 }

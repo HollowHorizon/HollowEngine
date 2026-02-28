@@ -4,6 +4,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.EndBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -19,7 +20,7 @@ class StopBlock: StatementBlock(), EndBlock {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Завершить скрипт")
+        DefaultText("hollowengine.gui.codeblocks.label.stop_script".lang)
     }
 }
 
@@ -35,7 +36,7 @@ class StopIfBlock: StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Завершить скрипт, если")
+        DefaultText("hollowengine.gui.codeblocks.label.stop_if".lang)
         InputSlot(condition)
     }
 }

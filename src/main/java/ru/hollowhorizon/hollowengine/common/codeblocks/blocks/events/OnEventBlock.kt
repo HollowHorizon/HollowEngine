@@ -8,6 +8,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 
@@ -49,12 +50,12 @@ class OnEventBlock(var eventName: String = "MyEvent") : StartBlock() {
 
     override fun InputSlotScope.composeContent() {
 
-        Text("При сообщении") { modifier.alignY(AlignmentY.Center).textColor(Color.WHITE).bold() }
+        Text("hollowengine.codeblocks.events.on_event".lang) { modifier.alignY(AlignmentY.Center).textColor(Color.WHITE).bold() }
         Box { modifier.width(Dimensions.PaddingNormal.scaled()) }
         TextField(eventName) {
             modifier.alignY(AlignmentY.Center)
                 .onChange { eventName = it; notifyChanged() }
-                .hint("Название сообщения")
+                .hint("hollowengine.codeblocks.events.event_name".lang)
                 .font(font)
                 .colors(lineColor = Color.WHITE, textColor = Color.WHITE)
         }

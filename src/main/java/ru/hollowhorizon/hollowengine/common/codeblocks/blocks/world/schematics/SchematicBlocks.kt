@@ -8,6 +8,7 @@ import net.minecraft.nbt.NbtIo
 import net.minecraft.resources.ResourceKey
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -43,11 +44,11 @@ class PlaceSchematicBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Разместить схематику")
+        DefaultText("hollowengine.gui.codeblocks.label.world_place_schematic".lang)
         InputSlot(schematic)
-        DefaultText("по координатам")
+        DefaultText("hollowengine.gui.codeblocks.label.world_at_coords".lang)
         InputSlot(position)
-        DefaultText("в мире")
+        DefaultText("hollowengine.gui.codeblocks.label.world_in_world".lang)
         InputSlot(world)
     }
 

@@ -8,6 +8,7 @@ import kotlinx.serialization.Transient
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.StringValueBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.PositionBlock
@@ -41,7 +42,7 @@ class SpawnNpcBlock : ExpressionBlock() {
         Column(Grow.Std) {
             var isExpanded by remember(false)
             Row(Grow.Std) {
-                Text("Создать NPC") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                Text("hollowengine.gui.codeblocks.label.npc_spawn".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                 Box(Grow.Std) {}
                 Arrow(if (isExpanded) ArrowScope.ROTATION_DOWN else ArrowScope.ROTATION_RIGHT) {
                     modifier.onClick { isExpanded = !isExpanded }
@@ -55,13 +56,13 @@ class SpawnNpcBlock : ExpressionBlock() {
             if (isExpanded) {
                 Box { modifier.margin(Dimensions.PaddingNormal.scaled()) }
                 Row(Grow.Std) {
-                    Text("Имя:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                    Text("hollowengine.gui.codeblocks.label.npc_name".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                     Box(Grow.Std) {}
                     InputSlot(name)
                 }
                 Box { modifier.margin(Dimensions.PaddingNormal.scaled()) }
                 Row(Grow.Std) {
-                    Text("Позиция:") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+                    Text("hollowengine.gui.codeblocks.label.npc_position".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
                     Box(Grow.Std) { }
                     InputSlot(pos)
                 }

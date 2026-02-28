@@ -6,6 +6,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
@@ -31,17 +32,20 @@ class NpcInteractBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("НИП") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.npc".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(npc)
 
         ComboBox {
-            modifier.width(FitContent).items(listOf("Использует блок", "Ломает блок"))
+            modifier.width(FitContent).items(listOf(
+                "hollowengine.gui.codeblocks.label.use_block".lang,
+                "hollowengine.gui.codeblocks.label.destroy_block".lang
+            ))
                 .font(font)
             modifier.selectedIndex(modeInt)
             modifier.onItemSelected { modeInt = it }
         }
 
-        Text("на") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.world_at_position".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         InputSlot(pos)
     }
 }

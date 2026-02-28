@@ -5,6 +5,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
@@ -27,12 +28,12 @@ class CustomBlock(var function: String = ""): StartBlock(), ContainerBlock, EndB
     }
 
     override fun InputSlotScope.composeContent() {
-        DefaultText("Функция")
+        DefaultText("hollowengine.gui.codeblocks.label.function".lang)
         TextField(function) {
             modifier.width(FitContent).margin(start = 5.dp)
                 .alignY(AlignmentY.Center)
                 .onChange { function = it }
-                .hint("Имя функции").font(font)
+                .hint("hollowengine.gui.codeblocks.hint.function_name".lang).font(font)
                 .colors(textColor = Color.WHITE, lineColor = Color.WHITE)
         }
     }
