@@ -13,6 +13,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.animations.AnimationControllerFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.CodeBlocksFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.GLTFFile
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.ItemPrefabEditorFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.PrefabEditorFile
 
 object IdeContent {
@@ -33,6 +34,7 @@ object IdeContent {
         put(".glb") { path, bytes -> GLTFFile(path) }
         put(".geo.json") { path, bytes -> GLTFFile(path) }
         put(".entity.prefab", ::PrefabEditorFile)
+        put(".item.prefab", ::ItemPrefabEditorFile)
 
         put(".png") { path, bytes -> ImageFile(path, bytes) }
     }

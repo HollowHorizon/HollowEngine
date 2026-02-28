@@ -67,10 +67,10 @@ abstract class EditorFile(
     }
 
     open fun SubMenuItem<Dockable>.createMenu() {
-        item("Сохранить", icons.ICON_45) {
+        item("Save", icons.ICON_45) {
             save()
         }
-        item("Закрыть", icons.CLOSE) {
+        item("Close", icons.CLOSE) {
             closeFile(dockable)
         }
     }

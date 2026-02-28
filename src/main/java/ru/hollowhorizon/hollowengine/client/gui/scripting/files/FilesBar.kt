@@ -279,10 +279,15 @@ private fun UiScope.FileDockingBar(
             .onClick {
                 if (it.pointer.isMiddleButtonReleased) {
                     onCloseAction?.invoke(windowDockable)
-                } else if (it.isRightClick) {
+                } else if (it.pointer.isRightButtonClicked) {
                     onRightClick(windowDockable, it)
                 }
             }
+            .onHover {
+                PointerInput.cursorShape = CursorShape.HAND
+                it.isConsumed = false
+            }
+            .onDrag { PointerInput.cursorShape = CursorShape.HAND }
 
         Row(Grow.Std) {
             val isHovered by modifier.hoverable()
@@ -293,8 +298,6 @@ private fun UiScope.FileDockingBar(
                     vertical = Dimensions.PaddingMedium,
                     horizontal = Dimensions.PaddingMedium + Dimensions.PaddingNormal
                 )
-                .onHover { PointerInput.cursorShape = CursorShape.HAND }
-                .onDrag { PointerInput.cursorShape = CursorShape.HAND }
 
 
             if (isDraggable && !PointerInput.primaryPointer.isMiddleButtonDown && !PointerInput.primaryPointer.isRightButtonDown) {

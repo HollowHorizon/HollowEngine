@@ -56,10 +56,13 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
     TextButton("hollowengine.gui.ide.file".lang) {
         overlay.hide()
         overlay.show(Vec2f(it.screenPosition), SubMenuItem {
-            item("Перезагрузить ресурсы", icons.RELOAD_MC) {
+            item("hollowengine.gui.ide.file.reload_client_resources".lang, icons.RELOAD_MC) {
                 Minecraft.getInstance().reloadResourcePacks()
             }
-            item("Открыть папку мода", Assets.Hollowengine.Textures.Gui.Logo.LOGO) {
+            item("hollowengine.gui.ide.file.reload_server_resources".lang, icons.RELOAD_MC) {
+                ReloadServerResourcesPacket().send()
+            }
+            item("hollowengine.gui.ide.file.open_mod_folder".lang, Assets.Hollowengine.Textures.Gui.Logo.LOGO) {
                 DesktopUtil.openInExplorer(DirectoryManager.HOLLOW_ENGINE.toFile())
             }
         }, Unit)
@@ -143,7 +146,7 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
         }
     val itemIndex = remember { mutableStateOf(KeyValueStore.getInt("ide.file_index", -1)) }
 
-    ComboBox("Empty", items.map { it.second }, itemIndex)
+    ComboBox("hollowengine.gui.ide.file_picker.empty".lang, items.map { it.second }, itemIndex)
 
     if (itemIndex.use() != -1) Box {
         modifier.alignY(AlignmentY.Center)
@@ -189,7 +192,7 @@ private fun UiScope.ActionButton(
 class StartScriptPacket(val path: String) : HollowPacket {
     override fun handle(player: Player) {
         if (!player.hasPermissions(2)) {
-            player.sendSystemMessage("You don't have permissions to start scripts!".literal)
+            player.sendSystemMessage("hollowengine.gui.ide.script.no_permissions_start".lang.literal)
             return
         } else {
             val file = path.fromReadablePath()
@@ -229,14 +232,27 @@ class CloseScreenPacket : HollowPacket {
 class StopScriptPacket(val path: String) : HollowPacket {
     override fun handle(player: Player) {
         if (!player.hasPermissions(2)) {
-            player.sendSystemMessage("You don't have permissions to start scripts!".literal)
+            player.sendSystemMessage("hollowengine.gui.ide.script.no_permissions_start".lang.literal)
             return
         } else {
             val file = path.fromReadablePath()
 
             //stopScript(file)
 
-            player.sendToast("Скрипт успешно остановлен.".literal)
+            player.sendToast("hollowengine.gui.ide.script.stopped".lang.literal)
         }
+    }
+}
+
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
+@Serializable
+class ReloadServerResourcesPacket : HollowPacket {
+    override fun handle(player: Player) {
+        if (!player.hasPermissions(2)) {
+            player.sendSystemMessage("hollowengine.gui.ide.file.no_permissions_reload_server".lang.literal)
+            return
+        }
+        val server = player.server ?: return
+        server.commands.performPrefixedCommand(player.createCommandSourceStack(), "reload")
     }
 }

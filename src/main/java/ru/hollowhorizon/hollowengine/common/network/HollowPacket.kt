@@ -42,6 +42,13 @@ interface HollowPacket : CustomPacketPayload {
         }
     }
 
+    fun send(players: Collection<ServerPlayer>) {
+        players.forEach {
+            sendPacketToClient(it, this)
+        }
+    }
+
+
     //? if >= 1.21 {
     /*override fun type(): CustomPacketPayload.Type<HollowPacket> {
         return CustomPacketPayload.Type("hollowengine:${this::class.java.name.lowercase().filter { ResourceLocation.validPathChar(it) }}".rl)

@@ -117,5 +117,21 @@
   "hollowengine.component.hollowengine.utils": "Разное",
   "hollowengine.component.hollowengine.utils.greetings": "Приветствие",
   "hollowengine.component.hollowengine.ai": "AI",
-  "hollowengine.component.hollowengine.ai.shapesinc": "Shapes Inc Component"
+  "hollowengine.component.hollowengine.ai.shapesinc": "Shapes Inc Component",
+  "hollowengine.gui.ide.file.reload_client_resources": "Перезагрузить ресурсы",
+  "hollowengine.gui.ide.file.reload_server_resources": "Перезагрузить ресурсы сервера",
+  "hollowengine.gui.ide.file.open_mod_folder": "Открыть папку мода",
+  "hollowengine.gui.ide.file_picker.empty": "Пусто",
+  "hollowengine.gui.ide.script.no_permissions_start": "У вас нет прав для запуска скриптов!",
+  "hollowengine.gui.ide.script.stopped": "Скрипт успешно остановлен.",
+  "hollowengine.gui.ide.file.no_permissions_reload_server": "У вас нет прав для перезагрузки серверных ресурсов!",
+  "hollowengine.gui.ide.popups.create_folder_hint": "Имя папки",
+  "hollowengine.gui.ide.popups.create_file_hint": "Имя файла",
+  "hollowengine.gui.ide.popups.rename_hint": "Новое название",
+  "hollowengine.gui.ide.popups.confirm": "Подтвердить",
+  "hollowengine.gui.ide.popups.cancel": "Отмена",
+  "hollowengine.gui.ide.actions.create.script.simple": "Простой скрипт",
+  "hollowengine.gui.ide.actions.create.script.codeblocks": "Скрипт (Блоки кода)",
+  "hollowengine.gui.ide.actions.create.prefab.npc": "НИП",
+  "hollowengine.gui.ide.actions.create.prefab.item": "Предмет"
 }

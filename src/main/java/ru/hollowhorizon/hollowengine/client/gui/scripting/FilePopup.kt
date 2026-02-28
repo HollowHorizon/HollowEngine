@@ -27,11 +27,11 @@ class FilePopup : Composable {
 
     override fun UiScope.compose() {
         createFolderPopup =
-            remember { EditPopup("hollowengine.gui.ide.popups.create_folder", "Имя папки", ::createFolder) }
+            remember { EditPopup("hollowengine.gui.ide.popups.create_folder", "hollowengine.gui.ide.popups.create_folder_hint", ::createFolder) }
         createFolderPopup()
-        createFilePopup = remember { EditPopup("hollowengine.gui.ide.popups.create_file", "Имя файла", ::createFile) }
+        createFilePopup = remember { EditPopup("hollowengine.gui.ide.popups.create_file", "hollowengine.gui.ide.popups.create_file_hint", ::createFile) }
         createFilePopup()
-        renamePopup = remember { EditPopup("hollowengine.gui.ide.popups.rename", "Новое название", ::rename) }
+        renamePopup = remember { EditPopup("hollowengine.gui.ide.popups.rename", "hollowengine.gui.ide.popups.rename_hint", ::rename) }
         renamePopup()
         deletePopup = remember { WarningModalPopup("hollowengine.gui.ide.popups.delete", ::delete) }
         deletePopup()
@@ -70,11 +70,11 @@ class FilePopup : Composable {
                     }
                     if (node.treePath.startsWith("scripts")) {
                         subMenu(ACTIONS("create.script"), icons.CREATE_FILE) {
-                            item("Простой скрипт", icons.FILE_KTS) {
+                            item("hollowengine.gui.ide.actions.create.script.simple".lang, icons.FILE_KTS) {
                                 fileExtension = ".kts"
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                             }
-                            item("Скрипт (Блоки кода)", icons.FILE_CODEBLOCKS) {
+                            item("hollowengine.gui.ide.actions.create.script.codeblocks".lang, icons.FILE_CODEBLOCKS) {
                                 fileExtension = ".bc"
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                             }
@@ -82,8 +82,12 @@ class FilePopup : Composable {
                     }
                     if (node.treePath.startsWith("prefabs")) {
                         subMenu(ACTIONS("create.prefab"), icons.CREATE_FILE) {
-                            item("НИП", icons.NPCS) {
+                            item("hollowengine.gui.ide.actions.create.prefab.npc".lang, icons.NPCS) {
                                 fileExtension = ".entity.prefab"
+                                createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
+                            }
+                            item("hollowengine.gui.ide.actions.create.prefab.item".lang, icons.TYPES) {
+                                fileExtension = ".item.prefab"
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                             }
                         }
@@ -142,7 +146,7 @@ class FilePopup : Composable {
             }
             item(ACTIONS("delete"), icons.REMOVE) {
                 deletePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
-                // Немного халтурный способ обновления папки - закрыть и открыть
+                // Folder refresh happens via close / reopen
             }
         }, node)
     }
