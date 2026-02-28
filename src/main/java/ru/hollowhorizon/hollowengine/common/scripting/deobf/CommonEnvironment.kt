@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.deobf
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.MappingsLoader
+import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import java.io.File
 import java.util.jar.JarFile
 
@@ -20,7 +21,7 @@ object CommonEnvironment {
 
         val classpath = setupPlatform(mappings, outputDir).toMutableList()
 
-        classpath += ModsEnvironment("hollowengine").setup(mappings, outputDir)
+        if (isProduction) classpath += ModsEnvironment("hollowengine").setup(mappings, outputDir)
 
         return mappings to classpath
     }

@@ -26,7 +26,7 @@ object ForgeSetup: DependencySetup {
 
     fun forgeVersion(minecraftVersion: String) = when(minecraftVersion) {
         "1.21" -> "$minecraftVersion-51.0.8"
-        "1.20.1" -> "$minecraftVersion-47.4.3"
+        "1.20.1" -> "$minecraftVersion-47.4.13"
         "1.19.2" -> "$minecraftVersion-43.4.2"
         else -> error("Unsupported forge version for $minecraftVersion")
     }

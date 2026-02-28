@@ -1,22 +1,23 @@
 package ru.hollowhorizon.hollowengine.common.items.dynamic
 
-import net.minecraft.core.Registry
-import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.client.Minecraft
 import net.minecraft.client.resources.model.ModelResourceLocation
+import net.minecraft.core.Registry
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.packs.resources.ResourceManager
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.Rarity
+import org.apache.logging.log4j.LogManager
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.api.ReloadListener
 import ru.hollowhorizon.hollowengine.client.utils.HollowPack
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.item.BuildTabContentsEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.registry.AutoModelType
 import ru.hollowhorizon.hollowengine.common.registry.extend.HollowDynamicRegistry
-import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.item.BuildTabContentsEvent
 import ru.hollowhorizon.hollowengine.common.utils.Side
 import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
@@ -26,7 +27,7 @@ import java.io.File
 
 @ReloadListener(Side.BOTH)
 object DynamicItemManager : ResourceManagerReloadListener {
-    private val logger = HollowEngine.LOGGER
+    private val logger = LogManager.getLogger()
     private var syncedEntries: Map<String, String>? = null
     private val tabItems: MutableMap<ResourceLocation, MutableList<Item>> = HashMap()
 
