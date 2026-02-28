@@ -15,6 +15,7 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
@@ -132,7 +133,7 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
                         .align(AlignmentX.Center, AlignmentY.Center)
                 }
 
-                Text("Добавить компонент") {
+                Text("hollowengine.gui.prefab_editor.add_component".lang) {
                     modifier
                         .font(remember {
                             MsdfFont(ColorTheme.Fonts.MONOCRAFT, 16f)
@@ -146,7 +147,7 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
     }
 
     fun UiScope.Editor() {
-        Text("Компоненты префаба") {
+        Text("hollowengine.gui.prefab_editor.prefab_components".lang) {
             modifier
                 .font(remember {
                     MsdfFont(ColorTheme.Fonts.MONOCRAFT, 16f)
@@ -183,14 +184,14 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
         }
     }
 
-    private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("Компоненты") {
+    private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("hollowengine.gui.entity_editor.components".lang) {
         val existing = components.map { it.key }.toSet()
         val available = ComponentRegistry.keys
             .filter { it !in existing }
             .sortedBy { it.toString() }
 
         if (available.isEmpty()) {
-            item("Все компоненты добавлены") {}
+            item("hollowengine.gui.prefab_editor.all_components_added".lang) {}
         } else {
             available.forEach { key ->
                 val holder = ComponentRegistry[key] ?: return@forEach

@@ -6,6 +6,7 @@ import net.minecraft.client.gui.components.toasts.SystemToast
 import net.minecraft.network.chat.Component
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.utils.literal
@@ -25,7 +26,7 @@ fun Player.sendToast(message: Component) {
             *///?} else {
             SystemToast.SystemToastIds.PERIODIC_NOTIFICATION,
             //?}
-            "Уведомление".literal,
+            "hollowengine.gui.notification.title".lang.literal,
             message
         )
     )

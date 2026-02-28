@@ -151,7 +151,7 @@ class ModelController {
                 )
                 .zLayer(1000)
 
-            Text("Управление анимацией") {
+            Text("hollowengine.gui.model_controller.animation_control".lang) {
                 modifier.font(remember { MsdfFont(ColorTheme.Fonts.MONOCRAFT, 13f) })
                     .textColor(ColorTheme.UI.WhiteReplacement)
                     .margin(bottom = Dimensions.PaddingSmall)
@@ -194,7 +194,7 @@ class ModelController {
                     Row(Grow.Std) {
                         modifier.alignY(AlignmentY.Center)
 
-                        Text(animations.getOrNull(animationId.use())?.name ?: "Нет анимаций") {
+                        Text(animations.getOrNull(animationId.use())?.name ?: "hollowengine.gui.model_controller.no_animations".lang) {
                             modifier.font(remember { MsdfFont(ColorTheme.Fonts.MONOCRAFT, 14f) })
                                 .textColor(ColorTheme.UI.WhiteReplacement)
                                 .alignY(AlignmentY.Center)
@@ -273,9 +273,9 @@ class ModelController {
         }
     }
 
-    private fun buildAnimationMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("Анимации") {
+    private fun buildAnimationMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("hollowengine.gui.model_controller.animations".lang) {
         if (animations.isEmpty()) {
-            item("Нет доступных анимаций", null) {}
+            item("hollowengine.gui.model_controller.no_animations_available".lang, null) {}
         } else {
             animations.forEachIndexed { index, anim ->
                 item(anim.name) {
@@ -291,10 +291,10 @@ class ModelController {
             modifier.align(AlignmentX.Start, AlignmentY.Top)
                 .zLayer(1000)
 
-            Toggle(icons.AUTOCOMPLETE_CLASS, isBoundingBoxVisible, "Bounding Box")
-            Toggle(icons.LAYERS, isWireframeVisible, "Wireframe")
-            Toggle(icons.RECIPES, isGridVisible, "Сетка")
-            Toggle(icons.RELOAD, isAutoRotateEnabled, "Автоповорот")
+            Toggle(icons.AUTOCOMPLETE_CLASS, isBoundingBoxVisible, "hollowengine.gui.model_controller.bounding_box".lang)
+            Toggle(icons.LAYERS, isWireframeVisible, "hollowengine.gui.model_controller.wireframe".lang)
+            Toggle(icons.RECIPES, isGridVisible, "hollowengine.gui.model_controller.grid".lang)
+            Toggle(icons.RELOAD, isAutoRotateEnabled, "hollowengine.gui.model_controller.auto_rotate".lang)
         }
     }
 
@@ -314,9 +314,9 @@ class ModelController {
                 .zLayer(1000)
 
             Column {
-                Text("Полигонов: ") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
-                Text("Анимаций: ") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
-                Text("Шейп-кеев: ") { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
+                Text("hollowengine.gui.model_controller.polygons".lang) { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
+                Text("hollowengine.gui.model_controller.animations_count".lang) { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
+                Text("hollowengine.gui.model_controller.shape_keys".lang) { modifier.textColor(ColorTheme.UI.WhiteReplacement) }
             }
             Column {
                 Text("${attachment.triangles}") { modifier.textColor(ColorTheme.UI.BackgroundAccent) }

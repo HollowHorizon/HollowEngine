@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.lang.LanguageViewModel
 import ru.hollowhorizon.hollowengine.client.lang.TranslationRow
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 class LanguageEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.translations", dock) {
@@ -30,7 +31,7 @@ class LanguageEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.translat
             Row(Grow.Std, 40.dp) {
                 modifier.margin(bottom = sizes.smallGap)
 
-                LanguageButton("Из: ${vm.sourceLang.use()}", sourceLangPopup) {
+                LanguageButton("hollowengine.gui.lang_editor.from".lang.format(vm.sourceLang.use()), sourceLangPopup) {
                     buildLangMenu { newLang ->
                         vm.sourceLang.set(newLang)
                         vm.load()
@@ -42,7 +43,7 @@ class LanguageEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.translat
                 Text("→") { modifier.alignY(AlignmentY.Center) }
                 Box(sizes.smallGap) {}
 
-                LanguageButton("В: ${vm.targetLang.use()}", targetLangPopup) {
+                LanguageButton("hollowengine.gui.lang_editor.to".lang.format(vm.targetLang.use()), targetLangPopup) {
                     buildLangMenu { newLang ->
                         vm.targetLang.set(newLang)
                         vm.load()
@@ -53,7 +54,7 @@ class LanguageEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.translat
 
                 TextField(vm.searchQuery.use()) {
                     modifier.width(250.dp).alignY(AlignmentY.Center)
-                        .hint("Поиск...")
+                        .hint("hollowengine.gui.lang_editor.search".lang)
                         .onChange {
                             vm.searchQuery.set(it)
                             vm.applyFilters()
@@ -68,12 +69,12 @@ class LanguageEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.translat
                         vm.applyFilters()
                     }
                     Checkbox(vm.showOnlyMissing.use()) { modifier.alignY(AlignmentY.Center) }
-                    Text("Пустые") { modifier.alignY(AlignmentY.Center).margin(start = 4.dp) }
+                    Text("hollowengine.gui.lang_editor.empty_only".lang) { modifier.alignY(AlignmentY.Center).margin(start = 4.dp) }
                 }
 
                 Box(Grow.Std) {}
 
-                Button("Сохранить") {
+                Button("hollowengine.gui.lang_editor.save".lang) {
                     modifier.alignY(AlignmentY.Center)
                         .padding(horizontal = sizes.gap)
                         .colors(textColor = Color.WHITE, textHoverColor = Color.WHITE)
@@ -83,9 +84,9 @@ class LanguageEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.translat
 
             Row(Grow.Std) {
                 modifier.backgroundColor(ColorTheme.UI.BackgroundGeneral).padding(vertical = 4.dp)
-                Text("Ключ перевода") { modifier.width(Grow(0.35f)).margin(start = sizes.gap) }
-                Text("Оригинал") { modifier.width(Grow(0.3f)) }
-                Text("Перевод") { modifier.width(Grow(0.35f)) }
+                Text("hollowengine.gui.lang_editor.translation_key".lang) { modifier.width(Grow(0.35f)).margin(start = sizes.gap) }
+                Text("hollowengine.gui.lang_editor.original".lang) { modifier.width(Grow(0.3f)) }
+                Text("hollowengine.gui.lang_editor.translation".lang) { modifier.width(Grow(0.35f)) }
             }
 
             Box(Grow.Std, Grow.Std) {
@@ -127,7 +128,7 @@ class LanguageEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.translat
     }
 
     private fun buildLangMenu(onSelect: (String) -> Unit): SubMenuItem<Unit> {
-        return SubMenuItem("Выберите язык", null) {
+        return SubMenuItem("hollowengine.gui.lang_editor.select_language".lang, null) {
             vm.getAvailableLanguages().forEach { langCode ->
                 item(langCode) { onSelect(langCode) }
             }

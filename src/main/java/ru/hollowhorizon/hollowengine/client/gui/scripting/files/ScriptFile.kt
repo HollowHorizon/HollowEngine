@@ -15,6 +15,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.client.utils.offset
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -39,7 +40,7 @@ class ScriptFile(path: String, bytes: ByteArray) : EditorFile(path) {
         modifier.background(null)
 
         if(!HollowEngine.compilerLoader.isLoaded) {
-            Text("HollowEngineCompiler.jar not found") {}
+            Text("hollowengine.gui.script.compiler_not_found".lang) {}
             return
         }
 

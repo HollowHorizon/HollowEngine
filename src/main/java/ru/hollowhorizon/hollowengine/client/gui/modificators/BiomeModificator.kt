@@ -8,6 +8,7 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
 import ru.hollowhorizon.hollowengine.client.gui.scripting.HACK_FONT
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import kotlin.math.roundToInt
 
 class WorldColors(
@@ -80,10 +81,10 @@ class WorldColors(
 }
 
 
-private enum class WorldType(val buttonText: String) {
-    OVERWORLD("Верхний мир"),
-    NETHER("Нижний мир"),
-    END("Эндер мир")
+private enum class WorldType(val translationKey: String) {
+    OVERWORLD("hollowengine.gui.biome_modificator.overworld"),
+    NETHER("hollowengine.gui.biome_modificator.nether"),
+    END("hollowengine.gui.biome_modificator.end")
 }
 
 object BiomeModificator : KoolScreen() {
@@ -129,7 +130,7 @@ object BiomeModificator : KoolScreen() {
                 .width(600.dp)
                 .height(Grow(1f, max = 800.dp))
                 .padding(vertical = sizes.largeGap)
-            Text("Модификатор биомов") {
+            Text("hollowengine.gui.biome_modificator.title".lang) {
                 modifier
                     .alignX(AlignmentX.Center)
                     .margin(bottom = sizes.gap)
@@ -150,7 +151,7 @@ object BiomeModificator : KoolScreen() {
                                 enable.set(!enable.value)
                             }
                         }
-                        Text("Включить модификатор биомов") {
+                        Text("hollowengine.gui.biome_modificator.enable".lang) {
                             modifier.margin(start = sizes.gap)
                                 .alignY(AlignmentY.Center).font(MsdfFont(HACK_FONT, 24f))
                         }
@@ -161,7 +162,7 @@ object BiomeModificator : KoolScreen() {
                                 enableSkybox.set(!enableSkybox.value)
                             }
                         }
-                        Text("Включить скайбокс") {
+                        Text("hollowengine.gui.biome_modificator.enable_skybox".lang) {
                             modifier.margin(start = sizes.gap)
                                 .alignY(AlignmentY.Center).font(MsdfFont(HACK_FONT, 24f))
                         }
@@ -172,7 +173,7 @@ object BiomeModificator : KoolScreen() {
                     // Панель выбора мира
                     Row(width = Grow.Std) {
                         WorldType.entries.forEach { world ->
-                            Button(world.buttonText) {
+                            Button(world.translationKey.lang) {
                                 modifier
                                     .width(Grow.Std)
                                     .margin(horizontal = sizes.smallGap)
@@ -189,7 +190,7 @@ object BiomeModificator : KoolScreen() {
 
                     CollapsibleColorPicker(
                         pickerId = "sky",
-                        label = "Цвет неба",
+                        label = "hollowengine.gui.biome_modificator.sky_color".lang,
                         openedPicker = openedPicker,
                         hue = activeColors.skyHueState,
                         saturation = activeColors.skySatState,
@@ -199,7 +200,7 @@ object BiomeModificator : KoolScreen() {
 
                     CollapsibleColorPicker(
                         pickerId = "fog",
-                        label = "Цвет тумана",
+                        label = "hollowengine.gui.biome_modificator.fog_color".lang,
                         openedPicker = openedPicker,
                         hue = activeColors.fogHueState,
                         saturation = activeColors.fogSatState,
@@ -209,7 +210,7 @@ object BiomeModificator : KoolScreen() {
 
                     CollapsibleColorPicker(
                         pickerId = "water",
-                        label = "Цвет воды",
+                        label = "hollowengine.gui.biome_modificator.water_color".lang,
                         openedPicker = openedPicker,
                         hue = activeColors.waterHueState,
                         saturation = activeColors.waterSatState,
@@ -219,7 +220,7 @@ object BiomeModificator : KoolScreen() {
 
                     CollapsibleColorPicker(
                         pickerId = "water_fog",
-                        label = "Цвет тумана в воде",
+                        label = "hollowengine.gui.biome_modificator.water_fog_color".lang,
                         openedPicker = openedPicker,
                         hue = activeColors.waterFogHueState,
                         saturation = activeColors.waterFogSatState,
@@ -231,7 +232,7 @@ object BiomeModificator : KoolScreen() {
 
                     Row(width = Grow.Std) {
                         modifier.margin(vertical = sizes.smallGap)
-                        Text("Размер солнца:") {
+                        Text("hollowengine.gui.biome_modificator.sun_size".lang) {
                             modifier.width(Grow.MinFit).margin(start = sizes.gap)
                                 .alignY(AlignmentY.Center).font(MsdfFont(HACK_FONT, 24f))
                         }
@@ -250,7 +251,7 @@ object BiomeModificator : KoolScreen() {
                     }
                     Row(width = Grow.Std) {
                         modifier.margin(vertical = sizes.smallGap)
-                        Text("Размер луны:") {
+                        Text("hollowengine.gui.biome_modificator.moon_size".lang) {
                             modifier.width(Grow.MinFit).margin(start = sizes.gap)
                                 .alignY(AlignmentY.Center).font(MsdfFont(HACK_FONT, 24f))
                         }

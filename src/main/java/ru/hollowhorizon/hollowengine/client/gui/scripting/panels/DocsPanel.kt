@@ -16,14 +16,14 @@ class DocsPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.docs", dock) {
     var filter = mutableStateOf("")
 
     val items = buildList {
-        add(DocCategory(icons.TUTORIAL, "Для новичков"))
-        add(DocCategory(icons.FILE_KTS, "Скриптинг"))
-        add(DocCategory(icons.FILE_CODEBLOCKS, "Блоки кода"))
-        add(DocCategory(icons.GRAPH, "Система состояний"))
-        add(DocCategory(icons.TIMER, "Корутины"))
-        add(DocCategory(icons.NPCS, "НИПы"))
-        add(DocCategory(icons.PLAYERS, "Игроки"))
-        add(DocCategory(icons.RECIPES, "Рецепты"))
+        add(DocCategory(icons.TUTORIAL, "hollowengine.gui.docs.category.beginners".lang))
+        add(DocCategory(icons.FILE_KTS, "hollowengine.gui.docs.category.scripting".lang))
+        add(DocCategory(icons.FILE_CODEBLOCKS, "hollowengine.gui.docs.category.codeblocks".lang))
+        add(DocCategory(icons.GRAPH, "hollowengine.gui.docs.category.states".lang))
+        add(DocCategory(icons.TIMER, "hollowengine.gui.docs.category.coroutines".lang))
+        add(DocCategory(icons.NPCS, "hollowengine.gui.docs.category.npcs".lang))
+        add(DocCategory(icons.PLAYERS, "hollowengine.gui.docs.category.players".lang))
+        add(DocCategory(icons.RECIPES, "hollowengine.gui.docs.category.recipes".lang))
 
     }
 

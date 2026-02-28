@@ -111,7 +111,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
         override fun UiScope.compose() {
             modifier.padding(sizes.smallGap)
             Column(Grow.Std) {
-                Property("Имя") {
+                Property("hollowengine.gui.npc_tool.name".lang) {
                     TextField {
                         modifier.alignY(AlignmentY.Center)
                             .text(npc.name)
@@ -119,7 +119,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                             .width(Grow.Std)
                     }
                 }
-                Property("Модель") {
+                Property("hollowengine.gui.npc_tool.model".lang) {
                     TextField {
                         modifier.textColor =
                             if (model.isValidRL() && model.rl in HollowModelManager.allModels) colors.onBackground else Color.DARK_RED

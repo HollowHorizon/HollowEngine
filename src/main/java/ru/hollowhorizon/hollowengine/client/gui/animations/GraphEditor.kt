@@ -19,6 +19,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.ComboBox
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.Math.abs
@@ -222,8 +223,8 @@ class GraphEditor {
         }
     }
 
-    private fun buildContextMenu(menu: ItemPopupMenu<Vec2f>): SubMenuItem<Vec2f> = SubMenuItem("Создать состояние") {
-        item("Начальное состояние", icons.ADD) {
+    private fun buildContextMenu(menu: ItemPopupMenu<Vec2f>): SubMenuItem<Vec2f> = SubMenuItem("hollowengine.gui.graph_editor.create_state".lang) {
+        item("hollowengine.gui.graph_editor.entry_state".lang, icons.ADD) {
             val pos = menu.item
             val spn = scrollPaneNode
             if (spn != null && pos != null) {
@@ -243,7 +244,7 @@ class GraphEditor {
             }
         }
         
-        item("Любое состояние", icons.ADD) {
+        item("hollowengine.gui.graph_editor.any_state".lang, icons.ADD) {
             val pos = menu.item
             val spn = scrollPaneNode
             if (spn != null && pos != null) {
@@ -265,7 +266,7 @@ class GraphEditor {
         
         val anims = availableAnimations
         if (anims.isNotEmpty()) {
-            subMenu("Из анимации") {
+            subMenu("hollowengine.gui.graph_editor.from_animation".lang) {
                 anims.forEach { animName ->
                     item(animName) {
                         val pos = menu.item
@@ -291,7 +292,7 @@ class GraphEditor {
             }
         }
         
-        item("Пустое состояние", icons.ADD) {
+        item("hollowengine.gui.graph_editor.empty_state".lang, icons.ADD) {
             val pos = menu.item
             val spn = scrollPaneNode
             if (spn != null && pos != null) {
@@ -627,7 +628,7 @@ class GraphEditor {
             modifier.width(Dp(350f)).height(Grow.Std).background(RectBackground(ColorTheme.UI.BackgroundSecondary))
                 .padding(Dimensions.PaddingLarge).zLayer(1000)
 
-            Text("ПАРАМЕТРЫ") {
+            Text("hollowengine.gui.graph_editor.parameters".lang) {
                 modifier.textColor(ColorTheme.UI.WhiteReplacement)
                     .font(FontProps(size = 16f, isBold = true))
                     .margin(bottom = Dimensions.PaddingLarge)
@@ -635,18 +636,18 @@ class GraphEditor {
 
             when {
                 node != null -> {
-                    Text("СОСТОЯНИЕ") {
+                    Text("hollowengine.gui.graph_editor.state".lang) {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
                             .font(FontProps(size = 14f, isBold = true))
                             .margin(bottom = Dimensions.PaddingSmall)
                     }
 
-                    PropertyTextField("Название", node.title) { node.title = it }
-                    PropertyReadOnlyField("Координаты", "${node.xState.use().toInt()}, ${node.yState.use().toInt()}")
+                    PropertyTextField("hollowengine.gui.graph_editor.name".lang, node.title) { node.title = it }
+                    PropertyReadOnlyField("hollowengine.gui.graph_editor.coordinates".lang, "${node.xState.use().toInt()}, ${node.yState.use().toInt()}")
 
                     Divider()
 
-                    Text("ОСНОВНОЕ") {
+                    Text("hollowengine.gui.graph_editor.basic".lang) {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
                             .font(FontProps(size = 14f))
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
@@ -660,17 +661,17 @@ class GraphEditor {
                     }
                     val typeState = remember(typeIndex)
                     val typePreview = when (typeState.use()) {
-                        0 -> "Начало"
-                        1 -> "Любое состояние"
-                        else -> "Состояние"
+                        0 -> "hollowengine.gui.graph_editor.type.entry".lang
+                        1 -> "hollowengine.gui.graph_editor.type.any".lang
+                        else -> "hollowengine.gui.graph_editor.type.state".lang
                     }
                     PropertyComboBox(
-                        "Тип",
+                        "hollowengine.gui.graph_editor.type".lang,
                         typePreview,
                         listOf(
-                            Composable { Text("Начало") { modifier.textColor(ColorTheme.UI.WhiteReplacement) } },
-                            Composable { Text("Любое состояние") { modifier.textColor(ColorTheme.UI.WhiteReplacement) } },
-                            Composable { Text("Состояние") { modifier.textColor(ColorTheme.UI.WhiteReplacement) } },
+                            Composable { Text("hollowengine.gui.graph_editor.type.entry".lang) { modifier.textColor(ColorTheme.UI.WhiteReplacement) } },
+                            Composable { Text("hollowengine.gui.graph_editor.type.any".lang) { modifier.textColor(ColorTheme.UI.WhiteReplacement) } },
+                            Composable { Text("hollowengine.gui.graph_editor.type.state".lang) { modifier.textColor(ColorTheme.UI.WhiteReplacement) } },
                         ),
                         typeState,
                     )
@@ -685,10 +686,10 @@ class GraphEditor {
                     if (anims.isNotEmpty()) {
                         val currentIndex = anims.indexOfFirst { it == node.animationName }.coerceAtLeast(-1)
                         val indexState = remember(currentIndex)
-                        val animPreview = if (currentIndex >= 0) anims[currentIndex] else "Не выбрано"
+                        val animPreview = if (currentIndex >= 0) anims[currentIndex] else "hollowengine.gui.graph_editor.not_selected".lang
 
                         PropertyComboBox(
-                            "Анимация",
+                            "hollowengine.gui.graph_editor.animation".lang,
                             animPreview,
                             anims.map { name ->
                                 Composable {
@@ -706,7 +707,7 @@ class GraphEditor {
 
                     Divider()
 
-                    Text("ВОСПРОИЗВЕДЕНИЕ") {
+                    Text("hollowengine.gui.graph_editor.playback".lang) {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
                             .font(FontProps(size = 14f))
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
@@ -717,7 +718,7 @@ class GraphEditor {
                     val wrapIndex = wrapItems.indexOf(node.wrapMode).coerceAtLeast(0)
                     val wrapState = remember(wrapIndex)
                     PropertyComboBox(
-                        "Режим",
+                        "hollowengine.gui.graph_editor.mode".lang,
                         node.wrapMode.name,
                         wrapItems.map { mode ->
                             Composable {
@@ -729,13 +730,13 @@ class GraphEditor {
                     val wi = wrapState.use()
                     if (wi in wrapItems.indices) node.wrapMode = wrapItems[wi]
 
-                    PropertyFloatField("Скорость", node.speed) { node.speed = it }
-                    PropertyFloatField("Вес", node.weight) { node.weight = it }
-                    PropertyIntField("Приоритет", node.priority) { node.priority = it }
+                    PropertyFloatField("hollowengine.gui.graph_editor.speed".lang, node.speed) { node.speed = it }
+                    PropertyFloatField("hollowengine.gui.graph_editor.weight".lang, node.weight) { node.weight = it }
+                    PropertyIntField("hollowengine.gui.graph_editor.priority".lang, node.priority) { node.priority = it }
 
                     Divider()
 
-                    Text("СМЕШИВАНИЕ") {
+                    Text("hollowengine.gui.graph_editor.blending".lang) {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
                             .font(FontProps(size = 14f))
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
@@ -747,7 +748,7 @@ class GraphEditor {
                     val curveState = remember(curveIndex)
 
                     PropertyComboBox(
-                        "Кривая",
+                        "hollowengine.gui.graph_editor.curve".lang,
                         node.blendCurve.name,
                         curves.map { c ->
                             Composable {
@@ -761,15 +762,15 @@ class GraphEditor {
 
                     Divider()
 
-                    Text("ПЕРЕЗАПИСАТЬ") {
+                    Text("hollowengine.gui.graph_editor.override".lang) {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
                             .font(FontProps(size = 14f))
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
                     }
 
-                    ToggleRow("Смещение", node.overrideTranslation) { node.overrideTranslation = it }
-                    ToggleRow("Поворот", node.overrideRotation) { node.overrideRotation = it }
-                    ToggleRow("Масштаб", node.overrideScale) { node.overrideScale = it }
+                    ToggleRow("hollowengine.gui.graph_editor.translation".lang, node.overrideTranslation) { node.overrideTranslation = it }
+                    ToggleRow("hollowengine.gui.graph_editor.rotation".lang, node.overrideRotation) { node.overrideRotation = it }
+                    ToggleRow("hollowengine.gui.graph_editor.scale".lang, node.overrideScale) { node.overrideScale = it }
                 }
                 conn != null -> {
                     val fromNode = nodes.find { it.id == conn.fromNodeId }
@@ -777,14 +778,14 @@ class GraphEditor {
                     val fromName = fromNode?.title ?: "?"
                     val toName = toNode?.title ?: "?"
 
-                    Text("СВЯЗЬ") {
+                    Text("hollowengine.gui.graph_editor.connection".lang) {
                         modifier.textColor(Color.WHITE)
                             .font(FontProps(size = 14f, isBold = true))
                             .margin(bottom = Dimensions.PaddingSmall)
                     }
-                    PropertyReadOnlyField("Переход", "$fromName → $toName")
+                    PropertyReadOnlyField("hollowengine.gui.graph_editor.transition".lang, "$fromName → $toName")
 
-                    PropertyTextField("Название", conn.label) { new ->
+                    PropertyTextField("hollowengine.gui.graph_editor.name".lang, conn.label) { new ->
                         val idx = connections.indexOfFirst { it.id == conn.id }
                         if (idx != -1) {
                             connections[idx] = connections[idx].copy(label = new)
@@ -794,7 +795,7 @@ class GraphEditor {
 
                     Divider()
 
-                    Text("ПЕРЕХОД") {
+                    Text("hollowengine.gui.graph_editor.transition".lang.uppercase()) {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
                             .font(FontProps(size = 14f))
                             .margin(top = Dimensions.PaddingMedium, bottom = Dimensions.PaddingSmall)
@@ -802,16 +803,16 @@ class GraphEditor {
 
                     var props = conn.properties
 
-                    PropertyFloatField("Вес", props.weight) {
+                    PropertyFloatField("hollowengine.gui.graph_editor.weight".lang, props.weight) {
                         props = props.copy(weight = it)
                         updateConnectionProperties(conn.id, props)
                     }
-                    PropertyFloatField("Длительность", props.duration) {
+                    PropertyFloatField("hollowengine.gui.graph_editor.duration".lang, props.duration) {
                         props = props.copy(duration = it)
                         updateConnectionProperties(conn.id, props)
                     }
 
-                    PropertyFloatField("Время завер.", props.exitTime ?: 0f) {
+                    PropertyFloatField("hollowengine.gui.graph_editor.exit_time".lang, props.exitTime ?: 0f) {
                         val value = it
                         props = props.copy(exitTime = value)
                         updateConnectionProperties(conn.id, props)
@@ -819,20 +820,20 @@ class GraphEditor {
 
                     Divider()
 
-                    PropertyTextField("Условие", props.condition) { new ->
+                    PropertyTextField("hollowengine.gui.graph_editor.condition".lang, props.condition) { new ->
                         val value = new
                         props = props.copy(condition = value)
                         updateConnectionProperties(conn.id, props)
                     }
                 }
                 else -> {
-                    Text("КОНТРОЛЛЕР") {
+                    Text("hollowengine.gui.graph_editor.controller".lang) {
                         modifier.textColor(Color.WHITE)
                             .font(FontProps(size = 14f, isBold = true))
                             .margin(bottom = Dimensions.PaddingSmall)
                     }
 
-                    PropertyTextField("Модель", modelPath.value) { newPath ->
+                    PropertyTextField("hollowengine.gui.graph_editor.model".lang, modelPath.value) { newPath ->
                         modelPath.set(newPath)
                         onModelPathChanged?.invoke(newPath)
                     }
@@ -984,7 +985,7 @@ class GraphEditor {
                 .padding(Dimensions.PaddingMedium)
                 .zLayer(1000)
 
-            Text("Mini-map") {
+            Text("hollowengine.gui.graph_editor.mini_map".lang) {
                 modifier.align(AlignmentX.Center, AlignmentY.Center).margin(bottom = Dp(6f))
                     .textColor(ColorTheme.UI.WhiteReplacement.withAlpha(0.5f))
             }

@@ -16,6 +16,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console.Console
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console.LogMessage
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.generated.Assets
 import kotlin.concurrent.withLock
 import kotlin.time.ExperimentalTime
@@ -59,7 +60,7 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
                             }
 
                     }
-                    Button("Execute") {
+                    Button("hollowengine.gui.console.execute".lang) {
                         modifier.margin(
                             start = sizes.gap, end = sizes.gap, top = sizes.smallGap, bottom = sizes.smallGap
                         ).alignY(AlignmentY.Center).colors(textColor = Color.WHITE, textHoverColor = Color.WHITE)
@@ -76,7 +77,7 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
 
     override fun UiScope.drawHeaderLeft() {
 
-        Text("Level:") {
+        Text("hollowengine.gui.console.level".lang) {
             modifier.alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap)
         }
         ComboBox {
@@ -88,14 +89,14 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
                 .padding(vertical = 0.dp)
         }
 
-        Text("Фильтр:") {
+        Text("hollowengine.gui.console.filter".lang) {
             modifier.alignY(AlignmentY.Center)
         }
         var filterText by remember("")
         TextField(filterText) {
             modifier.margin(horizontal = sizes.gap)
                 .colors(lineColor = colors.secondaryVariant, lineColorFocused = colors.secondary)
-                .alignY(AlignmentY.Center).hint("Текст или Regex")
+                .alignY(AlignmentY.Center).hint("hollowengine.gui.console.filter_hint".lang)
                 .onEnterPressed { surface.requestFocus(null) }.onChange {
                     filterText = it
                     LogMessage.messageFilter = if (it.isBlank()) null else {

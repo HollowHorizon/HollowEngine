@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.EditorFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.ComboBox
 import ru.hollowhorizon.hollowengine.client.kool.Item
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.items.dynamic.ItemPrefab
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
@@ -116,12 +117,12 @@ class ItemPrefabEditorFile(path: String, bytes: ByteArray) : EditorFile(path) {
         val item = resolvedId?.let { BuiltInRegistries.ITEM.getOptional(it).orElse(null) }
 
         Column(Grow.Std, Grow.Std) {
-            Text("Preview") {
+            Text("hollowengine.gui.item_editor.preview".lang) {
                 modifier.textColor(Color.WHITE).margin(bottom = Dimensions.PaddingSmall)
             }
 
             if (item == null) {
-                Text("No item registered for id") {
+                Text("hollowengine.gui.item_editor.no_item".lang) {
                     modifier.textColor(ColorTheme.UI.WhiteReplacement)
                 }
                 resolvedId?.let { idValue ->
@@ -194,7 +195,7 @@ class ItemPrefabEditorFile(path: String, bytes: ByteArray) : EditorFile(path) {
         }
 
         Column(Grow.Std) {
-            Text("Creative Tab") {
+            Text("hollowengine.gui.item_editor.creative_tab".lang) {
                 modifier.textColor(ColorTheme.UI.WhiteReplacement)
                     .margin(bottom = Dimensions.PaddingSmall)
             }
@@ -211,7 +212,7 @@ class ItemPrefabEditorFile(path: String, bytes: ByteArray) : EditorFile(path) {
                         .backgroundColor(ColorTheme.UI.BackgroundElements)
                         .padding(Dimensions.PaddingNormal)
                         .colors(lineColor = Color.WHITE.withAlpha(0f), lineColorFocused = Color.WHITE.withAlpha(0f))
-                        .hint("namespace:tab")
+                        .hint("hollowengine.gui.item_editor.tab_hint".lang)
                         .onChange {
                             customTab.set(it)
                             tab.set(it.trim())

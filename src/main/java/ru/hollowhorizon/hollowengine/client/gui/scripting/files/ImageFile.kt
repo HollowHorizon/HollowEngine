@@ -13,6 +13,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import kotlin.math.floor
 
 class ImageFile(path: String, var image: ByteArray) :
@@ -81,7 +82,7 @@ class ImageFile(path: String, var image: ByteArray) :
                         .border(RoundRectBorder(ColorTheme.UI.WhiteReplacement, Dimensions.PaddingSmall, Dimensions.PaddingSmall))
                 }
 
-                Text("Size: ${brushSize.use() + 1}") {
+                Text("hollowengine.gui.image_editor.size".lang.format(brushSize.use() + 1)) {
                     modifier.alignY(AlignmentY.Center).margin(end = Dimensions.PaddingMedium)
                         .textColor(ColorTheme.UI.WhiteReplacement)
                 }
@@ -91,7 +92,7 @@ class ImageFile(path: String, var image: ByteArray) :
                     modifier.onChange { brushSize.set(it.toInt().coerceIn(0, 64)) }
                 }
 
-                Text("Zoom: ${zoom.use().toInt()}x") {
+                Text("hollowengine.gui.image_editor.zoom".lang.format(zoom.use().toInt())) {
                     modifier.alignY(AlignmentY.Center).margin(end = Dimensions.PaddingMedium)
                         .textColor(ColorTheme.UI.WhiteReplacement)
                 }
@@ -101,7 +102,7 @@ class ImageFile(path: String, var image: ByteArray) :
                     modifier.onChange { zoom.set(it.coerceIn(1f, 128f)) }
                 }
 
-                Button("Save") {
+                Button("hollowengine.gui.image_editor.save".lang) {
                     modifier.alignY(AlignmentY.Center).margin(start = Dimensions.PaddingMedium)
                     modifier.onClick { save() }
                 }
@@ -130,7 +131,7 @@ class ImageFile(path: String, var image: ByteArray) :
                         .margin(start = Dimensions.PaddingLarge)
                         .onChange { alpha.set(it) }
                 }
-                Text("A: ${(alpha.use() * 100).toInt()}%") {
+                Text("hollowengine.gui.image_editor.alpha".lang.format((alpha.use() * 100).toInt())) {
                     modifier.alignY(AlignmentY.Center)
                         .margin(start = Dimensions.PaddingMedium)
                         .textColor(ColorTheme.UI.WhiteReplacement)

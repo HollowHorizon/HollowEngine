@@ -8,6 +8,7 @@ import de.fabmax.kool.modules.ui2.UiNode
 import de.fabmax.kool.modules.ui2.UiScope
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 
 object BlockContextMenu {
@@ -20,22 +21,22 @@ object BlockContextMenu {
             controller.selectSingle(block)
         }
 
-        val menuItems = SubMenuItem("Блок", null) {
+        val menuItems = SubMenuItem("hollowengine.gui.block_context.block".lang, null) {
             if (controller.selectedBlocks.size > 1) {
-                item("Удалить выбранные ($count)") { controller.deleteSelected() }
-                item("Копировать UUID") {
+                item("hollowengine.gui.block_context.delete_selected".lang.format(count)) { controller.deleteSelected() }
+                item("hollowengine.gui.block_context.copy_uuid".lang) {
                     val uuids = controller.selectedBlocks.joinToString(", ") { it.uuid.toString() }
                     Clipboard.copyToClipboard(uuids)
                 }
             } else {
                 if(block.isCollapsed.use(uiNode.surface)) {
-                    item("Развернуть") { block.isCollapsed.set(false) }
+                    item("hollowengine.gui.block_context.expand".lang) { block.isCollapsed.set(false) }
                 } else {
-                    item("Свернуть") { block.isCollapsed.set(true) }
+                    item("hollowengine.gui.block_context.collapse".lang) { block.isCollapsed.set(true) }
                 }
-                item("Дублировать") { controller.duplicateBlock(block, it) }
-                item("Копировать UUID") { Clipboard.copyToClipboard(block.uuid.toString()) }
-                item("Удалить") { controller.deleteSelected() }
+                item("hollowengine.gui.block_context.duplicate".lang) { controller.duplicateBlock(block, it) }
+                item("hollowengine.gui.block_context.copy_uuid".lang) { Clipboard.copyToClipboard(block.uuid.toString()) }
+                item("hollowengine.gui.block_context.delete".lang) { controller.deleteSelected() }
             }
         }
 

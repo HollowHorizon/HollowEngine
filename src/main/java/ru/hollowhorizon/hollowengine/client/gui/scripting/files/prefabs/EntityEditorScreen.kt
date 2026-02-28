@@ -16,6 +16,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
@@ -61,7 +62,7 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
             Row(Grow.Std, Grow.Std) {
                 Box(Grow(0.66f), Grow.Std) {
                     modelController()
-                    Text("Редактирование сущности: ${target.displayName?.string}") {
+                    Text("hollowengine.gui.entity_editor.title".lang.format(target.displayName?.string ?: "")) {
                         modifier
                             .font(remember {
                                 MsdfFont(ColorTheme.Fonts.MONOCRAFT, 24f, weight = MsdfFont.WEIGHT_BOLD)
@@ -97,7 +98,7 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
             modifier.layout(ColumnLayout).width(Grow.Std)
                 .margin(end = Dimensions.PaddingMedium)
             
-            Text("Компоненты") {
+            Text("hollowengine.gui.entity_editor.components".lang) {
                 modifier.font(remember { MsdfFont(ColorTheme.Fonts.MONOCRAFT, 16f) })
                     .textColor(Color.WHITE)
                     .margin(Dimensions.PaddingMedium)
@@ -126,7 +127,7 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
                 Image(icons.ADD) {
                     modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge).margin(Dimensions.PaddingMedium)
                 }
-                Text("Добавить компонент") {
+                Text("hollowengine.gui.entity_editor.add_component".lang) {
                     modifier.alignY(AlignmentY.Center).textColor(Color.WHITE)
                 }
             }
@@ -156,7 +157,7 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
         components += EditorComponent(key, holder, state)
     }
 
-    private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("Компоненты") {
+    private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("hollowengine.gui.entity_editor.components".lang) {
         val existing = components.map { it.key }.toSet()
         val available = ComponentRegistry.keys.filter { it !in existing }.sortedBy { it.toString() }
 

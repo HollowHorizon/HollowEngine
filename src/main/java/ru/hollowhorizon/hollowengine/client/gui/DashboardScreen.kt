@@ -5,6 +5,7 @@ import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager.MONOCRAFT
 import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.post
@@ -24,7 +25,7 @@ class DashBoardScreen : KoolScreen() {
         addPanelSurface {
             modifier.align(AlignmentX.Center, AlignmentY.Center).border(RectBorder(colors.primaryVariant, 3.dp))
 
-            Text("HollowEngine Меню") {
+            Text("hollowengine.gui.menu".lang) {
                 modifier.alignX(AlignmentX.Center).font(MsdfFont(MONOCRAFT, 30f)).margin(10.dp)
             }
 
