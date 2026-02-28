@@ -16,8 +16,7 @@ public abstract class ServerGamePacketListenerImplMixin {
     @Shadow
     public ServerPlayer player;
 
-    // Damn Mohist/Tenet, why did you remove the obfuscation from this certain method?!
-    @Shadow(aliases = {"detectRateSpam", "m_215251_"})
+    @Shadow
     protected abstract void detectRateSpam();
 
     @Inject(method = "broadcastChatMessage", at = @At(value = "HEAD"), cancellable = true)
