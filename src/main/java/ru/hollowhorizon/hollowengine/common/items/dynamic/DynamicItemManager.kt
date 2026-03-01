@@ -25,7 +25,7 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.common.utils.yaml.YamlFormat
 import java.io.File
 
-@ReloadListener(Side.BOTH)
+@ReloadListener(Side.SERVER)
 object DynamicItemManager : ResourceManagerReloadListener {
     private val logger = LogManager.getLogger()
     private var syncedEntries: Map<String, String>? = null

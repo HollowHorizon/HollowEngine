@@ -70,18 +70,14 @@ class SyncItemPrefabsPacket(val entries: List<ItemPrefabEntry>) : HollowPacket {
         try {
             val mc = net.minecraft.client.Minecraft.getInstance()
             mc.execute {
-                HollowEngine.LOGGER.info("Syncing dynamic items: ${entries.size} entries. Reloading client resources.")
-                mc.reloadResourcePacks().thenRun {
-                    mc.execute {
-                        runCatching {
-                            mc.itemRenderer.itemModelShaper.rebuildCache()
-                            HollowEngine.LOGGER.info("Rebuilt item model cache after dynamic item sync.")
-                        }.onFailure { e ->
-                            HollowEngine.LOGGER.warn("Failed to rebuild item model cache after dynamic item sync.", e)
-                        }
-                        refreshCreativeTabsClient()
-                    }
+                HollowEngine.LOGGER.info("Syncing dynamic items: ${entries.size} entries.")
+                runCatching {
+                    mc.itemRenderer.itemModelShaper.rebuildCache()
+                    HollowEngine.LOGGER.info("Rebuilt item model cache after dynamic item sync.")
+                }.onFailure { e ->
+                    HollowEngine.LOGGER.warn("Failed to rebuild item model cache after dynamic item sync.", e)
                 }
+                refreshCreativeTabsClient()
             }
         } catch (_: Exception) {
             // Ignore if running on a non-client environment.
