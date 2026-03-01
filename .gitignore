@@ -1,6 +1,7 @@
 # User-specific stuff
 .idea/
 kool/
+mc-src/
 *.iml
 *.ipr
 *.iws
