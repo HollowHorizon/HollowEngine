@@ -1,8 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.geary.components
 
 import de.fabmax.kool.util.Time
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -64,7 +66,7 @@ data class Model(
     @Transient
     private var controllerCache: AnimationController? = null
 
-    fun getOrCreateController(): AnimationController? {
+    suspend fun getOrCreateController(): AnimationController? {
         if (controllerScript.isBlank()) return null
         controllerCache?.let { return it }
 
@@ -74,10 +76,12 @@ data class Model(
         val file = DirectoryManager.HOLLOW_ENGINE.resolve("scripts").resolve(controllerScript).toFile()
         if (!file.exists()) return null
 
-        val compiled = ScriptingEnvironment.INSTANCE.compiler.compile(file).getOrNull() ?: return null
-        val instance = compiled.base.execute<AnimationController>(system).getOrNull()
-            ?: compiled.base.execute<AnimationController>().getOrNull()
-            ?: return null
+        val instance = withContext(Dispatchers.IO) {
+            val compiled = ScriptingEnvironment.INSTANCE.compiler.compile(file).getOrNull() ?: return@withContext null
+            compiled.base.execute<AnimationController>(system).getOrNull()
+                ?: compiled.base.execute<AnimationController>().getOrNull()
+                ?: return@withContext null
+        }
         controllerCache = instance
         return instance
     }
@@ -94,7 +98,7 @@ fun onRender(event: RenderEntityEvent.Pre) {
     // Обновляем анимации если они включены
     model.animationSystem?.let { animationSystem ->
         if (event.entity is LivingEntity) {
-            if(updateJob?.isActive == false) {
+            if(updateJob?.isActive == false || updateJob == null) {
                 updateJob = Minecraft.getInstance().coroutineScope.launch {
                     model.getOrCreateController()?.update(event.entity as LivingEntity, Time.deltaT)
                 }
