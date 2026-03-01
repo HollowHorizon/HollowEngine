@@ -118,8 +118,10 @@ class BlockController(val editor: BlockEditor) {
         blockBounds[block] = BlockRect(x, y, node.widthPx / zoom, node.heightPx / zoom)
     }
 
-    fun isDragging(block: BlockModel) =
-        draggingBlock in block.parentsWithSelf || editor.dragState.entry?.previewItem == block
+    fun isDragging(block: BlockModel): Boolean {
+        val previewRoot = editor.dragState.entry?.previewItem
+        return draggingBlock in block.parentsWithSelf || previewRoot in block.parentsWithSelf
+    }
 
     fun canAttachBefore(block: BlockModel): Boolean {
         val target = (potentialAction as? DropAction.InsertBefore)?.target
@@ -419,6 +421,7 @@ class BlockController(val editor: BlockEditor) {
         val topLevel = selectedBlocks.filter { !isParentSelected(it) }
         topLevel.forEach { original ->
             val copy = original.deepCopy(editor.provider)
+            copyDisplayNames(original, copy)
             clipboard.add(copy)
         }
     }
@@ -440,6 +443,7 @@ class BlockController(val editor: BlockEditor) {
 
         clipboard.forEach { originalCopy ->
             val freshCopy = originalCopy.deepCopy(editor.provider)
+            copyDisplayNames(originalCopy, freshCopy)
             freshCopy.positionX.set(freshCopy.positionX.value + pasteOffset)
             freshCopy.positionY.set(freshCopy.positionY.value + pasteOffset)
 
@@ -616,6 +620,7 @@ class BlockController(val editor: BlockEditor) {
 
     private fun cloneForDuplication(root: BlockModel): BlockModel {
         val clone = root.deepCopy(editor.provider)
+        copyDisplayNames(root, clone)
         stripExternalStatementContinuation(clone)
         return clone
     }
@@ -624,6 +629,25 @@ class BlockController(val editor: BlockEditor) {
         val statementCopy = copy as? StatementBlock ?: return
         statementCopy.next?.parent = null
         statementCopy.next = null
+    }
+
+    private fun copyDisplayNames(original: BlockModel, copy: BlockModel) {
+        copy.displayName = original.displayName
+
+        original.inputs.forEach { (slotName, originalChild) ->
+            val copiedChild = copy.inputs[slotName] ?: return@forEach
+            copyDisplayNames(originalChild, copiedChild)
+        }
+
+        val originalStatement = original as? StatementBlock
+        val copiedStatement = copy as? StatementBlock
+        if (originalStatement != null && copiedStatement != null) {
+            val originalNext = originalStatement.next
+            val copiedNext = copiedStatement.next
+            if (originalNext != null && copiedNext != null) {
+                copyDisplayNames(originalNext, copiedNext)
+            }
+        }
     }
 
     fun resetAction() {

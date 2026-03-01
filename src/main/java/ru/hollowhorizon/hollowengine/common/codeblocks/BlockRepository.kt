@@ -3,10 +3,33 @@ package ru.hollowhorizon.hollowengine.common.codeblocks
 import de.fabmax.kool.modules.ui2.mutableStateOf
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import kotlin.reflect.KClass
 
-open class BlockProvider(val name: String, val rootCategory: BlockCategory)
+open class BlockProvider(val name: String, val rootCategory: BlockCategory) {
+    fun resolveDisplayName(block: BlockModel, scope: BlocksScope): String? {
+        return findDisplayName(block::class, rootCategory.items(scope), scope)
+    }
+
+    fun applyDisplayNames(root: BlockModel, scope: BlocksScope) {
+        root.displayName = resolveDisplayName(root, scope) ?: root.displayName
+        root.inputs.values.forEach { applyDisplayNames(it, scope) }
+        (root as? StatementBlock)?.next?.let { applyDisplayNames(it, scope) }
+    }
+
+    private fun findDisplayName(type: KClass<out BlockModel>, items: List<CategoryItem>, scope: BlocksScope): String? {
+        items.forEach { item ->
+            when (item) {
+                is BlockCategory -> {
+                    findDisplayName(type, item.items(scope), scope)?.let { return it }
+                }
+                is BlockEntry<*> -> if (item.type == type) return item.name
+            }
+        }
+        return null
+    }
+}
 
 class BlockCategory(val name: String, val icon: ResourceLocation? = null): CategoryItem {
     val isExpanded = mutableStateOf(false)
@@ -26,9 +49,17 @@ data class BlockEntry<T : BlockModel>(
     private val factory: () -> T,
     val type: KClass<T>,
 ): CategoryItem {
-    val previewItem by lazy { factory().also { it.applyDefaults(recursive = true) } }
+    val previewItem by lazy {
+        factory().also {
+            it.displayName = name
+            it.applyDefaults(recursive = true)
+        }
+    }
 
-    fun createItem() = factory().also { it.applyDefaults(recursive = true) }
+    fun createItem() = factory().also {
+        it.displayName = name
+        it.applyDefaults(recursive = true)
+    }
 }
 
 fun interface BlockModule {

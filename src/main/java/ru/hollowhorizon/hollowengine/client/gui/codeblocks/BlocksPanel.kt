@@ -18,11 +18,40 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 class BlocksPanel(val editor: BlockEditor) {
+    private fun CategoryItem.matchesFilter(query: String): Boolean {
+        if (query.isBlank()) return true
+
+        return when (this) {
+            is BlockCategory -> {
+                name.contains(query, ignoreCase = true) || items(editor).any { it.matchesFilter(query) }
+            }
+
+            is BlockEntry<*> -> {
+                val previewName = previewItem.displayName
+                name.contains(query, ignoreCase = true) ||
+                        (previewName?.contains(query, ignoreCase = true) == true) ||
+                        previewItem.toString().contains(query, ignoreCase = true)
+            }
+        }
+    }
+
+    private fun BlockCategory.filteredItems(query: String): List<CategoryItem> {
+        if (query.isBlank()) return items(editor)
+
+        val result = mutableListOf<CategoryItem>()
+        subCategories.forEach { sub ->
+            if (sub.matchesFilter(query)) result += sub
+        }
+        entries(editor).forEach { entry ->
+            if (entry.matchesFilter(query)) result += entry
+        }
+        return result
+    }
 
     context(scope: UiScope)
-    fun Item(item: CategoryItem) {
+    fun Item(item: CategoryItem, query: String = "") {
         when (item) {
-            is BlockCategory -> CategoryHeader(item)
+            is BlockCategory -> CategoryHeader(item, query)
             is BlockEntry<*> -> BlockEntry(item as BlockEntry<BlockModel>)
         }
     }
@@ -42,7 +71,7 @@ class BlocksPanel(val editor: BlockEditor) {
     }
 
     context(scope: UiScope)
-    fun CategoryHeader(category: BlockCategory): Unit = with(scope) {
+    fun CategoryHeader(category: BlockCategory, query: String = ""): Unit = with(scope) {
         val isExpanded = category.isExpanded.use()
 
         Column(Grow.Std, scopeName = category.name) {
@@ -114,8 +143,8 @@ class BlocksPanel(val editor: BlockEditor) {
                             blockColor.mix(Color.BLACK, 0.5f).mix(ColorTheme.UI.BackgroundSecondary, 0.5f)
                         )
 
-                    category.items(editor).forEach { item ->
-                        Item(item)
+                    category.filteredItems(query).forEach { item ->
+                        Item(item, query)
                     }
                 }
             }
@@ -125,6 +154,7 @@ class BlocksPanel(val editor: BlockEditor) {
     context(scope: UiScope)
     operator fun invoke(expansion: Float): Unit = with(scope) {
         val filter = editor.controller.filter
+        val query = filter.use().trim()
 
         Column(FitContent, Grow.Std) {
             modifier.margin(horizontal = Dimensions.PaddingNormal)
@@ -181,12 +211,12 @@ class BlocksPanel(val editor: BlockEditor) {
                 },
                 withHorizontalScrollbar = true
             ) {
-                items(editor.provider.rootCategory.items(editor)) {
+                items(editor.provider.rootCategory.filteredItems(query)) {
                     val oldScale = editor.scale
                     editor.scale = 1f
 
                     with(editor) {
-                        Item(it)
+                        Item(it, query)
                     }
 
                     editor.scale = oldScale

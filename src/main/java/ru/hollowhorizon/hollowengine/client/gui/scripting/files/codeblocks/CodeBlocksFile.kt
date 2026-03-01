@@ -45,6 +45,7 @@ class CodeBlocksFile(filePath: String, bytes: ByteArray) : EditorFile(filePath) 
         if (bytes.isNotEmpty()) {
             try {
                 editor.rootBlocks.addAll(format.loadBlocks(ByteArrayInputStream(bytes)))
+                editor.rootBlocks.forEach { repository.applyDisplayNames(it, editor) }
             } catch (e: Exception) {
                 HollowEngine.LOGGER.error("File $filePath cannot be loaded!", e)
                 val file = filePath.fromReadablePath()

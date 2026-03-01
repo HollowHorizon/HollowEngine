@@ -61,7 +61,7 @@ class DragState(val editor: BlockEditor) : Composable {
                 Box(scopeName = "CodeBlockRenderer") {
                     modifier.padding(Dimensions.PaddingMedium)
                     entry?.let {
-                        editor.renderBlockTree(it.previewItem, canDrag = false)
+                        editor.renderBlockTree(it.previewItem, canDrag = false, isPreview = true)
                     }
                 }
             }

@@ -46,6 +46,9 @@ abstract class BlockModel {
     @Transient
     val isCollapsed = mutableStateOf(false)
 
+    @Transient
+    var displayName: String? = null
+
     fun attachInput(slotName: String, block: BlockModel) {
         inputs[slotName] = block
         block.parentInputName = slotName
@@ -94,7 +97,7 @@ abstract class BlockModel {
     abstract fun InputSlotScope.composeContent()
 
     open fun InputSlotScope.composeContentCollapsed() {
-        DefaultText(this@BlockModel.toString())
+        DefaultText(this@BlockModel.displayName ?: this@BlockModel.toString())
     }
 
     @Transient
