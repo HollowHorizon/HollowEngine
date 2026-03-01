@@ -110,13 +110,36 @@ class FilePopup : Composable {
             item(ACTIONS("paste"), icons.PASTE) {
                 if (!it.isFolder) return@item
 
-                val target = it.treePath
-
                 if (copySource.isNotEmpty()) {
-                    copySource.fromReadablePath().copyTo(target.fromReadablePath(), true)
-                    if (deleteOriginal) copySource.fromReadablePath().deleteRecursively()
+                    val sourceFile = copySource.fromReadablePath()
+                    val targetDir = it.treePath.fromReadablePath()
+
+                    if (!sourceFile.exists()) {
+                        copySource = ""
+                        deleteOriginal = false
+                        IdeContent.fileTree.update()
+                        return@item
+                    }
+
+                    val destination = targetDir.resolve(sourceFile.name)
+                    if (sourceFile.absoluteFile == destination.absoluteFile) return@item
+
+                    runCatching {
+                        if (sourceFile.isDirectory) {
+                            sourceFile.copyRecursively(destination, overwrite = true)
+                        } else {
+                            sourceFile.copyTo(destination, overwrite = true)
+                        }
+                        if (deleteOriginal) sourceFile.deleteRecursively()
+                    }.onFailure {
+                        return@item
+                    }
                 }
-                if (deleteOriginal) copySource = ""
+                if (deleteOriginal) {
+                    copySource = ""
+                    deleteOriginal = false
+                }
+                IdeContent.fileTree.update()
             }
             divider()
             var hasAny = false

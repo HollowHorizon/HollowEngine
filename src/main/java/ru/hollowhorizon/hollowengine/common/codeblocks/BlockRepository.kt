@@ -26,9 +26,9 @@ data class BlockEntry<T : BlockModel>(
     private val factory: () -> T,
     val type: KClass<T>,
 ): CategoryItem {
-    val previewItem by lazy { factory() }
+    val previewItem by lazy { factory().also { it.applyDefaults(recursive = true) } }
 
-    fun createItem() = factory()
+    fun createItem() = factory().also { it.applyDefaults(recursive = true) }
 }
 
 fun interface BlockModule {

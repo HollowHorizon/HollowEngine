@@ -519,7 +519,7 @@ class BlockController(val editor: BlockEditor) {
     }
 
     fun duplicateBlock(block: BlockModel, localPos: Vec2f) {
-        val newBlock = block.deepCopy(editor.provider)
+        val newBlock = cloneForDuplication(block)
         val zoom = editor.scale
         newBlock.positionX.set(localPos.x / zoom)
         newBlock.positionY.set(localPos.y / zoom)
@@ -535,7 +535,7 @@ class BlockController(val editor: BlockEditor) {
         val offset = 20f
 
         topLevel.forEach { original ->
-            val copy = original.deepCopy(editor.provider)
+            val copy = cloneForDuplication(original)
 
             copy.positionX.set(copy.positionX.value + offset)
             copy.positionY.set(copy.positionY.value + offset)
@@ -612,6 +612,18 @@ class BlockController(val editor: BlockEditor) {
         }
         block.parentBlock?.let { if (selectedBlocks.contains(it)) return true }
         return false
+    }
+
+    private fun cloneForDuplication(root: BlockModel): BlockModel {
+        val clone = root.deepCopy(editor.provider)
+        stripExternalStatementContinuation(clone)
+        return clone
+    }
+
+    private fun stripExternalStatementContinuation(copy: BlockModel) {
+        val statementCopy = copy as? StatementBlock ?: return
+        statementCopy.next?.parent = null
+        statementCopy.next = null
     }
 
     fun resetAction() {

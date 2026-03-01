@@ -148,19 +148,8 @@ fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
 
     ComboBox("hollowengine.gui.ide.file_picker.empty".lang, items.map { it.second }, itemIndex)
 
-    if (itemIndex.use() != -1) Box {
-        modifier.alignY(AlignmentY.Center)
-            .margin(end=Dimensions.PaddingMedium)
-
-        val file = items.getOrNull(itemIndex.use())?.first ?: run {
-            itemIndex.set(-1)
-            return@Box
-        }
-
-        ActionButton(Dimensions.PaddingHuge, icons.PLAY) {
-            IdeContent.files.values.forEach { it.save() }
-            StartScriptPacket(file).send()
-        }
+    if (itemIndex.use() != -1 && items.getOrNull(itemIndex.use()) == null) {
+        itemIndex.set(-1)
     }
 }
 
