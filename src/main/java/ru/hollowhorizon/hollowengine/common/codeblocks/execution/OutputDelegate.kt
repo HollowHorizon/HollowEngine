@@ -27,6 +27,7 @@ class OutputDelegate<T : Any>(
     operator fun provideDelegate(thisRef: BlockModel, property: KProperty<*>): OutputDelegate<T> {
         name = name ?: property.name
         this.thisRef = thisRef
+        thisRef.outputTypes[name!!] = type
         defaultFactory?.let { factory ->
             thisRef.setOutputDefault(name!!, factory)
         }

@@ -5,6 +5,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.OutputConsumer
@@ -23,7 +24,7 @@ class EventOutputVariableBlock(
         get() = acceptedType
 
     override val acceptedType: ExpressionType
-        get() = resolveLocalVariableType(variableName, excludeDeclaration = this)
+        get() = resolveAcceptedType()
 
     override suspend fun execute(): Any? = null
 
@@ -41,5 +42,15 @@ class EventOutputVariableBlock(
                 .font(font)
                 .colors(textColor = Color.WHITE, lineColor = Color.WHITE)
         }
+    }
+
+    private fun resolveAcceptedType(): ExpressionType {
+        val parentType = parentBlock
+            ?.takeIf { parentOutputName != null }
+            ?.outputTypes
+            ?.get(parentOutputName)
+        if (parentType != null && parentType !== AnyType) return parentType
+
+        return resolveLocalVariableType(variableName, excludeDeclaration = this)
     }
 }

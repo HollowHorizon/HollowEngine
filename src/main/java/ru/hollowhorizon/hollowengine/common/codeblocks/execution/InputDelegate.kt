@@ -27,6 +27,7 @@ class InputDelegate<T : Any>(
     operator fun provideDelegate(thisRef: BlockModel, property: KProperty<*>): InputDelegate<T> {
         name = name ?: property.name
         this.thisRef = thisRef
+        thisRef.inputTypes[name!!] = type
 
         defaultFactory?.let { factory ->
             thisRef.setInputDefault(name!!, factory)
