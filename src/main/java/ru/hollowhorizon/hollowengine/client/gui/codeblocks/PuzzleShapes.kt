@@ -134,7 +134,8 @@ object PuzzleShapes {
                 nx /= nLen
                 ny /= nLen
                 val dot = n1x * nx + n1y * ny
-                val miterScale = (width / max(0.2f, dot))
+                var miterScale = (width / max(0.5f, dot))
+                miterScale = min(miterScale, width * 1.5f)
                 ex = nx * miterScale
                 ey = ny * miterScale
             } else {

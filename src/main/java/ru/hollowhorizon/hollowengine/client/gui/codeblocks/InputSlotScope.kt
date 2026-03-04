@@ -41,7 +41,7 @@ class InputSlotScope(
             modifier.align(AlignmentX.End, AlignmentY.Center).margin(horizontal = Dimensions.PaddingMedium.scaled())
 
             if (attached != null) {
-                if (editor.controller.draggingBlock == attached) EmptySlotVisual(isTargeted)
+                if (editor.controller.draggingBlock == attached) EmptySlotVisual(isTargeted, notchInward = false)
                 else {
                     renderBlockTree(attached, isPreview = isPreview)
                     if (isTargeted) modifier.border(RectBorder(Color.WHITE, 2.dp.scaled()))
@@ -54,7 +54,7 @@ class InputSlotScope(
 
                 val dragBlock = editor.controller.draggingBlock
                 if (isTargeted && dragBlock?.isExpression() == true) GhostPlaceholder(dragBlock)
-                else EmptySlotVisual(false)
+                else EmptySlotVisual(false, notchInward = false)
             }
         }
     }
@@ -70,7 +70,7 @@ class InputSlotScope(
             modifier.align(AlignmentX.End, AlignmentY.Center).margin(horizontal = Dimensions.PaddingMedium.scaled())
 
             if (attached != null) {
-                if (editor.controller.draggingBlock == attached) EmptySlotVisual(isTargeted)
+                if (editor.controller.draggingBlock == attached) EmptySlotVisual(isTargeted, notchInward = true)
                 else {
                     renderBlockTree(attached, isPreview = isPreview)
                     if (isTargeted) modifier.border(RectBorder(Color.WHITE, 2.dp.scaled()))
@@ -82,7 +82,7 @@ class InputSlotScope(
 
                 val dragBlock = editor.controller.draggingBlock
                 if (isTargeted && dragBlock?.isExpression() == true) GhostPlaceholder(dragBlock)
-                else EmptySlotVisual(false)
+                else EmptySlotVisual(false, notchInward = true)
             }
         }
     }
@@ -189,14 +189,15 @@ class InputSlotScope(
         }
     }
 
-    private fun UiScope.EmptySlotVisual(highlight: Boolean) = with(editor) {
+    private fun UiScope.EmptySlotVisual(highlight: Boolean, notchInward: Boolean) = with(editor) {
         Box {
             modifier.size(40.dp.scaled(), 30.dp.scaled())
 
             val color = parentBlock.resolveColor(false, parentBlock.parentsWithSelf.none { it is StartBlock }, controller.selectedBlocks.contains(parentBlock))
 
-            modifier.background(SlotBackground(color.mix(Color.BLACK, 0.3f), highlight, scale))
+            modifier.background(SlotBackground(color.mix(Color.BLACK, 0.3f), highlight, scale, notchInward))
             if (highlight) modifier.border(RectBorder(Color.WHITE, 2.dp.scaled()))
         }
     }
 }
+

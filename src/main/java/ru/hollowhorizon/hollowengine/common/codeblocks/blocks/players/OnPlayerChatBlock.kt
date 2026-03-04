@@ -8,6 +8,7 @@ import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputVariableBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
@@ -16,17 +17,17 @@ import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 @SerialName("hollowengine:events/player_chat")
 class OnPlayerChatBlock : StartBlock() {
     override val color: Color get() = CodeBlocksColors.EVENTS
-    private val playerOutput by output<Player>(
+    private val playerOutput by outputDefault<Player>(
         name = PLAYER_OUTPUT,
-        default = null,
+        default = { EventOutputVariableBlock("player") },
     )
-    private val messageOutput by output<String>(
+    private val messageOutput by outputDefault<String>(
         name = MESSAGE_OUTPUT,
-        default = "",
+        default = { EventOutputVariableBlock("message") },
     )
-    private val usernameOutput by output<String>(
+    private val usernameOutput by outputDefault<String>(
         name = USERNAME_OUTPUT,
-        default = "",
+        default = { EventOutputVariableBlock("username") },
     )
 
     override suspend fun trigger() {
