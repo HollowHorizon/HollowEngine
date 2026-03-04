@@ -140,52 +140,18 @@ object StandardModules {
             category("hollowengine.gui.codeblocks.category.local".lang, icons.VARIABLES) {
                 block("hollowengine.gui.codeblocks.block.set_var".lang) { SetVarBlock("") }
                 block("hollowengine.gui.codeblocks.block.get_var".lang) { GetVarBlock("") }
+                block("hollowengine.gui.codeblocks.block.event_output_var".lang) { EventOutputVariableBlock("") }
 
                 dynamicBlocks {
-                    rootBlocks.flatMap { it.walk() }.filterIsInstance<SetVarBlock>()
+                    rootBlocks.flatMap { it.walk() }.filterIsInstance<LocalVariableDeclaration>()
                         .filter { it.variableName.isNotEmpty() }
+                        .distinctBy { it.variableName }
                         .map {
                             BlockEntry(
                                 "hollowengine.gui.codeblocks.block.get_var_named".lang.format(it.variableName),
                                 null,
                                 { GetVarInlineBlock(it.variableName) },
                                 GetVarInlineBlock::class
-                            )
-                        }
-                }
-            }
-
-            category("hollowengine.gui.codeblocks.category.global".lang, icons.VARIABLES) {
-                block("hollowengine.gui.codeblocks.block.set_global_var".lang) { SetGlobalVarBlock("") }
-                block("hollowengine.gui.codeblocks.block.get_global_var".lang) { GetGlobalVarBlock("") }
-
-                dynamicBlocks {
-                    rootBlocks.flatMap { it.walk() }.filterIsInstance<SetGlobalVarBlock>()
-                        .filter { it.variableName.isNotEmpty() }
-                        .map {
-                            BlockEntry(
-                                "hollowengine.gui.codeblocks.block.get_var_named".lang.format(it.variableName),
-                                null,
-                                { GetGlobalVarBlock(it.variableName) },
-                                GetGlobalVarBlock::class
-                            )
-                        }
-                }
-            }
-
-            category("hollowengine.gui.codeblocks.category.entity_vars".lang, icons.VARIABLES) {
-                block("hollowengine.gui.codeblocks.block.set_entity_var".lang) { SetEntityVarBlock("") }
-                block("hollowengine.gui.codeblocks.block.get_entity_var".lang) { GetEntityVarBlock("") }
-
-                dynamicBlocks {
-                    rootBlocks.flatMap { it.walk() }.filterIsInstance<SetEntityVarBlock>()
-                        .filter { it.varName.isNotEmpty() }
-                        .map {
-                            BlockEntry(
-                                "hollowengine.gui.codeblocks.block.get_var_named".lang.format(it.varName),
-                                null,
-                                { GetEntityVarBlock(it.varName) },
-                                GetEntityVarBlock::class
                             )
                         }
                 }

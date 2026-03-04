@@ -19,10 +19,16 @@ fun <T : BlockModel> T.deepCopy(provider: BlockProvider): T {
     (clone as? StatementBlock)?.parent = null
     clone.parentBlock = null
     clone.parentInputName = null
+    clone.parentOutputName = null
 
     this.inputs.forEach { (slotName, inputBlock) ->
         val inputClone = inputBlock.deepCopy(provider)
         clone.attachInput(slotName, inputClone)
+    }
+
+    this.outputs.forEach { (slotName, outputBlock) ->
+        val outputClone = outputBlock.deepCopy(provider)
+        clone.attachOutput(slotName, outputClone)
     }
 
     (this as? StatementBlock)?.next?.let { nextBlock ->
@@ -90,6 +96,9 @@ fun BlockModel.flatten(): Set<BlockModel> = buildSet {
     add(this@flatten)
     (this@flatten as? StatementBlock)?.next?.flatten()?.let { addAll(it) }
     inputs.values.forEach {
+        addAll(it.flatten())
+    }
+    outputs.values.forEach {
         addAll(it.flatten())
     }
 }

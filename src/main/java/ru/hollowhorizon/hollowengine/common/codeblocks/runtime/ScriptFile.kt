@@ -4,7 +4,7 @@ import kotlinx.coroutines.*
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.SetVarBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.LocalVariableDeclaration
 import ru.hollowhorizon.hollowengine.common.codeblocks.createContainer
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
@@ -19,7 +19,8 @@ class ScriptFile(
     val allBlocks: List<BlockModel>
 ) {
     private val declaredLocalVariables = allBlocks.flatMap { it.walk() }
-        .filterIsInstance<SetVarBlock>()
+        .filterIsInstance<LocalVariableDeclaration>()
+        .filter { it.variableName.isNotBlank() }
         .associate { it.variableName to it.expressionType }
 
     val instances = CopyOnWriteArrayList<ScriptInstance>()

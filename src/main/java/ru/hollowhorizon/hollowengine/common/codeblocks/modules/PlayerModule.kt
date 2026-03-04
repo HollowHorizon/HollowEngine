@@ -45,6 +45,7 @@ object PlayerModule : BlockModule {
             block("hollowengine.gui.codeblocks.block.interact_entity".lang) { PlayerInteractWithEntity() }
             block("hollowengine.gui.codeblocks.block.interact_block".lang) { PlayerInteractWithBlock() }
             block("hollowengine.gui.codeblocks.block.interact_item".lang) { PlayerInteractWithItem() }
+            block("hollowengine.gui.codeblocks.block.on_player_chat".lang) { OnPlayerChatBlock() }
         }
     }
 }

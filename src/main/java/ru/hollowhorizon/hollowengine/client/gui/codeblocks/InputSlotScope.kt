@@ -6,6 +6,7 @@ import de.fabmax.kool.util.Color
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.InputValue
+import ru.hollowhorizon.hollowengine.common.codeblocks.execution.OutputValue
 import ru.hollowhorizon.hollowengine.common.codeblocks.isExpression
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
@@ -59,6 +60,34 @@ class InputSlotScope(
     }
 
     fun UiScope.InputSlot(input: InputValue<*>) = InputSlot(input.name, input.type)
+
+    fun UiScope.OutputSlot(name: String, type: ExpressionType) = with(editor) {
+        parentBlock.outputTypes[name] = type
+        val attached = parentBlock.outputs[name]
+        val isTargeted = !isPreview && editor.controller.canAttachToOutput(parentBlock, name)
+
+        Box {
+            modifier.align(AlignmentX.End, AlignmentY.Center).margin(horizontal = Dimensions.PaddingMedium.scaled())
+
+            if (attached != null) {
+                if (editor.controller.draggingBlock == attached) EmptySlotVisual(isTargeted)
+                else {
+                    renderBlockTree(attached, isPreview = isPreview)
+                    if (isTargeted) modifier.border(RectBorder(Color.WHITE, 2.dp.scaled()))
+                }
+            } else {
+                if (!isPreview) {
+                    editor.controller.addDropTarget(DropAction.AttachToOutput(parentBlock, name), uiNode)
+                }
+
+                val dragBlock = editor.controller.draggingBlock
+                if (isTargeted && dragBlock?.isExpression() == true) GhostPlaceholder(dragBlock)
+                else EmptySlotVisual(false)
+            }
+        }
+    }
+
+    fun UiScope.OutputSlot(output: OutputValue<*>) = OutputSlot(output.name, output.type)
 
     /**
      * Да, костыль, зато какой :)

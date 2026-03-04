@@ -6,15 +6,20 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.BrokenExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.BrokenStatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.flatten
 import ru.hollowhorizon.hollowengine.common.codeblocks.isRoot
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
-
+import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.domain.*
 import java.util.*
 
-class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockModel>> {
+class CodeBlockSerializer(
+    private val format: CodeBlockFormat,
+    private val policy: ScriptRecoveryPolicy = ScriptRecoveryPolicy.strict(),
+    private val issuesCollector: MutableList<ScriptLoadIssue>? = null,
+) : KSerializer<List<BlockModel>> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
     override fun serialize(encoder: Encoder, value: List<BlockModel>) {
@@ -38,6 +43,13 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockM
                         }
                     })
                 }
+                if (block.outputs.isNotEmpty()) {
+                    put("outputs", buildJsonObject {
+                        block.outputs.forEach { (slotName, connectedBlock) ->
+                            put(slotName, JsonPrimitive(connectedBlock.uuid.toString()))
+                        }
+                    })
+                }
 
                 if (block.isRoot) {
                     put("x", JsonPrimitive(block.positionX.value))
@@ -57,50 +69,201 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockM
         val jsonArray = jsonDecoder.decodeJsonElement() as? JsonArray
             ?: throw SerializationException("Expected JsonArray of blocks")
 
-        val nodeMap = mutableMapOf<UUID, BlockModel>()
-        val jsonMap = mutableMapOf<UUID, JsonObject>()
+        val nodeMap = linkedMapOf<UUID, BlockModel>()
+        val jsonMap = linkedMapOf<UUID, JsonObject>()
 
         jsonArray.forEachIndexed { index, element ->
-            val jsonObject = element.jsonObject
-
+            val jsonObject = element as? JsonObject ?: return@forEachIndexed
             val nodeElement = jsonObject["node"]
-                ?: throw SerializationException("Block at index $index missing 'node' field")
+
+            if (nodeElement == null) {
+                when (policy.decodeFailureStrategy) {
+                    DecodeFailureStrategy.FAIL -> throw SerializationException("Block at index $index missing 'node' field")
+                    DecodeFailureStrategy.DROP_BLOCK, DecodeFailureStrategy.REPLACE_WITH_STUB -> {
+                        addIssue(
+                            ScriptLoadIssue.Kind.MISSING_NODE_FIELD,
+                            "Block at index $index is missing 'node' field",
+                            RecoveryAction.DROPPED_BLOCK
+                        )
+                        return@forEachIndexed
+                    }
+                }
+            }
 
             val block = try {
-                format.json.decodeFromJsonElement<BlockModel>(nodeElement)
+                format.json.decodeFromJsonElement<BlockModel>(nodeElement!!)
             } catch (e: Exception) {
-                throw SerializationException("Failed to decode block at index $index: ${e.message}", e)
+                handleDecodeFailure(nodeElement, index, e) ?: return@forEachIndexed
             }
 
             nodeMap[block.uuid] = block
             jsonMap[block.uuid] = jsonObject
         }
 
+        fun createMissingStatementStub(owner: UUID, missing: UUID): StatementBlock {
+            val stub = BrokenStatementBlock(
+                reason = "Missing referenced statement block $missing",
+                originalType = "missing_ref"
+            )
+            stub.uuid = missing
+            nodeMap[missing] = stub
+            addIssue(
+                ScriptLoadIssue.Kind.MISSING_NEXT_BLOCK,
+                "Block $owner references missing next block $missing",
+                RecoveryAction.REPLACED_WITH_STUB,
+                owner,
+                missing
+            )
+            return stub
+        }
+
+        fun createMissingExpressionStub(owner: UUID, slot: String, missing: UUID): BlockModel {
+            val stub = BrokenExpressionBlock(
+                reason = "Missing input '$slot' block $missing",
+                originalType = "missing_ref"
+            )
+            stub.uuid = missing
+            nodeMap[missing] = stub
+            addIssue(
+                ScriptLoadIssue.Kind.MISSING_INPUT_BLOCK,
+                "Block $owner input '$slot' references missing block $missing",
+                RecoveryAction.REPLACED_WITH_STUB,
+                owner,
+                missing
+            )
+            return stub
+        }
+
         jsonMap.forEach { (uuid, jsonObject) ->
-            val currentBlock = nodeMap[uuid]!!
+            val currentBlock = nodeMap[uuid] ?: return@forEach
 
-            val nextIdStr = jsonObject["next"]?.jsonPrimitive?.content
+            val nextIdStr = jsonObject["next"]?.jsonPrimitive?.contentOrNull
             if (nextIdStr != null) {
-                val nextUuid = UUID.fromString(nextIdStr)
-                val nextBlock = nodeMap[nextUuid]
-                    ?: throw SerializationException("Block $uuid refers to missing next block $nextUuid")
+                val nextUuid = parseUuid(nextIdStr)
+                if (nextUuid == null) {
+                    addIssue(
+                        ScriptLoadIssue.Kind.INVALID_REFERENCE_FORMAT,
+                        "Block $uuid has invalid 'next' reference: '$nextIdStr'",
+                        RecoveryAction.REMOVED_REFERENCE,
+                        uuid
+                    )
+                } else {
+                    val nextBlock = nodeMap[nextUuid] ?: when (policy.missingReferenceStrategy) {
+                        MissingReferenceStrategy.FAIL ->
+                            throw SerializationException("Block $uuid refers to missing next block $nextUuid")
 
-                currentBlock as StatementBlock
-                nextBlock as StatementBlock
+                        MissingReferenceStrategy.REMOVE_REFERENCE -> {
+                            addIssue(
+                                ScriptLoadIssue.Kind.MISSING_NEXT_BLOCK,
+                                "Block $uuid references missing next block $nextUuid",
+                                RecoveryAction.REMOVED_REFERENCE,
+                                uuid,
+                                nextUuid
+                            )
+                            null
+                        }
 
-                currentBlock.next = nextBlock
-                nextBlock.parent = currentBlock
+                        MissingReferenceStrategy.REPLACE_WITH_STUB -> createMissingStatementStub(uuid, nextUuid)
+                    }
+
+                    if (nextBlock != null) {
+                        if (currentBlock is StatementBlock && nextBlock is StatementBlock) {
+                            currentBlock.next = nextBlock
+                            nextBlock.parent = currentBlock
+                        } else {
+                            if (policy.missingReferenceStrategy == MissingReferenceStrategy.FAIL) {
+                                throw SerializationException("Invalid next reference type for block $uuid")
+                            }
+                            addIssue(
+                                ScriptLoadIssue.Kind.INVALID_NEXT_BLOCK_TYPE,
+                                "Block $uuid has non-statement next reference $nextUuid",
+                                RecoveryAction.REMOVED_REFERENCE,
+                                uuid,
+                                nextUuid
+                            )
+                        }
+                    }
+                }
             }
 
             val inputsObj = jsonObject["inputs"]?.jsonObject
             inputsObj?.forEach { (slotName, uuidElement) ->
-                val inputUuid = UUID.fromString(uuidElement.jsonPrimitive.content)
-                val inputBlock = nodeMap[inputUuid]
-                    ?: throw SerializationException("Block $uuid input '$slotName' refers to missing block $inputUuid")
+                val inputUuidRaw = uuidElement.jsonPrimitive.contentOrNull ?: return@forEach
+                val inputUuid = parseUuid(inputUuidRaw)
+                if (inputUuid == null) {
+                    addIssue(
+                        ScriptLoadIssue.Kind.INVALID_REFERENCE_FORMAT,
+                        "Block $uuid input '$slotName' has invalid reference '$inputUuidRaw'",
+                        RecoveryAction.REMOVED_REFERENCE,
+                        uuid
+                    )
+                    return@forEach
+                }
 
-                currentBlock.inputs[slotName] = inputBlock
-                inputBlock.parentBlock = currentBlock
-                inputBlock.parentInputName = slotName
+                val inputBlock = nodeMap[inputUuid] ?: when (policy.missingReferenceStrategy) {
+                    MissingReferenceStrategy.FAIL ->
+                        throw SerializationException("Block $uuid input '$slotName' refers to missing block $inputUuid")
+
+                    MissingReferenceStrategy.REMOVE_REFERENCE -> {
+                        addIssue(
+                            ScriptLoadIssue.Kind.MISSING_INPUT_BLOCK,
+                            "Block $uuid input '$slotName' refers to missing block $inputUuid",
+                            RecoveryAction.REMOVED_REFERENCE,
+                            uuid,
+                            inputUuid
+                        )
+                        null
+                    }
+
+                    MissingReferenceStrategy.REPLACE_WITH_STUB -> createMissingExpressionStub(uuid, slotName, inputUuid)
+                }
+
+                if (inputBlock != null) {
+                    currentBlock.inputs[slotName] = inputBlock
+                    inputBlock.parentBlock = currentBlock
+                    inputBlock.parentInputName = slotName
+                    inputBlock.parentOutputName = null
+                }
+            }
+
+            val outputsObj = jsonObject["outputs"]?.jsonObject
+            outputsObj?.forEach { (slotName, uuidElement) ->
+                val outputUuidRaw = uuidElement.jsonPrimitive.contentOrNull ?: return@forEach
+                val outputUuid = parseUuid(outputUuidRaw)
+                if (outputUuid == null) {
+                    addIssue(
+                        ScriptLoadIssue.Kind.INVALID_REFERENCE_FORMAT,
+                        "Block $uuid output '$slotName' has invalid reference '$outputUuidRaw'",
+                        RecoveryAction.REMOVED_REFERENCE,
+                        uuid
+                    )
+                    return@forEach
+                }
+
+                val outputBlock = nodeMap[outputUuid] ?: when (policy.missingReferenceStrategy) {
+                    MissingReferenceStrategy.FAIL ->
+                        throw SerializationException("Block $uuid output '$slotName' refers to missing block $outputUuid")
+
+                    MissingReferenceStrategy.REMOVE_REFERENCE -> {
+                        addIssue(
+                            ScriptLoadIssue.Kind.MISSING_INPUT_BLOCK,
+                            "Block $uuid output '$slotName' refers to missing block $outputUuid",
+                            RecoveryAction.REMOVED_REFERENCE,
+                            uuid,
+                            outputUuid
+                        )
+                        null
+                    }
+
+                    MissingReferenceStrategy.REPLACE_WITH_STUB -> createMissingExpressionStub(uuid, slotName, outputUuid)
+                }
+
+                if (outputBlock != null) {
+                    currentBlock.outputs[slotName] = outputBlock
+                    outputBlock.parentBlock = currentBlock
+                    outputBlock.parentInputName = null
+                    outputBlock.parentOutputName = slotName
+                }
             }
 
             jsonObject["x"]?.jsonPrimitive?.floatOrNull?.let { x ->
@@ -114,6 +277,57 @@ class CodeBlockSerializer(val format: CodeBlockFormat) : KSerializer<List<BlockM
             }
         }
 
-        return nodeMap.values.filter { it.isRoot }
+        return nodeMap.values.filter { it.isRoot }.distinctBy { it.uuid }
+    }
+
+    private fun parseUuid(value: String): UUID? = runCatching { UUID.fromString(value) }.getOrNull()
+
+    private fun handleDecodeFailure(nodeElement: JsonElement?, index: Int, e: Exception): BlockModel? {
+        val nodeObj = nodeElement as? JsonObject
+        val rawUuid = nodeObj?.get("uuid")?.jsonPrimitive?.contentOrNull
+        val uuid = rawUuid?.let(::parseUuid) ?: UUID.randomUUID()
+        val originalType = nodeObj?.get("type")?.jsonPrimitive?.contentOrNull
+        val message = "Failed to decode block at index $index: ${e.message}"
+
+        return when (policy.decodeFailureStrategy) {
+            DecodeFailureStrategy.FAIL -> throw SerializationException(message, e)
+            DecodeFailureStrategy.DROP_BLOCK -> {
+                addIssue(
+                    ScriptLoadIssue.Kind.DECODE_FAILED,
+                    message,
+                    RecoveryAction.DROPPED_BLOCK,
+                    ownerBlockId = uuid
+                )
+                null
+            }
+
+            DecodeFailureStrategy.REPLACE_WITH_STUB -> {
+                addIssue(
+                    ScriptLoadIssue.Kind.DECODE_FAILED,
+                    message,
+                    RecoveryAction.REPLACED_WITH_STUB,
+                    ownerBlockId = uuid
+                )
+                BrokenStatementBlock(reason = message, originalType = originalType).also { it.uuid = uuid }
+            }
+        }
+    }
+
+    private fun addIssue(
+        kind: ScriptLoadIssue.Kind,
+        message: String,
+        action: RecoveryAction,
+        ownerBlockId: UUID? = null,
+        targetBlockId: UUID? = null,
+    ) {
+        issuesCollector?.add(
+            ScriptLoadIssue(
+                kind = kind,
+                message = message,
+                action = action,
+                ownerBlockId = ownerBlockId,
+                targetBlockId = targetBlockId
+            )
+        )
     }
 }

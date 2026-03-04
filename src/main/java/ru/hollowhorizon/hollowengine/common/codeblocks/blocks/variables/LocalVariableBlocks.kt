@@ -14,21 +14,13 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.getVariable
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.setVariable
-import ru.hollowhorizon.hollowengine.common.codeblocks.walk
-
-interface VariableProvider {
-    var variableName: String
-    val expressionType: ExpressionType
-    val isGlobal: Boolean
-}
 
 @Serializable
 @SerialName("hollowengine:events/set")
-class SetVarBlock(override var variableName: String = "var") : StatementBlock(), VariableProvider {
+class SetVarBlock(override var variableName: String = "var") : StatementBlock(), LocalVariableDeclaration {
     override val color: Color get() = CodeBlocksColors.LOCALS
 
     override val expressionType get() = (inputs["value"] as? ExpressionBlock)?.expressionType ?: AnyType
-    override val isGlobal = false
 
     val value by input<Any>("value")
 
@@ -36,7 +28,7 @@ class SetVarBlock(override var variableName: String = "var") : StatementBlock(),
     override suspend fun execute() {
         val value = value()
 
-        setVariable(variableName, false, value)
+        setVariable(variableName, value)
     }
 
     override fun InputSlotScope.composeContent() {
@@ -59,14 +51,10 @@ class SetVarBlock(override var variableName: String = "var") : StatementBlock(),
 class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
     override val color: Color get() = CodeBlocksColors.LOCALS
 
-    override val expressionType: ExpressionType
-        get() {
-            val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.variableName == varName }
-            return setVar?.expressionType ?: AnyType
-        }
+    override val expressionType: ExpressionType get() = resolveLocalVariableType(varName)
 
     override suspend fun execute(): Any? {
-        return getVariable(varName, false)?.get()
+        return getVariable(varName)?.get()
     }
 
     override fun InputSlotScope.composeContent() {
@@ -85,14 +73,10 @@ class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
 class GetVarInlineBlock(val name: String) : ExpressionBlock() {
     override val color: Color get() = CodeBlocksColors.LOCALS
 
-    override val expressionType: ExpressionType
-        get() {
-            val setVar = scope?.walk()?.filterIsInstance<SetVarBlock>()?.find { it.variableName == name }
-            return setVar?.expressionType ?: AnyType
-        }
+    override val expressionType: ExpressionType get() = resolveLocalVariableType(name)
 
     override suspend fun execute(): Any? {
-        return getVariable(name, false)?.get()
+        return getVariable(name)?.get()
     }
 
     override fun InputSlotScope.composeContent() {

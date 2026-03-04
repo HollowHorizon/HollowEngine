@@ -15,6 +15,7 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.EditorFile
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockRepository
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.usecase.PersistRecoveredScriptUseCase
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockSerializer
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -35,6 +36,7 @@ class CodeBlocksFile(filePath: String, bytes: ByteArray) : EditorFile(filePath) 
         include(PlayerModule)
         include(WorldModule)
     }
+    private val persistRecoveredScript = PersistRecoveredScriptUseCase()
     val format = CodeBlockFormat(repository)
     val editor = BlockEditor(repository) {
         changeEvents.tryEmit(Unit)
@@ -44,8 +46,20 @@ class CodeBlocksFile(filePath: String, bytes: ByteArray) : EditorFile(filePath) 
     init {
         if (bytes.isNotEmpty()) {
             try {
-                editor.rootBlocks.addAll(format.loadBlocks(ByteArrayInputStream(bytes)))
+                val report = format.loadBlocksWithRecovery(ByteArrayInputStream(bytes))
+                editor.rootBlocks.addAll(report.blocks)
                 editor.rootBlocks.forEach { repository.applyDisplayNames(it, editor) }
+
+                if (report.hasIssues) {
+                    val file = filePath.fromReadablePath()
+                    val backup = persistRecoveredScript.execute(file, format, report)
+                    HollowEngine.LOGGER.warn(
+                        "Recovered codeblocks file {} with {} issue(s). Backup: {}",
+                        filePath,
+                        report.issues.size,
+                        backup?.absolutePath ?: "n/a"
+                    )
+                }
             } catch (e: Exception) {
                 HollowEngine.LOGGER.error("File $filePath cannot be loaded!", e)
                 val file = filePath.fromReadablePath()
@@ -73,15 +87,12 @@ class CodeBlocksFile(filePath: String, bytes: ByteArray) : EditorFile(filePath) 
 
         try {
             val blocksToSave = editor.rootBlocks.toList()
-
             val jsonString = format.json.encodeToString(CodeBlockSerializer(format), blocksToSave)
-
             file.writeText(jsonString)
         } catch (e: Exception) {
             HollowEngine.LOGGER.error("File $filePath cannot be saved!", e)
         }
     }
-
 
     override fun UiScope.compose() {
         Row(Grow.Std, Grow.Std) {
@@ -103,3 +114,4 @@ class CodeBlocksFile(filePath: String, bytes: ByteArray) : EditorFile(filePath) 
         editor.onKeyInput(event)
     }
 }
+

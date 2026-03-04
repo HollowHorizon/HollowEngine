@@ -13,4 +13,9 @@ sealed interface DropAction {
         val inputName: String,
         val isStatementSlot: Boolean,
     ) : DropAction
+
+    data class AttachToOutput(
+        override val target: BlockModel,
+        val outputName: String,
+    ) : DropAction
 }

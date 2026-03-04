@@ -111,6 +111,7 @@ class ValueChangeAction<T>(
 data class ConnectionState(
     val parentBlock: BlockModel?,
     val parentInputName: String?,
+    val parentOutputName: String?,
     val parentStatement: BlockModel?,
     val nextStatement: BlockModel?,
     val indexInRoot: Int = -1, // -1 if not in root
@@ -165,6 +166,19 @@ class ConnectionAction(
             state.parentBlock.inputs[state.parentInputName] = block
             block.parentBlock = state.parentBlock
             block.parentInputName = state.parentInputName
+            block.parentOutputName = null
+        } else if (state.parentBlock != null && state.parentOutputName != null) {
+            val occupied = state.parentBlock.outputs[state.parentOutputName]
+            if (occupied != null && occupied != block) {
+                editor.rootBlocks.add(occupied)
+                occupied.parentBlock = null
+                occupied.parentInputName = null
+                occupied.parentOutputName = null
+            }
+            state.parentBlock.outputs[state.parentOutputName] = block
+            block.parentBlock = state.parentBlock
+            block.parentInputName = null
+            block.parentOutputName = state.parentOutputName
         } else if (state.parentStatement != null && block.isStatement() && state.parentStatement.isStatement()) {
             val parent = state.parentStatement
 
@@ -190,8 +204,10 @@ class ConnectionAction(
             // Добавленная проверка: если child был в контейнере
             if (child.parentBlock != null) {
                 child.parentBlock!!.inputs.remove(child.parentInputName)
+                child.parentBlock!!.outputs.remove(child.parentOutputName)
                 child.parentBlock = null
                 child.parentInputName = null
+                child.parentOutputName = null
             }
 
             block.next = child

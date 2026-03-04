@@ -11,6 +11,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.InputDelegate
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.InputListDelegate
+import ru.hollowhorizon.hollowengine.common.codeblocks.execution.OutputDelegate
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForStringUUID
 import java.util.*
@@ -26,6 +27,9 @@ abstract class BlockModel {
     @Transient
     var parentInputName: String? = null
 
+    @Transient
+    var parentOutputName: String? = null
+
     abstract val color: Color
 
     @Transient
@@ -36,6 +40,12 @@ abstract class BlockModel {
 
     @Transient
     val inputTypes = mutableMapOf<String, ExpressionType>()
+
+    @Transient
+    val outputs = mutableMapOf<String, BlockModel>()
+
+    @Transient
+    val outputTypes = mutableMapOf<String, ExpressionType>()
 
     @Transient
     val positionX = mutableStateOf(50f)
@@ -52,6 +62,14 @@ abstract class BlockModel {
     fun attachInput(slotName: String, block: BlockModel) {
         inputs[slotName] = block
         block.parentInputName = slotName
+        block.parentOutputName = null
+        block.parentBlock = this
+    }
+
+    fun attachOutput(slotName: String, block: BlockModel) {
+        outputs[slotName] = block
+        block.parentOutputName = slotName
+        block.parentInputName = null
         block.parentBlock = this
     }
 
@@ -83,6 +101,7 @@ abstract class BlockModel {
 
         if (recursive) {
             inputs.values.forEach { it.applyDefaults(true) }
+            outputs.values.forEach { it.applyDefaults(true) }
             (this as? StatementBlock)?.next?.applyDefaults(true)
         }
     }
@@ -90,6 +109,12 @@ abstract class BlockModel {
     inline fun <reified T : Any> inputList(name: String? = null) = InputListDelegate<T>(
         name,
         if (T::class == Any::class) AnyType else typeOf<T>()
+    )
+
+    inline fun <reified T : Any> output(name: String? = null, default: T? = null) = OutputDelegate<T>(
+        name,
+        if (T::class == Any::class) AnyType else typeOf<T>(),
+        default
     )
 
     abstract suspend fun execute(): Any?

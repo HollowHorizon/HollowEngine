@@ -516,6 +516,11 @@
   "hollowengine.gui.codeblocks.block.call_function": "Вызвать %s",
 
   "hollowengine.gui.codeblocks.block.on_start": "При запуске",
+  "hollowengine.gui.codeblocks.block.on_player_chat": "При сообщении в чат",
+  "hollowengine.gui.codeblocks.block.event_output_var": "Output события -> переменная",
+  "hollowengine.gui.codeblocks.block.event_output_player": "Игрок события",
+  "hollowengine.gui.codeblocks.block.event_output_message": "Сообщение события",
+  "hollowengine.gui.codeblocks.block.event_output_username": "Имя игрока события",
 
   "hollowengine.gui.codeblocks.block.stop": "Завершить скрипт",
   "hollowengine.gui.codeblocks.block.stop_if": "Завершить скрипт, если",
@@ -541,6 +546,10 @@
   "hollowengine.gui.codeblocks.label.on_message": "При сообщении",
   "hollowengine.gui.codeblocks.label.function": "Функция",
   "hollowengine.gui.codeblocks.label.call": "Вызвать",
+  "hollowengine.gui.codeblocks.label.event_output_to_var": "записать в переменную",
+  "hollowengine.gui.codeblocks.label.event_output_player_section": "Output игрока",
+  "hollowengine.gui.codeblocks.label.event_output_message_section": "Output сообщения",
+  "hollowengine.gui.codeblocks.label.event_output_username_section": "Output имени",
 
   "hollowengine.gui.codeblocks.hint.value": "Значение",
   "hollowengine.gui.codeblocks.hint.variable_name": "Имя переменной",

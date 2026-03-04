@@ -11,6 +11,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.isExpression
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ContainerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.EndBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.InvertedExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.mixins.kool.UiNodeAccessor
 import kotlin.math.max
@@ -28,6 +29,7 @@ class ScratchBlockBackground(
     val hasNext = block !is EndBlock
     val isContainer = block is ContainerBlock
     val drawInnerShadow = block.isExpression() && block.parentBlock != null
+    val isInvertedExpression = block is InvertedExpressionBlock
     val isTrigger = !hasPrev
 
     override fun renderUi(node: UiNode) = with(node) {
@@ -61,8 +63,13 @@ class ScratchBlockBackground(
 
             if (safeTabH > 1f) {
                 points.add(Vec3f(x, tyStart + safeTabH, 0f))
-                points.add(Vec3f(x - tabW, tyStart + safeTabH - (safeTabH * 0.2f), 0f))
-                points.add(Vec3f(x - tabW, tyStart + (safeTabH * 0.2f), 0f))
+                if (isInvertedExpression) {
+                    points.add(Vec3f(x + tabW, tyStart + safeTabH - (safeTabH * 0.2f), 0f))
+                    points.add(Vec3f(x + tabW, tyStart + (safeTabH * 0.2f), 0f))
+                } else {
+                    points.add(Vec3f(x - tabW, tyStart + safeTabH - (safeTabH * 0.2f), 0f))
+                    points.add(Vec3f(x - tabW, tyStart + (safeTabH * 0.2f), 0f))
+                }
                 points.add(Vec3f(x, tyStart, 0f))
             }
         } else {

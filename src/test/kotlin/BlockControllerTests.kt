@@ -350,6 +350,7 @@ class BlockControllerTests {
         val targetState = ConnectionState(
             parentBlock = null,
             parentInputName = null,
+            parentOutputName = null,
             parentStatement = parent, // Цепляем к Parent
             nextStatement = null,
             indexInRoot = -1,
@@ -539,3 +540,4 @@ class BlockControllerTests {
         field.set(controller, action)
     }
 }
+

@@ -517,6 +517,11 @@
   "hollowengine.gui.codeblocks.block.call_function": "Call %s",
 
   "hollowengine.gui.codeblocks.block.on_start": "On Start",
+  "hollowengine.gui.codeblocks.block.on_player_chat": "On Player Chat",
+  "hollowengine.gui.codeblocks.block.event_output_var": "Event Output -> Variable",
+  "hollowengine.gui.codeblocks.block.event_output_player": "Event Player",
+  "hollowengine.gui.codeblocks.block.event_output_message": "Event Message",
+  "hollowengine.gui.codeblocks.block.event_output_username": "Event Username",
 
   "hollowengine.gui.codeblocks.block.stop": "Stop Script",
   "hollowengine.gui.codeblocks.block.stop_if": "Stop If",
@@ -542,6 +547,10 @@
   "hollowengine.gui.codeblocks.label.on_message": "On Message",
   "hollowengine.gui.codeblocks.label.function": "Function",
   "hollowengine.gui.codeblocks.label.call": "Call",
+  "hollowengine.gui.codeblocks.label.event_output_to_var": "write to variable",
+  "hollowengine.gui.codeblocks.label.event_output_player_section": "Player Output",
+  "hollowengine.gui.codeblocks.label.event_output_message_section": "Message Output",
+  "hollowengine.gui.codeblocks.label.event_output_username_section": "Username Output",
 
   "hollowengine.gui.codeblocks.hint.value": "Value",
   "hollowengine.gui.codeblocks.hint.variable_name": "Variable name",

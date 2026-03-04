@@ -25,17 +25,29 @@ suspend fun currentFile(): ScriptFile = currentInstance().ownerFile
 suspend fun currentServer(): MinecraftServer = currentFile().system.owner
 
 @CodeBlocksDSL
-suspend fun getVariable(name: String, isGlobal: Boolean): VariableContainer<*>? {
-    val file = currentFile()
+suspend fun getVariable(name: String): VariableContainer<*>? {
     val instance = currentInstance()
-    return if (isGlobal) file.system.globals[name] else instance.localVariables[name]
+    return instance.localVariables[name]
+}
+
+@Deprecated("Global variables are removed. Use local variables only.")
+@CodeBlocksDSL
+suspend fun getVariable(name: String, isGlobal: Boolean): VariableContainer<*>? {
+    if (isGlobal) return null
+    return getVariable(name)
 }
 
 @CodeBlocksDSL
-suspend fun setVariable(name: String, isGlobal: Boolean, value: Any?) {
-    val file = currentFile()
+suspend fun setVariable(name: String, value: Any?) {
     val instance = currentInstance()
-    val variable = (if (isGlobal) file.system.globals[name] else instance.localVariables[name])
+    val variable = instance.localVariables[name]
         ?: error("Variable with name $name not found!")
     variable.set(JavaHacks.forceCast(value))
+}
+
+@Deprecated("Global variables are removed. Use local variables only.")
+@CodeBlocksDSL
+suspend fun setVariable(name: String, isGlobal: Boolean, value: Any?) {
+    if (isGlobal) error("Global variables are removed")
+    setVariable(name, value)
 }

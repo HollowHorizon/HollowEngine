@@ -4,11 +4,9 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockRepository
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.SetGlobalVarBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.createContainer
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.usecase.PersistRecoveredScriptUseCase
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
-import ru.hollowhorizon.hollowengine.common.codeblocks.walk
 import ru.hollowhorizon.hollowengine.common.dev.DevLogs
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.post
@@ -17,7 +15,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 
 class BlocksSystem(val owner: MinecraftServer) {
     val scripts = mutableMapOf<String, ScriptFile>()
-    val globals = VariableMap()
+    private val persistRecoveredScript = PersistRecoveredScriptUseCase()
 
     val format = CodeBlockFormat(BlockRepository.create("Scripts") {
         include(StandardModules.AllBasics)
@@ -33,12 +31,10 @@ class BlocksSystem(val owner: MinecraftServer) {
             scriptsTag.put(path, CompoundTag().apply(script::serialize))
         }
         tag.put("scripts", scriptsTag)
-        tag.put("globals", CompoundTag().apply(globals::serialize))
     }
 
     fun deserialize(tag: CompoundTag) {
         reloadScripts()
-        globals.deserialize(tag.getCompound("globals"))
 
         val scriptsTag = tag.getCompound("scripts")
         scriptsTag.allKeys.forEach { path ->
@@ -61,12 +57,17 @@ class BlocksSystem(val owner: MinecraftServer) {
             .forEach { file ->
                 val readablePath = file.toReadablePath()
                 try {
-                    val blocks = format.loadBlocks(file)
-                    blocks.forEach {
-                        it.walk().filterIsInstance<SetGlobalVarBlock>().forEach {
-                            if(it.variableName !in globals) globals[it.variableName] = createContainer(it.expressionType)
-                        }
+                    val report = format.loadBlocksWithRecovery(file)
+                    val backup = persistRecoveredScript.execute(file, format, report)
+                    if (backup != null) {
+                        HollowCore.LOGGER.warn(
+                            "Script {} recovered with {} issue(s). Backup: {}",
+                            readablePath,
+                            report.issues.size,
+                            backup.toReadablePath()
+                        )
                     }
+                    val blocks = report.blocks
                     scripts[readablePath] = ScriptFile(this, readablePath, blocks)
                 } catch (e: Exception) {
                     HollowCore.LOGGER.error("Failed to load script: $readablePath", e)

@@ -140,6 +140,9 @@ class BlockController(val editor: BlockEditor) {
     fun canAttachToInput(block: BlockModel, inputName: String) =
         (potentialAction as? DropAction.AttachToInput)?.let { it.target == block && it.inputName == inputName } == true
 
+    fun canAttachToOutput(block: BlockModel, outputName: String) =
+        (potentialAction as? DropAction.AttachToOutput)?.let { it.target == block && it.outputName == outputName } == true
+
     val isStatementSlot: Boolean
         get() = (potentialAction as? DropAction.AttachToInput)?.isStatementSlot == true
 
@@ -241,6 +244,11 @@ class BlockController(val editor: BlockEditor) {
                     affectedBlocks.add(action.target) // Тот, к кому цепляемся
                     action.target.inputs[action.inputName]?.let { affectedBlocks.add(it) } // Тот, кто там уже был
                 }
+
+                is DropAction.AttachToOutput -> {
+                    affectedBlocks.add(action.target)
+                    action.target.outputs[action.outputName]?.let { affectedBlocks.add(it) }
+                }
             }
 
             if (block is StatementBlock) {
@@ -260,6 +268,7 @@ class BlockController(val editor: BlockEditor) {
                 is DropAction.InsertBefore -> insertBlockBeforeLogic(action.target, block as StatementBlock)
                 is DropAction.AttachAfter -> attachBlockAfterLogic(action.target, block as StatementBlock)
                 is DropAction.AttachToInput -> attachBlockToInputLogic(action.target, action.inputName, block)
+                is DropAction.AttachToOutput -> attachBlockToOutputLogic(action.target, action.outputName, block)
             }
 
             editor.playConnectSound()
@@ -332,6 +341,7 @@ class BlockController(val editor: BlockEditor) {
                 target.inputs[slotName] = stmtNew
                 stmtNew.parentBlock = target
                 stmtNew.parentInputName = slotName
+                stmtNew.parentOutputName = null
 
                 var tail: StatementBlock = stmtNew
                 while (tail.next != null) tail = tail.next!!
@@ -340,18 +350,36 @@ class BlockController(val editor: BlockEditor) {
                 stmtExist.parent = tail
                 stmtExist.parentBlock = null
                 stmtExist.parentInputName = null
+                stmtExist.parentOutputName = null
             } else {
                 existingBlock.parentBlock = null
                 existingBlock.parentInputName = null
+                existingBlock.parentOutputName = null
                 editor.rootBlocks.add(existingBlock)
 
                 target.inputs[slotName] = newBlock
                 newBlock.parentBlock = target
                 newBlock.parentInputName = slotName
+                newBlock.parentOutputName = null
             }
         } else {
             target.attachInput(slotName, newBlock)
         }
+    }
+
+    private fun attachBlockToOutputLogic(target: BlockModel, slotName: String, newBlock: BlockModel) {
+        editor.rootBlocks.remove(newBlock)
+        detachBlockInternal(newBlock)
+
+        val existingBlock = target.outputs[slotName]
+        if (existingBlock != null) {
+            existingBlock.parentBlock = null
+            existingBlock.parentInputName = null
+            existingBlock.parentOutputName = null
+            editor.rootBlocks.add(existingBlock)
+        }
+
+        target.attachOutput(slotName, newBlock)
     }
 
     private fun attachBlockAfterLogic(target: StatementBlock, newBlock: StatementBlock) {
@@ -462,7 +490,7 @@ class BlockController(val editor: BlockEditor) {
 
         blocksToDelete.forEach { block ->
             val oldState = captureConnectionState(block)
-            val detachedState = ConnectionState(null, null, null, null, -1, block.positionX.value, block.positionY.value)
+            val detachedState = ConnectionState(null, null, null, null, null, -1, block.positionX.value, block.positionY.value)
             actions.add(ConnectionAction(editor, block, oldState, detachedState))
 
             if (block is StatementBlock) {
@@ -474,13 +502,16 @@ class BlockController(val editor: BlockEditor) {
                     val parentStmt = block.parent
                     val parentBlock = block.parentBlock
                     val parentInput = block.parentInputName
+                    val parentOutput = block.parentOutputName
 
                     val survivorNewState = if (parentStmt != null && parentStmt !in blocksToDelete) {
-                        ConnectionState(null, null, parentStmt, survivor.next, -1, 0f, 0f)
+                        ConnectionState(null, null, null, parentStmt, survivor.next, -1, 0f, 0f)
                     } else if (parentBlock != null && parentInput != null && parentBlock !in blocksToDelete) {
-                        ConnectionState(parentBlock, parentInput, null, survivor.next, -1, 0f, 0f)
+                        ConnectionState(parentBlock, parentInput, null, null, survivor.next, -1, 0f, 0f)
+                    } else if (parentBlock != null && parentOutput != null && parentBlock !in blocksToDelete) {
+                        ConnectionState(parentBlock, null, parentOutput, null, survivor.next, -1, 0f, 0f)
                     } else {
-                        ConnectionState(null, null, null, survivor.next, editor.rootBlocks.indexOf(block), block.positionX.value, block.positionY.value)
+                        ConnectionState(null, null, null, null, survivor.next, editor.rootBlocks.indexOf(block), block.positionX.value, block.positionY.value)
                     }
 
                     actions.add(ConnectionAction(editor, survivor, survivorOldState, survivorNewState))
@@ -502,6 +533,7 @@ class BlockController(val editor: BlockEditor) {
         return ConnectionState(
             parentBlock = block.parentBlock,
             parentInputName = block.parentInputName,
+            parentOutputName = block.parentOutputName,
             parentStatement = (block as? StatementBlock)?.parent,
             nextStatement = (block as? StatementBlock)?.next,
             indexInRoot = editor.rootBlocks.indexOf(block),
@@ -518,8 +550,10 @@ class BlockController(val editor: BlockEditor) {
             block.parent = null
         }
         block.parentBlock?.inputs?.remove(block.parentInputName)
+        block.parentBlock?.outputs?.remove(block.parentOutputName)
         block.parentBlock = null
         block.parentInputName = null
+        block.parentOutputName = null
     }
 
     fun duplicateBlock(block: BlockModel, localPos: Vec2f) {
@@ -580,8 +614,9 @@ class BlockController(val editor: BlockEditor) {
         val logicalX = local.x / zoom
         val logicalY = local.y / zoom
 
-        val offsetX = if (action !is DropAction.AttachToInput) -7.5f else 0f
-        val offsetY = if (action is DropAction.AttachToInput) -10f else 0f
+        val isSlotAction = action is DropAction.AttachToInput || action is DropAction.AttachToOutput
+        val offsetX = if (!isSlotAction) -7.5f else 0f
+        val offsetY = if (isSlotAction) -10f else 0f
 
         editor.triggerSnapEffect(SnapAnimation(logicalX + offsetX, logicalY + offsetY))
     }
@@ -603,6 +638,13 @@ class BlockController(val editor: BlockEditor) {
                 } else {
                     action.isStatementSlot
                 }
+            }
+            is DropAction.AttachToOutput -> {
+                if (source is StatementBlock) return false
+                val requiredType = action.target.outputTypes[action.outputName] ?: return false
+                val acceptedType = (source as? ru.hollowhorizon.hollowengine.common.codeblocks.execution.OutputConsumer)?.acceptedType
+                    ?: return false
+                requiredType.accepts(acceptedType) || acceptedType == AnyType
             }
         }
     }
@@ -638,6 +680,10 @@ class BlockController(val editor: BlockEditor) {
             val copiedChild = copy.inputs[slotName] ?: return@forEach
             copyDisplayNames(originalChild, copiedChild)
         }
+        original.outputs.forEach { (slotName, originalChild) ->
+            val copiedChild = copy.outputs[slotName] ?: return@forEach
+            copyDisplayNames(originalChild, copiedChild)
+        }
 
         val originalStatement = original as? StatementBlock
         val copiedStatement = copy as? StatementBlock
@@ -659,3 +705,5 @@ class BlockController(val editor: BlockEditor) {
         selectedBlocks.addAll(editor.rootBlocks.flatMap { it.walk() })
     }
 }
+
+

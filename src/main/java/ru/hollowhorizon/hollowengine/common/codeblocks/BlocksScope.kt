@@ -48,6 +48,9 @@ fun BlockModel.walk(): Sequence<BlockModel> = sequence {
     for (input in inputs.values) {
         yieldAll(input.walk())
     }
+    for (output in outputs.values) {
+        yieldAll(output.walk())
+    }
     (this@walk as? StatementBlock)?.next?.let {
         yieldAll(it.walk())
     }

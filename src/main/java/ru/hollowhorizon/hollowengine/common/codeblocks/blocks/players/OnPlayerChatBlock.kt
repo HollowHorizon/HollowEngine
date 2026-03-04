@@ -1,0 +1,75 @@
+package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players
+
+import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.util.Color
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.client.utils.lang
+import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
+import ru.hollowhorizon.hollowengine.common.events.await
+import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
+
+@Serializable
+@SerialName("hollowengine:events/player_chat")
+class OnPlayerChatBlock : StartBlock() {
+    override val color: Color get() = CodeBlocksColors.EVENTS
+    private val playerOutput by output<Player>(
+        name = PLAYER_OUTPUT,
+        default = null,
+    )
+    private val messageOutput by output<String>(
+        name = MESSAGE_OUTPUT,
+        default = "",
+    )
+    private val usernameOutput by output<String>(
+        name = USERNAME_OUTPUT,
+        default = "",
+    )
+
+    override suspend fun trigger() {
+        val event = await<ServerChatEvent>()
+        playerOutput.emit(event.player)
+        messageOutput.emit(event.message.string)
+        usernameOutput.emit(event.username)
+    }
+
+    override fun InputSlotScope.composeContent() {
+        Column {
+            Text("hollowengine.gui.codeblocks.block.on_player_chat".lang) {
+                modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+            }
+            Row(Grow.Std) {
+                Text("player:") {
+                    modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+                        .width(Grow.Std)
+                }
+                OutputSlot(playerOutput)
+            }
+            Box { modifier.height(2.dp.scaled()) }
+            Row(Grow.Std) {
+                Text("message:") {
+                    modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+                        .width(Grow.Std)
+                }
+                OutputSlot(messageOutput)
+            }
+            Box { modifier.height(2.dp.scaled()) }
+            Row(Grow.Std) {
+                Text("username:") {
+                    modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+                        .width(Grow.Std)
+                }
+                OutputSlot(usernameOutput)
+            }
+        }
+    }
+
+    companion object {
+        const val PLAYER_OUTPUT = "playerOutput"
+        const val MESSAGE_OUTPUT = "messageOutput"
+        const val USERNAME_OUTPUT = "usernameOutput"
+    }
+}

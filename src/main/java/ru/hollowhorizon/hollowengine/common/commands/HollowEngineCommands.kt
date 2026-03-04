@@ -212,31 +212,6 @@ private fun CommandExtension.registerCodeBlocksCommands() {
             }
         }
 
-        "globals" {
-            "list" {
-                executes {
-                    val system = BlocksSystemSavedData.get(source.server)
-                    if (system.globals.keys.isEmpty()) {
-                        sendSuccess { "CodeBlocks globals: empty".literal }
-                    } else {
-                        sendSuccess { "CodeBlocks globals:".literal }
-                        system.globals.keys.sorted().forEach { k ->
-                            source.sendSuccess({ "- $k".literal }, false)
-                        }
-                    }
-                    SUCCESS
-                }
-            }
-
-            "clear" {
-                executes {
-                    val system = BlocksSystemSavedData.get(source.server)
-                    system.globals.keys.toList().forEach(system.globals::remove)
-                    sendSuccess { "CodeBlocks globals cleared".literal }
-                }
-            }
-        }
-
         "dev" {
             "clear" {
                 executes {
