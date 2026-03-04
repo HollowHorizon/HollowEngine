@@ -82,6 +82,9 @@ object FabricEvents {
         ServerPlayConnectionEvents.JOIN.register { handler, sender, server ->
             PlayerEvent.Join(handler.player).post()
         }
+        ServerPlayConnectionEvents.DISCONNECT.register { handler, _ ->
+            PlayerEvent.Leave(handler.player).post()
+        }
         ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register { player, from, to ->
             PlayerEvent.ChangeDimension(player, from, to).post()
         }

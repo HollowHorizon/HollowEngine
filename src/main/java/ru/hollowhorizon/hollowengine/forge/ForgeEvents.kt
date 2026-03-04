@@ -43,6 +43,7 @@ object ForgeEvents {
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onEntityTrackingStart)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onEntityTrackingStop)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onPlayerJoin)
+        MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onPlayerLeave)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onPlayerChangeDimension)
         MinecraftForge.EVENT_BUS.addListener(::onBlockBreak)
         MinecraftForge.EVENT_BUS.addListener(::onItemEntityToss)
@@ -118,6 +119,10 @@ object ForgeEvents {
 
     private fun onPlayerJoin(event: net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent) {
         PlayerEvent.Join(event.entity).post()
+    }
+
+    private fun onPlayerLeave(event: net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent) {
+        PlayerEvent.Leave(event.entity).post()
     }
 
     private fun onPlayerChangeDimension(event: net.minecraftforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent) {

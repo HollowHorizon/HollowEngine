@@ -10,6 +10,7 @@ open class PlayerEvent(val player: Player) : Event {
     class Clone(player: Player, val oldPlayer: Player, val wasDeath: Boolean) : PlayerEvent(player)
 
     class Join(player: Player) : PlayerEvent(player)
+    class Leave(player: Player) : PlayerEvent(player)
     class ChangeDimension(player: Player, val from: ServerLevel, val to: ServerLevel) : PlayerEvent(player)
     class Respawn(player: Player, val isReturnFromEnd: Boolean) : PlayerEvent(player)
     class SleepInBed(player: Player, var problem: BedSleepingProblem? = null, val pos: BlockPos) : PlayerEvent(player)

@@ -45,6 +45,7 @@ class NeoForgeEvents(val modBus: IEventBus) {
         NeoForge.EVENT_BUS.addListener(::onServerTick)
         NeoForge.EVENT_BUS.addListener(::onEntityTracking)
         NeoForge.EVENT_BUS.addListener(::onPlayerJoin)
+        NeoForge.EVENT_BUS.addListener(::onPlayerLeave)
         NeoForge.EVENT_BUS.addListener(::onPlayerChangeDimension)
         NeoForge.EVENT_BUS.addListener(::onBlockBreak)
         NeoForge.EVENT_BUS.addListener(::onItemEntityToss)
@@ -114,6 +115,10 @@ class NeoForgeEvents(val modBus: IEventBus) {
 
     private fun onPlayerJoin(event: net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent) {
         PlayerEvent.Join(event.entity).post()
+    }
+
+    private fun onPlayerLeave(event: net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent) {
+        PlayerEvent.Leave(event.entity).post()
     }
 
     private fun onPlayerChangeDimension(event: net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent) {
