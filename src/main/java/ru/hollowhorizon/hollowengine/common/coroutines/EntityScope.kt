@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.coroutines
 
 import kotlinx.coroutines.*
+import net.minecraft.client.Minecraft
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.world.entity.Entity
@@ -28,7 +29,7 @@ data class SerializableCoroutineDefinition(
 )
 
 class EntityScope(override val coroutineContext: CoroutineContext) : SerializableCoroutineScope {
-    constructor(entity: Entity) : this(SupervisorJob() + entity.server!!.dispatcher)
+    constructor(entity: Entity) : this(SupervisorJob() + (entity.server?.dispatcher ?: Minecraft.getInstance().dispatcher))
 
     private val lock = Any()
     private val definitions = ConcurrentHashMap<SerializableCoroutineKey, SerializableCoroutineDefinition>()
@@ -103,6 +104,14 @@ class EntityScope(override val coroutineContext: CoroutineContext) : Serializabl
             activeExecutions.values.forEach { it.job.cancel() }
             activeExecutions.clear()
             queuedExecutions.clear()
+        }
+    }
+
+    fun cancelSerializable(key: SerializableCoroutineKey) {
+        synchronized(lock) {
+            activeExecutions.remove(key)?.job?.cancel()
+            queuedExecutions.remove(key)
+            pendingRestore.remove(key)
         }
     }
 

@@ -191,9 +191,8 @@ private fun CommandExtension.registerCodeBlocksCommands() {
                 if (script == null) {
                     sendFailure("CodeBlocks: script not found: $path".literal)
                 } else {
-                    script.stopAll()
-                    script.startAllTriggers()
-                    sendSuccess { "CodeBlocks: started $path".literal }
+                    script.setEnabled(true)
+                    sendSuccess { "CodeBlocks: enabled $path".literal }
                 }
             }
         }
@@ -206,8 +205,8 @@ private fun CommandExtension.registerCodeBlocksCommands() {
                 if (script == null) {
                     sendFailure("CodeBlocks: script not found: $path".literal)
                 } else {
-                    script.stopAll()
-                    sendSuccess { "CodeBlocks: stopped $path".literal }
+                    script.setEnabled(false)
+                    sendSuccess { "CodeBlocks: disabled $path".literal }
                 }
             }
         }

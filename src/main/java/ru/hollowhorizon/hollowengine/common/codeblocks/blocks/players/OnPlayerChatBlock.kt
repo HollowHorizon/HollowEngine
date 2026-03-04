@@ -10,12 +10,14 @@ import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputVariableBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.EventDrivenStartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentScriptEvent
 import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 
 @Serializable
 @SerialName("hollowengine:events/player_chat")
-class OnPlayerChatBlock : StartBlock() {
+class OnPlayerChatBlock : StartBlock(), EventDrivenStartBlock<ServerChatEvent> {
     override val color: Color get() = CodeBlocksColors.EVENTS
     private val playerOutput by outputDefault<Player>(
         name = PLAYER_OUTPUT,
@@ -31,11 +33,15 @@ class OnPlayerChatBlock : StartBlock() {
     )
 
     override suspend fun trigger() {
-        val event = await<ServerChatEvent>()
+        val event = currentScriptEvent<ServerChatEvent>() ?: await<ServerChatEvent>()
         playerOutput.emit(event.player)
         messageOutput.emit(event.message.string)
         usernameOutput.emit(event.username)
     }
+
+    override val eventType: Class<ServerChatEvent> get() = ServerChatEvent::class.java
+
+    override fun resolveScopeEntity(event: ServerChatEvent) = event.player
 
     override fun InputSlotScope.composeContent() {
         Column {

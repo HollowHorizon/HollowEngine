@@ -68,7 +68,9 @@ class BlocksSystem(val owner: MinecraftServer) {
                         )
                     }
                     val blocks = report.blocks
-                    scripts[readablePath] = ScriptFile(this, readablePath, blocks)
+                    scripts[readablePath] = ScriptFile(this, readablePath, blocks).also {
+                        it.startAllTriggers()
+                    }
                 } catch (e: Exception) {
                     HollowCore.LOGGER.error("Failed to load script: $readablePath", e)
                 }

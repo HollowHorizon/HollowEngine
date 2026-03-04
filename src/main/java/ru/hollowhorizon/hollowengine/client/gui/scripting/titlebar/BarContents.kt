@@ -193,8 +193,7 @@ class StartScriptPacket(val path: String) : HollowPacket {
 
                 val script = blocksSystem.scripts[path]
                 if (script != null) {
-                    script.stopAll()
-                    script.startAllTriggers()
+                    script.setEnabled(true)
                 }
             } else {
                 val result = ScriptingEnvironment.INSTANCE.compiler.compile(file)
@@ -226,7 +225,11 @@ class StopScriptPacket(val path: String) : HollowPacket {
         } else {
             val file = path.fromReadablePath()
 
-            //stopScript(file)
+            if (file.name.endsWith(".bc")) {
+                val server = player.server ?: return
+                val blocksSystem = BlocksSystemSavedData.get(server)
+                blocksSystem.scripts[path]?.setEnabled(false)
+            }
 
             player.sendToast("hollowengine.gui.ide.script.stopped".lang.literal)
         }

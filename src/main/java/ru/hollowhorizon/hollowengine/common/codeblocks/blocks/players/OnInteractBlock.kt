@@ -18,6 +18,9 @@ import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.EventDrivenStartBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentScriptEvent
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.skipScriptEventExecution
 import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStackJson
@@ -104,7 +107,7 @@ class PlayerInteractWithBlock : StatementBlock() {
 
 @Serializable
 @SerialName("hollowengine:events/interact_block/item")
-class PlayerInteractWithItem : StartBlock() {
+class PlayerInteractWithItem : StartBlock(), EventDrivenStartBlock<PlayerInteractEvent.ItemInteract> {
     override val color: Color get() = CodeBlocksColors.EVENTS
 
     val player by input<Player>("player")
@@ -114,19 +117,30 @@ class PlayerInteractWithItem : StartBlock() {
     val popup = AutoPopup(true, true)
 
     override suspend fun trigger() {
+        currentScriptEvent<PlayerInteractEvent.ItemInteract>()?.let { event ->
+            if (!matches(event)) skipScriptEventExecution()
+            return
+        }
+
         while (true) {
             val event = await<PlayerInteractEvent.ItemInteract>()
-            if (event.player != player()) continue
-            //? if > 1.20.1 {
-            /*if (ItemStack.isSameItemSameComponents(event.itemStack, item)) {
+            if (matches(event)) {
                 return
             }
-            *///?} else {
-            if (ItemStack.isSameItemSameTags(event.itemStack, item)) {
-                return
-            }
-            //?}
         }
+    }
+
+    override val eventType: Class<PlayerInteractEvent.ItemInteract> get() = PlayerInteractEvent.ItemInteract::class.java
+
+    override fun resolveScopeEntity(event: PlayerInteractEvent.ItemInteract) = event.player
+
+    private suspend fun matches(event: PlayerInteractEvent.ItemInteract): Boolean {
+        if (event.player != player()) return false
+        //? if > 1.20.1 {
+        /*return ItemStack.isSameItemSameComponents(event.itemStack, item)
+        *///?} else {
+        return ItemStack.isSameItemSameTags(event.itemStack, item)
+        //?}
     }
 
     override fun InputSlotScope.composeContent() {
