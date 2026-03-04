@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.mixins.components;
 
+import kotlinx.coroutines.CoroutineScopeKt;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
@@ -18,6 +19,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
+import ru.hollowhorizon.hollowengine.common.coroutines.EntityCoroutineScopeProvider;
+import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope;
+import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineScope;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityEvent;
 import ru.hollowhorizon.hollowengine.common.geary.api.EntityProvider;
@@ -27,9 +31,11 @@ import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.GearyEntity
 import java.util.Set;
 
 @Mixin(Entity.class)
-public abstract class EntityMixin implements EntityProvider {
+public abstract class EntityMixin implements EntityProvider, EntityCoroutineScopeProvider {
     @Unique
     private long hollowengine$entity;
+    @Unique
+    private SerializableCoroutineScope hollowengine$coroutineScope;
     @Shadow
     private Level level;
     @Shadow
@@ -41,6 +47,7 @@ public abstract class EntityMixin implements EntityProvider {
     @Inject(method = "<init>", at = @At("RETURN"))
     private void onInit(EntityType<?> entityType, Level level, CallbackInfo ci) {
         hollowengine$entity = GearyHelper.create(level(), (Entity) (Object) this);
+        hollowengine$coroutineScope = new EntityScope((Entity) (Object) this);
     }
 
     @Inject(method = "saveWithoutId", at = @At("TAIL"))
@@ -48,11 +55,15 @@ public abstract class EntityMixin implements EntityProvider {
         var geary = new CompoundTag();
         GearyEntityExtensionsKt.encodeComponentsTo(GearyHelper.getGeary(level()), hollowengine$entity, geary);
         tag.put("geary", geary);
+        var scope = new CompoundTag();
+        hollowengine$coroutineScope.serialize(scope);
+        tag.put("EntityScope", scope);
     }
 
     @Inject(method = "load", at = @At("TAIL"))
     private void deserializeExtra(CompoundTag tag, CallbackInfo ci) {
         GearyEntityExtensionsKt.loadComponentsFrom(hollowengine$entity, (Entity) (Object) this, tag.getCompound("geary"));
+        hollowengine$coroutineScope.deserialize(tag.getCompound("EntityScope"));
     }
 
     @Inject(method = "hurt", at = @At("HEAD"), cancellable = true)
@@ -96,6 +107,7 @@ public abstract class EntityMixin implements EntityProvider {
     private void onRemove(Entity.RemovalReason removalReason, CallbackInfo ci) {
         if (!(((Object) this) instanceof Player)) {
             GearyHelper.removeEntity(level(), id);
+            CoroutineScopeKt.cancel(hollowengine$coroutineScope, null);
         }
     }
 
@@ -107,5 +119,10 @@ public abstract class EntityMixin implements EntityProvider {
     @Override
     public long getHollowengine$entity() {
         return hollowengine$entity;
+    }
+
+    @Override
+    public SerializableCoroutineScope getHollowengine$coroutineScope() {
+        return hollowengine$coroutineScope;
     }
 }

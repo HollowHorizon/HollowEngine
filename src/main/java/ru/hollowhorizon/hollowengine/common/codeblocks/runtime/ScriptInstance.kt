@@ -1,18 +1,17 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockFrame
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.BlockFrameStackElement
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.CodeBlockInterpreter
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.scoped
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
-import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
-import ru.hollowhorizon.hollowengine.common.coroutines.dispatcher
+import ru.hollowhorizon.hollowengine.common.coroutines.*
 import ru.hollowhorizon.hollowengine.common.dev.DevLogs
-import java.util.*
-import java.util.concurrent.ConcurrentHashMap
 
 class ScriptInstance(
     val ownerFile: ScriptFile,
@@ -20,57 +19,61 @@ class ScriptInstance(
 ) {
     val localVariables = VariableMap()
     val scope =
-        CoroutineScope(ownerFile.system.owner.dispatcher + SupervisorJob(ownerFile.system.owner.coroutineScope.coroutineContext.job))
+        CoroutineScope(
+            ownerFile.system.owner.dispatcher +
+                SupervisorJob(ownerFile.system.owner.coroutineScope.coroutineContext[Job])
+        )
 
-    private val executors = ConcurrentHashMap<UUID, ExecutionContext>()
+    private val serializableScope = EntityScope(scope.coroutineContext)
+    private val coroutineKey = SerializableCoroutineKey.of(
+        SerializableCoroutineKeyPart.Context(ScriptInstanceKey),
+        ScriptPathKey with ownerFile.path,
+        RootBlockKey with rootBlock.uuid,
+    )
+    private var isDefinitionRegistered = false
+    private var isStopped = false
 
     fun start() {
         DevLogs.startTrace(this)
+        registerLaunchDefinition()
 
-        launchBlockChain(rootBlock, stackToRestore = null)
+        serializableScope.launchSerializable(
+            key = coroutineKey,
+            policy = LaunchPolicy.CANCEL_OLD,
+        )
     }
 
     fun resume() {
-        val restoredExecutors = HashMap(executors)
-        executors.clear()
-
-        restoredExecutors.forEach { (triggerUuid, context) ->
-            val triggerBlock = ownerFile.allBlocks.find { it.uuid == triggerUuid } as? StartBlock
-            if (triggerBlock != null) {
-                launchBlockChain(triggerBlock, stackToRestore = context.stack)
-            }
-        }
+        registerLaunchDefinition()
     }
 
-    private fun launchBlockChain(startBlock: StartBlock, stackToRestore: BlockFrameStackElement?) {
-        val stackElement = stackToRestore ?: BlockFrameStackElement(this)
-        val interpreter = CodeBlockInterpreter<Unit>(startBlock)
+    private fun createStack(): BlockFrameStackElement = BlockFrameStackElement(this)
 
-        val context = ScriptContextElement(this) + stackElement
+    private fun registerLaunchDefinition() {
+        if (isDefinitionRegistered) return
 
-        val job = scope.launch(context) {
-            try {
+        serializableScope.registerSerializable(
+            SerializableCoroutineDefinition(
+                key = coroutineKey,
+                contextFactory = ::createStack,
+                context = ScriptContextElement(this),
+            ) {
+                val interpreter = CodeBlockInterpreter<Unit>(rootBlock)
                 scoped { interpreter.execute() }
-            } finally {
-                executors.remove(startBlock.uuid)
-                if (executors.isEmpty()) stop()
             }
-        }
+        )
 
-        executors[startBlock.uuid] = ExecutionContext(job, stackElement)
+        isDefinitionRegistered = true
     }
 
     fun stop() {
+        if (isStopped) return
+        isStopped = true
+
         DevLogs.endTrace(this)
+        serializableScope.cancelAll()
         scope.cancel()
         cleanup()
-    }
-
-    /**
-     * Логирует выполнение блока (вызывается из блоков)
-     */
-    fun logBlockExecution(block: ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel, stackDepth: Int) {
-        DevLogs.logBlockExecution(this, block, stackDepth, localVariables)
     }
 
     private fun cleanup() {
@@ -80,34 +83,46 @@ class ScriptInstance(
     fun serialize(tag: CompoundTag) {
         tag.putUUID("rootBlockId", rootBlock.uuid)
         tag.put("locals", CompoundTag().apply(localVariables::serialize))
-
-        val threadsTag = CompoundTag()
-        executors.forEach { (uuid, context) ->
-            val framesList = ListTag()
-            framesList.addAll(context.stack.frames.map { it.tag })
-            threadsTag.put(uuid.toString(), framesList)
-        }
-        tag.put("threads", threadsTag)
+        tag.put("threads", CompoundTag().apply(serializableScope::serialize))
     }
 
     fun deserialize(tag: CompoundTag) {
         localVariables.deserialize(tag.getCompound("locals"))
-
         val threadsTag = tag.getCompound("threads")
-        threadsTag.allKeys.forEach { key ->
-            val uuid = UUID.fromString(key)
-            val framesList = threadsTag.getList(key, 10)
 
-            // Восстанавливаем стек
-            val stackElement = BlockFrameStackElement(this)
-            stackElement.frames.addAll(framesList.map { BlockFrame(it as CompoundTag) })
-
-            executors[uuid] = ExecutionContext(Job(), stackElement)
+        if (threadsTag.contains("executions")) {
+            serializableScope.deserialize(threadsTag)
+            return
         }
+
+        // Backward compatibility for old ScriptInstance format (uuid -> ListTag<CompoundTag frames>)
+        val migrated = CompoundTag()
+        val migratedExecutions = ListTag()
+        threadsTag.allKeys.forEach { key ->
+            val frames = threadsTag.getList(key, 10)
+            val context = CompoundTag().apply { put("frames", frames) }
+            migratedExecutions.add(
+                CompoundTag().apply {
+                    val migratedKey = if (key == rootBlock.uuid.toString()) {
+                        coroutineKey
+                    } else {
+                        SerializableCoroutineKey.of(
+                            SerializableCoroutineKeyPart.Context(ScriptInstanceKey),
+                            ScriptPathKey with ownerFile.path,
+                            RootBlockKey with key,
+                        )
+                    }
+                    migratedKey.save(this)
+                    putString("state", "RUNNING")
+                    put("context", context)
+                }
+            )
+        }
+        migrated.put("executions", migratedExecutions)
+        serializableScope.deserialize(migrated)
     }
 
-    private data class ExecutionContext(
-        val job: Job,
-        val stack: BlockFrameStackElement,
-    )
+    private object ScriptInstanceKey : kotlin.coroutines.CoroutineContext.Key<kotlin.coroutines.CoroutineContext.Element>
+    private object ScriptPathKey : kotlin.coroutines.CoroutineContext.Key<kotlin.coroutines.CoroutineContext.Element>
+    private object RootBlockKey : kotlin.coroutines.CoroutineContext.Key<kotlin.coroutines.CoroutineContext.Element>
 }

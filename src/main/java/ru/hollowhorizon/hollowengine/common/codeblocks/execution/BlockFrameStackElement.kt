@@ -1,16 +1,21 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.execution
 
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.ListTag
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockFrame
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksDSL
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.ScriptInstance
+import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineContextElement
 import java.util.*
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.coroutineContext
 
-class BlockFrameStackElement(val instance: ScriptInstance) : AbstractCoroutineContextElement(Key) {
+class BlockFrameStackElement(
+    val instance: ScriptInstance,
+) : AbstractCoroutineContextElement(Key), SerializableCoroutineContextElement {
     companion object Key : CoroutineContext.Key<BlockFrameStackElement>
 
     private var index = 0
@@ -18,31 +23,39 @@ class BlockFrameStackElement(val instance: ScriptInstance) : AbstractCoroutineCo
 
     suspend fun <T> withScopedContext(action: suspend () -> T): T {
         val frame = if (index < frames.size) {
-            frames[index] // Берем существующий для восстановления
+            frames[index]
         } else {
-            frames.push(BlockFrame()) // Создаем новый, если это первый проход
+            frames.push(BlockFrame())
         }
 
-        index++ // Двигаем указатель внутрь
+        index++
 
         try {
             return withContext(frame) { action() }
         } finally {
-            // В теории это не обязательно, поскольку при десериализации мы в любом случае создаём новый контекст
             index--
-
-            // Если произошла отмена корутины, то мы должны её сохранить в оригинальном виде
-            // Вообще сохранение должно произойти до `cancel()`, но лучше перестраховаться
-            if (coroutineContext.isActive) {
+            if (currentCoroutineContext().isActive) {
                 frames.pop()
             }
         }
+    }
+
+    override fun save(tag: CompoundTag) {
+        val framesList = ListTag()
+        framesList.addAll(frames.map { it.tag })
+        tag.put("frames", framesList)
+    }
+
+    override fun load(tag: CompoundTag) {
+        frames.clear()
+        val framesList = tag.getList("frames", 10)
+        frames.addAll(framesList.map { BlockFrame(it as CompoundTag) })
     }
 }
 
 @CodeBlocksDSL
 suspend fun <T> scoped(block: suspend () -> T): T {
-    val context = coroutineContext[BlockFrameStackElement.Key] ?: error("Context not found!")
+    val context = currentCoroutineContext()[BlockFrameStackElement.Key] ?: error("Context not found!")
 
     return context.withScopedContext {
         block()
