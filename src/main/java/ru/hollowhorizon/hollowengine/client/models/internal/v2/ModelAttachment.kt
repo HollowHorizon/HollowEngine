@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
+import ru.hollowhorizon.hollowengine.client.models.internal.Material
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
@@ -18,63 +19,97 @@ import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 
 fun ModelAttachment(model: String) = ModelAttachment(HollowModelManager.getOrCreate(model.rl), null)
 class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) : Attachment(parent) {
-    val model get() = flow.value.model
+    private val rebuildLock = Any()
+    private var modelState: AnimatedModel = flow.value
+    private var runtimeNodes: List<RuntimeNode> = emptyList()
+    private var runtimeAnimations: Animations = Animations(emptyMap())
+    private var runtimeMaterials: Set<Material> = emptySet()
+    private var nodeIdToNode: Map<Int, RuntimeNode> = emptyMap()
+    private var nodeIdToTransform = emptyMap<Int, de.fabmax.kool.scene.TrsTransformF>()
+    @Volatile
+    private var compiledFor: AnimatedModel? = null
+    @Volatile
+    private var renderPipeline: ListRenderPipeline = ListRenderPipeline()
+
+    val model get() = modelState.model
+    val nodes get() = runtimeNodes
+    val animations get() = runtimeAnimations
+    val materials get() = runtimeMaterials
+    val pipeline: RenderPipeline
+        get() {
+            ensureCompiled(flow.value)
+            return renderPipeline
+        }
 
     init {
-        flow.onEach {
-            if(it.model.isBlockBench) {
-                transform.rotation.set(180f.deg, Vec3f.Y_AXIS)
-            }
-        }.launchIn(Minecraft.getInstance().coroutineScope)
+        ensureCompiled(flow.value)
+        flow.onEach { ensureCompiled(it) }.launchIn(Minecraft.getInstance().coroutineScope)
     }
 
-    val triangles by lazy {
+    val triangles get() =
         model.walkNodes().sumOf {
             it.mesh?.primitives?.sumOf { it.positionsCount / 3 } ?: 0
         }
-    }
-    val shapekeys by lazy {
+
+    val shapekeys get() =
         model.walkNodes().sumOf {
             it.mesh?.primitives?.sumOf { it.morphTargets.size } ?: 0
         }
-    }
+
     private val onUpdates = mutableListOf<ModelAttachment.() -> Unit>()
-    val nodes = model.scenes.getOrNull(model.scene)?.nodes?.map { RuntimeNode(it, this) } ?: emptyList()
-    val animations = Animations(model.animations.associate { it.name to AnimationInstance(it) })
-    val materials = model.materials
-    private val nodeIdToNode = nodes.flatMap { it.walk() }.associateBy { it.definition.index }
-    private val nodeIdToTransform = nodeIdToNode.mapValues { it.value.transform }
-
-    @PublishedApi
-    internal val pipeline by lazy {
-        ListRenderPipeline().apply(::collectCommands)
-    }
-
 
     fun onUpdate(action: ModelAttachment.() -> Unit) {
         onUpdates.add(action)
     }
 
+    private fun ensureCompiled(animated: AnimatedModel) {
+        if (compiledFor === animated) return
+
+        synchronized(rebuildLock) {
+            if (compiledFor === animated) return
+
+            if (animated.model.isBlockBench) {
+                transform.rotation.set(180f.deg, Vec3f.Y_AXIS)
+            }
+
+            modelState = animated
+            runtimeNodes = model.scenes.getOrNull(model.scene)?.nodes?.map { RuntimeNode(it, this) } ?: emptyList()
+            runtimeAnimations = Animations(model.animations.associate { it.name to AnimationInstance(it) })
+            runtimeMaterials = model.materials
+            nodeIdToNode = runtimeNodes.flatMap { it.walk() }.associateBy { it.definition.index }
+            nodeIdToTransform = nodeIdToNode.mapValues { it.value.transform }
+            renderPipeline = ListRenderPipeline().apply(this@ModelAttachment::collectCommands)
+            compiledFor = animated
+        }
+    }
+
     private fun update(dt: Float) {
-        nodeIdToTransform.forEach { (key, value) ->
-            val base = nodeIdToNode[key]?.definition?.baseTransform ?: return@forEach
+        val transforms = nodeIdToTransform
+        val indexedNodes = nodeIdToNode
+        val currentAnimations = runtimeAnimations
+
+        transforms.forEach { (key, value) ->
+            val base = indexedNodes[key]?.definition?.baseTransform ?: return@forEach
             value.set(base)
         }
 
         onUpdates.forEach { it() }
 
-        for (animation in animations) {
-            animation.update(nodeIdToTransform, dt)
+        for (animation in currentAnimations) {
+            animation.update(transforms, dt)
         }
     }
 
     override fun collectCommands(pipeline: RenderPipeline) {
         super.collectCommands(pipeline)
         pipeline.onUpdate { update(if (IrisHelper.isShadowRendering()) 0f else Time.deltaT) }
-        nodes.forEach { it.collectCommands(pipeline) }
+        runtimeNodes.forEach { it.collectCommands(pipeline) }
     }
 
-    fun child(name: String) = nodes.single { it.name == name }
+    fun child(name: String): RuntimeNode {
+        ensureCompiled(flow.value)
+        return runtimeNodes.single { it.name == name }
+    }
 }
 
 class Animations(private val map: Map<String, AnimationInstance>) : Collection<AnimationInstance> {

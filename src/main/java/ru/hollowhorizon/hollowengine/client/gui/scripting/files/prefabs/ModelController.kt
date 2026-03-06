@@ -10,6 +10,10 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.Time
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.texture.OverlayTexture
@@ -28,6 +32,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.GlCanvasModifier
 import ru.hollowhorizon.hollowengine.client.kool.GlCanvasNode
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
+import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
@@ -37,6 +42,7 @@ import ru.hollowhorizon.hollowengine.client.render.OpenGLUtils
 import ru.hollowhorizon.hollowengine.client.utils.exists
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.contracts.ExperimentalContracts
@@ -45,13 +51,21 @@ import kotlin.contracts.contract
 import kotlin.math.min
 
 class ModelController {
+    private var modelSwapJob: Job? = null
+
     val model = mutableStateOf("hollowengine:models/entity/player_model.gltf")
         .onChange { old, new ->
             if (new.isValidRL() && new.rl.exists() && HollowModelManager.supports(new.rl)) {
-                attachment = ModelAttachment(new)
-                animations = attachment.animations.map { it }
-                // Сбрасываем ID анимации при смене модели, чтобы избежать вылета
-                animationId.set(0)
+                val flow = HollowModelManager.getOrCreate(new.rl)
+                modelSwapJob?.cancel()
+                if (flow.value !== AnimatedModel.EMPTY) {
+                    applyAttachment(ModelAttachment(flow, null))
+                } else {
+                    modelSwapJob = Minecraft.getInstance().coroutineScope.launch {
+                        flow.filter { it !== AnimatedModel.EMPTY }.first()
+                        applyAttachment(ModelAttachment(flow, null))
+                    }
+                }
             }
         }
     var attachment: ModelAttachment = ModelAttachment(model.value)
@@ -70,6 +84,12 @@ class ModelController {
     val isWireframeVisible = mutableStateOf(false)
     val isGridVisible = mutableStateOf(true)
     val isAutoRotateEnabled = mutableStateOf(false)
+
+    private fun applyAttachment(newAttachment: ModelAttachment) {
+        attachment = newAttachment
+        animations = attachment.animations.map { it }
+        animationId.set(0)
+    }
 
     context(scope: UiScope)
     operator fun invoke() = with(scope) {

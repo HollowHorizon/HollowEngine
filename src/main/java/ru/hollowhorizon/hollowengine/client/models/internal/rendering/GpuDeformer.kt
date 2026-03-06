@@ -93,7 +93,7 @@ class GpuDeformer(private val primitive: Primitive) {
                     joints.forEach { j -> buffer.put(j.x).put(j.y).put(j.z).put(j.w) }
                     buffer.flip()
                     uploadData(buffer)
-                    GL33.glVertexAttribPointer(0, 4, GL33.GL_INT, false, 0, 0) // Важно: IPointer для int
+                    GL30.glVertexAttribIPointer(0, 4, GL33.GL_INT, 0, 0)
                     GL33.glEnableVertexAttribArray(0)
                 }
             }

@@ -65,6 +65,8 @@ data class Model(
 
     @Transient
     private var controllerCache: AnimationController? = null
+    @Transient
+    private var controllerUpdateJob: Job? = null
 
     suspend fun getOrCreateController(): AnimationController? {
         if (controllerScript.isBlank()) return null
@@ -85,9 +87,15 @@ data class Model(
         controllerCache = instance
         return instance
     }
-}
 
-private var updateJob: Job? = null
+    fun requestControllerUpdate(entity: LivingEntity, dt: Float) {
+        if (controllerUpdateJob?.isActive == true) return
+
+        controllerUpdateJob = Minecraft.getInstance().coroutineScope.launch {
+            getOrCreateController()?.update(entity, dt)
+        }
+    }
+}
 
 @SubscribeEvent
 fun onRender(event: RenderEntityEvent.Pre) {
@@ -98,11 +106,7 @@ fun onRender(event: RenderEntityEvent.Pre) {
     // Обновляем анимации если они включены
     model.animationSystem?.let { animationSystem ->
         if (event.entity is LivingEntity) {
-            if(updateJob?.isActive == false || updateJob == null) {
-                updateJob = Minecraft.getInstance().coroutineScope.launch {
-                    model.getOrCreateController()?.update(event.entity as LivingEntity, Time.deltaT)
-                }
-            }
+            model.requestControllerUpdate(event.entity as LivingEntity, Time.deltaT)
             animationSystem.update(Time.deltaT)
         }
     }

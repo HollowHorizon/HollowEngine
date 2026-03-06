@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.gltf
 
+import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.platform.NativeImage
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -26,6 +27,8 @@ data class GltfTexture(
 
     @Transient
     private lateinit var createdTex: DynamicTexture
+    @Transient
+    private var isRegistered = false
 
     fun makeTexture(location: ResourceLocation): ResourceLocation {
         val uri = imageRef.uri
@@ -59,10 +62,21 @@ data class GltfTexture(
                     )
                 )
             }
-
-            Minecraft.getInstance().textureManager.register(name.lowercase().rl, createdTex)
         }
-        return name.lowercase().rl
+
+        val textureId = name.lowercase().rl
+        if (!isRegistered) {
+            isRegistered = true
+            if (RenderSystem.isOnRenderThreadOrInit()) {
+                Minecraft.getInstance().textureManager.register(textureId, createdTex)
+            } else {
+                RenderSystem.recordRenderCall {
+                    Minecraft.getInstance().textureManager.register(textureId, createdTex)
+                }
+            }
+        }
+
+        return textureId
     }
 
     @Serializable

@@ -2,8 +2,6 @@ package ru.hollowhorizon.hollowengine.client.models.gltf
 
 import de.fabmax.kool.math.*
 import de.fabmax.kool.scene.TrsTransformF
-import kotlinx.coroutines.async
-import net.minecraft.client.Minecraft
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.HollowCore.MODID
 import ru.hollowhorizon.hollowengine.client.models.internal.*
@@ -11,7 +9,6 @@ import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
 import ru.hollowhorizon.hollowengine.client.utils.exists
-import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation as InternalAnimation
 
@@ -28,14 +25,11 @@ object GltfModelLoader : ModelLoader {
 
     suspend fun load(file: GltfFile, location: ResourceLocation, side: ModelSide): AnimatedModel {
         val skins = if (side == ModelSide.SERVER) emptyList() else parseSkins(file)
-        val materials = Minecraft.getInstance().coroutineScope.async {
-            if (side == ModelSide.SERVER) emptyList()
-            else file.materials.map { material ->
-                material.toMaterial(file, location)
-            }
+        val materials = if (side == ModelSide.SERVER) emptyList() else {
+            file.materials.map { material -> material.toMaterial(file, location) }
         }
 
-        val scenes = parseScenes(file, skins, materials.await(), side)
+        val scenes = parseScenes(file, skins, materials, side)
 
         val nodes = mutableListOf<NodeDefinition>()
 
@@ -57,7 +51,7 @@ object GltfModelLoader : ModelLoader {
                 AnimationLoader.createAnimation(nodes.associateBy { it.index }, it)
             }
 
-        val model = Model(file.scene, scenes, materials.await().toSet(), animations).apply {
+        val model = Model(file.scene, scenes, materials.toSet(), animations).apply {
             isBlockBench = file.asset.generator?.contains("blockbench", ignoreCase = true) == true
             for (skin in skins) {
                 walkNodes().forEach { node ->
