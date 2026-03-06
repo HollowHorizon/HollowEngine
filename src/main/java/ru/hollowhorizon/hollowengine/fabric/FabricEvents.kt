@@ -1,4 +1,4 @@
-//? if fabric {
+﻿//? if fabric {
 package ru.hollowhorizon.hollowengine.fabric
 
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
@@ -23,6 +23,7 @@ import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEven
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterEntityAttributesEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
 import ru.hollowhorizon.hollowengine.fabric.internal.DelegatedReloadListener
 
 object FabricEvents {
@@ -102,3 +103,4 @@ object FabricEvents {
     }
 }
 //?}
+

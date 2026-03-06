@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks.modules
+﻿package ru.hollowhorizon.hollowengine.common.codeblocks.modules
 
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockCategoryBuilder
@@ -32,19 +32,19 @@ object PlayerModule : BlockModule {
             block("hollowengine.gui.codeblocks.block.set_health".lang) { PlayerSetHealthBlock() }
             block("hollowengine.gui.codeblocks.block.heal".lang) { PlayerHealBlock() }
 
-            // --- Опыт ---
             block("hollowengine.gui.codeblocks.block.give_xp".lang) { PlayerGiveXpPointsBlock() }
             block("hollowengine.gui.codeblocks.block.give_level".lang) { PlayerGiveXpLevelsBlock() }
             block("hollowengine.gui.codeblocks.block.remove_xp".lang) { PlayerRemoveXpLevelsBlock() }
             block("hollowengine.gui.codeblocks.block.get_xp_level".lang) { GetPlayerXpLevelsBlock() }
             block("hollowengine.gui.codeblocks.block.get_xp_points".lang) { GetPlayerXpPointsBlock() }
 
-            // --- Разное ---
             block("hollowengine.gui.codeblocks.block.set_gamemode".lang) { PlayerGameModeBlock() }
             block("hollowengine.gui.codeblocks.block.get_gamemode".lang) { PlayerCheckGamemodeBlock() }
             block("hollowengine.gui.codeblocks.block.interact_entity".lang) { PlayerInteractWithEntity() }
             block("hollowengine.gui.codeblocks.block.interact_block".lang) { PlayerInteractWithBlock() }
             block("hollowengine.gui.codeblocks.block.interact_item".lang) { PlayerInteractWithItem() }
+            block("On player join") { OnPlayerJoinBlock() }
+            block("On player death") { OnPlayerDeathBlock() }
             block("hollowengine.gui.codeblocks.block.on_player_chat".lang) { OnPlayerChatBlock() }
         }
     }

@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players
+﻿package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players
 
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
@@ -12,12 +12,13 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOut
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.EventDrivenStartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentScriptEvent
+import ru.hollowhorizon.hollowengine.common.codeblocks.validation.EventContextProvider
 import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 
 @Serializable
 @SerialName("hollowengine:events/player_chat")
-class OnPlayerChatBlock : StartBlock(), EventDrivenStartBlock<ServerChatEvent> {
+class OnPlayerChatBlock : StartBlock(), EventDrivenStartBlock<ServerChatEvent>, EventContextProvider {
     override val color: Color get() = CodeBlocksColors.EVENTS
     private val playerOutput by outputDefault<Player>(
         name = PLAYER_OUTPUT,
@@ -73,6 +74,8 @@ class OnPlayerChatBlock : StartBlock(), EventDrivenStartBlock<ServerChatEvent> {
             }
         }
     }
+
+    override fun availableEventOutputs(): Set<String> = setOf("player", "message", "username")
 
     companion object {
         const val PLAYER_OUTPUT = "playerOutput"

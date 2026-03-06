@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks.blocks
+﻿package ru.hollowhorizon.hollowengine.common.codeblocks.blocks
 
 import de.fabmax.kool.modules.ui2.AlignmentY
 import de.fabmax.kool.modules.ui2.Text
@@ -28,12 +28,12 @@ class RepeatBlock : StatementBlock(), ContainerBlock {
         val frame = coroutineContext[BlockFrame.Key] ?: error("Block frame not found!")
 
         val repeatTimes = remember("times") { times().toInt() }
+        val completedIterations = frame.tag.getInt("index")
+        val remainingIterations = (repeatTimes - completedIterations).coerceAtLeast(0)
 
-        val expectedTimes = repeatTimes - frame.tag.getInt("index")
-
-        repeat(expectedTimes) {
+        repeat(remainingIterations) { iteration ->
             body()
-            frame.tag.putInt("index", it)
+            frame.tag.putInt("index", completedIterations + iteration + 1)
         }
     }
 

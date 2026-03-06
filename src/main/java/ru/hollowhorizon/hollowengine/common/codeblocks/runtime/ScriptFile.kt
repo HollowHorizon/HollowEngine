@@ -1,11 +1,14 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
+﻿package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
+import kotlinx.coroutines.withContext
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnEventBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.LocalVariableDeclaration
 import ru.hollowhorizon.hollowengine.common.codeblocks.createContainer
+import ru.hollowhorizon.hollowengine.common.codeblocks.execution.CodeBlockInterpreter
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
@@ -15,7 +18,10 @@ import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.common.events.EventListener
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 class ScriptFile(
     val system: BlocksSystem,
@@ -34,10 +40,13 @@ class ScriptFile(
         private set
 
     private val listeners = CopyOnWriteArrayList<ListenerBinding>()
+    private val queuedLaunches = ConcurrentHashMap<BranchKey, ArrayDeque<PendingLaunch>>()
+    private val offlineLaunches = ConcurrentHashMap<OwnerKey, ArrayDeque<PendingLaunch>>()
 
     fun setEnabled(value: Boolean) {
         if (isEnabled == value) return
         isEnabled = value
+        system.markDirty()
         if (!value) {
             stopAll()
         } else {
@@ -60,8 +69,11 @@ class ScriptFile(
     @Deprecated("Use setEnabled(false).")
     fun stopAll() {
         unregisterEventListeners()
+        queuedLaunches.clear()
+        offlineLaunches.clear()
         instances.toList().forEach { it.stop() }
         instances.clear()
+        system.markDirty()
     }
 
     fun serialize(tag: CompoundTag) {
@@ -112,8 +124,16 @@ class ScriptFile(
         return entity.coroutineScope as? EntityScope
     }
 
-    internal fun unregisterInstance(instance: ScriptInstance) {
+    internal fun onInstanceCompleted(instance: ScriptInstance) {
         instances.remove(instance)
+        system.markDirty()
+        dequeueNext(instance.branchKey)
+    }
+
+    internal fun onInstanceUnavailable(instance: ScriptInstance) {
+        instances.remove(instance)
+        enqueueOffline(instance.ownerKey, PendingLaunch(instance.rootBlock, instance.ownerKey, EmptyCoroutineContext))
+        system.markDirty()
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -124,7 +144,12 @@ class ScriptFile(
                 if (!trigger.shouldHandle(event)) return
 
                 val entity = trigger.resolveScopeEntity(event) ?: return
-                launchNewInstance(trigger as StartBlock, entity.uuid, event)
+                resumeInstancesForOwner(entity.uuid)
+                launchConfiguredInstance(
+                    rootBlock = trigger as StartBlock,
+                    ownerKey = entity.uuid.toOwnerKey(),
+                    triggerContext = ScriptEventContextElement(event),
+                )
             }
         }
 
@@ -132,8 +157,86 @@ class ScriptFile(
         listeners += ListenerBinding(trigger.eventType as Class<Event>, listener as EventListener<Event>)
     }
 
-    private fun launchNewInstance(rootBlock: StartBlock, ownerEntityId: UUID, triggerEvent: Event): ScriptInstance {
-        val instance = ScriptInstance(this, rootBlock, ownerEntityId, triggerEvent = triggerEvent)
+    fun launchSignal(signal: ScriptSignal) {
+        if (!isEnabled) return
+        matchingSignalHandlers(signal).forEach { handler ->
+            launchConfiguredInstance(
+                rootBlock = handler,
+                ownerKey = signal.owner,
+                triggerContext = ScriptSignalContextElement(signal),
+            )
+        }
+    }
+
+    suspend fun callSignal(signal: ScriptSignal) {
+        if (!isEnabled) return
+        matchingSignalHandlers(signal).forEach { handler ->
+            val body = handler.next ?: return@forEach
+            withContext(ScriptSignalContextElement(signal)) {
+                CodeBlockInterpreter<Unit>(body).execute()
+            }
+        }
+    }
+
+    fun getActiveBranchSnapshots(): List<ActiveBranchSnapshot> {
+        val grouped = instances.groupBy { it.branchKey }
+        return grouped.map { (key, branchInstances) ->
+            val active = branchInstances.first()
+            val queueLength = queuedLaunches[key]?.size ?: 0
+            val state = if (active.ownerEntityId != null && resolveEntityScope(active.ownerEntityId) == null) {
+                BranchState.FROZEN
+            } else {
+                BranchState.RUNNING
+            }
+            ActiveBranchSnapshot(key, active.rootBlock.repeatPolicy, state, null, queueLength)
+        }
+    }
+
+    private fun launchConfiguredInstance(
+        rootBlock: StartBlock,
+        ownerKey: OwnerKey,
+        triggerContext: CoroutineContext,
+    ) {
+        val branchKey = rootBlock.buildBranchKey(path, ownerKey)
+        val active = instances.filter { it.branchKey == branchKey }
+        val pending = PendingLaunch(rootBlock, ownerKey, triggerContext)
+
+        when (rootBlock.repeatPolicy) {
+            RepeatPolicy.PARALLEL -> launchInstanceNow(pending)
+            RepeatPolicy.IGNORE -> if (active.isEmpty()) launchOrQueueOffline(pending)
+            RepeatPolicy.RESTART -> {
+                queuedLaunches.remove(branchKey)
+                active.forEach { it.stop() }
+                launchOrQueueOffline(pending)
+            }
+            RepeatPolicy.QUEUE -> {
+                if (active.isEmpty()) {
+                    launchOrQueueOffline(pending)
+                } else {
+                    queuedLaunches.getOrPut(branchKey, ::ArrayDeque).addLast(pending)
+                    system.markDirty()
+                }
+            }
+        }
+    }
+
+    private fun launchOrQueueOffline(pending: PendingLaunch) {
+        val ownerEntityId = pending.ownerKey.entityIdOrNull()
+        if (ownerEntityId != null && resolveEntityScope(ownerEntityId) == null) {
+            enqueueOffline(pending.ownerKey, pending)
+            system.markDirty()
+            return
+        }
+        launchInstanceNow(pending)
+    }
+
+    private fun launchInstanceNow(pending: PendingLaunch): ScriptInstance {
+        val instance = ScriptInstance(
+            ownerFile = this,
+            rootBlock = pending.rootBlock,
+            ownerEntityId = pending.ownerKey.entityIdOrNull(),
+            triggerContext = pending.triggerContext,
+        )
 
         declaredLocalVariables.forEach { (name, type) ->
             if (!instance.localVariables.contains(name)) {
@@ -143,21 +246,12 @@ class ScriptFile(
 
         instances.add(instance)
         instance.start()
+        system.markDirty()
         return instance
     }
 
     private fun launchLegacyInstance(rootBlock: StartBlock): ScriptInstance {
-        val instance = ScriptInstance(this, rootBlock, ownerEntityId = null)
-
-        declaredLocalVariables.forEach { (name, type) ->
-            if (!instance.localVariables.contains(name)) {
-                instance.localVariables[name] = createContainer(type)
-            }
-        }
-
-        instances.add(instance)
-        instance.start()
-        return instance
+        return launchInstanceNow(PendingLaunch(rootBlock, OwnerKey.Global, EmptyCoroutineContext))
     }
 
     private fun unregisterEventListeners() {
@@ -176,8 +270,40 @@ class ScriptFile(
         return null
     }
 
+    private fun matchingSignalHandlers(signal: ScriptSignal): List<OnEventBlock> {
+        return allBlocks
+            .filterIsInstance<OnEventBlock>()
+            .filter { it.signalScope == signal.scope && it.signalName == signal.name }
+    }
+
+    private fun dequeueNext(branchKey: BranchKey) {
+        val queue = queuedLaunches[branchKey] ?: return
+        val next = queue.removeFirstOrNull()
+        if (queue.isEmpty()) {
+            queuedLaunches.remove(branchKey)
+        }
+        next?.let(::launchOrQueueOffline)
+    }
+
+    private fun enqueueOffline(ownerKey: OwnerKey, pending: PendingLaunch) {
+        offlineLaunches.getOrPut(ownerKey, ::ArrayDeque).addLast(pending)
+    }
+
+    private fun resumeInstancesForOwner(entityId: UUID) {
+        val ownerKey = entityId.toOwnerKey()
+        instances.filter { it.ownerKey == ownerKey }.forEach { it.resume() }
+        val queue = offlineLaunches.remove(ownerKey) ?: return
+        queue.forEach(::launchInstanceNow)
+    }
+
     private data class ListenerBinding(
         val eventType: Class<Event>,
         val listener: EventListener<Event>,
+    )
+
+    private data class PendingLaunch(
+        val rootBlock: StartBlock,
+        val ownerKey: OwnerKey,
+        val triggerContext: CoroutineContext,
     )
 }

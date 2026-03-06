@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events
+﻿package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events
 
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
@@ -19,8 +19,6 @@ class OnStartBlock : StartBlock() {
     override suspend fun trigger() {
         await<BlocksSystemReloadedEvent>()
     }
-
-    override suspend fun execute() {}
 
     override fun InputSlotScope.composeContent() {
         Text("hollowengine.gui.codeblocks.block.on_start".lang) {

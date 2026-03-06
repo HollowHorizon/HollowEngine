@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
+﻿package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
@@ -16,6 +16,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 class BlocksSystem(val owner: MinecraftServer) {
     val scripts = mutableMapOf<String, ScriptFile>()
     private val persistRecoveredScript = PersistRecoveredScriptUseCase()
+    internal var dirtyListener: (() -> Unit)? = null
 
     val format = CodeBlockFormat(BlockRepository.create("Scripts") {
         include(StandardModules.AllBasics)
@@ -44,7 +45,10 @@ class BlocksSystem(val owner: MinecraftServer) {
 
     fun onAttach() {
         BlocksSystemReloadedEvent().post()
+    }
 
+    fun markDirty() {
+        dirtyListener?.invoke()
     }
 
     fun reloadScripts() {
@@ -76,9 +80,33 @@ class BlocksSystem(val owner: MinecraftServer) {
                 }
             }
     }
+
+    fun emitSignal(signal: ScriptSignal) {
+        val targetScripts = when (signal.scope) {
+            SignalScope.LOCAL -> listOfNotNull(scripts[signal.sourceScriptPath])
+            SignalScope.GLOBAL -> scripts.values.toList()
+        }
+
+        targetScripts.forEach { it.launchSignal(signal) }
+    }
+
+    suspend fun callSignal(signal: ScriptSignal) {
+        val targetScripts = when (signal.scope) {
+            SignalScope.LOCAL -> listOfNotNull(scripts[signal.sourceScriptPath])
+            SignalScope.GLOBAL -> scripts.values.toList()
+        }
+
+        targetScripts.forEach { it.callSignal(signal) }
+    }
+
+    fun getActiveBranchSnapshots(): List<ActiveBranchSnapshot> {
+        return scripts.values
+            .flatMap { it.getActiveBranchSnapshots() }
+            .sortedWith(compareBy({ it.key.scriptPath }, { it.key.startBlockId.toString() }))
+    }
 }
 
-class BlocksSystemReloadedEvent: Event
+class BlocksSystemReloadedEvent : Event
 
 fun BlocksSystem.getDevHistory(scriptPath: String) = DevLogs.getHistory(scriptPath)
 fun BlocksSystem.getDevSlow(scriptPath: String) = DevLogs.getSlow(scriptPath)

@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
+﻿package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
@@ -7,7 +7,7 @@ import net.minecraft.world.level.saveddata.SavedData
 class BlocksSystemSavedData private constructor(
     private val server: MinecraftServer,
 ) : SavedData() {
-    val system: BlocksSystem = BlocksSystem(server)
+    val system: BlocksSystem = BlocksSystem(server).also { it.dirtyListener = ::markDirty }
 
     fun markDirty() {
         setDirty()

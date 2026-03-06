@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
+﻿package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -10,13 +10,15 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.coroutines.*
 import ru.hollowhorizon.hollowengine.common.dev.DevLogs
 import java.util.UUID
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 class ScriptInstance(
     val ownerFile: ScriptFile,
     val rootBlock: StartBlock,
     val ownerEntityId: UUID?,
     val instanceId: UUID = UUID.randomUUID(),
-    private val triggerEvent: ru.hollowhorizon.hollowengine.common.events.Event? = null,
+    private val triggerContext: CoroutineContext = EmptyCoroutineContext,
 ) {
     val localVariables = VariableMap()
     private var launchJob: Job? = null
@@ -33,10 +35,12 @@ class ScriptInstance(
     )
     private var isDefinitionRegistered = false
     private var isStopped = false
+    val ownerKey: OwnerKey = ownerEntityId?.toOwnerKey() ?: OwnerKey.Global
+    val branchKey: BranchKey = rootBlock.buildBranchKey(ownerFile.path, ownerKey)
 
     fun start() {
         val scope = resolveLaunchScope() ?: run {
-            ownerFile.unregisterInstance(this)
+            ownerFile.onInstanceUnavailable(this)
             return
         }
 
@@ -54,6 +58,9 @@ class ScriptInstance(
         registerLaunchDefinition(scope)
     }
 
+    fun currentBlockId(): UUID? = null
+
+
     private fun resolveLaunchScope(): EntityScope? {
         return ownerEntityId?.let(ownerFile::resolveEntityScope) ?: fallbackScope
     }
@@ -63,8 +70,7 @@ class ScriptInstance(
     private fun registerLaunchDefinition(scope: EntityScope) {
         if (isDefinitionRegistered) return
 
-        val eventContext = triggerEvent?.let(::ScriptEventContextElement)
-        val baseContext = ScriptContextElement(this) + (eventContext ?: kotlin.coroutines.EmptyCoroutineContext)
+        val baseContext = ScriptContextElement(this) + triggerContext
 
         scope.registerSerializable(
             SerializableCoroutineDefinition(
@@ -78,7 +84,7 @@ class ScriptInstance(
                 } catch (_: SkipScriptEventExecution) {
                     // The incoming event does not match this start block conditions.
                 } finally {
-                    ownerFile.unregisterInstance(this@ScriptInstance)
+                    ownerFile.onInstanceCompleted(this@ScriptInstance)
                 }
             }
         )
@@ -104,7 +110,7 @@ class ScriptInstance(
     }
 
     private fun cleanup() {
-        ownerFile.unregisterInstance(this)
+        ownerFile.onInstanceCompleted(this)
     }
 
     fun serialize(tag: CompoundTag) {
@@ -123,3 +129,6 @@ class ScriptInstance(
     private object RootBlockKey : kotlin.coroutines.CoroutineContext.Key<kotlin.coroutines.CoroutineContext.Element>
     private object InstanceIdKey : kotlin.coroutines.CoroutineContext.Key<kotlin.coroutines.CoroutineContext.Element>
 }
+
+
+

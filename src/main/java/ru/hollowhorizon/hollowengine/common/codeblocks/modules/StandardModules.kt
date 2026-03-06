@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks.modules
+﻿package ru.hollowhorizon.hollowengine.common.codeblocks.modules
 
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockEntry
@@ -8,10 +8,13 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.TextCom
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.TextMergerBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CallCustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnEventBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnStartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.items.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.math.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.nbt.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerDeathBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerJoinBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.PlayerSelectedBlockPopupBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.PlayerSelectedItemPopupBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.*
@@ -179,11 +182,12 @@ object StandardModules {
     val Events: BlockModule = {
         category("hollowengine.gui.codeblocks.category.events".lang, icons.EVENTS) {
             block("hollowengine.gui.codeblocks.block.on_start".lang) { OnStartBlock() }
-            //block("При событии") { OnEventBlock() }
-            //block("Отправить событие") { SendEventBlock("") }
+            block("On signal") { OnEventBlock() }
+            block("Send signal") { SendEventBlock("") }
+            block("Call signal") { CallEventBlock("") }
 
-            //block("При входе игрока") { OnPlayerJoinBlock() }
-            //block("При смерти игрока") { OnPlayerDeathBlock() }
+            block("On player join") { OnPlayerJoinBlock() }
+            block("On player death") { OnPlayerDeathBlock() }
         }
     }
 
@@ -213,3 +217,5 @@ object StandardModules {
         include(Types)
     }
 }
+
+

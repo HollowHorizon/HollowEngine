@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
+﻿package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksDSL
@@ -43,6 +43,7 @@ suspend fun setVariable(name: String, value: Any?) {
     val variable = instance.localVariables[name]
         ?: error("Variable with name $name not found!")
     variable.set(JavaHacks.forceCast(value))
+    instance.ownerFile.system.markDirty()
 }
 
 @Deprecated("Global variables are removed. Use local variables only.")
