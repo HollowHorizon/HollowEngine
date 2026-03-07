@@ -1,35 +1,27 @@
 import de.fabmax.kool.util.Color
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockFrame
+import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.BlockFrameStackElement
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.CodeBlockInterpreter
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.ExpressionBlockInterpreter
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.scoped
-import ru.hollowhorizon.hollowengine.common.codeblocks.expressionTypeOrNull
-import ru.hollowhorizon.hollowengine.common.codeblocks.forget
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.remember
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystem
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.ScriptContextElement
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.ScriptFile
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.ScriptInstance
-import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import sun.misc.Unsafe
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 private fun unsafe(): Unsafe {
     val field = Unsafe::class.java.getDeclaredField("theUnsafe")
@@ -93,7 +85,10 @@ private suspend fun executeStatement(root: StatementBlock, stack: BlockFrameStac
 }
 
 @Suppress("UNCHECKED_CAST")
-private suspend fun <T : Any> executeExpression(expression: ExpressionBlock, stack: BlockFrameStackElement = stackWithFrame()): T {
+private suspend fun <T : Any> executeExpression(
+    expression: ExpressionBlock,
+    stack: BlockFrameStackElement = stackWithFrame(),
+): T {
     return withRuntimeContext(stack) {
         scoped {
             ExpressionBlockInterpreter<T>(expression).execute()
@@ -138,6 +133,7 @@ private class SequenceBoolBlock(values: List<Boolean>) : ExpressionBlock() {
     override fun InputSlotScope.composeContent() = Unit
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class CodeBlockExecutionCoreTests {
     @Test
     fun `remember caches value and forget clears it`() = runTest {
