@@ -22,6 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityCoroutineScopeProvider;
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope;
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineScope;
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.OwnerScopeRestoredEvent;
 import ru.hollowhorizon.hollowengine.common.events.EventBus;
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityEvent;
 import ru.hollowhorizon.hollowengine.common.geary.api.EntityProvider;
@@ -64,6 +65,7 @@ public abstract class EntityMixin implements EntityProvider, EntityCoroutineScop
     private void deserializeExtra(CompoundTag tag, CallbackInfo ci) {
         GearyEntityExtensionsKt.loadComponentsFrom(hollowengine$entity, (Entity) (Object) this, tag.getCompound("geary"));
         hollowengine$coroutineScope.deserialize(tag.getCompound("EntityScope"));
+        EventBus.post(new OwnerScopeRestoredEvent((Entity) (Object) this));
     }
 
     @Inject(method = "hurt", at = @At("HEAD"), cancellable = true)
@@ -126,3 +128,5 @@ public abstract class EntityMixin implements EntityProvider, EntityCoroutineScop
         return hollowengine$coroutineScope;
     }
 }
+
+

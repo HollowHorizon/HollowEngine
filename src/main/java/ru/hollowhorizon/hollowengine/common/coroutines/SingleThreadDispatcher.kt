@@ -1,21 +1,17 @@
 package ru.hollowhorizon.hollowengine.common.coroutines
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Delay
+import kotlinx.coroutines.DisposableHandle
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.InternalCoroutinesApi
 import ru.hollowhorizon.hollowengine.HollowEngine
 import java.util.PriorityQueue
-import kotlin.Any
-import kotlin.Boolean
-import kotlin.Comparable
-import kotlin.Int
-import kotlin.Long
-import kotlin.OptIn
-import kotlin.String
-import kotlin.Throwable
-import kotlin.Unit
 import kotlin.collections.ArrayDeque
 import kotlin.coroutines.CoroutineContext
 import kotlin.synchronized
-import kotlin.with
 
 @OptIn(InternalCoroutinesApi::class)
 class SingleThreadDispatcher(private val name: String, private val thread: Thread) : CoroutineDispatcher(), Delay {
@@ -23,22 +19,16 @@ class SingleThreadDispatcher(private val name: String, private val thread: Threa
     private val queue = ArrayDeque<Runnable>()
     private val delayedQueue = PriorityQueue<ScheduledTask>()
     private var currentTick = 0L
-    private var shutdownDelegate: CoroutineDispatcher? = null
+    private var isShutdown = false
 
     override fun dispatch(context: CoroutineContext, block: Runnable) {
         synchronized(lock) {
-            val shutdownDelegate = shutdownDelegate
-            if (shutdownDelegate == null) {
-                queue.addLast(block)
-            } else {
-                shutdownDelegate.dispatch(context, block)
-            }
+            if (isShutdown) return
+            queue.addLast(block)
         }
     }
 
     override fun isDispatchNeeded(context: CoroutineContext): Boolean {
-        if (shutdownDelegate != null) return true
-
         return Thread.currentThread() != thread
     }
 
@@ -48,16 +38,25 @@ class SingleThreadDispatcher(private val name: String, private val thread: Threa
         continuation: CancellableContinuation<Unit>,
     ) {
         val ticks = (timeMillis + 49) / 50
+        val scheduledTask: ScheduledTask
+
         synchronized(lock) {
-            val targetTick = currentTick + ticks
-            val task = Runnable {
-                with(continuation) { resumeUndispatched(Unit) }
+            if (isShutdown) {
+                continuation.cancel(CancellationException("Dispatcher $name is shut down"))
+                return
             }
-            delayedQueue.add(ScheduledTask(targetTick, task))
-            continuation.invokeOnCancellation {
-                synchronized(lock) {
-                    delayedQueue.removeIf { it.task == task }
-                }
+
+            scheduledTask = ScheduledTask(
+                targetTick = currentTick + ticks,
+                task = Runnable { with(continuation) { resumeUndispatched(Unit) } },
+                onShutdown = { continuation.cancel(CancellationException("Dispatcher $name is shut down")) },
+            )
+            delayedQueue.add(scheduledTask)
+        }
+
+        continuation.invokeOnCancellation {
+            synchronized(lock) {
+                delayedQueue.remove(scheduledTask)
             }
         }
     }
@@ -67,8 +66,9 @@ class SingleThreadDispatcher(private val name: String, private val thread: Threa
         val scheduledTask: ScheduledTask
 
         synchronized(lock) {
-            val targetTick = currentTick + ticks
-            scheduledTask = ScheduledTask(targetTick, block)
+            if (isShutdown) return DisposableHandle {}
+
+            scheduledTask = ScheduledTask(targetTick = currentTick + ticks, task = block)
             delayedQueue.add(scheduledTask)
         }
 
@@ -81,8 +81,9 @@ class SingleThreadDispatcher(private val name: String, private val thread: Threa
 
     fun runTasks() {
         synchronized(lock) {
-            currentTick++
+            if (isShutdown) return
 
+            currentTick++
             while (delayedQueue.isNotEmpty()) {
                 val head = delayedQueue.peek()
                 if (head.targetTick <= currentTick) {
@@ -95,37 +96,39 @@ class SingleThreadDispatcher(private val name: String, private val thread: Threa
         }
 
         var tasksToRun = synchronized(lock) { queue.size }
-
         while (tasksToRun > 0) {
             val task = synchronized(lock) { queue.removeFirstOrNull() } ?: break
-
             try {
                 task.run()
             } catch (e: Throwable) {
                 HollowEngine.LOGGER.error("Exception while running coroutine!", e)
             }
-
             tasksToRun--
         }
     }
 
     fun shutdown() {
-        while (true) {
-            runTasks()
-            synchronized(lock) {
-                if (queue.isEmpty()) {
-                    shutdownDelegate = Dispatchers.IO.limitedParallelism(1)
-                    return
-                }
-            }
+        val delayedToCancel = synchronized(lock) {
+            if (isShutdown) return
+            isShutdown = true
+            val pending = delayedQueue.toList()
+            queue.clear()
+            delayedQueue.clear()
+            pending
         }
+
+        delayedToCancel.forEach { it.onShutdown?.invoke() }
     }
 
     override fun toString(): String {
         return name
     }
 
-    private data class ScheduledTask(val targetTick: Long, val task: Runnable) : Comparable<ScheduledTask> {
-        override fun compareTo(other: ScheduledTask): Int = this.targetTick.compareTo(other.targetTick)
+    private data class ScheduledTask(
+        val targetTick: Long,
+        val task: Runnable,
+        val onShutdown: (() -> Unit)? = null,
+    ) : Comparable<ScheduledTask> {
+        override fun compareTo(other: ScheduledTask): Int = targetTick.compareTo(other.targetTick)
     }
 }

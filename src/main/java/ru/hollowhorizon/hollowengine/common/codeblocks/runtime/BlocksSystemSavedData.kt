@@ -1,8 +1,11 @@
-﻿package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
+package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
+import net.minecraft.world.level.Level
 import net.minecraft.world.level.saveddata.SavedData
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent
 
 class BlocksSystemSavedData private constructor(
     private val server: MinecraftServer,
@@ -27,13 +30,25 @@ class BlocksSystemSavedData private constructor(
                 { tag ->
                     BlocksSystemSavedData(server).apply {
                         system.deserialize(tag)
-                        system.onAttach()
                     }
                 },
-                { BlocksSystemSavedData(server) },
+                {
+                    BlocksSystemSavedData(server).apply {
+                        system.reloadScripts()
+                    }
+                },
                 DATA_NAME,
             )
             return data.system
         }
+    }
+}
+
+@SubscribeEvent
+fun onServerStart(event: LevelEvent.Load) {
+    if (event.level.dimension() != Level.OVERWORLD) return
+
+    event.level.server?.let {
+        BlocksSystemSavedData.get(it)
     }
 }

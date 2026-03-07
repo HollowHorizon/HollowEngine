@@ -1,4 +1,4 @@
-﻿package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
+package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
@@ -52,6 +52,8 @@ class BlocksSystem(val owner: MinecraftServer) {
     }
 
     fun reloadScripts() {
+        val enabledStates = scripts.mapValues { it.value.isEnabled }
+
         scripts.values.forEach { it.stopAll() }
         scripts.clear()
 
@@ -72,13 +74,16 @@ class BlocksSystem(val owner: MinecraftServer) {
                         )
                     }
                     val blocks = report.blocks
-                    scripts[readablePath] = ScriptFile(this, readablePath, blocks).also {
-                        it.startAllTriggers()
+                    scripts[readablePath] = ScriptFile(this, readablePath, blocks).also { script ->
+                        val wasEnabled = enabledStates[readablePath] ?: true
+                        if (wasEnabled) script.startAllTriggers() else script.setEnabled(false)
                     }
                 } catch (e: Exception) {
                     HollowCore.LOGGER.error("Failed to load script: $readablePath", e)
                 }
             }
+
+        onAttach()
     }
 
     fun emitSignal(signal: ScriptSignal) {

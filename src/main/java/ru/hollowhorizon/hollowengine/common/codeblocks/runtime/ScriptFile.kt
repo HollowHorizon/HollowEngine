@@ -1,14 +1,17 @@
-﻿package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
+package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
 import kotlinx.coroutines.withContext
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.world.entity.Entity
+import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnEventBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.LocalVariableDeclaration
 import ru.hollowhorizon.hollowengine.common.codeblocks.createContainer
+import ru.hollowhorizon.hollowengine.common.codeblocks.execution.BlockFrameStackElement
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.CodeBlockInterpreter
+import ru.hollowhorizon.hollowengine.common.codeblocks.execution.scoped
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
@@ -57,10 +60,11 @@ class ScriptFile(
     @Deprecated("Use setEnabled(true). Trigger execution is now event-driven and bound to EntityScope.")
     fun startAllTriggers() {
         unregisterEventListeners()
+        registerOwnerScopeListener()
         allBlocks.filterIsInstance<StartBlock>().forEach { trigger ->
             if (trigger is EventDrivenStartBlock<*>) {
                 registerEventListener(trigger)
-            } else {
+            } else if (!hasGlobalInstanceFor(trigger)) {
                 launchLegacyInstance(trigger)
             }
         }
@@ -94,19 +98,22 @@ class ScriptFile(
         instancesList.forEach { entry ->
             val instTag = entry as? CompoundTag ?: return@forEach
             val rootId = instTag.getUUID("rootBlockId")
-            val root = allBlocks.find { b -> b.uuid == rootId } as? StartBlock ?: return@forEach
+            val root = allBlocks.find { b -> b.uuid == rootId } as? StartBlock
+            if (root == null) {
+                HollowCore.LOGGER.warn("Skipping restored script instance for {}: root block {} no longer exists", path, rootId)
+                return@forEach
+            }
             val ownerEntityId = if (instTag.contains("ownerEntityId")) instTag.getUUID("ownerEntityId") else null
             val instanceId = if (instTag.contains("instanceId")) instTag.getUUID("instanceId") else UUID.randomUUID()
 
-            val instance = ScriptInstance(
-                ownerFile = this,
-                rootBlock = root,
-                ownerEntityId = ownerEntityId,
-                instanceId = instanceId,
+            val instance = buildInstance(
+                PendingLaunch(
+                    rootBlock = root,
+                    ownerKey = ownerEntityId?.toOwnerKey() ?: OwnerKey.Global,
+                    triggerContext = EmptyCoroutineContext,
+                    instanceId = instanceId,
+                )
             )
-            declaredLocalVariables.forEach { (name, type) ->
-                instance.localVariables[name] = createContainer(type)
-            }
             instance.deserialize(instTag)
             instances.add(instance)
             instance.resume()
@@ -130,9 +137,13 @@ class ScriptFile(
         dequeueNext(instance.branchKey)
     }
 
+    internal fun onInstanceSuspended(instance: ScriptInstance) {
+        system.markDirty()
+    }
+
     internal fun onInstanceUnavailable(instance: ScriptInstance) {
         instances.remove(instance)
-        enqueueOffline(instance.ownerKey, PendingLaunch(instance.rootBlock, instance.ownerKey, EmptyCoroutineContext))
+        enqueueOffline(instance.ownerKey, PendingLaunch(instance.rootBlock, instance.ownerKey, instance.initialTriggerContext()))
         system.markDirty()
     }
 
@@ -157,6 +168,20 @@ class ScriptFile(
         listeners += ListenerBinding(trigger.eventType as Class<Event>, listener as EventListener<Event>)
     }
 
+    private fun registerOwnerScopeListener() {
+        val listener = object : EventListener<OwnerScopeRestoredEvent> {
+            override fun onEvent(event: OwnerScopeRestoredEvent) {
+                if (!isEnabled) return
+                resumeInstancesForOwner(event.entity.uuid)
+            }
+        }
+
+        EventBus.registerNoInline(OwnerScopeRestoredEvent::class.java as Class<Event>, listener as EventListener<Event>)
+        listeners += ListenerBinding(OwnerScopeRestoredEvent::class.java as Class<Event>, listener as EventListener<Event>)
+    }
+
+
+
     fun launchSignal(signal: ScriptSignal) {
         if (!isEnabled) return
         matchingSignalHandlers(signal).forEach { handler ->
@@ -171,9 +196,18 @@ class ScriptFile(
     suspend fun callSignal(signal: ScriptSignal) {
         if (!isEnabled) return
         matchingSignalHandlers(signal).forEach { handler ->
-            val body = handler.next ?: return@forEach
-            withContext(ScriptSignalContextElement(signal)) {
-                CodeBlockInterpreter<Unit>(body).execute()
+            val tempInstance = buildInstance(
+                PendingLaunch(
+                    rootBlock = handler,
+                    ownerKey = signal.owner,
+                    triggerContext = ScriptSignalContextElement(signal),
+                )
+            )
+
+            withContext(ScriptContextElement(tempInstance) + ScriptSignalContextElement(signal) + BlockFrameStackElement(tempInstance)) {
+                scoped {
+                    CodeBlockInterpreter<Unit>(handler).execute()
+                }
             }
         }
     }
@@ -188,7 +222,7 @@ class ScriptFile(
             } else {
                 BranchState.RUNNING
             }
-            ActiveBranchSnapshot(key, active.rootBlock.repeatPolicy, state, null, queueLength)
+            ActiveBranchSnapshot(key, active.rootBlock.repeatPolicy, state, active.currentBlockId(), queueLength)
         }
     }
 
@@ -231,10 +265,19 @@ class ScriptFile(
     }
 
     private fun launchInstanceNow(pending: PendingLaunch): ScriptInstance {
+        val instance = buildInstance(pending)
+        instances.add(instance)
+        instance.start()
+        system.markDirty()
+        return instance
+    }
+
+    private fun buildInstance(pending: PendingLaunch): ScriptInstance {
         val instance = ScriptInstance(
             ownerFile = this,
             rootBlock = pending.rootBlock,
             ownerEntityId = pending.ownerKey.entityIdOrNull(),
+            instanceId = pending.instanceId ?: UUID.randomUUID(),
             triggerContext = pending.triggerContext,
         )
 
@@ -244,9 +287,6 @@ class ScriptFile(
             }
         }
 
-        instances.add(instance)
-        instance.start()
-        system.markDirty()
         return instance
     }
 
@@ -276,6 +316,12 @@ class ScriptFile(
             .filter { it.signalScope == signal.scope && it.signalName == signal.name }
     }
 
+
+
+    private fun hasGlobalInstanceFor(trigger: StartBlock): Boolean {
+        return instances.any { it.rootBlock.uuid == trigger.uuid && it.ownerKey == OwnerKey.Global }
+    }
+
     private fun dequeueNext(branchKey: BranchKey) {
         val queue = queuedLaunches[branchKey] ?: return
         val next = queue.removeFirstOrNull()
@@ -293,7 +339,9 @@ class ScriptFile(
         val ownerKey = entityId.toOwnerKey()
         instances.filter { it.ownerKey == ownerKey }.forEach { it.resume() }
         val queue = offlineLaunches.remove(ownerKey) ?: return
-        queue.forEach(::launchInstanceNow)
+        queue.forEach { pending ->
+            launchConfiguredInstance(pending.rootBlock, pending.ownerKey, pending.triggerContext)
+        }
     }
 
     private data class ListenerBinding(
@@ -305,5 +353,11 @@ class ScriptFile(
         val rootBlock: StartBlock,
         val ownerKey: OwnerKey,
         val triggerContext: CoroutineContext,
+        val instanceId: UUID? = null,
     )
 }
+
+
+
+
+

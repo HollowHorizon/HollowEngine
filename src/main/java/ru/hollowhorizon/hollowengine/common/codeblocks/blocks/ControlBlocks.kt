@@ -5,6 +5,8 @@ import de.fabmax.kool.modules.ui2.Text
 import de.fabmax.kool.modules.ui2.alignY
 import de.fabmax.kool.modules.ui2.textColor
 import de.fabmax.kool.util.Color
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.yield
 import kotlinx.serialization.SerialName
@@ -28,7 +30,7 @@ class WhileBlock : StatementBlock(), ContainerBlock {
     val body by input<Unit>("body")
 
     override suspend fun execute() {
-        while (coroutineContext.isActive && remember("condition") { condition() }) {
+        while (currentCoroutineContext().isActive && remember("condition") { condition() }) {
             body()
             forget("condition")
             yield() // Следующая итерация только в следующем тике
@@ -55,8 +57,8 @@ class DelayBlock : StatementBlock() {
     override suspend fun execute() {
         val frame = coroutineContext[BlockFrame.Key] ?: error("Block frame not found")
         var remaining = frame.tag.getInt("remaining_ticks").takeIf { it > 0 } ?: (time().toFloat() * 20f).toInt()
-        while (remaining > 0) {
-            yield()
+        while (remaining > 0 && coroutineContext.isActive) {
+            delay(50)
             frame.tag.putInt("remaining_ticks", --remaining)
         }
     }

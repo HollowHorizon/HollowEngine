@@ -1,10 +1,11 @@
-﻿package ru.hollowhorizon.hollowengine.common.codeblocks.execution
+package ru.hollowhorizon.hollowengine.common.codeblocks.execution
 
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockFrame
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.find
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentFile
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentInstance
 import kotlin.coroutines.coroutineContext
 
 interface BlockModelInterpreter<T : Any> {
@@ -22,6 +23,7 @@ class CodeBlockInterpreter<T : Any>(val root: StatementBlock) : BlockModelInterp
     override suspend fun execute(): T {
         val frame = coroutineContext[BlockFrame.Key] ?: error("No frame found")
         val tag = frame.tag
+        val instance = currentInstance()
 
         var current: StatementBlock? =
             if (tag.contains("uuid")) root.find(tag.getUUID("uuid"))
@@ -30,11 +32,13 @@ class CodeBlockInterpreter<T : Any>(val root: StatementBlock) : BlockModelInterp
         var result: Any? = null
         while (current != null) {
             tag.putUUID("uuid", current.uuid)
+            instance.updateCurrentBlockId(current.uuid)
             currentFile().system.markDirty()
             val block: StatementBlock = current
             result = scoped { block.execute() }
             current = current.next
         }
+        instance.updateCurrentBlockId(null)
         return result as T
     }
 }

@@ -9,7 +9,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.BlockFrame
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksDSL
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.ScriptInstance
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineContextElement
-import java.util.*
+import java.util.Stack
+import java.util.UUID
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
@@ -50,6 +51,11 @@ class BlockFrameStackElement(
         frames.clear()
         val framesList = tag.getList("frames", 10)
         frames.addAll(framesList.map { BlockFrame(it as CompoundTag) })
+    }
+
+    internal fun currentBlockId(): UUID? {
+        val frame = frames.lastOrNull() ?: return null
+        return if (frame.tag.contains("uuid")) frame.tag.getUUID("uuid") else null
     }
 }
 

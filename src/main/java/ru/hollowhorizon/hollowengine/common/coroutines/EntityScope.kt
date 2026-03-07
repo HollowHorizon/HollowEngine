@@ -99,6 +99,14 @@ class EntityScope(override val coroutineContext: CoroutineContext) : Serializabl
         }
     }
 
+    fun hasSerializableExecution(key: SerializableCoroutineKey): Boolean {
+        return synchronized(lock) {
+            activeExecutions.containsKey(key) ||
+                queuedExecutions[key]?.isNotEmpty() == true ||
+                pendingRestore[key]?.isNotEmpty() == true
+        }
+    }
+
     fun cancelAll() {
         synchronized(lock) {
             activeExecutions.values.forEach { it.job.cancel() }
@@ -262,3 +270,6 @@ class EntityScope(override val coroutineContext: CoroutineContext) : Serializabl
         }
     }
 }
+
+
+

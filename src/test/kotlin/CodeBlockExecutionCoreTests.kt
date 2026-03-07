@@ -1,5 +1,8 @@
 import de.fabmax.kool.util.Color
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
@@ -286,6 +289,32 @@ class CodeBlockExecutionCoreTests {
     }
 
     @Test
+    fun `delay block waits for time and cancellation prevents next blocks`() = runTest {
+        val hits = mutableListOf<String>()
+        val delayBlock = DelayBlock().apply {
+            attachInput("time", TestValueBlock(5.0, typeOf<Number>()))
+        }
+        val after = RecordingStatementBlock { hits += "after" }
+        delayBlock.next = after
+        after.parent = delayBlock
+
+        val job = launch {
+            executeStatement(delayBlock)
+        }
+
+        runCurrent()
+        assertEquals(emptyList(), hits)
+
+        advanceTimeBy(4_900)
+        runCurrent()
+        assertEquals(emptyList(), hits)
+
+        job.cancel()
+        runCurrent()
+        assertEquals(emptyList(), hits)
+    }
+
+    @Test
     fun `math block handles all operations`() = runTest {
         val values = mapOf(
             MathOp.ADD to 7.0,
@@ -375,5 +404,3 @@ class CodeBlockExecutionCoreTests {
         assertTrue(AnyType.accepts(number.expressionTypeOrNull!!))
     }
 }
-
-

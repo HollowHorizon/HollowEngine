@@ -40,7 +40,7 @@ class DevLogger private constructor() {
     fun startTrace(scriptInstance: ScriptInstance) {
         if (!enabled()) return
 
-        val traceId = "${scriptInstance.ownerFile.path}::${System.nanoTime()}"
+        val traceId = "${scriptInstance.ownerFile.path}::${scriptInstance.instanceId}"
         val trace = ActiveTrace(
             scriptPath = scriptInstance.ownerFile.path,
             startTime = System.nanoTime(),
@@ -247,3 +247,5 @@ object DevLogs {
     fun getSlow(scriptPath: String) = logger.getSlowExecutions(scriptPath)
     fun clear() = logger.clearHistory()
 }
+
+
