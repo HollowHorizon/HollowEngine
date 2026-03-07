@@ -1,6 +1,5 @@
 {
   "itemGroup.hollowengine": "HollowEngine",
-
   "hollowengine.gui.tool.general": "Основное",
   "hollowengine.gui.tool.animations": "Анимации",
   "hollowengine.gui.tool.animations.idle": "Ожидание",
@@ -136,7 +135,6 @@
   "hollowengine.gui.ide.actions.create.script.codeblocks": "Скрипт (Блоки кода)",
   "hollowengine.gui.ide.actions.create.prefab.npc": "НИП",
   "hollowengine.gui.ide.actions.create.prefab.item": "Предмет",
-
   "hollowengine.gui.lang_editor.from": "Из: %s",
   "hollowengine.gui.lang_editor.to": "В: %s",
   "hollowengine.gui.lang_editor.search": "Поиск...",
@@ -146,7 +144,6 @@
   "hollowengine.gui.lang_editor.translation_key": "Ключ перевода",
   "hollowengine.gui.lang_editor.original": "Оригинал",
   "hollowengine.gui.lang_editor.translation": "Перевод",
-
   "hollowengine.gui.docs.category.beginners": "Для новичков",
   "hollowengine.gui.docs.category.scripting": "Скриптинг",
   "hollowengine.gui.docs.category.codeblocks": "Блоки кода",
@@ -155,17 +152,14 @@
   "hollowengine.gui.docs.category.npcs": "НИПы",
   "hollowengine.gui.docs.category.players": "Игроки",
   "hollowengine.gui.docs.category.recipes": "Рецепты",
-
   "hollowengine.gui.console.level": "Уровень:",
   "hollowengine.gui.console.filter": "Фильтр:",
   "hollowengine.gui.console.filter_hint": "Текст или Regex",
   "hollowengine.gui.console.execute": "Выполнить",
   "hollowengine.gui.console.command_hint": "Введите команду...",
-
   "hollowengine.gui.entity_editor.title": "Редактирование сущности: %s",
   "hollowengine.gui.entity_editor.components": "Компоненты",
   "hollowengine.gui.entity_editor.add_component": "Добавить компонент",
-
   "hollowengine.gui.model_controller.animation_control": "Управление анимацией",
   "hollowengine.gui.model_controller.no_animations": "Нет анимаций",
   "hollowengine.gui.model_controller.animations": "Анимации",
@@ -177,7 +171,6 @@
   "hollowengine.gui.model_controller.polygons": "Полигонов:",
   "hollowengine.gui.model_controller.animations_count": "Анимаций:",
   "hollowengine.gui.model_controller.shape_keys": "Шейп-кеев:",
-
   "hollowengine.gui.graph_editor.create_state": "Создать состояние",
   "hollowengine.gui.graph_editor.entry_state": "Начальное состояние",
   "hollowengine.gui.graph_editor.any_state": "Любое состояние",
@@ -214,7 +207,6 @@
   "hollowengine.gui.graph_editor.model": "Модель",
   "hollowengine.gui.graph_editor.animations_available": "Анимаций доступно",
   "hollowengine.gui.graph_editor.mini_map": "Мини-карта",
-
   "hollowengine.gui.block_context.block": "Блок",
   "hollowengine.gui.block_context.delete_selected": "Удалить выбранные (%d)",
   "hollowengine.gui.block_context.copy_uuid": "Копировать UUID",
@@ -222,7 +214,6 @@
   "hollowengine.gui.block_context.collapse": "Свернуть",
   "hollowengine.gui.block_context.duplicate": "Дублировать",
   "hollowengine.gui.block_context.delete": "Удалить",
-
   "hollowengine.gui.biome_modificator.title": "Модификатор биомов",
   "hollowengine.gui.biome_modificator.enable": "Включить модификатор биомов",
   "hollowengine.gui.biome_modificator.enable_skybox": "Включить скайбокс",
@@ -235,31 +226,24 @@
   "hollowengine.gui.biome_modificator.water_fog_color": "Цвет тумана в воде",
   "hollowengine.gui.biome_modificator.sun_size": "Размер солнца:",
   "hollowengine.gui.biome_modificator.moon_size": "Размер луны:",
-
   "hollowengine.gui.npc_tool.name": "Имя",
   "hollowengine.gui.npc_tool.model": "Модель",
-
   "hollowengine.gui.server_ide_warning.title": "Среда разработки на сервере отключена",
   "hollowengine.gui.server_ide_warning.message": "Среда разработки на сервере отключена. На это есть несколько причин:\n- Не понятно, какие файлы и скрипты должны быть на сервере, а какие на клиенте.\n- При изменении клиентских скриптов что делать с теми игроками, у которых их нет? Пересылать им эти скрипты не безопасно.\n- Что делать с библиотеками и исходным кодом? Откуда его брать, с клиента или с сервера?\nНу а также есть очень много мелких нюансов, вроде передачи больших файлов, синхронизации подсветки при работе нескольких игроков, прав доступа и т.п.\n\nСам мод работает на сервере, а скрипты вы всегда можете перенести вручную. Но для редактирования пока что доступен только одиночный режим.\nЕсли у вас есть мысли, как должен работать серверный редактор - напишите мне.",
-
   "hollowengine.gui.notification.title": "Уведомление",
   "hollowengine.gui.script.compiler_not_found": "HollowEngineCompiler.jar не найден",
   "hollowengine.gui.codeblocks.script": "Скрипт",
-
   "hollowengine.gui.image_editor.size": "Размер: %d",
   "hollowengine.gui.image_editor.zoom": "Масштаб: %dx",
   "hollowengine.gui.image_editor.save": "Сохранить",
   "hollowengine.gui.image_editor.alpha": "A: %d%%",
-
   "hollowengine.gui.prefab_editor.add_component": "Добавить компонент",
   "hollowengine.gui.prefab_editor.prefab_components": "Компоненты префаба",
   "hollowengine.gui.prefab_editor.all_components_added": "Все компоненты добавлены",
-
   "hollowengine.gui.item_editor.preview": "Предпросмотр",
   "hollowengine.gui.item_editor.no_item": "Нет предмета для этого id",
   "hollowengine.gui.item_editor.creative_tab": "Творческая вкладка",
   "hollowengine.gui.item_editor.tab_hint": "namespace:tab",
-
   "hollowengine.gui.codeblocks.category.world": "Мир",
   "hollowengine.gui.codeblocks.category.structures": "Структуры",
   "hollowengine.gui.codeblocks.category.players": "Игроки",
@@ -280,7 +264,6 @@
   "hollowengine.gui.codeblocks.category.events": "События",
   "hollowengine.gui.codeblocks.category.stops": "Завершения",
   "hollowengine.gui.codeblocks.category.loops": "Циклы",
-
   "hollowengine.gui.codeblocks.block.set_block": "Установить блок",
   "hollowengine.gui.codeblocks.block.update_block": "Обновить блок",
   "hollowengine.gui.codeblocks.block.remove_block": "Сломать блок",
@@ -293,7 +276,6 @@
   "hollowengine.gui.codeblocks.block.get_weather": "Получить погоду",
   "hollowengine.gui.codeblocks.block.set_weather": "Изменить погоду",
   "hollowengine.gui.codeblocks.block.place_schematic": "Разместить схематику",
-
   "hollowengine.gui.codeblocks.block.teleport": "Телепортировать",
   "hollowengine.gui.codeblocks.block.set_respawn": "Установить точку возрождения",
   "hollowengine.gui.codeblocks.block.send_message": "Отправить сообщение",
@@ -324,7 +306,6 @@
   "hollowengine.gui.codeblocks.block.interact_entity": "Взаимодействует с мобом",
   "hollowengine.gui.codeblocks.block.interact_block": "Взаимодействует с блоком",
   "hollowengine.gui.codeblocks.block.interact_item": "Использует предмет",
-
   "hollowengine.gui.codeblocks.label.player": "Игрок",
   "hollowengine.gui.codeblocks.label.player_to": "в",
   "hollowengine.gui.codeblocks.label.player_at": "на",
@@ -390,9 +371,8 @@
   "hollowengine.gui.codeblocks.block.npc_heal": "Исцелить",
   "hollowengine.gui.codeblocks.block.npc_hurt": "Нанести урон",
   "hollowengine.gui.codeblocks.block.npc_set_name": "Установить имя",
-  "hollowengine.gui.codeblocks.label.use_block":  "Использовать блок",
-  "hollowengine.gui.codeblocks.label.destroy_block":  "Сломать блок",
-
+  "hollowengine.gui.codeblocks.label.use_block": "Использовать блок",
+  "hollowengine.gui.codeblocks.label.destroy_block": "Сломать блок",
   "hollowengine.gui.codeblocks.block.get_position": "Получить координаты",
   "hollowengine.gui.codeblocks.block.get_name": "Получить имя",
   "hollowengine.gui.codeblocks.block.get_look_angle": "Вектор взгляда",
@@ -422,11 +402,9 @@
   "hollowengine.gui.codeblocks.block.swing_off": "Махнуть левой рукой",
   "hollowengine.gui.codeblocks.block.set_speed_modifier": "Задать модификатор скорости",
   "hollowengine.gui.codeblocks.block.raycast": "Raycast",
-
   "hollowengine.gui.codeblocks.block.print": "Вывод",
   "hollowengine.gui.codeblocks.block.delay": "Ждать",
   "hollowengine.gui.codeblocks.block.execute_command": "Выполнить команду",
-
   "hollowengine.gui.codeblocks.block.math_operation": "Операция",
   "hollowengine.gui.codeblocks.block.random": "Случайное число",
   "hollowengine.gui.codeblocks.block.trigonometry": "Тригонометрия",
@@ -439,14 +417,12 @@
   "hollowengine.gui.codeblocks.block.get_z": "Получить Z",
   "hollowengine.gui.codeblocks.block.pi": "Число Пи",
   "hollowengine.gui.codeblocks.block.e": "Экспонента",
-
   "hollowengine.gui.codeblocks.block.if_else": "Если/Иначе",
   "hollowengine.gui.codeblocks.block.if_block": "Если",
   "hollowengine.gui.codeblocks.block.compare": "Сравнение",
   "hollowengine.gui.codeblocks.block.logic": "Логические операторы",
   "hollowengine.gui.codeblocks.block.not": "Не",
   "hollowengine.gui.codeblocks.block.test": "Тест",
-
   "hollowengine.gui.codeblocks.block.string": "Строка",
   "hollowengine.gui.codeblocks.block.number": "Число",
   "hollowengine.gui.codeblocks.block.boolean": "Логический тип",
@@ -457,7 +433,6 @@
   "hollowengine.gui.codeblocks.block.get_player_by_name": "Получить игрока",
   "hollowengine.gui.codeblocks.block.text_component": "Текстовый компонент",
   "hollowengine.gui.codeblocks.block.text_merger": "Объединить компоненты",
-
   "hollowengine.gui.codeblocks.block.item_is_empty": "Пустой?",
   "hollowengine.gui.codeblocks.block.item_get_count": "Количество",
   "hollowengine.gui.codeblocks.block.item_get_max_stack": "Макс. стак",
@@ -478,7 +453,6 @@
   "hollowengine.gui.codeblocks.block.item_get_tag": "Получить NBT",
   "hollowengine.gui.codeblocks.block.item_set_tag": "Установить NBT",
   "hollowengine.gui.codeblocks.block.item_clear_tag": "Очистить NBT",
-
   "hollowengine.gui.codeblocks.block.nbt_new_compound": "{ }",
   "hollowengine.gui.codeblocks.block.nbt_new_list": "[ ]",
   "hollowengine.gui.codeblocks.block.nbt_parse": "NBT из SNBT",
@@ -499,11 +473,9 @@
   "hollowengine.gui.codeblocks.block.nbt_list_get_compound": "Список: Compound по индексу",
   "hollowengine.gui.codeblocks.block.nbt_list_add_string": "Список: добавить String",
   "hollowengine.gui.codeblocks.block.nbt_list_remove": "Список: удалить индекс",
-
   "hollowengine.gui.codeblocks.block.get_overworld": "Обычный мир",
   "hollowengine.gui.codeblocks.block.get_nether": "Незер",
   "hollowengine.gui.codeblocks.block.get_end": "Энд",
-
   "hollowengine.gui.codeblocks.block.set_var": "Присвоить",
   "hollowengine.gui.codeblocks.block.get_var": "Получить",
   "hollowengine.gui.codeblocks.block.get_var_named": "Получить %s",
@@ -511,10 +483,8 @@
   "hollowengine.gui.codeblocks.block.get_global_var": "Получить",
   "hollowengine.gui.codeblocks.block.set_entity_var": "Присвоить",
   "hollowengine.gui.codeblocks.block.get_entity_var": "Получить",
-
   "hollowengine.gui.codeblocks.block.create_function": "Создать функцию",
   "hollowengine.gui.codeblocks.block.call_function": "Вызвать %s",
-
   "hollowengine.gui.codeblocks.block.on_start": "При запуске системы",
   "hollowengine.gui.codeblocks.block.on_signal": "При Сигнале",
   "hollowengine.gui.codeblocks.block.send_signal": "Отправить сигнал",
@@ -527,13 +497,10 @@
   "hollowengine.gui.codeblocks.block.event_output_player": "Игрок события",
   "hollowengine.gui.codeblocks.block.event_output_message": "Сообщение события",
   "hollowengine.gui.codeblocks.block.event_output_username": "Имя игрока события",
-
   "hollowengine.gui.codeblocks.block.stop": "Завершить скрипт",
   "hollowengine.gui.codeblocks.block.stop_if": "Завершить скрипт, если",
-
   "hollowengine.gui.codeblocks.block.while_loop": "Пока",
   "hollowengine.gui.codeblocks.block.repeat": "Повторить",
-
   "hollowengine.gui.codeblocks.label.print": "Напечатать",
   "hollowengine.gui.codeblocks.label.else_branch": "Иначе",
   "hollowengine.gui.codeblocks.label.then": "then",
@@ -562,7 +529,6 @@
   "hollowengine.gui.codeblocks.label.event_item": "предмет:",
   "hollowengine.gui.codeblocks.label.event_hand": "рука:",
   "hollowengine.gui.codeblocks.label.event_damage_source": "источник урона:",
-
   "hollowengine.gui.codeblocks.hint.value": "Значение",
   "hollowengine.gui.codeblocks.hint.variable_name": "Имя переменной",
   "hollowengine.gui.codeblocks.hint.variable_name_local": "Имя переменной (L)",
@@ -570,7 +536,6 @@
   "hollowengine.gui.codeblocks.hint.function_name": "Имя функции",
   "hollowengine.gui.codeblocks.hint.message_name": "Название сообщения",
   "hollowengine.gui.codeblocks.hint.recipe": "ID рецепта",
-
   "hollowengine.gui.codeblocks.label.npc": "НИП",
   "hollowengine.gui.codeblocks.label.npc_says": "говорит:",
   "hollowengine.gui.codeblocks.label.npc_moves_to": "идёт на",
@@ -602,7 +567,6 @@
   "hollowengine.gui.codeblocks.label.health": "Здоровье",
   "hollowengine.gui.codeblocks.label.max_health": "Макс. здоровье",
   "hollowengine.gui.codeblocks.label.speed": "Скорость",
-
   "hollowengine.gui.codeblocks.label.player_message": "Сообщение",
   "hollowengine.gui.codeblocks.label.player_actionbar": "Панель действий",
   "hollowengine.gui.codeblocks.label.player_give_xp": "Выдать",
@@ -627,7 +591,6 @@
   "hollowengine.gui.codeblocks.label.player_has_item": "имеет предмет",
   "hollowengine.gui.codeblocks.label.player_remove_item": "Удалить из инвентаря",
   "hollowengine.gui.codeblocks.label.player_item": "предмет",
-
   "hollowengine.gui.codeblocks.label.entity": "Сущность",
   "hollowengine.gui.codeblocks.label.entity_is_attackable": "можно атаковать",
   "hollowengine.gui.codeblocks.label.entity_is_swimming": "плавает",
@@ -669,7 +632,6 @@
   "hollowengine.gui.codeblocks.label.entity_remove_effect": "Снять с",
   "hollowengine.gui.codeblocks.label.entity_effect": "эффект",
   "hollowengine.gui.codeblocks.label.entity_inventory": "Инвентарь",
-
   "hollowengine.gui.codeblocks.label.world_update_block": "Обновить блок в",
   "hollowengine.gui.codeblocks.label.world_set_block": "Установить блок",
   "hollowengine.gui.codeblocks.label.world_get_block": "Получить блок в",
@@ -697,7 +659,6 @@
   "hollowengine.gui.codeblocks.label.world_time_in": "Время в мире",
   "hollowengine.gui.codeblocks.label.world_set_time_in": "Установить время в мире",
   "hollowengine.gui.codeblocks.label.world_weather_in": "Погода в мире",
-
   "hollowengine.gui.codeblocks.label.item_empty": "пустой",
   "hollowengine.gui.codeblocks.label.item_count": "кол-во",
   "hollowengine.gui.codeblocks.label.item_max_stack": "макс. стак",
@@ -718,7 +679,6 @@
   "hollowengine.gui.codeblocks.label.item_get_nbt": "Получить NBT",
   "hollowengine.gui.codeblocks.label.item_set_nbt": "Установить NBT",
   "hollowengine.gui.codeblocks.label.item_clear_nbt": "Очистить NBT",
-
   "hollowengine.gui.codeblocks.label.nbt_compound": "{ } Составной",
   "hollowengine.gui.codeblocks.label.nbt_list": "[ ] Список",
   "hollowengine.gui.codeblocks.label.nbt_parse": "NBT из SNBT",
@@ -735,7 +695,6 @@
   "hollowengine.gui.codeblocks.label.nbt_list_size": "Размер списка",
   "hollowengine.gui.codeblocks.label.nbt_list_add": "Добавить String",
   "hollowengine.gui.codeblocks.label.nbt_list_remove": "Удалить индекс",
-
   "hollowengine.gui.codeblocks.label.variable_assign_local": "Присвоить (L):",
   "hollowengine.gui.codeblocks.label.variable_assign_global": "Присвоить (G):",
   "hollowengine.gui.codeblocks.label.variable_value": "=",
@@ -745,7 +704,6 @@
   "hollowengine.gui.codeblocks.label.variable_assign": "присвоить:",
   "hollowengine.gui.codeblocks.label.variable_get": "Значение переменной",
   "hollowengine.gui.codeblocks.label.variable_of": "у",
-
   "hollowengine.gui.codeblocks.label.vec_x": "X",
   "hollowengine.gui.codeblocks.label.vec_y": "Y",
   "hollowengine.gui.codeblocks.label.vec_z": "Z",
@@ -757,32 +715,53 @@
   "hollowengine.gui.codeblocks.label.vector_get_y": "Координата Y вектора",
   "hollowengine.gui.codeblocks.label.vector_get_z": "Координата Z вектора",
   "hollowengine.gui.codeblocks.label.distance_between": "Расстояние между",
-
   "hollowengine.gui.codeblocks.label.get_player_by_name": "Игрок с именем",
   "hollowengine.gui.codeblocks.label.text_component": "Текстовый компонент",
   "hollowengine.gui.codeblocks.label.text_merge": "объединить",
   "hollowengine.gui.codeblocks.label.text_value": "Значение",
-
   "hollowengine.gui.codeblocks.label.assign": "=",
   "hollowengine.gui.codeblocks.label.equals": "=",
   "hollowengine.gui.codeblocks.label.select_by": "Выбрать по",
   "hollowengine.gui.codeblocks.label.if_true": "Если истина",
   "hollowengine.gui.codeblocks.label.if_false": "Если ложь",
-
   "hollowengine.gui.codeblocks.label.variable_set": "Присвоить",
   "hollowengine.gui.codeblocks.label.variable_name": "Переменная",
   "hollowengine.gui.codeblocks.label.for_entity": "Для сущности",
-
   "hollowengine.gui.codeblocks.label.equipment_main_hand": "Главная рука",
   "hollowengine.gui.codeblocks.label.equipment_off_hand": "Второстепенная рука",
   "hollowengine.gui.codeblocks.label.equipment_head": "Голова",
   "hollowengine.gui.codeblocks.label.equipment_chest": "Тело",
   "hollowengine.gui.codeblocks.label.equipment_legs": "Ноги",
   "hollowengine.gui.codeblocks.label.equipment_feet": "Ступни",
-
-  "hollowengine.codeblocks.events.on_event": "При событии"
+  "hollowengine.codeblocks.events.on_event": "При событии",
+  "hollowengine.gui.codeblocks.block.entity_set_component": "Установить компонент",
+  "hollowengine.gui.codeblocks.block.entity_remove_component": "Удалить компонент",
+  "hollowengine.gui.codeblocks.block.entity_has_component": "Есть компонент?",
+  "hollowengine.gui.codeblocks.label.entity_set_component": "Установить компонент",
+  "hollowengine.gui.codeblocks.label.entity_remove_component": "Удалить компонент",
+  "hollowengine.gui.codeblocks.label.entity_has_component": "У сущности есть компонент",
+  "hollowengine.gui.codeblocks.label.entity_component": "Компонент",
+  "hollowengine.gui.codeblocks.label.component_select": "Выберите компонент",
+  "hollowengine.gui.codeblocks.label.component_id": "ID компонента",
+  "hollowengine.gui.codeblocks.label.component_unknown": "Неизвестный компонент: %s",
+  "hollowengine.gui.codeblocks.label.component_add_item": "Добавить предмет",
+  "hollowengine.gui.codeblocks.label.component_remove_item": "Удалить предмет",
+  "hollowengine.gui.codeblocks.label.component_move_up": "Выше",
+  "hollowengine.gui.codeblocks.label.component_move_down": "Ниже",
+  "hollowengine.gui.codeblocks.label.component_item": "Предмет",
+  "hollowengine.gui.codeblocks.label.component_empty": "Нет компонентов",
+  "hollowengine.gui.codeblocks.label.component_cannot_create_default": "Не удаётся создать значение по умолчанию для этого предмета",
+  "hollowengine.gui.codeblocks.label.component_unsupported_kind": "Неподдерживаемый тип: %s",
+  "hollowengine.gui.codeblocks.label.component_unsupported_field": "Неподдерживаемое поле: %s",
+  "hollowengine.gui.codeblocks.label.component_unsupported_item": "\u041d\u0435\u043f\u043e\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u043c\u044b\u0439 \u043f\u0440\u0435\u0434\u043c\u0435\u0442 \u0441\u043f\u0438\u0441\u043a\u0430",
+  "hollowengine.gui.codeblocks.label.component_invalid_number": "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u043e\u0435 \u0447\u0438\u0441\u043b\u043e",
+  "hollowengine.gui.codeblocks.label.component_invalid_uuid": "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0439 UUID",
+  "hollowengine.gui.codeblocks.label.component_invalid_identifier": "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0439 identifier",
+  "hollowengine.gui.codeblocks.label.component_invalid_vector": "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043a\u043e\u043e\u0440\u0434\u0438\u043d\u0430\u0442\u044b \u0432\u0440\u043e\u0434\u0435 0 64 0",
+  "hollowengine.gui.codeblocks.label.component_uuid_hint": "123e4567-e89b-12d3-a456-426614174000",
+  "hollowengine.gui.codeblocks.label.component_identifier_hint": "minecraft:overworld",
+  "hollowengine.gui.codeblocks.label.component_vector_hint": "x y z \u0438\u043b\u0438 x, y, z",
+  "hollowengine.gui.codeblocks.label.component_empty_reference": "\u0426\u0435\u043b\u044c \u043f\u0443\u0441\u0442\u0430, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0441\u0443\u0449\u043d\u043e\u0441\u0442\u044c \u043d\u0435 \u0431\u0443\u0434\u0435\u0442 \u043d\u0430\u0439\u0434\u0435\u043d\u0430",
+  "hollowengine.gui.codeblocks.label.component_uuid_label": "UUID",
+  "hollowengine.gui.codeblocks.label.component_dimension_label": "\u0418\u0437\u043c\u0435\u0440\u0435\u043d\u0438\u0435"
 }
-
-
-
-

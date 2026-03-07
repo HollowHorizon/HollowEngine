@@ -23,5 +23,5 @@ fun calculateSpeedViaDeltaMovement(entity: LivingEntity): Float {
 
     val deltaRot = entity.yBodyRot - entity.yBodyRotO
 
-    return (dot * 20f + deltaRot / 10f) * if(Minecraft.getInstance().isPaused) 0f else 1f
+    return (dot * 20f + deltaRot / 10f) * if (Minecraft.getInstance().isPaused) 0f else 1f
 }

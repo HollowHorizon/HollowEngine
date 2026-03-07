@@ -1,6 +1,5 @@
 {
   "itemGroup.hollowengine": "HollowEngine",
-
   "hollowengine.gui.tool.general": "General",
   "hollowengine.gui.tool.animations": "Animations",
   "hollowengine.gui.tool.animations.idle": "Idle",
@@ -136,7 +135,6 @@
   "hollowengine.gui.ide.actions.create.script.codeblocks": "Script (Code Blocks)",
   "hollowengine.gui.ide.actions.create.prefab.npc": "NPC",
   "hollowengine.gui.ide.actions.create.prefab.item": "Item",
-
   "hollowengine.gui.lang_editor.from": "From: %s",
   "hollowengine.gui.lang_editor.to": "To: %s",
   "hollowengine.gui.lang_editor.search": "Search...",
@@ -146,7 +144,6 @@
   "hollowengine.gui.lang_editor.translation_key": "Translation Key",
   "hollowengine.gui.lang_editor.original": "Original",
   "hollowengine.gui.lang_editor.translation": "Translation",
-
   "hollowengine.gui.docs.category.beginners": "For Beginners",
   "hollowengine.gui.docs.category.scripting": "Scripting",
   "hollowengine.gui.docs.category.codeblocks": "Code Blocks",
@@ -155,17 +152,14 @@
   "hollowengine.gui.docs.category.npcs": "NPCs",
   "hollowengine.gui.docs.category.players": "Players",
   "hollowengine.gui.docs.category.recipes": "Recipes",
-
   "hollowengine.gui.console.level": "Level:",
   "hollowengine.gui.console.filter": "Filter:",
   "hollowengine.gui.console.filter_hint": "Text or Regex",
   "hollowengine.gui.console.execute": "Execute",
   "hollowengine.gui.console.command_hint": "Enter command...",
-
   "hollowengine.gui.entity_editor.title": "Editing entity: %s",
   "hollowengine.gui.entity_editor.components": "Components",
   "hollowengine.gui.entity_editor.add_component": "Add Component",
-
   "hollowengine.gui.model_controller.animation_control": "Animation Control",
   "hollowengine.gui.model_controller.no_animations": "No animations",
   "hollowengine.gui.model_controller.animations": "Animations",
@@ -177,7 +171,6 @@
   "hollowengine.gui.model_controller.polygons": "Polygons:",
   "hollowengine.gui.model_controller.animations_count": "Animations:",
   "hollowengine.gui.model_controller.shape_keys": "Shape Keys:",
-
   "hollowengine.gui.graph_editor.create_state": "Create State",
   "hollowengine.gui.graph_editor.entry_state": "Entry State",
   "hollowengine.gui.graph_editor.any_state": "Any State",
@@ -214,7 +207,6 @@
   "hollowengine.gui.graph_editor.model": "Model",
   "hollowengine.gui.graph_editor.animations_available": "Animations available",
   "hollowengine.gui.graph_editor.mini_map": "Mini-map",
-
   "hollowengine.gui.block_context.block": "Block",
   "hollowengine.gui.block_context.delete_selected": "Delete selected (%d)",
   "hollowengine.gui.block_context.copy_uuid": "Copy UUID",
@@ -222,7 +214,6 @@
   "hollowengine.gui.block_context.collapse": "Collapse",
   "hollowengine.gui.block_context.duplicate": "Duplicate",
   "hollowengine.gui.block_context.delete": "Delete",
-
   "hollowengine.gui.biome_modificator.title": "Biome Modificator",
   "hollowengine.gui.biome_modificator.enable": "Enable biome modificator",
   "hollowengine.gui.biome_modificator.enable_skybox": "Enable skybox",
@@ -235,31 +226,24 @@
   "hollowengine.gui.biome_modificator.water_fog_color": "Water Fog Color",
   "hollowengine.gui.biome_modificator.sun_size": "Sun Size:",
   "hollowengine.gui.biome_modificator.moon_size": "Moon Size:",
-
   "hollowengine.gui.npc_tool.name": "Name",
   "hollowengine.gui.npc_tool.model": "Model",
-
   "hollowengine.gui.server_ide_warning.title": "Server IDE Disabled",
   "hollowengine.gui.server_ide_warning.message": "The development environment on the server is disabled. There are several reasons for this:\n- It's unclear which files and scripts should be on the server and which on the client.\n- When changing client scripts, what to do with players who don't have them? Sending them these scripts is not safe.\n- What to do with libraries and source code? Where to get it from, client or server?\nWell, there are also many small nuances, like transferring large files, synchronizing highlighting when multiple players work, access rights, etc.\n\nThe mod itself works on the server, and you can always transfer scripts manually. But for editing, only single-player mode is available for now.\nIf you have ideas on how the server editor should work - please let me know.",
-
   "hollowengine.gui.notification.title": "Notification",
   "hollowengine.gui.script.compiler_not_found": "HollowEngineCompiler.jar not found",
   "hollowengine.gui.codeblocks.script": "Script",
-
   "hollowengine.gui.image_editor.size": "Size: %d",
   "hollowengine.gui.image_editor.zoom": "Zoom: %dx",
   "hollowengine.gui.image_editor.save": "Save",
   "hollowengine.gui.image_editor.alpha": "A: %d%%",
-
   "hollowengine.gui.prefab_editor.add_component": "Add Component",
   "hollowengine.gui.prefab_editor.prefab_components": "Prefab Components",
   "hollowengine.gui.prefab_editor.all_components_added": "All components added",
-
   "hollowengine.gui.item_editor.preview": "Preview",
   "hollowengine.gui.item_editor.no_item": "No item registered for id",
   "hollowengine.gui.item_editor.creative_tab": "Creative Tab",
   "hollowengine.gui.item_editor.tab_hint": "namespace:tab",
-
   "hollowengine.gui.codeblocks.category.world": "World",
   "hollowengine.gui.codeblocks.category.structures": "Structures",
   "hollowengine.gui.codeblocks.category.players": "Players",
@@ -280,7 +264,6 @@
   "hollowengine.gui.codeblocks.category.events": "Events",
   "hollowengine.gui.codeblocks.category.stops": "Terminations",
   "hollowengine.gui.codeblocks.category.loops": "Loops",
-
   "hollowengine.gui.codeblocks.block.set_block": "Set Block",
   "hollowengine.gui.codeblocks.block.update_block": "Update Block",
   "hollowengine.gui.codeblocks.block.remove_block": "Remove Block",
@@ -293,13 +276,11 @@
   "hollowengine.gui.codeblocks.block.get_weather": "Get Weather",
   "hollowengine.gui.codeblocks.block.set_weather": "Set Weather",
   "hollowengine.gui.codeblocks.block.place_schematic": "Place Schematic",
-
   "hollowengine.gui.codeblocks.block.teleport": "Teleport",
   "hollowengine.gui.codeblocks.block.set_respawn": "Set Respawn Point",
   "hollowengine.gui.codeblocks.block.send_message": "Send Message",
   "hollowengine.gui.codeblocks.block.close_gui": "Close GUI",
   "hollowengine.gui.codeblocks.block.give_item": "Give Item",
-
   "hollowengine.gui.codeblocks.label.player": "Player",
   "hollowengine.gui.codeblocks.label.player_to": "to",
   "hollowengine.gui.codeblocks.label.player_at": "at",
@@ -369,7 +350,6 @@
   "hollowengine.gui.codeblocks.block.interact_entity": "Interact with Entity",
   "hollowengine.gui.codeblocks.block.interact_block": "Interact with Block",
   "hollowengine.gui.codeblocks.block.interact_item": "Use Item",
-
   "hollowengine.gui.codeblocks.block.spawn_npc": "Spawn NPC",
   "hollowengine.gui.codeblocks.block.despawn_npc": "Despawn NPC",
   "hollowengine.gui.codeblocks.block.spawn_prefab": "Spawn from Prefab",
@@ -391,9 +371,8 @@
   "hollowengine.gui.codeblocks.block.npc_heal": "Heal",
   "hollowengine.gui.codeblocks.block.npc_hurt": "Hurt",
   "hollowengine.gui.codeblocks.block.npc_set_name": "Set Name",
-  "hollowengine.gui.codeblocks.label.use_block":  "Use Block",
-  "hollowengine.gui.codeblocks.label.destroy_block":  "Destroy Block",
-
+  "hollowengine.gui.codeblocks.label.use_block": "Use Block",
+  "hollowengine.gui.codeblocks.label.destroy_block": "Destroy Block",
   "hollowengine.gui.codeblocks.block.get_position": "Get Position",
   "hollowengine.gui.codeblocks.block.get_name": "Get Name",
   "hollowengine.gui.codeblocks.block.get_look_angle": "Get Look Angle",
@@ -423,11 +402,9 @@
   "hollowengine.gui.codeblocks.block.swing_off": "Swing Off Hand",
   "hollowengine.gui.codeblocks.block.set_speed_modifier": "Set Speed Modifier",
   "hollowengine.gui.codeblocks.block.raycast": "Raycast",
-
   "hollowengine.gui.codeblocks.block.print": "Print",
   "hollowengine.gui.codeblocks.block.delay": "Wait",
   "hollowengine.gui.codeblocks.block.execute_command": "Execute Command",
-
   "hollowengine.gui.codeblocks.block.math_operation": "Operation",
   "hollowengine.gui.codeblocks.block.random": "Random Number",
   "hollowengine.gui.codeblocks.block.trigonometry": "Trigonometry",
@@ -440,14 +417,12 @@
   "hollowengine.gui.codeblocks.block.get_z": "Get Z",
   "hollowengine.gui.codeblocks.block.pi": "Pi",
   "hollowengine.gui.codeblocks.block.e": "E (Euler's)",
-
   "hollowengine.gui.codeblocks.block.if_else": "If/Else",
   "hollowengine.gui.codeblocks.block.if_block": "If",
   "hollowengine.gui.codeblocks.block.compare": "Compare",
   "hollowengine.gui.codeblocks.block.logic": "Logic Operators",
   "hollowengine.gui.codeblocks.block.not": "Not",
   "hollowengine.gui.codeblocks.block.test": "Test",
-
   "hollowengine.gui.codeblocks.block.string": "String",
   "hollowengine.gui.codeblocks.block.number": "Number",
   "hollowengine.gui.codeblocks.block.boolean": "Boolean",
@@ -458,7 +433,6 @@
   "hollowengine.gui.codeblocks.block.get_player_by_name": "Get Player by Name",
   "hollowengine.gui.codeblocks.block.text_component": "Text Component",
   "hollowengine.gui.codeblocks.block.text_merger": "Merge Text",
-
   "hollowengine.gui.codeblocks.block.item_is_empty": "Is Empty?",
   "hollowengine.gui.codeblocks.block.item_get_count": "Get Count",
   "hollowengine.gui.codeblocks.block.item_get_max_stack": "Get Max Stack",
@@ -479,7 +453,6 @@
   "hollowengine.gui.codeblocks.block.item_get_tag": "Get NBT",
   "hollowengine.gui.codeblocks.block.item_set_tag": "Set NBT",
   "hollowengine.gui.codeblocks.block.item_clear_tag": "Clear NBT",
-
   "hollowengine.gui.codeblocks.block.nbt_new_compound": "New Compound { }",
   "hollowengine.gui.codeblocks.block.nbt_new_list": "New List [ ]",
   "hollowengine.gui.codeblocks.block.nbt_parse": "NBT from SNBT",
@@ -500,11 +473,9 @@
   "hollowengine.gui.codeblocks.block.nbt_list_get_compound": "List: Get Compound",
   "hollowengine.gui.codeblocks.block.nbt_list_add_string": "List: Add String",
   "hollowengine.gui.codeblocks.block.nbt_list_remove": "List: Remove Index",
-
   "hollowengine.gui.codeblocks.block.get_overworld": "Overworld",
   "hollowengine.gui.codeblocks.block.get_nether": "Nether",
   "hollowengine.gui.codeblocks.block.get_end": "The End",
-
   "hollowengine.gui.codeblocks.block.set_var": "Set",
   "hollowengine.gui.codeblocks.block.get_var": "Get",
   "hollowengine.gui.codeblocks.block.get_var_named": "Get %s",
@@ -512,10 +483,8 @@
   "hollowengine.gui.codeblocks.block.get_global_var": "Get Global",
   "hollowengine.gui.codeblocks.block.set_entity_var": "Set Entity",
   "hollowengine.gui.codeblocks.block.get_entity_var": "Get Entity",
-
   "hollowengine.gui.codeblocks.block.create_function": "Create Function",
   "hollowengine.gui.codeblocks.block.call_function": "Call %s",
-
   "hollowengine.gui.codeblocks.block.on_start": "On Start System",
   "hollowengine.gui.codeblocks.block.on_signal": "On Signal",
   "hollowengine.gui.codeblocks.block.send_signal": "Send Signal",
@@ -528,13 +497,10 @@
   "hollowengine.gui.codeblocks.block.event_output_player": "Event Player",
   "hollowengine.gui.codeblocks.block.event_output_message": "Event Message",
   "hollowengine.gui.codeblocks.block.event_output_username": "Event Username",
-
   "hollowengine.gui.codeblocks.block.stop": "Stop Script",
   "hollowengine.gui.codeblocks.block.stop_if": "Stop If",
-
   "hollowengine.gui.codeblocks.block.while_loop": "While",
   "hollowengine.gui.codeblocks.block.repeat": "Repeat",
-
   "hollowengine.gui.codeblocks.label.print": "Print",
   "hollowengine.gui.codeblocks.label.else_branch": "Else",
   "hollowengine.gui.codeblocks.label.then": "then",
@@ -563,7 +529,6 @@
   "hollowengine.gui.codeblocks.label.event_item": "item:",
   "hollowengine.gui.codeblocks.label.event_hand": "hand:",
   "hollowengine.gui.codeblocks.label.event_damage_source": "source:",
-
   "hollowengine.gui.codeblocks.hint.value": "Value",
   "hollowengine.gui.codeblocks.hint.variable_name": "Variable name",
   "hollowengine.gui.codeblocks.hint.variable_name_local": "Variable name (L)",
@@ -571,7 +536,6 @@
   "hollowengine.gui.codeblocks.hint.function_name": "Function name",
   "hollowengine.gui.codeblocks.hint.message_name": "Message name",
   "hollowengine.gui.codeblocks.hint.recipe": "Recipe ID",
-
   "hollowengine.gui.codeblocks.label.npc": "NPC",
   "hollowengine.gui.codeblocks.label.npc_says": "says:",
   "hollowengine.gui.codeblocks.label.npc_moves_to": "Moves to",
@@ -603,7 +567,6 @@
   "hollowengine.gui.codeblocks.label.health": "Health",
   "hollowengine.gui.codeblocks.label.max_health": "Max Health",
   "hollowengine.gui.codeblocks.label.speed": "Speed",
-
   "hollowengine.gui.codeblocks.label.player_message": "Message",
   "hollowengine.gui.codeblocks.label.player_actionbar": "Action Bar",
   "hollowengine.gui.codeblocks.label.player_give_xp": "Give",
@@ -628,7 +591,6 @@
   "hollowengine.gui.codeblocks.label.player_has_item": "has item",
   "hollowengine.gui.codeblocks.label.player_remove_item": "Remove from inventory",
   "hollowengine.gui.codeblocks.label.player_item": "item",
-
   "hollowengine.gui.codeblocks.label.entity": "Entity",
   "hollowengine.gui.codeblocks.label.entity_is_attackable": "can be attacked",
   "hollowengine.gui.codeblocks.label.entity_is_swimming": "is swimming",
@@ -670,7 +632,6 @@
   "hollowengine.gui.codeblocks.label.entity_remove_effect": "Remove effect",
   "hollowengine.gui.codeblocks.label.entity_effect": "effect",
   "hollowengine.gui.codeblocks.label.entity_inventory": "Inventory",
-
   "hollowengine.gui.codeblocks.label.world_update_block": "Update block at",
   "hollowengine.gui.codeblocks.label.world_set_block": "Set block",
   "hollowengine.gui.codeblocks.label.world_get_block": "Get block at",
@@ -698,7 +659,6 @@
   "hollowengine.gui.codeblocks.label.world_time_in": "Time in world",
   "hollowengine.gui.codeblocks.label.world_set_time_in": "Set time in world",
   "hollowengine.gui.codeblocks.label.world_weather_in": "Weather in world",
-
   "hollowengine.gui.codeblocks.label.item_empty": "is empty",
   "hollowengine.gui.codeblocks.label.item_count": "count",
   "hollowengine.gui.codeblocks.label.item_max_stack": "max stack",
@@ -719,7 +679,6 @@
   "hollowengine.gui.codeblocks.label.item_get_nbt": "Get NBT",
   "hollowengine.gui.codeblocks.label.item_set_nbt": "Set NBT",
   "hollowengine.gui.codeblocks.label.item_clear_nbt": "Clear NBT",
-
   "hollowengine.gui.codeblocks.label.nbt_compound": "{ } Compound",
   "hollowengine.gui.codeblocks.label.nbt_list": "[ ] List",
   "hollowengine.gui.codeblocks.label.nbt_parse": "NBT from SNBT",
@@ -736,7 +695,6 @@
   "hollowengine.gui.codeblocks.label.nbt_list_size": "List size",
   "hollowengine.gui.codeblocks.label.nbt_list_add": "Add String",
   "hollowengine.gui.codeblocks.label.nbt_list_remove": "Remove index",
-
   "hollowengine.gui.codeblocks.label.variable_assign_local": "Assign (L):",
   "hollowengine.gui.codeblocks.label.variable_assign_global": "Assign (G):",
   "hollowengine.gui.codeblocks.label.variable_value": "=",
@@ -746,7 +704,6 @@
   "hollowengine.gui.codeblocks.label.variable_assign": "assign:",
   "hollowengine.gui.codeblocks.label.variable_get": "Variable",
   "hollowengine.gui.codeblocks.label.variable_of": "of",
-
   "hollowengine.gui.codeblocks.label.vec_x": "X",
   "hollowengine.gui.codeblocks.label.vec_y": "Y",
   "hollowengine.gui.codeblocks.label.vec_z": "Z",
@@ -758,32 +715,53 @@
   "hollowengine.gui.codeblocks.label.vector_get_y": "Vector Y coordinate",
   "hollowengine.gui.codeblocks.label.vector_get_z": "Vector Z coordinate",
   "hollowengine.gui.codeblocks.label.distance_between": "Distance between",
-
   "hollowengine.gui.codeblocks.label.get_player_by_name": "Player with name",
   "hollowengine.gui.codeblocks.label.text_component": "Text component",
   "hollowengine.gui.codeblocks.label.text_merge": "Merge text",
   "hollowengine.gui.codeblocks.label.text_value": "Value",
-
   "hollowengine.gui.codeblocks.label.assign": "=",
   "hollowengine.gui.codeblocks.label.equals": "=",
   "hollowengine.gui.codeblocks.label.select_by": "Select by",
   "hollowengine.gui.codeblocks.label.if_true": "If true",
   "hollowengine.gui.codeblocks.label.if_false": "If false",
-
   "hollowengine.gui.codeblocks.label.variable_set": "Assign",
   "hollowengine.gui.codeblocks.label.variable_name": "Variable",
   "hollowengine.gui.codeblocks.label.for_entity": "For entity",
-
   "hollowengine.gui.codeblocks.label.equipment_main_hand": "Main hand",
   "hollowengine.gui.codeblocks.label.equipment_off_hand": "Off Hand",
   "hollowengine.gui.codeblocks.label.equipment_head": "Head",
   "hollowengine.gui.codeblocks.label.equipment_chest": "Chest",
   "hollowengine.gui.codeblocks.label.equipment_legs": "Legs",
   "hollowengine.gui.codeblocks.label.equipment_feet": "Feet",
-
-  "hollowengine.codeblocks.events.on_event": "On Event"
+  "hollowengine.codeblocks.events.on_event": "On Event",
+  "hollowengine.gui.codeblocks.block.entity_set_component": "Set Component",
+  "hollowengine.gui.codeblocks.block.entity_remove_component": "Remove Component",
+  "hollowengine.gui.codeblocks.block.entity_has_component": "Has Component?",
+  "hollowengine.gui.codeblocks.label.entity_set_component": "Set component",
+  "hollowengine.gui.codeblocks.label.entity_remove_component": "Remove component",
+  "hollowengine.gui.codeblocks.label.entity_has_component": "Entity has component",
+  "hollowengine.gui.codeblocks.label.entity_component": "Component",
+  "hollowengine.gui.codeblocks.label.component_select": "Select component",
+  "hollowengine.gui.codeblocks.label.component_id": "Component id",
+  "hollowengine.gui.codeblocks.label.component_unknown": "Unknown component: %s",
+  "hollowengine.gui.codeblocks.label.component_add_item": "Add item",
+  "hollowengine.gui.codeblocks.label.component_remove_item": "Remove item",
+  "hollowengine.gui.codeblocks.label.component_move_up": "Move up",
+  "hollowengine.gui.codeblocks.label.component_move_down": "Move down",
+  "hollowengine.gui.codeblocks.label.component_item": "Item",
+  "hollowengine.gui.codeblocks.label.component_empty": "No items",
+  "hollowengine.gui.codeblocks.label.component_cannot_create_default": "Cannot create a default value for this item",
+  "hollowengine.gui.codeblocks.label.component_unsupported_kind": "Unsupported type: %s",
+  "hollowengine.gui.codeblocks.label.component_unsupported_field": "Unsupported field: %s",
+  "hollowengine.gui.codeblocks.label.component_unsupported_item": "Unsupported list item",
+  "hollowengine.gui.codeblocks.label.component_invalid_number": "Enter a valid number",
+  "hollowengine.gui.codeblocks.label.component_invalid_uuid": "Enter a valid UUID",
+  "hollowengine.gui.codeblocks.label.component_invalid_identifier": "Enter a valid identifier",
+  "hollowengine.gui.codeblocks.label.component_invalid_vector": "Enter coordinates like 0 64 0",
+  "hollowengine.gui.codeblocks.label.component_uuid_hint": "123e4567-e89b-12d3-a456-426614174000",
+  "hollowengine.gui.codeblocks.label.component_identifier_hint": "minecraft:overworld",
+  "hollowengine.gui.codeblocks.label.component_vector_hint": "x y z or x, y, z",
+  "hollowengine.gui.codeblocks.label.component_empty_reference": "Target is empty and will resolve to no entity",
+  "hollowengine.gui.codeblocks.label.component_uuid_label": "UUID",
+  "hollowengine.gui.codeblocks.label.component_dimension_label": "Dimension"
 }
-
-
-
-
