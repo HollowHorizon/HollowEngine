@@ -8,7 +8,6 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import kotlinx.serialization.KSerializer
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
@@ -17,10 +16,7 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.EditorIcon
-import ru.hollowhorizon.hollowengine.common.geary.components.GenericEditor
+import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -38,8 +34,7 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
 
                 prefab.components.forEach { component ->
                     val descriptor = EntitySerialization.descriptorFor(component) ?: return@forEach
-                    @Suppress("UNCHECKED_CAST")
-                    val state = mutableStateOf(component as Component)
+                    val state = mutableStateOf(component)
                     hookModelPreview(state)
                     components += EditorComponent(descriptor.id, descriptor, state)
                 }
@@ -135,8 +130,8 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
     }
 
     private fun addComponent(key: ResourceLocation) {
-        val holder = ComponentRegistry.getOrNull(key) ?: return
-        val component = holder.create() as Component
+        val holder = ComponentDescriptorRegistry.getOrNull(key) ?: return
+        val component = holder.create()
         val state = mutableStateOf(component)
 
         hookModelPreview(state)
@@ -151,7 +146,7 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
 
     private fun refreshModelPreview() {
         val modelPath = components.firstNotNullOfOrNull { editor ->
-            (editor.state.value as? ru.hollowhorizon.hollowengine.common.geary.components.Model)?.model
+            (editor.state.value as? Model)?.model
         }
         if (modelPath != null) modelController.setModel(modelPath) else clearModelPreview()
     }
@@ -162,7 +157,7 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
 
     private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("hollowengine.gui.entity_editor.components".lang) {
         val existing = components.map { it.key }.toSet()
-        val available = ComponentRegistry.keys
+        val available = ComponentDescriptorRegistry.map { it.key }
             .filter { it !in existing }
             .sortedBy { it.toString() }
 
@@ -170,7 +165,7 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
             item("hollowengine.gui.prefab_editor.all_components_added".lang) {}
         } else {
             available.forEach { key ->
-                val holder = ComponentRegistry[key]
+                val holder = ComponentDescriptorRegistry[key]
                 val serializer = holder.serializer
                 val displayName = serializer.descriptor.serialName
                 val icon = holder.value.findAnnotation<EditorIcon>()?.icon?.rl
@@ -184,7 +179,7 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
 
     private fun UiScope.ComponentEditor(component: EditorComponent) {
         @Suppress("UNCHECKED_CAST")
-        val state = component.state as MutableStateValue<Any>
+        val state = component.state
 
         @Suppress("UNCHECKED_CAST")
         val serializer = component.holder.serializer as KSerializer<Any>

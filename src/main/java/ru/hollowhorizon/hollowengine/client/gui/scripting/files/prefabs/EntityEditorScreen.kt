@@ -19,10 +19,7 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.EditorIcon
-import ru.hollowhorizon.hollowengine.common.geary.components.GenericEditor
+import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.reflect.full.findAnnotation
 
@@ -32,10 +29,10 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
     private val components = mutableStateListOf<EditorComponent>()
 
     init {
-        ComponentRegistry.forEach { holder ->
+        ComponentDescriptorRegistry.forEach { holder ->
             val component = gearyEntity.get(holder.value.value)
             if (component != null) {
-                val state = mutableStateOf(component as Component)
+                val state = mutableStateOf(component)
                 state.onChange { _, newValue ->
                     gearyEntity.set(newValue, newValue::class)
                     refreshModelPreview()
@@ -126,8 +123,8 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
     }
 
     private fun addComponent(key: ResourceLocation) {
-        val holder = ComponentRegistry[key]
-        val component = holder.create() as Component
+        val holder = ComponentDescriptorRegistry[key]
+        val component = holder.create()
         gearyEntity.set(component, holder.value)
 
         val state = mutableStateOf(component)
@@ -142,28 +139,30 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
 
     private fun refreshModelPreview() {
         val modelPath = components.firstNotNullOfOrNull { editor ->
-            (editor.state.value as? ru.hollowhorizon.hollowengine.common.geary.components.Model)?.model
+            (editor.state.value as? Model)?.model
         }
         if (modelPath != null) modelController.setModel(modelPath) else modelController.clearModel()
     }
 
-    private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("hollowengine.gui.entity_editor.components".lang) {
-        val existing = components.map { it.key }.toSet()
-        val available = ComponentRegistry.keys.filter { it !in existing }.sortedBy { it.toString() }
+    private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> =
+        SubMenuItem("hollowengine.gui.entity_editor.components".lang) {
+            val existing = components.map { it.key }.toSet()
+            val available = ComponentDescriptorRegistry.map { it.key }.filter { it !in existing }.sortedBy { it.toString() }
 
-        available.forEach { key ->
-            val holder = ComponentRegistry[key]
-            val icon = holder.value.findAnnotation<EditorIcon>()?.icon?.rl
-            item(holder.serializer.descriptor.serialName, icon) {
-                addComponent(key)
-                menu.hide()
+            available.forEach { key ->
+                val holder = ComponentDescriptorRegistry[key]
+                val icon = holder.value.findAnnotation<EditorIcon>()?.icon?.rl
+                item(holder.serializer.descriptor.serialName, icon) {
+                    addComponent(key)
+                    menu.hide()
+                }
             }
         }
-    }
 
     private fun UiScope.ComponentEditor(component: EditorComponent) {
         @Suppress("UNCHECKED_CAST")
-        val state = component.state as MutableStateValue<Any>
+        val state = component.state
+
         @Suppress("UNCHECKED_CAST")
         val serializer = component.holder.serializer as KSerializer<Any>
         GenericEditor(state, serializer) {

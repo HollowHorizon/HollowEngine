@@ -17,6 +17,7 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.api.ParticlesProvider
 import ru.hollowhorizon.hollowengine.api.Syncable
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
@@ -25,24 +26,21 @@ import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.client.utils.mc
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.clearDevHistory
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
-import ru.hollowhorizon.hollowengine.common.scripting.compiling.start
-import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.sync.setSyncing
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystem
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.OwnerKey
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.clearDevHistory
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.start
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
 import java.io.File
@@ -121,10 +119,10 @@ private fun CommandExtension.registerUtilityCommands() {
     }
 
     "geary" {
-        ComponentRegistry.keys.forEach {
-            val c = ComponentRegistry[it]!!
+        ComponentDescriptorRegistry.forEach { holder ->
+            val c = holder.value
             val isSyncing = c.value.hasAnnotation<Syncable>()
-            "$it" {
+            "${holder.key}" {
                 "add"(arg("entity", EntityArgument.entity())) {
                     executes {
                         val entity = EntityArgument.getEntity(this, "entity")

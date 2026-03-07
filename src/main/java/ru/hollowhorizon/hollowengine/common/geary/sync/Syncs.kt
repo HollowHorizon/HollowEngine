@@ -21,7 +21,6 @@ import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
 import kotlin.reflect.KClass
 
 object Syncs
-object LooseOnDeathMarker
 
 inline fun <reified T : Component> Entity.setSyncing(
     component: T,
@@ -32,10 +31,6 @@ inline fun <reified T : Component> Entity.setSyncing(
     setRelation(world.getAddon(SyncableComponents).syncs, world.componentId(kClass), Syncs, noEvent)
     set(component, kClass, noEvent)
     return component
-}
-
-inline fun <reified T : Component> Geary.registerSyncing() {
-    registerSyncingNoinline(T::class)
 }
 
 fun Geary.registerSyncingNoinline(type: KClass<*>) {

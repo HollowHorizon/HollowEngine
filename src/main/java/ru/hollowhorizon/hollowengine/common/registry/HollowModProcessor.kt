@@ -5,21 +5,13 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.serializerOrNull
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import ru.hollowhorizon.hollowengine.HollowCore
-import ru.hollowhorizon.hollowengine.api.Init
-import ru.hollowhorizon.hollowengine.api.LooseOnDeath
-import ru.hollowhorizon.hollowengine.api.Registerable
-import ru.hollowhorizon.hollowengine.api.ReloadListener
-import ru.hollowhorizon.hollowengine.api.Syncable
+import ru.hollowhorizon.hollowengine.api.*
 import ru.hollowhorizon.hollowengine.api.utils.Polymorphic
 import ru.hollowhorizon.hollowengine.common.config.Config
 import ru.hollowhorizon.hollowengine.common.config.ConfigName
 import ru.hollowhorizon.hollowengine.common.events.*
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptor
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentPersistencePolicy
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSyncPolicy
-import ru.hollowhorizon.hollowengine.common.geary.components.EditorHidden
+import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.registerPacket
@@ -106,8 +98,7 @@ object HollowModProcessor {
             val key = component.findAnnotation<SerialName>()?.value?.rl
                 ?: error("@SerialName not found for class ${type.simpleName}")
 
-            ComponentRegistry.register(
-                key,
+            ComponentDescriptorRegistry.register(
                 ComponentDescriptor(
                     id = key,
                     value = component,

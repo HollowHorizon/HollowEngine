@@ -63,7 +63,7 @@ public abstract class EntityMixin implements EntityProvider, EntityCoroutineScop
 
     @Inject(method = "load", at = @At("TAIL"))
     private void deserializeExtra(CompoundTag tag, CallbackInfo ci) {
-        GearyEntityExtensionsKt.loadComponentsFrom(hollowengine$entity, (Entity) (Object) this, tag.getCompound("geary"));
+        GearyEntityExtensionsKt.loadComponentsFrom((Entity) (Object) this, tag.getCompound("geary"));
         hollowengine$coroutineScope.deserialize(tag.getCompound("EntityScope"));
         EventBus.post(new OwnerScopeRestoredEvent((Entity) (Object) this));
     }

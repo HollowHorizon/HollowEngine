@@ -6,16 +6,12 @@ import com.mineinabyss.geary.helpers.componentId
 import com.mineinabyss.geary.modules.Geary
 import com.mineinabyss.geary.serialization.setPersisting
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hollowengine.common.geary.api.entity
-import ru.hollowhorizon.hollowengine.common.geary.api.geary
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSyncPolicy
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.applySnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
-import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.geary.sync.SyncableComponents
 import ru.hollowhorizon.hollowengine.common.geary.sync.Syncs
+import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 
 private const val SNAPSHOT_KEY = "snapshot"
 
@@ -26,19 +22,9 @@ fun Long.encodeComponentsTo(tag: CompoundTag) {
     tag.put(SNAPSHOT_KEY, EntitySerialization.serializeToNbt(snapshot))
 }
 
-fun Long.loadComponentsFrom(entity: MCEntity, tag: CompoundTag) {
-    with(entity.level().geary) {
-        val encoded = tag.get(SNAPSHOT_KEY) ?: tag
-        EntitySerialization.tryDeserializeInto(entity, encoded, "entity ${entity.id} NBT snapshot")
-    }
-}
-
-fun GearyEntity.loadComponentsFrom(snapshot: EntitySnapshot) {
-    world.applySnapshot(this, snapshot)
-}
-
-fun GearyEntity.loadComponentsFrom(decodedEntityData: DecodedEntityData) {
-    world.applySnapshot(this, EntitySnapshot(components = decodedEntityData.persistingComponents.filterIsInstance<Component>()))
+fun loadComponentsFrom(entity: MCEntity, tag: CompoundTag) {
+    val encoded = tag.get(SNAPSHOT_KEY) ?: tag
+    EntitySerialization.tryDeserializeInto(entity, encoded, "entity ${entity.id} NBT snapshot")
 }
 
 fun GearyEntity.setAllSyncablePersisting(

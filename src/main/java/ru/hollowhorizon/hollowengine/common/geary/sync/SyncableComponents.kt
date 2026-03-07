@@ -18,7 +18,6 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityTrackingEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
-import ru.hollowhorizon.hollowengine.common.geary.api.geary
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSyncPolicy
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.applySnapshot
@@ -89,11 +88,11 @@ fun onClone(event: PlayerEvent.Clone) {
     val old = event.oldPlayer
     val new = event.player
 
-    val snapshot = old.level().geary.snapshotOf(old.entity)
+    val snapshot = snapshotOf(old.entity)
     val filtered = if (event.wasDeath) snapshot.dropLooseOnDeathComponents() else snapshot
 
     new.server?.coroutineScope?.launch {
         yield()
-        new.level().geary.applySnapshot(new.entity, filtered)
+        applySnapshot(new.entity, filtered)
     }
 }

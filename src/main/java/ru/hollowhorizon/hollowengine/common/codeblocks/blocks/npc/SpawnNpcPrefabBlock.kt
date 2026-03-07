@@ -35,7 +35,7 @@ class SpawnNpcPrefabBlock(
     val pos by inputDefault<Vec3>("pos") { PositionBlock() }
     val dimension by inputDefault<ResourceKey<Level>>("dimension") { GetOverworldBlock() }
 
-    override suspend fun execute(): Any? {
+    override suspend fun execute(): Any {
         val server: MinecraftServer = currentServer
         val level = server.getLevel(dimension())
             ?: error("Dimension ${dimension().location()} is not loaded!")

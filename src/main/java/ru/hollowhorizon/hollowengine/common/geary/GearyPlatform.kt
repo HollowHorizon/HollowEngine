@@ -9,8 +9,6 @@ import com.mineinabyss.geary.modules.geary
 import com.mineinabyss.geary.serialization.dsl.withCommonComponentNames
 import com.mineinabyss.geary.serialization.formats.YamlFormat
 import com.mineinabyss.geary.serialization.serialization
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import net.minecraft.world.level.Level
 import org.apache.logging.log4j.LogManager
 import org.koin.core.module.dsl.bind
@@ -26,10 +24,6 @@ import ru.hollowhorizon.hollowengine.common.geary.tracking.EntityTracking
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MinecraftEntityLookup
 import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.GearyNBTFormat
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
-
-@Serializable
-@SerialName("hollowengine:list_of_string")
-class ListString(val list: List<String>)
 
 object GearyPlatform {
     val LOGGER = LogManager.getLogger("Geary")

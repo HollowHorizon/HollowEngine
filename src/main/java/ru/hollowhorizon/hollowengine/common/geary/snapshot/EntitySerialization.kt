@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.common.geary.snapshot
 import com.mineinabyss.geary.datatypes.Component
 import com.mineinabyss.geary.datatypes.Entity
 import com.mineinabyss.geary.datatypes.GearyEntity
-import com.mineinabyss.geary.modules.Geary
 import com.mineinabyss.geary.prefabs.PrefabKey
 import com.mineinabyss.geary.serialization.getAllPersisting
 import io.netty.buffer.Unpooled
@@ -12,7 +11,6 @@ import net.minecraft.network.FriendlyByteBuf
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
-import ru.hollowhorizon.hollowengine.common.geary.api.geary
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.PrefabNamespaceMigrations
@@ -29,8 +27,8 @@ object EntitySerialization {
     fun nbtFormat() = NBTFormat(serializersModule())
     fun byteBufFormat() = ByteBufFormat(serializersModule())
 
-    fun extract(entity: MCEntity): EntitySnapshot = with(entity.level().geary) { snapshotOf(entity.entity) }
-    fun apply(target: MCEntity, snapshot: EntitySnapshot) = with(target.level().geary) { applySnapshot(target.entity, snapshot) }
+    fun extract(entity: MCEntity): EntitySnapshot = snapshotOf(entity.entity)
+    fun apply(target: MCEntity, snapshot: EntitySnapshot) = applySnapshot(target.entity, snapshot)
 
     fun serializeToNbt(snapshot: EntitySnapshot): Tag = nbtFormat().serialize(EntitySnapshot.serializer(), snapshot)
     fun deserializeFromNbt(tag: Tag): EntitySnapshot = nbtFormat().deserialize(EntitySnapshot.serializer(), tag)
@@ -77,13 +75,13 @@ object EntitySerialization {
     }
 }
 
-fun Geary.snapshotOf(entity: Entity): EntitySnapshot {
+fun snapshotOf(entity: Entity): EntitySnapshot {
     val prefabRefs = entity.get<PrefabRefsComponent>()?.refs ?: prefabRefsOf(entity)
     val components = entity.getAllPersisting().filterNot { it is PrefabRefsComponent }.toList()
     return EntitySnapshot(prefabRefs = prefabRefs, components = components)
 }
 
-fun Geary.applySnapshot(target: Entity, snapshot: EntitySnapshot) {
+fun applySnapshot(target: Entity, snapshot: EntitySnapshot) {
     val desired = snapshot.componentById()
     target.getAllPersisting().forEach { existing ->
         if (existing is PrefabRefsComponent) return@forEach
@@ -97,7 +95,7 @@ fun Geary.applySnapshot(target: Entity, snapshot: EntitySnapshot) {
     }
 }
 
-private fun Geary.prefabRefsOf(entity: GearyEntity): Set<PrefabKey> {
+private fun prefabRefsOf(entity: GearyEntity): Set<PrefabKey> {
     return entity.collectPrefabs()
         .mapNotNull { prefab -> prefab.get<PrefabKey>() }
         .map { key ->
