@@ -1,14 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs
 
 import com.mineinabyss.geary.datatypes.Component
+import com.mineinabyss.geary.prefabs.PrefabKey
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.polymorphic
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
@@ -22,49 +20,32 @@ import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.EditorIcon
 import ru.hollowhorizon.hollowengine.common.geary.components.GenericEditor
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.utils.rl
-import ru.hollowhorizon.hollowengine.common.utils.yaml.YamlFormat
 import kotlin.reflect.full.findAnnotation
 
 class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
     private val components = mutableStateListOf<EditorComponent>()
-
-    private val prefabSerializersModule: SerializersModule = SerializersModule {
-        polymorphic(Any::class) {
-            ComponentRegistry.map { it.value }.forEach { holder ->
-                @Suppress("UNCHECKED_CAST")
-                subclass(holder.value as kotlin.reflect.KClass<Any>, holder.serializer as KSerializer<Any>)
-            }
-        }
-    }
-
-    @Serializable
-    private data class PrefabYaml(
-        val components: Map<String, String> = emptyMap(),
-        val prefabs: Set<com.mineinabyss.geary.prefabs.PrefabKey> = emptySet(),
-    )
+    private var prefabRefs: Set<PrefabKey> = emptySet()
 
     init {
         if (bytes.isNotEmpty()) {
             runCatching {
-                val yaml = bytes.toString(Charsets.UTF_8)
-                val prefab = YamlFormat.withModule(prefabSerializersModule)
-                    .decodeFromString(PrefabYaml.serializer(), yaml)
+                val prefab = EntitySerialization.deserializeFromYaml(bytes.toString(Charsets.UTF_8))
+                prefabRefs = prefab.prefabRefs
 
-                prefab.components.forEach { (keyString, data) ->
-                    val key = keyString.rl
-                    val holder = ComponentRegistry.getOrNull(key) ?: return@forEach
-
+                prefab.components.forEach { component ->
+                    val descriptor = EntitySerialization.descriptorFor(component) ?: return@forEach
                     @Suppress("UNCHECKED_CAST")
-                    val serializer = holder.serializer as KSerializer<Any>
-                    val decoded = YamlFormat.decodeFromString(serializer, data, prefabSerializersModule)
-
-                    @Suppress("UNCHECKED_CAST")
-                    val state = mutableStateOf(decoded as Component)
-                    hookModelPreview(key, state)
-                    components += EditorComponent(key, holder, state)
+                    val state = mutableStateOf(component as Component)
+                    hookModelPreview(state)
+                    components += EditorComponent(descriptor.id, descriptor, state)
                 }
+                refreshModelPreview()
             }
+        } else {
+            clearModelPreview()
         }
     }
 
@@ -75,22 +56,11 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
             file.createNewFile()
         }
 
-        val prefab = PrefabYaml(
-            components = run {
-                components.associate { ec ->
-                    val component = ec.state.value
-                    val key = ec.key.toString()
-
-                    @Suppress("UNCHECKED_CAST")
-                    val serializer = ec.holder.serializer as KSerializer<Any>
-                    key to YamlFormat.encodeToString(serializer, component, prefabSerializersModule)
-                }
-            }
+        val prefab = EntitySnapshot(
+            prefabRefs = prefabRefs,
+            components = components.map { it.state.value }
         )
-
-        val text = YamlFormat.withModule(prefabSerializersModule)
-            .encodeToString(PrefabYaml.serializer(), prefab)
-        file.writeText(text)
+        file.writeText(EntitySerialization.serializeToYaml(prefab))
     }
 
     override fun UiScope.composeSidebar() {
@@ -165,23 +135,28 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
 
     private fun addComponent(key: ResourceLocation) {
         val holder = ComponentRegistry.getOrNull(key) ?: return
-        val component = holder.create()
+        val component = holder.create() as Component
         val state = mutableStateOf(component)
 
-        hookModelPreview(key, state)
+        hookModelPreview(state)
 
         components += EditorComponent(key, holder, state)
+        refreshModelPreview()
     }
 
-    private fun hookModelPreview(key: ResourceLocation, state: MutableStateValue<Component>) {
-        if (key == "hollowengine:model".rl) {
-            state.onChange { _, newValue ->
-                val modelPath = (newValue as? ru.hollowhorizon.hollowengine.common.geary.components.Model)?.model
-                if (modelPath != null) modelController.model.set(modelPath)
-            }
-            val modelPath = (state.value as? ru.hollowhorizon.hollowengine.common.geary.components.Model)?.model
-            if (modelPath != null) modelController.model.set(modelPath)
+    private fun hookModelPreview(state: MutableStateValue<Component>) {
+        state.onChange { _, _ -> refreshModelPreview() }
+    }
+
+    private fun refreshModelPreview() {
+        val modelPath = components.firstNotNullOfOrNull { editor ->
+            (editor.state.value as? ru.hollowhorizon.hollowengine.common.geary.components.Model)?.model
         }
+        if (modelPath != null) modelController.setModel(modelPath) else clearModelPreview()
+    }
+
+    private fun clearModelPreview() {
+        modelController.clearModel()
     }
 
     private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("hollowengine.gui.entity_editor.components".lang) {
@@ -194,7 +169,7 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
             item("hollowengine.gui.prefab_editor.all_components_added".lang) {}
         } else {
             available.forEach { key ->
-                val holder = ComponentRegistry[key] ?: return@forEach
+                val holder = ComponentRegistry[key]
                 val serializer = holder.serializer
                 val displayName = serializer.descriptor.serialName
                 val icon = holder.value.findAnnotation<EditorIcon>()?.icon?.rl
@@ -214,6 +189,7 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
         val serializer = component.holder.serializer as KSerializer<Any>
         GenericEditor(state, serializer) {
             components.remove(component)
+            refreshModelPreview()
         }
     }
 

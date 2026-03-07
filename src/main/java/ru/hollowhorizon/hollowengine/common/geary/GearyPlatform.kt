@@ -19,7 +19,7 @@ import org.koin.core.module.dsl.withOptions
 import org.koin.dsl.module
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.post
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.engine.HollowEngineModule
 import ru.hollowhorizon.hollowengine.common.geary.sync.SyncableComponents
 import ru.hollowhorizon.hollowengine.common.geary.tracking.EntityTracking
@@ -38,14 +38,13 @@ object GearyPlatform {
     fun create(level: Level): Geary = geary(createEngineModule(level)) {
         serialization {
             components {
-                ComponentRegistry.map { it.value }.forEach {
-                    component(it.value, JavaHacks.forceCast(it.serializer))
+                ComponentDescriptorRegistry.map { it.value }.forEach { descriptor ->
+                    component(descriptor.value, JavaHacks.forceCast(descriptor.serializer))
                 }
             }
             format("yml", ::YamlFormat)
             format("nbt", ::GearyNBTFormat)
             withCommonComponentNames()
-
         }
 
         install(GearyActions)

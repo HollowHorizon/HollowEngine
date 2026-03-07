@@ -18,5 +18,5 @@ annotation class EditorRange(val min: Float, val max: Float)
 annotation class EditorIcon(val icon: String)
 
 @SerialInfo
-@Target(AnnotationTarget.PROPERTY)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.PROPERTY)
 annotation class EditorHidden

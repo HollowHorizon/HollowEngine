@@ -11,46 +11,34 @@ import com.mineinabyss.geary.observers.events.OnRemove
 import com.mineinabyss.geary.observers.events.OnSet
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
-import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerPlayer
-import ru.hollowhorizon.hollowengine.api.Syncable
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityTrackingEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
-import ru.hollowhorizon.hollowengine.common.geary.api.entityId
 import ru.hollowhorizon.hollowengine.common.geary.api.geary
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.Model
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSyncPolicy
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.applySnapshot
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.decodeComponents
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.encodeComponentsTo
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.loadComponentsFrom
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
-import kotlin.reflect.full.hasAnnotation
 
 data class SyncableComponentsBuilder(
     val world: Geary,
     var overrideSyncs: ComponentId? = null,
-    val syncableComponents: MutableSet<ComponentId> = mutableSetOf(),
 ) {
-    inline fun <reified T : Component> syncable() {
-        syncableComponents.add(world.componentId<T>())
-    }
-
     fun build(): SyncableComponentsModule {
         return SyncableComponentsModule(
             syncs = overrideSyncs ?: world.componentId<Syncs>(),
-            syncableComponents = syncableComponents.toSet()
         )
     }
 }
 
 data class SyncableComponentsModule(
     val syncs: ComponentId,
-    val syncableComponents: Set<ComponentId>,
 )
 
 val SyncableComponents = createAddon<SyncableComponentsBuilder, SyncableComponentsModule>(
@@ -60,10 +48,9 @@ val SyncableComponents = createAddon<SyncableComponentsBuilder, SyncableComponen
     val module = configuration.build()
 
     with(geary) {
-        ComponentRegistry.asSequence().map { it.value }.filter { it.value.hasAnnotation<Syncable>() }.forEach {
-            registerSyncingNoinline(it.value)
-        }
-        registerSyncing<Model>(saveOnDeath = true)
+        ComponentDescriptorRegistry.asSequence().map { it.value }
+            .filter { it.syncPolicy == ComponentSyncPolicy.SYNC }
+            .forEach { registerSyncingNoinline(it.value) }
 
         observeSource<OnSet>().exec {
             val component = source.toGeary()
@@ -101,14 +88,12 @@ fun startTracking(event: EntityTrackingEvent.Start) {
 fun onClone(event: PlayerEvent.Clone) {
     val old = event.oldPlayer
     val new = event.player
-    val isDeath = event.wasDeath
 
-    val tag = CompoundTag()
-    with(old.level().geary) { old.entityId.encodeComponentsTo(tag) }
+    val snapshot = old.level().geary.snapshotOf(old.entity)
+    val filtered = if (event.wasDeath) snapshot.dropLooseOnDeathComponents() else snapshot
+
     new.server?.coroutineScope?.launch {
-        yield() // Т.к. это тот же поток, ждём конца тика чтобы пакеты отправились игроку с нужным id
-        with(new.level().geary) {
-            new.entity.loadComponentsFrom(tag.decodeComponents())
-        }
+        yield()
+        new.level().geary.applySnapshot(new.entity, filtered)
     }
 }

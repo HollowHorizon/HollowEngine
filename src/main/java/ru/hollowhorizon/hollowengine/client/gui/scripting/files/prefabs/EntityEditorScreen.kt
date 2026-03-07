@@ -32,28 +32,18 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
     private val components = mutableStateListOf<EditorComponent>()
 
     init {
-        // Загружаем текущие компоненты сущности
         ComponentRegistry.forEach { holder ->
             val component = gearyEntity.get(holder.value.value)
             if (component != null) {
                 val state = mutableStateOf(component as Component)
-                // Привязка модели
-                if (holder.value.serializer.descriptor.serialName == "hollowengine:model") {
-                    state.onChange { _, newValue ->
-                        val modelPath = (newValue as? ru.hollowhorizon.hollowengine.common.geary.components.Model)?.model
-                        if (modelPath != null) modelController.model.set(modelPath)
-                    }
-                    val modelPath = (component as? ru.hollowhorizon.hollowengine.common.geary.components.Model)?.model
-                    if (modelPath != null) modelController.model.set(modelPath)
-                }
-                
                 state.onChange { _, newValue ->
                     gearyEntity.set(newValue, newValue::class)
+                    refreshModelPreview()
                 }
-                
-                components += EditorComponent(holder.value.serializer.descriptor.serialName.rl, holder.value, state)
+                components += EditorComponent(holder.value.id, holder.value, state)
             }
         }
+        refreshModelPreview()
     }
 
     override fun Scene.setup() {
@@ -72,7 +62,7 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
                             .align(AlignmentX.Center, AlignmentY.Top)
                     }
                 }
-                
+
                 Column(Grow(0.33f), Grow.Std) {
                     modifier.backgroundColor(ColorTheme.UI.BackgroundSecondary)
                     composeSidebar()
@@ -97,7 +87,7 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
         }) {
             modifier.layout(ColumnLayout).width(Grow.Std)
                 .margin(end = Dimensions.PaddingMedium)
-            
+
             Text("hollowengine.gui.entity_editor.components".lang) {
                 modifier.font(remember { MsdfFont(ColorTheme.Fonts.MONOCRAFT, 16f) })
                     .textColor(Color.WHITE)
@@ -136,25 +126,25 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
     }
 
     private fun addComponent(key: ResourceLocation) {
-        val holder = ComponentRegistry[key] ?: return
-        val component = holder.create()
+        val holder = ComponentRegistry[key]
+        val component = holder.create() as Component
         gearyEntity.set(component, holder.value)
-        
+
         val state = mutableStateOf(component)
         state.onChange { _, newValue ->
             gearyEntity.set(newValue, newValue::class)
-        }
-        
-        if (key == "hollowengine:model".rl) {
-            state.onChange { _, newValue ->
-                val modelPath = (newValue as? ru.hollowhorizon.hollowengine.common.geary.components.Model)?.model
-                if (modelPath != null) modelController.model.set(modelPath)
-            }
-            val modelPath = (component as? ru.hollowhorizon.hollowengine.common.geary.components.Model)?.model
-            if (modelPath != null) modelController.model.set(modelPath)
+            refreshModelPreview()
         }
 
         components += EditorComponent(key, holder, state)
+        refreshModelPreview()
+    }
+
+    private fun refreshModelPreview() {
+        val modelPath = components.firstNotNullOfOrNull { editor ->
+            (editor.state.value as? ru.hollowhorizon.hollowengine.common.geary.components.Model)?.model
+        }
+        if (modelPath != null) modelController.setModel(modelPath) else modelController.clearModel()
     }
 
     private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("hollowengine.gui.entity_editor.components".lang) {
@@ -162,7 +152,7 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
         val available = ComponentRegistry.keys.filter { it !in existing }.sortedBy { it.toString() }
 
         available.forEach { key ->
-            val holder = ComponentRegistry[key] ?: return@forEach
+            val holder = ComponentRegistry[key]
             val icon = holder.value.findAnnotation<EditorIcon>()?.icon?.rl
             item(holder.serializer.descriptor.serialName, icon) {
                 addComponent(key)
@@ -179,6 +169,7 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
         GenericEditor(state, serializer) {
             gearyEntity.remove(component.holder.value)
             components.remove(component)
+            refreshModelPreview()
         }
     }
 

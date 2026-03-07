@@ -177,6 +177,7 @@ class DefaultMutableRegistry<T : Any>(
     }
 
     override fun bake() = lock.write {
+        if (_state == RegistryState.BAKED || _state == RegistryState.FROZEN) return
         check(_state == RegistryState.REGISTERING || _state == RegistryState.CONSTRUCTING) {
             "Bake only allowed from CONSTRUCTING/REGISTERING; was $_state"
         }

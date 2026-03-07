@@ -13,17 +13,15 @@ import net.minecraft.client.Minecraft
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.geary.api.geary
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MinecraftEntityLookup
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.serializers
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.toComponentKey
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.toSerialName
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
 import kotlin.reflect.KClass
 
 object Syncs
-object SaveOnDeath
+object LooseOnDeathMarker
 
 inline fun <reified T : Component> Entity.setSyncing(
     component: T,
@@ -36,25 +34,17 @@ inline fun <reified T : Component> Entity.setSyncing(
     return component
 }
 
-inline fun <reified T : Component> Geary.registerSyncing(saveOnDeath: Boolean = false) {
-    val componentId = componentId<T>()
-    val name = serializers.getSerialNameFor(T::class)?.toComponentKey()
-        ?: error("SerialName not registered for ${T::class.simpleName}")
-    componentId.toGeary().apply {
-        set(name)
-        add<Syncs>()
-        if (saveOnDeath) add<SaveOnDeath>()
-    }
+inline fun <reified T : Component> Geary.registerSyncing() {
+    registerSyncingNoinline(T::class)
 }
 
-fun Geary.registerSyncingNoinline(type: KClass<*>, saveOnDeath: Boolean = false) {
+fun Geary.registerSyncingNoinline(type: KClass<*>) {
     val componentId = componentId(type)
-    val name = serializers.getSerialNameFor(type)?.toComponentKey()
+    val name = ComponentDescriptorRegistry.idFor(type)
         ?: error("SerialName not registered for ${type.simpleName}")
     componentId.toGeary().apply {
         set(name)
         add<Syncs>()
-        if (saveOnDeath) add<SaveOnDeath>()
     }
 }
 
@@ -90,9 +80,8 @@ data class ComponentRemovePacket(
         val geary = level.geary
         val entity = geary.get<MinecraftEntityLookup>().getOrCreateById(entityId)
         with(geary) {
-            val type = serializers.getClassFor(componentTypeId.toSerialName())
-            entity.toGeary().remove(type)
+            val descriptor = ComponentDescriptorRegistry.descriptorOrNull(componentTypeId) ?: return
+            entity.toGeary().remove(descriptor.value)
         }
     }
 }
-

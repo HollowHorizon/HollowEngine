@@ -53,9 +53,11 @@ import kotlin.math.min
 class ModelController {
     private var modelSwapJob: Job? = null
 
-    val model = mutableStateOf("hollowengine:models/entity/player_model.gltf")
-        .onChange { old, new ->
+    val hasModel = mutableStateOf(false)
+    val model = mutableStateOf("")
+        .onChange { _, new ->
             if (new.isValidRL() && new.rl.exists() && HollowModelManager.supports(new.rl)) {
+                hasModel.set(true)
                 val flow = HollowModelManager.getOrCreate(new.rl)
                 modelSwapJob?.cancel()
                 if (flow.value !== AnimatedModel.EMPTY) {
@@ -66,9 +68,13 @@ class ModelController {
                         applyAttachment(ModelAttachment(flow, null))
                     }
                 }
+            } else {
+                hasModel.set(false)
+                animations = emptyList()
+                animationId.set(0)
             }
         }
-    var attachment: ModelAttachment = ModelAttachment(model.value)
+    var attachment: ModelAttachment = ModelAttachment("hollowengine:models/entity/player_model.gltf")
     var animations = attachment.animations.map { it }
     var animationId = mutableStateOf(0)
 
@@ -85,6 +91,14 @@ class ModelController {
     val isGridVisible = mutableStateOf(true)
     val isAutoRotateEnabled = mutableStateOf(false)
 
+    fun setModel(path: String) {
+        model.set(path)
+    }
+
+    fun clearModel() {
+        model.set("")
+    }
+
     private fun applyAttachment(newAttachment: ModelAttachment) {
         attachment = newAttachment
         animations = attachment.animations.map { it }
@@ -93,7 +107,7 @@ class ModelController {
 
     context(scope: UiScope)
     operator fun invoke() = with(scope) {
-        surface.triggerUpdate() // Анимация должна обновлять виджет
+        surface.triggerUpdate()
         val zoomState = zoom.use()
         val smoothedZoom by animateSpringFloatAsState(zoomState)
         scale = smoothedZoom
@@ -105,28 +119,34 @@ class ModelController {
         val yaw = yaw.use()
         val pitch = pitch.use()
 
-        Model(attachment, "Model-Renderer") {
-            modifier.size(Grow.Std, Grow.Std)
-                .margin(Dimensions.PaddingMedium)
-                .showGrid(isGridVisible.use())
-                .showBoundingBox(isBoundingBoxVisible.use())
-                .showWireframe(isWireframeVisible.use())
-                .scale(scale)
-                .yaw(yaw).pitch(pitch)
-                .offsetX(offsetX.use()).offsetY(offsetY.use())
-                .onDrag {
-                    if (it.pointer.isLeftButtonDown) {
-                        this@ModelController.yaw.set((yaw + it.pointer.delta.x / 10) % 360)
-                        this@ModelController.pitch.set((pitch + it.pointer.delta.y / 10).coerceIn(-90f, 90f))
-                    } else if (it.pointer.isRightButtonDown) {
-                        offsetX.set(offsetX.value + it.pointer.delta.x / scale)
-                        offsetY.set(offsetY.value + it.pointer.delta.y / scale)
+        if (hasModel.use()) {
+            Model(attachment, "Model-Renderer") {
+                modifier.size(Grow.Std, Grow.Std)
+                    .margin(Dimensions.PaddingMedium)
+                    .showGrid(isGridVisible.use())
+                    .showBoundingBox(isBoundingBoxVisible.use())
+                    .showWireframe(isWireframeVisible.use())
+                    .scale(scale)
+                    .yaw(yaw).pitch(pitch)
+                    .offsetX(offsetX.use()).offsetY(offsetY.use())
+                    .onDrag {
+                        if (it.pointer.isLeftButtonDown) {
+                            this@ModelController.yaw.set((yaw + it.pointer.delta.x / 10) % 360)
+                            this@ModelController.pitch.set((pitch + it.pointer.delta.y / 10).coerceIn(-90f, 90f))
+                        } else if (it.pointer.isRightButtonDown) {
+                            offsetX.set(offsetX.value + it.pointer.delta.x / scale)
+                            offsetY.set(offsetY.value + it.pointer.delta.y / scale)
+                        }
                     }
-                }
-                .onWheelY {
-                    val newZoom = (zoomState * if (it.pointer.scroll.y > 0) 1.1f else 0.9f).coerceIn(0.1f, 10f)
-                    zoom.set(newZoom)
-                }
+                    .onWheelY {
+                        val newZoom = (zoomState * if (it.pointer.scroll.y > 0) 1.1f else 0.9f).coerceIn(0.1f, 10f)
+                        zoom.set(newZoom)
+                    }
+            }
+        } else {
+            Text("No model component") {
+                modifier.align(AlignmentX.Center, AlignmentY.Center).textColor(ColorTheme.UI.WhiteReplacement)
+            }
         }
 
         val animationPopup = remember { ItemPopupMenu<Unit>("animation-popup") }
@@ -577,3 +597,5 @@ fun ModelAttachment.calculateBounds(): Pair<Vec3f, Vec3f>? {
     if (!hasBounds) return null
     return Vec3f(minX, minY, minZ) to Vec3f(maxX, maxY, maxZ)
 }
+
+

@@ -6,15 +6,20 @@ import kotlinx.serialization.serializerOrNull
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.api.Init
+import ru.hollowhorizon.hollowengine.api.LooseOnDeath
 import ru.hollowhorizon.hollowengine.api.Registerable
 import ru.hollowhorizon.hollowengine.api.ReloadListener
+import ru.hollowhorizon.hollowengine.api.Syncable
 import ru.hollowhorizon.hollowengine.api.utils.Polymorphic
 import ru.hollowhorizon.hollowengine.common.config.Config
 import ru.hollowhorizon.hollowengine.common.config.ConfigName
 import ru.hollowhorizon.hollowengine.common.events.*
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptor
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentPersistencePolicy
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSyncPolicy
+import ru.hollowhorizon.hollowengine.common.geary.components.EditorHidden
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.registerPacket
@@ -95,11 +100,31 @@ object HollowModProcessor {
                 }
             }
         }
-        registerClassHandler<Registerable> { type, annotation ->
+        registerClassHandler<Registerable> { type, _ ->
             val component = type.kotlin
-            val serializer = component.serializerOrNull() ?: error("${type.simpleName} must be an object!")
-            val key = component.findAnnotation<SerialName>()?.value?.rl ?: error("@SerialName not found for class ${type.simpleName}")
-            ComponentRegistry.register(key) { ComponentHolder(component, JavaHacks.forceCast(serializer)) }
+            val serializer = component.serializerOrNull() ?: error("${type.simpleName} must be serializable!")
+            val key = component.findAnnotation<SerialName>()?.value?.rl
+                ?: error("@SerialName not found for class ${type.simpleName}")
+
+            ComponentRegistry.register(
+                key,
+                ComponentDescriptor(
+                    id = key,
+                    value = component,
+                    serializer = JavaHacks.forceCast(serializer),
+                    editable = !type.isAnnotationPresent(EditorHidden::class.java),
+                    persistencePolicy = if (type.isAnnotationPresent(LooseOnDeath::class.java)) {
+                        ComponentPersistencePolicy.LOOSE_ON_DEATH
+                    } else {
+                        ComponentPersistencePolicy.PERSIST
+                    },
+                    syncPolicy = if (type.isAnnotationPresent(Syncable::class.java)) {
+                        ComponentSyncPolicy.SYNC
+                    } else {
+                        ComponentSyncPolicy.NONE
+                    },
+                )
+            )
         }
         registerMethodHandler<Init> { method, _ ->
             if (method.isStatic()) {

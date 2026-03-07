@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.utils.bytebuf
 
 import com.google.common.reflect.TypeToken
-import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.SerialFormat
@@ -11,14 +10,25 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.plus
 import kotlinx.serialization.serializer
 import net.minecraft.network.FriendlyByteBuf
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
+import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.utils.nbt.TagModule
 import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
-
 
 open class ByteBufFormat(context: SerializersModule = EmptySerializersModule()) : SerialFormat, Format<FriendlyByteBuf> {
     override val serializersModule = context + TagModule
 
-    companion object Default : ByteBufFormat()
+    companion object Default : ByteBufFormat() {
+        fun serializeEntity(snapshot: EntitySnapshot, buf: FriendlyByteBuf = FriendlyByteBuf(Unpooled.buffer())): FriendlyByteBuf =
+            EntitySerialization.serializeToByteBuf(snapshot, buf)
+
+        fun serializeEntity(entity: MCEntity, buf: FriendlyByteBuf = FriendlyByteBuf(Unpooled.buffer())): FriendlyByteBuf =
+            EntitySerialization.serializeEntityToByteBuf(entity, buf)
+
+        fun deserializeEntity(buf: FriendlyByteBuf): EntitySnapshot = EntitySerialization.deserializeFromByteBuf(buf)
+        fun deserializeInto(target: MCEntity, buf: FriendlyByteBuf): EntitySnapshot = EntitySerialization.deserializeInto(target, buf)
+    }
 
     fun <T> serialize(
         serializer: SerializationStrategy<T>,
@@ -39,7 +49,6 @@ open class ByteBufFormat(context: SerializersModule = EmptySerializersModule()) 
         return decoder.decodeSerializableValue(deserializer)
     }
 }
-
 
 fun <T : Any> ByteBufFormat.serializeNoInline(
     value: T,

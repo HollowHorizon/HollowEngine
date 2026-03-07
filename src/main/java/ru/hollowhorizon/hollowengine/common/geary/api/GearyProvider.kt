@@ -6,13 +6,11 @@ import com.mineinabyss.geary.datatypes.Entity
 import com.mineinabyss.geary.datatypes.EntityId
 import com.mineinabyss.geary.modules.Geary
 import com.mineinabyss.geary.modules.get
-import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.level.Level
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.applySnapshot
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MinecraftEntityLookup
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.decodeComponents
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.encodeComponentsTo
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.loadComponentsFrom
 
 interface GearyProvider {
     val `hollowengine$geary`: Geary
@@ -34,14 +32,12 @@ val MCEntity.entity: Entity
 fun create(level: Level, entity: MCEntity): EntityId =
     level.geary.get<MinecraftEntityLookup>().linkWithMinecraft(level, entity)
 
-// TODO: Наверное должен быть более удобный способ переместить сущность из одного мира в другой?
 fun move(old: Level, new: Level, entity: Long, mcEntity: MCEntity): EntityId {
-    val tag = CompoundTag()
-    with(old.geary) { entity.encodeComponentsTo(tag) }
+    val snapshot = with(old.geary) { snapshotOf(entity.toGeary()) }
     with(new.geary) {
-        val newEntity = create(new, mcEntity)
-        newEntity.toGeary().loadComponentsFrom(tag.decodeComponents())
-        return newEntity
+        val newEntityId = create(new, mcEntity)
+        applySnapshot(newEntityId.toGeary(), snapshot)
+        return newEntityId
     }
 }
 

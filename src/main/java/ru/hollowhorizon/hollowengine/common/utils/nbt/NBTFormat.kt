@@ -11,7 +11,10 @@ import net.minecraft.nbt.*
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import ru.hollowhorizon.hollowengine.HollowCore
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentRegistry
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
+import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
 import ru.hollowhorizon.hollowengine.common.utils.serialization.deserialize
@@ -31,7 +34,7 @@ internal val TagModule
         contextual(Tag::class, PolymorphicSerializer(Tag::class))
 
         polymorphic(Component::class) {
-            ComponentRegistry.map { it.value }.forEach {
+            ComponentDescriptorRegistry.map { it.value }.forEach {
                 subclass(it.value, JavaHacks.forceCast(it.serializer))
             }
         }
@@ -87,13 +90,17 @@ open class NBTFormat(context: SerializersModule = EmptySerializersModule()) : Se
         init {
             LOGGER.info("Default Serializer loaded!")
         }
+
+        fun serializeEntity(snapshot: EntitySnapshot): Tag = EntitySerialization.serializeToNbt(snapshot)
+        fun serializeEntity(entity: MCEntity): Tag = EntitySerialization.serializeEntityToNbt(entity)
+        fun deserializeEntity(tag: Tag): EntitySnapshot = EntitySerialization.deserializeFromNbt(tag)
+        fun deserializeInto(target: MCEntity, tag: Tag): EntitySnapshot = EntitySerialization.deserializeInto(target, tag)
     }
 
     @Serializable
     data class Initializator(val value: String)
 
     fun init() {
-        // Первый вызов долгий, нужно инициализировать все внутренние механизмы сериализации
         val tag = serialize(Initializator(""))
         NBTFormat.deserialize<Initializator, Tag>(tag)
     }
