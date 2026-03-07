@@ -5,6 +5,7 @@ import com.mineinabyss.geary.datatypes.GearyEntityType
 import com.mineinabyss.geary.modules.Geary
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 
 context(world: Geary)
 inline fun <reified T : GearyComponent> CompoundTag.has(): Boolean = false
@@ -17,7 +18,7 @@ fun CompoundTag.encodeComponents(
     components: Collection<GearyComponent>,
     type: GearyEntityType,
 ) {
-    put("snapshot", EntitySerialization.serializeToNbt(ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot(
+    put("snapshot", EntitySerialization.serializeToNbt(EntitySnapshot(
         components = components.filterIsInstance<com.mineinabyss.geary.datatypes.Component>()
     )))
 }
@@ -25,7 +26,8 @@ fun CompoundTag.encodeComponents(
 context(world: Geary)
 fun CompoundTag.decodeComponents(): DecodedEntityData {
     val encoded = get("snapshot") ?: this
-    val snapshot = EntitySerialization.deserializeFromNbt(encoded)
+    val snapshot = EntitySerialization.tryDeserializeFromNbt(encoded, "decoded entity datastore snapshot")
+        ?: return DecodedEntityData(emptySet(), GearyEntityType())
     return DecodedEntityData(
         persistingComponents = snapshot.components.filterIsInstance<GearyComponent>().toSet(),
         type = GearyEntityType(),

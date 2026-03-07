@@ -50,7 +50,7 @@ class SpawnNpcPrefabBlock(
 
         if (prefabPath.isBlank()) return npc
 
-        EntitySerialization.apply(npc, PrefabSystem.resolve(prefabPath))
+        PrefabSystem.resolveOrNull(prefabPath)?.let { EntitySerialization.apply(npc, it) }
         return npc
     }
 
@@ -76,3 +76,4 @@ class SpawnNpcPrefabBlock(
         }
     }
 }
+

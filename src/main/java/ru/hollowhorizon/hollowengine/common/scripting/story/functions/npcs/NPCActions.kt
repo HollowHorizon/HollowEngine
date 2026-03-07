@@ -197,6 +197,7 @@ val Number.sec get() = (this.toFloat() * 20).toInt()
  * @param text Текст сообщения.
  */
 infix fun NpcEntity.say(text: String) {
+    ChatOverlay.nickname.set("")
     ChatOverlay.nickname.set(name)
     ChatOverlay.message.set(text)
     return // TODO: Можно будет доработать эту систему

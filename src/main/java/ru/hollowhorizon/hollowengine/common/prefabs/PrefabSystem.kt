@@ -29,9 +29,13 @@ object PrefabSystem : ResourceManagerReloadListener {
             .filter { it.isFile && it.name.endsWith(".entity.prefab") }
             .forEach { file ->
                 val key = keyForFile(file)
-                val definition = EntitySerialization.deserializeFromYaml(file.readText())
+                val readablePath = toReadablePath(file)
+                val definition = EntitySerialization.tryDeserializeFromYaml(
+                    file.readText(),
+                    "prefab $readablePath"
+                ) ?: return@forEach
                 definitions[key] = definition
-                pathToKey[toReadablePath(file)] = key
+                pathToKey[readablePath] = key
             }
     }
 
@@ -40,12 +44,22 @@ object PrefabSystem : ResourceManagerReloadListener {
     fun definition(key: PrefabKey): PrefabDefinition =
         definitions[key] ?: error("Unknown prefab: $key")
 
+    fun definitionOrNull(path: String): PrefabDefinition? = definitionOrNull(keyForPath(path))
+
+    fun definitionOrNull(key: PrefabKey): PrefabDefinition? = definitions[key]
+
     fun resolve(path: String): PrefabDefinition = resolve(keyForPath(path))
 
     fun resolve(key: PrefabKey): PrefabDefinition {
         val stack = ArrayDeque<PrefabKey>()
         return resolveInternal(key, stack)
     }
+
+    fun resolveOrNull(path: String): PrefabDefinition? = resolveOrNull(keyForPath(path))
+
+    fun resolveOrNull(key: PrefabKey): PrefabDefinition? = runCatching { resolve(key) }.onFailure { error ->
+        HollowEngine.LOGGER.error("Failed to resolve prefab $key", error)
+    }.getOrNull()
 
     fun keyForPath(path: String): PrefabKey =
         pathToKey[path.replace('\\', '/')] ?: keyForReadablePath(path)
@@ -59,7 +73,9 @@ object PrefabSystem : ResourceManagerReloadListener {
         val inherited = linkedMapOf<net.minecraft.resources.ResourceLocation, com.mineinabyss.geary.datatypes.Component>()
         val inheritedRefs = linkedSetOf<PrefabKey>()
         local.prefabRefs.forEach { ref ->
-            val resolved = resolveInternal(ref, stack)
+            val resolved = runCatching { resolveInternal(ref, stack) }.onFailure { error ->
+                HollowEngine.LOGGER.error("Failed to resolve inherited prefab $ref for $key", error)
+            }.getOrNull() ?: return@forEach
             inheritedRefs += resolved.prefabRefs
             inheritedRefs += ref
             resolved.componentById().forEach { (id, component) -> inherited[id] = component }

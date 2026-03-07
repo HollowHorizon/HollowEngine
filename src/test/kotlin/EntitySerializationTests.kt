@@ -14,7 +14,7 @@ import ru.hollowhorizon.hollowengine.common.prefabs.PrefabSystem
 import java.io.File
 import java.lang.reflect.Proxy
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 
 class EntitySerializationTests {
     private val basicId = ResourceLocation("test", "basic_component")
@@ -84,7 +84,7 @@ class EntitySerializationTests {
     }
 
     @Test
-    fun `unknown component in snapshot yaml fails fast`() {
+    fun `safe yaml deserialize returns null for unknown component`() {
         registerDescriptors()
         val yaml = """
             version: 2
@@ -94,9 +94,7 @@ class EntitySerializationTests {
                 value: nope
         """.trimIndent()
 
-        assertFailsWith<Throwable> {
-            EntitySerialization.deserializeFromYaml(yaml)
-        }
+        assertNull(EntitySerialization.tryDeserializeFromYaml(yaml, "test unknown component"))
     }
 
     private fun registerDescriptors() {
@@ -141,3 +139,4 @@ private data class BasicComponent(val value: String)
 
 @Serializable
 private data class LooseComponent(val value: String)
+

@@ -8,6 +8,7 @@ import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
 import kotlinx.serialization.KSerializer
 import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
@@ -199,3 +200,5 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
         val state: MutableStateValue<Component>,
     )
 }
+
+
