@@ -767,5 +767,7 @@
   "hollowengine.gui.codeblocks.label.equipment_head": "Head",
   "hollowengine.gui.codeblocks.label.equipment_chest": "Chest",
   "hollowengine.gui.codeblocks.label.equipment_legs": "Legs",
-  "hollowengine.gui.codeblocks.label.equipment_feet": "Feet"
+  "hollowengine.gui.codeblocks.label.equipment_feet": "Feet",
+
+  "hollowengine.codeblocks.events.on_event": "On Event"
 }

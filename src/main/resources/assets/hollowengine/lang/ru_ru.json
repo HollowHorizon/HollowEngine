@@ -766,5 +766,7 @@
   "hollowengine.gui.codeblocks.label.equipment_head": "Голова",
   "hollowengine.gui.codeblocks.label.equipment_chest": "Тело",
   "hollowengine.gui.codeblocks.label.equipment_legs": "Ноги",
-  "hollowengine.gui.codeblocks.label.equipment_feet": "Ступни"
+  "hollowengine.gui.codeblocks.label.equipment_feet": "Ступни",
+
+  "hollowengine.codeblocks.events.on_event": "При событии"
 }
