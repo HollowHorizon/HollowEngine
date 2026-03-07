@@ -1,4 +1,4 @@
-﻿package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
+package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -23,27 +23,14 @@ data class BranchKey(
     val scriptPath: String,
     val startBlockId: @Serializable(ForStringUUID::class) UUID,
     val groupKey: String? = null,
-)
-
-@Serializable
-enum class RepeatPolicy {
-    PARALLEL,
-    IGNORE,
-    RESTART,
-    QUEUE,
-}
-
-data class ActiveBranchSnapshot(
-    val key: BranchKey,
-    val repeatPolicy: RepeatPolicy,
-    val state: BranchState,
-    val currentBlockId: UUID?,
-    val queueLength: Int,
-)
-
-enum class BranchState {
-    RUNNING,
-    FROZEN,
+) {
+    fun asRuntimeBranchKey(): String {
+        val ownerToken = when (owner) {
+            OwnerKey.Global -> "global"
+            is OwnerKey.Entity -> "entity:${owner.uuid}"
+        }
+        return listOf(ownerToken, scriptPath, startBlockId.toString(), groupKey.orEmpty()).joinToString("|")
+    }
 }
 
 internal fun UUID.toOwnerKey(): OwnerKey = OwnerKey.Entity(this)

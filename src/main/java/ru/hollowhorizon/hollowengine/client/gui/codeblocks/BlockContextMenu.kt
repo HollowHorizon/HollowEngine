@@ -1,4 +1,4 @@
-﻿package ru.hollowhorizon.hollowengine.client.gui.codeblocks
+package ru.hollowhorizon.hollowengine.client.gui.codeblocks
 
 import de.fabmax.kool.Clipboard
 import de.fabmax.kool.math.Vec2f
@@ -11,7 +11,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.RepeatPolicy
+import ru.hollowhorizon.hollowengine.common.coroutines.LaunchPolicy
 
 object BlockContextMenu {
     private val blockPopup = ItemPopupMenu<Vec2f>("BlockContextMenu")
@@ -37,9 +37,9 @@ object BlockContextMenu {
                     item("hollowengine.gui.block_context.collapse".lang) { block.isCollapsed.set(true) }
                 }
                 (block as? StartBlock)?.let { startBlock ->
-                    item("Repeat: ${startBlock.repeatPolicy.name.lowercase()}") {}
-                    RepeatPolicy.entries.forEach { policy ->
-                        item("Set repeat ${policy.name.lowercase()}") {
+                    item("Launch: ${startBlock.repeatPolicy.name.lowercase()}") {}
+                    LaunchPolicy.entries.forEach { policy ->
+                        item("Set launch ${policy.name.lowercase()}") {
                             startBlock.repeatPolicy = policy
                         }
                     }

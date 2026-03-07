@@ -7,6 +7,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class SingleThreadDispatcherTests {
     @Test
@@ -14,7 +15,7 @@ class SingleThreadDispatcherTests {
         val dispatcher = SingleThreadDispatcher("test", Thread.currentThread())
         var hits = 0
 
-        dispatcher.invokeOnTimeout(50, Runnable { hits++ }, EmptyCoroutineContext)
+        dispatcher.invokeOnTimeout(50, { hits++ }, EmptyCoroutineContext)
         dispatcher.runTasks()
 
         assertEquals(1, hits)
@@ -26,8 +27,8 @@ class SingleThreadDispatcherTests {
         var immediateRan = false
         var delayedRan = false
 
-        dispatcher.dispatch(EmptyCoroutineContext, Runnable { immediateRan = true })
-        dispatcher.invokeOnTimeout(50, Runnable { delayedRan = true }, EmptyCoroutineContext)
+        dispatcher.dispatch(EmptyCoroutineContext) { immediateRan = true }
+        dispatcher.invokeOnTimeout(50, { delayedRan = true }, EmptyCoroutineContext)
 
         dispatcher.shutdown()
         repeat(3) { dispatcher.runTasks() }
@@ -51,6 +52,20 @@ class SingleThreadDispatcherTests {
         repeat(3) { dispatcher.runTasks() }
 
         assertFalse(completed)
+        job.cancel()
+    }
+
+    @Test
+    fun `shutdown does not throw when delayed continuation is cancelled`() {
+        val dispatcher = SingleThreadDispatcher("test", Thread.currentThread())
+        val job = CoroutineScope(Job() + dispatcher).launch {
+            delay(50)
+        }
+
+        dispatcher.runTasks()
+        val shutdownResult = runCatching { dispatcher.shutdown() }
+
+        assertTrue(shutdownResult.isSuccess)
         job.cancel()
     }
 }

@@ -1,4 +1,4 @@
-﻿import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.SupervisorJob
@@ -9,6 +9,8 @@ import kotlinx.coroutines.test.runTest
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
 import ru.hollowhorizon.hollowengine.common.coroutines.LaunchPolicy
+import ru.hollowhorizon.hollowengine.common.coroutines.RuntimeDefinitionId
+import ru.hollowhorizon.hollowengine.common.coroutines.RuntimeDefinitionRegistry
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineContextElement
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineDefinition
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineKey
@@ -174,12 +176,12 @@ class EntityScopeTests {
         val serialized = CompoundTag()
         originalScope.serialize(serialized)
         originalScope.cancelAll()
+        RuntimeDefinitionRegistry.unregister(RuntimeDefinitionId("serializable:$key"))
         runCurrent()
 
         val restoredScope = EntityScope(SupervisorJob() + dispatcher)
         val restoredOrder = mutableListOf<Int>()
         val restoredGates = ArrayDeque<CompletableDeferred<Unit>>()
-        restoredScope.deserialize(serialized)
         restoredScope.registerSerializable(
             SerializableCoroutineDefinition(
                 key = key,
@@ -193,6 +195,7 @@ class EntityScopeTests {
                 gate.await()
             }
         )
+        restoredScope.deserialize(serialized)
         runCurrent()
 
         assertEquals(listOf(1), restoredOrder)

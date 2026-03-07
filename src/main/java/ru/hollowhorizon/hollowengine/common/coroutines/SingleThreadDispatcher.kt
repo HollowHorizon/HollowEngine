@@ -47,14 +47,13 @@ class SingleThreadDispatcher(private val name: String, private val thread: Threa
 
         synchronized(lock) {
             if (isShutdown) {
-                continuation.cancel(CancellationException("Dispatcher $name is shutdown"))
+                cancelOnShutdown(continuation)
                 return
             }
 
             scheduledTask = ScheduledTask(
                 targetTick = currentTick + ticks,
-                task = { with(continuation) { resumeUndispatched(Unit) } },
-                onShutdown = { continuation.cancel(CancellationException("Dispatcher $name is shutdown")) },
+                task = { with(continuation) { resumeUndispatched(Unit) } }
             )
             delayedQueue.add(scheduledTask)
         }
@@ -105,6 +104,8 @@ class SingleThreadDispatcher(private val name: String, private val thread: Threa
             val task = synchronized(lock) { queue.removeFirstOrNull() } ?: break
             try {
                 task.run()
+            } catch (e: CancellationException) {
+                // Scope shutdown is expected during server stop.
             } catch (e: Throwable) {
                 HollowEngine.LOGGER.error("Exception while running coroutine!", e)
             }
@@ -113,20 +114,24 @@ class SingleThreadDispatcher(private val name: String, private val thread: Threa
     }
 
     fun shutdown() {
-        val delayedToCancel = synchronized(lock) {
+        synchronized(lock) {
             if (isShutdown) return
             isShutdown = true
-            val pending = delayedQueue.toList()
             queue.clear()
             delayedQueue.clear()
-            pending
         }
-
-        delayedToCancel.forEach { it.onShutdown?.invoke() }
     }
 
     override fun toString(): String {
         return name
+    }
+
+    private fun cancelOnShutdown(continuation: CancellableContinuation<Unit>) {
+        try {
+            continuation.cancel(CancellationException("Dispatcher $name is shutdown"))
+        } catch (_: CancellationException) {
+            // The continuation may already be completing when the dispatcher shuts down.
+        }
     }
 
     private data class ScheduledTask(
@@ -137,3 +142,4 @@ class SingleThreadDispatcher(private val name: String, private val thread: Threa
         override fun compareTo(other: ScheduledTask): Int = targetTick.compareTo(other.targetTick)
     }
 }
+

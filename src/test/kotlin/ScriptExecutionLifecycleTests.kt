@@ -19,6 +19,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.ScriptFile
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.ScriptInstance
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
 import ru.hollowhorizon.hollowengine.common.coroutines.LaunchPolicy
+import ru.hollowhorizon.hollowengine.common.coroutines.RuntimeDefinitionId
+import ru.hollowhorizon.hollowengine.common.coroutines.RuntimeDefinitionRegistry
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineDefinition
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineKey
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineKeyPart
@@ -187,11 +189,12 @@ class ScriptExecutionLifecycleTests {
         val serialized = CompoundTag()
         originalScope.serialize(serialized)
         originalScope.cancelAll()
+        RuntimeDefinitionRegistry.unregister(RuntimeDefinitionId("serializable:$key"))
         runCurrent()
 
         val restoredScope = EntityScope(SupervisorJob() + dispatcher)
-        restoredScope.deserialize(serialized)
         registerLifecycleExecution(restoredScope, key, instance, root)
+        restoredScope.deserialize(serialized)
         runCurrent()
 
         assertEquals(listOf("before-a", "before-b", "wait-enter:1"), log)
@@ -221,11 +224,12 @@ class ScriptExecutionLifecycleTests {
         val serialized = CompoundTag()
         originalScope.serialize(serialized)
         originalScope.cancelAll()
+        RuntimeDefinitionRegistry.unregister(RuntimeDefinitionId("serializable:$key"))
         runCurrent()
 
         val restoredScope = EntityScope(SupervisorJob() + dispatcher)
-        restoredScope.deserialize(serialized)
         registerLifecycleExecution(restoredScope, key, instance, root)
+        restoredScope.deserialize(serialized)
         runCurrent()
 
         restoredScope.launchSerializable(key, LaunchPolicy.ENQUEUE)
@@ -276,11 +280,12 @@ class ScriptExecutionLifecycleTests {
         val serialized = CompoundTag()
         originalScope.serialize(serialized)
         originalScope.cancelAll()
+        RuntimeDefinitionRegistry.unregister(RuntimeDefinitionId("serializable:$key"))
         runCurrent()
 
         val restoredScope = EntityScope(SupervisorJob() + dispatcher)
-        restoredScope.deserialize(serialized)
         registerLifecycleExecution(restoredScope, key, instance, root)
+        restoredScope.deserialize(serialized)
         runCurrent()
 
         restoredScope.launchSerializable(key, LaunchPolicy.DROP_NEW)
@@ -292,6 +297,3 @@ class ScriptExecutionLifecycleTests {
         assertEquals(listOf("before-a", "before-b", "wait-enter:1", "wait-exit:1", "after"), log)
     }
 }
-
-
-

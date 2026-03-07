@@ -1,31 +1,25 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.ListTag
-import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnEventBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.LocalVariableDeclaration
 import ru.hollowhorizon.hollowengine.common.codeblocks.createContainer
-import ru.hollowhorizon.hollowengine.common.codeblocks.execution.BlockFrameStackElement
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.CodeBlockInterpreter
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.scoped
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
-import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
-import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.common.coroutines.*
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.common.events.EventListener
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
+import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.collections.ArrayDeque
-import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.EmptyCoroutineContext
 
 class ScriptFile(
     val system: BlocksSystem,
@@ -37,122 +31,65 @@ class ScriptFile(
         .filter { it.variableName.isNotBlank() }
         .associate { it.variableName to it.expressionType }
 
-    val instances = CopyOnWriteArrayList<ScriptInstance>()
     val functions = allBlocks.filterIsInstance<CustomBlock>().associateBy { it.function }
 
     var isEnabled: Boolean = true
         private set
 
     private val listeners = CopyOnWriteArrayList<ListenerBinding>()
-    private val queuedLaunches = ConcurrentHashMap<BranchKey, ArrayDeque<PendingLaunch>>()
-    private val offlineLaunches = ConcurrentHashMap<OwnerKey, ArrayDeque<PendingLaunch>>()
+    private val definitionIds = linkedMapOf<UUID, RuntimeDefinitionId>()
 
-    fun setEnabled(value: Boolean) {
+    fun setEnabled(value: Boolean, persist: Boolean = true, update: Boolean = true) {
         if (isEnabled == value) return
         isEnabled = value
-        system.markDirty()
-        if (!value) {
-            stopAll()
-        } else {
-            startAllTriggers()
-        }
-    }
-
-    @Deprecated("Use setEnabled(true). Trigger execution is now event-driven and bound to EntityScope.")
-    fun startAllTriggers() {
-        unregisterEventListeners()
-        registerOwnerScopeListener()
-        allBlocks.filterIsInstance<StartBlock>().forEach { trigger ->
-            if (trigger is EventDrivenStartBlock<*>) {
-                registerEventListener(trigger)
-            } else if (!hasGlobalInstanceFor(trigger)) {
-                launchLegacyInstance(trigger)
+        if (update) {
+            if (value) {
+                startRouting()
+            } else {
+                stopRouting()
+                system.cancelDefinitions(definitionPrefix())
             }
         }
+        if (persist) system.markDirty()
     }
 
-    @Deprecated("Use setEnabled(false).")
-    fun stopAll() {
-        unregisterEventListeners()
-        queuedLaunches.clear()
-        offlineLaunches.clear()
-        instances.toList().forEach { it.stop() }
-        instances.clear()
-        system.markDirty()
+    internal fun loadEnabledState(value: Boolean) {
+        isEnabled = value
+    }
+
+    fun registerRuntimeDefinitions() {
+        unregisterRuntimeDefinitions()
+        allBlocks.filterIsInstance<StartBlock>().filterNot { it is CustomBlock }.forEach(::registerRuntimeDefinition)
+    }
+
+    fun unregisterRuntimeDefinitions() {
+        RuntimeDefinitionRegistry.unregisterByPrefix(definitionPrefix())
+        definitionIds.clear()
     }
 
     fun serialize(tag: CompoundTag) {
         tag.putBoolean("enabled", isEnabled)
-
-        val instancesList = ListTag()
-        instances.forEach { instance ->
-            instancesList.add(CompoundTag().apply(instance::serialize))
-        }
-        tag.put("instances", instancesList)
     }
 
     fun deserialize(tag: CompoundTag) {
         isEnabled = if (tag.contains("enabled")) tag.getBoolean("enabled") else true
-        instances.clear()
+    }
 
-        val instancesList = tag.getList("instances", 10)
-        instancesList.forEach { entry ->
-            val instTag = entry as? CompoundTag ?: return@forEach
-            val rootId = instTag.getUUID("rootBlockId")
-            val root = allBlocks.find { b -> b.uuid == rootId } as? StartBlock
-            if (root == null) {
-                HollowCore.LOGGER.warn(
-                    "Skipping restored script instance for {}: root block {} no longer exists",
-                    path,
-                    rootId
-                )
-                return@forEach
+    fun startRouting() {
+        unregisterEventListeners()
+        if (!isEnabled) return
+
+        allBlocks.filterIsInstance<StartBlock>().filterNot { it is CustomBlock }.forEach { trigger ->
+            if (trigger is EventDrivenStartBlock<*>) {
+                registerEventListener(trigger)
+            } else {
+                launchServerTrigger(trigger)
             }
-            val ownerEntityId = if (instTag.contains("ownerEntityId")) instTag.getUUID("ownerEntityId") else null
-            val instanceId = if (instTag.contains("instanceId")) instTag.getUUID("instanceId") else UUID.randomUUID()
-
-            val instance = buildInstance(
-                PendingLaunch(
-                    rootBlock = root,
-                    ownerKey = ownerEntityId?.toOwnerKey() ?: OwnerKey.Global,
-                    triggerContext = EmptyCoroutineContext,
-                    instanceId = instanceId,
-                )
-            )
-            instance.deserialize(instTag)
-            instances.add(instance)
-            instance.resume()
-        }
-
-        if (isEnabled) {
-            startAllTriggers()
-        } else {
-            unregisterEventListeners()
         }
     }
 
-    internal fun resolveEntityScope(entityId: UUID): EntityScope? {
-        val entity = findEntityById(entityId) ?: return null
-        return entity.coroutineScope as? EntityScope
-    }
-
-    internal fun onInstanceCompleted(instance: ScriptInstance) {
-        instances.remove(instance)
-        system.markDirty()
-        dequeueNext(instance.branchKey)
-    }
-
-    internal fun onInstanceSuspended(instance: ScriptInstance) {
-        system.markDirty()
-    }
-
-    internal fun onInstanceUnavailable(instance: ScriptInstance) {
-        instances.remove(instance)
-        enqueueOffline(
-            instance.ownerKey,
-            PendingLaunch(instance.rootBlock, instance.ownerKey, instance.initialTriggerContext())
-        )
-        system.markDirty()
+    fun stopRouting() {
+        unregisterEventListeners()
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -163,12 +100,11 @@ class ScriptFile(
                 if (!trigger.shouldHandle(event)) return
 
                 val entity = trigger.resolveScopeEntity(event) ?: return
-                resumeInstancesForOwner(entity.uuid)
-                launchConfiguredInstance(
-                    rootBlock = trigger as StartBlock,
-                    ownerKey = entity.uuid.toOwnerKey(),
-                    triggerContext = ScriptEventContextElement(event),
-                )
+                val ownerKey = entity.uuid.toOwnerKey()
+                val ownerScope = system.ownerScope(ownerKey) ?: return
+                submit(ownerScope, trigger as StartBlock, ownerKey, trigger.repeatPolicy) { state ->
+                    state.initialize(ownerKey, transientContext = ScriptEventContextElement(event))
+                }
             }
         }
 
@@ -176,137 +112,62 @@ class ScriptFile(
         listeners += ListenerBinding(trigger.eventType as Class<Event>, listener as EventListener<Event>)
     }
 
-    private fun registerOwnerScopeListener() {
-        val listener = object : EventListener<OwnerScopeRestoredEvent> {
-            override fun onEvent(event: OwnerScopeRestoredEvent) {
-                if (!isEnabled) return
-                resumeInstancesForOwner(event.entity.uuid)
-            }
-        }
-
-        EventBus.registerNoInline(OwnerScopeRestoredEvent::class.java as Class<Event>, listener as EventListener<Event>)
-        listeners += ListenerBinding(
-            OwnerScopeRestoredEvent::class.java as Class<Event>,
-            listener as EventListener<Event>
-        )
-    }
-
-
     fun launchSignal(signal: ScriptSignal) {
         if (!isEnabled) return
         matchingSignalHandlers(signal).forEach { handler ->
-            launchConfiguredInstance(
-                rootBlock = handler,
-                ownerKey = signal.owner,
-                triggerContext = ScriptSignalContextElement(signal),
-            )
+            val ownerScope = system.ownerScope(signal.owner) ?: return@forEach
+            submit(ownerScope, handler, signal.owner, handler.repeatPolicy) { state ->
+                state.initialize(signal.owner, signal)
+            }
         }
     }
 
     suspend fun callSignal(signal: ScriptSignal) {
         if (!isEnabled) return
         matchingSignalHandlers(signal).forEach { handler ->
-            val tempInstance = buildInstance(
-                PendingLaunch(
-                    rootBlock = handler,
-                    ownerKey = signal.owner,
-                    triggerContext = ScriptSignalContextElement(signal),
-                )
-            )
-
-            withContext(
-                ScriptContextElement(tempInstance) + ScriptSignalContextElement(signal) + BlockFrameStackElement(
-                    tempInstance
-                )
-            ) {
-                scoped {
-                    CodeBlockInterpreter<Unit>(handler).execute()
+            val definition = ensureRuntimeDefinition(handler)
+            val state = CodeBlockExecutionState(this, handler, definition.id).apply {
+                initialize(signal.owner, signal)
+            }
+            populateLocalVariables(state.instance)
+            coroutineScope {
+                withContext(definition.context + state.buildCoroutineContext()) {
+                    definition.block(this@coroutineScope, state)
                 }
             }
         }
     }
 
-    fun getActiveBranchSnapshots(): List<ActiveBranchSnapshot> {
-        val grouped = instances.groupBy { it.branchKey }
-        return grouped.map { (key, branchInstances) ->
-            val active = branchInstances.first()
-            val queueLength = queuedLaunches[key]?.size ?: 0
-            val state = if (active.ownerEntityId != null && resolveEntityScope(active.ownerEntityId) == null) {
-                BranchState.FROZEN
-            } else {
-                BranchState.RUNNING
-            }
-            ActiveBranchSnapshot(key, active.rootBlock.repeatPolicy, state, active.currentBlockId(), queueLength)
-        }
-    }
-
-    private fun launchConfiguredInstance(
-        rootBlock: StartBlock,
-        ownerKey: OwnerKey,
-        triggerContext: CoroutineContext,
-    ) {
-        val branchKey = rootBlock.buildBranchKey(path, ownerKey)
-        val active = instances.filter { it.branchKey == branchKey }
-        val pending = PendingLaunch(rootBlock, ownerKey, triggerContext)
-
-        when (rootBlock.repeatPolicy) {
-            RepeatPolicy.PARALLEL -> launchInstanceNow(pending)
-            RepeatPolicy.IGNORE -> if (active.isEmpty()) launchOrQueueOffline(pending)
-            RepeatPolicy.RESTART -> {
-                queuedLaunches.remove(branchKey)
-                active.forEach { it.stop() }
-                launchOrQueueOffline(pending)
-            }
-
-            RepeatPolicy.QUEUE -> {
-                if (active.isEmpty()) {
-                    launchOrQueueOffline(pending)
-                } else {
-                    queuedLaunches.getOrPut(branchKey, ::ArrayDeque).addLast(pending)
-                    system.markDirty()
-                }
-            }
-        }
-    }
-
-    private fun launchOrQueueOffline(pending: PendingLaunch) {
-        val ownerEntityId = pending.ownerKey.entityIdOrNull()
-        if (ownerEntityId != null && resolveEntityScope(ownerEntityId) == null) {
-            enqueueOffline(pending.ownerKey, pending)
-            system.markDirty()
-            return
-        }
-        launchInstanceNow(pending)
-    }
-
-    private fun launchInstanceNow(pending: PendingLaunch): ScriptInstance {
-        val instance = buildInstance(pending)
-        instances.add(instance)
-        instance.start()
-        system.markDirty()
-        return instance
-    }
-
-    private fun buildInstance(pending: PendingLaunch): ScriptInstance {
-        val instance = ScriptInstance(
-            ownerFile = this,
-            rootBlock = pending.rootBlock,
-            ownerEntityId = pending.ownerKey.entityIdOrNull(),
-            instanceId = pending.instanceId ?: UUID.randomUUID(),
-            triggerContext = pending.triggerContext,
-        )
-
+    internal fun populateLocalVariables(instance: ScriptInstance) {
         declaredLocalVariables.forEach { (name, type) ->
-            if (!instance.localVariables.contains(name)) {
+            if (name !in instance.localVariables) {
                 instance.localVariables[name] = createContainer(type)
             }
         }
-
-        return instance
     }
 
-    private fun launchLegacyInstance(rootBlock: StartBlock): ScriptInstance {
-        return launchInstanceNow(PendingLaunch(rootBlock, OwnerKey.Global, EmptyCoroutineContext))
+    private fun launchServerTrigger(rootBlock: StartBlock) {
+        submit(system.serverScope, rootBlock, OwnerKey.Global, rootBlock.repeatPolicy) { state ->
+            state.initialize(OwnerKey.Global)
+        }
+    }
+
+    private fun submit(
+        ownerScope: OwnerScope,
+        rootBlock: StartBlock,
+        ownerKey: OwnerKey,
+        launchPolicy: LaunchPolicy,
+        configureState: (CodeBlockExecutionState) -> Unit,
+    ) {
+        val definition = ensureRuntimeDefinition(rootBlock)
+        val branchKey = rootBlock.buildBranchKey(path, ownerKey).asRuntimeBranchKey()
+        ownerScope.submit(definition.id, branchKey, launchPolicy) { state ->
+            val execution = state as CodeBlockExecutionState
+            execution.initialize(ownerKey)
+            populateLocalVariables(execution.instance)
+            configureState(execution)
+            execution.instance.installCancel { ownerScope.cancelBranch(branchKey) }
+        }
     }
 
     private fun unregisterEventListeners() {
@@ -316,57 +177,60 @@ class ScriptFile(
         listeners.clear()
     }
 
-    private fun findEntityById(entityId: UUID): Entity? {
-        val server = system.owner
-        server.playerList.players.firstOrNull { it.uuid == entityId }?.let { return it }
-        server.allLevels.forEach { level ->
-            level.getEntity(entityId)?.let { return it }
-        }
-        return null
-    }
-
     private fun matchingSignalHandlers(signal: ScriptSignal): List<OnEventBlock> {
         return allBlocks
             .filterIsInstance<OnEventBlock>()
             .filter { it.signalScope == signal.scope && it.signalName == signal.name }
     }
 
-
-    private fun hasGlobalInstanceFor(trigger: StartBlock): Boolean {
-        return instances.any { it.rootBlock.uuid == trigger.uuid && it.ownerKey == OwnerKey.Global }
+    private fun ensureRuntimeDefinition(startBlock: StartBlock): RuntimeDefinition {
+        val definitionId = definitionIdFor(startBlock)
+        definitionIds[startBlock.uuid] = definitionId
+        return RuntimeDefinitionRegistry.resolve(definitionId) ?: registerRuntimeDefinition(startBlock)
     }
 
-    private fun dequeueNext(branchKey: BranchKey) {
-        val queue = queuedLaunches[branchKey] ?: return
-        val next = queue.removeFirstOrNull()
-        if (queue.isEmpty()) {
-            queuedLaunches.remove(branchKey)
+    private fun registerRuntimeDefinition(startBlock: StartBlock): RuntimeDefinition {
+        val definitionId = definitionIdFor(startBlock)
+        val definition = RuntimeDefinition(
+            id = definitionId,
+            contextFactory = { CodeBlockExecutionState(this, startBlock, definitionId) },
+        ) { state ->
+            val execution = state as CodeBlockExecutionState
+            try {
+                scoped {
+                    CodeBlockInterpreter<Unit>(startBlock).execute()
+                }
+            } catch (_: SkipScriptEventExecution) {
+                // Routed event did not match this branch.
+            } catch (_: CancellationException) {
+                // Expected for repeat policies and scope lifecycle.
+            } catch (t: Throwable) {
+                HollowCore.LOGGER.error(
+                    "Script {} failed at block {}",
+                    path,
+                    execution.instance.currentBlockId(),
+                    t,
+                )
+                throw t
+            } finally {
+                execution.instance.detachStack()
+                execution.instance.updateCurrentBlockId(null)
+                system.markDirty()
+            }
         }
-        next?.let(::launchOrQueueOffline)
+        RuntimeDefinitionRegistry.register(definition)
+        definitionIds[startBlock.uuid] = definitionId
+        return definition
     }
 
-    private fun enqueueOffline(ownerKey: OwnerKey, pending: PendingLaunch) {
-        offlineLaunches.getOrPut(ownerKey, ::ArrayDeque).addLast(pending)
+    private fun definitionIdFor(startBlock: StartBlock): RuntimeDefinitionId {
+        return definitionIds[startBlock.uuid] ?: RuntimeDefinitionId("codeblocks:$path#${startBlock.uuid}")
     }
 
-    private fun resumeInstancesForOwner(entityId: UUID) {
-        val ownerKey = entityId.toOwnerKey()
-        instances.filter { it.ownerKey == ownerKey }.forEach { it.resume() }
-        val queue = offlineLaunches.remove(ownerKey) ?: return
-        queue.forEach { pending ->
-            launchConfiguredInstance(pending.rootBlock, pending.ownerKey, pending.triggerContext)
-        }
-    }
+    private fun definitionPrefix(): String = "codeblocks:$path#"
 
     private data class ListenerBinding(
         val eventType: Class<Event>,
         val listener: EventListener<Event>,
-    )
-
-    private data class PendingLaunch(
-        val rootBlock: StartBlock,
-        val ownerKey: OwnerKey,
-        val triggerContext: CoroutineContext,
-        val instanceId: UUID? = null,
     )
 }

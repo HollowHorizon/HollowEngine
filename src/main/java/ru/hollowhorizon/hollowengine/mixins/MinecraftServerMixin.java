@@ -85,15 +85,14 @@ public abstract class MinecraftServerMixin implements ServerDispatcher {
     }
 
     @Inject(method = "stopServer", at = @At("HEAD"))
-    private void cancelCoroutineScope(CallbackInfo ci) {
-        CoroutineScopeKt.cancel(hollowcore$coroutineScope, null);
-
-        hollowcore$dispatcher.runTasks();
+    private void beforeStopServer(CallbackInfo ci) {
         EventBus.post(new ServerEvent.Stoping((MinecraftServer) (Object) this));
     }
 
     @Inject(method = "stopServer", at = @At("RETURN"))
     private void shutdownDispatcher(CallbackInfo ci) {
+        CoroutineScopeKt.cancel(hollowcore$coroutineScope, null);
+        hollowcore$dispatcher.runTasks();
         hollowcore$dispatcher.shutdown();
     }
 
