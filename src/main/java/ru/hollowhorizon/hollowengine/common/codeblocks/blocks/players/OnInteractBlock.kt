@@ -6,6 +6,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
@@ -16,11 +17,12 @@ import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputVariableBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.EventDrivenStartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentScriptEvent
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.skipScriptEventExecution
+import ru.hollowhorizon.hollowengine.common.codeblocks.validation.EventContextProvider
 import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStackJson
@@ -107,71 +109,66 @@ class PlayerInteractWithBlock : StatementBlock() {
 
 @Serializable
 @SerialName("hollowengine:events/interact_block/item")
-class PlayerInteractWithItem : StartBlock(), EventDrivenStartBlock<PlayerInteractEvent.ItemInteract> {
+class PlayerInteractWithItem : StartBlock(), EventDrivenStartBlock<PlayerInteractEvent.ItemInteract>, EventContextProvider {
     override val color: Color get() = CodeBlocksColors.EVENTS
 
-    val player by input<Player>("player")
-    var item: @Serializable(ForItemStackJson::class) ItemStack = ItemStack.EMPTY
-
-    @Transient
-    val popup = AutoPopup(true, true)
+    private val playerOutput by outputDefault<Player>(
+        name = PLAYER_OUTPUT,
+        default = { EventOutputVariableBlock("player") },
+    )
+    private val itemOutput by outputDefault<ItemStack>(
+        name = ITEM_OUTPUT,
+        default = { EventOutputVariableBlock("item") },
+    )
+    private val handOutput by outputDefault<InteractionHand>(
+        name = HAND_OUTPUT,
+        default = { EventOutputVariableBlock("hand") },
+    )
 
     override suspend fun trigger() {
-        currentScriptEvent<PlayerInteractEvent.ItemInteract>()?.let { event ->
-            if (!matches(event)) skipScriptEventExecution()
-            return
-        }
-
-        while (true) {
-            val event = await<PlayerInteractEvent.ItemInteract>()
-            if (matches(event)) {
-                return
-            }
-        }
+        val event = currentScriptEvent<PlayerInteractEvent.ItemInteract>() ?: await<PlayerInteractEvent.ItemInteract>()
+        playerOutput.emit(event.player)
+        itemOutput.emit(event.itemStack)
+        handOutput.emit(event.hand)
     }
 
     override val eventType: Class<PlayerInteractEvent.ItemInteract> get() = PlayerInteractEvent.ItemInteract::class.java
 
     override fun resolveScopeEntity(event: PlayerInteractEvent.ItemInteract) = event.player
 
-    private suspend fun matches(event: PlayerInteractEvent.ItemInteract): Boolean {
-        if (event.player != player()) return false
-        //? if > 1.20.1 {
-        /*return ItemStack.isSameItemSameComponents(event.itemStack, item)
-        *///?} else {
-        return ItemStack.isSameItemSameTags(event.itemStack, item)
-        //?}
-    }
-
     override fun InputSlotScope.composeContent() {
-        Text("hollowengine.gui.codeblocks.label.player".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-        InputSlot(player)
-        Text("hollowengine.gui.codeblocks.label.player_uses".lang) {
-            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled()).bold()
-        }
-        Box(Dimensions.PaddingLarge.scaled(), Dimensions.PaddingLarge.scaled()) {
-            modifier.alignY(AlignmentY.Center)
-                .border(RoundRectBorder(Color.WHITE, Dimensions.PaddingSmall.scaled(), Dimensions.PaddingSmall.scaled()))
-
-            Item(item) {
-                val isHovered by modifier.hoverable()
-                val size by animateFloatAsState(if (isHovered) 1.5f else 1.2f)
-
-                modifier.size(Dimensions.PaddingHuge.scaled() * size, Dimensions.PaddingHuge.scaled() * size)
-                    .align(AlignmentX.Center, AlignmentY.Center)
-                    .onClick {
-                        popup.popupContent = {
-                            InventoryPicker.select {
-                                item = it
-                                popup.hide()
-                            }
-                        }
-
-                        popup.show(Vec2f(uiNode.rightPx + Dimensions.PaddingSmall.scaled().px, uiNode.topPx))
-                    }
+        Column {
+            Text("hollowengine.gui.codeblocks.block.on_player_use_item".lang) {
+                modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+            }
+            Row(Grow.Std) {
+                Text("hollowengine.gui.codeblocks.label.event_player".lang) {
+                    modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold().width(Grow.Std)
+                }
+                OutputSlot(playerOutput)
+            }
+            Box { modifier.height(2.dp.scaled()) }
+            Row(Grow.Std) {
+                Text("hollowengine.gui.codeblocks.label.event_item".lang) {
+                    modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold().width(Grow.Std)
+                }
+                OutputSlot(itemOutput)
+            }
+            Box { modifier.height(2.dp.scaled()) }
+            Row(Grow.Std) {
+                Text("hollowengine.gui.codeblocks.label.event_hand".lang) {
+                    modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold().width(Grow.Std)
+                }
+                OutputSlot(handOutput)
             }
         }
-        popup()
     }
 
+    override fun availableEventOutputs(): Set<String> = setOf("player", "item", "hand")
+
+    companion object {
+        const val PLAYER_OUTPUT = "playerOutput"
+        const val ITEM_OUTPUT = "itemOutput"
+        const val HAND_OUTPUT = "handOutput"
+    }
 }

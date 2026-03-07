@@ -515,7 +515,13 @@
   "hollowengine.gui.codeblocks.block.create_function": "Создать функцию",
   "hollowengine.gui.codeblocks.block.call_function": "Вызвать %s",
 
-  "hollowengine.gui.codeblocks.block.on_start": "При запуске",
+  "hollowengine.gui.codeblocks.block.on_start": "При запуске системы",
+  "hollowengine.gui.codeblocks.block.on_signal": "При Сигнале",
+  "hollowengine.gui.codeblocks.block.send_signal": "Отправить сигнал",
+  "hollowengine.gui.codeblocks.block.call_signal": "Вызвать сигнал",
+  "hollowengine.gui.codeblocks.block.on_player_join": "При входе игрока",
+  "hollowengine.gui.codeblocks.block.on_player_death": "При смерти игрока",
+  "hollowengine.gui.codeblocks.block.on_player_use_item": "При использовании предмета",
   "hollowengine.gui.codeblocks.block.on_player_chat": "При сообщении в чат",
   "hollowengine.gui.codeblocks.block.event_output_var": "Output события -> переменная",
   "hollowengine.gui.codeblocks.block.event_output_player": "Игрок события",
@@ -550,6 +556,12 @@
   "hollowengine.gui.codeblocks.label.event_output_player_section": "Output игрока",
   "hollowengine.gui.codeblocks.label.event_output_message_section": "Output сообщения",
   "hollowengine.gui.codeblocks.label.event_output_username_section": "Output имени",
+  "hollowengine.gui.codeblocks.label.event_player": "игрок:",
+  "hollowengine.gui.codeblocks.label.event_message": "сообщение:",
+  "hollowengine.gui.codeblocks.label.event_username": "имя:",
+  "hollowengine.gui.codeblocks.label.event_item": "предмет:",
+  "hollowengine.gui.codeblocks.label.event_hand": "рука:",
+  "hollowengine.gui.codeblocks.label.event_damage_source": "источник урона:",
 
   "hollowengine.gui.codeblocks.hint.value": "Значение",
   "hollowengine.gui.codeblocks.hint.variable_name": "Имя переменной",
@@ -770,3 +782,7 @@
 
   "hollowengine.codeblocks.events.on_event": "При событии"
 }
+
+
+
+

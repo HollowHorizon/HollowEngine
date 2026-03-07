@@ -1,4 +1,4 @@
-﻿package ru.hollowhorizon.hollowengine.common.codeblocks.modules
+package ru.hollowhorizon.hollowengine.common.codeblocks.modules
 
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockEntry
@@ -13,8 +13,10 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnStartBloc
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.items.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.math.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.nbt.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerChatBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerDeathBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerJoinBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.PlayerInteractWithItem
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.PlayerSelectedBlockPopupBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.PlayerSelectedItemPopupBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.*
@@ -182,12 +184,13 @@ object StandardModules {
     val Events: BlockModule = {
         category("hollowengine.gui.codeblocks.category.events".lang, icons.EVENTS) {
             block("hollowengine.gui.codeblocks.block.on_start".lang) { OnStartBlock() }
-            block("On signal") { OnEventBlock() }
-            block("Send signal") { SendEventBlock("") }
-            block("Call signal") { CallEventBlock("") }
-
-            block("On player join") { OnPlayerJoinBlock() }
-            block("On player death") { OnPlayerDeathBlock() }
+            block("hollowengine.gui.codeblocks.block.on_signal".lang) { OnEventBlock() }
+            block("hollowengine.gui.codeblocks.block.send_signal".lang) { SendEventBlock("") }
+            block("hollowengine.gui.codeblocks.block.call_signal".lang) { CallEventBlock("") }
+            block("hollowengine.gui.codeblocks.block.on_player_join".lang) { OnPlayerJoinBlock() }
+            block("hollowengine.gui.codeblocks.block.on_player_death".lang) { OnPlayerDeathBlock() }
+            block("hollowengine.gui.codeblocks.block.on_player_chat".lang) { OnPlayerChatBlock() }
+            block("hollowengine.gui.codeblocks.block.on_player_use_item".lang) { PlayerInteractWithItem() }
         }
     }
 
@@ -217,5 +220,3 @@ object StandardModules {
         include(Types)
     }
 }
-
-

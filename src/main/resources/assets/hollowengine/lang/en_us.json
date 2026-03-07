@@ -516,7 +516,13 @@
   "hollowengine.gui.codeblocks.block.create_function": "Create Function",
   "hollowengine.gui.codeblocks.block.call_function": "Call %s",
 
-  "hollowengine.gui.codeblocks.block.on_start": "On Start",
+  "hollowengine.gui.codeblocks.block.on_start": "On Start System",
+  "hollowengine.gui.codeblocks.block.on_signal": "On Signal",
+  "hollowengine.gui.codeblocks.block.send_signal": "Send Signal",
+  "hollowengine.gui.codeblocks.block.call_signal": "Call Signal",
+  "hollowengine.gui.codeblocks.block.on_player_join": "On Player Join",
+  "hollowengine.gui.codeblocks.block.on_player_death": "On Player Death",
+  "hollowengine.gui.codeblocks.block.on_player_use_item": "On Player Use Item",
   "hollowengine.gui.codeblocks.block.on_player_chat": "On Player Chat",
   "hollowengine.gui.codeblocks.block.event_output_var": "Event Output -> Variable",
   "hollowengine.gui.codeblocks.block.event_output_player": "Event Player",
@@ -551,6 +557,12 @@
   "hollowengine.gui.codeblocks.label.event_output_player_section": "Player Output",
   "hollowengine.gui.codeblocks.label.event_output_message_section": "Message Output",
   "hollowengine.gui.codeblocks.label.event_output_username_section": "Username Output",
+  "hollowengine.gui.codeblocks.label.event_player": "player:",
+  "hollowengine.gui.codeblocks.label.event_message": "message:",
+  "hollowengine.gui.codeblocks.label.event_username": "username:",
+  "hollowengine.gui.codeblocks.label.event_item": "item:",
+  "hollowengine.gui.codeblocks.label.event_hand": "hand:",
+  "hollowengine.gui.codeblocks.label.event_damage_source": "source:",
 
   "hollowengine.gui.codeblocks.hint.value": "Value",
   "hollowengine.gui.codeblocks.hint.variable_name": "Variable name",
@@ -771,3 +783,7 @@
 
   "hollowengine.codeblocks.events.on_event": "On Event"
 }
+
+
+
+

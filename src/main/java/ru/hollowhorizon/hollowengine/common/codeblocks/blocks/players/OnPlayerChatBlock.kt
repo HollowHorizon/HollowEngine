@@ -1,4 +1,4 @@
-﻿package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players
+package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players
 
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
@@ -50,7 +50,7 @@ class OnPlayerChatBlock : StartBlock(), EventDrivenStartBlock<ServerChatEvent>, 
                 modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
             }
             Row(Grow.Std) {
-                Text("player:") {
+                Text("hollowengine.gui.codeblocks.label.event_player".lang) {
                     modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
                         .width(Grow.Std)
                 }
@@ -58,7 +58,7 @@ class OnPlayerChatBlock : StartBlock(), EventDrivenStartBlock<ServerChatEvent>, 
             }
             Box { modifier.height(2.dp.scaled()) }
             Row(Grow.Std) {
-                Text("message:") {
+                Text("hollowengine.gui.codeblocks.label.event_message".lang) {
                     modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
                         .width(Grow.Std)
                 }
@@ -66,7 +66,7 @@ class OnPlayerChatBlock : StartBlock(), EventDrivenStartBlock<ServerChatEvent>, 
             }
             Box { modifier.height(2.dp.scaled()) }
             Row(Grow.Std) {
-                Text("username:") {
+                Text("hollowengine.gui.codeblocks.label.event_username".lang) {
                     modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
                         .width(Grow.Std)
                 }
@@ -83,3 +83,4 @@ class OnPlayerChatBlock : StartBlock(), EventDrivenStartBlock<ServerChatEvent>, 
         const val USERNAME_OUTPUT = "usernameOutput"
     }
 }
+
