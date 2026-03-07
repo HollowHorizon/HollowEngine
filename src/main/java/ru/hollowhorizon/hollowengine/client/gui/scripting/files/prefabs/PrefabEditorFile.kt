@@ -16,7 +16,11 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.geary.components.*
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
+import ru.hollowhorizon.hollowengine.common.geary.components.EditorIcon
+import ru.hollowhorizon.hollowengine.common.geary.components.GenericEditor
+import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -24,6 +28,7 @@ import kotlin.reflect.full.findAnnotation
 
 class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
     private val components = mutableStateListOf<EditorComponent>()
+    private val hiddenComponents = mutableListOf<Component>()
     private var prefabRefs: Set<PrefabKey> = emptySet()
 
     init {
@@ -34,6 +39,10 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
 
                 prefab.components.forEach { component ->
                     val descriptor = EntitySerialization.descriptorFor(component) ?: return@forEach
+                    if (!descriptor.editable) {
+                        hiddenComponents += component
+                        return@forEach
+                    }
                     val state = mutableStateOf(component)
                     hookModelPreview(state)
                     components += EditorComponent(descriptor.id, descriptor, state)
@@ -54,7 +63,7 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
 
         val prefab = EntitySnapshot(
             prefabRefs = prefabRefs,
-            components = components.map { it.state.value }
+            components = components.map { it.state.value } + hiddenComponents
         )
         file.writeText(EntitySerialization.serializeToYaml(prefab))
     }
@@ -131,6 +140,7 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
 
     private fun addComponent(key: ResourceLocation) {
         val holder = ComponentDescriptorRegistry.getOrNull(key) ?: return
+        if (!holder.editable) return
         val component = holder.create()
         val state = mutableStateOf(component)
 
@@ -158,7 +168,9 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
     private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("hollowengine.gui.entity_editor.components".lang) {
         val existing = components.map { it.key }.toSet()
         val available = ComponentDescriptorRegistry.map { it.key }
-            .filter { it !in existing }
+            .filter { key ->
+                key !in existing && (ComponentDescriptorRegistry.getOrNull(key)?.editable == true)
+            }
             .sortedBy { it.toString() }
 
         if (available.isEmpty()) {
@@ -195,5 +207,3 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
         val state: MutableStateValue<Component>,
     )
 }
-
-

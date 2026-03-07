@@ -1,4 +1,4 @@
-﻿package ru.hollowhorizon.hollowengine.common.commands
+package ru.hollowhorizon.hollowengine.common.commands
 
 import com.mineinabyss.geary.serialization.setPersisting
 import com.mojang.brigadier.arguments.StringArgumentType
@@ -19,7 +19,6 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.api.ParticlesProvider
-import ru.hollowhorizon.hollowengine.api.Syncable
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
@@ -36,6 +35,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadableP
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSyncPolicy
 import ru.hollowhorizon.hollowengine.common.geary.sync.setSyncing
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
@@ -46,7 +46,6 @@ import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQue
 import java.io.File
 import kotlin.math.pow
 import kotlin.math.roundToInt
-import kotlin.reflect.full.hasAnnotation
 
 @SubscribeEvent
 fun onRegisterCommands(event: RegisterCommandsEvent) {
@@ -121,7 +120,8 @@ private fun CommandExtension.registerUtilityCommands() {
     "geary" {
         ComponentDescriptorRegistry.forEach { holder ->
             val c = holder.value
-            val isSyncing = c.value.hasAnnotation<Syncable>()
+            if (!c.editable) return@forEach
+            val isSyncing = c.syncPolicy == ComponentSyncPolicy.SYNC
             "${holder.key}" {
                 "add"(arg("entity", EntityArgument.entity())) {
                     executes {
@@ -439,6 +439,9 @@ class ShowModelInfoPacket(val model: String) : HollowPacket {
     }
 }
 // endregion
+
+
+
 
 
 

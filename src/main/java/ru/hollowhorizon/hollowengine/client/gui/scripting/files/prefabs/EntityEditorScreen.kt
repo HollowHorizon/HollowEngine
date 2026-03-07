@@ -19,7 +19,11 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
-import ru.hollowhorizon.hollowengine.common.geary.components.*
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
+import ru.hollowhorizon.hollowengine.common.geary.components.EditorIcon
+import ru.hollowhorizon.hollowengine.common.geary.components.GenericEditor
+import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.reflect.full.findAnnotation
 
@@ -30,6 +34,7 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
 
     init {
         ComponentDescriptorRegistry.forEach { holder ->
+            if (!holder.value.editable) return@forEach
             val component = gearyEntity.get(holder.value.value)
             if (component != null) {
                 val state = mutableStateOf(component)
@@ -124,6 +129,7 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
 
     private fun addComponent(key: ResourceLocation) {
         val holder = ComponentDescriptorRegistry[key]
+        if (!holder.editable) return
         val component = holder.create()
         gearyEntity.set(component, holder.value)
 
@@ -147,7 +153,11 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
     private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> =
         SubMenuItem("hollowengine.gui.entity_editor.components".lang) {
             val existing = components.map { it.key }.toSet()
-            val available = ComponentDescriptorRegistry.map { it.key }.filter { it !in existing }.sortedBy { it.toString() }
+            val available = ComponentDescriptorRegistry.map { it.key }
+                .filter { key ->
+                    key !in existing && (ComponentDescriptorRegistry.getOrNull(key)?.editable == true)
+                }
+                .sortedBy { it.toString() }
 
             available.forEach { key ->
                 val holder = ComponentDescriptorRegistry[key]
