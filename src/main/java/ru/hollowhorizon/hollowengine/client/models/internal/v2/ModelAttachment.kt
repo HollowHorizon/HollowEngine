@@ -57,9 +57,14 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
         }
 
     private val onUpdates = mutableListOf<ModelAttachment.() -> Unit>()
+    private val onPostUpdates = mutableListOf<ModelAttachment.() -> Unit>()
 
     fun onUpdate(action: ModelAttachment.() -> Unit) {
         onUpdates.add(action)
+    }
+
+    fun onPostUpdate(action: ModelAttachment.() -> Unit) {
+        onPostUpdates.add(action)
     }
 
     private fun ensureCompiled(animated: AnimatedModel) {
@@ -98,6 +103,8 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
         for (animation in currentAnimations) {
             animation.update(transforms, dt)
         }
+
+        onPostUpdates.forEach { it() }
     }
 
     override fun collectCommands(pipeline: RenderPipeline) {
@@ -109,6 +116,11 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
     fun child(name: String): RuntimeNode {
         ensureCompiled(flow.value)
         return runtimeNodes.single { it.name == name }
+    }
+
+    fun findNode(name: String): RuntimeNode? {
+        ensureCompiled(flow.value)
+        return runtimeNodes.asSequence().flatMap { it.walk().asSequence() }.firstOrNull { it.name == name }
     }
 }
 
@@ -122,5 +134,5 @@ class Animations(private val map: Map<String, AnimationInstance>) : Collection<A
 
     override fun iterator(): Iterator<AnimationInstance> = map.values.iterator()
 
-    override fun containsAll(elements: Collection<AnimationInstance>): Boolean = map.values.containsAll(elements)
+    override fun containsAll(elements: Collection<AnimationInstance>) = map.values.containsAll(elements)
 }

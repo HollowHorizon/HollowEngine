@@ -134,9 +134,14 @@ open class AnimationController(val system: AnimationSystem) {
 
     private var definition: Definition = Definition(emptyMap(), null, emptyList())
     private var initialized = false
+    private val updateHandlers = mutableListOf<(LivingEntity, Float) -> Unit>()
 
     var currentState: State? = null
         private set
+
+    fun onUpdate(block: (LivingEntity, Float) -> Unit) {
+        updateHandlers += block
+    }
 
     fun configure(block: Builder.() -> Unit) {
         definition = Builder().apply(block).build()
@@ -150,6 +155,8 @@ open class AnimationController(val system: AnimationSystem) {
             currentState = entry?.let { definition.states[it] } ?: definition.states.values.firstOrNull()
             initialized = true
         }
+
+        updateHandlers.forEach { it(entity, dt) }
 
         val state = currentState ?: return
 

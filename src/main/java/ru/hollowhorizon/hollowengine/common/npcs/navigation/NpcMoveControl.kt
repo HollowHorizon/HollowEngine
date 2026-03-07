@@ -12,10 +12,17 @@ import net.minecraft.world.level.pathfinder.PathfindingContext
 import net.minecraft.world.level.pathfinder.BlockPathTypes
 //?}
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.sqrt
 
 class NpcMoveControl(mob: NpcEntity) : MoveControl(mob) {
+    companion object {
+        private const val MIN_DISTANCE_FOR_TURN_SQ = 0.04
+        private const val BODY_TURN_DEAD_ZONE = 3f
+        private const val MAX_BODY_TURN = 35f
+    }
+
     override fun tick() {
         when (this.operation) {
             Operation.STRAFE -> {
@@ -52,14 +59,22 @@ class NpcMoveControl(mob: NpcEntity) : MoveControl(mob) {
                 val dz = this.wantedZ - mob.z
                 val dy = this.wantedY - mob.y
                 val distSq = dx * dx + dy * dy + dz * dz
+                val horizontalDistSq = dx * dx + dz * dz
 
                 if (distSq < 2.5e-7) {
                     mob.zza = 0f
                     return
                 }
 
-                val angle = Mth.atan2(dz, dx) * (180 / Math.PI) - 90.0
-                mob.yRot = rotlerp(mob.yRot, angle.toFloat(), 90f)
+                if (horizontalDistSq >= MIN_DISTANCE_FOR_TURN_SQ) {
+                    val targetYaw = (Mth.atan2(dz, dx) * (180 / Math.PI) - 90.0).toFloat()
+                    val yawDelta = Mth.wrapDegrees(targetYaw - mob.yBodyRot)
+                    if (abs(yawDelta) >= BODY_TURN_DEAD_ZONE) {
+                        val bodyYaw = rotlerp(mob.yBodyRot, targetYaw, MAX_BODY_TURN)
+                        mob.yRot = bodyYaw
+                        mob.setYBodyRot(bodyYaw)
+                    }
+                }
                 mob.speed = (this.speedModifier * mob.getAttributeValue(Attributes.MOVEMENT_SPEED)).toFloat()
 
                 val pos = mob.blockPosition()
