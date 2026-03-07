@@ -58,9 +58,7 @@ class BlocksSystem(val owner: MinecraftServer) {
         scripts.clear()
 
         val scriptDir = DirectoryManager.HOLLOW_ENGINE.resolve("scripts").toFile()
-        scriptDir.walk()
-            .filter { it.isFile && it.extension == "bc" }
-            .forEach { file ->
+        scriptDir.walk().filter { it.isFile && it.extension == "bc" }.forEach { file ->
                 val readablePath = file.toReadablePath()
                 try {
                     val report = format.loadBlocksWithRecovery(file)
@@ -105,8 +103,7 @@ class BlocksSystem(val owner: MinecraftServer) {
     }
 
     fun getActiveBranchSnapshots(): List<ActiveBranchSnapshot> {
-        return scripts.values
-            .flatMap { it.getActiveBranchSnapshots() }
+        return scripts.values.flatMap { it.getActiveBranchSnapshots() }
             .sortedWith(compareBy({ it.key.scriptPath }, { it.key.startBlockId.toString() }))
     }
 }

@@ -1,17 +1,22 @@
 package ru.hollowhorizon.hollowengine.common.coroutines
 
-import kotlinx.coroutines.CancellableContinuation
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Delay
-import kotlinx.coroutines.DisposableHandle
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.InternalCoroutinesApi
+import kotlinx.coroutines.*
 import ru.hollowhorizon.hollowengine.HollowEngine
+import java.lang.Runnable
 import java.util.PriorityQueue
+import kotlin.Any
+import kotlin.Boolean
+import kotlin.Comparable
+import kotlin.Int
+import kotlin.Long
+import kotlin.OptIn
+import kotlin.String
+import kotlin.Throwable
+import kotlin.Unit
 import kotlin.collections.ArrayDeque
 import kotlin.coroutines.CoroutineContext
 import kotlin.synchronized
+import kotlin.with
 
 @OptIn(InternalCoroutinesApi::class)
 class SingleThreadDispatcher(private val name: String, private val thread: Thread) : CoroutineDispatcher(), Delay {
@@ -42,14 +47,14 @@ class SingleThreadDispatcher(private val name: String, private val thread: Threa
 
         synchronized(lock) {
             if (isShutdown) {
-                continuation.cancel(CancellationException("Dispatcher $name is shut down"))
+                continuation.cancel(CancellationException("Dispatcher $name is shutdown"))
                 return
             }
 
             scheduledTask = ScheduledTask(
                 targetTick = currentTick + ticks,
-                task = Runnable { with(continuation) { resumeUndispatched(Unit) } },
-                onShutdown = { continuation.cancel(CancellationException("Dispatcher $name is shut down")) },
+                task = { with(continuation) { resumeUndispatched(Unit) } },
+                onShutdown = { continuation.cancel(CancellationException("Dispatcher $name is shutdown")) },
             )
             delayedQueue.add(scheduledTask)
         }

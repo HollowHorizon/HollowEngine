@@ -11,7 +11,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.execution.scoped
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.coroutines.*
 import ru.hollowhorizon.hollowengine.common.dev.DevLogs
-import java.util.UUID
+import java.util.*
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
@@ -214,10 +214,10 @@ class ScriptInstance(
         return if (currentFrame.contains("uuid")) currentFrame.getUUID("uuid") else null
     }
 
-    private object ScriptInstanceKey : kotlin.coroutines.CoroutineContext.Key<kotlin.coroutines.CoroutineContext.Element>
-    private object ScriptPathKey : kotlin.coroutines.CoroutineContext.Key<kotlin.coroutines.CoroutineContext.Element>
-    private object RootBlockKey : kotlin.coroutines.CoroutineContext.Key<kotlin.coroutines.CoroutineContext.Element>
-    private object InstanceIdKey : kotlin.coroutines.CoroutineContext.Key<kotlin.coroutines.CoroutineContext.Element>
+    private object ScriptInstanceKey : CoroutineContext.Key<CoroutineContext.Element>
+    private object ScriptPathKey : CoroutineContext.Key<CoroutineContext.Element>
+    private object RootBlockKey : CoroutineContext.Key<CoroutineContext.Element>
+    private object InstanceIdKey : CoroutineContext.Key<CoroutineContext.Element>
 }
 
 

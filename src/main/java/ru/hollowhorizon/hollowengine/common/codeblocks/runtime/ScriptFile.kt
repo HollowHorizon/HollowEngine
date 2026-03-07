@@ -23,6 +23,7 @@ import ru.hollowhorizon.hollowengine.common.events.EventListener
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.collections.ArrayDeque
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
@@ -100,7 +101,11 @@ class ScriptFile(
             val rootId = instTag.getUUID("rootBlockId")
             val root = allBlocks.find { b -> b.uuid == rootId } as? StartBlock
             if (root == null) {
-                HollowCore.LOGGER.warn("Skipping restored script instance for {}: root block {} no longer exists", path, rootId)
+                HollowCore.LOGGER.warn(
+                    "Skipping restored script instance for {}: root block {} no longer exists",
+                    path,
+                    rootId
+                )
                 return@forEach
             }
             val ownerEntityId = if (instTag.contains("ownerEntityId")) instTag.getUUID("ownerEntityId") else null
@@ -143,7 +148,10 @@ class ScriptFile(
 
     internal fun onInstanceUnavailable(instance: ScriptInstance) {
         instances.remove(instance)
-        enqueueOffline(instance.ownerKey, PendingLaunch(instance.rootBlock, instance.ownerKey, instance.initialTriggerContext()))
+        enqueueOffline(
+            instance.ownerKey,
+            PendingLaunch(instance.rootBlock, instance.ownerKey, instance.initialTriggerContext())
+        )
         system.markDirty()
     }
 
@@ -177,9 +185,11 @@ class ScriptFile(
         }
 
         EventBus.registerNoInline(OwnerScopeRestoredEvent::class.java as Class<Event>, listener as EventListener<Event>)
-        listeners += ListenerBinding(OwnerScopeRestoredEvent::class.java as Class<Event>, listener as EventListener<Event>)
+        listeners += ListenerBinding(
+            OwnerScopeRestoredEvent::class.java as Class<Event>,
+            listener as EventListener<Event>
+        )
     }
-
 
 
     fun launchSignal(signal: ScriptSignal) {
@@ -204,7 +214,11 @@ class ScriptFile(
                 )
             )
 
-            withContext(ScriptContextElement(tempInstance) + ScriptSignalContextElement(signal) + BlockFrameStackElement(tempInstance)) {
+            withContext(
+                ScriptContextElement(tempInstance) + ScriptSignalContextElement(signal) + BlockFrameStackElement(
+                    tempInstance
+                )
+            ) {
                 scoped {
                     CodeBlockInterpreter<Unit>(handler).execute()
                 }
@@ -243,6 +257,7 @@ class ScriptFile(
                 active.forEach { it.stop() }
                 launchOrQueueOffline(pending)
             }
+
             RepeatPolicy.QUEUE -> {
                 if (active.isEmpty()) {
                     launchOrQueueOffline(pending)
@@ -317,7 +332,6 @@ class ScriptFile(
     }
 
 
-
     private fun hasGlobalInstanceFor(trigger: StartBlock): Boolean {
         return instances.any { it.rootBlock.uuid == trigger.uuid && it.ownerKey == OwnerKey.Global }
     }
@@ -356,8 +370,3 @@ class ScriptFile(
         val instanceId: UUID? = null,
     )
 }
-
-
-
-
-
