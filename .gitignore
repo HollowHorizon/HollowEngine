@@ -5,7 +5,8 @@ mc-src/
 *.iml
 *.ipr
 *.iws
-
+.gradle-user
+AGENTS.md
 # IntelliJ
 out/
 # mpeltonen/sbt-idea plugin
