@@ -1,7 +1,8 @@
-package ru.hollowhorizon.hollowengine.client.kool.gl
+﻿package ru.hollowhorizon.hollowengine.client.kool.gl
 
 import com.mojang.blaze3d.platform.GlStateManager
 import com.mojang.blaze3d.systems.RenderSystem
+import de.fabmax.kool.modules.ui2.UiScale
 import de.fabmax.kool.pipeline.CullMethod
 import de.fabmax.kool.pipeline.DepthCompareOp
 import de.fabmax.kool.pipeline.backend.gl.glOp
@@ -110,9 +111,9 @@ object GlContext {
 
 @SubscribeEvent
 fun RenderTickEvent.Pre.handle(): Unit = runBlocking {
+    UiScale.uiScale.set(1f)
     KoolManager.context.renderFrame()
 }
-
 
 fun Scene.render(recordState: Boolean = true) {
     if (recordState) GlContext.setupState()

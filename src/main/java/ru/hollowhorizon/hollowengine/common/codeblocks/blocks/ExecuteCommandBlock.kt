@@ -23,6 +23,7 @@ class ExecuteCommandBlock : StatementBlock() {
     override suspend fun execute() {
         val context = currentFile().system
         val source = context.owner.createCommandSourceStack()
+            .withSuppressedOutput()
         context.owner.commands.performPrefixedCommand(source, cmd())
     }
 

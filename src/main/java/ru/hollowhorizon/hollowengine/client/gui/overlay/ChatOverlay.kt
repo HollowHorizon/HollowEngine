@@ -93,7 +93,7 @@ object ChatOverlay {
     }
 
     @SubscribeEvent
-    fun onRenderOverlay(event: RenderOverlayEvent.Pre) {
+    fun onRenderOverlay(event: RenderOverlayEvent.Post) {
         if(event.overlay == GuiOverlay.CHAT_PANEL) scene.render()
     }
 }

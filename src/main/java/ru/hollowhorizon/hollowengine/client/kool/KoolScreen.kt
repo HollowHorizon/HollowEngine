@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.client.kool
+﻿package ru.hollowhorizon.hollowengine.client.kool
 
 import de.fabmax.kool.math.Vec2i
 import de.fabmax.kool.modules.ui2.UiScale
@@ -19,6 +19,9 @@ open class KoolScreen : Screen("".literal), HudHideable {
         setupUiScene()
         clearColor = ClearColorDontCare
         clearDepth = ClearDepthDontCare
+        onRenderScene += {
+            UiScale.uiScale.set(computeUiScale())
+        }
     }
 
     private var isLoaded = false
@@ -33,15 +36,14 @@ open class KoolScreen : Screen("".literal), HudHideable {
     }
 
     override fun render(guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
-        val oldScale = UiScale.uiScale.value
-        uiSize?.let {
-            val w = KoolManager.context.window.size.x / it.x.toFloat()
-            val h = KoolManager.context.window.size.y / it.y.toFloat()
-            UiScale.uiScale.set(min(w, h) / UiScale.windowScale.value)
-        }
         scene.render()
+    }
 
-        if(uiSize != null) UiScale.uiScale.set(oldScale)
+    protected open fun computeUiScale(): Float {
+        val size = uiSize ?: return 1f
+        val w = KoolManager.context.window.size.x / size.x.toFloat()
+        val h = KoolManager.context.window.size.y / size.y.toFloat()
+        return min(w, h) / UiScale.windowScale.value
     }
 
     open fun Scene.setup() {}
