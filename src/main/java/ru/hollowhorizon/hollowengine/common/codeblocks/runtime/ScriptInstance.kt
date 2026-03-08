@@ -4,7 +4,7 @@ import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.BlockFrameStackElement
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.coroutines.RuntimeDefinitionId
-import java.util.*
+import java.util.UUID
 
 class ScriptInstance(
     val ownerFile: ScriptFile,
@@ -13,7 +13,7 @@ class ScriptInstance(
     val definitionId: RuntimeDefinitionId,
     val instanceId: UUID = UUID.randomUUID(),
 ) {
-    val localVariables = VariableMap()
+    val localVariables = VariableMap(ownerFile.system::markDirty)
     val branchKey: BranchKey get() = rootBlock.buildBranchKey(ownerFile.path, ownerKey)
 
     private var cancelExecution: (() -> Unit)? = null

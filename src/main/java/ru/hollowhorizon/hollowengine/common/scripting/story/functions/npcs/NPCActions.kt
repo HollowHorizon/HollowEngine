@@ -14,6 +14,8 @@ import net.minecraft.world.level.ClipContext
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.overlay.ChatOverlay
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
+import ru.hollowhorizon.hollowengine.common.npcs.navigation.moveTowards
+import ru.hollowhorizon.hollowengine.common.npcs.navigation.rotate
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
@@ -26,7 +28,7 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
  */
 suspend fun NpcEntity.move(entity: Entity, dist: Double = 1.5, speed: Double = 1.0) {
     while (distanceTo(entity) > dist) {
-        navigation.moveTo(navigation.createPath(entity.x, entity.y, entity.z, 0), speed)
+        moveTowards(entity, speed, dist)
         delay(50)
     }
     navigation.stop()
@@ -48,7 +50,7 @@ suspend infix fun NpcEntity.move(mob: Entity): Unit = move(entity = mob)
  */
 suspend fun NpcEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
     while (distanceToSqr(pos) > dist * dist || !navigation.isDone) {
-        navigation.moveTo(navigation.createPath(pos.x, pos.y, pos.z, 0), speed)
+        moveTowards(pos, dist, speed)
         delay(50)
     }
 
@@ -68,12 +70,7 @@ suspend infix fun NpcEntity.move(position: Vec3): Unit = move(pos = position)
  * @param position Позиция, на которую нужно смотреть.
  */
 suspend infix fun NpcEntity.look(position: Vec3) {
-    var ticks = 30
-    while (ticks > 0) {
-        lookControl.setLookAt(position)
-        ticks--
-        delay(50)
-    }
+    rotate({ position }, 1500)
 }
 
 /**
@@ -82,12 +79,7 @@ suspend infix fun NpcEntity.look(position: Vec3) {
  * @param entity Сущность, на которую нужно смотреть.
  */
 suspend infix fun NpcEntity.look(entity: Entity) {
-    var ticks = 30
-    while (ticks > 0) {
-        lookControl.setLookAt(entity)
-        ticks--
-        delay(50)
-    }
+    rotate({ entity.position() }, 1500)
 }
 
 /**
@@ -205,4 +197,7 @@ infix fun NpcEntity.say(text: String) {
         it.sendSystemMessage("[$name] $text".literal)
     }
 }
+
+
+
 

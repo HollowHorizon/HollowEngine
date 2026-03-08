@@ -47,8 +47,5 @@ class BlocksSystemSavedData private constructor(
 @SubscribeEvent
 fun onServerStart(event: LevelEvent.Load) {
     if (event.level.dimension() != Level.OVERWORLD) return
-
-    event.level.server?.let {
-        BlocksSystemSavedData.get(it)
-    }
+    event.level.server?.let(BlocksSystemSavedData::get)
 }

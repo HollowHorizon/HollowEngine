@@ -4,12 +4,16 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockRepository
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.EntityModule
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.NPCModule
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.PlayerModule
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.StandardModules
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.WorldModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.usecase.PersistRecoveredScriptUseCase
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
 import ru.hollowhorizon.hollowengine.common.coroutines.OwnerScope
 import ru.hollowhorizon.hollowengine.common.coroutines.OwnerScopeRegistry
-import ru.hollowhorizon.hollowengine.common.coroutines.ServerScope
+import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.dev.DevLogs
 import ru.hollowhorizon.hollowengine.common.events.Event
@@ -19,7 +23,6 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 
 class BlocksSystem(val owner: MinecraftServer) {
     val scripts = mutableMapOf<String, ScriptFile>()
-    val serverScope = ServerScope(owner) { markDirty() }
     private val persistRecoveredScript = PersistRecoveredScriptUseCase()
     internal var dirtyListener: (() -> Unit)? = null
 
@@ -37,7 +40,6 @@ class BlocksSystem(val owner: MinecraftServer) {
             scriptsTag.put(path, CompoundTag().apply(script::serialize))
         }
         tag.put("scripts", scriptsTag)
-        tag.put("server_scope", CompoundTag().also(serverScope::serialize))
     }
 
     fun deserialize(tag: CompoundTag) {
@@ -48,7 +50,6 @@ class BlocksSystem(val owner: MinecraftServer) {
             val scriptTag = if (scriptsTag.contains(script.path)) scriptsTag.getCompound(script.path) else CompoundTag()
             script.deserialize(scriptTag)
         }
-        serverScope.deserialize(tag.getCompound("server_scope"))
         restoreOwnerScopes()
         startEnabledScripts()
         onAttach()
@@ -102,7 +103,7 @@ class BlocksSystem(val owner: MinecraftServer) {
 
     internal fun ownerScope(ownerKey: OwnerKey): OwnerScope? {
         return when (val key = ownerKey) {
-            OwnerKey.Global -> serverScope
+            OwnerKey.Global -> owner.runtimeContext.scope
             is OwnerKey.Entity -> owner.playerList.players.firstOrNull { it.uuid == key.uuid }?.coroutineScope as? OwnerScope
                 ?: owner.allLevels.firstNotNullOfOrNull { level -> level.getEntity(key.uuid)?.coroutineScope as? OwnerScope }
         }
@@ -122,7 +123,7 @@ class BlocksSystem(val owner: MinecraftServer) {
     }
 
     private fun ownerScopes(): List<OwnerScope> {
-        return (OwnerScopeRegistry.scopes() + serverScope).distinct()
+        return (OwnerScopeRegistry.scopes() + owner.runtimeContext.scope).distinct()
     }
 
     fun emitSignal(signal: ScriptSignal) {
@@ -147,3 +148,4 @@ class BlocksSystemReloadedEvent : Event
 fun BlocksSystem.getDevHistory(scriptPath: String) = DevLogs.getHistory(scriptPath)
 fun BlocksSystem.getDevSlow(scriptPath: String) = DevLogs.getSlow(scriptPath)
 fun BlocksSystem.clearDevHistory() = DevLogs.clear()
+

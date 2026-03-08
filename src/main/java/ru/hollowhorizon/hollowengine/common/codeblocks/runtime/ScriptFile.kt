@@ -147,7 +147,7 @@ class ScriptFile(
     }
 
     private fun launchServerTrigger(rootBlock: StartBlock) {
-        submit(system.serverScope, rootBlock, OwnerKey.Global, rootBlock.repeatPolicy) { state ->
+        submit(system.owner.runtimeContext.scope, rootBlock, OwnerKey.Global, rootBlock.repeatPolicy) { state ->
             state.initialize(OwnerKey.Global)
         }
     }
@@ -234,3 +234,4 @@ class ScriptFile(
         val listener: EventListener<Event>,
     )
 }
+

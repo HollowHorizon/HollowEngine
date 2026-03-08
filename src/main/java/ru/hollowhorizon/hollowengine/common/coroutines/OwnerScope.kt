@@ -6,6 +6,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableMap
 import java.util.ArrayDeque
 import java.util.Collections
 import java.util.WeakHashMap
@@ -33,7 +34,8 @@ object OwnerScopeRegistry {
 abstract class OwnerScope(
     override val coroutineContext: CoroutineContext,
     private val onDirty: (() -> Unit)? = null,
-) : SerializableCoroutineScope {
+ ) : SerializableCoroutineScope {
+    val variables = VariableMap(onDirty)
     private val lock = Any()
     private val activeExecutions = ConcurrentHashMap<String, ActiveExecution>()
     private val queuedExecutions = ConcurrentHashMap<String, ArrayDeque<StoredExecution>>()
@@ -51,6 +53,7 @@ abstract class OwnerScope(
             pendingRestore.values.forEach { queue -> queue.forEach { executions.add(it.toTag()) } }
         }
         tag.put("executions", executions)
+        tag.put("variables", CompoundTag().also(variables::serialize))
     }
 
     override fun deserialize(tag: CompoundTag) {
@@ -65,6 +68,7 @@ abstract class OwnerScope(
             serialized.forEach { pendingRestore.getOrPut(it.branchKey, ::ArrayDeque).addLast(it) }
         }
 
+        variables.deserialize(tag.getCompound("variables"))
         restorePending()
     }
 
@@ -281,7 +285,7 @@ abstract class OwnerScope(
         next?.let(::startStoredExecution)
     }
 
-    private fun markDirty() {
+    fun markDirty() {
         onDirty?.invoke()
     }
 
@@ -369,3 +373,4 @@ private class SerializableDefinitionState(
 
 private fun SerializableCoroutineKey.id(): RuntimeDefinitionId = RuntimeDefinitionId("serializable:$this")
 private fun SerializableCoroutineKey.branchKey(): String = toString()
+

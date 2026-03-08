@@ -13,6 +13,8 @@ import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.geary.GearyInitializeEvent
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
+import ru.hollowhorizon.hollowengine.common.npcs.navigation.faceTowards
+import ru.hollowhorizon.hollowengine.common.npcs.navigation.moveTowards
 import java.util.UUID
 
 private object AIRuntimeState {
@@ -51,7 +53,7 @@ fun GearyInitializeEvent.initAiBehaviorSystems(): Unit = with(geary) {
             }
 
             mob.target = target
-            mob.lookControl.setLookAt(target, 360f, 360f)
+            mob.faceTowards(target)
 
             val cooldown = AIRuntimeState.attackCooldowns.getOrDefault(mcEntity.uuid, 0)
             if (cooldown > 0) {
@@ -60,7 +62,7 @@ fun GearyInitializeEvent.initAiBehaviorSystems(): Unit = with(geary) {
 
             if (distance > attack.attackRange) {
                 if (distance <= attack.chaseRange) {
-                    (mob as? PathfinderMob)?.navigation?.moveTo(target, 1.0)
+                    (mob as? PathfinderMob)?.moveTowards(target, 1.0, attack.attackRange.toDouble())
                 } else {
                     (mob as? PathfinderMob)?.navigation?.stop()
                 }
@@ -91,7 +93,7 @@ fun GearyInitializeEvent.initAiBehaviorSystems(): Unit = with(geary) {
             }
 
             if (distance > follow.preferredDistance) {
-                mob.navigation.moveTo(target, follow.speed.toDouble())
+                mob.moveTowards(target, follow.speed.toDouble(), follow.preferredDistance.toDouble())
             } else {
                 mob.navigation.stop()
             }
@@ -102,16 +104,11 @@ fun GearyInitializeEvent.initAiBehaviorSystems(): Unit = with(geary) {
         .exec { (mcEntity, move) ->
             if (!move.enabled) return@exec
             val mob = mcEntity as? PathfinderMob ?: return@exec
-            val arrivalDistanceSqr = move.arrivalRadius * move.arrivalRadius
-            if (mcEntity.distanceToSqr(move.target) <= arrivalDistanceSqr.toDouble()) {
-                mob.navigation.stop()
+            if (mob.moveTowards(move.target, move.speed.toDouble(), move.arrivalRadius.toDouble())) {
                 if (move.stopOnArrival) {
                     mcEntity.entity.remove(MoveToPositionComponent::class)
                 }
-                return@exec
             }
-
-            mob.navigation.moveTo(move.target.x, move.target.y, move.target.z, move.speed.toDouble())
         }
 
     system(query<MCEntity, PatrolPathComponent, MoveToPositionComponent?>())
@@ -133,7 +130,7 @@ fun GearyInitializeEvent.initAiBehaviorSystems(): Unit = with(geary) {
                     mob.navigation.stop()
                     if (point.lookAtNextPoint) {
                         patrol.points.getOrNull((currentIndex + 1).coerceAtMost(patrol.points.lastIndex))?.let { nextPoint ->
-                            mob.lookControl.setLookAt(nextPoint.position.x, nextPoint.position.y, nextPoint.position.z, 360f, 360f)
+                            mob.faceTowards(nextPoint.position)
                         }
                     }
                     return@exec
@@ -155,7 +152,7 @@ fun GearyInitializeEvent.initAiBehaviorSystems(): Unit = with(geary) {
             val activeIndex = AIRuntimeState.patrolIndices.getOrDefault(entityId, currentIndex)
                 .coerceIn(0, patrol.points.lastIndex)
             val activePoint = patrol.points[activeIndex]
-            mob.navigation.moveTo(activePoint.position.x, activePoint.position.y, activePoint.position.z, patrol.speed.toDouble())
+            mob.moveTowards(activePoint.position, patrol.speed.toDouble(), patrol.arrivalRadius.toDouble())
         }
 
     system(query<MCEntity, LookAtTargetComponent>())
@@ -166,17 +163,11 @@ fun GearyInitializeEvent.initAiBehaviorSystems(): Unit = with(geary) {
             when (lookAt.targetMode) {
                 LookTargetMode.ENTITY -> {
                     val target = lookAt.targetEntity.resolve(mcEntity.level()) ?: return@exec
-                    mob.lookControl.setLookAt(target, lookAt.yawSpeed, lookAt.pitchSpeed)
+                    mob.faceTowards(target, lookAt.yawSpeed)
                 }
 
                 LookTargetMode.POSITION -> {
-                    mob.lookControl.setLookAt(
-                        lookAt.targetPosition.x,
-                        lookAt.targetPosition.y,
-                        lookAt.targetPosition.z,
-                        lookAt.yawSpeed,
-                        lookAt.pitchSpeed,
-                    )
+                    mob.faceTowards(lookAt.targetPosition, lookAt.yawSpeed)
                 }
             }
         }
@@ -201,8 +192,8 @@ fun GearyInitializeEvent.initAiBehaviorSystems(): Unit = with(geary) {
                 .minByOrNull { it.distanceToSqr(mcEntity) }
 
             if (item != null) {
-                pathfinder.navigation.moveTo(item, 1.0)
-                mob.lookControl.setLookAt(item, 360f, 360f)
+                pathfinder.moveTowards(item, 1.0)
+                mob.faceTowards(item)
             }
 
             AIRuntimeState.lootScanCooldowns[mcEntity.uuid] = pickup.scanIntervalTicks.coerceAtLeast(1)
@@ -219,4 +210,6 @@ fun GearyInitializeEvent.initAiBehaviorSystems(): Unit = with(geary) {
         AIRuntimeState.lootScanCooldowns.remove(mcEntity.uuid)
     }
 }
+
+
 

@@ -54,7 +54,7 @@ class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
     override val expressionType: ExpressionType get() = resolveLocalVariableType(varName)
 
     override suspend fun execute(): Any? {
-        return getVariable(varName)?.get()
+        return getVariable(varName)?.get(expressionType)
     }
 
     override fun InputSlotScope.composeContent() {
@@ -76,7 +76,7 @@ class GetVarInlineBlock(val name: String) : ExpressionBlock() {
     override val expressionType: ExpressionType get() = resolveLocalVariableType(name)
 
     override suspend fun execute(): Any? {
-        return getVariable(name)?.get()
+        return getVariable(name)?.get(expressionType)
     }
 
     override fun InputSlotScope.composeContent() {
@@ -87,3 +87,4 @@ class GetVarInlineBlock(val name: String) : ExpressionBlock() {
         }
     }
 }
+

@@ -1,14 +1,11 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.serializer
 import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.variables.LazyNbtVariableContainer
 import ru.hollowhorizon.hollowengine.common.codeblocks.variables.LivingEntityContainer
-import ru.hollowhorizon.hollowengine.common.codeblocks.variables.SerializableVariableContainer
 import ru.hollowhorizon.hollowengine.common.codeblocks.variables.VariableContainer
-import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 import kotlin.reflect.KType
 import kotlin.reflect.full.isSubtypeOf
 import kotlin.reflect.typeOf as kTypeOf
@@ -31,17 +28,11 @@ interface ExpressionType {
     }
 }
 
-fun createContainer(type: ExpressionType): VariableContainer<*> {
+fun createContainer(type: ExpressionType): VariableContainer {
     return if (typeOf<LivingEntity>().accepts(type)) {
         LivingEntityContainer<LivingEntity>()
     } else {
-        // TODO: Зачем вообще теперь нужен AnyType, можно просто использовать KTypeExpressionType
-        val serializer = NBTFormat.Default.serializersModule.serializer((type as KTypeExpressionType).kType) as KSerializer<Any>
-
-        // TODO: Можно для всех примитивов сделать значения по умолчанию
-        val default = if(typeOf<Boolean>().accepts(type)) false else null
-
-        SerializableVariableContainer(serializer, default)
+        LazyNbtVariableContainer()
     }
 }
 
@@ -50,7 +41,6 @@ inline fun <reified T> typeOf() = KTypeExpressionType(kTypeOf<T>())
 class KTypeExpressionType(val kType: KType) : ExpressionType {
     override fun accepts(other: ExpressionType): Boolean {
         if (other === AnyType) return true
-
         return (other as? KTypeExpressionType)?.kType?.isSubtypeOf(this.kType) == true
     }
 

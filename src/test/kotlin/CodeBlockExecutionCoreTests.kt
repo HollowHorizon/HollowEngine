@@ -10,6 +10,8 @@ import net.minecraft.nbt.ListTag
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.StringConcatBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.ToStringBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.BlockFrameStackElement
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.CodeBlockInterpreter
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.ExpressionBlockInterpreter
@@ -382,6 +384,23 @@ class CodeBlockExecutionCoreTests {
     }
 
     @Test
+    fun `string utility blocks convert and concatenate values`() = runTest {
+        val concat = StringConcatBlock().apply {
+            attachInput("parts_0", TestValueBlock("npc-", typeOf<String>()))
+            attachInput("parts_1", TestValueBlock(7, typeOf<Int>()))
+            attachInput("parts_2", TestValueBlock(true, typeOf<Boolean>()))
+        }
+        val stringify = ToStringBlock().apply {
+            attachInput("value", TestValueBlock(12.5, typeOf<Double>()))
+        }
+
+        val concatResult: String = executeExpression(concat)
+        val stringResult: String = executeExpression(stringify)
+
+        assertEquals("npc-7true", concatResult)
+        assertEquals("12.5", stringResult)
+    }
+    @Test
     fun `literal blocks return stored values`() = runTest {
         val number = NumberBlock(12.5)
         val string = StringValueBlock("hello")
@@ -400,3 +419,4 @@ class CodeBlockExecutionCoreTests {
         assertTrue(AnyType.accepts(number.expressionTypeOrNull!!))
     }
 }
+

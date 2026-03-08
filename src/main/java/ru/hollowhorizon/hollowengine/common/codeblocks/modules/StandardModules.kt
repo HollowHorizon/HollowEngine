@@ -131,6 +131,9 @@ object StandardModules {
 
             block("hollowengine.gui.codeblocks.block.text_component".lang) { TextComponentBlock() }
             block("hollowengine.gui.codeblocks.block.text_merger".lang) { TextMergerBlock() }
+            block("String concat") { StringConcatBlock() }
+            block("To string") { ToStringBlock() }
+
 
             category("hollowengine.gui.codeblocks.category.worlds".lang, icons.WORLD) {
                 block("hollowengine.gui.codeblocks.block.get_overworld".lang) { GetOverworldBlock() }
@@ -160,6 +163,16 @@ object StandardModules {
                             )
                         }
                 }
+            }
+
+            category("Global", icons.VARIABLES) {
+                block("Set global") { SetGlobalVarBlock("") }
+                block("Get global") { GetGlobalVarBlock("") }
+            }
+
+            category("Entity", icons.VARIABLES) {
+                block("Set entity") { SetEntityVarBlock("") }
+                block("Get entity") { GetEntityVarBlock("") }
             }
         }
     }
@@ -220,3 +233,5 @@ object StandardModules {
         include(Types)
     }
 }
+
+

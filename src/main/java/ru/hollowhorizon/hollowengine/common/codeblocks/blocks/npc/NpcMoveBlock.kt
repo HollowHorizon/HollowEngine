@@ -1,6 +1,14 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc
 
-import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.modules.ui2.AlignmentY
+import de.fabmax.kool.modules.ui2.Box
+import de.fabmax.kool.modules.ui2.Column
+import de.fabmax.kool.modules.ui2.Grow
+import de.fabmax.kool.modules.ui2.Row
+import de.fabmax.kool.modules.ui2.Text
+import de.fabmax.kool.modules.ui2.alignY
+import de.fabmax.kool.modules.ui2.margin
+import de.fabmax.kool.modules.ui2.textColor
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -11,6 +19,7 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.NumberBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
@@ -23,7 +32,7 @@ class NpcMoveBlock : StatementBlock() {
 
     val npc by input<NpcEntity>("npc")
     val target by input<Any>("target")
-    val speed by input<Number>("speed")
+    val speed by inputDefault<Number>("speed") { NumberBlock(1.0) }
 
     override suspend fun execute() {
         val target = target()
@@ -39,13 +48,13 @@ class NpcMoveBlock : StatementBlock() {
         Column(Grow.Std) {
             Row(Grow.Std) {
                 Text("hollowengine.gui.codeblocks.label.npc".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-                Box(Grow.Std) {  }
+                Box(Grow.Std) { }
                 InputSlot(npc)
             }
             Box { modifier.margin(Dimensions.PaddingNormal.scaled()) }
             Row(Grow.Std) {
                 Text("hollowengine.gui.codeblocks.label.npc_moves_to".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-                Box(Grow.Std) {  }
+                Box(Grow.Std) { }
                 InputSlot("target", ExpressionType.anyOf(
                     typeOf<Vec3>(),
                     typeOf<Entity>(),
@@ -54,7 +63,7 @@ class NpcMoveBlock : StatementBlock() {
             Box { modifier.margin(Dimensions.PaddingNormal.scaled()) }
             Row(Grow.Std) {
                 Text("hollowengine.gui.codeblocks.label.npc_speed".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-                Box(Grow.Std) {  }
+                Box(Grow.Std) { }
                 InputSlot(speed)
             }
         }
