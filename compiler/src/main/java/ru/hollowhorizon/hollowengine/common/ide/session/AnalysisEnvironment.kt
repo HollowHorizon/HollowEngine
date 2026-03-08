@@ -336,26 +336,31 @@ class AnalysisEnvironment(
 
     private fun setupScriptDefinitions() {
         if (scriptDefinitions.isNotEmpty()) {
+            val prioritizedDefinitions = scriptDefinitions.sortedByDescending { it.fileExtension.length }
+
             project.registerService(
                 ScriptDefinitionProvider::class.java,
                 object : ScriptDefinitionProvider {
                     override fun findDefinition(script: SourceCode): ScriptDefinition? {
-                        return scriptDefinitions.firstOrNull { it.isScript(script) }
+                        return prioritizedDefinitions.firstOrNull { it.isScript(script) }
                     }
 
                     override fun getDefaultDefinition(): ScriptDefinition {
-                        return scriptDefinitions.first()
+                        return prioritizedDefinitions.first()
                     }
 
                     override fun getKnownFilenameExtensions(): Sequence<String> {
-                        return sequenceOf("kts")
+                        return prioritizedDefinitions
+                            .asSequence()
+                            .map { it.fileExtension.removePrefix(".") }
+                            .distinct()
                     }
 
                     override val currentDefinitions: Sequence<ScriptDefinition>
-                        get() = scriptDefinitions.asSequence()
+                        get() = prioritizedDefinitions.asSequence()
 
                     override fun isScript(script: SourceCode): Boolean {
-                        return scriptDefinitions.any { it.isScript(script) }
+                        return prioritizedDefinitions.any { it.isScript(script) }
                     }
                 }
             )
