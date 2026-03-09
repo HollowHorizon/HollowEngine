@@ -29,9 +29,8 @@ object ImageManager : ResourceManagerReloadListener {
     }
 
     override fun onResourceManagerReload(resourceManager: ResourceManager) {
-        IMAGES.replaceAll { location, image ->
-            image.release()
-            Texture2d(mipMapping = image.mipMapping, samplerSettings = image.samplerSettings) {
+        IMAGES.forEach { location, image ->
+            image.uploadLazy {
                 Assets.loadImage2d(location.toString()).getOrThrow()
             }
         }
