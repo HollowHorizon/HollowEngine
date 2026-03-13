@@ -7,34 +7,42 @@ import kotlinx.coroutines.launch
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableMap
+import java.lang.ref.WeakReference
 import java.util.ArrayDeque
-import java.util.Collections
-import java.util.WeakHashMap
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
 object OwnerScopeRegistry {
-    private val scopes = Collections.newSetFromMap(WeakHashMap<OwnerScope, Boolean>())
+    private val scopes = ConcurrentLinkedQueue<WeakReference<OwnerScope>>()
 
     fun register(scope: OwnerScope) {
-        synchronized(scopes) {
-            scopes += scope
-        }
+        cleanup()
+        scopes += WeakReference(scope)
     }
 
     fun scopes(): List<OwnerScope> {
-        return synchronized(scopes) {
-            scopes.toList()
+        val alive = mutableListOf<OwnerScope>()
+        val stale = mutableListOf<WeakReference<OwnerScope>>()
+        scopes.forEach { reference ->
+            val scope = reference.get()
+            if (scope == null) stale += reference else alive += scope
         }
+        stale.forEach(scopes::remove)
+        return alive
+    }
+
+    private fun cleanup() {
+        scopes.removeIf { it.get() == null }
     }
 }
 
 abstract class OwnerScope(
     override val coroutineContext: CoroutineContext,
     private val onDirty: (() -> Unit)? = null,
- ) : SerializableCoroutineScope {
+) : SerializableCoroutineScope {
     val variables = VariableMap(onDirty)
     private val lock = Any()
     private val activeExecutions = ConcurrentHashMap<String, ActiveExecution>()
@@ -373,4 +381,3 @@ private class SerializableDefinitionState(
 
 private fun SerializableCoroutineKey.id(): RuntimeDefinitionId = RuntimeDefinitionId("serializable:$this")
 private fun SerializableCoroutineKey.branchKey(): String = toString()
-

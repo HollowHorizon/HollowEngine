@@ -78,7 +78,9 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
                                 .onClick {
                                     UIAudio.SELECT.play()
                                     item.action.invoke(contextItem)
-                                    hide()
+                                    if (item.closeOnClick) {
+                                        hide()
+                                    }
                                 }
                                 .padding(horizontal = Dimensions.PaddingMedium, vertical = Dimensions.PaddingNormal)
 
@@ -226,14 +228,20 @@ class Divider<T : Any?> : ContextMenuItem<T>()
 class MenuItem<T : Any?>(
     val label: String,
     val icon: ResourceLocation?,
+    val closeOnClick: Boolean,
     val action: ((T) -> Unit),
 ) : ContextMenuItem<T>()
 
 class SubMenuItem<T : Any?>(val label: String?, val icon: ResourceLocation?, val color: Color?) : ContextMenuItem<T>() {
     val menuItems: MutableStateList<ContextMenuItem<T>> = mutableStateListOf()
 
-    fun item(label: String, icon: ResourceLocation? = null, action: (T) -> Unit) {
-        menuItems += MenuItem(label, icon, action)
+    fun item(
+        label: String,
+        icon: ResourceLocation? = null,
+        closeOnClick: Boolean = true,
+        action: (T) -> Unit,
+    ) {
+        menuItems += MenuItem(label, icon, closeOnClick, action)
     }
 
     fun subMenu(label: String, icon: ResourceLocation? = null, color: Color? = null, block: SubMenuItem<T>.() -> Unit) {

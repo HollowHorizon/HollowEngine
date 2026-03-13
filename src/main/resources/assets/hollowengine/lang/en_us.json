@@ -534,7 +534,7 @@
   "hollowengine.gui.codeblocks.hint.variable_name_local": "Variable name (L)",
   "hollowengine.gui.codeblocks.hint.variable_name_global": "Variable name (G)",
   "hollowengine.gui.codeblocks.hint.function_name": "Function name",
-  "hollowengine.gui.codeblocks.hint.message_name": "Message name",
+  "hollowengine.gui.codeblocks.hint.signal_name": "Signal",
   "hollowengine.gui.codeblocks.hint.recipe": "Recipe ID",
   "hollowengine.gui.codeblocks.label.npc": "NPC",
   "hollowengine.gui.codeblocks.label.npc_says": "says:",

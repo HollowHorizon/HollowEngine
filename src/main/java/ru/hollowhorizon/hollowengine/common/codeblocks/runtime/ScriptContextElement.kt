@@ -1,16 +1,16 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksDSL
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
-import ru.hollowhorizon.hollowengine.common.codeblocks.createContainer
-import ru.hollowhorizon.hollowengine.common.codeblocks.variables.VariableContainer
+import ru.hollowhorizon.hollowengine.common.codeblocks.variables.deserializeVariableValue
+import ru.hollowhorizon.hollowengine.common.codeblocks.variables.serializeVariableValue
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
 import ru.hollowhorizon.hollowengine.common.coroutines.OwnerScope
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
-import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
@@ -38,54 +38,65 @@ suspend fun currentFile(): ScriptFile = currentInstance().ownerFile
 suspend fun currentServer(): MinecraftServer = currentFile().system.owner
 
 @CodeBlocksDSL
-suspend fun getVariable(name: String): VariableContainer? = currentInstance().localVariables[name]
+suspend fun getVariable(name: String, expectedType: ExpressionType): Any? {
+    return readTypedVariable(currentInstance().localVariables, name, expectedType)
+}
 
 @CodeBlocksDSL
-suspend fun getVariable(name: String, scope: VariableScope): VariableContainer? {
+suspend fun getVariable(name: String, scope: VariableScope, expectedType: ExpressionType): Any? {
     val instance = currentInstance()
     return when (scope) {
-        VariableScope.LOCAL -> instance.localVariables[name]
-        VariableScope.GLOBAL -> currentServer().runtimeContext.scope.variables[name]
-        VariableScope.ENTITY -> (instance.ownerFile.system.ownerScope(instance.ownerKey) as? EntityScope)?.variables?.get(name)
+        VariableScope.LOCAL -> readTypedVariable(instance.localVariables, name, expectedType)
+        VariableScope.GLOBAL -> readTypedVariable(currentServer().runtimeContext.scope.variables, name, expectedType)
+        VariableScope.ENTITY -> {
+            val entityScope = instance.ownerFile.system.ownerScope(instance.ownerKey) as? EntityScope
+                ?: error("Entity variables are available only for entity-scoped script executions")
+            entityScope.variables.getTag(name)
+        }
     }
 }
 
 @CodeBlocksDSL
-fun getVariable(name: String, entity: Entity): VariableContainer? {
-    return (entity.coroutineScope as? OwnerScope)?.variables?.get(name)
+fun getVariable(name: String, entity: Entity): CompoundTag? {
+    return (entity.coroutineScope as? OwnerScope)?.variables?.getTag(name)
 }
 
 @Deprecated("Use VariableScope instead of boolean flags")
 @CodeBlocksDSL
-suspend fun getVariable(name: String, isGlobal: Boolean): VariableContainer? {
-    return getVariable(name, if (isGlobal) VariableScope.GLOBAL else VariableScope.LOCAL)
+suspend fun getVariable(name: String, isGlobal: Boolean, expectedType: ExpressionType): Any? {
+    return getVariable(name, if (isGlobal) VariableScope.GLOBAL else VariableScope.LOCAL, expectedType)
 }
 
 @CodeBlocksDSL
 suspend fun setVariable(name: String, value: Any?) {
-    setVariable(name, VariableScope.LOCAL, value)
+    writeTypedVariable(currentInstance().localVariables, name, value)
+    currentInstance().ownerFile.system.markDirty()
 }
 
 @CodeBlocksDSL
 suspend fun setVariable(name: String, scope: VariableScope, value: Any?, fallbackType: ExpressionType? = null) {
     val instance = currentInstance()
-    val variables = when (scope) {
-        VariableScope.LOCAL -> instance.localVariables
-        VariableScope.GLOBAL -> currentServer().runtimeContext.scope.variables
-        VariableScope.ENTITY -> (instance.ownerFile.system.ownerScope(instance.ownerKey) as? EntityScope)?.variables
-            ?: error("Entity variables are available only for entity-scoped script executions")
+    when (scope) {
+        VariableScope.LOCAL -> writeTypedVariable(instance.localVariables, name, value)
+        VariableScope.GLOBAL -> {
+            writeTypedVariable(currentServer().runtimeContext.scope.variables, name, value)
+            currentServer().runtimeContext.markDirty()
+        }
+        VariableScope.ENTITY -> {
+            val entityScope = instance.ownerFile.system.ownerScope(instance.ownerKey) as? EntityScope
+                ?: error("Entity variables are available only for entity-scoped script executions")
+            val tag = value as? CompoundTag ?: error("Entity variable '$name' expects CompoundTag, got ${value?.javaClass?.name}")
+            entityScope.variables.setTag(name, tag)
+            entityScope.markDirty()
+        }
     }
-    val variable = variables.getOrPut(name) { createContainer(fallbackType ?: error("Variable type for '$name' is unknown")) }
-    variable.set(JavaHacks.forceCast(value))
     instance.ownerFile.system.markDirty()
-    if (scope == VariableScope.GLOBAL) currentServer().runtimeContext.markDirty()
 }
 
 @CodeBlocksDSL
-fun setVariable(name: String, entity: Entity, value: Any?, fallbackType: ExpressionType? = null) {
+fun setVariable(name: String, entity: Entity, value: CompoundTag) {
     val scope = entity.coroutineScope as? OwnerScope ?: error("Entity does not provide an OwnerScope")
-    val variable = scope.variables.getOrPut(name) { createContainer(fallbackType ?: error("Variable type for '$name' is unknown")) }
-    variable.set(JavaHacks.forceCast(value))
+    scope.variables.setTag(name, value)
     scope.markDirty()
 }
 
@@ -93,4 +104,12 @@ fun setVariable(name: String, entity: Entity, value: Any?, fallbackType: Express
 @CodeBlocksDSL
 suspend fun setVariable(name: String, isGlobal: Boolean, value: Any?) {
     setVariable(name, if (isGlobal) VariableScope.GLOBAL else VariableScope.LOCAL, value)
+}
+
+private suspend fun readTypedVariable(variables: VariableMap, name: String, expectedType: ExpressionType): Any? {
+    return deserializeVariableValue(variables.getRawTag(name), expectedType, currentServer())
+}
+
+private fun writeTypedVariable(variables: VariableMap, name: String, value: Any?) {
+    variables.setRawTag(name, serializeVariableValue(value))
 }

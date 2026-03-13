@@ -2,10 +2,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
-import ru.hollowhorizon.hollowengine.common.codeblocks.createContainer
+import net.minecraft.nbt.IntTag
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableMap
-import ru.hollowhorizon.hollowengine.common.codeblocks.variables.VariableContainer
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -13,14 +11,10 @@ import kotlin.test.assertNotNull
 
 class VariableMapTests {
     @Test
-    fun `variable map restores serialized primitive values with metadata`() = runTest {
+    fun `variable map restores serialized raw tags`() = runTest {
         val original = VariableMap()
-        val number = createContainer(typeOf<Int>())
-        number.set(42)
-        original["answer"] = number
-        val text = createContainer(typeOf<String>())
-        text.set("hello")
-        original["text"] = text
+        original.setTag("answer", CompoundTag().apply { putInt("value", 42) })
+        original.setRawTag("text", net.minecraft.nbt.StringTag.valueOf("hello"))
 
         val tag = CompoundTag()
         original.serialize(tag)
@@ -28,17 +22,25 @@ class VariableMapTests {
         val restored = VariableMap()
         restored.deserialize(tag)
 
-        assertEquals(42, restored["answer"]?.get(typeOf<Int>()))
-        assertEquals("hello", restored["text"]?.get(typeOf<String>()))
+        assertEquals(42, restored.getTag("answer")?.getInt("value"))
+        assertEquals("hello", restored.getRawTag("text")?.asString)
     }
 
     @Test
-    fun `entity scope serializes scoped variables`() = runTest {
+    fun `variable map exposes combined compound tag`() = runTest {
+        val map = VariableMap()
+        map.setRawTag("flag", IntTag.valueOf(1))
+
+        val combined = map.asCompoundTag()
+
+        assertEquals(1, combined.getCompound("flag").getInt(VariableMap.VALUE_KEY))
+    }
+
+    @Test
+    fun `entity scope serializes scoped compound tag variables`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val original = EntityScope(SupervisorJob() + dispatcher)
-        val flag = createContainer(typeOf<Boolean>())
-        flag.set(true)
-        original.variables["flag"] = flag
+        original.variables.setTag("flag", CompoundTag().apply { putBoolean("value", true) })
 
         val tag = CompoundTag()
         original.serialize(tag)
@@ -46,8 +48,8 @@ class VariableMapTests {
         val restored = EntityScope(SupervisorJob() + dispatcher)
         restored.deserialize(tag)
 
-        val restoredFlag = restored.variables["flag"]
+        val restoredFlag = restored.variables.getTag("flag")
         assertNotNull(restoredFlag)
-        assertEquals(true, restoredFlag.get(typeOf<Boolean>()))
+        assertEquals(true, restoredFlag.getBoolean("value"))
     }
 }

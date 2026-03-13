@@ -22,6 +22,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.PlayerSele
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.walk
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableScope
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 @PublishedApi
@@ -148,17 +149,25 @@ object StandardModules {
             category("hollowengine.gui.codeblocks.category.local".lang, icons.VARIABLES) {
                 block("hollowengine.gui.codeblocks.block.set_var".lang) { SetVarBlock("") }
                 block("hollowengine.gui.codeblocks.block.get_var".lang) { GetVarBlock("") }
-                block("hollowengine.gui.codeblocks.block.event_output_var".lang) { EventOutputVariableBlock("") }
+                block("hollowengine.gui.codeblocks.block.event_output_var".lang) { EventOutputLocalVariableBlock("") }
 
                 dynamicBlocks {
-                    rootBlocks.flatMap { it.walk() }.filterIsInstance<LocalVariableDeclaration>()
-                        .filter { it.variableName.isNotEmpty() }
-                        .distinctBy { it.variableName }
+                    rootBlocks.flatMap { it.walk() }
+                        .mapNotNull {
+                            when (it) {
+                                is SetVarBlock -> it.variableName.takeIf(String::isNotEmpty)
+                                is EventOutputVariableBinding -> it.variableName.takeIf { name ->
+                                    name.isNotEmpty() && it.variableScope == VariableScope.LOCAL
+                                }
+                                else -> null
+                            }
+                        }
+                        .distinct()
                         .map {
                             BlockEntry(
-                                "hollowengine.gui.codeblocks.block.get_var_named".lang.format(it.variableName),
+                                "hollowengine.gui.codeblocks.block.get_var_named".lang.format(it),
                                 null,
-                                { GetVarInlineBlock(it.variableName) },
+                                { GetVarInlineBlock(it) },
                                 GetVarInlineBlock::class
                             )
                         }
@@ -168,6 +177,7 @@ object StandardModules {
             category("Global", icons.VARIABLES) {
                 block("Set global") { SetGlobalVarBlock("") }
                 block("Get global") { GetGlobalVarBlock("") }
+                block("hollowengine.gui.codeblocks.block.event_output_var".lang) { EventOutputGlobalVariableBlock("") }
             }
 
             category("Entity", icons.VARIABLES) {
@@ -233,5 +243,7 @@ object StandardModules {
         include(Types)
     }
 }
+
+
 
 

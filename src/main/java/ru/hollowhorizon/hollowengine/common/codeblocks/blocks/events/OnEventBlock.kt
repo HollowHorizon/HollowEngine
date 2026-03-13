@@ -1,4 +1,4 @@
-﻿package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events
+package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events
 
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
@@ -8,22 +8,21 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputVariableBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputLocalVariableBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.ScriptSignalHandler
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.SignalScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentScriptSignal
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.skipScriptEventExecution
-import ru.hollowhorizon.hollowengine.common.codeblocks.validation.EventContextProvider
 
 @Serializable
 @SerialName("hollowengine:events/receive")
-class OnEventBlock(var eventName: String = "MyEvent") : StartBlock(), ScriptSignalHandler, EventContextProvider {
+class OnEventBlock(var eventName: String = "MyEvent") : StartBlock(), ScriptSignalHandler {
     override val color: Color get() = CodeBlocksColors.EVENTS
 
     private val payloadOutput by outputDefault<Any>(
         name = PAYLOAD_OUTPUT,
-        default = { EventOutputVariableBlock("payload") },
+            default = { EventOutputLocalVariableBlock("payload") },
     )
 
     @SerialName("signal_scope")
@@ -53,12 +52,11 @@ class OnEventBlock(var eventName: String = "MyEvent") : StartBlock(), ScriptSign
             modifier.alignY(AlignmentY.Center).textColor(Color.WHITE).bold()
                 .onClick {
                     signalScope = if (signalScope == SignalScope.LOCAL) SignalScope.GLOBAL else SignalScope.LOCAL
+                    surface.triggerUpdate()
                     notifyChanged()
                 }
         }
     }
-
-    override fun availableEventOutputs(): Set<String> = setOf("payload")
 
     companion object {
         const val PAYLOAD_OUTPUT = "payloadOutput"

@@ -14,26 +14,22 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.getVariable
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.setVariable
+import ru.hollowhorizon.hollowengine.common.codeblocks.validation.CodeBlockAnalysisService
 
 @Serializable
 @SerialName("hollowengine:events/set")
-class SetVarBlock(override var variableName: String = "var") : StatementBlock(), LocalVariableDeclaration {
+class SetVarBlock(var variableName: String = "var") : StatementBlock() {
     override val color: Color get() = CodeBlocksColors.LOCALS
-
-    override val expressionType get() = (inputs["value"] as? ExpressionBlock)?.expressionType ?: AnyType
 
     val value by input<Any>("value")
 
     @OptIn(InternalSerializationApi::class)
     override suspend fun execute() {
-        val value = value()
-
-        setVariable(variableName, value)
+        setVariable(variableName, value())
     }
 
     override fun InputSlotScope.composeContent() {
         Text("hollowengine.gui.codeblocks.label.variable_set".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
-        // Поле ввода имени переменной
         TextField(variableName) {
             modifier.width(FitContent).margin(horizontal = 5.dp)
                 .alignY(AlignmentY.Center)
@@ -51,10 +47,11 @@ class SetVarBlock(override var variableName: String = "var") : StatementBlock(),
 class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
     override val color: Color get() = CodeBlocksColors.LOCALS
 
-    override val expressionType: ExpressionType get() = resolveLocalVariableType(varName)
+    override val expressionType: ExpressionType
+        get() = CodeBlockAnalysisService.resolveLocalVariableType(this, varName)
 
     override suspend fun execute(): Any? {
-        return getVariable(varName)?.get(expressionType)
+        return getVariable(varName, expressionType)
     }
 
     override fun InputSlotScope.composeContent() {
@@ -73,10 +70,11 @@ class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
 class GetVarInlineBlock(val name: String) : ExpressionBlock() {
     override val color: Color get() = CodeBlocksColors.LOCALS
 
-    override val expressionType: ExpressionType get() = resolveLocalVariableType(name)
+    override val expressionType: ExpressionType
+        get() = CodeBlockAnalysisService.resolveLocalVariableType(this, name)
 
     override suspend fun execute(): Any? {
-        return getVariable(name)?.get(expressionType)
+        return getVariable(name, expressionType)
     }
 
     override fun InputSlotScope.composeContent() {
@@ -87,4 +85,3 @@ class GetVarInlineBlock(val name: String) : ExpressionBlock() {
         }
     }
 }
-

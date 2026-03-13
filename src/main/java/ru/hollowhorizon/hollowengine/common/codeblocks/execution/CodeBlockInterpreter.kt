@@ -24,21 +24,26 @@ class CodeBlockInterpreter<T : Any>(val root: StatementBlock) : BlockModelInterp
         val frame = coroutineContext[BlockFrame.Key] ?: error("No frame found")
         val tag = frame.tag
         val instance = currentInstance()
+        val current = if (tag.contains("uuid")) {
+            val savedUuid = tag.getUUID("uuid")
+            root.find(savedUuid)
+                ?: error("Saved execution points to missing block '$savedUuid' in script '${currentFile().path}'.")
+        } else {
+            root
+        }
 
-        var current: StatementBlock? =
-            if (tag.contains("uuid")) root.find(tag.getUUID("uuid"))
-            else root
-
+        var cursor: StatementBlock? = current
         var result: Any? = null
-        while (current != null) {
-            tag.putUUID("uuid", current.uuid)
-            instance.updateCurrentBlockId(current.uuid)
+        while (cursor != null) {
+            val block = cursor
+            tag.putUUID("uuid", block.uuid)
+            instance.updateCurrentBlockId(block.uuid)
             currentFile().system.markDirty()
-            val block: StatementBlock = current
             result = scoped { block.execute() }
-            current = current.next
+            cursor = block.next
         }
         instance.updateCurrentBlockId(null)
         return result as T
     }
 }
+

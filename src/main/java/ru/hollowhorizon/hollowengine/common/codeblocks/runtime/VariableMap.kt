@@ -1,38 +1,45 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
 import net.minecraft.nbt.CompoundTag
-import ru.hollowhorizon.hollowengine.common.codeblocks.variables.LazyNbtVariableContainer
-import ru.hollowhorizon.hollowengine.common.codeblocks.variables.VariableContainer
+import net.minecraft.nbt.Tag
 
 class VariableMap(
     private val onDirty: (() -> Unit)? = null,
 ) {
-    private val variables = mutableMapOf<String, VariableContainer>()
+    private val variables = mutableMapOf<String, CompoundTag>()
 
     fun serialize(tag: CompoundTag) {
-        variables.forEach { (name, value) ->
-            tag.put(name, CompoundTag().also(value::save))
-        }
+        copyTo(tag)
     }
 
     fun deserialize(tag: CompoundTag) {
+        variables.clear()
         tag.allKeys.forEach { name ->
-            val variable = variables.getOrPut(name, ::LazyNbtVariableContainer)
-            variable.load(tag.getCompound(name))
+            variables[name] = tag.getCompound(name).copy()
         }
     }
 
-    operator fun set(name: String, value: VariableContainer) {
-        variables[name] = value
+    fun copyTo(tag: CompoundTag) {
+        variables.forEach { (name, value) ->
+            tag.put(name, value.copy())
+        }
+    }
+
+    fun asCompoundTag(): CompoundTag = CompoundTag().also(::copyTo)
+
+    fun getRawTag(name: String): Tag? = variables[name]?.get(VALUE_KEY)
+
+    fun setRawTag(name: String, value: Tag?) {
+        val wrapper = CompoundTag()
+        value?.let { wrapper.put(VALUE_KEY, it.copy()) }
+        variables[name] = wrapper
         onDirty?.invoke()
     }
 
-    operator fun get(name: String): VariableContainer? = variables[name]
+    fun getTag(name: String): CompoundTag? = getRawTag(name) as? CompoundTag
 
-    operator fun contains(name: String): Boolean = variables.containsKey(name)
-
-    fun getOrPut(name: String, defaultValue: () -> VariableContainer): VariableContainer {
-        return variables.getOrPut(name, defaultValue)
+    fun setTag(name: String, tag: CompoundTag) {
+        setRawTag(name, tag.copy())
     }
 
     fun remove(name: String) {
@@ -40,10 +47,16 @@ class VariableMap(
         onDirty?.invoke()
     }
 
+    operator fun contains(name: String): Boolean = variables.containsKey(name)
+
     val keys: Set<String>
         get() = variables.keys
 
-    fun toList(): List<Pair<String, Any?>> = variables.map { (name, container) -> name to container.toString() }
+    fun toList(): List<Pair<String, Any?>> = variables.map { (name, container) -> name to container.get(VALUE_KEY)?.toString() }
 
-    fun entries(): Set<Map.Entry<String, VariableContainer>> = variables.entries
+    fun entries(): Set<Map.Entry<String, CompoundTag>> = variables.entries
+
+    companion object {
+        const val VALUE_KEY = "value"
+    }
 }

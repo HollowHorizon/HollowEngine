@@ -12,6 +12,7 @@ import net.neoforged.neoforge.event.AddReloadListenerEvent
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent
 import net.neoforged.neoforge.event.RegisterCommandsEvent
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent
 import net.neoforged.neoforge.event.entity.item.ItemTossEvent
 import net.neoforged.neoforge.event.entity.living.BabyEntitySpawnEvent
 import net.neoforged.neoforge.event.entity.player.ArrowLooseEvent
@@ -23,6 +24,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent
 import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.common.events.EventBus.post
 import ru.hollowhorizon.hollowengine.common.events.entity.BabySpawnEvent
+import ru.hollowhorizon.hollowengine.common.events.entity.EntityLoadedEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityTrackingEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.ItemEntityEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
@@ -44,6 +46,7 @@ class NeoForgeEvents(val modBus: IEventBus) {
         NeoForge.EVENT_BUS.addListener(::registerCommands)
         NeoForge.EVENT_BUS.addListener(::onServerTick)
         NeoForge.EVENT_BUS.addListener(::onEntityTracking)
+        NeoForge.EVENT_BUS.addListener(::onEntityLoaded)
         NeoForge.EVENT_BUS.addListener(::onPlayerJoin)
         NeoForge.EVENT_BUS.addListener(::onPlayerLeave)
         NeoForge.EVENT_BUS.addListener(::onPlayerChangeDimension)
@@ -111,6 +114,12 @@ class NeoForgeEvents(val modBus: IEventBus) {
 
     private fun onEntityTracking(event: net.neoforged.neoforge.event.entity.player.PlayerEvent.StartTracking) {
         EntityTrackingEvent(event.entity, event.target).post()
+    }
+
+    private fun onEntityLoaded(event: EntityJoinLevelEvent) {
+        if (!event.level.isClientSide) {
+            EntityLoadedEvent(event.entity).post()
+        }
     }
 
     private fun onPlayerJoin(event: net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent) {

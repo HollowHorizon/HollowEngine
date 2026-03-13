@@ -4,6 +4,7 @@ package ru.hollowhorizon.hollowengine.fabric
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents
 import net.fabricmc.fabric.api.networking.v1.EntityTrackingEvents
@@ -15,6 +16,7 @@ import net.minecraft.server.packs.PackType
 import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.common.events.EventBus.post
 import ru.hollowhorizon.hollowengine.common.events.blocks.BlockEvent
+import ru.hollowhorizon.hollowengine.common.events.entity.EntityLoadedEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityTrackingEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.item.BuildTabContentsEvent
@@ -32,6 +34,7 @@ object FabricEvents {
         registerAttributes()
         registerCommands()
         onEntityTracking()
+        onEntityLifecycle()
         onPlayerEvents()
         onServerEvents()
         onTabModify()
@@ -88,6 +91,12 @@ object FabricEvents {
         }
         ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register { player, from, to ->
             PlayerEvent.ChangeDimension(player, from, to).post()
+        }
+    }
+
+    private fun onEntityLifecycle() {
+        ServerEntityEvents.ENTITY_LOAD.register { entity, _ ->
+            EntityLoadedEvent(entity).post()
         }
     }
 

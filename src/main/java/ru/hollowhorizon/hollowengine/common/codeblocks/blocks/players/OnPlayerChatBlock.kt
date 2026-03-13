@@ -8,29 +8,28 @@ import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputVariableBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputLocalVariableBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.EventDrivenStartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentScriptEvent
-import ru.hollowhorizon.hollowengine.common.codeblocks.validation.EventContextProvider
 import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 
 @Serializable
 @SerialName("hollowengine:events/player_chat")
-class OnPlayerChatBlock : StartBlock(), EventDrivenStartBlock<ServerChatEvent>, EventContextProvider {
+class OnPlayerChatBlock : StartBlock(), EventDrivenStartBlock<ServerChatEvent> {
     override val color: Color get() = CodeBlocksColors.EVENTS
     private val playerOutput by outputDefault<Player>(
         name = PLAYER_OUTPUT,
-        default = { EventOutputVariableBlock("player") },
+        default = { EventOutputLocalVariableBlock("player") },
     )
     private val messageOutput by outputDefault<String>(
         name = MESSAGE_OUTPUT,
-        default = { EventOutputVariableBlock("message") },
+        default = { EventOutputLocalVariableBlock("message") },
     )
     private val usernameOutput by outputDefault<String>(
         name = USERNAME_OUTPUT,
-        default = { EventOutputVariableBlock("username") },
+        default = { EventOutputLocalVariableBlock("username") },
     )
 
     override suspend fun trigger() {
@@ -75,12 +74,9 @@ class OnPlayerChatBlock : StartBlock(), EventDrivenStartBlock<ServerChatEvent>, 
         }
     }
 
-    override fun availableEventOutputs(): Set<String> = setOf("player", "message", "username")
-
     companion object {
         const val PLAYER_OUTPUT = "playerOutput"
         const val MESSAGE_OUTPUT = "messageOutput"
         const val USERNAME_OUTPUT = "usernameOutput"
     }
 }
-

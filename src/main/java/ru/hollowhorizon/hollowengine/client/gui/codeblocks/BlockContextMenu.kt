@@ -37,11 +37,10 @@ object BlockContextMenu {
                     item("hollowengine.gui.block_context.collapse".lang) { block.isCollapsed.set(true) }
                 }
                 (block as? StartBlock)?.let { startBlock ->
-                    item("Launch: ${startBlock.repeatPolicy.name.lowercase()}") {}
-                    LaunchPolicy.entries.forEach { policy ->
-                        item("Set launch ${policy.name.lowercase()}") {
-                            startBlock.repeatPolicy = policy
-                        }
+                    item("Launch: ${startBlock.repeatPolicy.label()}", closeOnClick = false) {
+                        startBlock.repeatPolicy = startBlock.repeatPolicy.next()
+                        notifyChanged()
+                        uiNode.surface.triggerUpdate()
                     }
                 }
                 item("hollowengine.gui.block_context.duplicate".lang) { controller.duplicateBlock(block, it) }
@@ -54,8 +53,17 @@ object BlockContextMenu {
         blockPopup.show(Vec2f(event.screenPosition), menuItems, Vec2f(relativePos))
     }
 
-    context(editor: BlockEditor, scope: UiScope)
+    context(scope: UiScope)
     fun draw() = with(scope) {
         blockPopup()
+    }
+
+    private fun LaunchPolicy.next(): LaunchPolicy {
+        val policies = LaunchPolicy.entries
+        return policies[(ordinal + 1) % policies.size]
+    }
+
+    private fun LaunchPolicy.label(): String {
+        return name.lowercase().replace('_', ' ')
     }
 }

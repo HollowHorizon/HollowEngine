@@ -1,11 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks
 
-import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.variables.LazyNbtVariableContainer
-import ru.hollowhorizon.hollowengine.common.codeblocks.variables.LivingEntityContainer
-import ru.hollowhorizon.hollowengine.common.codeblocks.variables.VariableContainer
 import kotlin.reflect.KType
 import kotlin.reflect.full.isSubtypeOf
 import kotlin.reflect.typeOf as kTypeOf
@@ -25,14 +21,6 @@ interface ExpressionType {
                 return types.all { it.accepts(other) }
             }
         }
-    }
-}
-
-fun createContainer(type: ExpressionType): VariableContainer {
-    return if (typeOf<LivingEntity>().accepts(type)) {
-        LivingEntityContainer<LivingEntity>()
-    } else {
-        LazyNbtVariableContainer()
     }
 }
 

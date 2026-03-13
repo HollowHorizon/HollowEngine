@@ -11,10 +11,12 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.modules.StandardModules
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.WorldModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.usecase.PersistRecoveredScriptUseCase
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
+import ru.hollowhorizon.hollowengine.common.codeblocks.validation.CodeBlockAnalysisService
+import ru.hollowhorizon.hollowengine.common.codeblocks.validation.CodeBlockValidationReporter
 import ru.hollowhorizon.hollowengine.common.coroutines.OwnerScope
 import ru.hollowhorizon.hollowengine.common.coroutines.OwnerScopeRegistry
-import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.dev.DevLogs
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.post
@@ -63,6 +65,11 @@ class BlocksSystem(val owner: MinecraftServer) {
         dirtyListener?.invoke()
     }
 
+    private fun validateScripts() {
+        val analysis = CodeBlockAnalysisService.analyzeScripts(scripts.values.associate { it.path to it.allBlocks })
+        CodeBlockValidationReporter.report(analysis.issues)
+    }
+
     fun reloadScripts(postEvent: Boolean = true) {
         val enabledStates = scripts.mapValues { it.value.isEnabled }
 
@@ -96,6 +103,7 @@ class BlocksSystem(val owner: MinecraftServer) {
             }
         }
 
+        validateScripts()
         restoreOwnerScopes()
         startEnabledScripts()
         if (postEvent) onAttach()
@@ -148,4 +156,3 @@ class BlocksSystemReloadedEvent : Event
 fun BlocksSystem.getDevHistory(scriptPath: String) = DevLogs.getHistory(scriptPath)
 fun BlocksSystem.getDevSlow(scriptPath: String) = DevLogs.getSlow(scriptPath)
 fun BlocksSystem.clearDevHistory() = DevLogs.clear()
-

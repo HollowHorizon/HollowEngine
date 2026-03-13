@@ -11,6 +11,7 @@ import net.minecraftforge.event.BuildCreativeModeTabContentsEvent
 import net.minecraftforge.event.RegisterCommandsEvent
 import net.minecraftforge.event.TickEvent
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent
+import net.minecraftforge.event.entity.EntityJoinLevelEvent
 import net.minecraftforge.event.entity.item.ItemTossEvent
 import net.minecraftforge.event.entity.living.BabyEntitySpawnEvent
 import net.minecraftforge.event.entity.player.ArrowLooseEvent
@@ -22,6 +23,7 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext
 import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.common.events.EventBus.post
 import ru.hollowhorizon.hollowengine.common.events.entity.BabySpawnEvent
+import ru.hollowhorizon.hollowengine.common.events.entity.EntityLoadedEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityTrackingEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.ItemEntityEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
@@ -42,6 +44,7 @@ object ForgeEvents {
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onServerTick)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onEntityTrackingStart)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onEntityTrackingStop)
+        MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onEntityLoaded)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onPlayerJoin)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onPlayerLeave)
         MinecraftForge.EVENT_BUS.addListener(ForgeEvents::onPlayerChangeDimension)
@@ -114,6 +117,12 @@ object ForgeEvents {
 
     private fun onEntityTrackingStop(event: net.minecraftforge.event.entity.player.PlayerEvent.StartTracking) {
         EntityTrackingEvent.Stop(event.entity as ServerPlayer, event.target).post()
+    }
+
+    private fun onEntityLoaded(event: EntityJoinLevelEvent) {
+        if (!event.level.isClientSide) {
+            EntityLoadedEvent(event.entity).post()
+        }
     }
 
 

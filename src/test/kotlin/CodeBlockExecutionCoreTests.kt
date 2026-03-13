@@ -200,6 +200,19 @@ class CodeBlockExecutionCoreTests {
     }
 
     @Test
+    fun `code block interpreter reports missing saved uuid explicitly`() = runTest {
+        val first = RecordingStatementBlock()
+        val frameTag = CompoundTag().apply { putUUID("uuid", java.util.UUID.randomUUID()) }
+
+        val error = assertFailsWith<IllegalStateException> {
+            executeStatement(first, stackWithFrame(frameTag))
+        }
+
+        assertTrue(error.message!!.contains("Saved execution points to missing block"))
+        assertTrue(error.message!!.contains("tests/runtime.bc"))
+    }
+
+    @Test
     fun `frame stack save and load restores nested frame values`() = runTest {
         val stack = stackWithFrame()
         val saved = CompoundTag()
@@ -419,4 +432,5 @@ class CodeBlockExecutionCoreTests {
         assertTrue(AnyType.accepts(number.expressionTypeOrNull!!))
     }
 }
+
 

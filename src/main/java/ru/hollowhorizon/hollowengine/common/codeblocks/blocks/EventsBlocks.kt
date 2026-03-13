@@ -9,7 +9,10 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.*
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.ScriptSignal
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.SignalScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentFile
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentInstance
 
 @Serializable
 @SerialName("hollowengine:events/send")
@@ -35,15 +38,16 @@ class SendEventBlock(var eventName: String = "MyEvent") : StatementBlock() {
         Text("hollowengine.gui.codeblocks.label.send_message".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         TextField(eventName) {
             modifier.width(FitContent).margin(horizontal = Dimensions.PaddingSmall.scaled())
-                .hint("hollowengine.gui.codeblocks.hint.message_name".lang).font(font)
+                .hint("hollowengine.gui.codeblocks.hint.signal_name".lang).font(font)
                 .alignY(AlignmentY.Center)
                 .onChange { eventName = it; notifyChanged() }
         }
         Box { modifier.width(Dimensions.PaddingSmall.scaled()) }
-        Text(if (signalScope == SignalScope.LOCAL) "local" else "global") {
+        Text(if (signalScope == SignalScope.LOCAL) "локально" else "глобально") {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
                 .onClick {
                     signalScope = if (signalScope == SignalScope.LOCAL) SignalScope.GLOBAL else SignalScope.LOCAL
+                    surface.triggerUpdate()
                     notifyChanged()
                 }
         }
@@ -73,18 +77,19 @@ class CallEventBlock(var eventName: String = "MyEvent") : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("call") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("Вызвать") { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
         TextField(eventName) {
             modifier.width(FitContent).margin(horizontal = Dimensions.PaddingSmall.scaled())
-                .hint("signal").font(font)
+                .hint("hollowengine.gui.codeblocks.hint.signal_name".lang).font(font)
                 .alignY(AlignmentY.Center)
                 .onChange { eventName = it; notifyChanged() }
         }
         Box { modifier.width(Dimensions.PaddingSmall.scaled()) }
-        Text(if (signalScope == SignalScope.LOCAL) "local" else "global") {
+        Text(if (signalScope == SignalScope.LOCAL) "локально" else "глобально") {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
                 .onClick {
                     signalScope = if (signalScope == SignalScope.LOCAL) SignalScope.GLOBAL else SignalScope.LOCAL
+                    surface.triggerUpdate()
                     notifyChanged()
                 }
         }

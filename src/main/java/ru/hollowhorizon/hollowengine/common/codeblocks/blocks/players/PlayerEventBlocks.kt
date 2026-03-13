@@ -9,24 +9,23 @@ import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputVariableBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputLocalVariableBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.EventDrivenStartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentScriptEvent
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.skipScriptEventExecution
-import ru.hollowhorizon.hollowengine.common.codeblocks.validation.EventContextProvider
 import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.LivingEntityDeathEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 
 @Serializable
 @SerialName("hollowengine:events/player_join")
-class OnPlayerJoinBlock : StartBlock(), EventDrivenStartBlock<PlayerEvent.Join>, EventContextProvider {
+class OnPlayerJoinBlock : StartBlock(), EventDrivenStartBlock<PlayerEvent.Join> {
     override val color: Color get() = CodeBlocksColors.EVENTS
 
     private val playerOutput by outputDefault<Player>(
         name = PLAYER_OUTPUT,
-        default = { EventOutputVariableBlock("player") },
+        default = { EventOutputLocalVariableBlock("player") },
     )
 
     override suspend fun trigger() {
@@ -52,8 +51,6 @@ class OnPlayerJoinBlock : StartBlock(), EventDrivenStartBlock<PlayerEvent.Join>,
         }
     }
 
-    override fun availableEventOutputs(): Set<String> = setOf("player")
-
     companion object {
         const val PLAYER_OUTPUT = "playerOutput"
     }
@@ -61,16 +58,16 @@ class OnPlayerJoinBlock : StartBlock(), EventDrivenStartBlock<PlayerEvent.Join>,
 
 @Serializable
 @SerialName("hollowengine:events/player_death")
-class OnPlayerDeathBlock : StartBlock(), EventDrivenStartBlock<LivingEntityDeathEvent>, EventContextProvider {
+class OnPlayerDeathBlock : StartBlock(), EventDrivenStartBlock<LivingEntityDeathEvent> {
     override val color: Color get() = CodeBlocksColors.EVENTS
 
     private val playerOutput by outputDefault<Player>(
         name = PLAYER_OUTPUT,
-        default = { EventOutputVariableBlock("player") },
+        default = { EventOutputLocalVariableBlock("player") },
     )
     private val sourceOutput by outputDefault<DamageSource>(
         name = SOURCE_OUTPUT,
-        default = { EventOutputVariableBlock("source") },
+        default = { EventOutputLocalVariableBlock("source") },
     )
 
     override suspend fun trigger() {
@@ -104,8 +101,6 @@ class OnPlayerDeathBlock : StartBlock(), EventDrivenStartBlock<LivingEntityDeath
             }
         }
     }
-
-    override fun availableEventOutputs(): Set<String> = setOf("player", "source")
 
     companion object {
         const val PLAYER_OUTPUT = "playerOutput"

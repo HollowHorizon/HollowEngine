@@ -1,24 +1,23 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
+import de.fabmax.kool.modules.ui2.mutableStateListOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlocksScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnEventBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.LocalVariableDeclaration
-import ru.hollowhorizon.hollowengine.common.codeblocks.createContainer
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.CodeBlockInterpreter
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.scoped
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.walk
 import ru.hollowhorizon.hollowengine.common.coroutines.*
 import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.common.events.EventListener
-import java.util.*
+import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 
 class ScriptFile(
@@ -26,10 +25,15 @@ class ScriptFile(
     val path: String,
     val allBlocks: List<BlockModel>,
 ) {
-    private val declaredLocalVariables = allBlocks.flatMap { it.walk() }
-        .filterIsInstance<LocalVariableDeclaration>()
-        .filter { it.variableName.isNotBlank() }
-        .associate { it.variableName to it.expressionType }
+    private val runtimeScope = object : BlocksScope {
+        override val rootBlocks = mutableStateListOf<BlockModel>().apply {
+            addAll(allBlocks)
+        }
+    }
+
+    init {
+        allBlocks.forEach { it.setExplicitScope(runtimeScope) }
+    }
 
     val functions = allBlocks.filterIsInstance<CustomBlock>().associateBy { it.function }
 
@@ -129,19 +133,10 @@ class ScriptFile(
             val state = CodeBlockExecutionState(this, handler, definition.id).apply {
                 initialize(signal.owner, signal)
             }
-            populateLocalVariables(state.instance)
             coroutineScope {
                 withContext(definition.context + state.buildCoroutineContext()) {
                     definition.block(this@coroutineScope, state)
                 }
-            }
-        }
-    }
-
-    internal fun populateLocalVariables(instance: ScriptInstance) {
-        declaredLocalVariables.forEach { (name, type) ->
-            if (name !in instance.localVariables) {
-                instance.localVariables[name] = createContainer(type)
             }
         }
     }
@@ -164,7 +159,6 @@ class ScriptFile(
         ownerScope.submit(definition.id, branchKey, launchPolicy) { state ->
             val execution = state as CodeBlockExecutionState
             execution.initialize(ownerKey)
-            populateLocalVariables(execution.instance)
             configureState(execution)
             execution.instance.installCancel { ownerScope.cancelBranch(branchKey) }
         }
@@ -201,9 +195,7 @@ class ScriptFile(
                     CodeBlockInterpreter<Unit>(startBlock).execute()
                 }
             } catch (_: SkipScriptEventExecution) {
-                // Routed event did not match this branch.
             } catch (_: CancellationException) {
-                // Expected for repeat policies and scope lifecycle.
             } catch (t: Throwable) {
                 HollowCore.LOGGER.error(
                     "Script {} failed at block {}",
@@ -234,4 +226,3 @@ class ScriptFile(
         val listener: EventListener<Event>,
     )
 }
-

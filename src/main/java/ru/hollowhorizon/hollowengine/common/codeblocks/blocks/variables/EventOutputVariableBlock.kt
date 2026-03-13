@@ -11,46 +11,139 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.OutputConsumer
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.InvertedExpressionBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.setVariable
 
+interface EventOutputVariableBinding {
+    val variableName: String
+    val variableScope: VariableScope
+}
+
+private fun InputSlotScope.eventOutputVariableNameField(
+    value: String,
+    onValueChanged: (String) -> Unit,
+) {
+    TextField(value) {
+        modifier.width(FitContent)
+            .margin(horizontal = 5.dp.scaled())
+            .alignY(AlignmentY.Center)
+            .onChange(onValueChanged)
+            .hint("var")
+            .font(font)
+            .colors(textColor = Color.WHITE, lineColor = Color.WHITE)
+    }
+}
+
+private fun ExpressionBlock.resolveEventOutputType(): ExpressionType {
+    val parentType = parentBlock
+        ?.takeIf { parentOutputName != null }
+        ?.outputTypes
+        ?.get(parentOutputName)
+    return parentType ?: AnyType
+}
+
 @Serializable
-@SerialName("hollowengine:variables/event_output_local")
-class EventOutputVariableBlock(
+@SerialName("hollowengine:variables/event_output_local_explicit")
+class EventOutputLocalVariableBlock(
     override var variableName: String = "var",
-) : ExpressionBlock(), InvertedExpressionBlock, OutputConsumer, LocalVariableDeclaration {
+) : ExpressionBlock(), InvertedExpressionBlock, OutputConsumer, EventOutputVariableBinding {
+    override val variableScope: VariableScope get() = VariableScope.LOCAL
+
     override val color: Color get() = CodeBlocksColors.LOCALS
 
     override val expressionType: ExpressionType
         get() = acceptedType
 
     override val acceptedType: ExpressionType
-        get() = resolveAcceptedType()
+        get() = resolveEventOutputType()
 
     override suspend fun execute(): Any? = null
 
     override suspend fun accept(value: Any?) {
         if (variableName.isBlank()) return
-        setVariable(variableName, value)
+        setVariable(variableName, variableScope, value, acceptedType)
     }
 
     override fun InputSlotScope.composeContent() {
-        TextField(variableName) {
-            modifier.width(FitContent).margin(horizontal = 5.dp.scaled())
+        eventOutputVariableNameField(variableName) { this@EventOutputLocalVariableBlock.variableName = it }
+        Text("local") {
+            modifier.textColor(Color.WHITE)
                 .alignY(AlignmentY.Center)
-                .onChange { variableName = it }
-                .hint("var")
-                .font(font)
-                .colors(textColor = Color.WHITE, lineColor = Color.WHITE)
+                .bold()
+                .margin(start = 5.dp.scaled())
         }
     }
+}
 
-    private fun resolveAcceptedType(): ExpressionType {
-        val parentType = parentBlock
-            ?.takeIf { parentOutputName != null }
-            ?.outputTypes
-            ?.get(parentOutputName)
-        if (parentType != null && parentType !== AnyType) return parentType
+@Serializable
+@SerialName("hollowengine:variables/event_output_global")
+class EventOutputGlobalVariableBlock(
+    override var variableName: String = "var",
+) : ExpressionBlock(), InvertedExpressionBlock, OutputConsumer, EventOutputVariableBinding {
+    override val variableScope: VariableScope get() = VariableScope.GLOBAL
 
-        return resolveLocalVariableType(variableName, excludeDeclaration = this)
+    override val color: Color get() = CodeBlocksColors.LOCALS
+
+    override val expressionType: ExpressionType
+        get() = acceptedType
+
+    override val acceptedType: ExpressionType
+        get() = resolveEventOutputType()
+
+    override suspend fun execute(): Any? = null
+
+    override suspend fun accept(value: Any?) {
+        if (variableName.isBlank()) return
+        setVariable(variableName, variableScope, value, acceptedType)
+    }
+
+    override fun InputSlotScope.composeContent() {
+        eventOutputVariableNameField(variableName) { this@EventOutputGlobalVariableBlock.variableName = it }
+        Text("global") {
+            modifier.textColor(Color.WHITE)
+                .alignY(AlignmentY.Center)
+                .bold()
+                .margin(start = 5.dp.scaled())
+        }
+    }
+}
+
+/**
+ * Legacy scope-switching block kept only to deserialize existing graphs.
+ */
+@Serializable
+@SerialName("hollowengine:variables/event_output_local")
+class EventOutputVariableBlock(
+    override var variableName: String = "var",
+    @SerialName("variable_scope") override var variableScope: VariableScope = VariableScope.LOCAL,
+) : ExpressionBlock(), InvertedExpressionBlock, OutputConsumer, EventOutputVariableBinding {
+    override val color: Color get() = CodeBlocksColors.LOCALS
+
+    override val expressionType: ExpressionType
+        get() = acceptedType
+
+    override val acceptedType: ExpressionType
+        get() = resolveEventOutputType()
+
+    override suspend fun execute(): Any? = null
+
+    override suspend fun accept(value: Any?) {
+        if (variableName.isBlank()) return
+        setVariable(variableName, variableScope, value, acceptedType)
+    }
+
+    override fun InputSlotScope.composeContent() {
+        eventOutputVariableNameField(variableName) { this@EventOutputVariableBlock.variableName = it }
+        Text(if (variableScope == VariableScope.GLOBAL) "global" else "local") {
+            modifier.textColor(Color.WHITE)
+                .alignY(AlignmentY.Center)
+                .bold()
+                .margin(start = 5.dp.scaled())
+                .onClick {
+                    variableScope = if (variableScope == VariableScope.GLOBAL) VariableScope.LOCAL else VariableScope.GLOBAL
+                    surface.triggerUpdate()
+                    notifyChanged()
+                }
+        }
     }
 }

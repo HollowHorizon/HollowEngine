@@ -17,12 +17,11 @@ import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.addons.InventoryPicker
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputVariableBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputLocalVariableBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.EventDrivenStartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentScriptEvent
-import ru.hollowhorizon.hollowengine.common.codeblocks.validation.EventContextProvider
 import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStackJson
@@ -109,20 +108,20 @@ class PlayerInteractWithBlock : StatementBlock() {
 
 @Serializable
 @SerialName("hollowengine:events/interact_block/item")
-class PlayerInteractWithItem : StartBlock(), EventDrivenStartBlock<PlayerInteractEvent.ItemInteract>, EventContextProvider {
+class PlayerInteractWithItem : StartBlock(), EventDrivenStartBlock<PlayerInteractEvent.ItemInteract> {
     override val color: Color get() = CodeBlocksColors.EVENTS
 
     private val playerOutput by outputDefault<Player>(
         name = PLAYER_OUTPUT,
-        default = { EventOutputVariableBlock("player") },
+        default = { EventOutputLocalVariableBlock("player") },
     )
     private val itemOutput by outputDefault<ItemStack>(
         name = ITEM_OUTPUT,
-        default = { EventOutputVariableBlock("item") },
+        default = { EventOutputLocalVariableBlock("item") },
     )
     private val handOutput by outputDefault<InteractionHand>(
         name = HAND_OUTPUT,
-        default = { EventOutputVariableBlock("hand") },
+        default = { EventOutputLocalVariableBlock("hand") },
     )
 
     override suspend fun trigger() {
@@ -163,8 +162,6 @@ class PlayerInteractWithItem : StartBlock(), EventDrivenStartBlock<PlayerInterac
             }
         }
     }
-
-    override fun availableEventOutputs(): Set<String> = setOf("player", "item", "hand")
 
     companion object {
         const val PLAYER_OUTPUT = "playerOutput"
