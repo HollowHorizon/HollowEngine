@@ -12,12 +12,17 @@ class PersistRecoveredScriptUseCase(
         if (!report.hasIssues) return null
         if (!file.exists()) return null
 
+        val recoveredText = format.encodeBlocks(report.blocks)
+        if (file.readText() == recoveredText) return null
+
         val backup = backupService.createBackup(file)
         val temp = file.parentFile.resolve(file.name + ".tmp")
-        temp.writeText(format.encodeBlocks(report.blocks))
-        temp.copyTo(file, overwrite = true)
-        temp.delete()
+        try {
+            temp.writeText(recoveredText)
+            temp.copyTo(file, overwrite = true)
+        } finally {
+            temp.delete()
+        }
         return backup
     }
 }
-

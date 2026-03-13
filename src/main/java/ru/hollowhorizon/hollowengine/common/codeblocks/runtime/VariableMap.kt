@@ -15,7 +15,8 @@ class VariableMap(
     fun deserialize(tag: CompoundTag) {
         variables.clear()
         tag.allKeys.forEach { name ->
-            variables[name] = tag.getCompound(name).copy()
+            val stored = tag.get(name) ?: return@forEach
+            variables[name] = normalizeStoredValue(stored)
         }
     }
 
@@ -55,6 +56,16 @@ class VariableMap(
     fun toList(): List<Pair<String, Any?>> = variables.map { (name, container) -> name to container.get(VALUE_KEY)?.toString() }
 
     fun entries(): Set<Map.Entry<String, CompoundTag>> = variables.entries
+
+    private fun normalizeStoredValue(stored: Tag): CompoundTag {
+        if (stored is CompoundTag && stored.allKeys.singleOrNull() == VALUE_KEY) {
+            return stored.copy()
+        }
+
+        return CompoundTag().also { wrapper ->
+            wrapper.put(VALUE_KEY, stored.copy())
+        }
+    }
 
     companion object {
         const val VALUE_KEY = "value"

@@ -43,7 +43,7 @@ private fun ExpressionBlock.resolveEventOutputType(): ExpressionType {
 }
 
 @Serializable
-@SerialName("hollowengine:variables/event_output_local_explicit")
+@SerialName("hollowengine:variables/event_output_local")
 class EventOutputLocalVariableBlock(
     override var variableName: String = "var",
 ) : ExpressionBlock(), InvertedExpressionBlock, OutputConsumer, EventOutputVariableBinding {
@@ -104,46 +104,6 @@ class EventOutputGlobalVariableBlock(
                 .alignY(AlignmentY.Center)
                 .bold()
                 .margin(start = 5.dp.scaled())
-        }
-    }
-}
-
-/**
- * Legacy scope-switching block kept only to deserialize existing graphs.
- */
-@Serializable
-@SerialName("hollowengine:variables/event_output_local")
-class EventOutputVariableBlock(
-    override var variableName: String = "var",
-    @SerialName("variable_scope") override var variableScope: VariableScope = VariableScope.LOCAL,
-) : ExpressionBlock(), InvertedExpressionBlock, OutputConsumer, EventOutputVariableBinding {
-    override val color: Color get() = CodeBlocksColors.LOCALS
-
-    override val expressionType: ExpressionType
-        get() = acceptedType
-
-    override val acceptedType: ExpressionType
-        get() = resolveEventOutputType()
-
-    override suspend fun execute(): Any? = null
-
-    override suspend fun accept(value: Any?) {
-        if (variableName.isBlank()) return
-        setVariable(variableName, variableScope, value, acceptedType)
-    }
-
-    override fun InputSlotScope.composeContent() {
-        eventOutputVariableNameField(variableName) { this@EventOutputVariableBlock.variableName = it }
-        Text(if (variableScope == VariableScope.GLOBAL) "global" else "local") {
-            modifier.textColor(Color.WHITE)
-                .alignY(AlignmentY.Center)
-                .bold()
-                .margin(start = 5.dp.scaled())
-                .onClick {
-                    variableScope = if (variableScope == VariableScope.GLOBAL) VariableScope.LOCAL else VariableScope.GLOBAL
-                    surface.triggerUpdate()
-                    notifyChanged()
-                }
         }
     }
 }

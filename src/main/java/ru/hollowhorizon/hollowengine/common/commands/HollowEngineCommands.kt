@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.commands
 import com.mineinabyss.geary.serialization.setPersisting
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
+import com.mojang.brigadier.context.CommandContext
 import de.fabmax.kool.math.Vec3f
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -12,6 +13,8 @@ import net.minecraft.client.Minecraft
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.coordinates.Vec3Argument
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.Tag
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.LivingEntity
@@ -26,8 +29,11 @@ import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.client.utils.mc
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
+import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableMap
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.clearDevHistory
+import ru.hollowhorizon.hollowengine.common.coroutines.OwnerScope
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -219,6 +225,46 @@ private fun CommandExtension.registerCodeBlocksCommands() {
                 }
             }
         }
+
+        "vars" {
+            "global" {
+                executes {
+                    printVariables("Global variables", source.server.runtimeContext.scope.variables)
+                }
+
+                "value"(arg("name", StringArgumentType.string())) {
+                    executes {
+                        printVariable(
+                            scopeName = "Global",
+                            map = source.server.runtimeContext.scope.variables,
+                            name = StringArgumentType.getString(this, "name")
+                        )
+                    }
+                }
+            }
+
+            "entity"(arg("entity", EntityArgument.entity())) {
+                executes {
+                    val entity = EntityArgument.getEntity(this, "entity")
+                    val scope = entity.coroutineScope as? OwnerScope
+                        ?: return@executes sendFailure("CodeBlocks: entity ${entity.stringUUID} has no owner scope".literal)
+                    printVariables("Entity ${entity.stringUUID} variables", scope.variables)
+                }
+
+                "value"(arg("name", StringArgumentType.string())) {
+                    executes {
+                        val entity = EntityArgument.getEntity(this, "entity")
+                        val scope = entity.coroutineScope as? OwnerScope
+                            ?: return@executes sendFailure("CodeBlocks: entity ${entity.stringUUID} has no owner scope".literal)
+                        printVariable(
+                            scopeName = "Entity ${entity.stringUUID}",
+                            map = scope.variables,
+                            name = StringArgumentType.getString(this, "name")
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -312,6 +358,29 @@ private fun getAvailableScripts(): Collection<String> {
         .map { it.toReadablePath() }
         .toList()
 }
+
+private fun CommandContext<CommandSourceStack>.printVariables(header: String, map: VariableMap): Int {
+    val entries = map.entries().sortedBy { it.key }
+    if (entries.isEmpty()) {
+        return sendSuccess { "$header: <empty>".literal }
+    }
+
+    sendSuccess { "$header:".literal }
+    entries.forEach { (name, wrapper) ->
+        source.sendSuccess({ "- $name = ${wrapper.describeVariableValue()}".literal }, false)
+    }
+    return 1
+}
+
+private fun CommandContext<CommandSourceStack>.printVariable(scopeName: String, map: VariableMap, name: String): Int {
+    val wrapper = map.entries().firstOrNull { it.key == name }?.value
+        ?: return sendFailure("CodeBlocks: $scopeName variable '$name' not found".literal)
+    return sendSuccess { "$scopeName variable '$name' = ${wrapper.describeVariableValue()}".literal }
+}
+
+private fun CompoundTag.describeVariableValue(): String = get(VariableMap.VALUE_KEY).describeTag()
+
+private fun Tag?.describeTag(): String = this?.toString() ?: "<null>"
 
 // region Particle Functions
 private fun spawnParticleAtPosition(particleName: String, pos: Vec3) {

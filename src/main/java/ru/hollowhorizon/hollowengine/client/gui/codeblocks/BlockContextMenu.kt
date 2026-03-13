@@ -23,34 +23,8 @@ object BlockContextMenu {
             controller.selectSingle(block)
         }
 
-        val menuItems = SubMenuItem("hollowengine.gui.block_context.block".lang, null) {
-            if (controller.selectedBlocks.size > 1) {
-                item("hollowengine.gui.block_context.delete_selected".lang.format(count)) { controller.deleteSelected() }
-                item("hollowengine.gui.block_context.copy_uuid".lang) {
-                    val uuids = controller.selectedBlocks.joinToString(", ") { it.uuid.toString() }
-                    Clipboard.copyToClipboard(uuids)
-                }
-            } else {
-                if (block.isCollapsed.use(uiNode.surface)) {
-                    item("hollowengine.gui.block_context.expand".lang) { block.isCollapsed.set(false) }
-                } else {
-                    item("hollowengine.gui.block_context.collapse".lang) { block.isCollapsed.set(true) }
-                }
-                (block as? StartBlock)?.let { startBlock ->
-                    item("Launch: ${startBlock.repeatPolicy.label()}", closeOnClick = false) {
-                        startBlock.repeatPolicy = startBlock.repeatPolicy.next()
-                        notifyChanged()
-                        uiNode.surface.triggerUpdate()
-                    }
-                }
-                item("hollowengine.gui.block_context.duplicate".lang) { controller.duplicateBlock(block, it) }
-                item("hollowengine.gui.block_context.copy_uuid".lang) { Clipboard.copyToClipboard(block.uuid.toString()) }
-                item("hollowengine.gui.block_context.delete".lang) { controller.deleteSelected() }
-            }
-        }
-
         val relativePos = (uiNode.findParentOfType<ScrollPaneNode>() ?: uiNode).toLocal(event.screenPosition)
-        blockPopup.show(Vec2f(event.screenPosition), menuItems, Vec2f(relativePos))
+        blockPopup.show(Vec2f(event.screenPosition), buildMenu(uiNode, block, count), Vec2f(relativePos))
     }
 
     context(scope: UiScope)
@@ -65,5 +39,38 @@ object BlockContextMenu {
 
     private fun LaunchPolicy.label(): String {
         return name.lowercase().replace('_', ' ')
+    }
+
+    context(editor: BlockEditor)
+    private fun buildMenu(uiNode: UiNode, block: BlockModel, count: Int): SubMenuItem<Vec2f> = with(editor) {
+        return SubMenuItem("hollowengine.gui.block_context.block".lang, null) {
+            if (controller.selectedBlocks.size > 1) {
+                item("hollowengine.gui.block_context.delete_selected".lang.format(count)) { controller.deleteSelected() }
+                item("hollowengine.gui.block_context.copy_uuid".lang) {
+                    val uuids = controller.selectedBlocks.joinToString(", ") { it.uuid.toString() }
+                    Clipboard.copyToClipboard(uuids)
+                }
+                return@SubMenuItem
+            }
+
+            if (block.isCollapsed.use(uiNode.surface)) {
+                item("hollowengine.gui.block_context.expand".lang) { block.isCollapsed.set(false) }
+            } else {
+                item("hollowengine.gui.block_context.collapse".lang) { block.isCollapsed.set(true) }
+            }
+
+            (block as? StartBlock)?.let { startBlock ->
+                item("Launch: ${startBlock.repeatPolicy.label()}", closeOnClick = false) {
+                    startBlock.repeatPolicy = startBlock.repeatPolicy.next()
+                    notifyChanged()
+                    uiNode.surface.triggerUpdate()
+                    blockPopup.updateMenu(buildMenu(uiNode, block, 1))
+                }
+            }
+
+            item("hollowengine.gui.block_context.duplicate".lang) { controller.duplicateBlock(block, it) }
+            item("hollowengine.gui.block_context.copy_uuid".lang) { Clipboard.copyToClipboard(block.uuid.toString()) }
+            item("hollowengine.gui.block_context.delete".lang) { controller.deleteSelected() }
+        }
     }
 }

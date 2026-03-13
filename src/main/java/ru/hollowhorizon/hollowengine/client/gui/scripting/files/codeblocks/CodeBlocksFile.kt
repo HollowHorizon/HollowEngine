@@ -62,9 +62,6 @@ class CodeBlocksFile(filePath: String, bytes: ByteArray) : EditorFile(filePath) 
                 }
             } catch (e: Exception) {
                 HollowEngine.LOGGER.error("File $filePath cannot be loaded!", e)
-                val file = filePath.fromReadablePath()
-                val backup = file.parentFile.resolve(file.name + ".backup")
-                file.copyTo(backup, true)
             }
         }
 
@@ -114,4 +111,3 @@ class CodeBlocksFile(filePath: String, bytes: ByteArray) : EditorFile(filePath) 
         editor.onKeyInput(event)
     }
 }
-

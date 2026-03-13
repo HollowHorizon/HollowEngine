@@ -2,7 +2,14 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.variables
 
 import kotlinx.serialization.serializer
 import net.minecraft.core.registries.Registries
+import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.DoubleTag
+import net.minecraft.nbt.FloatTag
+import net.minecraft.nbt.IntTag
+import net.minecraft.nbt.LongTag
+import net.minecraft.nbt.NumericTag
+import net.minecraft.nbt.ShortTag
 import net.minecraft.nbt.Tag
 import net.minecraft.resources.ResourceKey
 import net.minecraft.resources.ResourceLocation
@@ -38,11 +45,24 @@ suspend fun deserializeVariableValue(rawValue: Tag?, expectedType: ExpressionTyp
     if (requestedClass != null && Entity::class.java.isAssignableFrom(requestedClass.java)) {
         return EntityVariableContainer.resolve(server, storedValue, requestedClass)
     }
+    if (requestedClass == Number::class && storedValue is NumericTag) {
+        return decodeNumericTag(storedValue)
+    }
 
     return NBTFormat.deserialize(
         NBTFormat.serializersModule.serializer(requestedType),
         storedValue,
     )
+}
+
+internal fun decodeNumericTag(tag: NumericTag): Number = when (tag) {
+    is ByteTag -> tag.asByte
+    is ShortTag -> tag.asShort
+    is IntTag -> tag.asInt
+    is LongTag -> tag.asLong
+    is FloatTag -> tag.asFloat
+    is DoubleTag -> tag.asDouble
+    else -> tag.asDouble
 }
 
 private object EntityVariableContainer {

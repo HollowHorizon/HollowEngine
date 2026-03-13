@@ -2,21 +2,13 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.validation
 
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.root
-import ru.hollowhorizon.hollowengine.common.codeblocks.walk
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputGlobalVariableBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputLocalVariableBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputVariableBinding
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputVariableBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.GetGlobalVarBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.GetVarBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.GetVarInlineBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.SetGlobalVarBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.SetVarBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableScope
-import java.util.UUID
+import ru.hollowhorizon.hollowengine.common.codeblocks.walk
+import java.util.*
 
 object CodeBlockAnalysisService {
     fun analyze(rootBlocks: List<BlockModel>): CodeBlockAnalysis {
@@ -30,77 +22,13 @@ object CodeBlockAnalysisService {
         val globalTypes = linkedMapOf<String, ExpressionType>()
         val localTypesByRoot = linkedMapOf<UUID, LinkedHashMap<String, ExpressionType>>()
         val issues = linkedMapOf<String, ValidationIssue>()
-
-        repeat(maxOf(1, roots.sumOf { it.root.walk().count() } + 1)) {
-            var changed = false
-
-            roots.forEach { scriptRoot ->
-                val localTypes = localTypesByRoot.getOrPut(scriptRoot.root.uuid, ::LinkedHashMap)
-                scriptRoot.root.walk().forEach { block ->
-                    when (block) {
-                        is SetVarBlock -> {
-                            changed = mergeType(
-                                issues,
-                                localTypes,
-                                block.variableName,
-                                inferAssignedType(block.inputs["value"], localTypes, globalTypes),
-                                block,
-                                scriptRoot.path,
-                                "local"
-                            ) || changed
-                        }
-                        else -> {
-                            val eventOutput = block.asEventOutputBinding()
-                            if (eventOutput?.variableScope == VariableScope.LOCAL) {
-                                changed = mergeType(
-                                    issues,
-                                    localTypes,
-                                    eventOutput.variableName,
-                                    inferEventOutputType(eventOutput.block),
-                                    eventOutput.block,
-                                    scriptRoot.path,
-                                    "local"
-                                ) || changed
-                            }
-                        }
-                    }
-                }
-            }
-
-            roots.forEach { scriptRoot ->
-                val localTypes = localTypesByRoot[scriptRoot.root.uuid].orEmpty()
-                scriptRoot.root.walk().forEach { block ->
-                    when (block) {
-                        is SetGlobalVarBlock -> {
-                            changed = mergeType(
-                                issues,
-                                globalTypes,
-                                block.variableName,
-                                inferAssignedType(block.inputs["value"], localTypes, globalTypes),
-                                block,
-                                scriptRoot.path,
-                                "global"
-                            ) || changed
-                        }
-                        else -> {
-                            val eventOutput = block.asEventOutputBinding()
-                            if (eventOutput?.variableScope == VariableScope.GLOBAL) {
-                                changed = mergeType(
-                                    issues,
-                                    globalTypes,
-                                    eventOutput.variableName,
-                                    inferEventOutputType(eventOutput.block),
-                                    eventOutput.block,
-                                    scriptRoot.path,
-                                    "global"
-                                ) || changed
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (!changed) return@repeat
+        val maxPasses = maxOf(1, roots.sumOf { it.root.walk().count() } + 1)
+        var pass = 0
+        var changed = true
+        while (changed && pass < maxPasses) {
+            pass++
+            changed = runLocalAnalysisPass(roots, localTypesByRoot, globalTypes, issues)
+            changed = runGlobalAnalysisPass(roots, localTypesByRoot, globalTypes, issues) || changed
         }
 
         roots.forEach { scriptRoot ->
@@ -179,7 +107,6 @@ object CodeBlockAnalysisService {
             is GetVarBlock -> localTypes[block.varName]
             is GetVarInlineBlock -> localTypes[block.name]
             is GetGlobalVarBlock -> globalTypes[block.variableName]
-            is EventOutputVariableBlock,
             is EventOutputLocalVariableBlock,
             is EventOutputGlobalVariableBlock -> inferEventOutputType(block)
             else -> block.expressionType.takeUnless { it == AnyType }
@@ -232,6 +159,92 @@ object CodeBlockAnalysisService {
             ),
         )
         return false
+    }
+
+    private fun runLocalAnalysisPass(
+        roots: List<ScriptRoot>,
+        localTypesByRoot: MutableMap<UUID, LinkedHashMap<String, ExpressionType>>,
+        globalTypes: Map<String, ExpressionType>,
+        issues: MutableMap<String, ValidationIssue>,
+    ): Boolean {
+        var changed = false
+        roots.forEach { scriptRoot ->
+            val localTypes = localTypesByRoot.getOrPut(scriptRoot.root.uuid, ::LinkedHashMap)
+            scriptRoot.root.walk().forEach { block ->
+                when (block) {
+                    is SetVarBlock -> {
+                        changed = mergeType(
+                            issues,
+                            localTypes,
+                            block.variableName,
+                            inferAssignedType(block.inputs["value"], localTypes, globalTypes),
+                            block,
+                            scriptRoot.path,
+                            "local"
+                        ) || changed
+                    }
+
+                    else -> {
+                        val eventOutput = block.asEventOutputBinding()
+                        if (eventOutput?.variableScope == VariableScope.LOCAL) {
+                            changed = mergeType(
+                                issues,
+                                localTypes,
+                                eventOutput.variableName,
+                                inferEventOutputType(eventOutput.block),
+                                eventOutput.block,
+                                scriptRoot.path,
+                                "local"
+                            ) || changed
+                        }
+                    }
+                }
+            }
+        }
+        return changed
+    }
+
+    private fun runGlobalAnalysisPass(
+        roots: List<ScriptRoot>,
+        localTypesByRoot: Map<UUID, Map<String, ExpressionType>>,
+        globalTypes: MutableMap<String, ExpressionType>,
+        issues: MutableMap<String, ValidationIssue>,
+    ): Boolean {
+        var changed = false
+        roots.forEach { scriptRoot ->
+            val localTypes = localTypesByRoot[scriptRoot.root.uuid].orEmpty()
+            scriptRoot.root.walk().forEach { block ->
+                when (block) {
+                    is SetGlobalVarBlock -> {
+                        changed = mergeType(
+                            issues,
+                            globalTypes,
+                            block.variableName,
+                            inferAssignedType(block.inputs["value"], localTypes, globalTypes),
+                            block,
+                            scriptRoot.path,
+                            "global"
+                        ) || changed
+                    }
+
+                    else -> {
+                        val eventOutput = block.asEventOutputBinding()
+                        if (eventOutput?.variableScope == VariableScope.GLOBAL) {
+                            changed = mergeType(
+                                issues,
+                                globalTypes,
+                                eventOutput.variableName,
+                                inferEventOutputType(eventOutput.block),
+                                eventOutput.block,
+                                scriptRoot.path,
+                                "global"
+                            ) || changed
+                        }
+                    }
+                }
+            }
+        }
+        return changed
     }
 
     data class CodeBlockAnalysis(

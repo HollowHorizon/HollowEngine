@@ -16,7 +16,6 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.BlockProvider
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.BrokenExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.BrokenStatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CallCustomBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOutputVariableBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.GetVarInlineBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.domain.ScriptLoadIssue
@@ -63,7 +62,6 @@ class CodeBlockFormat(
             // These blocks are created dynamically and should always be resolvable.
             subclass(GetVarInlineBlock::class)
             subclass(CallCustomBlock::class)
-            subclass(EventOutputVariableBlock::class)
             subclass(BrokenStatementBlock::class)
             subclass(BrokenExpressionBlock::class)
         }

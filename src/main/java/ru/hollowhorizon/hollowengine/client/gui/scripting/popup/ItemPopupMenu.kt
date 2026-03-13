@@ -52,6 +52,10 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
         this.contextItem.set(ContextItemHolder(contextItem))
     }
 
+    fun updateMenu(menu: SubMenuItem<T>) {
+        this.menu.set(menu)
+    }
+
     override fun hide() {
         super.hide()
         contextItem.set(null)
