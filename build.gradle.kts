@@ -1,9 +1,11 @@
 
 
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.gradle.language.jvm.tasks.ProcessResources
 import ru.hollowhorizon.gradle.*
 import ru.hollowhorizon.gradle.tasks.GenerateAssetsTask
 import ru.hollowhorizon.gradle.tasks.GenerateLangTask
+import ru.hollowhorizon.gradle.tasks.MergeLangTask
 
 plugins {
     java
@@ -125,20 +127,44 @@ val generateAssets by tasks.registering(GenerateAssetsTask::class) {
     outputDirectory.set(layout.buildDirectory.dir("generated/sources/assets/kotlin"))
 }
 
+val mergeLang by tasks.registering(MergeLangTask::class) {
+    val splitLangInput = rootProject.file("src/main/lang")
+    if (splitLangInput.exists()) {
+        splitLangDirectory.set(splitLangInput)
+    }
+
+    val legacyLangInput = rootProject.file("src/main/resources/assets/$modId/lang")
+    if (legacyLangInput.exists()) {
+        legacyLangDirectory.set(legacyLangInput)
+    }
+
+    outputDirectory.set(layout.buildDirectory.dir("generated/lang/$modId"))
+}
+
 val generateLang by tasks.registering(GenerateLangTask::class) {
     generatedPackage.set("ru.hollowhorizon.hollowengine.generated")
-    langDirectory.set(rootProject.file("src/main/resources/assets/hollowengine/lang"))
+    langDirectory.set(mergeLang.flatMap { it.outputDirectory })
     outputDirectory.set(layout.buildDirectory.dir("generated/sources/hollowengine/lang"))
+    dependsOn(mergeLang)
 }
 
 sourceSets {
     main {
         java.srcDir(generateAssets.map { it.outputDirectory })
         java.srcDir(generateLang.map { it.outputDirectory })
+        resources.exclude("assets/$modId/lang/*.json")
+    }
+}
+
+tasks.named<ProcessResources>("processResources") {
+    dependsOn(mergeLang)
+    from(mergeLang.map { it.outputDirectory }) {
+        into("assets/$modId/lang")
     }
 }
 
 tasks.withType<KotlinCompile> {
+    dependsOn(mergeLang)
     dependsOn(generateAssets)
     dependsOn(generateLang)
 }

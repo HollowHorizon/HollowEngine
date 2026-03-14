@@ -1,0 +1,11 @@
+{
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "create_file": "Enter file name:",
+  "create_file_hint": "File name",
+  "create_folder": "Enter folder name:",
+  "create_folder_hint": "Folder name",
+  "delete": "Are you sure you want to delete?",
+  "rename": "Enter new name:",
+  "rename_hint": "New name"
+}

@@ -1,0 +1,7 @@
+{
+  "command_hint": "Enter command...",
+  "execute": "Execute",
+  "filter": "Filter:",
+  "filter_hint": "Text or Regex",
+  "level": "Level:"
+}

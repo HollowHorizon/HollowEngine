@@ -1,0 +1,19 @@
+{
+  "story_events": "Сюжетные события",
+  "story_events.npcs": "Персонажи",
+  "story_events.npcs.actions": "Действия",
+  "story_events.npcs.animations": "Анимации",
+  "story_events.npcs.creation": "Создание",
+  "story_events.npcs.options": "Настройка",
+  "story_events.npcs.quests": "Задания",
+  "story_events.npcs.trading": "Торговля",
+  "story_events.players": "Игроки",
+  "story_events.scene": "Сцена",
+  "story_events.scene.camera": "Камера",
+  "story_events.scene.dialogues": "Диалоги",
+  "story_events.scene.particles": "Частицы",
+  "story_events.scene.shaders": "Пост-процессинг",
+  "story_events.scene.transitions": "Переходы",
+  "story_events.scene.world": "Мир",
+  "story_events.utils": "Разное"
+}

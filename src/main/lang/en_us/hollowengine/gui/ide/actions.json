@@ -1,0 +1,22 @@
+{
+  "copy": "Copy",
+  "copy_as_path": "Copy as ResourceLocation",
+  "create": "Create",
+  "create.folder": "Folder",
+  "create.prefab": "Prefab",
+  "create.prefab.item": "Item",
+  "create.prefab.npc": "NPC",
+  "create.script": "Script",
+  "create.script.codeblocks": "Script (Code Blocks)",
+  "create.script.event": "Event Handler",
+  "create.script.kool": "Kool Scene",
+  "create.script.simple": "Simple script",
+  "create.script.story": "Story Event",
+  "cut": "Cut",
+  "delete": "Delete",
+  "github": "GitHub",
+  "open": "Open",
+  "open_in_explorer": "Open in Explorer",
+  "paste": "Paste",
+  "rename": "Rename"
+}

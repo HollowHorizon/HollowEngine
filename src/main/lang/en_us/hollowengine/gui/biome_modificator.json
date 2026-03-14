@@ -1,0 +1,14 @@
+{
+  "enable": "Enable biome modificator",
+  "enable_skybox": "Enable skybox",
+  "end": "The End",
+  "fog_color": "Fog Color",
+  "moon_size": "Moon Size:",
+  "nether": "Nether",
+  "overworld": "Overworld",
+  "sky_color": "Sky Color",
+  "sun_size": "Sun Size:",
+  "title": "Biome Modificator",
+  "water_color": "Water Color",
+  "water_fog_color": "Water Fog Color"
+}

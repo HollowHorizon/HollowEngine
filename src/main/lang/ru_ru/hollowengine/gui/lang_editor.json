@@ -1,0 +1,11 @@
+{
+  "empty_only": "Пустые",
+  "from": "Из: %s",
+  "original": "Оригинал",
+  "save": "Сохранить",
+  "search": "Поиск...",
+  "select_language": "Выберите язык",
+  "to": "В: %s",
+  "translation": "Перевод",
+  "translation_key": "Ключ перевода"
+}

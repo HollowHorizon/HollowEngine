@@ -1,0 +1,6 @@
+{
+  "no_permissions_reload_server": "У вас нет прав для перезагрузки серверных ресурсов!",
+  "open_mod_folder": "Открыть папку мода",
+  "reload_client_resources": "Перезагрузить ресурсы",
+  "reload_server_resources": "Перезагрузить ресурсы сервера"
+}

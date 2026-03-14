@@ -1,0 +1,6 @@
+{
+  "compiling": "Compiling script %s.",
+  "executing": "Executing script %s.",
+  "obfuscating": "Obfuscating script %s.",
+  "parsing": "Parsing script %s."
+}

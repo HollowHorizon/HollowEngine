@@ -1,0 +1,9 @@
+{
+  "block": "Block",
+  "collapse": "Collapse",
+  "copy_uuid": "Copy UUID",
+  "delete": "Delete",
+  "delete_selected": "Delete selected (%d)",
+  "duplicate": "Duplicate",
+  "expand": "Expand"
+}

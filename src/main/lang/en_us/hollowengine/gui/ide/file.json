@@ -1,0 +1,6 @@
+{
+  "no_permissions_reload_server": "You don't have permissions to reload server resources!",
+  "open_mod_folder": "Open mod folder",
+  "reload_client_resources": "Reload client resources",
+  "reload_server_resources": "Reload server resources"
+}

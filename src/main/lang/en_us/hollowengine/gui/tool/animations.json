@@ -1,0 +1,16 @@
+{
+  "death": "Death",
+  "fall": "Fall",
+  "fly": "Fly",
+  "hurt": "Hurt",
+  "idle": "Idle",
+  "idle_sneaked": "Idle (Sneaking)",
+  "jump": "Jump",
+  "run": "Run",
+  "sit": "Sit",
+  "sleep": "Sleep",
+  "swim": "Swim",
+  "swing": "Swing",
+  "walk": "Walk",
+  "walk_sneaked": "Walk (Sneaking)"
+}

@@ -1,0 +1,13 @@
+{
+  "animation_control": "Управление анимацией",
+  "animations": "Анимации",
+  "animations_count": "Анимаций:",
+  "auto_rotate": "Автоповорот",
+  "bounding_box": "Bounding Box",
+  "grid": "Сетка",
+  "no_animations": "Нет анимаций",
+  "no_animations_available": "Нет доступных анимаций",
+  "polygons": "Полигонов:",
+  "shape_keys": "Шейп-кеев:",
+  "wireframe": "Каркас"
+}

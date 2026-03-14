@@ -1,0 +1,13 @@
+{
+  "animation_control": "Animation Control",
+  "animations": "Animations",
+  "animations_count": "Animations:",
+  "auto_rotate": "Auto Rotate",
+  "bounding_box": "Bounding Box",
+  "grid": "Grid",
+  "no_animations": "No animations",
+  "no_animations_available": "No animations available",
+  "polygons": "Polygons:",
+  "shape_keys": "Shape Keys:",
+  "wireframe": "Wireframe"
+}

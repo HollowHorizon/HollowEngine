@@ -1,0 +1,9 @@
+{
+  "function_name": "Function name",
+  "recipe": "Recipe ID",
+  "signal_name": "Signal",
+  "value": "Value",
+  "variable_name": "Variable name",
+  "variable_name_global": "Variable name (G)",
+  "variable_name_local": "Variable name (L)"
+}

@@ -1,0 +1,22 @@
+{
+  "entities": "Entities",
+  "entity_vars": "Entity",
+  "events": "Events",
+  "functions": "Functions",
+  "general": "General",
+  "global": "Global",
+  "items": "Items",
+  "local": "Local",
+  "logic": "Logic",
+  "loops": "Loops",
+  "math": "Math",
+  "nbt": "NBT",
+  "npcs": "NPCs",
+  "players": "Players",
+  "stops": "Terminations",
+  "structures": "Structures",
+  "types": "Data Types",
+  "variables": "Variables",
+  "world": "World",
+  "worlds": "Worlds"
+}

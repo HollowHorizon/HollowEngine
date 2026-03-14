@@ -1,0 +1,9 @@
+{
+  "block": "Блок",
+  "collapse": "Свернуть",
+  "copy_uuid": "Копировать UUID",
+  "delete": "Удалить",
+  "delete_selected": "Удалить выбранные (%d)",
+  "duplicate": "Дублировать",
+  "expand": "Развернуть"
+}

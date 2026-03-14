@@ -1,0 +1,9 @@
+{
+  "function_name": "Имя функции",
+  "recipe": "ID рецепта",
+  "signal_name": "Сигнал",
+  "value": "Значение",
+  "variable_name": "Имя переменной",
+  "variable_name_global": "Имя переменной (G)",
+  "variable_name_local": "Имя переменной (L)"
+}

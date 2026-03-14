@@ -1,0 +1,5 @@
+{
+  "block_filter": "Search by blocks",
+  "filter": "Search by text or Regex",
+  "filter_docs": "Search documentation"
+}

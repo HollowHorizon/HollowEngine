@@ -1,0 +1,4 @@
+{
+  "message": "The development environment on the server is disabled. There are several reasons for this:\n- It's unclear which files and scripts should be on the server and which on the client.\n- When changing client scripts, what to do with players who don't have them? Sending them these scripts is not safe.\n- What to do with libraries and source code? Where to get it from, client or server?\nWell, there are also many small nuances, like transferring large files, synchronizing highlighting when multiple players work, access rights, etc.\n\nThe mod itself works on the server, and you can always transfer scripts manually. But for editing, only single-player mode is available for now.\nIf you have ideas on how the server editor should work - please let me know.",
+  "title": "Server IDE Disabled"
+}

@@ -1,0 +1,17 @@
+{
+  "autoruns": "Автозапуск",
+  "console": "Терминал",
+  "docs": "Документация",
+  "edit": "Редактирование",
+  "file": "Файл",
+  "file_picker.empty": "Пусто",
+  "graph": "Редактор графов",
+  "markdown": "Markdown",
+  "project_tree": "Проект",
+  "recipes": "Редактор рецептов",
+  "search": "Поиск",
+  "settings": "Настройки",
+  "tags": "Редактор тегов",
+  "translations": "Переводы",
+  "windows": "Окна"
+}

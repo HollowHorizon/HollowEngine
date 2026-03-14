@@ -1,0 +1,9 @@
+{
+  "actions": "Actions",
+  "actions.look": "Look",
+  "actions.move": "Move",
+  "ai": "AI",
+  "ai.shapesinc": "Shapes Inc Component",
+  "utils": "Utils",
+  "utils.greetings": "Greeting"
+}

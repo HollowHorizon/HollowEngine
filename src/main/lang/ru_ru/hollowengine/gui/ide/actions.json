@@ -1,0 +1,22 @@
+{
+  "copy": "Копировать",
+  "copy_as_path": "Копировать как ResourceLocation",
+  "create": "Создать",
+  "create.folder": "Папка",
+  "create.prefab": "Шаблон",
+  "create.prefab.item": "Предмет",
+  "create.prefab.npc": "НИП",
+  "create.script": "Скрипт",
+  "create.script.codeblocks": "Скрипт (Блоки кода)",
+  "create.script.event": "Обработчик событий",
+  "create.script.kool": "Сцена Kool",
+  "create.script.simple": "Простой скрипт",
+  "create.script.story": "Сюжетное событие",
+  "cut": "Вырезать",
+  "delete": "Удалить",
+  "github": "GitHub",
+  "open": "Открыть",
+  "open_in_explorer": "Открыть в проводнике",
+  "paste": "Вставить",
+  "rename": "Переименовать"
+}

@@ -1,0 +1,14 @@
+{
+  "add": "Add",
+  "delete": "Delete",
+  "deleted": "Deleted",
+  "entries": "Entries",
+  "entries_count": "entries",
+  "filter": "Filter",
+  "list_title": "Tags",
+  "new_tag": "New Tag",
+  "restore": "Restore",
+  "search_hint": "Search tags...",
+  "select_hint": "Select a tag to view details",
+  "type": "Type"
+}

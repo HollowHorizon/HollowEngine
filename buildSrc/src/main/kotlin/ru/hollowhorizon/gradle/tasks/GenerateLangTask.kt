@@ -1,5 +1,6 @@
 package ru.hollowhorizon.gradle.tasks
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
@@ -23,6 +24,7 @@ abstract class GenerateLangTask : DefaultTask() {
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
 
+    @OptIn(ExperimentalSerializationApi::class)
     private val json = Json {
         ignoreUnknownKeys = true
         allowComments = true // Полезно, если в json затесались комментарии

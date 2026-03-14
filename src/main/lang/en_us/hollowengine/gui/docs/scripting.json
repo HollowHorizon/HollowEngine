@@ -1,0 +1,19 @@
+{
+  "story_events": "Story Events",
+  "story_events.npcs": "NPCs",
+  "story_events.npcs.actions": "Actions",
+  "story_events.npcs.animations": "Animations",
+  "story_events.npcs.creation": "Creation",
+  "story_events.npcs.options": "Options",
+  "story_events.npcs.quests": "Quests",
+  "story_events.npcs.trading": "Trading",
+  "story_events.players": "Players",
+  "story_events.scene": "Scene",
+  "story_events.scene.camera": "Camera",
+  "story_events.scene.dialogues": "Dialogues",
+  "story_events.scene.particles": "Particles",
+  "story_events.scene.shaders": "Post-processing",
+  "story_events.scene.transitions": "Transitions",
+  "story_events.scene.world": "World",
+  "story_events.utils": "Utils"
+}
