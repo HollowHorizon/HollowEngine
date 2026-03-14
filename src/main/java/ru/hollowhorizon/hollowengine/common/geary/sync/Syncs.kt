@@ -12,7 +12,9 @@ import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hollowengine.common.geary.api.entityId
 import ru.hollowhorizon.hollowengine.common.geary.api.geary
+import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MinecraftEntityLookup
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
@@ -58,7 +60,8 @@ data class ComponentUpdatePacket(
 ) : ComponentSyncPacket {
     override fun handle(player: Player) {
         val geary = level.geary
-        val entity = geary.get<MinecraftEntityLookup>().getOrCreateById(entityId)
+        val entity = (level.getEntity(entityId) as? MCEntity)?.entityId
+            ?: geary.get<MinecraftEntityLookup>().getOrCreateById(entityId)
         with(geary) {
             entity.toGeary().set(component, component::class)
         }
@@ -73,7 +76,8 @@ data class ComponentRemovePacket(
 ) : ComponentSyncPacket {
     override fun handle(player: Player) {
         val geary = level.geary
-        val entity = geary.get<MinecraftEntityLookup>().getOrCreateById(entityId)
+        val entity = (level.getEntity(entityId) as? MCEntity)?.entityId
+            ?: geary.get<MinecraftEntityLookup>().getOrCreateById(entityId)
         with(geary) {
             val descriptor = ComponentDescriptorRegistry.descriptorOrNull(componentTypeId) ?: return
             entity.toGeary().remove(descriptor.value)

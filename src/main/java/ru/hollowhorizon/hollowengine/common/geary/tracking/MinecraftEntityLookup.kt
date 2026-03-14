@@ -23,29 +23,40 @@ class MinecraftEntityLookup(
         return id
     }
 
-    fun linkWithMinecraft(level: Level, mcEntity: Entity): EntityId {
-        val entity = getOrCreateById(mcEntity.id)
+    fun createDetached(level: Level, mcEntity: Entity): EntityId {
+        val entity = entityProvider.create().toLong()
         level.geary.apply {
             entity.toGeary().set(mcEntity)
         }
         return entity.toULong()
     }
 
-    fun remove(mcEntityId: Int) {
+    fun bind(level: Level, mcEntityId: Int, entity: Long, mcEntity: Entity, previousMcEntityId: Int = mcEntityId): EntityId {
+        if (previousMcEntityId != mcEntityId && idMap.get(previousMcEntityId) == entity) {
+            idMap.remove(previousMcEntityId)
+        }
+
+        val existing = idMap.get(mcEntityId)
+        if (existing != 0L && existing != entity && read.exists(existing.toULong())) {
+            level.geary.apply {
+                entity.toGeary().extend(existing.toGeary())
+            }
+            remove.remove(existing.toULong())
+        }
+
+        idMap[mcEntityId] = entity
+        level.geary.apply {
+            entity.toGeary().set(mcEntity)
+        }
+        return entity.toULong()
+    }
+
+    fun remove(mcEntityId: Int): Boolean {
+        if (!idMap.containsKey(mcEntityId)) return false
         val entity = idMap.remove(mcEntityId).toULong()
         if (read.exists(entity)) {
             remove.remove(entity)
         }
-    }
-
-    fun changeId(level: Level, oldId: Int, newId: Int) {
-        level.geary.apply {
-            val old = idMap.remove(oldId)
-            val existing = idMap[newId]
-            idMap[newId] = old
-            if (existing != 0L) {
-                old.toGeary().extend(existing.toGeary())
-            }
-        }
+        return true
     }
 }

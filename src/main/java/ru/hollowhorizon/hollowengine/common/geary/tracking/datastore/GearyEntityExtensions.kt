@@ -23,6 +23,7 @@ fun Long.encodeComponentsTo(tag: CompoundTag) {
 }
 
 fun loadComponentsFrom(entity: MCEntity, tag: CompoundTag) {
+    if (tag.isEmpty) return
     val encoded = tag.get(SNAPSHOT_KEY) ?: tag
     EntitySerialization.tryDeserializeInto(entity, encoded, "entity ${entity.id} NBT snapshot")
 }
