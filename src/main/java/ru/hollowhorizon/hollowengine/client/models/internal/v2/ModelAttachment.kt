@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.onEach
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
+import ru.hollowhorizon.hollowengine.client.models.internal.Primitive
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
@@ -78,6 +79,7 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
             }
 
             modelState = animated
+            configurePrimitiveRenderPaths(animated)
             runtimeNodes = model.scenes.getOrNull(model.scene)?.nodes?.map { RuntimeNode(it, this) } ?: emptyList()
             runtimeAnimations = Animations(model.animations.associate { it.name to AnimationInstance(it) })
             runtimeMaterials = model.materials
@@ -86,6 +88,25 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
             renderPipeline = ListRenderPipeline().apply(this@ModelAttachment::collectCommands)
             compiledFor = animated
         }
+    }
+
+    private fun configurePrimitiveRenderPaths(animated: AnimatedModel) {
+        val allPrimitives = animated.model.walkNodes().mapNotNull { it.mesh }.flatMap { it.primitives }.toList()
+        val staticPrimitives = allPrimitives.filter { !it.hasSkinning && it.morphTargets.isEmpty() }
+
+        val primitiveCount = staticPrimitives.size
+        if (primitiveCount == 0) return
+
+        val totalCubeCount = staticPrimitives.sumOf(Primitive::estimatedCubeCount)
+        val averageCubesPerPrimitive = totalCubeCount.toFloat() / primitiveCount.toFloat()
+        val preferBatching = primitiveCount >= MODEL_BATCHING_PRIMITIVE_THRESHOLD ||
+            (primitiveCount >= MODEL_BATCHING_DENSE_PRIMITIVE_THRESHOLD && averageCubesPerPrimitive <= MODEL_BATCHING_DENSE_AVERAGE_CUBES) ||
+            (primitiveCount >= MODEL_BATCHING_MIXED_PRIMITIVE_THRESHOLD &&
+                totalCubeCount >= MODEL_BATCHING_TOTAL_CUBE_THRESHOLD &&
+                averageCubesPerPrimitive <= MODEL_BATCHING_MIXED_AVERAGE_CUBES)
+
+        val renderPath = if (preferBatching) Primitive.StaticRenderPath.BATCHING else Primitive.StaticRenderPath.PIPELINE
+        staticPrimitives.forEach { it.setStaticRenderPath(renderPath) }
     }
 
     private fun update(dt: Float) {
@@ -136,3 +157,10 @@ class Animations(private val map: Map<String, AnimationInstance>) : Collection<A
 
     override fun containsAll(elements: Collection<AnimationInstance>) = map.values.containsAll(elements)
 }
+
+private const val MODEL_BATCHING_PRIMITIVE_THRESHOLD = 48
+private const val MODEL_BATCHING_DENSE_PRIMITIVE_THRESHOLD = 24
+private const val MODEL_BATCHING_TOTAL_CUBE_THRESHOLD = 128
+private const val MODEL_BATCHING_MIXED_PRIMITIVE_THRESHOLD = 16
+private const val MODEL_BATCHING_DENSE_AVERAGE_CUBES = 4f
+private const val MODEL_BATCHING_MIXED_AVERAGE_CUBES = 8f

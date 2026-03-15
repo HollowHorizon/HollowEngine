@@ -22,13 +22,19 @@ class Primitive(
     val morphTargets: List<Map<String, FloatArray>> = listOf(),
     var weights: FloatArray = FloatArray(morphTargets.size) { 0f },
 ) {
+    enum class StaticRenderPath {
+        PIPELINE,
+        BATCHING,
+    }
+
     val hasSkinning = joints != null && jointWeights != null
     val positionsCount: Int get() = (positions?.size ?: 0) * 3
     var jointCount = 0
 
-    val useBatching by lazy {
-        !hasSkinning && morphTargets.isEmpty() && estimatedCubeCount() >= CPU_BATCHING_CUBE_THRESHOLD
-    }
+    var staticRenderPath: StaticRenderPath = StaticRenderPath.PIPELINE
+        private set
+
+    val useBatching get() = !hasSkinning && morphTargets.isEmpty() && staticRenderPath == StaticRenderPath.BATCHING
 
     val localBounds: Pair<Vec3f, Vec3f>? by lazy { computeBounds() }
 
@@ -61,6 +67,15 @@ class Primitive(
         renderer?.init()
 
         if (!useBatching) releaseCpu()
+    }
+
+    fun setStaticRenderPath(path: StaticRenderPath) {
+        val desiredPath = if (hasSkinning || morphTargets.isNotEmpty()) StaticRenderPath.PIPELINE else path
+
+        if (staticRenderPath == desiredPath) return
+        if (isLoaded) return
+
+        staticRenderPath = desiredPath
     }
 
     fun setupPipeline(
@@ -103,16 +118,31 @@ class Primitive(
         return Vec3f(min) to Vec3f(max)
     }
 
-    private fun estimatedCubeCount(): Int {
+    fun estimatedCubeCount(): Int {
         val vertexEstimate = (positions?.size ?: 0) / VERTICES_PER_CUBE
         val indexEstimate = (indices?.size ?: 0) / INDICES_PER_CUBE
         return max(vertexEstimate, indexEstimate)
     }
 
+    fun minInstancedBatchSize(isTranslucent: Boolean): Int {
+        val cubes = estimatedCubeCount()
+        val base = when {
+            cubes <= 2 -> 2
+            cubes <= 6 -> 3
+            cubes <= 16 -> 4
+            else -> 5
+        }
+        return base + if (isTranslucent) 1 else 0
+    }
+
+    fun prefersInstancing(instanceCount: Int, isTranslucent: Boolean): Boolean {
+        if (hasSkinning || morphTargets.isNotEmpty() || useBatching) return false
+        return instanceCount >= minInstancedBatchSize(isTranslucent)
+    }
+
     companion object {
         private const val VERTICES_PER_CUBE = 24
         private const val INDICES_PER_CUBE = 36
-        private const val CPU_BATCHING_CUBE_THRESHOLD = 24
     }
 }
 

@@ -31,7 +31,7 @@ object IrisInstancingBackend : ModelInstancingBackend {
     }
 
     private fun renderRenderer(renderer: PipelineRenderer, instances: List<SubmittedInstance>) {
-        if (instances.size < 2) {
+        if (!renderer.shouldUseInstancing(instances.size)) {
             drawWithShader(SHADER, if (renderer.isTranslucent) translucentShaderState() else opaqueShaderState()) {
                 fallbackToCapturedDraws(renderer, instances)
             }

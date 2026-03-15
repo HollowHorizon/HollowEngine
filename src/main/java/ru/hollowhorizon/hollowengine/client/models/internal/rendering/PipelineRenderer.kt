@@ -393,6 +393,10 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         return center.lengthSquared()
     }
 
+    fun shouldUseInstancing(instanceCount: Int): Boolean {
+        return supportsInstancing && primitive.prefersInstancing(instanceCount, isTranslucent)
+    }
+
     fun renderInstanced(
         instances: List<SubmittedInstance>,
         shader: ShaderInstance,

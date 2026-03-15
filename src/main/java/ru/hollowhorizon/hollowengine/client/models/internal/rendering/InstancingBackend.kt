@@ -25,7 +25,7 @@ object VanillaInstancingBackend : ModelInstancingBackend {
         withInstancingRenderState {
             drawWithShader(INSTANCED_SHADER, opaqueShaderState()) {
                 renderOpaque(batches, INSTANCED_SHADER) { renderer, instances, shader ->
-                    if (instances.size >= MIN_INSTANCED_BATCH_SIZE) {
+                    if (renderer.shouldUseInstancing(instances.size)) {
                         renderer.renderInstanced(instances, shader, InstancedShaderLayoutMode.FIXED)
                     } else {
                         fallbackToCapturedDraws(renderer, instances, shader)
@@ -34,7 +34,7 @@ object VanillaInstancingBackend : ModelInstancingBackend {
             }
             drawWithShader(INSTANCED_SHADER, translucentShaderState()) {
                 renderTranslucent(batches, INSTANCED_SHADER) { renderer, instances, shader ->
-                    if (instances.size >= MIN_INSTANCED_BATCH_SIZE) {
+                    if (renderer.shouldUseInstancing(instances.size)) {
                         renderer.renderInstanced(instances, shader, InstancedShaderLayoutMode.FIXED)
                     } else {
                         fallbackToCapturedDraws(renderer, instances, shader)
@@ -131,5 +131,3 @@ enum class InstancedShaderLayoutMode {
     FIXED,
     RUNTIME,
 }
-
-private const val MIN_INSTANCED_BATCH_SIZE = 2
