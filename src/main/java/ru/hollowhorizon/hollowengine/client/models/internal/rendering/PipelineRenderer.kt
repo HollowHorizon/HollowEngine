@@ -35,7 +35,7 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
 
     private var deformer: GpuDeformer? = null
 
-    private val isDynamic = (primitive.hasSkinning || primitive.morphTargets.isNotEmpty()) && false
+    private val isDynamic = primitive.hasSkinning || primitive.morphTargets.isNotEmpty()
     private val supportsInstancing = !isDynamic
     val isTranslucent get() = primitive.material.blend == Material.Blend.BLEND
     private val sortCenter = primitive.localBounds?.let { (min, max) ->
