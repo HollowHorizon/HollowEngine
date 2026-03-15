@@ -13,6 +13,7 @@ typealias Renderable = RenderContext.() -> Unit
 
 interface RenderPipeline {
     fun addBatchedRenderable(action: Renderable)
+    fun addInstancedRenderable(action: Renderable)
     fun addVAORenderable(action: Renderable)
     fun onUpdate(action: () -> Unit)
     fun addSkinnable(action: () -> Unit)
@@ -24,17 +25,28 @@ interface RenderPipeline {
 }
 
 
-data class RenderContext(val stack: PoseStack, val source: MultiBufferSource, val light: Int, val overlay: Int)
+data class RenderContext(
+    val stack: PoseStack,
+    val source: MultiBufferSource,
+    val light: Int,
+    val overlay: Int,
+    val allowInstancing: Boolean = false
+)
 
 
 class ListRenderPipeline : RenderPipeline {
     private val batchedCommands = ArrayList<Renderable>()
+    private val instancedCommands = ArrayList<Renderable>()
     private val vaoCommands = ArrayList<Renderable>()
     private val commands = ArrayList<() -> Unit>()
     private val skinCommands = ArrayList<() -> Unit>()
 
     override fun addBatchedRenderable(action: Renderable) {
         batchedCommands.add(action)
+    }
+
+    override fun addInstancedRenderable(action: Renderable) {
+        instancedCommands.add(action)
     }
 
     override fun addVAORenderable(action: Renderable) {
@@ -52,12 +64,14 @@ class ListRenderPipeline : RenderPipeline {
     override fun render(context: RenderContext) {
         for (action in commands) action()
         for (action in batchedCommands) action(context)
+        if (instancedCommands.isNotEmpty()) renderInstanced(context)
         if (vaoCommands.isNotEmpty()) renderVAO(context)
     }
 
     override fun clear() {
         commands.clear()
         batchedCommands.clear()
+        instancedCommands.clear()
         vaoCommands.clear()
         skinCommands.clear()
     }
@@ -106,6 +120,48 @@ class ListRenderPipeline : RenderPipeline {
         RenderSystem.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER, currentElementArrayBuffer)
         *///?} else {
         
+        RenderSystem.glBindVertexArray { currentVAO }
+        RenderSystem.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER) { currentElementArrayBuffer }
+        //?}
+        GlStateManager._glUseProgram(0)
+    }
+
+    fun renderInstanced(context: RenderContext) {
+        val activeTexture = GlStateManager._getActiveTexture()
+        val currentVAO = GL33.glGetInteger(GL33.GL_VERTEX_ARRAY_BINDING)
+        val currentElementArrayBuffer = GL33.glGetInteger(GL33.GL_ELEMENT_ARRAY_BUFFER_BINDING)
+
+        GL33.glVertexAttribI2i(3, context.overlay and FFFF, context.overlay shr 16 and FFFF)
+        GL33.glVertexAttribI2i(4, context.light and FFFF, context.light shr 16 and FFFF)
+
+        RenderSystem.activeTexture(GL33.GL_TEXTURE2)
+        val texture2 = GlStateManager.TEXTURES[GlStateManager.activeTexture].binding
+        RenderSystem.bindTexture(HollowModelManager.lightTexture.id)
+        RenderSystem.activeTexture(GL33.GL_TEXTURE1)
+        val texture1 = GlStateManager.TEXTURES[GlStateManager.activeTexture].binding
+        Minecraft.getInstance().gameRenderer.overlayTexture().setupOverlayColor()
+        RenderSystem.bindTexture(RenderSystem.getShaderTexture(1))
+        Minecraft.getInstance().gameRenderer.overlayTexture().teardownOverlayColor()
+        RenderSystem.activeTexture(GL33.GL_TEXTURE0)
+
+        val texture = GlStateManager.TEXTURES[GlStateManager.activeTexture].binding
+
+        drawWithShader {
+            for (draw in instancedCommands) context.draw()
+        }
+
+        RenderSystem.activeTexture(GL33.GL_TEXTURE2)
+        RenderSystem.bindTexture(texture2)
+        RenderSystem.activeTexture(GL33.GL_TEXTURE1)
+        RenderSystem.bindTexture(texture1)
+        RenderSystem.activeTexture(GL33.GL_TEXTURE0)
+        RenderSystem.bindTexture(texture)
+        RenderSystem.activeTexture(activeTexture)
+
+        //? if > 1.20.1 {
+        /*RenderSystem.glBindVertexArray(currentVAO)
+        RenderSystem.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER, currentElementArrayBuffer)
+        *///?} else {
         RenderSystem.glBindVertexArray { currentVAO }
         RenderSystem.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER) { currentElementArrayBuffer }
         //?}

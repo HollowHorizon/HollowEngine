@@ -2,10 +2,12 @@ package ru.hollowhorizon.hollowengine.client.models.internal.rendering
 
 import com.mojang.blaze3d.systems.RenderSystem
 import de.fabmax.kool.math.MutableMat3f
+import de.fabmax.kool.math.Vec3f
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.ShaderInstance
 import org.joml.Matrix3f
 import org.joml.Matrix4f
+import org.joml.Vector3f
 import org.lwjgl.BufferUtils
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL33
@@ -19,6 +21,7 @@ import ru.hollowhorizon.hollowengine.client.utils.toTexture
 
 class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
     private var vao = -1
+    private var instancedVao = -1
 
     private var posBuffer: VboWrapper? = null
     private var norBuffer: VboWrapper? = null
@@ -29,6 +32,17 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
     private var deformer: GpuDeformer? = null
 
     private val isDynamic = primitive.hasSkinning || primitive.morphTargets.isNotEmpty()
+    private val supportsInstancing = !isDynamic
+    val isTranslucent get() = primitive.material.blend == Material.Blend.BLEND
+    private val sortCenter = primitive.localBounds?.let { (min, max) ->
+        Vec3f((min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f, (min.z + max.z) * 0.5f)
+    } ?: Vec3f.ZERO
+
+    private var instanceModelViewBuffer: VboWrapper? = null
+    private var instanceNormalBuffer: VboWrapper? = null
+    private var instanceOverlayBuffer: VboWrapper? = null
+    private var instanceLightBuffer: VboWrapper? = null
+    private var instanceCapacity = 0
 
     override fun init() {
         vao = GL33.glGenVertexArrays()
@@ -49,6 +63,10 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         }
 
         initCommonBuffers()
+        if (supportsInstancing) {
+            initInstancingBuffers()
+            initInstancedVao()
+        }
 
         GL33.glBindVertexArray(0)
 
@@ -127,6 +145,73 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         }
     }
 
+    private fun initInstancingBuffers() {
+        val initialCapacity = 1
+
+        instanceModelViewBuffer = VboWrapper.createArrayBuffer().apply {
+            allocate(initialCapacity * MODEL_VIEW_STRIDE_BYTES.toLong(), GL33.GL_DYNAMIC_DRAW)
+        }
+
+        instanceNormalBuffer = VboWrapper.createArrayBuffer().apply {
+            allocate(initialCapacity * NORMAL_STRIDE_BYTES.toLong(), GL33.GL_DYNAMIC_DRAW)
+        }
+
+        instanceOverlayBuffer = VboWrapper.createArrayBuffer().apply {
+            allocate(initialCapacity * INT2_STRIDE_BYTES.toLong(), GL33.GL_DYNAMIC_DRAW)
+        }
+
+        instanceLightBuffer = VboWrapper.createArrayBuffer().apply {
+            allocate(initialCapacity * INT2_STRIDE_BYTES.toLong(), GL33.GL_DYNAMIC_DRAW)
+        }
+
+        instanceCapacity = initialCapacity
+    }
+
+    private fun initInstancedVao() {
+        instancedVao = GL33.glGenVertexArrays()
+        GL33.glBindVertexArray(instancedVao)
+
+        posBuffer?.bind()
+        GL33.glVertexAttribPointer(0, 3, GL33.GL_FLOAT, false, 0, 0)
+        GL33.glEnableVertexAttribArray(0)
+
+        uvBuffer?.bind()
+        GL33.glVertexAttribPointer(2, 2, GL33.GL_FLOAT, false, 0, 0)
+        GL33.glEnableVertexAttribArray(2)
+
+        instanceModelViewBuffer?.bind()
+        for (i in INSTANCE_MODEL_VIEW_LOCATIONS.indices) {
+            val location = INSTANCE_MODEL_VIEW_LOCATIONS[i]
+            GL33.glVertexAttribPointer(location, 4, GL33.GL_FLOAT, false, MODEL_VIEW_STRIDE_BYTES, (i * 16).toLong())
+            GL33.glEnableVertexAttribArray(location)
+            GL33.glVertexAttribDivisor(location, 1)
+        }
+
+        norBuffer?.bind()
+        GL33.glVertexAttribPointer(5, 3, GL33.GL_FLOAT, false, 0, 0)
+        GL33.glEnableVertexAttribArray(5)
+
+        instanceNormalBuffer?.bind()
+        for (i in 0 until 3) {
+            GL33.glVertexAttribPointer(8 + i, 3, GL33.GL_FLOAT, false, NORMAL_STRIDE_BYTES, (i * 12).toLong())
+            GL33.glEnableVertexAttribArray(8 + i)
+            GL33.glVertexAttribDivisor(8 + i, 1)
+        }
+
+        instanceOverlayBuffer?.bind()
+        GL33.glVertexAttribIPointer(11, 2, GL33.GL_INT, INT2_STRIDE_BYTES, 0L)
+        GL33.glEnableVertexAttribArray(11)
+        GL33.glVertexAttribDivisor(11, 1)
+
+        instanceLightBuffer?.bind()
+        GL33.glVertexAttribIPointer(12, 2, GL33.GL_INT, INT2_STRIDE_BYTES, 0L)
+        GL33.glEnableVertexAttribArray(12)
+        GL33.glVertexAttribDivisor(12, 1)
+
+        indexBuffer?.bind()
+        GL33.glBindVertexArray(0)
+    }
+
     override fun setupPipeline(
         pipeline: RenderPipeline,
         skinGetter: SkinGetter,
@@ -141,10 +226,143 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
             }
         }
 
-        pipeline.addVAORenderable {
-            if (!visibilityGetter()) return@addVAORenderable
-            renderVAO(matrixGetter)
+        if (supportsInstancing) {
+            pipeline.addInstancedRenderable {
+                if (!visibilityGetter()) return@addInstancedRenderable
+
+                if (allowInstancing && InstanceBatchManager.canBatch()) {
+                    InstanceBatchManager.submit(this@PipelineRenderer, captureInstance(matrixGetter))
+                } else {
+                    renderVAO(matrixGetter)
+                }
+            }
+        } else {
+            pipeline.addVAORenderable {
+                if (!visibilityGetter()) return@addVAORenderable
+                renderVAO(matrixGetter)
+            }
         }
+    }
+
+    private fun RenderContext.captureInstance(node: MatrixGetter): SubmittedInstance {
+        val matrix = node()
+        val modelView = Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.last().pose())
+        modelView.mul(matrix.asMatrix4f())
+
+        val normal = Matrix3f(stack.last().normal())
+        normal.mul(matrix.getUpperLeft(MutableMat3f()).asMatrix3f())
+
+        return SubmittedInstance(
+            modelView = modelView,
+            normal = normal,
+            overlay = overlay,
+            light = light,
+            sortKey = computeSortKey(modelView)
+        )
+    }
+
+    private fun computeSortKey(modelView: Matrix4f): Float {
+        val center = Vector3f(sortCenter.x, sortCenter.y, sortCenter.z)
+        modelView.transformPosition(center)
+        return center.lengthSquared()
+    }
+
+    fun renderInstanced(instances: List<SubmittedInstance>, shader: ShaderInstance) {
+        if (instances.isEmpty()) return
+
+        val drawInstances = if (isTranslucent) instances.sortedByDescending(SubmittedInstance::sortKey) else instances
+        updateInstanceBuffers(drawInstances)
+
+        applyMaterial(shader, primitive.material)
+
+        //? if > 1.20.1 {
+        /*RenderSystem.glBindVertexArray(instancedVao)
+        *///?} else {
+        RenderSystem.glBindVertexArray(::instancedVao)
+        //?}
+        indexBuffer?.bind()
+
+        val count = primitive.indices?.size ?: (primitive.positionsCount / 3)
+        if (indexBuffer != null) {
+            GL33.glDrawElementsInstanced(GL33.GL_TRIANGLES, count, GL33.GL_UNSIGNED_INT, 0L, drawInstances.size)
+        } else {
+            GL33.glDrawArraysInstanced(GL33.GL_TRIANGLES, 0, count, drawInstances.size)
+        }
+
+        GL33.glBindVertexArray(0)
+    }
+    private fun updateInstanceBuffers(instances: List<SubmittedInstance>) {
+        ensureInstanceCapacity(instances.size)
+
+        val modelViews = BufferUtils.createFloatBuffer(instances.size * 16)
+        val normals = BufferUtils.createFloatBuffer(instances.size * 9)
+        val overlays = BufferUtils.createIntBuffer(instances.size * 2)
+        val lights = BufferUtils.createIntBuffer(instances.size * 2)
+
+        for (instance in instances) {
+            putModelView(modelViews, instance.modelView)
+            putNormal(normals, instance.normal)
+            overlays.put(instance.overlay and FFFF).put(instance.overlay shr 16 and FFFF)
+            lights.put(instance.light and FFFF).put(instance.light shr 16 and FFFF)
+        }
+
+        modelViews.flip()
+        normals.flip()
+        overlays.flip()
+        lights.flip()
+
+        instanceModelViewBuffer?.bind()
+        GL33.glBufferSubData(GL33.GL_ARRAY_BUFFER, 0, modelViews)
+
+        instanceNormalBuffer?.bind()
+        GL33.glBufferSubData(GL33.GL_ARRAY_BUFFER, 0, normals)
+
+        instanceOverlayBuffer?.bind()
+        GL33.glBufferSubData(GL33.GL_ARRAY_BUFFER, 0, overlays)
+
+        instanceLightBuffer?.bind()
+        GL33.glBufferSubData(GL33.GL_ARRAY_BUFFER, 0, lights)
+    }
+
+    private fun ensureInstanceCapacity(instanceCount: Int) {
+        if (instanceCount <= instanceCapacity) return
+
+        var capacity = instanceCapacity.coerceAtLeast(1)
+        while (capacity < instanceCount) {
+            capacity *= 2
+        }
+
+        instanceModelViewBuffer?.apply {
+            bind()
+            GL33.glBufferData(GL33.GL_ARRAY_BUFFER, capacity * MODEL_VIEW_STRIDE_BYTES.toLong(), GL33.GL_DYNAMIC_DRAW)
+        }
+        instanceNormalBuffer?.apply {
+            bind()
+            GL33.glBufferData(GL33.GL_ARRAY_BUFFER, capacity * NORMAL_STRIDE_BYTES.toLong(), GL33.GL_DYNAMIC_DRAW)
+        }
+        instanceOverlayBuffer?.apply {
+            bind()
+            GL33.glBufferData(GL33.GL_ARRAY_BUFFER, capacity * INT2_STRIDE_BYTES.toLong(), GL33.GL_DYNAMIC_DRAW)
+        }
+        instanceLightBuffer?.apply {
+            bind()
+            GL33.glBufferData(GL33.GL_ARRAY_BUFFER, capacity * INT2_STRIDE_BYTES.toLong(), GL33.GL_DYNAMIC_DRAW)
+        }
+
+        instanceCapacity = capacity
+    }
+
+    private fun putModelView(buffer: java.nio.FloatBuffer, matrix: Matrix4f) {
+        buffer.put(matrix.m00()).put(matrix.m01()).put(matrix.m02()).put(matrix.m03())
+        buffer.put(matrix.m10()).put(matrix.m11()).put(matrix.m12()).put(matrix.m13())
+        buffer.put(matrix.m20()).put(matrix.m21()).put(matrix.m22()).put(matrix.m23())
+        buffer.put(matrix.m30()).put(matrix.m31()).put(matrix.m32()).put(matrix.m33())
+    }
+
+    private fun putNormal(buffer: java.nio.FloatBuffer, matrix: Matrix3f) {
+        buffer.put(matrix.m00()).put(matrix.m01()).put(matrix.m02())
+        buffer.put(matrix.m10()).put(matrix.m11()).put(matrix.m12())
+        buffer.put(matrix.m20()).put(matrix.m21()).put(matrix.m22())
     }
 
     private fun RenderContext.renderVAO(node: MatrixGetter) {
@@ -218,12 +436,25 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
 
     override fun destroy() {
         GL33.glDeleteVertexArrays(vao)
+        if (instancedVao != -1) GL33.glDeleteVertexArrays(instancedVao)
         posBuffer?.delete()
         norBuffer?.delete()
         tanBuffer?.delete()
         uvBuffer?.delete()
         indexBuffer?.delete()
+        instanceModelViewBuffer?.delete()
+        instanceNormalBuffer?.delete()
+        instanceOverlayBuffer?.delete()
+        instanceLightBuffer?.delete()
 
         deformer?.destroy()
+    }
+
+    companion object {
+        private const val MODEL_VIEW_STRIDE_BYTES = 16 * Float.SIZE_BYTES
+        private const val NORMAL_STRIDE_BYTES = 9 * Float.SIZE_BYTES
+        private const val INT2_STRIDE_BYTES = 2 * Int.SIZE_BYTES
+        private const val FFFF = '\uffff'.code
+        private val INSTANCE_MODEL_VIEW_LOCATIONS = intArrayOf(3, 4, 6, 7)
     }
 }

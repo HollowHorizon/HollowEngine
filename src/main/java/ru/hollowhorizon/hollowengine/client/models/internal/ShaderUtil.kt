@@ -22,10 +22,10 @@ import java.util.function.Function
 
 
 inline fun drawWithShader(
+    shader: net.minecraft.client.renderer.ShaderInstance = SHADER,
     body: () -> Unit,
 ) {
     val state = RenderType.entityTranslucent(TextureManager.INTENTIONAL_MISSING_TEXTURE)
-    val shader = SHADER
     val accessor = shader as ShaderInstanceAccessor
 
     state.setupRenderState()
@@ -89,6 +89,9 @@ val SHADER
     get() =
         if (shouldOverrideShaders()) GameRenderer.getRendertypeEntityCutoutShader()!!
         else ModShaders.GLTF_ENTITY // Ванильный шейдер не поддерживает матрицу нормалей
+
+val INSTANCED_SHADER
+    get() = ModShaders.GLTF_ENTITY_INSTANCED
 
 const val COLOR_MAP_INDEX = GL13.GL_TEXTURE0
 const val NORMAL_MAP_INDEX = GL13.GL_TEXTURE1

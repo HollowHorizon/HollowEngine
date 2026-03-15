@@ -26,7 +26,7 @@ class Primitive(
     val positionsCount: Int get() = (positions?.size ?: 0) * 3
     var jointCount = 0
 
-    val useBatching = positionsCount < 512 && !hasSkinning && morphTargets.isEmpty()
+    val useBatching = positionsCount < 512 && !hasSkinning && morphTargets.isEmpty() && false
 
     val localBounds: Pair<Vec3f, Vec3f>? by lazy { computeBounds() }
 

@@ -16,6 +16,9 @@ import ru.hollowhorizon.hollowengine.client.utils.open
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
+import ru.hollowhorizon.hollowengine.common.geary.api.entity
+import ru.hollowhorizon.hollowengine.common.geary.components.Model
+import ru.hollowhorizon.hollowengine.common.geary.sync.setSyncing
 import ru.hollowhorizon.hollowengine.common.objects.items.CreativeTab
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
 import ru.hollowhorizon.hollowengine.common.registry.ModTabs
@@ -45,6 +48,7 @@ class NpcTool : Item(Properties().stacksTo(1)), CreativeTab {
             val npc = NpcEntity(pLevel)
             npc.setPos(pos)
             pLevel.addFreshEntity(npc)
+            npc.entity.setSyncing(Model())
         }
 
         return super.use(pLevel, player, pUsedHand)

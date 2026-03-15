@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.api.ParticlesProvider
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.particles.ParticleVertexConsumerProvider
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
@@ -16,6 +17,15 @@ object RenderManager {
     fun onInitialize() {
         HollowModelManager.initialize()
         KoolManager
+    }
+
+    @SubscribeEvent
+    fun onRenderInstanced(event: RenderLevelStageEvent) {
+        when (event.stage) {
+            RenderStage.AFTER_ENTITIES -> InstanceBatchManager.flush()
+            RenderStage.AFTER_LEVEL -> InstanceBatchManager.clear()
+            else -> {}
+        }
     }
 
     @SubscribeEvent

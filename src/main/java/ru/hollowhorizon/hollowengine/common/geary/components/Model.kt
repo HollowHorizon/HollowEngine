@@ -128,7 +128,7 @@ fun onRender(event: RenderEntityEvent.Pre) {
             overlay = LivingEntityRenderer.getOverlayCoords(entity, 0f)
         }
 
-        model.attachment.pipeline.render(RenderContext(poseStack, buffer, packedLight, overlay))
+        model.attachment.pipeline.render(RenderContext(poseStack, buffer, packedLight, overlay, allowInstancing = true))
         poseStack.popPose()
 
         isCanceled = true
