@@ -10,6 +10,8 @@ import net.minecraft.client.server.IntegratedServer
 import net.minecraft.core.RegistryAccess
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ModelInstancingBackend
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.VanillaInstancingBackend
 import ru.hollowhorizon.hollowengine.common.utils.HollowJavaUtils
 import ru.hollowhorizon.hollowengine.common.utils.ModList
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
@@ -31,6 +33,17 @@ val areShadersEnabled get() = hasShaders && areShadersEnabled_()
 
 lateinit var areShadersEnabled_: () -> Boolean
 lateinit var shouldOverrideShaders: () -> Boolean
+var instancingBackendProvider: () -> ModelInstancingBackend = { VanillaInstancingBackend }
+var instancingEntityInfoProvider: () -> InstancingEntityInfo = { InstancingEntityInfo() }
+
+val instancingBackend get() = instancingBackendProvider()
+val instancingEntityInfo get() = instancingEntityInfoProvider()
+
+data class InstancingEntityInfo(
+    val entity: Int = -1,
+    val blockEntity: Int = 0,
+    val item: Int = -1,
+)
 
 val registryAccess: RegistryAccess
     get() = if (currentServer is IntegratedServer) Minecraft.getInstance().connection?.registryAccess()

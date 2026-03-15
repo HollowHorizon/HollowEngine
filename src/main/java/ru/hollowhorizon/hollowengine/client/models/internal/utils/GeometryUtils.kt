@@ -80,4 +80,38 @@ object GeometryUtils {
             Vec4f(t.x, t.y, t.z, 1f)
         }
     }
+
+    fun recalculateMidCoords(indices: IntArray?, uvs: Array<Vec2f>): Array<Vec2f> {
+        val count = uvs.size
+        val accumMid = Array(count) { MutableVec2f() }
+        val contributions = IntArray(count)
+        val getIndex = { i: Int -> indices?.get(i) ?: i }
+        val loops = indices?.size ?: count
+
+        for (i in 0 until loops step 3) {
+            val i1 = getIndex(i)
+            val i2 = getIndex(i + 1)
+            val i3 = getIndex(i + 2)
+            if (i1 >= count || i2 >= count || i3 >= count) continue
+
+            val midU = (uvs[i1].x + uvs[i2].x + uvs[i3].x) / 3f
+            val midV = (uvs[i1].y + uvs[i2].y + uvs[i3].y) / 3f
+
+            accumMid[i1].x += midU
+            accumMid[i1].y += midV
+            accumMid[i2].x += midU
+            accumMid[i2].y += midV
+            accumMid[i3].x += midU
+            accumMid[i3].y += midV
+            contributions[i1]++
+            contributions[i2]++
+            contributions[i3]++
+        }
+
+        return Array(count) { i ->
+            val mid = accumMid[i]
+            val factor = contributions[i].takeIf { it > 0 }?.toFloat() ?: 1f
+            Vec2f(mid.x / factor, mid.y / factor)
+        }
+    }
 }

@@ -15,23 +15,27 @@ import ru.hollowhorizon.hollowengine.client.models.internal.*
 import ru.hollowhorizon.hollowengine.client.models.internal.utils.VboWrapper
 import ru.hollowhorizon.hollowengine.client.models.internal.utils.toFloatBuffer
 import ru.hollowhorizon.hollowengine.client.utils.areShadersEnabled
+import ru.hollowhorizon.hollowengine.client.utils.instancingEntityInfo
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix3f
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix4f
 import ru.hollowhorizon.hollowengine.client.utils.toTexture
+import java.util.*
 
 class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
     private var vao = -1
     private var instancedVao = -1
+    private val runtimeInstancedBindings = LinkedHashMap<Int, InstancedShaderBinding>()
 
     private var posBuffer: VboWrapper? = null
     private var norBuffer: VboWrapper? = null
     private var tanBuffer: VboWrapper? = null
     private var uvBuffer: VboWrapper? = null
+    private var midBuffer: VboWrapper? = null
     private var indexBuffer: VboWrapper? = null
 
     private var deformer: GpuDeformer? = null
 
-    private val isDynamic = primitive.hasSkinning || primitive.morphTargets.isNotEmpty()
+    private val isDynamic = (primitive.hasSkinning || primitive.morphTargets.isNotEmpty()) && false
     private val supportsInstancing = !isDynamic
     val isTranslucent get() = primitive.material.blend == Material.Blend.BLEND
     private val sortCenter = primitive.localBounds?.let { (min, max) ->
@@ -42,7 +46,12 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
     private var instanceNormalBuffer: VboWrapper? = null
     private var instanceOverlayBuffer: VboWrapper? = null
     private var instanceLightBuffer: VboWrapper? = null
+    private var instanceEntityBuffer: VboWrapper? = null
     private var instanceCapacity = 0
+
+    init {
+        registerRenderer(this)
+    }
 
     override fun init() {
         vao = GL33.glGenVertexArrays()
@@ -135,6 +144,13 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
             }
         }
 
+        primitive.midCoords?.let { midCoords ->
+            midBuffer = VboWrapper.createArrayBuffer().apply {
+                val data = midCoords.toFloatBuffer(2) { v, b -> b.put(v.x).put(v.y) }
+                uploadData(data)
+            }
+        }
+
         primitive.indices?.let { indices ->
             indexBuffer = VboWrapper.createElementBuffer().apply {
                 val buffer = BufferUtils.createIntBuffer(indices.size)
@@ -162,6 +178,10 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
 
         instanceLightBuffer = VboWrapper.createArrayBuffer().apply {
             allocate(initialCapacity * INT2_STRIDE_BYTES.toLong(), GL33.GL_DYNAMIC_DRAW)
+        }
+
+        instanceEntityBuffer = VboWrapper.createArrayBuffer().apply {
+            allocate(initialCapacity * ENTITY_INFO_STRIDE_BYTES.toLong(), GL33.GL_DYNAMIC_DRAW)
         }
 
         instanceCapacity = initialCapacity
@@ -212,6 +232,111 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         GL33.glBindVertexArray(0)
     }
 
+    private fun getInstancedBinding(shader: ShaderInstance, layoutMode: InstancedShaderLayoutMode): InstancedShaderBinding {
+        if (layoutMode == InstancedShaderLayoutMode.FIXED) {
+            return InstancedShaderBinding(instancedVao, 1)
+        }
+
+        return runtimeInstancedBindings.getOrPut(shader.id) {
+            createRuntimeInstancedBinding(shader)
+        }
+    }
+
+    private fun createRuntimeInstancedBinding(shader: ShaderInstance): InstancedShaderBinding {
+        val runtimeVao = GL33.glGenVertexArrays()
+        GL33.glBindVertexArray(runtimeVao)
+
+        bindVertexAttribute(shader, "Position", posBuffer, 3, GL33.GL_FLOAT)
+        bindVertexAttribute(shader, "UV0", uvBuffer, 2, GL33.GL_FLOAT)
+        bindVertexAttribute(shader, "Normal", norBuffer, 3, GL33.GL_FLOAT)
+        bindVertexAttribute(shader, "at_tangent", tanBuffer, 4, GL33.GL_FLOAT)
+        bindVertexAttribute(shader, "mc_midTexCoord", midBuffer ?: uvBuffer, 2, GL33.GL_FLOAT)
+
+        instanceModelViewBuffer?.bind()
+        for (i in 0 until 4) {
+            val location = GL33.glGetAttribLocation(shader.id, "_he_InstanceModelView$i")
+            if (location == -1) continue
+            GL33.glVertexAttribPointer(location, 4, GL33.GL_FLOAT, false, MODEL_VIEW_STRIDE_BYTES, (i * 16).toLong())
+            GL33.glEnableVertexAttribArray(location)
+            GL33.glVertexAttribDivisor(location, 1)
+        }
+
+        instanceNormalBuffer?.bind()
+        for (i in 0 until 3) {
+            val location = GL33.glGetAttribLocation(shader.id, "_he_InstanceNormal$i")
+            if (location == -1) continue
+            GL33.glVertexAttribPointer(location, 3, GL33.GL_FLOAT, false, NORMAL_STRIDE_BYTES, (i * 12).toLong())
+            GL33.glEnableVertexAttribArray(location)
+            GL33.glVertexAttribDivisor(location, 1)
+        }
+
+        bindIntegerAttribute(shader, "iris_UV1", instanceOverlayBuffer, 2, GL33.GL_INT, INT2_STRIDE_BYTES, 1)
+        bindIntegerAttribute(shader, "iris_UV2", instanceLightBuffer, 2, GL33.GL_INT, INT2_STRIDE_BYTES, 1)
+        bindIntegerAttribute(shader, "iris_Entity", instanceEntityBuffer, 3, GL33.GL_INT, ENTITY_INFO_STRIDE_BYTES, 1)
+        bindIntegerAttribute(shader, "mc_Entity", instanceEntityBuffer, 3, GL33.GL_INT, ENTITY_INFO_STRIDE_BYTES, 1)
+
+        indexBuffer?.bind()
+        GL33.glBindVertexArray(0)
+
+        return InstancedShaderBinding(runtimeVao, firstAttribLocation(shader.id, "Color", "iris_Color"))
+    }
+
+    private fun firstAttribLocation(program: Int, vararg names: String): Int {
+        for (name in names) {
+            val location = GL33.glGetAttribLocation(program, name)
+            if (location != -1) return location
+        }
+        return -1
+    }
+
+    private fun bindVertexAttribute(
+        shader: ShaderInstance,
+        name: String,
+        buffer: VboWrapper?,
+        size: Int,
+        type: Int,
+        stride: Int = 0,
+        offset: Long = 0L,
+    ) {
+        val location = GL33.glGetAttribLocation(shader.id, name)
+        if (location == -1 || buffer == null) return
+
+        buffer.bind()
+        GL33.glVertexAttribPointer(location, size, type, false, stride, offset)
+        GL33.glEnableVertexAttribArray(location)
+    }
+
+    private fun bindIntegerAsFloatAttribute(shader: ShaderInstance, name: String, buffer: VboWrapper?) {
+        val location = GL33.glGetAttribLocation(shader.id, name)
+        if (location == -1 || buffer == null) return
+
+        buffer.bind()
+        GL33.glVertexAttribPointer(location, 2, GL33.GL_INT, false, INT2_STRIDE_BYTES, 0L)
+        GL33.glEnableVertexAttribArray(location)
+        GL33.glVertexAttribDivisor(location, 1)
+    }
+
+    private fun bindIntegerAttribute(
+        shader: ShaderInstance,
+        name: String,
+        buffer: VboWrapper?,
+        size: Int,
+        type: Int,
+        stride: Int,
+        divisor: Int = 0,
+        offset: Long = 0L,
+    ) {
+        val location = GL33.glGetAttribLocation(shader.id, name)
+        if (location == -1 || buffer == null) return
+
+        buffer.bind()
+        GL33.glVertexAttribIPointer(location, size, type, stride, offset)
+        GL33.glEnableVertexAttribArray(location)
+        if (divisor != 0) {
+            GL33.glVertexAttribDivisor(location, divisor)
+        }
+    }
+
     override fun setupPipeline(
         pipeline: RenderPipeline,
         skinGetter: SkinGetter,
@@ -257,7 +382,8 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
             normal = normal,
             overlay = overlay,
             light = light,
-            sortKey = computeSortKey(modelView)
+            sortKey = computeSortKey(modelView),
+            entityInfo = instancingEntityInfo
         )
     }
 
@@ -267,18 +393,23 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         return center.lengthSquared()
     }
 
-    fun renderInstanced(instances: List<SubmittedInstance>, shader: ShaderInstance) {
+    fun renderInstanced(
+        instances: List<SubmittedInstance>,
+        shader: ShaderInstance,
+        layoutMode: InstancedShaderLayoutMode = InstancedShaderLayoutMode.FIXED,
+    ) {
         if (instances.isEmpty()) return
 
         val drawInstances = if (isTranslucent) instances.sortedByDescending(SubmittedInstance::sortKey) else instances
         updateInstanceBuffers(drawInstances)
 
-        applyMaterial(shader, primitive.material)
+        val binding = getInstancedBinding(shader, layoutMode)
+        applyMaterial(shader, primitive.material, binding.colorLocation)
 
         //? if > 1.20.1 {
-        /*RenderSystem.glBindVertexArray(instancedVao)
+        /*RenderSystem.glBindVertexArray(binding.vao)
         *///?} else {
-        RenderSystem.glBindVertexArray(::instancedVao)
+        RenderSystem.glBindVertexArray { binding.vao }
         //?}
         indexBuffer?.bind()
 
@@ -291,6 +422,37 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
 
         GL33.glBindVertexArray(0)
     }
+
+    fun renderCapturedInstance(instance: SubmittedInstance, shader: ShaderInstance) {
+        applyMaterial(shader, primitive.material)
+
+        GL33.glVertexAttribI2i(3, instance.overlay and FFFF, instance.overlay shr 16 and FFFF)
+        GL33.glVertexAttribI2i(4, instance.light and FFFF, instance.light shr 16 and FFFF)
+
+        //? if > 1.20.1 {
+        /*RenderSystem.glBindVertexArray(vao)
+        *///?} else {
+        RenderSystem.glBindVertexArray(::vao)
+        //?}
+        indexBuffer?.bind()
+
+        shader.MODEL_VIEW_MATRIX?.set(instance.modelView)
+        shader.MODEL_VIEW_MATRIX?.upload()
+
+        shader.getUniform("NormalMat")?.let {
+            it.set(instance.normal)
+            it.upload()
+        }
+
+        val count = primitive.indices?.size ?: (primitive.positionsCount / 3)
+        if (indexBuffer != null) {
+            GL33.glDrawElements(GL33.GL_TRIANGLES, count, GL33.GL_UNSIGNED_INT, 0L)
+        } else {
+            GL33.glDrawArrays(GL33.GL_TRIANGLES, 0, count)
+        }
+
+        GL33.glBindVertexArray(0)
+    }
     private fun updateInstanceBuffers(instances: List<SubmittedInstance>) {
         ensureInstanceCapacity(instances.size)
 
@@ -298,18 +460,21 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         val normals = BufferUtils.createFloatBuffer(instances.size * 9)
         val overlays = BufferUtils.createIntBuffer(instances.size * 2)
         val lights = BufferUtils.createIntBuffer(instances.size * 2)
+        val entities = BufferUtils.createIntBuffer(instances.size * 3)
 
         for (instance in instances) {
             putModelView(modelViews, instance.modelView)
             putNormal(normals, instance.normal)
             overlays.put(instance.overlay and FFFF).put(instance.overlay shr 16 and FFFF)
             lights.put(instance.light and FFFF).put(instance.light shr 16 and FFFF)
+            entities.put(instance.entityInfo.entity).put(instance.entityInfo.blockEntity).put(instance.entityInfo.item)
         }
 
         modelViews.flip()
         normals.flip()
         overlays.flip()
         lights.flip()
+        entities.flip()
 
         instanceModelViewBuffer?.bind()
         GL33.glBufferSubData(GL33.GL_ARRAY_BUFFER, 0, modelViews)
@@ -322,6 +487,9 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
 
         instanceLightBuffer?.bind()
         GL33.glBufferSubData(GL33.GL_ARRAY_BUFFER, 0, lights)
+
+        instanceEntityBuffer?.bind()
+        GL33.glBufferSubData(GL33.GL_ARRAY_BUFFER, 0, entities)
     }
 
     private fun ensureInstanceCapacity(instanceCount: Int) {
@@ -347,6 +515,10 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         instanceLightBuffer?.apply {
             bind()
             GL33.glBufferData(GL33.GL_ARRAY_BUFFER, capacity * INT2_STRIDE_BYTES.toLong(), GL33.GL_DYNAMIC_DRAW)
+        }
+        instanceEntityBuffer?.apply {
+            bind()
+            GL33.glBufferData(GL33.GL_ARRAY_BUFFER, capacity * ENTITY_INFO_STRIDE_BYTES.toLong(), GL33.GL_DYNAMIC_DRAW)
         }
 
         instanceCapacity = capacity
@@ -400,8 +572,10 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         GL33.glBindVertexArray(0)
     }
 
-    private fun applyMaterial(shader: ShaderInstance, material: Material) {
-        GL33.glVertexAttrib4f(1, material.color.r, material.color.g, material.color.b, material.color.a)
+    private fun applyMaterial(shader: ShaderInstance, material: Material, colorLocation: Int = 1) {
+        if (colorLocation != -1) {
+            GL33.glVertexAttrib4f(colorLocation, material.color.r, material.color.g, material.color.b, material.color.a)
+        }
 
         var normal = 0
         var specular = 0
@@ -437,24 +611,49 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
     override fun destroy() {
         GL33.glDeleteVertexArrays(vao)
         if (instancedVao != -1) GL33.glDeleteVertexArrays(instancedVao)
+        clearRuntimeInstancedBindings()
         posBuffer?.delete()
         norBuffer?.delete()
         tanBuffer?.delete()
         uvBuffer?.delete()
+        midBuffer?.delete()
         indexBuffer?.delete()
         instanceModelViewBuffer?.delete()
         instanceNormalBuffer?.delete()
         instanceOverlayBuffer?.delete()
         instanceLightBuffer?.delete()
+        instanceEntityBuffer?.delete()
 
         deformer?.destroy()
+        unregisterRenderer(this)
+    }
+
+    private fun clearRuntimeInstancedBindings() {
+        runtimeInstancedBindings.values.forEach { GL33.glDeleteVertexArrays(it.vao) }
+        runtimeInstancedBindings.clear()
     }
 
     companion object {
         private const val MODEL_VIEW_STRIDE_BYTES = 16 * Float.SIZE_BYTES
         private const val NORMAL_STRIDE_BYTES = 9 * Float.SIZE_BYTES
         private const val INT2_STRIDE_BYTES = 2 * Int.SIZE_BYTES
+        private const val ENTITY_INFO_STRIDE_BYTES = 3 * Int.SIZE_BYTES
         private const val FFFF = '\uffff'.code
         private val INSTANCE_MODEL_VIEW_LOCATIONS = intArrayOf(3, 4, 6, 7)
+        private val RENDERERS = Collections.newSetFromMap(WeakHashMap<PipelineRenderer, Boolean>())
+
+        fun invalidateRuntimeInstancedBindings() {
+            RENDERERS.toList().forEach(PipelineRenderer::clearRuntimeInstancedBindings)
+        }
+
+        private fun registerRenderer(renderer: PipelineRenderer) {
+            RENDERERS += renderer
+        }
+
+        private fun unregisterRenderer(renderer: PipelineRenderer) {
+            RENDERERS -= renderer
+        }
     }
+
+    private data class InstancedShaderBinding(val vao: Int, val colorLocation: Int)
 }

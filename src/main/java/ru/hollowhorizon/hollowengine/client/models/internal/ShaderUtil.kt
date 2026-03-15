@@ -23,9 +23,9 @@ import java.util.function.Function
 
 inline fun drawWithShader(
     shader: net.minecraft.client.renderer.ShaderInstance = SHADER,
+    state: RenderType = translucentShaderState(),
     body: () -> Unit,
 ) {
-    val state = RenderType.entityTranslucent(TextureManager.INTENTIONAL_MISSING_TEXTURE)
     val accessor = shader as ShaderInstanceAccessor
 
     state.setupRenderState()
@@ -61,6 +61,10 @@ inline fun drawWithShader(
     shader.clear()
     state.clearRenderState()
 }
+
+fun opaqueShaderState(): RenderType = RenderType.entityCutoutNoCull(TextureManager.INTENTIONAL_MISSING_TEXTURE)
+
+fun translucentShaderState(): RenderType = RenderType.entityTranslucent(TextureManager.INTENTIONAL_MISSING_TEXTURE)
 
 val batchingRenderType: Function<Material, RenderType> = Util.memoize<Material, RenderType> { material: Material ->
     val compositeState =

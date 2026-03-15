@@ -26,7 +26,9 @@ class Primitive(
     val positionsCount: Int get() = (positions?.size ?: 0) * 3
     var jointCount = 0
 
-    val useBatching = positionsCount < 512 && !hasSkinning && morphTargets.isEmpty() && false
+    val useBatching by lazy {
+        !hasSkinning && morphTargets.isEmpty() && estimatedCubeCount() >= CPU_BATCHING_CUBE_THRESHOLD
+    }
 
     val localBounds: Pair<Vec3f, Vec3f>? by lazy { computeBounds() }
 
@@ -41,6 +43,9 @@ class Primitive(
         if (!useBatching) {
             if (normals == null && positions != null) {
                 normals = GeometryUtils.recalculateNormals(indices, positions!!)
+            }
+            if (midCoords == null && texCoords != null) {
+                midCoords = GeometryUtils.recalculateMidCoords(indices, texCoords!!)
             }
             if (tangents == null && positions != null && texCoords != null && normals != null) {
                 tangents = GeometryUtils.recalculateTangents(indices, positions!!, texCoords!!, normals!!)
@@ -96,6 +101,18 @@ class Primitive(
             max.x = max(max.x, it.x); max.y = max(max.y, it.y); max.z = max(max.z, it.z)
         }
         return Vec3f(min) to Vec3f(max)
+    }
+
+    private fun estimatedCubeCount(): Int {
+        val vertexEstimate = (positions?.size ?: 0) / VERTICES_PER_CUBE
+        val indexEstimate = (indices?.size ?: 0) / INDICES_PER_CUBE
+        return max(vertexEstimate, indexEstimate)
+    }
+
+    companion object {
+        private const val VERTICES_PER_CUBE = 24
+        private const val INDICES_PER_CUBE = 36
+        private const val CPU_BATCHING_CUBE_THRESHOLD = 24
     }
 }
 

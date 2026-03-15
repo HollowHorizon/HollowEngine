@@ -7,7 +7,11 @@ import net.irisshaders.iris.api.v0.IrisApi
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.HollowCoreClient
 import ru.hollowhorizon.hollowengine.client.utils.areShadersEnabled_
+import ru.hollowhorizon.hollowengine.client.utils.instancingEntityInfoProvider
+import ru.hollowhorizon.hollowengine.client.utils.instancingBackendProvider
+import ru.hollowhorizon.hollowengine.client.utils.InstancingEntityInfo
 import ru.hollowhorizon.hollowengine.client.utils.shouldOverrideShaders
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.VanillaInstancingBackend
 import ru.hollowhorizon.hollowengine.common.registry.createRegistry
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
@@ -33,9 +37,17 @@ object HCFabric {
         if (FabricLoader.getInstance().isModLoaded("iris")) {
             areShadersEnabled_ = IrisApi.getInstance().config::areShadersEnabled
             shouldOverrideShaders = IrisHelper::shouldOverrideShaders
+            instancingBackendProvider = {
+                if (IrisHelper.shouldOverrideShaders()) IrisHelper.instancingBackend() else VanillaInstancingBackend
+            }
+            instancingEntityInfoProvider = {
+                if (IrisHelper.shouldOverrideShaders()) IrisHelper.capturedEntityInfo() else InstancingEntityInfo()
+            }
         } else {
             areShadersEnabled_ = { false }
             shouldOverrideShaders = { false }
+            instancingBackendProvider = { VanillaInstancingBackend }
+            instancingEntityInfoProvider = { InstancingEntityInfo() }
         }
 
         FabricClientEvents
