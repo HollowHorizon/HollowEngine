@@ -35,7 +35,8 @@ object IrisInstancingShaderPatcher {
             appendLine("}")
         }
 
-        val insertionIndex = extensionPattern.findAll(source).lastOrNull()?.range?.last?.plus(1) ?: match.range.last + 1
+        val insertionIndex =
+            extensionPattern.findAll(source).lastOrNull()?.range?.last?.plus(1) ?: (match.range.last + 1)
         var patched = source.substring(0, insertionIndex) + header + source.substring(insertionIndex)
 
         patched = patched.replace("ftransform()", "(_he_ModelViewProjectionMat() * _he_Vertex())")
