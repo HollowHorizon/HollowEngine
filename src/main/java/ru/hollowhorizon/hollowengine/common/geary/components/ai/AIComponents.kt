@@ -25,7 +25,7 @@ data class EntityReference(
     @EditorName("UUID")
     val uuid: @Serializable(ForUuid::class) UUID = EMPTY_UUID,
     @EditorName("Dimension")
-    val level: @Serializable(ForResourceLocation::class) ResourceLocation = Level.OVERWORLD.location(),
+    val level: @Serializable(ForResourceLocation::class) ResourceLocation = ResourceLocation("minecraft", "overworld"),
 ) {
     fun isEmpty(): Boolean = uuid == EMPTY_UUID
 

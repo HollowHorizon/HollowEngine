@@ -9,7 +9,8 @@ import kotlin.reflect.KClass
 
 open class BlockProvider(val name: String, val rootCategory: BlockCategory) {
     fun resolveDisplayName(block: BlockModel, scope: BlocksScope): String? {
-        return findDisplayName(block::class, rootCategory.items(scope), scope)
+        return (block as? DynamicDisplayNameProvider)?.resolveDisplayName(scope)
+            ?: findDisplayName(block::class, rootCategory.items(scope), scope)
     }
 
     fun applyDisplayNames(root: BlockModel, scope: BlocksScope) {
@@ -29,6 +30,10 @@ open class BlockProvider(val name: String, val rootCategory: BlockCategory) {
         }
         return null
     }
+}
+
+fun interface DynamicDisplayNameProvider {
+    fun resolveDisplayName(scope: BlocksScope): String?
 }
 
 class BlockCategory(val name: String, val icon: ResourceLocation? = null): CategoryItem {

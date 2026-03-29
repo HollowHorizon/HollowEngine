@@ -9,7 +9,9 @@ import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
+import ru.hollowhorizon.hollowengine.common.codeblocks.DynamicDisplayNameProvider
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlocksScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.getVariable
@@ -67,7 +69,7 @@ class GetVarBlock(var varName: String = "var") : ExpressionBlock() {
 
 @Serializable
 @SerialName("hollowengine:variables/get_inline")
-class GetVarInlineBlock(val name: String) : ExpressionBlock() {
+class GetVarInlineBlock(val name: String) : ExpressionBlock(), DynamicDisplayNameProvider {
     override val color: Color get() = CodeBlocksColors.LOCALS
 
     override val expressionType: ExpressionType
@@ -84,4 +86,6 @@ class GetVarInlineBlock(val name: String) : ExpressionBlock() {
                 .margin(start = 5.dp.scaled()).regular()
         }
     }
+
+    override fun resolveDisplayName(scope: BlocksScope): String = "hollowengine.gui.codeblocks.block.get_var_named".lang.format(name)
 }

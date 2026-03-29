@@ -1,7 +1,0 @@
-shapes_token = ""
-
-[ide_config]
-    tabSpace = 4
-    fontSize = 30
-    enableSound = false
-    indexClasses = true

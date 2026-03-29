@@ -21,6 +21,7 @@ import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
 import ru.hollowhorizon.hollowengine.common.geary.components.EditorIcon
 import ru.hollowhorizon.hollowengine.common.geary.components.GenericEditor
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSchemaRegistry
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -167,25 +168,35 @@ class PrefabEditorFile(path: String, bytes: ByteArray) : ModelEditorFile(path) {
 
     private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("hollowengine.gui.entity_editor.components".lang) {
         val existing = components.map { it.key }.toSet()
-        val available = ComponentDescriptorRegistry.map { it.key }
-            .filter { key ->
-                key !in existing && (ComponentDescriptorRegistry.getOrNull(key)?.editable == true)
-            }
-            .sortedBy { it.toString() }
+        val available = ComponentDescriptorRegistry
+            .map { it.value }
+            .filter { it.editable && it.id !in existing }
+            .sortedBy { it.id.toString() }
 
         if (available.isEmpty()) {
             item("hollowengine.gui.prefab_editor.all_components_added".lang) {}
         } else {
-            available.forEach { key ->
-                val holder = ComponentDescriptorRegistry[key]
-                val serializer = holder.serializer
-                val displayName = serializer.descriptor.serialName
-                val icon = holder.value.findAnnotation<EditorIcon>()?.icon?.rl
-                item(displayName, icon) {
-                    addComponent(key)
-                    menu.hide()
+            available
+                .groupBy { it.id.namespace }
+                .toSortedMap()
+                .forEach { (namespace, descriptors) ->
+                    subMenu(namespace) {
+                        descriptors.forEach { descriptor ->
+                            val schema = ComponentSchemaRegistry.descriptorSchema(descriptor.id)
+                            val icon = (schema?.icon ?: descriptor.value.findAnnotation<EditorIcon>()?.icon)?.rl
+                            val label = buildString {
+                                append(schema?.displayName ?: descriptor.serializer.descriptor.serialName)
+                                append(" [")
+                                append(descriptor.id)
+                                append(']')
+                            }
+                            item(label, icon) {
+                                addComponent(descriptor.id)
+                                menu.hide()
+                            }
+                        }
+                    }
                 }
-            }
         }
     }
 

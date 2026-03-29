@@ -158,13 +158,15 @@ fun <T : Any> UiScope.GenericEditor(
     ownerType: KType? = runCatching { state.value::class.createType() }.getOrNull(),
     allowRemove: Boolean = true,
 ) {
-    val descriptor = serializer.descriptor
-    val icon = descriptor.annotations.filterIsInstance<EditorIcon>().firstOrNull()?.icon
-        ?: "hollowengine:textures/gui/icons/autocomplete_class.svg"
-    val displayName = descriptor.annotations.filterIsInstance<EditorName>().firstOrNull()?.name
-        ?: descriptor.serialName.humanizedSerialName()
+    @Suppress("UNCHECKED_CAST")
+    val schema = ComponentSchemaRegistry.schemaFor(ownerType, serializer as KSerializer<Any>)
+    @Suppress("UNCHECKED_CAST")
+    val resolvedSerializer = serializer as KSerializer<Any>
+    val icon = schema?.icon ?: resolveSchemaIcon(resolvedSerializer)
+    val displayName = schema?.displayName ?: resolveSchemaDisplayName(resolvedSerializer)
+    val categoryTitle = schema?.descriptorId?.let { "$displayName [$it]" } ?: displayName
 
-    Category(icon.rl, displayName, onRemove = onRemove, showRemoveButton = allowRemove) {
+    Category(icon.rl, categoryTitle, onRemove = onRemove, showRemoveButton = allowRemove) {
         val currentElement = AutoEditor.json.encodeToJsonElement(serializer, state.value)
         renderEditorValue(
             label = displayName,
@@ -181,20 +183,6 @@ fun <T : Any> UiScope.GenericEditor(
     }
 }
 
-private enum class EditorFieldFlavor {
-    TEXT,
-    NUMBER,
-    BOOLEAN,
-    ENUM,
-    UUID,
-    RESOURCE_LOCATION,
-    VEC3,
-    ENTITY_REFERENCE,
-    CLASS,
-    LIST,
-    UNSUPPORTED,
-}
-
 @OptIn(ExperimentalSerializationApi::class)
 private fun UiScope.renderEditorValue(
     label: String,
@@ -205,8 +193,8 @@ private fun UiScope.renderEditorValue(
     onChange: () -> Unit,
     showInlineLabel: Boolean = true,
 ) {
-    when (resolveEditorFieldFlavor(ownerType, serializer)) {
-        EditorFieldFlavor.TEXT -> TextProperty(
+    when (resolveFieldValueKind(ownerType, serializer)) {
+        FieldValueKind.TEXT -> TextProperty(
             label = label.takeIf { showInlineLabel },
             value = (current as? JsonPrimitive)?.content ?: "",
             hint = label,
@@ -215,7 +203,7 @@ private fun UiScope.renderEditorValue(
             onChange()
         }
 
-        EditorFieldFlavor.NUMBER -> NumberProperty(
+        FieldValueKind.NUMBER -> NumberProperty(
             label = label.takeIf { showInlineLabel },
             value = (current as? JsonPrimitive)?.content ?: "0",
             kind = serializer.descriptor.kind,
@@ -224,7 +212,7 @@ private fun UiScope.renderEditorValue(
             onChange()
         }
 
-        EditorFieldFlavor.BOOLEAN -> BoolProperty(
+        FieldValueKind.BOOLEAN -> BoolProperty(
             label = label.takeIf { showInlineLabel },
             value = (current as? JsonPrimitive)?.booleanOrNull ?: false,
         ) {
@@ -232,7 +220,7 @@ private fun UiScope.renderEditorValue(
             onChange()
         }
 
-        EditorFieldFlavor.ENUM -> {
+        FieldValueKind.ENUM -> {
             val enumNames = (0 until serializer.descriptor.elementsCount).map(serializer.descriptor::getElementName)
             EnumProperty(
                 label = label.takeIf { showInlineLabel },
@@ -246,7 +234,7 @@ private fun UiScope.renderEditorValue(
             }
         }
 
-        EditorFieldFlavor.UUID -> UuidProperty(
+        FieldValueKind.UUID -> UuidProperty(
             label = label.takeIf { showInlineLabel },
             value = runCatching { AutoEditor.json.decodeFromJsonElement(serializer, current) as UUID }.getOrNull(),
         ) {
@@ -254,7 +242,7 @@ private fun UiScope.renderEditorValue(
             onChange()
         }
 
-        EditorFieldFlavor.RESOURCE_LOCATION -> ResourceLocationProperty(
+        FieldValueKind.RESOURCE_LOCATION -> ResourceLocationProperty(
             label = label.takeIf { showInlineLabel },
             value = runCatching { AutoEditor.json.decodeFromJsonElement(serializer, current) as ResourceLocation }.getOrNull(),
         ) {
@@ -262,7 +250,7 @@ private fun UiScope.renderEditorValue(
             onChange()
         }
 
-        EditorFieldFlavor.VEC3 -> Vec3Property(
+        FieldValueKind.VEC3 -> Vec3Property(
             label = label.takeIf { showInlineLabel },
             value = runCatching { AutoEditor.json.decodeFromJsonElement(serializer, current) as Vec3 }.getOrElse { Vec3.ZERO },
         ) {
@@ -270,9 +258,9 @@ private fun UiScope.renderEditorValue(
             onChange()
         }
 
-        EditorFieldFlavor.ENTITY_REFERENCE -> renderEntityReferenceField(current, onUpdate, onChange)
+        FieldValueKind.ENTITY_REFERENCE -> renderEntityReferenceField(current, onUpdate, onChange)
 
-        EditorFieldFlavor.CLASS -> {
+        FieldValueKind.CLASS -> {
             val jsonObject = current as? JsonObject ?: JsonObject(emptyMap())
             renderClassFields(
                 currentJson = jsonObject,
@@ -284,7 +272,7 @@ private fun UiScope.renderEditorValue(
             )
         }
 
-        EditorFieldFlavor.LIST -> renderListField(
+        FieldValueKind.LIST -> renderListField(
             label = label.takeIf { showInlineLabel } ?: label,
             current = current as? JsonArray ?: JsonArray(emptyList()),
             serializer = serializer,
@@ -293,7 +281,7 @@ private fun UiScope.renderEditorValue(
             onChange = onChange,
         )
 
-        EditorFieldFlavor.UNSUPPORTED -> UnsupportedProperty(
+        FieldValueKind.UNSUPPORTED -> UnsupportedProperty(
             label.takeIf { showInlineLabel },
             "hollowengine.gui.codeblocks.label.component_unsupported_kind".lang(serializer.descriptor.kind.toString())
         )
@@ -310,56 +298,27 @@ private fun UiScope.renderClassFields(
     label: String? = null,
 ) {
     label?.let(::SectionTitle)
+    val fields = ComponentSchemaRegistry.schemaFor(ownerType, serializer)?.fields ?: emptyList()
 
-    for (index in 0 until serializer.descriptor.elementsCount) {
-        val elementName = serializer.descriptor.getElementName(index)
-        val elementDescriptor = serializer.descriptor.getElementDescriptor(index)
-        val annotations = serializer.descriptor.getElementAnnotations(index)
-        if (annotations.any { it is EditorHidden }) continue
-
-        val fieldType = resolveFieldType(ownerType, elementName)
-        val fieldSerializer = AutoEditor.serializerOrNull(fieldType)
-            ?: serializerFromDescriptorKind(elementDescriptor.kind)
-        val fieldDisplayName = annotations.filterIsInstance<EditorName>().firstOrNull()?.name
-            ?: elementName.humanizeComponentName()
-        val fieldIcon = annotations.filterIsInstance<EditorIcon>().firstOrNull()?.icon
-            ?: "hollowengine:textures/gui/icons/autocomplete_class.svg"
-        val fieldJson = currentJson[elementName] ?: fieldSerializer?.let(AutoEditor::defaultJson) ?: JsonNull
+    for (field in fields) {
+        val fieldJson = currentJson[field.name] ?: field.defaultJson ?: JsonNull
 
         fun updateField(newValue: JsonElement) {
             val newMap = currentJson.toMutableMap()
-            newMap[elementName] = newValue
+            newMap[field.name] = newValue
             onUpdate(JsonObject(newMap))
         }
 
-        val polymorphic = annotations.filterIsInstance<Polymorphic>().firstOrNull()
-        if (polymorphic != null) {
-            PropertySection(fieldDisplayName, fieldIcon.rl) {
-                PolymorphicField(fieldDisplayName, polymorphic.baseClass, fieldJson) {
-                    updateField(it)
-                    onChange()
-                }
-            }
-            continue
-        }
-
-        if (fieldSerializer == null) {
-            PropertySection(fieldDisplayName, fieldIcon.rl) {
-                UnsupportedProperty(null, "hollowengine.gui.codeblocks.label.component_unsupported_field".lang(elementDescriptor.serialName))
-            }
-            continue
-        }
-
-        when (resolveEditorFieldFlavor(fieldType, fieldSerializer)) {
-            EditorFieldFlavor.CLASS,
-            EditorFieldFlavor.LIST,
-            EditorFieldFlavor.ENTITY_REFERENCE,
-            -> PropertySection(fieldDisplayName, fieldIcon.rl) {
+        when (field.valueKind) {
+            FieldValueKind.CLASS,
+            FieldValueKind.LIST,
+            FieldValueKind.ENTITY_REFERENCE,
+            -> PropertySection(field.displayName, field.icon.rl) {
                 renderEditorValue(
-                    label = fieldDisplayName,
+                    label = field.displayName,
                     current = fieldJson,
-                    serializer = fieldSerializer,
-                    ownerType = fieldType,
+                    serializer = field.serializer,
+                    ownerType = field.ownerType,
                     onUpdate = {
                         updateField(it)
                         onChange()
@@ -369,12 +328,12 @@ private fun UiScope.renderClassFields(
                 )
             }
 
-            else -> PropertyRow(fieldDisplayName, fieldIcon.rl) {
+            else -> PropertyRow(field.displayName, field.icon.rl) {
                 renderEditorValue(
-                    label = fieldDisplayName,
+                    label = field.displayName,
                     current = fieldJson,
-                    serializer = fieldSerializer,
-                    ownerType = fieldType,
+                    serializer = field.serializer,
+                    ownerType = field.ownerType,
                     onUpdate = {
                         updateField(it)
                         onChange()
@@ -513,43 +472,22 @@ private fun UiScope.renderListField(
 }
 
 private fun collectionItemSummary(item: JsonElement, serializer: KSerializer<Any>, ownerType: KType?): String? {
-    return when (resolveEditorFieldFlavor(ownerType, serializer)) {
-        EditorFieldFlavor.VEC3 -> runCatching {
+    return when (resolveFieldValueKind(ownerType, serializer)) {
+        FieldValueKind.VEC3 -> runCatching {
             AutoEditor.formatVec3(AutoEditor.json.decodeFromJsonElement(serializer, item) as Vec3)
         }.getOrNull()
-        EditorFieldFlavor.UUID -> runCatching {
+        FieldValueKind.UUID -> runCatching {
             AutoEditor.formatUuid(AutoEditor.json.decodeFromJsonElement(serializer, item) as UUID)
         }.getOrNull()
-        EditorFieldFlavor.RESOURCE_LOCATION -> runCatching {
+        FieldValueKind.RESOURCE_LOCATION -> runCatching {
             AutoEditor.formatResourceLocation(AutoEditor.json.decodeFromJsonElement(serializer, item) as ResourceLocation)
         }.getOrNull()
-        EditorFieldFlavor.TEXT,
-        EditorFieldFlavor.NUMBER,
-        EditorFieldFlavor.ENUM,
+        FieldValueKind.TEXT,
+        FieldValueKind.NUMBER,
+        FieldValueKind.ENUM,
         -> (item as? JsonPrimitive)?.contentOrNull
         else -> null
     }
-}
-
-@OptIn(InternalSerializationApi::class)
-private fun serializerFromDescriptorKind(kind: SerialKind): KSerializer<Any>? {
-    @Suppress("UNCHECKED_CAST")
-    return when (kind) {
-        PrimitiveKind.STRING -> serializer<String>() as KSerializer<Any>
-        PrimitiveKind.INT -> serializer<Int>() as KSerializer<Any>
-        PrimitiveKind.LONG -> serializer<Long>() as KSerializer<Any>
-        PrimitiveKind.SHORT -> serializer<Short>() as KSerializer<Any>
-        PrimitiveKind.BYTE -> serializer<Byte>() as KSerializer<Any>
-        PrimitiveKind.FLOAT -> serializer<Float>() as KSerializer<Any>
-        PrimitiveKind.DOUBLE -> serializer<Double>() as KSerializer<Any>
-        PrimitiveKind.BOOLEAN -> serializer<Boolean>() as KSerializer<Any>
-        else -> null
-    }
-}
-
-private fun resolveFieldType(ownerType: KType?, elementName: String): KType? {
-    val ownerClass = ownerType?.classifier as? KClass<*> ?: return null
-    return ownerClass.memberProperties.firstOrNull { it.name == elementName }?.returnType
 }
 
 private fun numberJson(kind: SerialKind, raw: String): JsonPrimitive? {
@@ -564,23 +502,6 @@ private fun numberJson(kind: SerialKind, raw: String): JsonPrimitive? {
     }
 }
 
-private fun resolveEditorFieldFlavor(ownerType: KType?, serializer: KSerializer<Any>): EditorFieldFlavor {
-    val classifier = ownerType?.classifier as? KClass<*>
-    val descriptor = serializer.descriptor
-    return when {
-        classifier == EntityReference::class -> EditorFieldFlavor.ENTITY_REFERENCE
-        classifier == Vec3::class || descriptor.serialName == "Vector3d" -> EditorFieldFlavor.VEC3
-        classifier == UUID::class || descriptor.serialName == "Uuid" -> EditorFieldFlavor.UUID
-        classifier == ResourceLocation::class || descriptor.serialName == "Identifier" -> EditorFieldFlavor.RESOURCE_LOCATION
-        descriptor.kind == PrimitiveKind.STRING -> EditorFieldFlavor.TEXT
-        descriptor.kind == PrimitiveKind.INT || descriptor.kind == PrimitiveKind.LONG || descriptor.kind == PrimitiveKind.SHORT || descriptor.kind == PrimitiveKind.BYTE || descriptor.kind == PrimitiveKind.FLOAT || descriptor.kind == PrimitiveKind.DOUBLE -> EditorFieldFlavor.NUMBER
-        descriptor.kind == PrimitiveKind.BOOLEAN -> EditorFieldFlavor.BOOLEAN
-        descriptor.kind == SerialKind.ENUM -> EditorFieldFlavor.ENUM
-        descriptor.kind == StructureKind.CLASS -> EditorFieldFlavor.CLASS
-        descriptor.kind == StructureKind.LIST -> EditorFieldFlavor.LIST
-        else -> EditorFieldFlavor.UNSUPPORTED
-    }
-}
 
 @OptIn(InternalSerializationApi::class)
 fun UiScope.PolymorphicField(label: String, baseClass: KClass<*>, current: JsonElement, onUpdate: (JsonElement) -> Unit) {
@@ -988,13 +909,3 @@ private fun Double.compactNumber(): String {
     return value.trimEnd('0').trimEnd('.').ifBlank { "0" }
 }
 
-private fun String.humanizedSerialName(): String = substringAfter(':').humanizeComponentName()
-
-private fun String.humanizeComponentName(): String {
-    return split('_', '-', '.', '/')
-        .filter { it.isNotBlank() }
-        .joinToString(" ") { part ->
-            part.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-        }
-        .ifBlank { this }
-}

@@ -15,6 +15,18 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.BlockCategory
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockProvider
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.BrokenExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.BrokenStatementBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.CreateComponentBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.EntityReferenceFromEntityBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.EntityReferenceLiteralBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.EnumLiteralBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.GetComponentFieldBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.GetEntityUuidBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.HasComponentBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.ListBuilderBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.RemoveComponentBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.ResourceLocationLiteralBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.SetComponentBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.UuidLiteralBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.custom.CallCustomBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.GetVarInlineBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
@@ -62,6 +74,18 @@ class CodeBlockFormat(
             // These blocks are created dynamically and should always be resolvable.
             subclass(GetVarInlineBlock::class)
             subclass(CallCustomBlock::class)
+            subclass(CreateComponentBlock::class)
+            subclass(SetComponentBlock::class)
+            subclass(RemoveComponentBlock::class)
+            subclass(HasComponentBlock::class)
+            subclass(GetComponentFieldBlock::class)
+            subclass(ListBuilderBlock::class)
+            subclass(EnumLiteralBlock::class)
+            subclass(UuidLiteralBlock::class)
+            subclass(ResourceLocationLiteralBlock::class)
+            subclass(EntityReferenceLiteralBlock::class)
+            subclass(GetEntityUuidBlock::class)
+            subclass(EntityReferenceFromEntityBlock::class)
             subclass(BrokenStatementBlock::class)
             subclass(BrokenExpressionBlock::class)
         }

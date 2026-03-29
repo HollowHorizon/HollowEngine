@@ -5,7 +5,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.utils.lang
+import ru.hollowhorizon.hollowengine.common.codeblocks.BlocksScope
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
+import ru.hollowhorizon.hollowengine.common.codeblocks.DynamicDisplayNameProvider
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.execution.CodeBlockInterpreter
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
@@ -13,7 +15,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentFile
 
 @Serializable
 @SerialName("hollowengine:custom/call_custom_block")
-class CallCustomBlock(val function: String) : StatementBlock() {
+class CallCustomBlock(val function: String) : StatementBlock(), DynamicDisplayNameProvider {
     override val color: Color get() = CodeBlocksColors.FUNCTIONS
 
     override suspend fun execute() {
@@ -30,4 +32,6 @@ class CallCustomBlock(val function: String) : StatementBlock() {
     override fun InputSlotScope.composeContent() {
         DefaultText("hollowengine.gui.codeblocks.block.call_function".lang(function))
     }
+
+    override fun resolveDisplayName(scope: BlocksScope): String = "hollowengine.gui.codeblocks.block.call_function".lang(function)
 }

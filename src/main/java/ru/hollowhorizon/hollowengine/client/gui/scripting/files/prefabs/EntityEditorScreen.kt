@@ -24,6 +24,7 @@ import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
 import ru.hollowhorizon.hollowengine.common.geary.components.EditorIcon
 import ru.hollowhorizon.hollowengine.common.geary.components.GenericEditor
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSchemaRegistry
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.reflect.full.findAnnotation
 
@@ -153,19 +154,35 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
     private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> =
         SubMenuItem("hollowengine.gui.entity_editor.components".lang) {
             val existing = components.map { it.key }.toSet()
-            val available = ComponentDescriptorRegistry.map { it.key }
-                .filter { key ->
-                    key !in existing && (ComponentDescriptorRegistry.getOrNull(key)?.editable == true)
-                }
-                .sortedBy { it.toString() }
+            val available = ComponentDescriptorRegistry
+                .map { it.value }
+                .filter { it.editable && it.id !in existing }
+                .sortedBy { it.id.toString() }
 
-            available.forEach { key ->
-                val holder = ComponentDescriptorRegistry[key]
-                val icon = holder.value.findAnnotation<EditorIcon>()?.icon?.rl
-                item(holder.serializer.descriptor.serialName, icon) {
-                    addComponent(key)
-                    menu.hide()
+            available
+                .groupBy { it.id.namespace }
+                .toSortedMap()
+                .forEach { (namespace, descriptors) ->
+                    subMenu(namespace) {
+                        descriptors.forEach { descriptor ->
+                            val schema = ComponentSchemaRegistry.descriptorSchema(descriptor.id)
+                            val icon = (schema?.icon ?: descriptor.value.findAnnotation<EditorIcon>()?.icon)?.rl
+                            val label = buildString {
+                                append(schema?.displayName ?: descriptor.serializer.descriptor.serialName)
+                                append(" [")
+                                append(descriptor.id)
+                                append(']')
+                            }
+                            item(label, icon) {
+                                addComponent(descriptor.id)
+                                menu.hide()
+                            }
+                        }
+                    }
                 }
+
+            if (available.isEmpty()) {
+                item("Все компоненты уже добавлены") {}
             }
         }
 

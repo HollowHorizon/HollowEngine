@@ -31,6 +31,7 @@ class CodeBlocksFile(filePath: String, bytes: ByteArray) : EditorFile(filePath) 
     )
     val repository = BlockRepository.create("Скрипт") {
         include(StandardModules.AllBasics)
+        include(GeneratedComponentBlocksModule)
         include(NPCModule)
         include(EntityModule)
         include(PlayerModule)

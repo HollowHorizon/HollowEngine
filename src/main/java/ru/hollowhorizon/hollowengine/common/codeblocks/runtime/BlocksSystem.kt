@@ -5,6 +5,7 @@ import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockRepository
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.EntityModule
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.GeneratedComponentBlocksModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.NPCModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.PlayerModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.StandardModules
@@ -30,6 +31,7 @@ class BlocksSystem(val owner: MinecraftServer) {
 
     val format = CodeBlockFormat(BlockRepository.create("Scripts") {
         include(StandardModules.AllBasics)
+        include(GeneratedComponentBlocksModule)
         include(NPCModule)
         include(EntityModule)
         include(PlayerModule)
