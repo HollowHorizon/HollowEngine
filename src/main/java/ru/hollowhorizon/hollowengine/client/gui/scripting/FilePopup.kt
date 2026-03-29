@@ -74,6 +74,10 @@ class FilePopup : Composable {
                                 fileExtension = ".kts"
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                             }
+                            item("Reload script", icons.FILE_KTS) {
+                                fileExtension = ".reload.kts"
+                                createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
+                            }
                             item("hollowengine.gui.ide.actions.create.script.codeblocks".lang, icons.FILE_CODEBLOCKS) {
                                 fileExtension = ".bc"
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)

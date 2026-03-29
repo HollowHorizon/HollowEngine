@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting
 
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
+import ru.hollowhorizon.hollowengine.common.scripting.reload.ReloadScript
 import java.io.File
 import java.net.URLClassLoader
 
@@ -30,6 +31,20 @@ class CompilerLoader(
             initializer.initialize(javaHome, classpath, listOf(
                 // Standard Kotlin scripts
                 ScriptClassProvider(".kts", "kotlin.Any"),
+                ScriptClassProvider(
+                    extension = ".reload.kts",
+                    baseClass = ReloadScript::class.qualifiedName!!,
+                    defaultImports = listOf(
+                        "net.minecraft.resources.ResourceLocation",
+                        "net.minecraft.world.item.ItemStack",
+                        "net.minecraft.world.item.Items",
+                        "net.minecraft.world.item.crafting.Ingredient",
+                        "ru.hollowhorizon.hollowengine.common.scripting.reload.ingredient",
+                        "ru.hollowhorizon.hollowengine.common.scripting.reload.ingredientTag",
+                        "ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.item",
+                        "ru.hollowhorizon.hollowengine.common.utils.rl",
+                    )
+                ),
                 // Animation controller scripts - extends AnimationController base class
                 ScriptClassProvider(
                     extension = ".animation-controller.kts",

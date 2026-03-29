@@ -337,16 +337,22 @@ class AnalysisEnvironment(
     private fun setupScriptDefinitions() {
         if (scriptDefinitions.isNotEmpty()) {
             val prioritizedDefinitions = scriptDefinitions.sortedByDescending { it.fileExtension.length }
+            val defaultDefinition = scriptDefinitions
+                .firstOrNull { it.fileExtension == ".kts" }
+                ?: scriptDefinitions.minByOrNull { it.fileExtension.length }
+                ?: prioritizedDefinitions.first()
 
             project.registerService(
                 ScriptDefinitionProvider::class.java,
                 object : ScriptDefinitionProvider {
                     override fun findDefinition(script: SourceCode): ScriptDefinition? {
-                        return prioritizedDefinitions.firstOrNull { it.isScript(script) }
+                        return prioritizedDefinitions.firstOrNull { definition ->
+                            script.matchesExtension(definition.fileExtension)
+                        }
                     }
 
                     override fun getDefaultDefinition(): ScriptDefinition {
-                        return prioritizedDefinitions.first()
+                        return defaultDefinition
                     }
 
                     override fun getKnownFilenameExtensions(): Sequence<String> {
@@ -360,7 +366,9 @@ class AnalysisEnvironment(
                         get() = prioritizedDefinitions.asSequence()
 
                     override fun isScript(script: SourceCode): Boolean {
-                        return prioritizedDefinitions.any { it.isScript(script) }
+                        return prioritizedDefinitions.any { definition ->
+                            script.matchesExtension(definition.fileExtension)
+                        }
                     }
                 }
             )
@@ -370,4 +378,10 @@ class AnalysisEnvironment(
     fun dispose() {
         Disposer.dispose(projectDisposable)
     }
+}
+
+private fun SourceCode.matchesExtension(extension: String): Boolean {
+    return sequenceOf(locationId, name)
+        .filterNotNull()
+        .any { it.endsWith(extension, ignoreCase = true) }
 }

@@ -284,6 +284,9 @@ private fun CommandExtension.registerScriptCommands() {
                 if (!file.exists()) {
                     return@executes sendFailure("Script file not found: $path".literal)
                 }
+                if (path.endsWith(".reload.kts")) {
+                    return@executes sendFailure("Reload scripts run only during server resource reload".literal)
+                }
 
                 val result = ScriptingEnvironment.INSTANCE.compiler.compile(file)
                 if (result.isFailure) {

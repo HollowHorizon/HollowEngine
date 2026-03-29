@@ -14,6 +14,8 @@ lateinit var recipeManagerProtected: RecipeManager
 
 val recipeManager by lazy { recipeManagerProtected }
 
+fun currentRecipeManagerOrNull(): RecipeManager? = if (::recipeManagerProtected.isInitialized) recipeManagerProtected else null
+
 val IRecipeManager.hiddenCategories: Set<IRecipeCategory<*>>
     get() {
         val allCategories = this.createRecipeCategoryLookup().includeHidden().get().collect(Collectors.toSet())
