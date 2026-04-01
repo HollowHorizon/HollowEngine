@@ -19,12 +19,12 @@ fun registerDefaultFileTypes(event: RegisterFileTypeEvent) {
     
     event.register(
         listOf(".kts", ".kt"),
-        { path, bytes -> ScriptFile(path, bytes) }
+        { path, bytes -> ScriptFile(path) }
     )
     
     event.register(
         ".json",
-        { path, bytes -> ScriptFile(path, bytes) }
+        { path, bytes -> ScriptFile(path) }
     )
     
     event.register(".bc", { path, bytes -> CodeBlocksFile(path, bytes) })
