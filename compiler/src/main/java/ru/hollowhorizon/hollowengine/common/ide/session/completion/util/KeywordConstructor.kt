@@ -5,7 +5,6 @@ import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiWhiteSpace
-import com.intellij.psi.codeStyle.CodeStyleManager
 import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.psiUtil.getNextSiblingIgnoringWhitespace
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
@@ -23,7 +22,6 @@ fun createKeywordConstructLookupElement(
     trimSpacesAroundCaret: Boolean = false
 ): LookupElement {
     val file = KtPsiFactory(project).createFile(fileName, fileTextToReformat)
-    CodeStyleManager.getInstance(project).reformat(file)
     val newFileText = file.text
 
     val keywordOffset = newFileText.indexOf(keyword)

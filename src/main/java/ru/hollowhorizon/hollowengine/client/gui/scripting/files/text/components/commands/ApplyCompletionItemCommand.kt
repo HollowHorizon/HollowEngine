@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.Command
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.CommandKey
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorCommandContext
+import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextCaretNavigation
 import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
 
 class ApplyCompletionItemCommand : Command {
@@ -24,11 +25,7 @@ class ApplyCompletionItemCommand : Command {
 
         val lineText = c.lineProvider[lineIdx].text
 
-        val startIdx = runCatching {
-            lineText.substring(0, charIdx).indexOfLast { !it.isLetterOrDigit() } + 1
-        }.getOrElse { charIdx }
-
-        val replaceStart = if (startIdx == -1) charIdx else startIdx
+        val replaceStart = TextCaretNavigation.startOfIdentifier(lineText, charIdx)
 
         val newPos = handler.replaceText(lineIdx, lineIdx, replaceStart, charIdx, item.insert)
 
@@ -39,8 +36,8 @@ class ApplyCompletionItemCommand : Command {
             c.selection.selectionChanged(newPos.y, newPos.y, newPos.x, newPos.x)
         }
 
-        c.inputController.modifier.completions.clear()
         provider?.analysisState?.completions?.clear()
+        c.inputController.modifier.completions.clear()
 
         return true
     }

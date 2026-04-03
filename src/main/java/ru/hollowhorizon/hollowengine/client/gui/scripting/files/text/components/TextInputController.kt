@@ -177,9 +177,7 @@ class TextInputController(
         completionManager.close()
     }
 
-    private fun handleKeyRelease(keyEvent: KeyEvent) {
-        tryExecuteKeyBinding(keyEvent)
-    }
+    private fun handleKeyRelease(keyEvent: KeyEvent) = tryExecuteKeyBinding(keyEvent)
 
     fun editText(text: String) {
         val editor = modifier.editorHandler ?: return
