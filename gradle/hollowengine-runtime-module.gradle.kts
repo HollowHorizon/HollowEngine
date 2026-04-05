@@ -66,10 +66,10 @@ fun bundle(dependencyNotation: String, transitive: Boolean = false) {
 setupEnviroment(container, kotlinVersion, includeKotlin = false)
 
 repositories {
+    flatDir { dirs(rootProject.file("libs")) }
     maven("https://jitpack.io")
     maven("https://maven.blamejared.com/")
     mavenLocal()
-    flatDir { dirs(rootProject.file("libs")) }
 }
 
 dependencies {
