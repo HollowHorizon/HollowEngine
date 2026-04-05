@@ -15,6 +15,14 @@ jobs:
     steps:
       - name: checkout repository
         uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: recursive
+
+      - name: verify bundled libraries
+        run: |
+          ls -lah libs
+          test -f libs/kool-core-desktop-0.20.0-SNAPSHOT.jar
 
       - name: Get the mod version from gradle.properties
         id: get_version
