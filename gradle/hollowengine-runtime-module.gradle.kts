@@ -1,4 +1,5 @@
 import dev.kikugie.stonecutter.build.StonecutterBuildExtension
+import net.fabricmc.loom.extension.LoomGradleExtensionImpl
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.JavaCompile
@@ -46,6 +47,7 @@ val embedRuntime = (extra.properties["hollow.embedRuntime"] as? Boolean) == true
 val stonecutter = extensions["stonecutter"] as StonecutterBuildExtension
 val minecraftVersion = project.minecraftVersion
 val modPlatform = project.modPlatform
+val loom = extensions.findByName("loom") as? LoomGradleExtensionImpl
 val bridgeModulePath = ":bridge:${project.name}"
 val runtimeModulePath = if (project.path.startsWith(":runtime:")) project.path else ":runtime:${project.name}"
 val runtimeChecksumFile = layout.buildDirectory.file("generated/runtime/HollowEngineRuntime.sha256")
@@ -64,6 +66,13 @@ fun bundle(dependencyNotation: String, transitive: Boolean = false) {
 }
 
 setupEnviroment(container, kotlinVersion, includeKotlin = false)
+
+loom?.let { loomExtension ->
+    val accessWidener = authoringSourceRoot.resolve("resources/$modId.accesswidener")
+    if (accessWidener.exists()) {
+        loomExtension.accessWidenerPath.set(accessWidener)
+    }
+}
 
 repositories {
     flatDir { dirs(rootProject.file("libs")) }
