@@ -1,174 +1,96 @@
-
-
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import org.gradle.language.jvm.tasks.ProcessResources
-import ru.hollowhorizon.gradle.*
-import ru.hollowhorizon.gradle.tasks.GenerateAssetsTask
-import ru.hollowhorizon.gradle.tasks.GenerateLangTask
-import ru.hollowhorizon.gradle.tasks.MergeLangTask
+import org.gradle.api.tasks.Sync
+import org.gradle.api.tasks.Copy
 
 plugins {
-    java
-    `maven-publish`
-    id("architectury-plugin")
-    id("dev.architectury.loom")
-    id("me.fallenbreath.yamlang")
-    kotlin("jvm")
-    kotlin("plugin.serialization")
+    base
 }
 
-val modId: String by properties
-val modName: String by properties
-val modVersion: String by properties
-val license: String by properties
+val bootstrapModulePath = if (name.contains('-')) ":bootstrap:$name" else null
+val bootstrapBuildProjects = file("bootstrap/versions")
+    .listFiles()
+    ?.filter { it.isDirectory }
+    ?.map { ":bootstrap:${it.name}" }
+    .orEmpty()
+val compilerBuildProjects = file("compiler/versions")
+    .listFiles()
+    ?.filter { it.isDirectory }
+    ?.map { ":compiler:${it.name}" }
+    .orEmpty()
 
-val container = ModProject(
-    modId = modId,
-    modName = modName,
-    modVersion = modVersion,
-    license = license,
-
-    entryPoints = mapOf(
-        "main" to listOf("ru.hollowhorizon.hollowengine.fabric.HCFabric::onCommonInitialize"),
-        "client" to listOf("ru.hollowhorizon.hollowengine.fabric.HCFabric::onClientInitialize")
-    ),
-    dependencies = mapOf(),
-
-    username = "TheHollowHorizon"
-)
-
-val kotlinVersion: String by rootProject.properties
-val koolVersion: String by rootProject.properties
-val intellijVersion = "241.19416.19"
-
-setupEnviroment(container, kotlinVersion, includeKotlin = false)
-
-repositories {
-    maven("https://jitpack.io")
-    maven("https://maven.blamejared.com/")
-    mavenLocal()
-    flatDir { dirs(rootProject.file("libs")) }
-}
-
-dependencies {
-
-    // CONFIG //
-    install("net.peanuuutz.tomlkt:tomlkt:0.5.0", true)
-
-    // GRAPHICS //
-    install("de.fabmax.kool:kool-core-desktop:$koolVersion", true)
-    install("com.github.weisj:jsvg:2.0.0")
-    install("com.facebook:ktfmt:0.54")
-
-    install("org.jetbrains:markdown:0.7.3")
-
-    val modPlatform = stonecutter.modPlatform
-    if(stonecutter.minecraftVersion == "1.20.1") {
-        val jei = "15.20.0.105"
-        modCompileOnly("mezz.jei:jei-1.20.1-${modPlatform}-api:$jei")
-        compileOnly("lib:bbs:1.2.6-1.20.1-deobf")
-    } else {
-        val jei = "19.25.1.332"
-        modCompileOnly("mezz.jei:jei-1.21.1-${modPlatform}-api:$jei")
-        compileOnly("lib:bbs:1.2.6-1.20.1-deobf") // TODO: А BBS вообще будет на 1.21.1?
+if (bootstrapModulePath != null) {
+    evaluationDependsOn(bootstrapModulePath)
+    val compilerModulePath = if (file("compiler/versions/$name").exists()) ":compiler:$name" else null
+    if (compilerModulePath != null) {
+        evaluationDependsOn(compilerModulePath)
     }
 
-
-    testImplementation(kotlin("test"))
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation(kotlin("reflect"))
-
-    install("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
-    install("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
-    install("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
-    install("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
-    install("org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.0")
-    install("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
-    install("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-    install("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
-    install("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
-    install("org.jetbrains.kotlinx:atomicfu:0.30.0-beta")
-    install("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
-    install("org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.10.0-RC")
-    install("com.squareup.okio:okio:3.9.0")
-    install("it.krzeminski:snakeyaml-engine-kmp:4.0.1")
-    install("net.thauvin.erik.urlencoder:urlencoder-lib:1.6.0")
-
-    install("androidx.compose.runtime:runtime:1.10.3")
-
-
-    val gearyVersion = "0.28"
-
-    install("io.insert-koin:koin-core:4.0.0")
-    install("co.touchlab:kermit-core-mcfriendly:2.0.4")
-    install("androidx.collection:collection:1.4.0")
-    install("org.roaringbitmap:RoaringBitmap:1.0.6")
-    install("com.charleskorn.kaml:kaml:0.104.0")
-
-    install("com.mineinabyss:geary-core:${gearyVersion}")
-    install("com.mineinabyss:geary-prefabs:${gearyVersion}")
-    install("com.mineinabyss:geary-actions:${gearyVersion}")
-    install("com.mineinabyss:geary-serialization:${gearyVersion}")
-    install("org.jetbrains.kotlinx:kotlinx-io-bytestring:0.8.2")
-
-//    install("de.fabmax.kool:kool-physics-desktop:$koolVersion", true)
-//    install("de.fabmax:physx-jni:2.7.1")
-//    install("de.fabmax:physx-jni:2.7.1:natives-windows")
-//    install("de.fabmax:physx-jni:2.7.1:natives-linux")
-//    install("de.fabmax:physx-jni:2.7.1:natives-macos")
-//    install("de.fabmax:physx-jni:2.7.1:natives-macos-arm64")
-}
-
-val generateAssets by tasks.registering(GenerateAssetsTask::class) {
-    generatedPackage.set("ru.hollowhorizon.hollowengine.generated")
-    assetsDirectory.set(rootProject.file("src/main/resources/assets"))
-    outputDirectory.set(layout.buildDirectory.dir("generated/sources/assets/kotlin"))
-}
-
-val mergeLang by tasks.registering(MergeLangTask::class) {
-    val splitLangInput = rootProject.file("src/main/lang")
-    if (splitLangInput.exists()) {
-        splitLangDirectory.set(splitLangInput)
+    tasks.named("assemble") {
+        dependsOn("$bootstrapModulePath:assemble")
+        if (compilerModulePath != null) dependsOn("$compilerModulePath:assemble")
     }
 
-    val legacyLangInput = rootProject.file("src/main/resources/assets/$modId/lang")
-    if (legacyLangInput.exists()) {
-        legacyLangDirectory.set(legacyLangInput)
+    tasks.named("build") {
+        dependsOn("$bootstrapModulePath:build")
+        if (compilerModulePath != null) dependsOn("$compilerModulePath:build")
     }
 
-    outputDirectory.set(layout.buildDirectory.dir("generated/lang/$modId"))
-}
+    tasks.register<Copy>("buildAndCollect") {
+        group = "build"
+        val mergedDir = rootProject.layout.projectDirectory.dir("merged")
+        into(mergedDir)
 
-val generateLang by tasks.registering(GenerateLangTask::class) {
-    generatedPackage.set("ru.hollowhorizon.hollowengine.generated")
-    langDirectory.set(mergeLang.flatMap { it.outputDirectory })
-    outputDirectory.set(layout.buildDirectory.dir("generated/sources/hollowengine/lang"))
-    dependsOn(mergeLang)
-}
+        val bootstrapRemapJar = project(bootstrapModulePath).tasks.named("remapJar")
+        dependsOn(bootstrapRemapJar)
+        from(bootstrapRemapJar)
 
-sourceSets {
-    main {
-        java.srcDir(generateAssets.map { it.outputDirectory })
-        java.srcDir(generateLang.map { it.outputDirectory })
-        resources.exclude("assets/$modId/lang/*.json")
+        if (compilerModulePath != null) {
+            val compilerShadowJar = project(compilerModulePath).tasks.named("shadowJar")
+            dependsOn(compilerShadowJar)
+            from(compilerShadowJar)
+        }
+
+        doFirst {
+            delete(
+                fileTree(mergedDir) {
+                    include("HollowEngineBridge-*.jar")
+                    include("HollowEngineRuntime-*.jar")
+                }
+            )
+        }
     }
-}
 
-tasks.named<ProcessResources>("processResources") {
-    dependsOn(mergeLang)
-    from(mergeLang.map { it.outputDirectory }) {
-        into("assets/$modId/lang")
+    tasks.register("runActive") {
+        group = "project"
+        dependsOn("$bootstrapModulePath:runActive")
     }
-}
+} else {
+    bootstrapBuildProjects.forEach(::evaluationDependsOn)
+    compilerBuildProjects.forEach(::evaluationDependsOn)
 
-tasks.withType<KotlinCompile> {
-    dependsOn(mergeLang)
-    dependsOn(generateAssets)
-    dependsOn(generateLang)
-}
+    tasks.named("assemble") {
+        dependsOn(bootstrapBuildProjects.map { "$it:assemble" })
+        dependsOn(compilerBuildProjects.map { "$it:assemble" })
+    }
 
-tasks.withType<Test> {
-    useJUnitPlatform()
+    tasks.named("build") {
+        dependsOn(bootstrapBuildProjects.map { "$it:build" })
+        dependsOn(compilerBuildProjects.map { "$it:build" })
+    }
+
+    tasks.register<Sync>("buildAndCollect") {
+        group = "build"
+        into(layout.projectDirectory.dir("merged"))
+
+        bootstrapBuildProjects.forEach { path ->
+            val remapJar = project(path).tasks.named("remapJar")
+            dependsOn(remapJar)
+            from(remapJar)
+        }
+
+        compilerBuildProjects.forEach { path ->
+            val shadowJar = project(path).tasks.named("shadowJar")
+            dependsOn(shadowJar)
+            from(shadowJar)
+        }
+    }
 }

@@ -8,6 +8,7 @@ import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.Copy
 import org.gradle.jvm.tasks.Jar
 import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.kotlin.dsl.findByType
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.register
@@ -20,9 +21,9 @@ object StonecutterSetup {
     ) {
         val stonecutter = project.extensions["stonecutter"] as StonecutterBuildExtension
         val java = project.extensions["java"] as JavaPluginExtension
-        val kotlin = project.extensions["kotlin"] as KotlinJvmProjectExtension
+        val kotlin = project.extensions.findByType<KotlinJvmProjectExtension>()
 
-        if(setupLoom) project.afterEvaluate {
+        if(project.extensions.findByName("loom") != null) project.afterEvaluate {
             val loom = project.extensions["loom"] as LoomGradleExtensionImpl
             val platform = loom.platform.get().id()
 
@@ -38,9 +39,10 @@ object StonecutterSetup {
             if(setupLoom) {
                 from(project.tasks.named<Jar>("remapJar").map { it.archiveFile.get().asFile })
             } else {
-                from(project.tasks.named<Jar>("shadowJar").map { it.archiveFile.get().asFile })
+                val archiveTaskName = if (project.tasks.names.contains("shadowJar")) "shadowJar" else "jar"
+                from(project.tasks.named<Jar>(archiveTaskName).map { it.archiveFile.get().asFile })
             }
-            into(project.rootProject.layout.buildDirectory.file("../merged"))
+            into(project.layout.buildDirectory.dir("collected"))
 
             dependsOn("build")
         }
@@ -58,7 +60,7 @@ object StonecutterSetup {
         }
 
         stonecutter.apply {
-            val j21 = eval(stonecutter.minecraftVersion, ">=1.20.5")
+            val j21 = eval(project.minecraftVersion, ">=1.20.5")
 
             java.apply {
                 withSourcesJar()
@@ -70,7 +72,7 @@ object StonecutterSetup {
                 }
             }
 
-            kotlin.apply {
+            kotlin?.apply {
                 jvmToolchain(if (j21) 21 else 17)
 
                 compilerOptions {

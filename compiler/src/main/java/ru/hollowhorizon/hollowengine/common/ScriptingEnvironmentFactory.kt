@@ -25,10 +25,23 @@ class ScriptingEnvironmentInitializerImpl : ScriptingEnvironmentInitializer {
         scriptTypes: List<ScriptClassProvider>,
         mappings: Mappings
     ) {
-        System.setProperty("kotlin.java.stdlib.jar", classpath.first { it.name.startsWith("kotlin-stdlib-jdk8") }.absolutePath)
+        val kotlinStdlib = classpath.firstOrNull { it.name.startsWith("kotlin-stdlib-jdk8") }
+            ?: classpath.firstOrNull(::containsKotlinStdlib)
+        if (kotlinStdlib != null) {
+            System.setProperty("kotlin.java.stdlib.jar", kotlinStdlib.absolutePath)
+        }
         val environment = ScriptingEnvironmentImpl(javaHome, classpath, scriptTypes, mappings)
         logI("ScriptingEnvironment loaded successfully!")
         ScriptingEnvironment.INSTANCE = environment
+    }
+
+    private fun containsKotlinStdlib(file: File): Boolean {
+        if (!file.isFile || file.extension != "jar") return false
+        return runCatching {
+            java.util.jar.JarFile(file).use { jar ->
+                jar.getEntry("kotlin/jvm/internal/Intrinsics.class") != null
+            }
+        }.getOrDefault(false)
     }
 }
 

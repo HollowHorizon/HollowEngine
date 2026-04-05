@@ -26,6 +26,9 @@ plugins {
 }
 
 include("compiler")
+include("bootstrap")
+include("bridge")
+include("runtime")
 
 stonecutter {
 
@@ -41,6 +44,9 @@ stonecutter {
             .filter { !it.resolve(".build-ignore").exists() }
             .forEach { version(it.name) }
         branch("compiler")
+        branch("bootstrap")
+        branch("bridge")
+        branch("runtime")
     }
 }
 

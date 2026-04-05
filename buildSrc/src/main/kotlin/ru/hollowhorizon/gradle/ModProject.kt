@@ -11,6 +11,7 @@ class ModProject(
 
     val entryPoints: Map<String, List<String>>,
     val dependencies: Map<String, String>,
+    val mixinConfigs: List<String> = emptyList(),
 
     val username: String
 )

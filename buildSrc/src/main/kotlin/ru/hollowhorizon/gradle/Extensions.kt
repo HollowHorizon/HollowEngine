@@ -2,6 +2,7 @@ package ru.hollowhorizon.gradle
 
 import dev.kikugie.stonecutter.build.StonecutterBuildExtension
 import net.fabricmc.loom.api.LoomGradleExtensionAPI
+import org.gradle.api.Project
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
@@ -39,6 +40,9 @@ fun DependencyHandlerScope.modImplementation(dependency: String) =
     "modImplementation"(dependency)
 
 val SourceSetContainer.main get() = named<SourceSet>("main")
+
+val Project.minecraftVersion get() = name.substringBeforeLast('-')
+val Project.modPlatform get() = name.substringAfterLast('-')
 
 val StonecutterBuildExtension.modPlatform get() = current.project.substringAfterLast('-')
 val StonecutterBuildExtension.minecraftVersion get() = current.project.substringBeforeLast('-')

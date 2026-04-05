@@ -1,6 +1,5 @@
 package ru.hollowhorizon.gradle.fabric
 
-import dev.kikugie.stonecutter.build.StonecutterBuildExtension
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -8,7 +7,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToStream
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.register
 import ru.hollowhorizon.gradle.ModProject
 import ru.hollowhorizon.gradle.minecraftVersion
@@ -26,7 +24,7 @@ object FabricModGenerator {
         val outputDir = project.layout.buildDirectory.dir("generated/resources").get().asFile
         val outputFile = File(outputDir, "fabric.mod.json")
 
-        val minecraftVersion = (project.extensions["stonecutter"] as StonecutterBuildExtension).minecraftVersion
+        val minecraftVersion = project.minecraftVersion
 
         outputs.file(outputFile)
 
@@ -39,6 +37,7 @@ object FabricModGenerator {
                 authors = modProject.authors,
                 license = modProject.license,
                 entrypoints = modProject.entryPoints,
+                mixins = modProject.mixinConfigs.ifEmpty { listOf("${modProject.modId}.mixins.json") },
                 depends = modProject.dependencies + mapOf(
                     "fabricloader" to FabricSetup.fabricLoader(minecraftVersion).greaterEqual(),
                     "fabric-api" to FabricSetup.fabricApi(minecraftVersion).greaterEqual(),
@@ -71,7 +70,7 @@ data class FabricMod(
     val environment: String = "*",
     val entrypoints: Map<String, List<String>>,
     val accessWidener: String = "$modId.accesswidener",
-    val mixins: List<String> = listOf("$modId.mixins.json"),
+    val mixins: List<String>,
     val depends: Map<String, String>,
     val suggests: Map<String, String> = mapOf(),
 )

@@ -16,8 +16,8 @@ fun Project.setupEnviroment(
     val stonecutter = project.extensions["stonecutter"] as StonecutterBuildExtension
 
     container.apply {
-        val minecraftVersion = stonecutter.minecraftVersion
-        val modPlatform = stonecutter.modPlatform
+        val minecraftVersion = project.minecraftVersion
+        val modPlatform = project.modPlatform
 
         logger.warn("Loading environment for Minecraft $minecraftVersion on $modPlatform")
 
@@ -28,7 +28,7 @@ fun Project.setupEnviroment(
         isForgelike = modPlatform == "forge" || modPlatform == "neoforge"
 
         LoomSetup.setup(project, container, minecraftVersion, modPlatform)
-        StonecutterSetup.setup(this@setupEnviroment)
+        StonecutterSetup.setup(this@setupEnviroment, true)
         ResourcesSetup.setupResources(this@setupEnviroment, this, minecraftVersion, modPlatform)
         if(publications.isNotEmpty()) PublishingSetup.setupPublishing(this@setupEnviroment, this, minecraftVersion, modPlatform, *publications)
 

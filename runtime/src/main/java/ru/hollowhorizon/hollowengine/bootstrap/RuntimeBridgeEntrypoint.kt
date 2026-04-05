@@ -1,0 +1,840 @@
+package ru.hollowhorizon.hollowengine.bootstrap
+
+import com.mojang.datafixers.util.Either
+import com.mojang.blaze3d.audio.SoundBuffer
+import com.mojang.blaze3d.platform.Window
+import com.mojang.blaze3d.vertex.PoseStack
+import com.google.common.collect.ImmutableMap
+import de.fabmax.kool.input.KeyCode
+import de.fabmax.kool.input.KeyEvent
+import de.fabmax.kool.input.KeyboardInput
+import de.fabmax.kool.input.LocalKeyCode
+import de.fabmax.kool.input.PointerInput
+import de.fabmax.kool.input.UniversalKeyCode
+import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.Minecraft
+import net.minecraft.client.Camera
+import net.minecraft.client.gui.components.AbstractWidget
+import net.minecraft.client.gui.screens.inventory.InventoryScreen
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.model.SkullModelBase
+import net.minecraft.client.model.geom.EntityModelSet
+import net.minecraft.client.model.geom.ModelLayerLocation
+import net.minecraft.client.model.geom.builders.LayerDefinition
+import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.client.particle.ParticleEngine
+import net.minecraft.client.sounds.AudioStream
+import net.minecraft.client.sounds.LoopingAudioStream
+import net.minecraft.resources.FileToIdConverter
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
+import net.minecraft.core.NonNullList
+import net.minecraft.network.chat.Component
+import net.minecraft.resources.ResourceKey
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ServerLevel
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.server.packs.repository.RepositorySource
+import net.minecraft.server.packs.resources.ResourceProvider
+import net.minecraft.tags.TagLoader
+import net.minecraft.util.Unit
+import net.minecraft.world.InteractionHand
+import net.minecraft.world.damagesource.DamageSource
+import net.minecraft.world.entity.AgeableMob
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.animal.Animal
+import net.minecraft.world.entity.item.ItemEntity
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.BowItem
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.crafting.RecipeManager
+import net.minecraft.world.level.Level
+import net.minecraft.world.level.block.SkullBlock
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.storage.loot.LootDataId
+import net.minecraft.world.phys.BlockHitResult
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimeBridge
+import ru.hollowhorizon.hollowengine.ConsoleAppender
+import ru.hollowhorizon.hollowengine.api.HudHideable
+import ru.hollowhorizon.hollowengine.api.AutoScaled
+import ru.hollowhorizon.hollowengine.client.audio.streams.ExtendedSoundConverter
+import ru.hollowhorizon.hollowengine.client.audio.streams.Mp3StreamingAudioStream
+import ru.hollowhorizon.hollowengine.client.audio.streams.WavAudioStream
+import ru.hollowhorizon.hollowengine.client.utils.HollowCoreLoader
+import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
+import ru.hollowhorizon.hollowengine.common.events.EventBus
+import ru.hollowhorizon.hollowengine.common.events.blocks.BlockEvent
+import ru.hollowhorizon.hollowengine.common.events.brew.BrewPotionEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.AddEntityRendererLayers
+import ru.hollowhorizon.hollowengine.common.events.client.render.CreateEntitySkullModels
+import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
+import ru.hollowhorizon.hollowengine.common.events.client.render.RegisterEntityLayersDefinitions
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderPlayerEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
+import ru.hollowhorizon.hollowengine.common.events.client.render.SkyRenderEvent
+import ru.hollowhorizon.hollowengine.common.events.brew.BrewedPlayerPotionEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
+import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
+import ru.hollowhorizon.hollowengine.common.events.entity.LivingEntityDeathEvent
+import ru.hollowhorizon.hollowengine.common.events.entity.EntityEvent
+import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
+import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
+import ru.hollowhorizon.hollowengine.common.events.entity.ItemEntityEvent
+import ru.hollowhorizon.hollowengine.common.events.item.ArrowEvent
+import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterLootEvent
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterParticlesEvent
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePacksEvent
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterTagsEvent
+import ru.hollowhorizon.hollowengine.common.registry.ModDimensions
+import ru.hollowhorizon.hollowengine.common.events.client.ScreenEvent
+import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
+import ru.hollowhorizon.hollowengine.common.events.server.ServerEvent
+import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
+import ru.hollowhorizon.hollowengine.common.config.Config
+import ru.hollowhorizon.hollowengine.LOGGER
+import ru.hollowhorizon.hollowengine.client.gui.ImageTextButton
+import ru.hollowhorizon.hollowengine.client.gui.scripting.isAnyFocusNodeInput
+import ru.hollowhorizon.hollowengine.client.gui.scripting.isMouseOverDock
+import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
+import ru.hollowhorizon.hollowengine.client.kool.PointerInputSetup
+import ru.hollowhorizon.hollowengine.common.utils.isProduction
+import ru.hollowhorizon.hollowengine.common.utils.currentServer
+import ru.hollowhorizon.hollowengine.common.coroutines.RuntimeDispatcherState
+import ru.hollowhorizon.hollowengine.common.coroutines.ServerRuntimeState
+import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
+import ru.hollowhorizon.hollowengine.common.compat.util.recipeManagerProtected
+import ru.hollowhorizon.hollowengine.common.runtime.EmptyRuntimeAnnotationIndex
+import ru.hollowhorizon.hollowengine.common.runtime.RuntimeAnnotationEnvironment
+import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
+import ru.hollowhorizon.hollowengine.client.kool.KEY_CODE_MAP
+import ru.hollowhorizon.hollowengine.client.kool.KoolManager
+import ru.hollowhorizon.hollowengine.client.kool.KoolInputBridge
+import ru.hollowhorizon.hollowengine.client.kool.guiFramebuffer
+import ru.hollowhorizon.hollowengine.client.kool.onResize
+import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
+import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
+import ru.hollowhorizon.hollowengine.runtime.bootstrap.ClassGraphRuntimeAnnotationIndex
+import net.minecraft.Util
+import org.joml.Matrix4f
+import net.minecraft.client.player.AbstractClientPlayer
+import net.minecraft.client.renderer.GameRenderer
+import net.minecraft.client.renderer.LevelRenderer
+import net.minecraft.client.renderer.MultiBufferSource
+import net.minecraft.client.renderer.culling.Frustum
+import net.minecraft.client.renderer.entity.EntityRenderer
+import net.minecraft.client.renderer.entity.EntityRendererProvider
+import java.util.EnumSet
+import java.nio.file.Path
+import java.io.IOException
+import java.io.InputStream
+import java.nio.ByteBuffer
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
+
+class RuntimeBridgeEntrypoint : RuntimeBridge {
+    init {
+        if (RuntimeAnnotationEnvironment.annotationIndex === EmptyRuntimeAnnotationIndex) {
+            RuntimeAnnotationEnvironment.annotationIndex = ClassGraphRuntimeAnnotationIndex.create()
+        }
+    }
+
+    override fun shouldApplyMixin(targetClassName: String, mixinClassName: String): Boolean {
+        return if (mixinClassName.contains(".client.iris.")) {
+            isClassPresent("net.irisshaders.iris.Iris")
+        } else if (mixinClassName.endsWith(".client.LevelRendererStagesMixin")) {
+            !isClassPresent("net.minecraftforge.client.event.RenderLevelStageEvent")
+        } else {
+            true
+        }
+    }
+
+    override fun onPlayerInteractEntity(player: Player, hand: InteractionHand, target: Entity): Boolean {
+        val event = PlayerInteractEvent.EntityInteract(player, hand, target)
+        EventBus.post(event)
+        return event.isCanceled
+    }
+
+    override fun onPlayerDrop(stack: ItemStack, includeThrowerName: Boolean, dropped: ItemEntity?, player: Player): ItemEntity? {
+        if (dropped == null) return null
+
+        val event = ItemEntityEvent.Toss(dropped, player)
+        EventBus.post(event)
+        if (event.isCanceled) return null
+
+        if (!player.level().isClientSide) {
+            player.commandSenderWorld.addFreshEntity(event.entity)
+        }
+
+        return event.entity
+    }
+
+    override fun onBrewedPlayerPotion(player: Player, stack: ItemStack) {
+        EventBus.post(BrewedPlayerPotionEvent(player, stack))
+    }
+
+    override fun onBrewPotionPre(stacks: NonNullList<ItemStack>): Boolean {
+        val snapshot = NonNullList.withSize(stacks.size, ItemStack.EMPTY)
+        for (index in 0 until snapshot.size) snapshot[index] = stacks[index].copy()
+
+        val event = BrewPotionEvent.Pre(snapshot)
+        EventBus.post(event)
+        if (!event.isCanceled) return false
+
+        var changed = false
+        for (index in 0 until stacks.size) {
+            changed = changed or ItemStack.matches(snapshot[index], stacks[index])
+            stacks[index] = event.getItem(index)
+        }
+
+        if (changed) onBrewPotionPost(stacks)
+        return true
+    }
+
+    override fun onBrewPotionPost(stacks: NonNullList<ItemStack>) {
+        EventBus.post(BrewPotionEvent.Post(stacks))
+    }
+
+    override fun onAnimalBreed(self: Animal, mate: Animal, child: AgeableMob?): RuntimeBridge.BreedResult {
+        val event = ru.hollowhorizon.hollowengine.common.events.entity.BabySpawnEvent(self, mate, child)
+        EventBus.post(event)
+        return RuntimeBridge.BreedResult(event.child, event.isCanceled)
+    }
+
+    override fun onLivingEntityTick(entity: LivingEntity) {
+        EventBus.post(TickEvent.Entity(entity))
+    }
+
+    override fun onLivingEntityDeath(entity: LivingEntity, damageSource: DamageSource): Boolean {
+        val event = LivingEntityDeathEvent(entity, damageSource)
+        EventBus.post(event)
+        return event.isCanceled
+    }
+
+    override fun augmentPackRepositorySources(providers: Array<RepositorySource>): Array<RepositorySource> {
+        return (providers.asList() + RepositorySource { source -> EventBus.post(RegisterResourcePacksEvent(source)) }).toTypedArray()
+    }
+
+    override fun onPlayerRespawn(original: ServerPlayer, returnFromEnd: Boolean) {
+        EventBus.post(PlayerEvent.Respawn(original, returnFromEnd))
+    }
+
+    override fun onServerChat(player: ServerPlayer, content: Component): RuntimeBridge.ChatResult {
+        val event = ServerChatEvent(player, content)
+        EventBus.post(event)
+        return RuntimeBridge.ChatResult(event.message, event.isCanceled)
+    }
+
+    override fun onServerLevelSave(level: ServerLevel) {
+        EventBus.post(LevelEvent.Save(level))
+    }
+
+    override fun onServerLevelNeighborNotify(level: ServerLevel, pos: BlockPos, sides: MutableSet<Direction>): Boolean {
+        val event = BlockEvent.NeighborNotify(level.getBlockState(pos), pos, EnumSet.copyOf(sides))
+        EventBus.post(event)
+        return event.isCanceled
+    }
+
+    override fun onPlayerClone(self: ServerPlayer, oldPlayer: ServerPlayer, wasDeath: Boolean) {
+        EventBus.post(PlayerEvent.Clone(self, oldPlayer, wasDeath))
+    }
+
+    override fun onPlayerSleepInBed(player: ServerPlayer, bedPos: BlockPos): Either<Player.BedSleepingProblem, Unit>? {
+        val event = PlayerEvent.SleepInBed(player, null, bedPos)
+        EventBus.post(event)
+        return event.problem?.let(Either<Player.BedSleepingProblem, Unit>::left)
+    }
+
+    override fun onPlayerWakeup(player: ServerPlayer, wakeImmediately: Boolean, updateLevelForSleepingPlayers: Boolean) {
+        EventBus.post(PlayerEvent.Wakeup(player, wakeImmediately, updateLevelForSleepingPlayers))
+    }
+
+    override fun onPlayerUseItemOn(player: ServerPlayer, hand: InteractionHand, hitResult: BlockHitResult): Boolean {
+        val event = PlayerInteractEvent.BlockInteract(player, hand, hitResult)
+        EventBus.post(event)
+        return event.isCanceled
+    }
+
+    override fun onPlayerUseItem(player: ServerPlayer, hand: InteractionHand, stack: ItemStack): Boolean {
+        val event = PlayerInteractEvent.ItemInteract(player, hand, stack)
+        EventBus.post(event)
+        return event.isCanceled
+    }
+
+    override fun onBlockPlaced(player: Player, blockState: BlockState, pos: BlockPos): Boolean {
+        val event = BlockEvent.Placed(player, blockState, pos)
+        EventBus.post(event)
+        return event.isCanceled
+    }
+
+    override fun onArrowLoose(stack: ItemStack, level: Level, player: Player, charge: Int, hasAmmo: Boolean): Int {
+        val event = ArrowEvent.Loose(stack, level, player, charge, hasAmmo)
+        EventBus.post(event)
+        if (event.isCanceled) event.charge = -10
+        return BowItem.getPowerForTime(event.charge).let { _ -> event.charge }
+    }
+
+    override fun onArrowNock(stack: ItemStack, level: Level, player: Player, usedHand: InteractionHand): ItemStack? {
+        val hasAmmo = !player.getProjectile(stack).isEmpty
+        val event = ArrowEvent.Nock(stack, level, player, usedHand, hasAmmo)
+        EventBus.post(event)
+        return event.stack.takeIf { it != stack }
+    }
+
+    override fun onRegisterTags(registry: Any, value: Map<ResourceLocation, List<TagLoader.EntryWithSource>>) {
+        @Suppress("UNCHECKED_CAST")
+        EventBus.post(
+            RegisterTagsEvent(
+                registry as net.minecraft.core.Registry<*>,
+                value.mapValuesTo(LinkedHashMap()) { (_, entries) -> entries.toMutableList() },
+            )
+        )
+    }
+
+    override fun getStorageFolderOverride(dimensionKey: ResourceKey<Level>, levelFolder: Path): Path? {
+        return if (dimensionKey == ModDimensions.STORYTELLER_DIMENSION) {
+            DirectoryManager.HOLLOW_ENGINE.resolve("storyteller_dimension")
+        } else {
+            null
+        }
+    }
+
+    override fun onRegisterLoot(elements: Map<LootDataId<*>, Any>) {
+        @Suppress("UNCHECKED_CAST")
+        EventBus.post(RegisterLootEvent(elements as MutableMap<LootDataId<*>, *>))
+    }
+
+    override fun getSkySunSize(level: ClientLevel, originalSize: Float): Float {
+        val event = SkyRenderEvent.SunSize(level, originalSize)
+        EventBus.post(event)
+        return event.sunSize
+    }
+
+    override fun getSkyMoonSize(level: ClientLevel, originalSize: Float): Float {
+        val event = SkyRenderEvent.MoonSize(level, originalSize)
+        EventBus.post(event)
+        return event.moonSize
+    }
+
+    override fun shouldHideGui(currentScreen: Screen?): Boolean {
+        return currentScreen is HudHideable && currentScreen.canHideHud()
+    }
+
+    override fun onScreenOpen(screen: Screen): Screen {
+        val event = ScreenEvent.Open(screen)
+        EventBus.post(event)
+        return event.screen
+    }
+
+    override fun onScreenClose(screen: Screen) {
+        EventBus.post(ScreenEvent.Close(screen))
+    }
+
+    override fun onScreenRenderPre(screen: Screen, guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float): Boolean {
+        val event = ScreenEvent.Render.Pre(screen, guiGraphics, mouseX, mouseY, partialTick)
+        EventBus.post(event)
+        return event.isCanceled
+    }
+
+    override fun onScreenRenderPost(screen: Screen, guiGraphics: GuiGraphics, mouseX: Int, mouseY: Int, partialTick: Float) {
+        EventBus.post(ScreenEvent.Render.Post(screen, guiGraphics, mouseX, mouseY, partialTick))
+    }
+
+    override fun onRegisterParticles(particleEngine: ParticleEngine) {
+        EventBus.post(RegisterParticlesEvent(particleEngine))
+    }
+
+    override fun onClientUseItemOn(player: Player, hand: InteractionHand, hitResult: BlockHitResult): Boolean {
+        val event = PlayerInteractEvent.BlockInteract(player, hand, hitResult)
+        EventBus.post(event)
+        return event.isCanceled
+    }
+
+    override fun onClientInteractEntity(player: Player, hand: InteractionHand, target: Entity): Boolean {
+        val event = PlayerInteractEvent.EntityInteract(player, hand, target)
+        EventBus.post(event)
+        return event.isCanceled
+    }
+
+    override fun onClientUseItem(player: Player, hand: InteractionHand, stack: ItemStack): Boolean {
+        val event = PlayerInteractEvent.ItemInteract(player, hand, stack)
+        EventBus.post(event)
+        return event.isCanceled
+    }
+
+    override fun onDebugClientMain() {
+        ConsoleAppender.attach()
+        HollowCoreLoader.initialize()
+        Config.startObserver()
+
+        LOGGER.info(
+            "Production: {}, Can attach renderdoc: {}, Platform: {}",
+            isProduction,
+            HollowCoreLoader.canAttachRenderdoc(),
+            Util.getPlatform().name
+        )
+        if (!HollowCoreLoader.canAttachRenderdoc() || Util.getPlatform() != Util.OS.WINDOWS) {
+            return
+        }
+
+        val path = System.getProperty("java.library.path")
+        val name = System.mapLibraryName("renderdoc")
+        var detected = false
+        for (folder in path.split(";")) {
+            if (java.nio.file.Files.exists(java.nio.file.Path.of("$folder/$name"))) {
+                detected = true
+                break
+            }
+        }
+
+        LOGGER.info("Is detected renderdoc: {}", detected)
+
+        if (!detected) {
+            val renderDoc = java.nio.file.Path.of("C:/Program Files/RenderDoc/renderdoc.dll")
+            if (java.nio.file.Files.exists(renderDoc)) {
+                try {
+                    LOGGER.info("Trying load system renderdoc")
+                    System.load("C:/Program Files/RenderDoc/renderdoc.dll")
+                    LOGGER.info("Renderdoc Loaded")
+                } catch (e: Throwable) {
+                    LOGGER.info("Failed to load Renderdoc", e)
+                }
+            }
+            return
+        }
+
+        try {
+            System.loadLibrary("renderdoc")
+            LOGGER.info("Renderdoc Loaded")
+        } catch (e: Throwable) {
+            LOGGER.info("Failed to load Renderdoc", e)
+        }
+    }
+
+    override fun onLoadCompleteSound(
+        soundId: ResourceLocation,
+        resourceManager: ResourceProvider,
+        cache: Map<ResourceLocation, CompletableFuture<SoundBuffer>>,
+    ): CompletableFuture<SoundBuffer>? {
+        val path = soundId.path
+        if (!path.endsWith(".mp3") && !path.endsWith(".wav")) return null
+
+        @Suppress("UNCHECKED_CAST")
+        val mutableCache = cache as MutableMap<ResourceLocation, CompletableFuture<SoundBuffer>>
+        return mutableCache.computeIfAbsent(soundId) { resourceLocation ->
+            CompletableFuture.supplyAsync({
+                try {
+                    resourceManager.open(resourceLocation).use { inputStream ->
+                        loadSoundBuffer(path, inputStream)
+                    }
+                } catch (ioException: IOException) {
+                    throw CompletionException(ioException)
+                }
+            }, Util.backgroundExecutor())
+        }
+    }
+
+    override fun onLoadStreamSound(
+        soundId: ResourceLocation,
+        resourceManager: ResourceProvider,
+        isWrapper: Boolean,
+    ): CompletableFuture<AudioStream>? {
+        val path = soundId.path
+        if (!path.endsWith(".mp3") && !path.endsWith(".wav")) return null
+
+        return CompletableFuture.supplyAsync({
+            try {
+                val inputStream = resourceManager.open(soundId)
+                if (path.endsWith(".wav")) {
+                    if (isWrapper) LoopingAudioStream(::WavAudioStream, inputStream) else WavAudioStream(inputStream)
+                } else {
+                    if (isWrapper) LoopingAudioStream(::Mp3StreamingAudioStream, inputStream) else Mp3StreamingAudioStream(inputStream)
+                }
+            } catch (ioException: IOException) {
+                throw CompletionException(ioException)
+            }
+        }, Util.backgroundExecutor())
+    }
+
+    override fun createSoundConverter(): FileToIdConverter = ExtendedSoundConverter
+
+    override fun getOpenGlVersionOverride(): String = HollowCoreLoader.openGlVersion
+
+    override fun shouldForceAutoGuiScale(screen: Screen?): Boolean = screen is AutoScaled
+
+    override fun onServerCreated(server: MinecraftServer, serverThread: Thread, levelRoot: Path) {
+        currentServer = server
+        RuntimeDispatcherState.createServer(server, serverThread)
+        ServerRuntimeState.create(server, levelRoot)
+    }
+
+    override fun onServerStarting(server: MinecraftServer) {
+        currentServer = server
+        EventBus.post(ServerEvent.Starting(server))
+    }
+
+    override fun onServerLevelsCreated(server: MinecraftServer) {
+        ServerRuntimeState.load(server)
+        server.allLevels.forEach { level -> EventBus.post(LevelEvent.Load(level)) }
+    }
+
+    override fun onServerTick(server: MinecraftServer) {
+        RuntimeDispatcherState.runServerTasks(server)
+        ServerRuntimeState.autosave(server)
+    }
+
+    override fun onServerStopping(server: MinecraftServer) {
+        ServerRuntimeState.save(server)
+        EventBus.post(ServerEvent.Stoping(server))
+    }
+
+    override fun onServerStopped(server: MinecraftServer) {
+        RuntimeDispatcherState.stopServer(server)
+        ServerRuntimeState.remove(server)
+    }
+
+    override fun onClientCreated(client: Minecraft) {
+        RuntimeDispatcherState.createClient(client)
+    }
+
+    override fun onClientTick(client: Minecraft) {
+        RuntimeDispatcherState.runClientTasks(client)
+    }
+
+    override fun onClientRenderTickPre(client: Minecraft) {
+        EventBus.post(RenderTickEvent.Pre(client))
+    }
+
+    override fun onClientRenderTickPost(client: Minecraft) {
+        EventBus.post(RenderTickEvent.Post(client))
+    }
+
+    override fun onClientResized(client: Minecraft) {
+        val init = KoolManager
+        val window = client.window
+        guiFramebuffer.resize(window.width, window.height, Minecraft.ON_OSX)
+        onResize(window.width, window.height)
+    }
+
+    override fun onClientStopping(client: Minecraft) {
+        RuntimeDispatcherState.stopClient(client)
+    }
+
+    override fun onLevelCreated(level: Level) {
+        GearyRuntimeState.initLevel(level)
+    }
+
+    override fun onLevelUpdateNeighbors(level: Level, pos: BlockPos) {
+        EventBus.post(BlockEvent.NeighborNotify(level.getBlockState(pos), pos, EnumSet.allOf(Direction::class.java)))
+    }
+
+    override fun onLevelTickBlockEntities(level: Level) {
+        val profiler = level.profiler
+        profiler.push("HollowEngine ECS")
+        GearyRuntimeState.tick(level)
+        profiler.pop()
+    }
+
+    override fun onLevelClosed(level: Level) {
+        GearyRuntimeState.close(level)
+    }
+
+    override fun onEntityCreated(entity: Entity) {
+        GearyRuntimeState.initEntity(entity)
+    }
+
+    override fun onEntitySaved(entity: Entity, tag: net.minecraft.nbt.CompoundTag) {
+        GearyRuntimeState.saveEntity(entity, tag)
+    }
+
+    override fun onEntityLoaded(entity: Entity, tag: net.minecraft.nbt.CompoundTag) {
+        GearyRuntimeState.loadEntity(entity, tag)
+    }
+
+    override fun onEntityHurt(entity: Entity, damageSource: DamageSource, amount: Float): Boolean {
+        val event = EntityEvent.Hurt(entity, damageSource, amount)
+        EventBus.post(event)
+        return event.isCanceled
+    }
+
+    override fun onEntityChangedDimension(entity: Entity, resultEntity: Entity?, fromLevel: Level, toLevel: Level) {
+        if (resultEntity != null) {
+            EventBus.post(EntityEvent.ChangeDimension(entity, resultEntity, fromLevel, toLevel))
+        }
+    }
+
+    override fun onEntitySetLevel(entity: Entity, level: Level) {
+        GearyRuntimeState.onSetLevel(entity, level)
+    }
+
+    override fun onEntityTeleported(entity: Entity, newEntity: Entity, fromLevel: Level, toLevel: ServerLevel) {
+        EventBus.post(EntityEvent.ChangeDimension(entity, newEntity, fromLevel, toLevel))
+    }
+
+    override fun onEntityRemoved(entity: Entity) {
+        GearyRuntimeState.onRemove(entity)
+    }
+
+    override fun onEntitySetId(entity: Entity, newId: Int, previousId: Int) {
+        GearyRuntimeState.onSetId(entity, newId, previousId)
+    }
+
+    override fun onRecipeManagerCreated(recipeManager: RecipeManager) {
+        recipeManagerProtected = recipeManager
+    }
+
+    override fun onAddEntityRendererLayers(
+        renderers: MutableMap<EntityType<*>, EntityRenderer<*>>,
+        playerRenderers: MutableMap<String, EntityRenderer<out Player>>,
+        context: EntityRendererProvider.Context
+    ) {
+        EventBus.post(AddEntityRendererLayers(renderers, playerRenderers, context))
+    }
+
+    override fun onRenderEntityPre(
+        entity: Entity,
+        entityYaw: Float,
+        partialTick: Float,
+        poseStack: PoseStack,
+        buffer: MultiBufferSource,
+        packedLight: Int
+    ): Boolean {
+        val event = RenderEntityEvent.Pre(entity, entityYaw, partialTick, poseStack, buffer, packedLight)
+        EventBus.post(event)
+        return event.isCanceled
+    }
+
+    override fun onRenderEntityPost(
+        entity: Entity,
+        entityYaw: Float,
+        partialTick: Float,
+        poseStack: PoseStack,
+        buffer: MultiBufferSource,
+        packedLight: Int
+    ) {
+        EventBus.post(RenderEntityEvent.Post(entity, entityYaw, partialTick, poseStack, buffer, packedLight))
+    }
+
+    override fun onCameraSetup(gameRenderer: GameRenderer, camera: Camera, partialTick: Float): RuntimeBridge.CameraSetup {
+        val event = CameraSetupEvent(gameRenderer, camera, partialTick, camera.yRot, camera.xRot, 0f)
+        EventBus.post(event)
+        return RuntimeBridge.CameraSetup(event.yaw, event.pitch, event.roll)
+    }
+
+    override fun onRegisterLayerDefinitions(definitions: MutableMap<ModelLayerLocation, java.util.function.Supplier<LayerDefinition>>) {
+        val eventDefinitions = HashMap<ModelLayerLocation, () -> LayerDefinition>()
+        val event = RegisterEntityLayersDefinitions(eventDefinitions)
+        EventBus.post(event)
+        eventDefinitions.forEach { (location, definition) -> definitions[location] = java.util.function.Supplier { definition() } }
+    }
+
+    override fun onCreateSkullModels(builder: ImmutableMap.Builder<SkullBlock.Type, SkullModelBase>, entityModelSet: EntityModelSet) {
+        EventBus.post(CreateEntitySkullModels(builder, entityModelSet))
+    }
+
+    override fun onRenderPlayer(
+        player: AbstractClientPlayer,
+        entityYaw: Float,
+        partialTicks: Float,
+        poseStack: PoseStack,
+        buffer: MultiBufferSource,
+        packedLight: Int
+    ): Boolean {
+        val event = RenderPlayerEvent(player, entityYaw, partialTicks, poseStack, buffer, packedLight)
+        EventBus.post(event)
+        return event.isCanceled
+    }
+
+    override fun onIrisPipelineDestroyed() {
+        IrisHelper.invalidateInstancingPrograms()
+    }
+
+    override fun onIrisShadowRenderStart() {
+        InstanceBatchManager.clear()
+    }
+
+    override fun onIrisShadowRenderBeforeEndBatch() {
+        InstanceBatchManager.flush()
+    }
+
+    override fun onIrisShadowRenderEnd() {
+        InstanceBatchManager.clear()
+    }
+
+    override fun onRenderOverlayPre(window: Window, guiGraphics: GuiGraphics, partialTick: Float, overlayKind: RuntimeBridge.OverlayKind): Boolean {
+        val event = RenderOverlayEvent.Pre(window, guiGraphics, partialTick, overlayKind.toOverlay())
+        EventBus.post(event)
+        return event.isCanceled
+    }
+
+    override fun onRenderOverlayPost(window: Window, guiGraphics: GuiGraphics, partialTick: Float, overlayKind: RuntimeBridge.OverlayKind) {
+        EventBus.post(RenderOverlayEvent.Post(window, guiGraphics, partialTick, overlayKind.toOverlay()))
+    }
+
+    override fun createInventoryButton(screen: InventoryScreen, x: Int, y: Int): AbstractWidget {
+        return ImageTextButton(
+            x,
+            y,
+            22,
+            24,
+            "hollowengine:textures/gui/quests/inventory_button.png",
+            "hollowengine:textures/gui/quests/inventory_button_hovered.png",
+        ) { }
+    }
+
+    override fun updateInventoryButton(widget: AbstractWidget?, x: Int, y: Int) {
+        widget?.setPosition(x, y)
+    }
+
+    override fun onKeyboardKey(windowPointer: Long, key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
+        val event = when (action) {
+            org.lwjgl.glfw.GLFW.GLFW_PRESS -> KeyboardInput.KEY_EV_DOWN
+            org.lwjgl.glfw.GLFW.GLFW_REPEAT -> KeyboardInput.KEY_EV_DOWN or KeyboardInput.KEY_EV_REPEATED
+            org.lwjgl.glfw.GLFW.GLFW_RELEASE -> KeyboardInput.KEY_EV_UP
+            else -> -1
+        }
+
+        if (event != -1) {
+            val keyCode: KeyCode = KEY_CODE_MAP.getOrDefault(key, UniversalKeyCode(key, null))
+            val localKeyCode = LocalKeyCode(PointerInputSetup.localCharKeyCodes.getOrDefault(keyCode.code, keyCode.code), null)
+            val keyMod = PointerInputSetup.getKeyMod(key, modifiers, event)
+            KeyboardInput.handleKeyEvent(KeyEvent(keyCode, localKeyCode, event, keyMod, Character.MIN_VALUE))
+        }
+
+        return isAnyFocusNodeInput()
+    }
+
+    override fun onKeyboardChar(windowPointer: Long, codePoint: Int, modifiers: Int): Boolean {
+        KeyboardInput.handleCharTyped(codePoint.toChar())
+        return isAnyFocusNodeInput()
+    }
+
+    override fun onMouseMove(minecraft: Minecraft, windowPointer: Long, xPos: Double, yPos: Double): RuntimeBridge.MouseMoveResult {
+        val window = minecraft.window
+        val scaleFactor = minecraft.mainRenderTarget.width.toDouble() / window.screenWidth
+        val convertedX = (xPos * scaleFactor).toFloat()
+        val convertedY = (yPos * scaleFactor).toFloat()
+
+        KoolInputBridge.handleMouseMove(convertedX, convertedY)
+        val shouldCancel = isMouseOverDock(convertedX, convertedY) && minecraft.screen != null
+        return RuntimeBridge.MouseMoveResult(convertedX, convertedY, shouldCancel, shouldCancel)
+    }
+
+    override fun onMousePress(minecraft: Minecraft, x: Float, y: Float, windowPointer: Long, button: Int, action: Int, modifiers: Int): Boolean {
+        KoolInputBridge.handleMouseButtonEvent(button, action == org.lwjgl.glfw.GLFW.GLFW_PRESS)
+        return isMouseOverDock(x, y) && minecraft.screen != null
+    }
+
+    override fun onMouseScroll(minecraft: Minecraft, x: Float, y: Float, windowPointer: Long, xOffset: Double, yOffset: Double): Boolean {
+        KoolInputBridge.handleMouseScroll(xOffset.toFloat(), yOffset.toFloat())
+        return isMouseOverDock(x, y) && minecraft.screen != null
+    }
+
+    override fun onRenderLevelStage(
+        renderer: LevelRenderer,
+        poseStack: PoseStack,
+        projectionMatrix: Matrix4f,
+        ticks: Int,
+        partialTick: Float,
+        camera: Camera,
+        frustum: Frustum?,
+        stage: RuntimeBridge.RenderLevelStage
+    ) {
+        EventBus.post(RenderLevelStageEvent(renderer, poseStack, projectionMatrix, ticks, partialTick, camera, frustum, stage.toRenderStage()))
+    }
+
+    override fun onCommonInitialize() {
+        //? if fabric {
+        ru.hollowhorizon.hollowengine.fabric.HCFabric.onCommonInitialize()
+        //?}
+    }
+
+    override fun onClientInitialize() {
+        //? if fabric {
+        ru.hollowhorizon.hollowengine.fabric.HCFabric.onClientInitialize()
+        //?}
+    }
+
+    override fun onForgeInitialize() {
+        //? if forge {
+        /*ru.hollowhorizon.hollowengine.forge.HollowRuntimeForgeEntrypoints.initialize()
+        *///?}
+    }
+
+    override fun onNeoForgeInitialize(modBus: Any?) {
+        //? if neoforge {
+        /*ru.hollowhorizon.hollowengine.neoforge.HollowRuntimeNeoForgeEntrypoints.initialize(modBus as net.neoforged.bus.api.IEventBus)
+        *///?}
+    }
+
+    override fun close() {
+        val index = RuntimeAnnotationEnvironment.annotationIndex
+        RuntimeAnnotationEnvironment.annotationIndex = EmptyRuntimeAnnotationIndex
+        if (index is AutoCloseable) {
+            index.close()
+        }
+    }
+
+    private fun isClassPresent(name: String): Boolean {
+        return try {
+            Class.forName(name, false, javaClass.classLoader)
+            true
+        } catch (_: ClassNotFoundException) {
+            false
+        }
+    }
+
+    private fun loadSoundBuffer(path: String, inputStream: InputStream): SoundBuffer {
+        return if (path.endsWith(".wav")) {
+            WavAudioStream(inputStream).use { stream ->
+                val byteBuffer: ByteBuffer = stream.readAll()
+                SoundBuffer(byteBuffer, stream.format)
+            }
+        } else {
+            Mp3StreamingAudioStream(inputStream).use { stream ->
+                val byteBuffer: ByteBuffer = stream.readAll()
+                SoundBuffer(byteBuffer, stream.format)
+            }
+        }
+    }
+
+    private fun RuntimeBridge.OverlayKind.toOverlay(): GuiOverlay =
+        when (this) {
+            RuntimeBridge.OverlayKind.VIGNETTE -> GuiOverlay.VIGNETTE
+            RuntimeBridge.OverlayKind.SPYGLASS -> GuiOverlay.SPYGLASS
+            RuntimeBridge.OverlayKind.HELMET -> GuiOverlay.HELMET
+            RuntimeBridge.OverlayKind.PORTAL -> GuiOverlay.PORTAL
+            RuntimeBridge.OverlayKind.HOTBAR -> GuiOverlay.HOTBAR
+            RuntimeBridge.OverlayKind.CROSSHAIR -> GuiOverlay.CROSSHAIR
+            RuntimeBridge.OverlayKind.PLAYER_HEALTH -> GuiOverlay.PLAYER_HEALTH
+            RuntimeBridge.OverlayKind.MOUNT_HEALTH -> GuiOverlay.MOUNT_HEALTH
+            RuntimeBridge.OverlayKind.JUMP_BAR -> GuiOverlay.JUMP_BAR
+            RuntimeBridge.OverlayKind.EXPERIENCE_BAR -> GuiOverlay.EXPERIENCE_BAR
+            RuntimeBridge.OverlayKind.ITEM_NAME -> GuiOverlay.ITEM_NAME
+            RuntimeBridge.OverlayKind.POTION_ICONS -> GuiOverlay.POTION_ICONS
+            RuntimeBridge.OverlayKind.BOSS_EVENT_PROGRESS -> GuiOverlay.BOSS_EVENT_PROGRESS
+            RuntimeBridge.OverlayKind.CHAT_PANEL -> GuiOverlay.CHAT_PANEL
+            RuntimeBridge.OverlayKind.DEBUG_TEXT -> GuiOverlay.DEBUG_TEXT
+        }
+
+    private fun RuntimeBridge.RenderLevelStage.toRenderStage(): RenderStage =
+        when (this) {
+            RuntimeBridge.RenderLevelStage.AFTER_LEVEL -> RenderStage.AFTER_LEVEL
+            RuntimeBridge.RenderLevelStage.AFTER_SKY -> RenderStage.AFTER_SKY
+            RuntimeBridge.RenderLevelStage.AFTER_ENTITIES -> RenderStage.AFTER_ENTITIES
+            RuntimeBridge.RenderLevelStage.AFTER_BLOCK_ENTITIES -> RenderStage.AFTER_BLOCK_ENTITIES
+            RuntimeBridge.RenderLevelStage.AFTER_PARTICLES -> RenderStage.AFTER_PARTICLES
+            RuntimeBridge.RenderLevelStage.AFTER_WEATHER -> RenderStage.AFTER_WEATHER
+            RuntimeBridge.RenderLevelStage.AFTER_SOLID_BLOCKS -> RenderStage.AFTER_SOLID_BLOCKS
+            RuntimeBridge.RenderLevelStage.AFTER_CUTOUT_MIPPED_BLOCKS -> RenderStage.AFTER_CUTOUT_MIPPED_BLOCKS
+            RuntimeBridge.RenderLevelStage.AFTER_CUTOUT_BLOCKS -> RenderStage.AFTER_CUTOUT_BLOCKS
+            RuntimeBridge.RenderLevelStage.AFTER_TRANSLUCENT_BLOCKS -> RenderStage.AFTER_TRANSLUCENT_BLOCKS
+            RuntimeBridge.RenderLevelStage.AFTER_TRIPWIRE_BLOCKS -> RenderStage.AFTER_TRIPWIRE_BLOCKS
+        }
+}

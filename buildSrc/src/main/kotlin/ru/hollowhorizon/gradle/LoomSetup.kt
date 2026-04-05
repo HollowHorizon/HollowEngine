@@ -22,12 +22,16 @@ object LoomSetup {
         val sourceSets = project.extensions["sourceSets"] as SourceSetContainer
         val loom = project.extensions["loom"] as LoomGradleExtensionImpl
         val architectury = project.extensions["architectury"] as ArchitectPluginExtension
+        val generateIdeRuns = (project.findProperty("hollow.generateIdeRuns") as? String)?.toBooleanStrictOrNull()
+            ?: ((project.extensions.extraProperties.properties["hollow.generateIdeRuns"] as? Boolean) ?: project == project.rootProject)
 
         loom.apply {
             silentMojangMappingsLicense()
             if (modPlatform == "neoforge") generateSrgTiny = false
-            val awFile = project.rootProject.file("src/main/resources/${modProject.modId}.accesswidener")
-            if (awFile.exists()) accessWidenerPath.set(awFile)
+            sourceSets.main.get().resources.srcDirs
+                .map { it.resolve("${modProject.modId}.accesswidener") }
+                .firstOrNull { it.exists() }
+                ?.let(accessWidenerPath::set)
 
             mixin.useLegacyMixinAp.set(true)
             mixin.add(sourceSets.main.get(), "${modProject.modId}.refmap.json")
@@ -43,6 +47,19 @@ object LoomSetup {
             }
 
             runConfigs.all {
+                ideConfigGenerated(generateIdeRuns)
+                appendProjectPathToConfigName.set(false)
+                if (configName == null) {
+                    val suffix = when (environment) {
+                        "client" -> "Client"
+                        "server" -> "Server"
+                        "data" -> "Data"
+                        "dataClient" -> "Client Data"
+                        "dataServer" -> "Server Data"
+                        else -> environment?.replaceFirstChar { it.titlecase() } ?: name.replaceFirstChar { it.titlecase() }
+                    }
+                    name("${modProject.modName} $suffix")
+                }
                 if (environment == "client") programArgs("--username=${modProject.username}")
                 val javaVendor = System.getProperty("java.vendor")
                 project.logger.info("Java vendor: $javaVendor")

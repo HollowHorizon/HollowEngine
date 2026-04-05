@@ -1,9 +1,7 @@
 package ru.hollowhorizon.gradle.forge
 
-import dev.kikugie.stonecutter.build.StonecutterBuildExtension
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.register
 import ru.hollowhorizon.gradle.ModProject
 import ru.hollowhorizon.gradle.minecraftVersion
@@ -14,7 +12,7 @@ object ForgeModGenerator {
         val outputDir = project.layout.buildDirectory.dir("generated/resources/META-INF").get().asFile
         val outputFile = File(outputDir, "mods.toml")
 
-        val minecraftVersion = (project.extensions["stonecutter"] as StonecutterBuildExtension).minecraftVersion
+        val minecraftVersion = project.minecraftVersion
 
         outputs.file(outputFile)
 
@@ -40,7 +38,7 @@ object ForgeModGenerator {
                 [[dependencies.${modProject.modId}]]
                 modId = "minecraft"
                 mandatory = true
-                versionRange = "[${(project.extensions["stonecutter"] as StonecutterBuildExtension).minecraftVersion},)"
+                versionRange = "[$minecraftVersion,)"
                 ordering = "NONE"
                 side = "BOTH"
                 

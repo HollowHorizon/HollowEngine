@@ -1,0 +1,42 @@
+package ru.hollowhorizon.hollowengine.bootstrap.mixins.client;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.main.GameConfig;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.BootstrapRuntimeManager;
+
+@Mixin(Minecraft.class)
+public class MinecraftMixin {
+    @Inject(method = "<init>", at = @At("TAIL"))
+    private void onInit(GameConfig gameConfig, CallbackInfo ci) {
+        BootstrapRuntimeManager.bridge().onClientCreated((Minecraft) (Object) this);
+    }
+
+    @Inject(method = "runTick", at = @At("HEAD"))
+    private void onRunTickHead(CallbackInfo ci) {
+        BootstrapRuntimeManager.bridge().onClientTick((Minecraft) (Object) this);
+    }
+
+    @Inject(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;render(FJZ)V"))
+    private void onRenderPre(CallbackInfo ci) {
+        BootstrapRuntimeManager.bridge().onClientRenderTickPre((Minecraft) (Object) this);
+    }
+
+    @Inject(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;render(FJZ)V", shift = At.Shift.AFTER))
+    private void onRenderPost(CallbackInfo ci) {
+        BootstrapRuntimeManager.bridge().onClientRenderTickPost((Minecraft) (Object) this);
+    }
+
+    @Inject(method = "stop", at = @At("HEAD"))
+    private void onStopHead(CallbackInfo ci) {
+        BootstrapRuntimeManager.bridge().onClientStopping((Minecraft) (Object) this);
+    }
+
+    @Inject(method = "resizeDisplay", at = @At("RETURN"))
+    private void onResizeDisplay(CallbackInfo ci) {
+        BootstrapRuntimeManager.bridge().onClientResized((Minecraft) (Object) this);
+    }
+}

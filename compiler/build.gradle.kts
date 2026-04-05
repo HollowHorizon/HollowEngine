@@ -15,7 +15,8 @@ repositories {
 
 val kotlinVersion: String by rootProject.properties
 val intellijVersion = "241.19416.19"
-val common = checkNotNull(stonecutter.node.sibling(""))
+val runtime = checkNotNull(stonecutter.node.sibling("runtime"))
+val runtimeProjectPath = if (name.contains('-')) ":runtime:$name" else runtime.hierarchy.toString()
 
 repositories {
     mavenCentral()
@@ -26,11 +27,9 @@ repositories {
 }
 
 dependencies {
-    val commonProjectPath = common.hierarchy.toString()
-
     compileOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 
-    api(project(path = commonProjectPath, configuration = "namedElements"))
+    api(project(path = runtimeProjectPath, configuration = "namedElements"))
 
     implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm:0.3.4") { isTransitive = false }
 
@@ -116,7 +115,7 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     dependencies {
         exclude(dependency("org.jetbrains.kotlinx:kotlinx-coroutines-core:.*"))
         exclude(dependency("org.ow2.asm:.*"))
-        exclude(project(common.hierarchy.toString()))
+        exclude(project(runtimeProjectPath))
     }
 
     // 1. FastUtil (Критично! Версия JetBrains несовместима с ванильной)

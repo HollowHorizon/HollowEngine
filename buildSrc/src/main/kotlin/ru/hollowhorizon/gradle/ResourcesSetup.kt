@@ -53,7 +53,8 @@ object ResourcesSetup {
                     "META-INF/mods.toml",
                     "fabric.mod.json",
                     "META-INF/neoforge.mods.toml",
-                    "${modProject.modId}.mixins.json"
+                    "${modProject.modId}.mixins.json",
+                    "${modProject.modId}.bridge.mixins.json"
                 )
             ) {
                 expand(
