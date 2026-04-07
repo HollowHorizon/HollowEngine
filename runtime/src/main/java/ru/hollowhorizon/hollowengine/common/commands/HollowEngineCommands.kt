@@ -39,9 +39,24 @@ import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEven
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
+import ru.hollowhorizon.hollowengine.common.geary.anchor.DormantRecord
+import ru.hollowhorizon.hollowengine.common.geary.anchor.EntityAnchor
+import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
+import ru.hollowhorizon.hollowengine.common.geary.anchor.StableKeyComponent
+import ru.hollowhorizon.hollowengine.common.geary.anchor.WorldAnchor
+import ru.hollowhorizon.hollowengine.common.geary.anchor.WorldAnchorSavedData
+import ru.hollowhorizon.hollowengine.common.geary.anchor.anchorOrNull
+import ru.hollowhorizon.hollowengine.common.geary.anchor.transformOrNull
+import ru.hollowhorizon.hollowengine.common.geary.anchor.withIdentity
+import ru.hollowhorizon.hollowengine.common.geary.anchor.withOrReplace
+import ru.hollowhorizon.hollowengine.common.geary.anchor.withWorldPosition
+import ru.hollowhorizon.hollowengine.common.geary.anchor.worldAnchorFor
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
+import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSyncPolicy
+import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.geary.sync.setSyncing
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
@@ -50,6 +65,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.compiling.start
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
 import java.io.File
+import java.util.UUID
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -111,6 +127,58 @@ private fun CommandExtension.registerModelCommands() {
             val modelName = StringArgumentType.getString(this, "model")
             ShowModelInfoPacket(modelName).send(source.playerOrException)
             SUCCESS
+        }
+    }
+
+    "model" {
+        "info"(arg("model", StringArgumentType.string()) { getAvailableModels() }) {
+            executes {
+                val modelName = StringArgumentType.getString(this, "model")
+                ShowModelInfoPacket(modelName).send(source.playerOrException)
+                SUCCESS
+            }
+        }
+
+        "attach"(
+            arg("entity", EntityArgument.entity()),
+            arg("model", StringArgumentType.string()) { getAvailableModels() }
+        ) {
+            executes {
+                val host = EntityArgument.getEntity(this, "entity")
+                val modelName = StringArgumentType.getString(this, "model")
+                val stableKey = attachAnchoredModel(host, modelName)
+                sendSuccess { "Attached anchored model with StableKey $stableKey".literal }
+            }
+        }
+
+        "spawn"(
+            arg("pos", Vec3Argument.vec3()),
+            arg("model", StringArgumentType.string()) { getAvailableModels() }
+        ) {
+            executes {
+                val position = Vec3Argument.getVec3(this, "pos")
+                val modelName = StringArgumentType.getString(this, "model")
+                val stableKey = spawnAnchoredModel(source, position, modelName)
+                sendSuccess { "Spawned anchored model with StableKey $stableKey".literal }
+            }
+        }
+
+        "move"(
+            arg("stableKey", StringArgumentType.string()),
+            arg("pos", Vec3Argument.vec3())
+        ) {
+            executes {
+                val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+                val position = Vec3Argument.getVec3(this, "pos")
+                moveAnchoredModel(source, stableKey, position)
+            }
+        }
+
+        "remove"(arg("stableKey", StringArgumentType.string())) {
+            executes {
+                val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+                removeAnchoredModel(source, stableKey)
+            }
         }
     }
 }
@@ -452,6 +520,114 @@ private fun getAvailableModels(): Collection<String> {
         .toList()
 
     return defaultModels + customModels
+}
+
+private fun attachAnchoredModel(host: net.minecraft.world.entity.Entity, modelName: String): UUID {
+    host.entity
+    val stableKey = UUID.randomUUID()
+    val service = MaterializationRuntimeState.service(host.level())
+    val snapshot = EntitySnapshot(
+        components = listOf(
+            StableKeyComponent(stableKey),
+            EntityAnchor(host.uuid),
+            Model(modelName),
+            TransformComponent(),
+        )
+    )
+    service.materialize(snapshot)
+    service.snapshot(stableKey)?.let(service::syncSnapshot)
+    return stableKey
+}
+
+private fun spawnAnchoredModel(source: CommandSourceStack, position: Vec3, modelName: String): UUID {
+    val stableKey = UUID.randomUUID()
+    val service = MaterializationRuntimeState.service(source.level)
+    val anchor = worldAnchorFor(position)
+    val snapshot = EntitySnapshot(
+        components = listOf(
+            StableKeyComponent(stableKey),
+            anchor,
+            Model(modelName),
+            TransformComponent().withWorldPosition(position),
+        )
+    )
+    service.materialize(snapshot)
+    service.snapshot(stableKey)?.let(service::syncSnapshot)
+    return stableKey
+}
+
+private fun moveAnchoredModel(source: CommandSourceStack, stableKey: UUID, position: Vec3): Int {
+    val resolved = findAnchoredSnapshot(source, stableKey)
+        ?: run {
+            source.sendFailure("Anchored object $stableKey was not found".literal)
+            return 0
+        }
+
+    val (level, snapshot, isDormantWorldRecord) = resolved
+    val service = MaterializationRuntimeState.service(level)
+    val anchor = snapshot.anchorOrNull()
+        ?: run {
+            source.sendFailure("Anchored object $stableKey does not have an anchor".literal)
+            return 0
+        }
+
+    val updated = when (anchor) {
+        is WorldAnchor -> snapshot
+            .withIdentity(worldAnchorFor(position, anchor.localId), stableKey)
+            .withOrReplace((snapshot.transformOrNull() ?: TransformComponent()).withWorldPosition(position))
+        is EntityAnchor -> snapshot
+            .withOrReplace(
+                (snapshot.transformOrNull() ?: TransformComponent()).copy(
+                    x = position.x.toFloat(),
+                    y = position.y.toFloat(),
+                    z = position.z.toFloat(),
+                )
+            )
+    }
+
+    if (isDormantWorldRecord) {
+        WorldAnchorSavedData.get(level).put(DormantRecord(stableKey, updated))
+    } else {
+        service.materialize(updated)
+        service.snapshot(stableKey)?.let(service::syncSnapshot)
+    }
+
+    source.sendSuccess({ "Moved anchored object $stableKey".literal }, true)
+    return 1
+}
+
+private fun removeAnchoredModel(source: CommandSourceStack, stableKey: UUID): Int {
+    source.server.allLevels.forEach { level ->
+        val service = MaterializationRuntimeState.service(level)
+        if (service.remove(stableKey, syncToClients = true)) {
+            source.sendSuccess({ "Removed anchored object $stableKey".literal }, true)
+            return 1
+        }
+    }
+    source.sendFailure("Anchored object $stableKey was not found".literal)
+    return 0
+}
+
+private data class AnchoredSnapshotResolution(
+    val level: net.minecraft.server.level.ServerLevel,
+    val snapshot: EntitySnapshot,
+    val isDormantWorldRecord: Boolean,
+)
+
+private fun findAnchoredSnapshot(source: CommandSourceStack, stableKey: UUID): AnchoredSnapshotResolution? {
+    source.server.allLevels.forEach { level ->
+        val service = MaterializationRuntimeState.service(level)
+        val runtimeSnapshot = service.snapshot(stableKey)
+        if (runtimeSnapshot != null) {
+            return AnchoredSnapshotResolution(level, runtimeSnapshot, isDormantWorldRecord = false)
+        }
+
+        val dormant = WorldAnchorSavedData.get(level).allRecords().firstOrNull { it.stableKey == stableKey }
+        if (dormant != null) {
+            return AnchoredSnapshotResolution(level, dormant.snapshot, isDormantWorldRecord = true)
+        }
+    }
+    return null
 }
 
 private fun Double.roundTo(numFractionDigits: Int): Double {

@@ -57,3 +57,6 @@ accessible method net/minecraft/data/loot/BlockLootSubProvider createSilkTouchOn
 accessible method net/minecraft/data/loot/BlockLootSubProvider createSilkTouchDispatchTable (Lnet/minecraft/world/level/block/Block;Lnet/minecraft/world/level/storage/loot/entries/LootPoolEntryContainer$Builder;)Lnet/minecraft/world/level/storage/loot/LootTable$Builder;
 
 accessible field net/minecraft/world/entity/LivingEntity jumping Z
+accessible field net/minecraft/server/level/ServerChunkCache chunkMap Lnet/minecraft/server/level/ChunkMap;
+accessible method net/minecraft/server/level/ChunkMap getChunks ()Ljava/lang/Iterable;
+accessible field net/minecraft/server/level/ChunkHolder pos Lnet/minecraft/world/level/ChunkPos;

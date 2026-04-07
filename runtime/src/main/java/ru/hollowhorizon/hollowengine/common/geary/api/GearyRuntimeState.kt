@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.common.geary.api
 import com.mineinabyss.geary.modules.Geary
 import kotlinx.coroutines.cancel
 import net.minecraft.nbt.CompoundTag
-import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
@@ -11,6 +10,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.OwnerScopeRestore
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineScope
 import ru.hollowhorizon.hollowengine.common.events.EventBus
+import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.GearyPlatform
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.encodeComponentsTo
@@ -30,6 +30,7 @@ object GearyRuntimeState {
 
     fun initLevel(level: Level) {
         levelGeary.computeIfAbsent(level) { GearyPlatform.create(level) }
+        MaterializationRuntimeState.init(level)
     }
 
     fun geary(level: Level): Geary =
@@ -37,9 +38,11 @@ object GearyRuntimeState {
 
     fun tick(level: Level) {
         geary(level).tick()
+        MaterializationRuntimeState.service(level).tick()
     }
 
     fun close(level: Level) {
+        MaterializationRuntimeState.close(level)
         levelGeary.remove(level)?.application?.close()
     }
 
@@ -64,6 +67,7 @@ object GearyRuntimeState {
             }
             if (!gearyTag.isEmpty) tag.put("geary", gearyTag)
         }
+        MaterializationRuntimeState.service(entity.level()).saveEntityChildren(entity.uuid, tag)
 
         val scopeTag = CompoundTag()
         state.coroutineScope.serialize(scopeTag)
@@ -73,6 +77,10 @@ object GearyRuntimeState {
     fun loadEntity(entity: Entity, tag: CompoundTag) {
         loadComponentsFrom(entity, tag.getCompound("geary"))
         val state = state(entity as MCEntity)
+        if (state.entityId != UNINITIALIZED_ENTITY_ID) {
+            MaterializationRuntimeState.service(entity.level()).ensurePrimaryEntity(entity, state.entityId)
+        }
+        MaterializationRuntimeState.service(entity.level()).loadEntityChildren(entity, tag)
         state.coroutineScope.deserialize(tag.getCompound("EntityScope"))
         EventBus.post(OwnerScopeRestoredEvent(entity))
     }
@@ -80,7 +88,13 @@ object GearyRuntimeState {
     fun onSetLevel(entity: Entity, newLevel: Level) {
         val state = state(entity as MCEntity)
         if (state.entityId != UNINITIALIZED_ENTITY_ID && !state.gearyRemoved) {
-            state.entityId = move(entity.level(), newLevel, state.entityId, entity).toLong()
+            val oldLevel = entity.level()
+            val previousRuntimeId = state.entityId
+            val oldMaterialization = MaterializationRuntimeState.service(oldLevel)
+            oldMaterialization.moveEntityAnchors(entity.uuid, newLevel)
+            state.entityId = move(oldLevel, newLevel, previousRuntimeId, entity).toLong()
+            oldMaterialization.detachPrimaryEntity(entity.uuid, previousRuntimeId)
+            MaterializationRuntimeState.service(newLevel).ensurePrimaryEntity(entity, state.entityId)
         }
     }
 
@@ -90,6 +104,9 @@ object GearyRuntimeState {
         if (state.gearyRemoved) return
         state.gearyRemoved = true
         if (state.entityId != UNINITIALIZED_ENTITY_ID) {
+            val materialization = MaterializationRuntimeState.service(entity.level())
+            materialization.onHostRemoved(entity.uuid)
+            materialization.detachPrimaryEntity(entity.uuid, state.entityId)
             removeEntity(entity.level(), entity.id, state.entityId)
         }
         state.coroutineScope.cancel()
@@ -99,6 +116,7 @@ object GearyRuntimeState {
         val state = state(entity as MCEntity)
         if (!state.gearyRemoved && state.entityId != UNINITIALIZED_ENTITY_ID) {
             state.entityId = bind(entity.level(), entity, newId, previousId).toLong()
+            MaterializationRuntimeState.service(entity.level()).ensurePrimaryEntity(entity, state.entityId)
         }
     }
 

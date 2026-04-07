@@ -9,6 +9,7 @@ import com.mineinabyss.geary.modules.get
 import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityLoadedEvent
+import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.applySnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
@@ -30,6 +31,7 @@ const val UNINITIALIZED_ENTITY_ID: Long = -1L
 private fun create(level: Level, entity: MCEntity): EntityId {
     val created = level.geary.get<MinecraftEntityLookup>().createDetached(level, entity)
     GearyRuntimeState.setEntityId(entity, created.toLong())
+    MaterializationRuntimeState.service(level).ensurePrimaryEntity(entity, created.toLong())
     if (level.getEntity(entity.id) == entity) {
         return level.geary.get<MinecraftEntityLookup>().bind(level, entity.id, created.toLong(), entity)
     }

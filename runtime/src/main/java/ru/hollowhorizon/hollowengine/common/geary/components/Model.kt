@@ -103,6 +103,7 @@ fun onRender(event: RenderEntityEvent.Pre) {
     val fleks = event.entity.entity
 
     val model = fleks.get<Model>() ?: return
+    val transform = fleks.get<TransformComponent>() ?: TransformComponent()
 
     // Обновляем анимации если они включены
     model.animationSystem?.let { animationSystem ->
@@ -114,6 +115,7 @@ fun onRender(event: RenderEntityEvent.Pre) {
 
     with(event) {
         poseStack.pushPose()
+        poseStack.translate(transform.x.toDouble(), transform.y.toDouble(), transform.z.toDouble())
 
         var overlay = OverlayTexture.NO_OVERLAY
         if (this.entity is LivingEntity) {
@@ -129,6 +131,10 @@ fun onRender(event: RenderEntityEvent.Pre) {
             overlay = LivingEntityRenderer.getOverlayCoords(entity, 0f)
         }
 
+        poseStack.mulPose(Quaternionf().rotateY(transform.yaw * Mth.DEG_TO_RAD))
+        poseStack.mulPose(Quaternionf().rotateX(transform.pitch * Mth.DEG_TO_RAD))
+        val scale = model.scale * transform.scale
+        poseStack.scale(scale, scale, scale)
         model.attachment.pipeline.render(RenderContext(poseStack, buffer, packedLight, overlay, allowInstancing = true))
         poseStack.popPose()
 

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.v2
 
 import de.fabmax.kool.math.Vec3f
+import de.fabmax.kool.math.MutableVec3f
 import de.fabmax.kool.math.deg
 import de.fabmax.kool.util.Time
 import kotlinx.coroutines.flow.StateFlow
@@ -156,6 +157,51 @@ class Animations(private val map: Map<String, AnimationInstance>) : Collection<A
     override fun iterator(): Iterator<AnimationInstance> = map.values.iterator()
 
     override fun containsAll(elements: Collection<AnimationInstance>) = map.values.containsAll(elements)
+}
+
+fun ModelAttachment.calculateBounds(): Pair<Vec3f, Vec3f>? {
+    var minX = Float.POSITIVE_INFINITY
+    var minY = Float.POSITIVE_INFINITY
+    var minZ = Float.POSITIVE_INFINITY
+    var maxX = Float.NEGATIVE_INFINITY
+    var maxY = Float.NEGATIVE_INFINITY
+    var maxZ = Float.NEGATIVE_INFINITY
+    var hasBounds = false
+    val transformed = MutableVec3f()
+
+    nodes.forEach { node ->
+        node.walk().forEach { runtimeNode ->
+            val matrix = runtimeNode.globalMatrix
+            runtimeNode.definition.mesh?.primitives?.forEach { primitive ->
+                val localBounds = primitive.localBounds ?: return@forEach
+                val min = localBounds.first
+                val max = localBounds.second
+
+                fun update(x: Float, y: Float, z: Float) {
+                    matrix.transform(Vec3f(x, y, z), 1f, transformed)
+                    minX = kotlin.math.min(minX, transformed.x)
+                    minY = kotlin.math.min(minY, transformed.y)
+                    minZ = kotlin.math.min(minZ, transformed.z)
+                    maxX = kotlin.math.max(maxX, transformed.x)
+                    maxY = kotlin.math.max(maxY, transformed.y)
+                    maxZ = kotlin.math.max(maxZ, transformed.z)
+                }
+
+                update(min.x, min.y, min.z)
+                update(min.x, min.y, max.z)
+                update(min.x, max.y, min.z)
+                update(min.x, max.y, max.z)
+                update(max.x, min.y, min.z)
+                update(max.x, min.y, max.z)
+                update(max.x, max.y, min.z)
+                update(max.x, max.y, max.z)
+                hasBounds = true
+            }
+        }
+    }
+
+    if (!hasBounds) return null
+    return Vec3f(minX, minY, minZ) to Vec3f(maxX, maxY, maxZ)
 }
 
 private const val MODEL_BATCHING_PRIMITIVE_THRESHOLD = 48
