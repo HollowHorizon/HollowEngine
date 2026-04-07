@@ -137,12 +137,6 @@ dependencies {
     bundle("com.mineinabyss:geary-serialization:$gearyVersion")
     bundle("org.jetbrains.kotlinx:kotlinx-io-bytestring:0.8.2")
 
-    when (modPlatform) {
-        "fabric" -> bundle("io.github.llamalad7:mixinextras-fabric:0.4.1")
-        "forge" -> bundle("io.github.llamalad7:mixinextras-forge:0.4.1")
-        "neoforge" -> bundle("io.github.llamalad7:mixinextras-neoforge:0.4.1")
-    }
-
     bundle("io.github.classgraph:classgraph:4.8.173")
 }
 

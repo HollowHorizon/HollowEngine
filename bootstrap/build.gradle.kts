@@ -6,6 +6,7 @@ import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.jvm.tasks.Jar
 import org.gradle.language.jvm.tasks.ProcessResources
+import net.fabricmc.loom.task.RemapJarTask
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.named
@@ -75,6 +76,16 @@ version = modVersion
 base.archivesName = "$modName-$modPlatform-$minecraftVersion"
 val generateIdeRuns = true
 extra["hollow.generateIdeRuns"] = generateIdeRuns
+
+fun embedBootstrapLibrary(dependencyNotation: String) {
+    val dependency = dependencies.add("implementation", dependencyNotation) {
+        isTransitive = false
+    }
+    dependencies.add("include", dependency)
+    if (modPlatform == "forge" || modPlatform == "neoforge") {
+        dependencies.add("forgeRuntimeLibrary", dependency)
+    }
+}
 
 val syncRuntimeResources by tasks.registering(Sync::class) {
     dependsOn(runtimeMergeLang)
@@ -250,6 +261,12 @@ dependencies {
         }
     }
 
+    when (modPlatform) {
+        "fabric" -> embedBootstrapLibrary("io.github.llamalad7:mixinextras-fabric:0.4.1")
+        "forge" -> embedBootstrapLibrary("io.github.llamalad7:mixinextras-forge:0.4.1")
+        "neoforge" -> embedBootstrapLibrary("io.github.llamalad7:mixinextras-neoforge:0.4.1")
+    }
+
     implementation(project(path = bridgeProjectPath, configuration = "namedElements"))
     compileOnly("org.spongepowered:mixin:0.8.7")
     compileOnly("org.ow2.asm:asm-tree:9.7")
@@ -327,4 +344,8 @@ tasks.named<Jar>("jar") {
 tasks.named<Jar>("sourcesJar") {
     dependsOn("stonecutterGenerate")
     dependsOn(syncRuntimeResources)
+}
+
+tasks.named<RemapJarTask>("remapJar") {
+    addNestedDependencies.set(true)
 }
