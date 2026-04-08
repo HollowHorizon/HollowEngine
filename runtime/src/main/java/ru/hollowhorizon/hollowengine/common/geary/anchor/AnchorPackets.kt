@@ -2,9 +2,11 @@ package ru.hollowhorizon.hollowengine.common.geary.anchor
 
 import kotlinx.serialization.Serializable
 import net.minecraft.world.entity.player.Player
+import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForUuid
 import java.util.UUID
 
@@ -29,5 +31,22 @@ data class AnchoredEntityRemovePacket(
         val level = player.level()
         MaterializationRuntimeState.init(level)
         MaterializationRuntimeState.service(level).remove(stableKey)
+    }
+}
+
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
+@Serializable
+data class AnchoredTransformUpdatePacket(
+    val stableKey: @Serializable(ForUuid::class) UUID,
+    val transform: TransformComponent,
+) : HollowPacket {
+    override fun handle(player: Player) {
+        if (!player.hasPermissions(PlayerPermissions.GAMEMASTER)) return
+        val server = player.server ?: return
+        for (level in server.allLevels) {
+            if (MaterializationRuntimeState.service(level).updateTransform(stableKey, transform, syncToClients = true)) {
+                return
+            }
+        }
     }
 }

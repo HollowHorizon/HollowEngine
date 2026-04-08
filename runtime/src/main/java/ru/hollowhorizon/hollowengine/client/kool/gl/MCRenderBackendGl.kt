@@ -18,6 +18,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class MCRenderBackendGl(ctx: KoolContext) : RenderBackendGl(KoolSystem.configJvm.numSamples, MCGlApi, ctx) {
     val gl = MCGlApi
+    private val koolContext = ctx
     override val features: BackendFeatures
     val mcSceneRenderer = MCSceneRenderPass(numSamples, this)
     private val pendingScreenPasses = mutableMapOf<Scene, PassData>()
@@ -94,6 +95,23 @@ class MCRenderBackendGl(ctx: KoolContext) : RenderBackendGl(KoolSystem.configJvm
         mcSceneRenderer.resolve(gl.DEFAULT_FRAMEBUFFER, gl.COLOR_BUFFER_BIT)
     }
 
+    fun collectScene(scene: Scene, passData: PassData = PassData()): PassData {
+        passData.reset(scene.mainRenderPass)
+        scene.mainRenderPass.collect(passData, koolContext)
+        return passData
+    }
+
+    fun renderCollectedScene(passData: PassData) {
+        passData.updatePipelineData()
+        mcSceneRenderer.draw(passData)
+        mcSceneRenderer.resolve(gl.DEFAULT_FRAMEBUFFER, gl.COLOR_BUFFER_BIT)
+    }
+
+    fun renderSceneLate(scene: Scene, passData: PassData = PassData()) {
+        pendingScreenPasses.remove(scene)
+        renderCollectedScene(collectScene(scene, passData))
+    }
+
     fun readbackStorageBuffers() {
         gl.memoryBarrier(gl.SHADER_STORAGE_BARRIER_BIT)
         awaitedStorageBuffers.forEach { readback ->
@@ -105,6 +123,17 @@ class MCRenderBackendGl(ctx: KoolContext) : RenderBackendGl(KoolSystem.configJvm
             }
         }
         awaitedStorageBuffers.clear()
+    }
+
+    private fun PassData.updatePipelineData() {
+        for (vi in viewData.indices) {
+            val viewData = viewData[vi]
+            viewData.drawQueue.forEach {
+                it.updatePipelineData()
+                it.captureData()
+            }
+            viewData.drawQueue.view.viewPipelineData.captureBuffer()
+        }
     }
 
     private class ReadbackStorageBuffer(

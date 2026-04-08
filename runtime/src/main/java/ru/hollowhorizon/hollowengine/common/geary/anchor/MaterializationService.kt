@@ -182,11 +182,43 @@ class MaterializationService(
         val runtimeId = runtimeByStableKey[stableKey] ?: return
         with(level.geary) {
             val gearyEntity = runtimeId.toGeary()
-            val anchor = gearyEntity.get<WorldAnchor>() ?: return
-            gearyEntity.set(worldAnchorFor(position, anchor.localId))
-            gearyEntity.set((gearyEntity.get<TransformComponent>() ?: TransformComponent()).withWorldPosition(position))
-            persistIfWorldAnchored(snapshotOf(gearyEntity))
+            val current = gearyEntity.get<TransformComponent>() ?: TransformComponent()
+            updateTransform(stableKey, current.withWorldPosition(position))
         }
+    }
+
+    fun updateTransform(stableKey: UUID, transform: TransformComponent, syncToClients: Boolean = false): Boolean {
+        val runtimeId = runtimeByStableKey[stableKey]
+        if (runtimeId != null) {
+            with(level.geary) {
+                val gearyEntity = runtimeId.toGeary()
+                val updatedAnchor = gearyEntity.get<WorldAnchor>()?.let { anchor ->
+                    val worldPosition = Vec3(transform.x.toDouble(), transform.y.toDouble(), transform.z.toDouble())
+                    worldAnchorFor(worldPosition, anchor.localId)
+                } ?: gearyEntity.get<EntityAnchor>()
+                if (updatedAnchor is WorldAnchor) {
+                    gearyEntity.set(updatedAnchor)
+                }
+                gearyEntity.set(transform)
+                val resolvedAnchor = updatedAnchor ?: materializedByRuntime[runtimeId]?.anchor ?: return false
+                materializedByRuntime[runtimeId] = MaterializedRecord(stableKey, runtimeId, resolvedAnchor)
+                val snapshot = snapshotOf(gearyEntity)
+                persistIfWorldAnchored(snapshot)
+                if (syncToClients) syncSnapshot(snapshot)
+                return true
+            }
+        }
+
+        val serverLevel = level as? ServerLevel ?: return false
+        val savedData = WorldAnchorSavedData.get(serverLevel)
+        val existing = savedData.remove(stableKey) ?: return false
+        val anchor = existing.anchor as? WorldAnchor ?: return false
+        val updatedSnapshot = existing.snapshot
+            .withIdentity(worldAnchorFor(Vec3(transform.x.toDouble(), transform.y.toDouble(), transform.z.toDouble()), anchor.localId), stableKey)
+            .withOrReplace(transform)
+        savedData.put(DormantRecord(stableKey, updatedSnapshot))
+        if (syncToClients) syncSnapshot(updatedSnapshot)
+        return true
     }
 
     fun syncSnapshot(snapshot: EntitySnapshot) {
@@ -268,7 +300,9 @@ class MaterializationService(
     private fun persistIfWorldAnchored(snapshot: EntitySnapshot) {
         val level = level as? ServerLevel ?: return
         val anchor = snapshot.anchorOrNull() as? WorldAnchor ?: return
-        WorldAnchorSavedData.get(level).put(
+        val savedData = WorldAnchorSavedData.get(level)
+        savedData.remove(snapshot.requireStableKey())
+        savedData.put(
             DormantRecord(
                 stableKey = snapshot.requireStableKey(),
                 snapshot = snapshot.withIdentity(anchor, snapshot.requireStableKey()),

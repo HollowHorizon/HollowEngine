@@ -63,6 +63,7 @@ import ru.hollowhorizon.hollowengine.api.AutoScaled
 import ru.hollowhorizon.hollowengine.client.audio.streams.ExtendedSoundConverter
 import ru.hollowhorizon.hollowengine.client.audio.streams.Mp3StreamingAudioStream
 import ru.hollowhorizon.hollowengine.client.audio.streams.WavAudioStream
+import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.utils.HollowCoreLoader
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.events.EventBus
@@ -722,18 +723,19 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         val convertedY = (yPos * scaleFactor).toFloat()
 
         KoolInputBridge.handleMouseMove(convertedX, convertedY)
-        val shouldCancel = isMouseOverDock(convertedX, convertedY) && minecraft.screen != null
+        val shouldCancel = (isMouseOverDock(convertedX, convertedY) || TransformGizmoEditor.shouldBlockScreenInput(convertedX, convertedY)) &&
+            minecraft.screen != null
         return RuntimeBridge.MouseMoveResult(convertedX, convertedY, shouldCancel, shouldCancel)
     }
 
     override fun onMousePress(minecraft: Minecraft, x: Float, y: Float, windowPointer: Long, button: Int, action: Int, modifiers: Int): Boolean {
         KoolInputBridge.handleMouseButtonEvent(button, action == org.lwjgl.glfw.GLFW.GLFW_PRESS)
-        return isMouseOverDock(x, y) && minecraft.screen != null
+        return (isMouseOverDock(x, y) || TransformGizmoEditor.shouldBlockScreenInput(x, y)) && minecraft.screen != null
     }
 
     override fun onMouseScroll(minecraft: Minecraft, x: Float, y: Float, windowPointer: Long, xOffset: Double, yOffset: Double): Boolean {
         KoolInputBridge.handleMouseScroll(xOffset.toFloat(), yOffset.toFloat())
-        return isMouseOverDock(x, y) && minecraft.screen != null
+        return (isMouseOverDock(x, y) || TransformGizmoEditor.shouldBlockScreenInput(x, y)) && minecraft.screen != null
     }
 
     override fun onRenderLevelStage(

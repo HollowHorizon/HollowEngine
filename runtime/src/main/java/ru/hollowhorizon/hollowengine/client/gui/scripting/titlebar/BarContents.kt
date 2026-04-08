@@ -10,6 +10,8 @@ import net.minecraft.client.Minecraft
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.client.editor.GizmoEditMode
+import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
@@ -33,6 +35,7 @@ import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.start
 import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
+import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.generated.Assets
 
@@ -79,6 +82,34 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
                 if (i != size - 1) divider()
             }
         }, Unit)
+    }
+
+    if (Minecraft.getInstance().player?.hasPermissions(PlayerPermissions.GAMEMASTER) == true) {
+        val toolsOverlay = remember { ItemPopupMenu<Unit>("Title-Tools-Overlay") }
+        toolsOverlay()
+        TextButton("Инструменты") {
+            toolsOverlay.show(Vec2f(it.screenPosition), buildToolsMenu(toolsOverlay), Unit)
+        }
+    }
+}
+
+private fun buildToolsMenu(overlay: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem {
+    item("${if (TransformGizmoEditor.isEnabled) "●" else "○"} Редактирование gizmo", closeOnClick = false) {
+        TransformGizmoEditor.toggleEnabled()
+        overlay.updateMenu(buildToolsMenu(overlay))
+    }
+    divider()
+    item("${if (TransformGizmoEditor.mode == GizmoEditMode.TRANSLATE) "●" else "○"} Перемещение", closeOnClick = false) {
+        TransformGizmoEditor.setMode(GizmoEditMode.TRANSLATE)
+        overlay.updateMenu(buildToolsMenu(overlay))
+    }
+    item("${if (TransformGizmoEditor.mode == GizmoEditMode.ROTATE) "●" else "○"} Поворот", closeOnClick = false) {
+        TransformGizmoEditor.setMode(GizmoEditMode.ROTATE)
+        overlay.updateMenu(buildToolsMenu(overlay))
+    }
+    item("${if (TransformGizmoEditor.mode == GizmoEditMode.SCALE) "●" else "○"} Масштаб", closeOnClick = false) {
+        TransformGizmoEditor.setMode(GizmoEditMode.SCALE)
+        overlay.updateMenu(buildToolsMenu(overlay))
     }
 }
 

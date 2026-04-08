@@ -100,15 +100,15 @@ data class Model(
 
 @SubscribeEvent
 fun onRender(event: RenderEntityEvent.Pre) {
-    val fleks = event.entity.entity
+    val ecsEntity = event.entity.entity
 
-    val model = fleks.get<Model>() ?: return
-    val transform = fleks.get<TransformComponent>() ?: TransformComponent()
+    val model = ecsEntity.get<Model>() ?: return
+    val transform = ecsEntity.get<TransformComponent>() ?: TransformComponent()
 
     // Обновляем анимации если они включены
     model.animationSystem?.let { animationSystem ->
         if (event.entity is LivingEntity) {
-            model.requestControllerUpdate(event.entity as LivingEntity, Time.deltaT)
+            model.requestControllerUpdate(event.entity, Time.deltaT)
             animationSystem.update(Time.deltaT)
         }
     }
