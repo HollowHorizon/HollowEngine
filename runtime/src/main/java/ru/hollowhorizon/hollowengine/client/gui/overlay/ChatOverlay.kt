@@ -27,7 +27,7 @@ object ChatOverlay {
     lateinit var surface: UiSurface
 
     val scene by lazy {
-        Scene().apply {
+        Scene("Chat Overlay").apply {
             setupUiScene()
             clearDepth = ClearDepthLoad
             depthMode = DepthMode.Legacy

@@ -5,7 +5,10 @@ import de.fabmax.kool.PassData
 import de.fabmax.kool.input.InputStack
 import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.Pointer
+import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.input.PointerState
+import de.fabmax.kool.math.MutableMat4d
+import de.fabmax.kool.math.MutableQuatD
 import de.fabmax.kool.math.MutableVec3d
 import de.fabmax.kool.math.RayTest
 import de.fabmax.kool.math.Vec3d
@@ -41,7 +44,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.isMouseOverDock
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.kool.KoolInitEvent
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
-import ru.hollowhorizon.hollowengine.client.kool.gl.MCRenderBackendGl
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.mcCamera
 import ru.hollowhorizon.hollowengine.client.render.buildAnchoredRenderBounds
 import ru.hollowhorizon.hollowengine.client.render.gizmoRotationToQuatF
@@ -244,10 +246,26 @@ object TransformGizmoEditor {
 
     private fun prepareSceneState(): Boolean {
         if (!isInitialized || !isEditorAvailable()) return false
+        syncInputHandlerState()
         syncVisibleEntries()
         val backend = KoolManager.context.backend
         backend.collectScene(scene, latePassData)
         return true
+    }
+
+    private fun syncInputHandlerState() {
+        if (!isEnabled || !isEditorAvailable()) {
+            inputHandler.blockAllPointerInput = false
+            InputStack.remove(inputHandler)
+            InputStack.updateHandlerStack()
+            return
+        }
+
+        val pointer = PointerInput.primaryPointer
+        val isPointerOverUi = pointer.isValid && isMouseOverDock(pointer.pos.x, pointer.pos.y)
+        inputHandler.blockAllPointerInput = !isPointerOverUi && (draggingKey != null || hoveredKey != null)
+        InputStack.pushTop(inputHandler)
+        InputStack.updateHandlerStack()
     }
 
     private fun renderLateScene() {
@@ -313,6 +331,7 @@ object TransformGizmoEditor {
             if (!isEditorAvailable()) {
                 hoveredKey = null
                 draggingKey = null
+                inputHandler.blockAllPointerInput = false
                 syncEntryPresentation()
                 return
             }
@@ -328,11 +347,13 @@ object TransformGizmoEditor {
                     draggingKey = null
                 }
                 syncEntryPresentation()
+                syncInputHandlerState()
                 return
             }
 
             if (isMouseOverDock(pointer.pos.x, pointer.pos.y)) {
                 hoveredKey = null
+                inputHandler.blockAllPointerInput = false
                 syncEntryPresentation()
                 return
             }
@@ -361,6 +382,7 @@ object TransformGizmoEditor {
             }
 
             syncEntryPresentation()
+            syncInputHandlerState()
         }
     }
 
@@ -392,6 +414,11 @@ object TransformGizmoEditor {
         private var lastAppliedTransform: TransformComponent? = null
         private var lastBounds: AABB? = null
         private var lastBoundsColor = BOUNDS_COLOR
+        private val gizmoClientOffset = MutableMat4d()
+        private val gizmoWorldMatrix = MutableMat4d()
+        private val decomposedTranslation = MutableVec3d()
+        private val decomposedRotation = MutableQuatD()
+        private val decomposedScale = MutableVec3d()
 
         init {
             translationOverlay.isPickable = false
@@ -449,17 +476,20 @@ object TransformGizmoEditor {
             bounds: AABB,
         ) {
             if (!gizmo.isManipulating) {
+                gizmoClientOffset.setIdentity()
+                    .rotate(quatFToGizmoRotation(resolved.transform.rotation))
+                    .scale(
+                        MutableVec3d(
+                            resolved.transform.scale.x.toDouble(),
+                            resolved.transform.scale.y.toDouble(),
+                            resolved.transform.scale.z.toDouble(),
+                        )
+                    )
                 gizmo.gizmoTransform.setCompositionOf(
                     Vec3d(
                         resolved.transform.translation.x.toDouble(),
                         resolved.transform.translation.y.toDouble(),
                         resolved.transform.translation.z.toDouble(),
-                    ),
-                    quatFToGizmoRotation(resolved.transform.rotation),
-                    MutableVec3d(
-                        resolved.transform.scale.x.toDouble(),
-                        resolved.transform.scale.y.toDouble(),
-                        resolved.transform.scale.z.toDouble(),
                     ),
                 )
                 gizmo.updateModelMatRecursive()
@@ -501,16 +531,19 @@ object TransformGizmoEditor {
 
         private fun applyFromGizmo() {
             val level = Minecraft.getInstance().level ?: return
-            val position = gizmo.gizmoTransform.translation
+            gizmoWorldMatrix.setIdentity()
+                .mul(gizmo.gizmoTransform.matrixD)
+                .mul(gizmoClientOffset)
+            gizmoWorldMatrix.decompose(decomposedTranslation, decomposedRotation, decomposedScale)
             val updatedTransform = worldTransformToComponent(
                 level = level,
                 anchor = anchor,
-                worldPosition = Vec3(position.x, position.y, position.z),
-                worldRotation = gizmoRotationToQuatF(gizmo.gizmoTransform.rotation),
+                worldPosition = Vec3(decomposedTranslation.x, decomposedTranslation.y, decomposedTranslation.z),
+                worldRotation = gizmoRotationToQuatF(decomposedRotation),
                 worldScale = Vec3f(
-                    gizmo.gizmoTransform.scale.x.toFloat(),
-                    gizmo.gizmoTransform.scale.y.toFloat(),
-                    gizmo.gizmoTransform.scale.z.toFloat(),
+                    decomposedScale.x.toFloat(),
+                    decomposedScale.y.toFloat(),
+                    decomposedScale.z.toFloat(),
                 ),
                 partialTick = TickHandler.partialTick,
             ) ?: return
