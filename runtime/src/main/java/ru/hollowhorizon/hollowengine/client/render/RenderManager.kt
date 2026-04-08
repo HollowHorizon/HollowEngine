@@ -12,6 +12,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelM
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.particles.ParticleVertexConsumerProvider
+import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
@@ -25,6 +26,12 @@ object RenderManager {
     fun onInitialize() {
         HollowModelManager.initialize()
         KoolManager
+    }
+
+    @SubscribeEvent
+    fun onPrepareClusteredLighting(event: RenderLevelStageEvent) {
+        if (event.stage != RenderStage.AFTER_SKY) return
+        ClusteredLightingManager.prepareFrame(event)
     }
 
     @SubscribeEvent

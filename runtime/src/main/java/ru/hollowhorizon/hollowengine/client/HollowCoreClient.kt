@@ -24,6 +24,7 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.render.RenderManager
+import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
 import ru.hollowhorizon.hollowengine.client.render.entity.EmptyEntityRenderer
 import ru.hollowhorizon.hollowengine.client.utils.HollowPack
 import ru.hollowhorizon.hollowengine.client.utils.open
@@ -53,6 +54,7 @@ object HollowCoreClient {
         event.register(HollowModelManager)
         event.register(BedrockParticles)
         event.register(ImageManager)
+        event.register(ClusteredLightingManager)
     }
 
     @SubscribeEvent

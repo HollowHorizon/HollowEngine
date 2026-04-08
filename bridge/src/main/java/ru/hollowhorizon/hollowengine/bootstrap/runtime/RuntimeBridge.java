@@ -230,6 +230,10 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void onIrisPipelineDestroyed();
 
+    void onIrisAddDynamicUniforms(Object uniforms);
+
+    void onIrisAddCustomImages(Set<?> customImages);
+
     void onIrisShadowRenderStart();
 
     void onIrisShadowRenderBeforeEndBatch();

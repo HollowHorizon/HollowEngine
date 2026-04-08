@@ -55,8 +55,10 @@
     "fabric.DebugScreenOverlayMixin",
     "fabric.GuiMixin",
     "client.iris.IrisRenderingPipelineMixin",
+    "client.iris.IrisSamplersMixin",
     "client.iris.PipelineManagerMixin",
     "client.iris.ProgramSourceMixin",
+    "client.iris.CommonUniformsMixin",
     "client.iris.ShadowRendererMixin",
     "kool.KeyboardHandlerMixin",
     "kool.MouseHandlerMixin"

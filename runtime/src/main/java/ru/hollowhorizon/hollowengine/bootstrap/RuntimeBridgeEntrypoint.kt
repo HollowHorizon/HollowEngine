@@ -11,6 +11,8 @@ import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.LocalKeyCode
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.input.UniversalKeyCode
+import net.irisshaders.iris.gl.image.GlImage
+import net.irisshaders.iris.gl.uniform.DynamicUniformHolder
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.Minecraft
 import net.minecraft.client.Camera
@@ -120,6 +122,7 @@ import ru.hollowhorizon.hollowengine.client.kool.KoolInputBridge
 import ru.hollowhorizon.hollowengine.client.kool.guiFramebuffer
 import ru.hollowhorizon.hollowengine.client.kool.onResize
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
+import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import ru.hollowhorizon.hollowengine.runtime.bootstrap.ClassGraphRuntimeAnnotationIndex
 import net.minecraft.Util
@@ -654,6 +657,18 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onIrisPipelineDestroyed() {
         IrisHelper.invalidateInstancingPrograms()
+        ClusteredLightingManager.invalidate()
+    }
+
+    override fun onIrisAddDynamicUniforms(uniforms: Any?) {
+        val holder = uniforms as? DynamicUniformHolder ?: return
+        ClusteredLightingManager.registerDynamicUniforms(holder)
+    }
+
+    override fun onIrisAddCustomImages(customImages: MutableSet<*>?) {
+        @Suppress("UNCHECKED_CAST")
+        val images = customImages as? MutableSet<GlImage> ?: return
+        ClusteredLightingManager.addCustomImages(images)
     }
 
     override fun onIrisShadowRenderStart() {
