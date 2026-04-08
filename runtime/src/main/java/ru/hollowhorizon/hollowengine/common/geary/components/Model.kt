@@ -34,13 +34,13 @@ import ru.hollowhorizon.hollowengine.generated.Assets
 @SerialName("hollowengine:model")
 @EditorIcon("hollowengine:textures/gui/icons/eye.svg")
 data class Model(
-    @EditorName("РњРѕРґРµР»СЊ")
+    @EditorName("Модель")
     val model: String = "hollowengine:models/entity/player_model.gltf",
-    @EditorName("РљРѕРЅС‚СЂРѕР»Р»РµСЂ Р°РЅРёРјР°С†РёР№")
+    @EditorName("Контроллер анимаций")
     val controllerScript: String = "player_model.animation-controller.kts",
     @EditorRange(min = 0f, max = 100f)
     val scale: Float = 1f,
-    @EditorName("Р’РєР»СЋС‡РёС‚СЊ Р°РЅРёРјР°С†РёРё")
+    @EditorName("Включить анимации")
     val enableAnimations: Boolean = true,
 ) {
 
