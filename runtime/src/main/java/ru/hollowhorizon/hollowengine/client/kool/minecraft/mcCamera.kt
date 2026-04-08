@@ -32,26 +32,33 @@ class MinecraftCamera : PerspectiveCamera() {
 fun Scene.mcCamera() {
     val camera = MinecraftCamera()
     mainRenderPass.defaultView.camera = camera
-    val gameRenderer = Minecraft.getInstance().gameRenderer
 
     onUpdate {
-        camera.clipNear = 0.05f
-        camera.clipFar = gameRenderer.depthFar
-        camera.fovY =
-            gameRenderer.getFov(gameRenderer.mainCamera, TickHandler.partialTick, true).toFloat().deg
-        val pos = gameRenderer.mainCamera.position
-        val scaleFactor = 1f
-
-        camera.position.set(pos.x.toFloat() * scaleFactor, pos.y.toFloat() * scaleFactor, pos.z.toFloat() * scaleFactor)
-        val look = gameRenderer.mainCamera.lookVector
-        camera.lookAt.set(
-            (pos.x + look.x).toFloat() * scaleFactor,
-            (pos.y + look.y).toFloat() * scaleFactor,
-            (pos.z + look.z).toFloat() * scaleFactor
-        )
-        val up = gameRenderer.mainCamera.upVector
-        camera.up.set(up.x, up.y, up.z)
+        camera.syncFromMinecraft()
     }
+}
+
+fun MinecraftCamera.syncFromMinecraft() {
+    val minecraft = Minecraft.getInstance()
+    if (minecraft.player == null || minecraft.level == null) return
+
+    val gameRenderer = minecraft.gameRenderer
+    clipNear = 0.05f
+    clipFar = gameRenderer.depthFar
+    fovY = gameRenderer.getFov(gameRenderer.mainCamera, TickHandler.partialTick, true).toFloat().deg
+
+    val pos = gameRenderer.mainCamera.position
+    position.set(pos.x.toFloat(), pos.y.toFloat(), pos.z.toFloat())
+
+    val look = gameRenderer.mainCamera.lookVector
+    lookAt.set(
+        (pos.x + look.x).toFloat(),
+        (pos.y + look.y).toFloat(),
+        (pos.z + look.z).toFloat()
+    )
+
+    val upVec = gameRenderer.mainCamera.upVector
+    up.set(upVec.x, upVec.y, upVec.z)
 }
 
 private fun bobHurt(mat4f: MutableMat4f, partialTicks: Float) {

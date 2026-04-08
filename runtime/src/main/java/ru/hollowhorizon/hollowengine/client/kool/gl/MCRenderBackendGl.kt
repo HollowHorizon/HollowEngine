@@ -5,6 +5,7 @@ import de.fabmax.kool.pipeline.GpuBuffer
 import de.fabmax.kool.pipeline.backend.BackendFeatures
 import de.fabmax.kool.pipeline.backend.DeviceCoordinates
 import de.fabmax.kool.pipeline.backend.gl.GlslGenerator
+import de.fabmax.kool.pipeline.backend.gl.GlFramebuffer
 import de.fabmax.kool.pipeline.backend.gl.GpuBufferGl
 import de.fabmax.kool.pipeline.backend.gl.RenderBackendGl
 import de.fabmax.kool.pipeline.backend.gl.TimeQuery
@@ -13,6 +14,7 @@ import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Buffer
 import de.fabmax.kool.util.Color
 import kotlinx.coroutines.CompletableDeferred
+import org.lwjgl.opengl.GL30
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -90,9 +92,10 @@ class MCRenderBackendGl(ctx: KoolContext) : RenderBackendGl(KoolSystem.configJvm
 
     fun renderScene(scene: Scene) {
         val passData = pendingScreenPasses[scene] ?: return
+        val targetFbo = currentTargetFramebuffer()
         mcSceneRenderer.draw(passData)
         pendingScreenPasses.remove(scene)
-        mcSceneRenderer.resolve(gl.DEFAULT_FRAMEBUFFER, gl.COLOR_BUFFER_BIT)
+        mcSceneRenderer.resolve(targetFbo, gl.COLOR_BUFFER_BIT)
     }
 
     fun collectScene(scene: Scene, passData: PassData = PassData()): PassData {
@@ -102,15 +105,19 @@ class MCRenderBackendGl(ctx: KoolContext) : RenderBackendGl(KoolSystem.configJvm
     }
 
     fun renderCollectedScene(passData: PassData) {
+        val targetFbo = currentTargetFramebuffer()
         passData.updatePipelineData()
         mcSceneRenderer.draw(passData)
-        mcSceneRenderer.resolve(gl.DEFAULT_FRAMEBUFFER, gl.COLOR_BUFFER_BIT)
+        mcSceneRenderer.resolve(targetFbo, gl.COLOR_BUFFER_BIT)
     }
 
     fun renderSceneLate(scene: Scene, passData: PassData = PassData()) {
         pendingScreenPasses.remove(scene)
         renderCollectedScene(collectScene(scene, passData))
     }
+
+    private fun currentTargetFramebuffer(): GlFramebuffer =
+        GlFramebuffer(GL30.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING))
 
     fun readbackStorageBuffers() {
         gl.memoryBarrier(gl.SHADER_STORAGE_BARRIER_BIT)

@@ -87,27 +87,27 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
     if (Minecraft.getInstance().player?.hasPermissions(PlayerPermissions.GAMEMASTER) == true) {
         val toolsOverlay = remember { ItemPopupMenu<Unit>("Title-Tools-Overlay") }
         toolsOverlay()
-        TextButton("Инструменты") {
+        TextButton("hollowengine.gui.ide.tools".lang) {
             toolsOverlay.show(Vec2f(it.screenPosition), buildToolsMenu(toolsOverlay), Unit)
         }
     }
 }
 
 private fun buildToolsMenu(overlay: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem {
-    item("${if (TransformGizmoEditor.isEnabled) "●" else "○"} Редактирование gizmo", closeOnClick = false) {
+    item("${if (TransformGizmoEditor.isEnabled) "●" else "○"} " + "hollowengine.gui.ide.gizmo".lang, closeOnClick = false) {
         TransformGizmoEditor.toggleEnabled()
         overlay.updateMenu(buildToolsMenu(overlay))
     }
     divider()
-    item("${if (TransformGizmoEditor.mode == GizmoEditMode.TRANSLATE) "●" else "○"} Перемещение", closeOnClick = false) {
+    item("${if (TransformGizmoEditor.mode == GizmoEditMode.TRANSLATE) "●" else "○"} " + "hollowengine.gui.ide.gizmo.translate".lang, closeOnClick = false) {
         TransformGizmoEditor.setMode(GizmoEditMode.TRANSLATE)
         overlay.updateMenu(buildToolsMenu(overlay))
     }
-    item("${if (TransformGizmoEditor.mode == GizmoEditMode.ROTATE) "●" else "○"} Поворот", closeOnClick = false) {
+    item("${if (TransformGizmoEditor.mode == GizmoEditMode.ROTATE) "●" else "○"} " + "hollowengine.gui.ide.gizmo.rotate".lang, closeOnClick = false) {
         TransformGizmoEditor.setMode(GizmoEditMode.ROTATE)
         overlay.updateMenu(buildToolsMenu(overlay))
     }
-    item("${if (TransformGizmoEditor.mode == GizmoEditMode.SCALE) "●" else "○"} Масштаб", closeOnClick = false) {
+    item("${if (TransformGizmoEditor.mode == GizmoEditMode.SCALE) "●" else "○"} " + "hollowengine.gui.ide.gizmo.scale".lang, closeOnClick = false) {
         TransformGizmoEditor.setMode(GizmoEditMode.SCALE)
         overlay.updateMenu(buildToolsMenu(overlay))
     }

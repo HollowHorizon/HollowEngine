@@ -19,6 +19,9 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
 object GlContext {
     private var activeTexture = -1
     private var bindingTexture = -1
+    private var framebufferBinding = -1
+    private var drawFramebufferBinding = -1
+    private var readFramebufferBinding = -1
 
     private var activeVao = -1
     private var activeEbo = -1
@@ -38,6 +41,9 @@ object GlContext {
     fun setupState() {
         activeTexture = GlStateManager._getActiveTexture()
         bindingTexture = GL30.glGetInteger(GL30.GL_TEXTURE_BINDING_2D)
+        framebufferBinding = GL30.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING)
+        drawFramebufferBinding = GL30.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING)
+        readFramebufferBinding = GL30.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING)
         activeVao = GL30.glGetInteger(GL30.GL_VERTEX_ARRAY_BINDING)
         activeEbo = GL30.glGetInteger(GL30.GL_ELEMENT_ARRAY_BUFFER_BINDING)
         depthState = GL30.glIsEnabled(GL30.GL_DEPTH_TEST)
@@ -81,6 +87,9 @@ object GlContext {
     fun restoreState() {
         GL30.glActiveTexture(activeTexture)
         GL33.glBindTexture(GL33.GL_TEXTURE_2D, bindingTexture)
+        GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, framebufferBinding)
+        GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, drawFramebufferBinding)
+        GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, readFramebufferBinding)
         GL30.glBindVertexArray(activeVao)
         GL30.glBindBuffer(GL30.GL_ELEMENT_ARRAY_BUFFER, activeEbo)
         if (depthState) {
@@ -105,7 +114,15 @@ object GlContext {
             MCGlApi.disable(MCGlApi.CULL_FACE)
         }
         RenderSystem.clearDepth(depthClear)
-        Minecraft.getInstance().mainRenderTarget.bindWrite(true)
+    }
+
+    inline fun <T> withState(block: () -> T): T {
+        setupState()
+        return try {
+            block()
+        } finally {
+            restoreState()
+        }
     }
 }
 
