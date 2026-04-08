@@ -78,8 +78,5 @@ fun worldAnchorFor(position: Vec3, localId: UUID = UUID.randomUUID()): WorldAnch
     return WorldAnchor(chunkPos.x, chunkPos.z, localId)
 }
 
-fun TransformComponent.withWorldPosition(position: Vec3): TransformComponent = copy(
-    x = position.x.toFloat(),
-    y = position.y.toFloat(),
-    z = position.z.toFloat(),
-)
+fun TransformComponent.withWorldPosition(position: Vec3): TransformComponent =
+    withTranslation(position.x.toFloat(), position.y.toFloat(), position.z.toFloat())

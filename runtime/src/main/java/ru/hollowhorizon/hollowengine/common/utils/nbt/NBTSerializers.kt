@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.utils.nbt
 
 import com.google.gson.JsonParser
+import de.fabmax.kool.math.QuatF
 import com.mojang.serialization.JsonOps
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.util.Color
@@ -608,6 +609,83 @@ object ForVec3f : KSerializer<Vec3f> {
         if (!zExists) z = missingField("z", "Vec3f") { 0.0f }
 
         return Vec3f(x, y, z)
+    }
+}
+
+object ForQuatF : KSerializer<QuatF> {
+    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("QuatF") {
+        element("x", Float.serializer().descriptor)
+        element("y", Float.serializer().descriptor)
+        element("z", Float.serializer().descriptor)
+        element("w", Float.serializer().descriptor)
+    }
+
+    override fun serialize(encoder: Encoder, value: QuatF) {
+        val compositeOutput = encoder.beginStructure(descriptor)
+        compositeOutput.encodeFloatElement(descriptor, 0, value.x)
+        compositeOutput.encodeFloatElement(descriptor, 1, value.y)
+        compositeOutput.encodeFloatElement(descriptor, 2, value.z)
+        compositeOutput.encodeFloatElement(descriptor, 3, value.w)
+        compositeOutput.endStructure(descriptor)
+    }
+
+    @OptIn(ExperimentalSerializationApi::class)
+    override fun deserialize(decoder: Decoder): QuatF {
+        val dec = decoder.beginStructure(descriptor)
+
+        var x = 0f
+        var y = 0f
+        var z = 0f
+        var w = 1f
+        var xExists = false
+        var yExists = false
+        var zExists = false
+        var wExists = false
+        if (dec.decodeSequentially()) {
+            x = dec.decodeFloatElement(descriptor, 0)
+            y = dec.decodeFloatElement(descriptor, 1)
+            z = dec.decodeFloatElement(descriptor, 2)
+            w = dec.decodeFloatElement(descriptor, 3)
+            xExists = true
+            yExists = true
+            zExists = true
+            wExists = true
+        } else {
+            loop@ while (true) {
+                when (val i = dec.decodeElementIndex(descriptor)) {
+                    CompositeDecoder.DECODE_DONE -> break@loop
+                    0 -> {
+                        x = dec.decodeFloatElement(descriptor, i)
+                        xExists = true
+                    }
+
+                    1 -> {
+                        y = dec.decodeFloatElement(descriptor, i)
+                        yExists = true
+                    }
+
+                    2 -> {
+                        z = dec.decodeFloatElement(descriptor, i)
+                        zExists = true
+                    }
+
+                    3 -> {
+                        w = dec.decodeFloatElement(descriptor, i)
+                        wExists = true
+                    }
+
+                    else -> throw SerializationException("Unknown index $i")
+                }
+            }
+        }
+
+        dec.endStructure(descriptor)
+        if (!xExists) x = missingField("x", "QuatF") { 0f }
+        if (!yExists) y = missingField("y", "QuatF") { 0f }
+        if (!zExists) z = missingField("z", "QuatF") { 0f }
+        if (!wExists) w = missingField("w", "QuatF") { 1f }
+
+        return QuatF(x, y, z, w)
     }
 }
 

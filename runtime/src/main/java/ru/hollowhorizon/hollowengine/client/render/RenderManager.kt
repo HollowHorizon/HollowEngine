@@ -5,7 +5,6 @@ import de.fabmax.kool.math.Vec3f
 import net.minecraft.client.CameraType
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.texture.OverlayTexture
-import net.minecraft.util.Mth
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.api.system
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
@@ -57,19 +56,28 @@ object RenderManager {
                 val resolved = resolveAnchoredTransform(level, record.anchor, transform, event.partialTick)
                     ?: return@with
 
-                val scale = model.scale * resolved.scale
-                val bounds = buildAnchoredRenderBounds(model, resolved.position, scale)
+                val bounds = buildAnchoredRenderBounds(model, resolved.transform, model.scale)
                 if (event.frustum != null && !event.frustum.isVisible(bounds)) return@with
 
                 event.poseStack.pushPose()
                 event.poseStack.translate(
-                    resolved.position.x - cameraPosition.x,
-                    resolved.position.y - cameraPosition.y,
-                    resolved.position.z - cameraPosition.z,
+                    resolved.transform.translation.x - cameraPosition.x,
+                    resolved.transform.translation.y - cameraPosition.y,
+                    resolved.transform.translation.z - cameraPosition.z,
                 )
-                event.poseStack.mulPose(Quaternionf().rotateY(resolved.yaw * Mth.DEG_TO_RAD))
-                event.poseStack.mulPose(Quaternionf().rotateX(resolved.pitch * Mth.DEG_TO_RAD))
-                event.poseStack.scale(scale, scale, scale)
+                event.poseStack.mulPose(
+                    Quaternionf(
+                        resolved.transform.rotation.x,
+                        resolved.transform.rotation.y,
+                        resolved.transform.rotation.z,
+                        resolved.transform.rotation.w,
+                    )
+                )
+                event.poseStack.scale(
+                    model.scale * resolved.transform.scale.x,
+                    model.scale * resolved.transform.scale.y,
+                    model.scale * resolved.transform.scale.z,
+                )
                 model.attachment.pipeline.render(
                     RenderContext(
                         event.poseStack,

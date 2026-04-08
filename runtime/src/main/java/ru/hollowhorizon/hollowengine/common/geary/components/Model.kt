@@ -32,39 +32,41 @@ import ru.hollowhorizon.hollowengine.generated.Assets
 @Syncable
 @Serializable
 @SerialName("hollowengine:model")
-
 @EditorIcon("hollowengine:textures/gui/icons/eye.svg")
 data class Model(
-    @EditorName("Модель")
+    @EditorName("РњРѕРґРµР»СЊ")
     val model: String = "hollowengine:models/entity/player_model.gltf",
-    @EditorName("Контроллер анимаций")
+    @EditorName("РљРѕРЅС‚СЂРѕР»Р»РµСЂ Р°РЅРёРјР°С†РёР№")
     val controllerScript: String = "player_model.animation-controller.kts",
     @EditorRange(min = 0f, max = 100f)
     val scale: Float = 1f,
-    @EditorName("Включить анимации")
+    @EditorName("Р’РєР»СЋС‡РёС‚СЊ Р°РЅРёРјР°С†РёРё")
     val enableAnimations: Boolean = true,
 ) {
 
     val attachment by lazy {
         try {
             ModelAttachment(model)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             ModelAttachment(Assets.Hollowengine.Models.ERROR.toString())
         }
     }
-    
+
     val animationSystem: AnimationSystem? by lazy {
         if (enableAnimations) {
             try {
                 AnimationSystem(attachment)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 null
             }
-        } else null
+        } else {
+            null
+        }
     }
 
     @Transient
     private var controllerCache: AnimationController? = null
+
     @Transient
     private var controllerUpdateJob: Job? = null
 
@@ -105,7 +107,6 @@ fun onRender(event: RenderEntityEvent.Pre) {
     val model = ecsEntity.get<Model>() ?: return
     val transform = ecsEntity.get<TransformComponent>() ?: TransformComponent()
 
-    // Обновляем анимации если они включены
     model.animationSystem?.let { animationSystem ->
         if (event.entity is LivingEntity) {
             model.requestControllerUpdate(event.entity, Time.deltaT)
@@ -115,7 +116,11 @@ fun onRender(event: RenderEntityEvent.Pre) {
 
     with(event) {
         poseStack.pushPose()
-        poseStack.translate(transform.x.toDouble(), transform.y.toDouble(), transform.z.toDouble())
+        poseStack.translate(
+            transform.translation.x.toDouble(),
+            transform.translation.y.toDouble(),
+            transform.translation.z.toDouble(),
+        )
 
         var overlay = OverlayTexture.NO_OVERLAY
         if (this.entity is LivingEntity) {
@@ -124,76 +129,49 @@ fun onRender(event: RenderEntityEvent.Pre) {
                     -Mth.rotLerp(
                         partialTicks,
                         entity.yBodyRotO,
-                        entity.yBodyRot
-                    ) * Mth.DEG_TO_RAD
+                        entity.yBodyRot,
+                    ) * Mth.DEG_TO_RAD,
                 )
             )
             overlay = LivingEntityRenderer.getOverlayCoords(entity, 0f)
         }
 
-        poseStack.mulPose(Quaternionf().rotateY(transform.yaw * Mth.DEG_TO_RAD))
-        poseStack.mulPose(Quaternionf().rotateX(transform.pitch * Mth.DEG_TO_RAD))
-        val scale = model.scale * transform.scale
-        poseStack.scale(scale, scale, scale)
+        poseStack.mulPose(
+            Quaternionf(
+                transform.rotation.x,
+                transform.rotation.y,
+                transform.rotation.z,
+                transform.rotation.w,
+            )
+        )
+        poseStack.scale(
+            model.scale * transform.scale.x,
+            model.scale * transform.scale.y,
+            model.scale * transform.scale.z,
+        )
         model.attachment.pipeline.render(RenderContext(poseStack, buffer, packedLight, overlay, allowInstancing = true))
         poseStack.popPose()
 
         isCanceled = true
-
     }
 }
-
-@Registerable
-@Serializable
-@SerialName("hollowengine:transform")
-@EditorIcon("hollowengine:textures/gui/icons/world.svg")
-data class TransformComponent(
-    @EditorName("Позиция X")
-    @EditorRange(-1000f, 1000f)
-    val x: Float = 0f,
-
-    @EditorName("Позиция Y")
-    @EditorRange(-100f, 300f)
-    val y: Float = 0f,
-
-    @EditorName("Позиция Z")
-    @EditorRange(-1000f, 1000f)
-    val z: Float = 0f,
-
-    @EditorName("Поворот (Yaw)")
-    @EditorRange(0f, 360f)
-    val yaw: Float = 0f,
-
-    @EditorName("Наклон (Pitch)")
-    @EditorRange(-90f, 90f)
-    val pitch: Float = 0f,
-
-    @EditorName("Масштаб")
-    @EditorRange(0.1f, 10f)
-    @EditorIcon("hollowengine:textures/gui/icons/maximize.svg")
-    val scale: Float = 1f,
-)
 
 @Registerable
 @Serializable
 @SerialName("hollowengine:interaction")
 @EditorIcon("hollowengine:textures/gui/icons/interaction.svg")
 data class InteractionComponent(
-    @EditorHidden // Это поле не должно быть в редакторе
+    @EditorHidden
     val interactionId: String = "uuid_default",
-
-    @EditorName("Активно")
+    @EditorName("РђРєС‚РёРІРЅРѕ")
     val isInteractable: Boolean = true,
-
-    @EditorName("Радиус действия")
+    @EditorName("Р Р°РґРёСѓСЃ РґРµР№СЃС‚РІРёСЏ")
     @EditorRange(1f, 64f)
     val radius: Float = 3.0f,
-
-    @EditorName("Текст подсказки")
+    @EditorName("РўРµРєСЃС‚ РїРѕРґСЃРєР°Р·РєРё")
     @EditorIcon("hollowengine:textures/gui/icons/dialogue.png")
-    val hintText: String = "Нажмите Е чтобы говорить",
-
-    @EditorName("Скрипт события")
+    val hintText: String = "РќР°Р¶РјРёС‚Рµ Р• С‡С‚РѕР±С‹ РіРѕРІРѕСЂРёС‚СЊ",
+    @EditorName("РЎРєСЂРёРїС‚ СЃРѕР±С‹С‚РёСЏ")
     @EditorIcon("hollowengine:textures/gui/icons/file_kts.svg")
     val scriptPath: String = "scripts/npc/dialogue_start.kts",
 )
@@ -203,22 +181,18 @@ data class InteractionComponent(
 @SerialName("hollowengine:advanced_model")
 @EditorIcon("hollowengine:textures/gui/icons/folder_npcs.svg")
 data class AdvancedModelComponent(
-    @EditorName("Путь к модели")
+    @EditorName("РџСѓС‚СЊ Рє РјРѕРґРµР»Рё")
     val modelPath: String = "models/entity/custom_npc.gltf",
-
-    @EditorName("Текстура скина")
+    @EditorName("РўРµСЃС‚СѓСЂР° СЃРєРёРЅР°")
     @EditorIcon("hollowengine:textures/gui/icons/file_image.svg")
     val texturePath: String = "textures/entity/skin.png",
-
-    @EditorName("Прозрачность")
+    @EditorName("РџСЂРѕР·СЂР°С‡РЅРѕСЃС‚СЊ")
     @EditorRange(0f, 1f)
     val alpha: Float = 1.0f,
-
-    @EditorName("Светящийся")
+    @EditorName("РЎРІРµС‚СЏС‰РёР№СЃСЏ")
     @EditorIcon("hollowengine:textures/gui/icons/eye.svg")
     val glow: Boolean = false,
-
-    @EditorName("Анимация покоя")
+    @EditorName("РђРЅРёРјР°С†РёСЏ РїРѕРєРѕСЏ")
     @EditorIcon("hollowengine:textures/gui/icons/pose_editor.png")
     val idleAnimation: String = "idle_loop",
 )

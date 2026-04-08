@@ -577,11 +577,8 @@ private fun moveAnchoredModel(source: CommandSourceStack, stableKey: UUID, posit
             .withOrReplace((snapshot.transformOrNull() ?: TransformComponent()).withWorldPosition(position))
         is EntityAnchor -> snapshot
             .withOrReplace(
-                (snapshot.transformOrNull() ?: TransformComponent()).copy(
-                    x = position.x.toFloat(),
-                    y = position.y.toFloat(),
-                    z = position.z.toFloat(),
-                )
+                (snapshot.transformOrNull() ?: TransformComponent())
+                    .withTranslation(position.x.toFloat(), position.y.toFloat(), position.z.toFloat())
             )
     }
 
