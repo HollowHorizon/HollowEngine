@@ -23,7 +23,7 @@ public class ShadowRendererMixin {
         at = @At(
             value = "INVOKE",
             //? if fabric {
-            target = "Lnet/minecraft/class_4597$class_4598;method_22993()V",
+            target = "Lnet/minecraft/client/renderer/MultiBufferSource$BufferSource;endBatch()V",
             //?} else {
             /*target = "Lnet/minecraft/client/renderer/MultiBufferSource$BufferSource;m_109911_()V",
             *///?}
