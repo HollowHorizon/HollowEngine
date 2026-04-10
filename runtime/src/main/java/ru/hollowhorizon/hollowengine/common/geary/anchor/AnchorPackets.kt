@@ -50,3 +50,20 @@ data class AnchoredTransformUpdatePacket(
         }
     }
 }
+
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
+@Serializable
+data class AnchoredSnapshotUpdatePacket(
+    val snapshot: EntitySnapshot,
+) : HollowPacket {
+    override fun handle(player: Player) {
+        if (!player.hasPermissions(PlayerPermissions.GAMEMASTER)) return
+        val stableKey = snapshot.stableKeyOrNull() ?: return
+        val server = player.server ?: return
+        for (level in server.allLevels) {
+            if (MaterializationRuntimeState.service(level).updateSnapshot(stableKey, snapshot, syncToClients = true)) {
+                return
+            }
+        }
+    }
+}

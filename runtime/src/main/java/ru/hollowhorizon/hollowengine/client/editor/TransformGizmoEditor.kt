@@ -12,44 +12,93 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.pipeline.ClearColorDontCare
 import de.fabmax.kool.pipeline.ClearDepthDontCare
 import de.fabmax.kool.pipeline.DepthMode
+import de.fabmax.kool.scene.CustomLineMesh
 import de.fabmax.kool.scene.LineMesh
 import de.fabmax.kool.scene.Node
 import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.scene.TrsTransformD
+import de.fabmax.kool.scene.TrsTransformF
+import de.fabmax.kool.scene.VertexLayouts
+import de.fabmax.kool.scene.geometry.IndexedVertexList
+import de.fabmax.kool.scene.geometry.PrimitiveType
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MdColor
 import de.fabmax.kool.util.Viewport
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.client.renderer.culling.Frustum
 import net.minecraft.network.chat.Component
+import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay
 import ru.hollowhorizon.hollowengine.client.gui.scripting.isMouseOverDock
 import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.kool.KoolInitEvent
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.client.kool.gl.GlContext
+import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.MinecraftCamera
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.mcCamera
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.syncFromMinecraft
-import ru.hollowhorizon.hollowengine.client.render.*
+import ru.hollowhorizon.hollowengine.client.render.ResolvedAnchorTransform
+import ru.hollowhorizon.hollowengine.client.render.buildAnchoredRenderBounds
+import ru.hollowhorizon.hollowengine.client.render.gizmoRotationToQuatF
+import ru.hollowhorizon.hollowengine.client.render.quatFToGizmoRotation
+import ru.hollowhorizon.hollowengine.client.render.resolveAnchoredTransform
+import ru.hollowhorizon.hollowengine.client.render.worldTransformToComponent
+import ru.hollowhorizon.hollowengine.client.render.lighting.spotLightDirection
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
-import ru.hollowhorizon.hollowengine.common.geary.anchor.*
-import ru.hollowhorizon.hollowengine.common.geary.api.geary
-import ru.hollowhorizon.hollowengine.common.geary.components.Model
+import ru.hollowhorizon.hollowengine.common.geary.anchor.AnchorComponent
+import ru.hollowhorizon.hollowengine.common.geary.anchor.AnchoredTransformUpdatePacket
+import ru.hollowhorizon.hollowengine.common.geary.anchor.EntityAnchor
+import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
+import ru.hollowhorizon.hollowengine.common.geary.anchor.WorldAnchor
+import ru.hollowhorizon.hollowengine.common.geary.anchor.anchorOrNull
+import ru.hollowhorizon.hollowengine.common.geary.anchor.modelOrNull
+import ru.hollowhorizon.hollowengine.common.geary.anchor.primaryAnchorOrNull
+import ru.hollowhorizon.hollowengine.common.geary.anchor.stableKeyOrNull
+import ru.hollowhorizon.hollowengine.common.geary.anchor.transformOrNull
+import ru.hollowhorizon.hollowengine.common.geary.anchor.withIdentity
+import ru.hollowhorizon.hollowengine.common.geary.anchor.withOrReplace
+import ru.hollowhorizon.hollowengine.common.geary.anchor.worldAnchorFor
+import ru.hollowhorizon.hollowengine.common.geary.components.PointLightComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.SpotLightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.lightComponentOrNull
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
+import ru.hollowhorizon.hollowengine.common.network.send
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
+import ru.hollowhorizon.hollowengine.common.utils.rl
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sin
+import kotlin.math.tan
 
 object TransformGizmoEditor {
     private const val ENABLED_KEY = "hollowengine.transform_gizmo.enabled"
     private const val MODE_KEY = "hollowengine.transform_gizmo.mode"
+
+    private const val CONTEXT_MENU_WIDTH = 280f
+    private const val CONTEXT_MENU_HEIGHT = 132f
+    private const val INSPECTOR_WIDTH = 420f
+    private const val INSPECTOR_MARGIN = 16f
+
+    internal val MODEL_ICON = "hollowengine:textures/gui/icons/box.svg".rl
+    internal val TRANSFORM_ICON = "hollowengine:textures/gui/icons/world.svg".rl
+    internal val POINT_LIGHT_ICON = "hollowengine:textures/gui/icons/light_point.svg".rl
+    internal val SPOT_LIGHT_ICON = "hollowengine:textures/gui/icons/light_spot.svg".rl
 
     private val root = Node("transform-gizmo-root")
     private val inputHandler = InputStack.InputHandler("transform-gizmo-editor")
@@ -63,9 +112,11 @@ object TransformGizmoEditor {
     private var activeKey: java.util.UUID? = null
     private var lastFrustum: Frustum? = null
     private var isInitialized = false
+    private var isInputHandlerInstalled = false
     private var contextMenu: ContextMenuState? = null
+
     private val overlayLabelState = mutableStateOf<OverlayLabelState?>(null)
-    private val overlayContextMenuState = mutableStateOf<ContextMenuState?>(null)
+    private val inspectorState = TransformGizmoInspectorState(::applySnapshotUpdate)
 
     val enabledState = mutableStateOf(false)
     val modeState = mutableStateOf(GizmoEditMode.TRANSLATE)
@@ -83,27 +134,18 @@ object TransformGizmoEditor {
         }
     }
 
-    private val overlayScene: Scene by lazy {
-        Scene("Transform Gizmo Editor UI").apply {
-            setupUiScene(ClearColorDontCare)
-            clearDepth = ClearDepthDontCare
-            depthMode = DepthMode.Legacy
-        }
-    }
-
     private val overlaySurface: UiSurface by lazy {
         PanelSurface(
-            parentScene = overlayScene,
+            parentScene = ScriptingEnvironmentOverlay.scene,
             colors = IdeTheme.colors,
             sizes = IdeTheme.sizes,
             name = "TransformGizmoOverlay",
             backgroundColor = { null },
+            layout = CellLayout,
             width = Grow.Std,
             height = Grow.Std,
         ) {
-            modifier
-                .background(null)
-                .isBlocking(false)
+            modifier.background(null)
 
             overlayLabelState.use()?.let { label ->
                 Text(formatLabelValue(label.value)) {
@@ -113,54 +155,33 @@ object TransformGizmoEditor {
                         .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary.withAlpha(0.94f), sizes.smallGap))
                         .border(RoundRectBorder(ColorTheme.UI.BackgroundElements, sizes.smallGap, Dimensions.PaddingSmall))
                         .textColor(ColorTheme.UI.WhiteReplacement)
+                        .isBlocking(false)
                 }
             }
 
-            overlayContextMenuState.use()?.let { menu ->
-                Column(width = FitContent, height = FitContent) {
-                    modifier
-                        .margin(start = Dp.fromPx(menu.position.x), top = Dp.fromPx(menu.position.y))
-                        .padding(Dimensions.PaddingMedium)
-                        .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary.withAlpha(0.96f), sizes.smallGap))
-                        .border(RoundRectBorder(ColorTheme.UI.BackgroundElements, sizes.smallGap, Dimensions.PaddingSmall))
-
-                    Text("Stable Key") {
-                        modifier.textColor(ColorTheme.UI.WhiteReplacement)
-                    }
-                    Text(menu.stableKey.toString()) {
-                        modifier
-                            .margin(top = Dimensions.PaddingNormal)
-                            .textColor(ColorTheme.UI.BackgroundAccent)
-                    }
-                    Text("Copy Stable Key") {
-                        modifier
-                            .margin(top = Dimensions.PaddingNormal)
-                            .textColor(ColorTheme.Accents.Main)
-                            .alignY(AlignmentY.Center)
-                    }
-                }
-            }
+            renderContextMenu()
+            with(inspectorState) { RenderPanel() }
         }.apply {
-            inputMode = UiSurface.InputCaptureMode.CaptureDisabled
+            inputMode = UiSurface.InputCaptureMode.CapturePassthrough
         }
     }
 
     init {
         inputHandler.pointerListeners += PointerRouter
+        InputStack.onInputStackChanged += ::maintainInputHandlerPriority
 
         enabledState.onChange { _, enabled ->
             KeyValueStore.setBoolean(ENABLED_KEY, enabled)
             if (!enabled) {
-                InputStack.remove(inputHandler)
                 cancelInteraction()
                 entries.values.forEach { it.node.isVisible = false }
             } else {
-                InputStack.pushTop(inputHandler)
                 entries.values.forEach {
                     it.refreshFromRuntime()
                     it.node.isVisible = true
                 }
             }
+            ensureInputHandlerState()
         }
         modeState.onChange { _, mode ->
             KeyValueStore.setInt(MODE_KEY, mode.ordinal)
@@ -176,9 +197,10 @@ object TransformGizmoEditor {
 
     fun shouldBlockScreenInput(x: Float, y: Float): Boolean {
         if (!isInitialized) return false
+        if (!isWorldInputEnabled()) return false
         if (!isEditorAvailable()) return false
         if (isMouseOverDock(x, y)) return false
-        return draggingKey != null || hoveredKey != null
+        return draggingKey != null || hoveredKey != null || isOverlayUiHit(x, y)
     }
 
     @SubscribeEvent
@@ -190,9 +212,7 @@ object TransformGizmoEditor {
             )
             isInitialized = true
         }
-        if (enabledState.value) {
-            InputStack.pushTop(inputHandler)
-        }
+        ensureInputHandlerState()
     }
 
     @SubscribeEvent
@@ -206,8 +226,70 @@ object TransformGizmoEditor {
         if (event.overlay != GuiOverlay.HOTBAR) return
         if (!isInitialized) return
         if (!isEditorAvailable()) return
-
         renderLateScene()
+    }
+
+    private fun UiScope.renderContextMenu() {
+        val menu = contextMenu ?: return
+        val entry = entries[menu.stableKey] ?: return
+        val isInspectorOpened = inspectorState.isVisibleFor(menu.stableKey)
+
+        Column(width = FitContent, height = FitContent) {
+            modifier
+                .margin(start = Dp.fromPx(menu.position.x), top = Dp.fromPx(menu.position.y))
+                .padding(Dimensions.PaddingMedium)
+                .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary.withAlpha(0.98f), sizes.smallGap))
+                .border(RoundRectBorder(ColorTheme.UI.BackgroundElements, sizes.smallGap, Dimensions.PaddingSmall))
+
+            PopupActionRow(
+                label = if (isInspectorOpened) "Hide Components" else "Show Components",
+                icon = icons.GENERAL,
+            ) {
+                if (isInspectorOpened) inspectorState.close()
+                else inspectorState.open(entry.snapshot ?: return@PopupActionRow, entry.target ?: return@PopupActionRow)
+                contextMenu = null
+            }
+            PopupActionRow(label = "Copy Stable Key", icon = icons.COPY) {
+                Minecraft.getInstance().keyboardHandler.clipboard = menu.stableKey.toString()
+                Minecraft.getInstance().player?.displayClientMessage(Component.literal("Stable key copied"), true)
+                contextMenu = null
+            }
+            PopupActionRow(label = "Clear Selection", icon = icons.REMOVE) {
+                clearSelection()
+                contextMenu = null
+            }
+        }
+    }
+
+    private fun UiScope.PopupActionRow(label: String, icon: ResourceLocation?, onClick: () -> Unit) {
+        Row(width = Grow.Std) {
+            var isHovered by remember(false)
+            modifier
+                .padding(horizontal = Dimensions.PaddingMedium, vertical = Dimensions.PaddingNormal)
+                .background(
+                    RoundRectBackground(
+                        (if (isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary).withAlpha(0.98f),
+                        Dimensions.PaddingMedium,
+                    )
+                )
+                .onEnter { isHovered = true }
+                .onExit { isHovered = false }
+                .onClick { onClick() }
+
+            if (icon != null) {
+                Image(icon) {
+                    modifier
+                        .size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
+                        .margin(end = Dimensions.PaddingMedium)
+                        .alignY(AlignmentY.Center)
+                }
+            }
+            Text(label) {
+                modifier
+                    .alignY(AlignmentY.Center)
+                    .textColor(ColorTheme.UI.WhiteReplacement)
+            }
+        }
     }
 
     private fun isEditorAvailable(): Boolean {
@@ -215,6 +297,55 @@ object TransformGizmoEditor {
         return isEnabled &&
             minecraft.level != null &&
             minecraft.player?.hasPermissions(PlayerPermissions.GAMEMASTER) == true
+    }
+
+    private fun isWorldInputEnabled(): Boolean {
+        if (!isEditorAvailable()) return false
+        val minecraft = Minecraft.getInstance()
+        return minecraft.screen is ChatScreen || !ScriptingEnvironmentOverlay.isCollapsed
+    }
+
+    private fun ensureInputHandlerState() {
+        val shouldInstall = isInitialized && isEnabled && isEditorAvailable()
+        when {
+            shouldInstall -> {
+                InputStack.pushTop(inputHandler)
+                if (!isInputHandlerInstalled) {
+                    isInputHandlerInstalled = true
+                }
+            }
+
+            !shouldInstall && isInputHandlerInstalled -> {
+                InputStack.remove(inputHandler)
+                isInputHandlerInstalled = false
+            }
+        }
+        updateInputBlockingState()
+    }
+
+    private fun maintainInputHandlerPriority() {
+        if (!isInputHandlerInstalled || !isEnabled || !isEditorAvailable()) return
+        if (InputStack.handlerStack.lastOrNull() !== inputHandler) {
+            InputStack.pushTop(inputHandler)
+        }
+    }
+
+    private fun updateInputBlockingState() {
+        val pointer = PointerInput.primaryPointer
+        val isPointerOverDock = pointer.isValid && isMouseOverDock(pointer.pos.x, pointer.pos.y)
+        val isPointerOverOverlay = pointer.isValid && isOverlayUiHit(pointer.pos.x, pointer.pos.y)
+        inputHandler.blockAllPointerInput =
+            isWorldInputEnabled() &&
+                !isPointerOverDock &&
+                !isPointerOverOverlay &&
+                (draggingKey != null || hoveredKey != null)
+    }
+
+    private fun clearSelection() {
+        activeKey = null
+        contextMenu = null
+        inspectorState.close()
+        syncEntryPresentation()
     }
 
     private fun cancelInteraction() {
@@ -229,8 +360,9 @@ object TransformGizmoEditor {
         activeKey = null
         contextMenu = null
         overlayLabelState.set(null)
-        overlayContextMenuState.set(null)
+        inspectorState.close()
         syncEntryPresentation()
+        updateInputBlockingState()
     }
 
     private fun syncVisibleEntries() {
@@ -238,6 +370,7 @@ object TransformGizmoEditor {
         val level = minecraft.level
         if (level == null || !isEditorAvailable()) {
             entries.values.forEach { it.node.isVisible = false }
+            inspectorState.close()
             return
         }
 
@@ -246,22 +379,29 @@ object TransformGizmoEditor {
         val frustum = lastFrustum
         val partialTick = TickHandler.partialTick
 
-        with(level.geary) {
-            service.records.forEach { record ->
-                val gearyEntity = record.runtimeId.toGeary()
-                val model = gearyEntity.get<Model>() ?: return@forEach
-                val transform = gearyEntity.get<TransformComponent>() ?: return@forEach
-                val resolved = resolveAnchoredTransform(level, record.anchor, transform, partialTick) ?: return@forEach
-                val bounds = buildAnchoredRenderBounds(model, resolved.transform, model.scale)
-                val visible = frustum?.isVisible(bounds) ?: true
+        service.records.forEach { record ->
+            val snapshot = service.snapshot(record.stableKey) ?: return@forEach
+            val transform = snapshot.transformOrNull() ?: return@forEach
+            val anchor = snapshot.anchorOrNull() ?: record.anchor
+            if ((anchor as? EntityAnchor)?.primary == true || snapshot.primaryAnchorOrNull() != null) return@forEach
 
-                val entry = entries.getOrPut(record.stableKey) {
-                    GizmoEntry(record.stableKey).also { root.addNode(it.node) }
-                }
-                entry.anchor = record.anchor
-                entry.node.isVisible = visible
-                entry.updateFromResolved(model, resolved, bounds)
-                seen += record.stableKey
+            val target = resolveTarget(snapshot)
+            val resolved = resolveAnchoredTransform(level, anchor, transform, partialTick) ?: return@forEach
+            val bounds = computeTargetBounds(snapshot, target, resolved)
+            val visible = frustum?.isVisible(bounds) ?: true
+
+            val entry = entries.getOrPut(record.stableKey) {
+                GizmoEntry(record.stableKey).also { root.addNode(it.node) }
+            }
+            entry.anchor = anchor
+            entry.snapshot = snapshot
+            entry.target = target
+            entry.node.isVisible = visible
+            entry.updateFromResolved(resolved, bounds)
+            seen += record.stableKey
+
+            if (activeKey == record.stableKey) {
+                inspectorState.refresh(snapshot, target)
             }
         }
 
@@ -273,12 +413,42 @@ object TransformGizmoEditor {
             if (draggingKey == stableKey) draggingKey = null
             if (activeKey == stableKey) activeKey = null
             if (contextMenu?.stableKey == stableKey) contextMenu = null
+            if (inspectorState.isVisibleFor(stableKey)) inspectorState.close()
             root.removeNode(entry.node)
             entry.node.release()
             iterator.remove()
         }
 
         syncEntryPresentation()
+    }
+
+    private fun resolveTarget(snapshot: EntitySnapshot): TransformGizmoTarget {
+        if (snapshot.modelOrNull() != null) {
+            return TransformGizmoTarget(TransformGizmoTargetType.MODEL, "Model", MODEL_ICON)
+        }
+        return when (snapshot.lightComponentOrNull()) {
+            is PointLightComponent -> TransformGizmoTarget(TransformGizmoTargetType.POINT_LIGHT, "Point Light", POINT_LIGHT_ICON)
+            is SpotLightComponent -> TransformGizmoTarget(TransformGizmoTargetType.SPOT_LIGHT, "Spot Light", SPOT_LIGHT_ICON)
+            else -> TransformGizmoTarget(TransformGizmoTargetType.TRANSFORM, "Transform", TRANSFORM_ICON)
+        }
+    }
+
+    private fun computeTargetBounds(
+        snapshot: EntitySnapshot,
+        target: TransformGizmoTarget,
+        resolved: ResolvedAnchorTransform,
+    ): AABB = when (target.type) {
+        TransformGizmoTargetType.MODEL -> {
+            val model = snapshot.modelOrNull()
+            if (model != null) buildAnchoredRenderBounds(model, resolved.transform, model.scale)
+            else buildGenericBounds(resolved.transform)
+        }
+
+        TransformGizmoTargetType.POINT_LIGHT,
+        TransformGizmoTargetType.SPOT_LIGHT,
+        -> buildLightEditorBounds(resolved.transform.translation)
+
+        TransformGizmoTargetType.TRANSFORM -> buildGenericBounds(resolved.transform)
     }
 
     private fun syncEntryPresentation() {
@@ -292,16 +462,15 @@ object TransformGizmoEditor {
 
     private fun prepareRenderSceneState(): Boolean {
         if (!isInitialized || !isEditorAvailable()) return false
-        syncInputHandlerState()
+        ensureInputHandlerState()
         syncVisibleEntries()
-        val backend = KoolManager.context.backend
-        backend.collectScene(scene, latePassData)
+        KoolManager.context.backend.collectScene(scene, latePassData)
         return true
     }
 
     private fun preparePickState(): Boolean {
         if (!isInitialized || !isEditorAvailable()) return false
-        syncInputHandlerState()
+        ensureInputHandlerState()
         syncVisibleEntries()
 
         val ctx = KoolManager.context
@@ -319,32 +488,16 @@ object TransformGizmoEditor {
         return true
     }
 
-    private fun syncInputHandlerState() {
-        if (!isEnabled || !isEditorAvailable()) {
-            inputHandler.blockAllPointerInput = false
-            InputStack.remove(inputHandler)
-            InputStack.updateHandlerStack()
-            return
-        }
-
-        val pointer = PointerInput.primaryPointer
-        val isPointerOverUi = pointer.isValid && isMouseOverDock(pointer.pos.x, pointer.pos.y)
-        inputHandler.blockAllPointerInput = !isPointerOverUi && (draggingKey != null || hoveredKey != null)
-        InputStack.pushTop(inputHandler)
-        InputStack.updateHandlerStack()
-    }
-
     private fun renderLateScene() {
         if (!prepareRenderSceneState()) return
         overlayLabelState.set(currentLabelState())
-        overlayContextMenuState.set(contextMenu)
+        if (overlaySurface.parent == null) {
+            ScriptingEnvironmentOverlay.scene.addNode(overlaySurface)
+        }
+        overlaySurface.triggerUpdate()
+
         GlContext.withState {
             KoolManager.context.backend.renderCollectedScene(latePassData)
-            if (overlaySurface.parent == null) {
-                overlayScene.addNode(overlaySurface)
-            }
-            overlaySurface.triggerUpdate()
-            KoolManager.context.backend.renderSceneLate(overlayScene)
         }
     }
 
@@ -356,54 +509,24 @@ object TransformGizmoEditor {
         return entries.values.firstNotNullOfOrNull(GizmoEntry::currentLabelState)
     }
 
-    private fun handleContextMenuClick(pointer: Pointer): Boolean {
-        val menu = contextMenu ?: return false
-        val within = pointer.pos.x >= menu.position.x &&
-            pointer.pos.x <= menu.position.x + 260f &&
-            pointer.pos.y >= menu.position.y &&
-            pointer.pos.y <= menu.position.y + 72f
-        if (!within) {
-            if (pointer.isAnyButtonClicked) {
-                contextMenu = null
-            }
-            return false
-        }
-        if (pointer.isRightButtonClicked || pointer.isLeftButtonClicked) {
-            val minecraft = Minecraft.getInstance()
-            minecraft.keyboardHandler.clipboard = menu.stableKey.toString()
-            minecraft.player?.displayClientMessage(Component.literal("Stable key copied"), true)
-            pointer.consume()
-            contextMenu = null
-            return true
-        }
-        return false
-    }
-
     private fun pickEntry(pointer: Pointer): PickResult? {
         if (!preparePickState()) return null
 
-        val handleRay = RayTest()
-        if (!scene.computePickRay(pointer, handleRay.ray)) return null
-        var handleEntry: GizmoEntry? = null
-        var handleDistance = Double.POSITIVE_INFINITY
-        entries.values.asSequence()
-            .filter { it.node.isVisible }
-            .forEach { entry ->
+        val activeEntry = activeKey?.let(entries::get)?.takeIf { it.node.isVisible }
+        if (activeEntry != null) {
+            val handleRay = RayTest()
+            if (scene.computePickRay(pointer, handleRay.ray)) {
                 val test = RayTest()
                 test.clear(camera = scene.camera)
                 test.ray.set(handleRay.ray)
-                entry.gizmo.rayTest(test)
-                if (test.isHit && test.hitDistance < handleDistance) {
-                    handleDistance = test.hitDistance
-                    handleEntry = entry
-                }
+                activeEntry.gizmo.rayTest(test)
+                if (test.isHit) return PickResult(activeEntry, PickTarget.HANDLE)
             }
-        if (handleEntry != null) {
-            return PickResult(handleEntry, PickTarget.HANDLE)
         }
 
         val boundsRay = RayTest()
         if (!scene.computePickRay(pointer, boundsRay.ray)) return null
+
         var boundsEntry: GizmoEntry? = null
         var boundsDistance = Double.POSITIVE_INFINITY
         entries.values.asSequence()
@@ -418,33 +541,63 @@ object TransformGizmoEditor {
         return boundsEntry?.let { PickResult(it, PickTarget.BOUNDS) }
     }
 
-    private fun resolveEntryForNode(node: Node): GizmoEntry? {
-        var current: Node? = node
-        while (current != null) {
-            val resolved = entries.values.firstOrNull { it.node === current }
-            if (resolved != null) return resolved
-            current = current.parent
+    private fun isOverlayUiHit(x: Float, y: Float): Boolean {
+        val windowSize = KoolManager.context.window.size
+        val menu = contextMenu
+        if (menu != null &&
+            x >= menu.position.x &&
+            x <= menu.position.x + CONTEXT_MENU_WIDTH &&
+            y >= menu.position.y &&
+            y <= menu.position.y + CONTEXT_MENU_HEIGHT
+        ) {
+            return true
         }
-        return null
+
+        if (inspectorState.isVisible) {
+            val left = windowSize.x - INSPECTOR_WIDTH - INSPECTOR_MARGIN
+            return x >= left && y >= INSPECTOR_MARGIN
+        }
+
+        return false
+    }
+
+    private fun refreshInspectorIfSelected(stableKey: java.util.UUID) {
+        if (!inspectorState.isVisibleFor(stableKey)) return
+        val entry = entries[stableKey] ?: return
+        val snapshot = entry.snapshot ?: return
+        val target = entry.target ?: return
+        inspectorState.refresh(snapshot, target)
+    }
+
+    private fun applySnapshotUpdate(snapshot: EntitySnapshot) {
+        val stableKey = snapshot.stableKeyOrNull() ?: return
+        val level = Minecraft.getInstance().level ?: return
+        val service = MaterializationRuntimeState.service(level)
+        service.materialize(snapshot)
+        inspectorState.refresh(snapshot, resolveTarget(snapshot))
+        entries[stableKey]?.refreshFromRuntime()
+        TransformGizmoInspectorPackets.sendSnapshot(snapshot)
     }
 
     private object PointerRouter : InputStack.PointerListener {
         override fun handlePointer(pointerState: PointerState, ctx: de.fabmax.kool.KoolContext) {
             if (!isInitialized) return
-            if (!isEditorAvailable()) {
+            if (!isEditorAvailable() || !isWorldInputEnabled()) {
                 hoveredKey = null
                 draggingKey = null
-                inputHandler.blockAllPointerInput = false
+                updateInputBlockingState()
                 syncEntryPresentation()
                 return
             }
 
             val pointer = pointerState.primaryPointer
-            if (handleContextMenuClick(pointer)) {
+            if (isOverlayUiHit(pointer.pos.x, pointer.pos.y)) {
+                hoveredKey = null
+                updateInputBlockingState()
                 syncEntryPresentation()
-                syncInputHandlerState()
                 return
             }
+
             val draggingEntry = draggingKey?.let(entries::get)
             if (draggingEntry != null) {
                 draggingEntry.gizmo.applySpeedAndTickRate()
@@ -453,15 +606,16 @@ object TransformGizmoEditor {
                 activeKey = draggingEntry.stableKey
                 if (!pointer.isLeftButtonDown && !draggingEntry.gizmo.isManipulating) {
                     draggingKey = null
+                    refreshInspectorIfSelected(draggingEntry.stableKey)
                 }
                 syncEntryPresentation()
-                syncInputHandlerState()
+                updateInputBlockingState()
                 return
             }
 
             if (isMouseOverDock(pointer.pos.x, pointer.pos.y)) {
                 hoveredKey = null
-                inputHandler.blockAllPointerInput = false
+                updateInputBlockingState()
                 syncEntryPresentation()
                 return
             }
@@ -496,13 +650,14 @@ object TransformGizmoEditor {
                     }
                 }
 
-                null -> if (pointer.isRightButtonClicked || pointer.isLeftButtonClicked) {
-                    contextMenu = null
+                null -> {
+                    if (pointer.isLeftButtonClicked) clearSelection()
+                    else if (pointer.isRightButtonClicked) contextMenu = null
                 }
             }
 
             syncEntryPresentation()
-            syncInputHandlerState()
+            updateInputBlockingState()
         }
     }
 
@@ -515,12 +670,28 @@ object TransformGizmoEditor {
         val translationOverlay = TranslationOverlay(gizmo)
         val rotationOverlay = RotationOverlay(gizmo)
         val scaleOverlay = ScaleOverlay(gizmo)
+        private val lightVisual = Node("transform-light-visual-$stableKey").apply {
+            transform = TrsTransformF()
+        }
+        private val lightVisualTransform = lightVisual.transform as TrsTransformF
+        private val pointLightMesh = createPointLightMesh()
+        private val pointLightTransform = pointLightMesh.transform as TrsTransformF
+        private val spotOuterMesh = createSpotLightMesh("spot-outer")
+        private val spotOuterTransform = spotOuterMesh.transform as TrsTransformF
+        private val spotInnerMesh = createSpotLightMesh("spot-inner")
+        private val spotInnerTransform = spotInnerMesh.transform as TrsTransformF
+        private val boundsShader = KslUnlitShader {
+            color { uniformColor(BOUNDS_COLOR) }
+            pipeline { lineWidth = 3f }
+        }
         private val boundsMesh = createBoundsMesh()
+        private val boundsTransform = boundsMesh.transform as TrsTransformF
         private val translationHandles = buildTranslationHandles()
         private val rotationHandles = buildRotationHandles()
         private val scaleHandles = buildScaleHandles()
         val node = Node("transform-gizmo-root-$stableKey").apply {
             addNode(boundsMesh)
+            addNode(lightVisual)
             addNode(gizmo)
             addNode(translationOverlay)
             addNode(rotationOverlay)
@@ -528,9 +699,13 @@ object TransformGizmoEditor {
         }
 
         var anchor: AnchorComponent = WorldAnchor()
+        var snapshot: EntitySnapshot? = null
+        var target: TransformGizmoTarget? = null
+
         private var lastAppliedTransform: TransformComponent? = null
         private var lastBounds: AABB? = null
         private var lastBoundsColor = BOUNDS_COLOR
+        private var lastResolved: ResolvedAnchorTransform? = null
         private val gizmoClientOffset = MutableMat4d()
         private val gizmoWorldMatrix = MutableMat4d()
         private val decomposedTranslation = MutableVec3d()
@@ -541,6 +716,9 @@ object TransformGizmoEditor {
             translationOverlay.isPickable = false
             rotationOverlay.isPickable = false
             scaleOverlay.isPickable = false
+            lightVisual.addNode(pointLightMesh)
+            lightVisual.addNode(spotOuterMesh)
+            lightVisual.addNode(spotInnerMesh)
             gizmo.gizmoListeners += translationOverlay
             gizmo.gizmoListeners += rotationOverlay
             gizmo.gizmoListeners += scaleOverlay
@@ -553,11 +731,13 @@ object TransformGizmoEditor {
 
                 override fun onManipulationFinished(startTransform: TrsTransformD, endTransform: TrsTransformD) {
                     TransformGizmoEditor.draggingKey = null
+                    TransformGizmoEditor.refreshInspectorIfSelected(stableKey)
                 }
 
                 override fun onManipulationCanceled(startTransform: TrsTransformD) {
                     TransformGizmoEditor.draggingKey = null
                     refreshFromRuntime()
+                    TransformGizmoEditor.refreshInspectorIfSelected(stableKey)
                 }
 
                 override fun onGizmoUpdate(transform: TrsTransformD) {
@@ -579,19 +759,23 @@ object TransformGizmoEditor {
         fun refreshFromRuntime() {
             val level = Minecraft.getInstance().level ?: return
             val snapshot = MaterializationRuntimeState.service(level).snapshot(stableKey) ?: return
-            anchor = snapshot.anchorOrNull() ?: anchor
             val transform = snapshot.transformOrNull() ?: TransformComponent()
-            lastAppliedTransform = transform
-            val model = snapshot.modelOrNull() ?: return
+            val target = TransformGizmoEditor.resolveTarget(snapshot)
+            val anchor = snapshot.anchorOrNull() ?: this.anchor
             val resolved = resolveAnchoredTransform(level, anchor, transform, TickHandler.partialTick) ?: return
-            updateFromResolved(model, resolved, buildAnchoredRenderBounds(model, resolved.transform, model.scale))
+
+            this.anchor = anchor
+            this.snapshot = snapshot
+            this.target = target
+            lastAppliedTransform = transform
+            updateFromResolved(resolved, TransformGizmoEditor.computeTargetBounds(snapshot, target, resolved))
         }
 
         fun updateFromResolved(
-            model: Model,
-            resolved: ru.hollowhorizon.hollowengine.client.render.ResolvedAnchorTransform,
+            resolved: ResolvedAnchorTransform,
             bounds: AABB,
         ) {
+            lastResolved = resolved
             if (!gizmo.isManipulating) {
                 gizmoClientOffset.setIdentity()
                     .rotate(quatFToGizmoRotation(resolved.transform.rotation))
@@ -611,37 +795,51 @@ object TransformGizmoEditor {
                 )
                 gizmo.updateModelMatRecursive()
             }
-            rebuildBounds(bounds, model)
+            rebuildBounds(bounds)
+            updateLightVisual(
+                resolved = resolved,
+                isHovered = TransformGizmoEditor.hoveredKey == stableKey,
+                isActive = TransformGizmoEditor.activeKey == stableKey,
+            )
         }
 
         fun updatePresentation(isHovered: Boolean, isActive: Boolean) {
+            val isGizmoVisible = isActive || gizmo.isManipulating
+            gizmo.isVisible = isGizmoVisible
+
             val color = when {
                 isActive -> ACTIVE_BOUNDS_COLOR
                 isHovered -> HOVER_BOUNDS_COLOR
                 else -> BOUNDS_COLOR
             }
             if (lastBounds != null && color != lastBoundsColor) {
-                rebuildBounds(lastBounds!!, null, color)
+                rebuildBounds(lastBounds!!, color)
             }
+            lastResolved?.let { updateLightVisual(it, isHovered, isActive) }
         }
 
-        private fun rebuildBounds(bounds: AABB, model: Model? = null, overrideColor: Color? = null) {
+        private fun rebuildBounds(bounds: AABB, overrideColor: Color? = null) {
             val color = overrideColor ?: when {
                 TransformGizmoEditor.activeKey == stableKey -> ACTIVE_BOUNDS_COLOR
                 TransformGizmoEditor.hoveredKey == stableKey -> HOVER_BOUNDS_COLOR
                 else -> BOUNDS_COLOR
             }
-            if (bounds == lastBounds && color == lastBoundsColor && model == null) return
+            if (bounds == lastBounds && color == lastBoundsColor) return
 
-            boundsMesh.clear()
-            boundsMesh.color = color
-            boundsMesh.addBoundingBox(
-                BoundingBoxF(
-                    Vec3f(bounds.minX.toFloat(), bounds.minY.toFloat(), bounds.minZ.toFloat()),
-                    Vec3f(bounds.maxX.toFloat(), bounds.maxY.toFloat(), bounds.maxZ.toFloat()),
-                ),
-                color = color,
+            val sizeX = max((bounds.maxX - bounds.minX).toFloat(), 0.05f)
+            val sizeY = max((bounds.maxY - bounds.minY).toFloat(), 0.05f)
+            val sizeZ = max((bounds.maxZ - bounds.minZ).toFloat(), 0.05f)
+            val centerX = ((bounds.minX + bounds.maxX) * 0.5).toFloat()
+            val centerY = ((bounds.minY + bounds.maxY) * 0.5).toFloat()
+            val centerZ = ((bounds.minZ + bounds.maxZ) * 0.5).toFloat()
+
+            boundsTransform.setCompositionOf(
+                Vec3f(centerX, centerY, centerZ),
+                QuatF.IDENTITY,
+                Vec3f(sizeX, sizeY, sizeZ),
             )
+            boundsShader.color = color
+            boundsMesh.updateModelMatRecursive()
             lastBounds = bounds
             lastBoundsColor = color
         }
@@ -649,16 +847,109 @@ object TransformGizmoEditor {
         private fun createBoundsMesh(): LineMesh =
             LineMesh("transform-bounds-$stableKey").apply {
                 isCastingShadow = false
-                shader = KslUnlitShader {
-                    color { vertexColor() }
-                    pipeline {
-                        lineWidth = 3f
-                    }
-                }
+                transform = TrsTransformF()
+                shader = boundsShader
+                addBoundingBox(
+                    BoundingBoxF(Vec3f(-0.5f, -0.5f, -0.5f), Vec3f(0.5f, 0.5f, 0.5f)),
+                    color = BOUNDS_COLOR,
+                )
             }
 
-        fun currentLabelState(): OverlayLabelState? =
-            when {
+        private fun updateLightVisual(
+            resolved: ResolvedAnchorTransform,
+            isHovered: Boolean,
+            isActive: Boolean,
+        ) {
+            val light = snapshot?.lightComponentOrNull()
+            if (light == null || !node.isVisible) {
+                lightVisual.isVisible = false
+                return
+            }
+
+            val color = when {
+                isActive -> ACTIVE_LIGHT_VISUAL_COLOR
+                isHovered -> HOVER_LIGHT_VISUAL_COLOR
+                else -> DEFAULT_LIGHT_VISUAL_COLOR
+            }
+
+            when (light) {
+                is PointLightComponent -> {
+                    if (!isActive) {
+                        pointLightMesh.isVisible = false
+                        spotOuterMesh.isVisible = false
+                        spotInnerMesh.isVisible = false
+                        lightVisual.isVisible = false
+                        return
+                    }
+                    val visualSize = pointLightVisualSize(light)
+                    lightVisualTransform.setCompositionOf(
+                        resolved.transform.translation,
+                        QuatF.IDENTITY,
+                        Vec3f(1f, 1f, 1f),
+                    )
+                    pointLightTransform.setCompositionOf(
+                        Vec3f.ZERO,
+                        QuatF.IDENTITY,
+                        Vec3f(visualSize, visualSize, visualSize),
+                    )
+                    pointLightMesh.visualShader.color = color
+                    pointLightMesh.isVisible = true
+                    spotOuterMesh.isVisible = false
+                    spotInnerMesh.isVisible = false
+                    lightVisual.isVisible = true
+                    lightVisual.updateModelMatRecursive()
+                }
+
+                is SpotLightComponent -> {
+                    val previewDistance = spotLightPreviewDistance(light)
+                    val outerRadius = max((tan(Math.toRadians((light.outerAngle * 0.5f).toDouble())) * previewDistance).toFloat(), 0.035f)
+                    val innerRadius = max((tan(Math.toRadians((light.innerAngle * 0.5f).toDouble())) * previewDistance).toFloat(), 0.015f)
+                    val directionRotation = rotationFromForwardZ(spotLightDirection(resolved.transform.rotation))
+
+                    lightVisualTransform.setCompositionOf(
+                        resolved.transform.translation,
+                        directionRotation,
+                        Vec3f(1f, 1f, 1f),
+                    )
+                    spotOuterTransform.setCompositionOf(
+                        Vec3f.ZERO,
+                        QuatF.IDENTITY,
+                        Vec3f(outerRadius, outerRadius, previewDistance),
+                    )
+                    spotInnerTransform.setCompositionOf(
+                        Vec3f.ZERO,
+                        QuatF.IDENTITY,
+                        Vec3f(innerRadius, innerRadius, previewDistance),
+                    )
+                    spotOuterMesh.visualShader.color = color
+                    spotInnerMesh.visualShader.color = color.withAlpha(color.a * 0.45f)
+                    pointLightMesh.isVisible = false
+                    spotOuterMesh.isVisible = true
+                    spotInnerMesh.isVisible = light.innerAngle > 0.01f
+                    lightVisual.isVisible = true
+                    lightVisual.updateModelMatRecursive()
+                }
+            }
+        }
+
+        private fun createPointLightMesh(): LightVisualMesh =
+            LightVisualMesh("point-light-visual-$stableKey").apply {
+                transform = TrsTransformF()
+                addCircleLines(Vec3f.X_AXIS)
+                addCircleLines(Vec3f.Y_AXIS)
+                addCircleLines(Vec3f.Z_AXIS)
+                addAxisRays()
+            }
+
+        private fun createSpotLightMesh(name: String): LightVisualMesh =
+            LightVisualMesh("$name-$stableKey").apply {
+                transform = TrsTransformF()
+                addConeLines()
+            }
+
+        fun currentLabelState(): OverlayLabelState? {
+            if (!gizmo.isManipulating) return null
+            return when {
                 translationOverlay.isVisible && translationOverlay.isLabelValid ->
                     OverlayLabelState(translationOverlay.labelPosition, translationOverlay.labelValue)
 
@@ -669,13 +960,22 @@ object TransformGizmoEditor {
                     OverlayLabelState(scaleOverlay.labelPosition, scaleOverlay.labelValue)
 
                 gizmo.isManipulating -> fallbackLabelState()
-
                 else -> null
             }
+        }
 
         fun boundsHitDistance(ray: de.fabmax.kool.math.RayD): Double? {
             val bounds = lastBounds ?: return null
-            return intersectRayAabb(ray.origin.x, ray.origin.y, ray.origin.z, ray.direction.x, ray.direction.y, ray.direction.z, bounds)
+            val pickBounds = inflatePickBounds(bounds, target?.type)
+            return intersectRayAabb(
+                ray.origin.x,
+                ray.origin.y,
+                ray.origin.z,
+                ray.direction.x,
+                ray.direction.y,
+                ray.direction.z,
+                pickBounds,
+            )
         }
 
         private fun applyFromGizmo() {
@@ -721,6 +1021,7 @@ object TransformGizmoEditor {
                 else -> return
             }
 
+            this.snapshot = updatedSnapshot
             service.materialize(updatedSnapshot)
             AnchoredTransformUpdatePacket(stableKey, updatedTransform).send()
         }
@@ -741,29 +1042,21 @@ object TransformGizmoEditor {
         }
     }
 
-    private data class PickResult(
-        val entry: GizmoEntry,
-        val target: PickTarget,
-    )
-
-    private data class ContextMenuState(
-        val stableKey: java.util.UUID,
-        val position: Vec2f,
-    )
-
-    private data class OverlayLabelState(
-        val position: Vec2f,
-        val value: Double,
-    )
+    private data class PickResult(val entry: GizmoEntry, val target: PickTarget)
+    private data class ContextMenuState(val stableKey: java.util.UUID, val position: Vec2f)
+    private data class OverlayLabelState(val position: Vec2f, val value: Double)
 
     private enum class PickTarget {
         HANDLE,
         BOUNDS,
     }
 
-    private val BOUNDS_COLOR = Color(1f, 1f, 1f, 0.35f)
+    private val BOUNDS_COLOR = Color(0.68f, 0.70f, 0.74f, 0.52f)
     private val HOVER_BOUNDS_COLOR = Color(0.4f, 0.9f, 1f, 0.75f)
     private val ACTIVE_BOUNDS_COLOR = Color(1f, 0.8f, 0.25f, 0.95f)
+    private val DEFAULT_LIGHT_VISUAL_COLOR = Color(0.82f, 0.84f, 0.88f, 0.92f)
+    private val HOVER_LIGHT_VISUAL_COLOR = HOVER_BOUNDS_COLOR.withAlpha(0.95f)
+    private val ACTIVE_LIGHT_VISUAL_COLOR = ACTIVE_BOUNDS_COLOR
 }
 
 enum class GizmoEditMode {
@@ -773,43 +1066,13 @@ enum class GizmoEditMode {
 }
 
 private fun buildTranslationHandles(): List<GizmoHandle> = listOf(
-    AxisHandle(
-        color = MdColor.RED,
-        axis = GizmoHandle.Axis.POS_X,
-        handleShape = AxisHandle.HandleType.ARROW,
-        name = "axis-POS_X",
-    ),
-    AxisHandle(
-        color = MdColor.LIGHT_GREEN,
-        axis = GizmoHandle.Axis.POS_Y,
-        handleShape = AxisHandle.HandleType.ARROW,
-        name = "axis-POS_Y",
-    ),
-    AxisHandle(
-        color = MdColor.BLUE,
-        axis = GizmoHandle.Axis.POS_Z,
-        handleShape = AxisHandle.HandleType.ARROW,
-        name = "axis-POS_Z",
-    ),
-    PlaneHandle(
-        color = MdColor.RED,
-        axis = GizmoHandle.Axis.POS_X,
-        name = "plane-POS_X",
-    ),
-    PlaneHandle(
-        color = MdColor.LIGHT_GREEN,
-        axis = GizmoHandle.Axis.POS_Y,
-        name = "plane-POS_Y",
-    ),
-    PlaneHandle(
-        color = MdColor.BLUE,
-        axis = GizmoHandle.Axis.POS_Z,
-        name = "plane-POS_Z",
-    ),
-    CenterCircleHandle(
-        color = Color.WHITE,
-        radius = 0.28f,
-    ),
+    AxisHandle(color = MdColor.RED, axis = GizmoHandle.Axis.POS_X, handleShape = AxisHandle.HandleType.ARROW, name = "axis-POS_X"),
+    AxisHandle(color = MdColor.LIGHT_GREEN, axis = GizmoHandle.Axis.POS_Y, handleShape = AxisHandle.HandleType.ARROW, name = "axis-POS_Y"),
+    AxisHandle(color = MdColor.BLUE, axis = GizmoHandle.Axis.POS_Z, handleShape = AxisHandle.HandleType.ARROW, name = "axis-POS_Z"),
+    PlaneHandle(color = MdColor.RED, axis = GizmoHandle.Axis.POS_X, name = "plane-POS_X"),
+    PlaneHandle(color = MdColor.LIGHT_GREEN, axis = GizmoHandle.Axis.POS_Y, name = "plane-POS_Y"),
+    PlaneHandle(color = MdColor.BLUE, axis = GizmoHandle.Axis.POS_Z, name = "plane-POS_Z"),
+    CenterCircleHandle(color = Color.WHITE, radius = 0.28f),
 )
 
 private fun buildRotationHandles(): List<GizmoHandle> = listOf(
@@ -842,7 +1105,7 @@ fun GizmoNode.applySpeedAndTickRate() {
 }
 
 private fun formatLabelValue(value: Double): String {
-    val absValue = kotlin.math.abs(value)
+    val absValue = abs(value)
     val precision = when {
         absValue >= 1000.0 -> 0
         absValue >= 100.0 -> 1
@@ -851,6 +1114,125 @@ private fun formatLabelValue(value: Double): String {
         else -> 4
     }
     return "%.${precision}f".format(java.util.Locale.ROOT, value)
+}
+
+private fun buildLightEditorBounds(position: Vec3f): AABB {
+    val radius = 0.12
+    return AABB(
+        position.x - radius,
+        position.y - radius,
+        position.z - radius,
+        position.x + radius,
+        position.y + radius,
+        position.z + radius,
+    )
+}
+
+private fun buildGenericBounds(transform: TrsTransformF): AABB {
+    val position = transform.translation
+    val scale = transform.scale
+    val radius = max(max(abs(scale.x), abs(scale.y)), abs(scale.z)).coerceAtLeast(0.5f).toDouble() * 0.125
+    return AABB(
+        position.x - radius,
+        position.y - radius,
+        position.z - radius,
+        position.x + radius,
+        position.y + radius,
+        position.z + radius,
+    )
+}
+
+private fun pointLightVisualSize(light: PointLightComponent): Float =
+    (light.radius * 0.08f).coerceIn(0.22f, 1.35f)
+
+private fun spotLightPreviewDistance(light: SpotLightComponent): Float =
+    (light.distance * 0.14f).coerceIn(0.45f, 2.4f)
+
+private class LightVisualMesh(name: String) : CustomLineMesh<VertexLayouts.PositionColor>(
+    IndexedVertexList(VertexLayouts.PositionColor, primitiveType = PrimitiveType.LINES),
+    name,
+) {
+    val visualShader = KslUnlitShader {
+        color { uniformColor(Color.WHITE) }
+        pipeline { lineWidth = 2.25f }
+    }
+
+    init {
+        isCastingShadow = false
+        shader = visualShader
+    }
+}
+
+private fun LightVisualMesh.addAxisRays(rayLength: Float = 1.25f) {
+    addLine(Vec3f(-rayLength, 0f, 0f), Vec3f(rayLength, 0f, 0f))
+    addLine(Vec3f(0f, -rayLength, 0f), Vec3f(0f, rayLength, 0f))
+    addLine(Vec3f(0f, 0f, -rayLength), Vec3f(0f, 0f, rayLength))
+}
+
+private fun LightVisualMesh.addCircleLines(
+    axis: Vec3f,
+    radius: Float = 1f,
+    segments: Int = 24,
+) {
+    fun point(angle: Double): Vec3f = when (axis) {
+        Vec3f.X_AXIS -> Vec3f(0f, (cos(angle) * radius).toFloat(), (sin(angle) * radius).toFloat())
+        Vec3f.Y_AXIS -> Vec3f((cos(angle) * radius).toFloat(), 0f, (sin(angle) * radius).toFloat())
+        else -> Vec3f((cos(angle) * radius).toFloat(), (sin(angle) * radius).toFloat(), 0f)
+    }
+
+    for (i in 0 until segments) {
+        val a0 = i / segments.toDouble() * PI * 2.0
+        val a1 = (i + 1) / segments.toDouble() * PI * 2.0
+        addLine(point(a0), point(a1))
+    }
+}
+
+private fun LightVisualMesh.addConeLines(segments: Int = 72) {
+    val tip = Vec3f(0f, 0f, 0f)
+    val center = Vec3f(0f, 0f, 1f)
+    addLine(tip, center)
+
+    for (i in 0 until segments) {
+        val a0 = i / segments.toDouble() * PI * 2.0
+        val a1 = (i + 1) / segments.toDouble() * PI * 2.0
+        val p0 = Vec3f((cos(a0)).toFloat(), (sin(a0)).toFloat(), 1f)
+        val p1 = Vec3f((cos(a1)).toFloat(), (sin(a1)).toFloat(), 1f)
+        addLine(p0, p1)
+    }
+
+    addLine(tip, Vec3f(1f, 0f, 1f))
+    addLine(tip, Vec3f(-1f, 0f, 1f))
+    addLine(tip, Vec3f(0f, 1f, 1f))
+    addLine(tip, Vec3f(0f, -1f, 1f))
+}
+
+private fun rotationFromForwardZ(direction: Vec3f): QuatF {
+    val normalized = MutableVec3f(direction)
+    if (normalized.length() <= 1e-5f) return QuatF.IDENTITY
+    normalized.norm()
+
+    val forward = Vec3f(0f, 0f, 1f)
+    val dot = forward.dot(normalized)
+    if (dot >= 0.9999f) return QuatF.IDENTITY
+    if (dot <= -0.9999f) return QuatF(0f, 1f, 0f, 0f)
+
+    val axis = forward.cross(normalized, MutableVec3f()).norm()
+    return QuatF(axis.x, axis.y, axis.z, 1f + dot).normed()
+}
+
+private fun inflatePickBounds(bounds: AABB, targetType: TransformGizmoTargetType?): AABB {
+    val sizeX = bounds.maxX - bounds.minX
+    val sizeY = bounds.maxY - bounds.minY
+    val sizeZ = bounds.maxZ - bounds.minZ
+    val basePadding = max(sizeX, max(sizeY, sizeZ)) * 0.15
+    val padding = when (targetType) {
+        TransformGizmoTargetType.POINT_LIGHT,
+        TransformGizmoTargetType.SPOT_LIGHT,
+        -> max(basePadding, 0.18)
+
+        else -> basePadding.coerceIn(0.05, 0.35)
+    }
+    return bounds.inflate(padding)
 }
 
 private fun intersectRayAabb(
@@ -866,9 +1248,7 @@ private fun intersectRayAabb(
     var tMax = Double.POSITIVE_INFINITY
 
     fun update(origin: Double, dir: Double, min: Double, max: Double): Boolean {
-        if (kotlin.math.abs(dir) < 1.0e-9) {
-            return origin in min..max
-        }
+        if (abs(dir) < 1.0e-9) return origin in min..max
         val inv = 1.0 / dir
         var t0 = (min - origin) * inv
         var t1 = (max - origin) * inv

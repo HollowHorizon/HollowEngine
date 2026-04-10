@@ -221,6 +221,29 @@ class MaterializationService(
         return true
     }
 
+    fun updateSnapshot(stableKey: UUID, snapshot: EntitySnapshot, syncToClients: Boolean = false): Boolean {
+        val anchor = snapshot.anchorOrNull() ?: return false
+        val normalizedSnapshot = snapshot.withIdentity(anchor, stableKey)
+
+        val runtimeId = runtimeByStableKey[stableKey]
+        if (runtimeId != null) {
+            with(level.geary) {
+                applySnapshot(runtimeId.toGeary(), normalizedSnapshot)
+            }
+            materializedByRuntime[runtimeId] = MaterializedRecord(stableKey, runtimeId, anchor)
+            persistIfWorldAnchored(normalizedSnapshot)
+            if (syncToClients) syncSnapshot(normalizedSnapshot)
+            return true
+        }
+
+        val serverLevel = level as? ServerLevel ?: return false
+        val savedData = WorldAnchorSavedData.get(serverLevel)
+        if (savedData.remove(stableKey) == null) return false
+        savedData.put(DormantRecord(stableKey, normalizedSnapshot))
+        if (syncToClients) syncSnapshot(normalizedSnapshot)
+        return true
+    }
+
     fun syncSnapshot(snapshot: EntitySnapshot) {
         if (level !is ServerLevel) return
         val anchor = snapshot.requireAnchor()

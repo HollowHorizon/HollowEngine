@@ -76,6 +76,9 @@ internal object LocalLightShadowManager {
     private const val MATRIX_BYTES = 16 * Float.SIZE_BYTES
     private const val SPOT_SAMPLER_NAME = "he_spotShadowAtlas"
     private const val POINT_SAMPLER_NAME = "he_pointShadowAtlas"
+    private const val USE_LINEAR_SHADOW_FILTERING = true
+
+    private val shadowAtlasFilter = if (USE_LINEAR_SHADOW_FILTERING) GL11C.GL_LINEAR else GL11C.GL_NEAREST
 
     private val shadowBuffer = ShaderStorageBuffer(ClusteredLightingConfig.SHADOW_DATA_BINDING)
     private val spotAtlas = ShadowAtlas(
@@ -257,7 +260,7 @@ internal object LocalLightShadowManager {
 
     private fun ensureResourcesCreated() {
         if (shadowSampler == null) {
-            shadowSampler = GlSampler(false, false, true, true)
+            shadowSampler = GlSampler(USE_LINEAR_SHADOW_FILTERING, false, true, true)
         }
         if (localShadowRenderBuffers == null) {
             localShadowRenderBuffers = RenderBuffers()
@@ -726,8 +729,8 @@ internal object LocalLightShadowManager {
                 GL11C.GL_FLOAT,
                 null as java.nio.ByteBuffer?,
             )
-            GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_MIN_FILTER, GL11C.GL_NEAREST)
-            GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_MAG_FILTER, GL11C.GL_NEAREST)
+            GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_MIN_FILTER, shadowAtlasFilter)
+            GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_MAG_FILTER, shadowAtlasFilter)
             GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_WRAP_S, GL12C.GL_CLAMP_TO_EDGE)
             GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL11C.GL_TEXTURE_WRAP_T, GL12C.GL_CLAMP_TO_EDGE)
             GL11C.glTexParameteri(GL11C.GL_TEXTURE_2D, GL30C.GL_TEXTURE_COMPARE_MODE, GL30C.GL_COMPARE_REF_TO_TEXTURE)
