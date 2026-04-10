@@ -127,27 +127,9 @@ fun projectLightBounds(
     var minScreenY = Float.POSITIVE_INFINITY
     var maxScreenY = Float.NEGATIVE_INFINITY
 
-    val samples = arrayOf(
-        Vector3f(viewSpaceCenter.x - influenceRadius, viewSpaceCenter.y, viewSpaceCenter.z),
-        Vector3f(viewSpaceCenter.x + influenceRadius, viewSpaceCenter.y, viewSpaceCenter.z),
-        Vector3f(viewSpaceCenter.x, viewSpaceCenter.y - influenceRadius, viewSpaceCenter.z),
-        Vector3f(viewSpaceCenter.x, viewSpaceCenter.y + influenceRadius, viewSpaceCenter.z),
-        Vector3f(viewSpaceCenter.x, viewSpaceCenter.y, viewSpaceCenter.z - influenceRadius),
-        Vector3f(viewSpaceCenter.x, viewSpaceCenter.y, viewSpaceCenter.z + influenceRadius),
-    )
-
-    for (sample in samples) {
-        val clip = projectionMatrix.transform(Vector4f(sample, 1f))
-        if (clip.w <= 0f) {
-            return ProjectedLightBounds(
-                minTileX = 0,
-                maxTileX = max(0, ceil(viewWidth / tileSize.toFloat()).toInt() - 1),
-                minTileY = 0,
-                maxTileY = max(0, ceil(viewHeight / tileSize.toFloat()).toInt() - 1),
-                minSlice = minSlice,
-                maxSlice = maxSlice,
-            )
-        }
+    fun accumulateSample(x: Float, y: Float, z: Float): Boolean {
+        val clip = projectionMatrix.transform(Vector4f(x, y, z, 1f))
+        if (clip.w <= 0f) return false
 
         val invW = 1f / clip.w
         val ndcX = clip.x * invW
@@ -157,6 +139,24 @@ fun projectLightBounds(
         maxScreenX = max(maxScreenX, (ndcX * 0.5f + 0.5f) * viewWidth)
         minScreenY = min(minScreenY, (1f - (ndcY * 0.5f + 0.5f)) * viewHeight)
         maxScreenY = max(maxScreenY, (1f - (ndcY * 0.5f + 0.5f)) * viewHeight)
+        return true
+    }
+
+    if (!accumulateSample(viewSpaceCenter.x - influenceRadius, viewSpaceCenter.y, viewSpaceCenter.z) ||
+        !accumulateSample(viewSpaceCenter.x + influenceRadius, viewSpaceCenter.y, viewSpaceCenter.z) ||
+        !accumulateSample(viewSpaceCenter.x, viewSpaceCenter.y - influenceRadius, viewSpaceCenter.z) ||
+        !accumulateSample(viewSpaceCenter.x, viewSpaceCenter.y + influenceRadius, viewSpaceCenter.z) ||
+        !accumulateSample(viewSpaceCenter.x, viewSpaceCenter.y, viewSpaceCenter.z - influenceRadius) ||
+        !accumulateSample(viewSpaceCenter.x, viewSpaceCenter.y, viewSpaceCenter.z + influenceRadius)
+    ) {
+        return ProjectedLightBounds(
+            minTileX = 0,
+            maxTileX = max(0, ceil(viewWidth / tileSize.toFloat()).toInt() - 1),
+            minTileY = 0,
+            maxTileY = max(0, ceil(viewHeight / tileSize.toFloat()).toInt() - 1),
+            minSlice = minSlice,
+            maxSlice = maxSlice,
+        )
     }
 
     val tileCountX = max(1, ceil(viewWidth / tileSize.toFloat()).toInt())

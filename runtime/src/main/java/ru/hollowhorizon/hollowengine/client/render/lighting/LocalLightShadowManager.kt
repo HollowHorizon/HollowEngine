@@ -117,6 +117,8 @@ internal object LocalLightShadowManager {
     private val currentShadowProjectionMatrix = Matrix4f()
     private val currentShadowViewMatrixInverse = Matrix4f()
     private val currentShadowProjectionMatrixInverse = Matrix4f()
+    private val reusableOrigin = Vector3f()
+    private val reusableShadowCamera = ShadowCamera()
     private val localShadowMatrixNotifier = object : ValueUpdateNotifier {
         private var listener: Runnable? = null
 
@@ -167,19 +169,28 @@ internal object LocalLightShadowManager {
 
         val selectedKeys = selected.mapTo(HashSet(selected.size)) { it.cacheKey }
         val required = ArrayList<ShadowWorkItem>(selected.size)
+        var staticRefreshBudget = ClusteredLightingConfig.STATIC_SHADOW_UPDATES_PER_FRAME
 
         selected.forEach { light ->
             val entry = getOrCreateEntry(light) ?: return@forEach
             entry.selectedFrame = frameIndex
 
             val currentSignature = shadowSignature(light)
-            entry.signature = currentSignature
-            required += ShadowWorkItem(light, entry)
+            when (shadowUpdateMode(light, entry, currentSignature)) {
+                ShadowUpdateMode.FORCE -> required += ShadowWorkItem(light, entry, currentSignature)
+                ShadowUpdateMode.REFRESH -> if (staticRefreshBudget > 0) {
+                    staticRefreshBudget--
+                    required += ShadowWorkItem(light, entry, currentSignature)
+                }
+                ShadowUpdateMode.SKIP -> Unit
+            }
         }
 
         required.forEach { work ->
             if (!renderEntry(event, work.light, work.entry)) {
                 work.entry.valid = false
+            } else {
+                work.entry.signature = work.signature
             }
         }
 
@@ -348,6 +359,12 @@ internal object LocalLightShadowManager {
         val regenerateClouds = renderer.shouldRegenerateClouds()
         val cullingCache = event.renderer as? CullingDataCache
         val previousShadowPassActive = ShadowRenderer.ACTIVE
+        val lightWorldX = light.worldPosition.x.toDouble()
+        val lightWorldY = light.worldPosition.y.toDouble()
+        val lightWorldZ = light.worldPosition.z.toDouble()
+        val lightCameraPosition = net.minecraft.world.phys.Vec3(lightWorldX, lightWorldY, lightWorldZ)
+        val originalRenderBuffers = renderer.renderBuffers
+        val shadowRenderBuffers = localShadowRenderBuffers ?: RenderBuffers().also { localShadowRenderBuffers = it }
 
         atlas.bind()
         GL11C.glEnable(GL11C.GL_SCISSOR_TEST)
@@ -365,6 +382,14 @@ internal object LocalLightShadowManager {
             ShadowRenderer.ACTIVE = true
             minecraft.smartCull = false
             rendererInvoker.`hollowengine$needsUpdate`()
+            renderer.setRenderBuffers(shadowRenderBuffers)
+            (shadowRenderBuffers as? DrawCallTrackingRenderBuffers)?.resetDrawCounts()
+            (shadowRenderBuffers as? RenderBuffersExt)?.beginLevelRendering()
+            entry.farPlane = when (val component = light.component) {
+                is PointLightComponent -> max(component.radius, 0.5f)
+                is SpotLightComponent -> max(component.distance, 0.5f)
+            }
+            entry.worldPosition.set(light.worldPosition)
 
             for (face in 0 until faceCount) {
                 val viewport = atlas.viewport(entry.slot, face)
@@ -379,16 +404,16 @@ internal object LocalLightShadowManager {
 
                 entry.localViewProjection[face].set(renderMatrices.localViewProjection)
                 entry.tileData[face].set(viewport.biasX, viewport.biasY, viewport.scaleX, viewport.scaleY)
-                entry.farPlane = renderMatrices.farPlane
-                entry.worldPosition.set(light.worldPosition)
 
-                val lightCamera = ShadowCamera(light.worldPosition, renderMatrices.direction)
+                val lightCamera = reusableShadowCamera.apply {
+                    set(light.worldPosition, renderMatrices.direction)
+                }
                 val frustum = when (entry.shadowType) {
                     ShadowType.SPOT -> Frustum(Matrix4f(renderMatrices.fullViewMatrix), Matrix4f(renderMatrices.projectionMatrix)).apply {
-                        prepare(light.worldPosition.x.toDouble(), light.worldPosition.y.toDouble(), light.worldPosition.z.toDouble())
+                        prepare(lightWorldX, lightWorldY, lightWorldZ)
                     }
                     ShadowType.POINT -> BoxCullingFrustum(BoxCuller(renderMatrices.farPlane.toDouble())).apply {
-                        prepare(light.worldPosition.x.toDouble(), light.worldPosition.y.toDouble(), light.worldPosition.z.toDouble())
+                        prepare(lightWorldX, lightWorldY, lightWorldZ)
                     }
                 }
 
@@ -409,55 +434,41 @@ internal object LocalLightShadowManager {
                     renderer.invokeRenderChunkLayer(
                         RenderType.solid(),
                         stack,
-                        light.worldPosition.x.toDouble(),
-                        light.worldPosition.y.toDouble(),
-                        light.worldPosition.z.toDouble(),
+                        lightWorldX,
+                        lightWorldY,
+                        lightWorldZ,
                         renderMatrices.projectionMatrix,
                     )
                     renderer.invokeRenderChunkLayer(
                         RenderType.cutout(),
                         stack,
-                        light.worldPosition.x.toDouble(),
-                        light.worldPosition.y.toDouble(),
-                        light.worldPosition.z.toDouble(),
+                        lightWorldX,
+                        lightWorldY,
+                        lightWorldZ,
                         renderMatrices.projectionMatrix,
                     )
                     renderer.invokeRenderChunkLayer(
                         RenderType.cutoutMipped(),
                         stack,
-                        light.worldPosition.x.toDouble(),
-                        light.worldPosition.y.toDouble(),
-                        light.worldPosition.z.toDouble(),
+                        lightWorldX,
+                        lightWorldY,
+                        lightWorldZ,
                         renderMatrices.projectionMatrix,
                     )
-                    val originalRenderBuffers = renderer.renderBuffers
-                    val shadowRenderBuffers = localShadowRenderBuffers ?: RenderBuffers().also { localShadowRenderBuffers = it }
-                    renderer.setRenderBuffers(shadowRenderBuffers)
-                    (shadowRenderBuffers as? DrawCallTrackingRenderBuffers)?.resetDrawCounts()
-                    (shadowRenderBuffers as? RenderBuffersExt)?.beginLevelRendering()
-                    try {
-                        atlas.bind()
-                        GL11C.glViewport(viewport.x, viewport.y, viewport.width, viewport.height)
-                        GL11C.glScissor(viewport.x, viewport.y, viewport.width, viewport.height)
-                        RenderManager.renderLocalShadowCasters(
-                            renderer = renderer,
-                            modelView = stack,
-                            cameraPosition = net.minecraft.world.phys.Vec3(
-                                light.worldPosition.x.toDouble(),
-                                light.worldPosition.y.toDouble(),
-                                light.worldPosition.z.toDouble(),
-                            ),
-                            partialTick = event.partialTick,
-                            frustum = frustum,
-                        )
-                        atlas.bind()
-                        GL11C.glViewport(viewport.x, viewport.y, viewport.width, viewport.height)
-                        GL11C.glScissor(viewport.x, viewport.y, viewport.width, viewport.height)
-                        shadowRenderBuffers.bufferSource().endBatch()
-                    } finally {
-                        (shadowRenderBuffers as? RenderBuffersExt)?.endLevelRendering()
-                        renderer.setRenderBuffers(originalRenderBuffers)
-                    }
+                    atlas.bind()
+                    GL11C.glViewport(viewport.x, viewport.y, viewport.width, viewport.height)
+                    GL11C.glScissor(viewport.x, viewport.y, viewport.width, viewport.height)
+                    RenderManager.renderLocalShadowCasters(
+                        renderer = renderer,
+                        modelView = stack,
+                        cameraPosition = lightCameraPosition,
+                        partialTick = event.partialTick,
+                        frustum = frustum,
+                    )
+                    atlas.bind()
+                    GL11C.glViewport(viewport.x, viewport.y, viewport.width, viewport.height)
+                    GL11C.glScissor(viewport.x, viewport.y, viewport.width, viewport.height)
+                    shadowRenderBuffers.bufferSource().endBatch()
                 } finally {
                     stack.popPose()
                     IrisRenderSystem.restorePlayerProjection()
@@ -474,6 +485,8 @@ internal object LocalLightShadowManager {
             cullingCache?.restoreState()
             minecraft.smartCull = originalCull
             renderer.setShouldRegenerateClouds(regenerateClouds)
+            (shadowRenderBuffers as? RenderBuffersExt)?.endLevelRendering()
+            renderer.setRenderBuffers(originalRenderBuffers)
             ShadowRenderer.ACTIVE = previousShadowPassActive
             activeIrisShadowFramebuffer = null
             localShadowPassActive = false
@@ -582,6 +595,17 @@ internal object LocalLightShadowManager {
         return hash
     }
 
+    private fun shadowUpdateMode(light: PreparedLight, entry: ShadowCacheEntry, currentSignature: Long): ShadowUpdateMode {
+        if (!entry.valid || entry.slot == -1) return ShadowUpdateMode.FORCE
+        if (entry.signature != currentSignature) return ShadowUpdateMode.FORCE
+        if (light.component.shadow?.dynamic == true) return ShadowUpdateMode.FORCE
+        if (entry.lastWorldMutation != worldMutationStamp) return ShadowUpdateMode.FORCE
+        if (frameIndex - entry.lastRenderFrame >= ClusteredLightingConfig.STATIC_SHADOW_REFRESH_INTERVAL_FRAMES) {
+            return ShadowUpdateMode.REFRESH
+        }
+        return ShadowUpdateMode.SKIP
+    }
+
     private fun createSpotMatrices(light: PreparedLight): ShadowRenderMatrices {
         val component = light.component as SpotLightComponent
         val worldDirection = Vector3f(light.worldSpaceDirection).normalize()
@@ -590,7 +614,7 @@ internal object LocalLightShadowManager {
             .coerceIn(1f, 175f)
 
         val projection = Matrix4f().perspective(Math.toRadians(fov.toDouble()).toFloat(), 1f, 0.05f, farPlane)
-        val view = lookAt(Vector3f(), worldDirection, upVector(worldDirection))
+        val view = lookAt(reusableOrigin, worldDirection, upVector(worldDirection))
 
         return ShadowRenderMatrices(
             direction = worldDirection,
@@ -606,16 +630,7 @@ internal object LocalLightShadowManager {
         val worldDirection = Vector3f(POINT_FACE_DIRECTIONS[face])
         val farPlane = max(component.radius, 0.5f)
         val projection = Matrix4f().perspective(Math.toRadians(90.0).toFloat(), 1f, 0.05f, farPlane)
-        val fullView = Matrix4f().identity().apply {
-            when (face) {
-                0 -> rotate(Math.toRadians(90.0).toFloat(), 0f, -1f, 0f)
-                1 -> rotate(Math.toRadians(90.0).toFloat(), 0f, 1f, 0f)
-                2 -> rotate(Math.toRadians(90.0).toFloat(), 1f, 0f, 0f)
-                3 -> rotate(Math.toRadians(90.0).toFloat(), -1f, 0f, 0f)
-                4 -> rotate(Math.toRadians(180.0).toFloat(), 0f, 0f, 1f)
-                5 -> rotate(Math.toRadians(180.0).toFloat(), 0f, 1f, 0f)
-            }
-        }
+        val fullView = Matrix4f(POINT_FACE_VIEW_MATRICES[face])
 
         return ShadowRenderMatrices(
             direction = worldDirection,
@@ -643,6 +658,7 @@ internal object LocalLightShadowManager {
 
     private class ShaderStorageBuffer(private val binding: Int) {
         private var id = 0
+        private var capacity = 0
 
         fun upload(data: java.nio.ByteBuffer) {
             if (id == 0) {
@@ -651,7 +667,12 @@ internal object LocalLightShadowManager {
 
             data.flip()
             GL15.glBindBuffer(GL43C.GL_SHADER_STORAGE_BUFFER, id)
-            GL15.glBufferData(GL43C.GL_SHADER_STORAGE_BUFFER, data, GL15.GL_DYNAMIC_DRAW)
+            val size = data.remaining()
+            if (capacity < size) {
+                GL15.glBufferData(GL43C.GL_SHADER_STORAGE_BUFFER, size.toLong(), GL15.GL_DYNAMIC_DRAW)
+                capacity = size
+            }
+            GL15.glBufferSubData(GL43C.GL_SHADER_STORAGE_BUFFER, 0, data)
             GL30C.glBindBufferBase(GL43C.GL_SHADER_STORAGE_BUFFER, binding, id)
             GL15.glBindBuffer(GL43C.GL_SHADER_STORAGE_BUFFER, 0)
         }
@@ -660,6 +681,7 @@ internal object LocalLightShadowManager {
             if (id != 0) {
                 GL15.glDeleteBuffers(id)
                 id = 0
+                capacity = 0
             }
         }
     }
@@ -795,6 +817,7 @@ internal object LocalLightShadowManager {
     private data class ShadowWorkItem(
         val light: PreparedLight,
         val entry: ShadowCacheEntry,
+        val signature: Long,
     )
 
     private class ShadowCacheEntry(
@@ -827,6 +850,12 @@ internal object LocalLightShadowManager {
         POINT,
     }
 
+    private enum class ShadowUpdateMode {
+        SKIP,
+        REFRESH,
+        FORCE,
+    }
+
     private data class ShadowRenderMatrices(
         val direction: Vector3f,
         val fullViewMatrix: Matrix4f,
@@ -836,20 +865,23 @@ internal object LocalLightShadowManager {
     )
 
     @Suppress("CAST_NEVER_SUCCEEDS")
-    private class ShadowCamera(
-        position: Vector3f,
-        direction: Vector3f,
-    ) : Camera() {
-        private val pos = Vector3f(position)
-        private val yaw = Math.toDegrees(atan2(-direction.x.toDouble(), direction.z.toDouble())).toFloat()
-        private val pitch = Math.toDegrees(asin((-direction.y).coerceIn(-1f, 1f).toDouble())).toFloat()
+    private class ShadowCamera : Camera() {
+        private val pos = Vector3f()
+        private var yaw = 0f
+        private var pitch = 0f
 
-        init {
-            (this as CameraInvoker).`hollowcore$setPosition`(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
-            (this as CameraInvoker).`hollowcore$rotate`(yaw, pitch)
+        fun set(position: Vector3f, direction: Vector3f) {
+            pos.set(position)
+            yaw = Math.toDegrees(atan2(-direction.x.toDouble(), direction.z.toDouble())).toFloat()
+            pitch = Math.toDegrees(asin((-direction.y).coerceIn(-1f, 1f).toDouble())).toFloat()
+            applyTransform()
         }
 
         override fun setup(area: net.minecraft.world.level.BlockGetter, focusedEntity: net.minecraft.world.entity.Entity, thirdPerson: Boolean, inverseView: Boolean, tickDelta: Float) {
+            applyTransform()
+        }
+
+        private fun applyTransform() {
             (this as CameraInvoker).`hollowcore$setPosition`(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
             (this as CameraInvoker).`hollowcore$rotate`(yaw, pitch)
         }
@@ -880,12 +912,12 @@ internal object LocalLightShadowManager {
         Vector3f(0f, 0f, -1f),
     )
 
-    private val POINT_FACE_UPS = arrayOf(
-        Vector3f(0f, -1f, 0f),
-        Vector3f(0f, -1f, 0f),
-        Vector3f(0f, 0f, 1f),
-        Vector3f(0f, 0f, -1f),
-        Vector3f(0f, -1f, 0f),
-        Vector3f(0f, -1f, 0f),
+    private val POINT_FACE_VIEW_MATRICES = arrayOf(
+        Matrix4f().rotate(Math.toRadians(90.0).toFloat(), 0f, -1f, 0f),
+        Matrix4f().rotate(Math.toRadians(90.0).toFloat(), 0f, 1f, 0f),
+        Matrix4f().rotate(Math.toRadians(90.0).toFloat(), 1f, 0f, 0f),
+        Matrix4f().rotate(Math.toRadians(90.0).toFloat(), -1f, 0f, 0f),
+        Matrix4f().rotate(Math.toRadians(180.0).toFloat(), 0f, 0f, 1f),
+        Matrix4f().rotate(Math.toRadians(180.0).toFloat(), 0f, 1f, 0f),
     )
 }

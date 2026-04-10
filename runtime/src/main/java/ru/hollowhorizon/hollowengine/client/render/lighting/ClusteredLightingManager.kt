@@ -561,12 +561,18 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
 
     private class ShaderStorageBuffer(private val binding: Int) {
         private var id: Int = 0
+        private var capacity: Int = 0
 
         fun upload(data: ByteBuffer) {
             ensureCreated()
             data.flip()
             GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, id)
-            GL15.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, data, GL15.GL_DYNAMIC_DRAW)
+            val size = data.remaining()
+            if (capacity < size) {
+                GL15.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, size.toLong(), GL15.GL_DYNAMIC_DRAW)
+                capacity = size
+            }
+            GL15.glBufferSubData(GL43.GL_SHADER_STORAGE_BUFFER, 0, data)
             GL30.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, binding, id)
             GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, 0)
         }
@@ -575,6 +581,7 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
             if (id == 0) return
             GL15.glDeleteBuffers(id)
             id = 0
+            capacity = 0
         }
 
         private fun ensureCreated() {
