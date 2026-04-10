@@ -1,8 +1,12 @@
 package ru.hollowhorizon.hollowengine.bootstrap.mixins.client.iris;
 
+import com.llamalad7.mixinextras.sugar.Local;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.irisshaders.iris.mixin.LevelRendererAccessor;
 import net.irisshaders.iris.shadows.ShadowRenderer;
 import net.minecraft.client.Camera;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.culling.Frustum;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
@@ -32,7 +36,19 @@ public class ShadowRendererMixin {
         ),
         remap = false
     )
-    private void hollowengine$flushShadowBatch(LevelRendererAccessor levelRenderer, Camera playerCamera, CallbackInfo ci) {
+    private void hollowengine$flushShadowBatch(
+        LevelRendererAccessor levelRenderer,
+        Camera playerCamera,
+        CallbackInfo ci,
+        @Local(name = "modelView") PoseStack modelView,
+        @Local(name = "bufferSource") MultiBufferSource.BufferSource bufferSource,
+        @Local(name = "tickDelta") float tickDelta,
+        @Local(name = "entityShadowFrustum") Frustum entityShadowFrustum,
+        @Local(name = "cameraX") double cameraX,
+        @Local(name = "cameraY")  double cameraY,
+        @Local(name = "cameraZ")  double cameraZ
+    ) {
+        BootstrapRuntimeManager.bridge().onIrisShadowRenderCasters(modelView, bufferSource, tickDelta, entityShadowFrustum, cameraX, cameraY, cameraZ);
         BootstrapRuntimeManager.bridge().onIrisShadowRenderBeforeEndBatch();
     }
 

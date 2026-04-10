@@ -27,6 +27,7 @@ object ClusteredLightingConfig {
     const val FLARE_BINDING = 33
     const val CLUSTER_INDEX_BINDING = 34
     const val VOLUMETRIC_TILE_INDEX_BINDING = 35
+    const val SHADOW_DATA_BINDING = 36
 
     const val CORE_LIGHT_STRIDE = 48
     const val POINT_LIGHT_STRIDE = 16
@@ -34,6 +35,17 @@ object ClusteredLightingConfig {
     const val SHADOW_SETTINGS_STRIDE = 16
     const val VOLUMETRIC_FOG_STRIDE = 16
     const val FLARE_STRIDE = 32
+
+    const val MAX_SPOT_SHADOW_LIGHTS = 16
+    const val MAX_POINT_SHADOW_LIGHTS = 4
+    const val STATIC_SHADOW_UPDATES_PER_FRAME = 2
+    const val STATIC_SHADOW_REFRESH_INTERVAL_FRAMES = 12
+
+    const val SPOT_SHADOW_ATLAS_SIZE = 2048
+    const val SPOT_SHADOW_TILE_SIZE = 512
+    const val POINT_SHADOW_ATLAS_WIDTH = 2048
+    const val POINT_SHADOW_ATLAS_HEIGHT = 1024
+    const val POINT_SHADOW_FACE_SIZE = 256
 }
 
 data class ClusterClipPlanes(

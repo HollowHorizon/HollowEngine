@@ -12,6 +12,7 @@
   ],
   "client": [
     "client.CameraInvoker",
+    "client.LevelRendererInvoker",
     "client.ShaderInstanceAccessor"
   ],
   "injectors": {

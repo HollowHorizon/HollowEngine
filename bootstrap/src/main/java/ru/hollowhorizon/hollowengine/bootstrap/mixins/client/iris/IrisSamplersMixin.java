@@ -18,6 +18,7 @@ public class IrisSamplersMixin {
         Set<GlImage> customImages,
         CallbackInfo ci
     ) {
+        BootstrapRuntimeManager.bridge().onIrisAddCustomSamplers(images);
         BootstrapRuntimeManager.bridge().onIrisAddCustomImages(customImages);
     }
 }

@@ -20,6 +20,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.controller.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationSystem
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
+import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScopeOrNull
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
@@ -27,6 +28,7 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.generated.Assets
+import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 
 @Registerable
 @Syncable
@@ -115,6 +117,7 @@ fun onRender(event: RenderEntityEvent.Pre) {
     }
 
     with(event) {
+        val allowInstancing = !IrisHelper.isShadowRendering() && !ClusteredLightingManager.isLocalShadowPassActive()
         poseStack.pushPose()
         poseStack.translate(
             transform.translation.x.toDouble(),
@@ -149,7 +152,7 @@ fun onRender(event: RenderEntityEvent.Pre) {
             model.scale * transform.scale.y,
             model.scale * transform.scale.z,
         )
-        model.attachment.pipeline.render(RenderContext(poseStack, buffer, packedLight, overlay, allowInstancing = true))
+        model.attachment.pipeline.render(RenderContext(poseStack, buffer, packedLight, overlay, allowInstancing = allowInstancing))
         poseStack.popPose()
 
         isCanceled = true

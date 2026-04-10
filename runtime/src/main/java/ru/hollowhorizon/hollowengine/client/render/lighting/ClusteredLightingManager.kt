@@ -2,6 +2,8 @@ package ru.hollowhorizon.hollowengine.client.render.lighting
 
 import com.mojang.blaze3d.systems.RenderSystem
 import de.fabmax.kool.math.Vec3f
+import net.irisshaders.iris.gl.framebuffer.GlFramebuffer
+import net.irisshaders.iris.gl.sampler.SamplerHolder
 import net.irisshaders.iris.gl.uniform.DynamicUniformHolder
 import net.irisshaders.iris.gl.uniform.UniformUpdateFrequency
 import net.minecraft.client.Minecraft
@@ -62,6 +64,7 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
     private var projectionMatrix = Matrix4f()
     private var viewProjectionMatrix = Matrix4f()
     private var clipPlanes = ClusterClipPlanes(0.05f, 256f)
+    private var shadowFrameState = ShadowFrameState.EMPTY
 
     private var clusterIndexScratch = IntArray(0)
     private var volumetricTileIndexScratch = IntArray(0)
@@ -109,6 +112,7 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         if (collected.isEmpty()) {
             resetClusterScratch()
             resetVolumetricTileScratch()
+            shadowFrameState = ShadowFrameState.EMPTY
             lightCount = 0
             clusterCount = 0
             volumetricTileCount = 0
@@ -119,6 +123,8 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
             uploadPackedState(collected, EMPTY_INDEX_LIST, EMPTY_INDEX_LIST)
             return
         }
+
+        shadowFrameState = LocalLightShadowManager.prepareFrame(event, collected, viewMatrix)
 
         val tileCountX = maxOf(1, ceil(viewResolution.x / ClusteredLightingConfig.TILE_SIZE.toFloat()).toInt())
         val tileCountY = maxOf(1, ceil(viewResolution.y / ClusteredLightingConfig.TILE_SIZE.toFloat()).toInt())
@@ -222,9 +228,28 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         uniforms.uniform1f(UniformUpdateFrequency.PER_FRAME, "he_nearPlane", ::currentNearPlane)
         uniforms.uniform1f(UniformUpdateFrequency.PER_FRAME, "he_farPlane", ::currentFarPlane)
         uniforms.uniform2i(UniformUpdateFrequency.PER_FRAME, "he_viewResolution", ::currentViewResolution)
+        LocalLightShadowManager.registerDynamicUniforms(uniforms)
     }
 
-    fun addCustomImages(customImages: MutableSet<*>) = Unit
+    fun addCustomSamplers(samplers: SamplerHolder) {
+        LocalLightShadowManager.addCustomSamplers(samplers)
+    }
+
+    fun addCustomImages(customImages: MutableSet<*>) {
+        LocalLightShadowManager.addCustomImages(customImages)
+    }
+
+    fun isLocalShadowPassActive(): Boolean = LocalLightShadowManager.isLocalShadowPassActive()
+
+    fun getIrisLocalShadowViewMatrix(): Matrix4f = LocalLightShadowManager.currentShadowViewMatrix()
+
+    fun getIrisLocalShadowProjectionMatrix(): Matrix4f = LocalLightShadowManager.currentShadowProjectionMatrix()
+
+    fun getIrisLocalShadowFramebuffer(): GlFramebuffer? = LocalLightShadowManager.currentIrisShadowFramebuffer()
+
+    fun markLocalShadowWorldChanged() {
+        LocalLightShadowManager.markWorldChanged()
+    }
 
     private fun updateFrameMatrices(event: RenderLevelStageEvent) {
         val minecraft = Minecraft.getInstance()
@@ -271,6 +296,10 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
                     resolved.transform.translation.y,
                     resolved.transform.translation.z,
                 )
+                val worldSpaceDirection = when (component) {
+                    is PointLightComponent -> Vector3f(0f, 0f, 0f)
+                    is SpotLightComponent -> spotLightDirection(transform.rotation).toJoml().normalize()
+                }
                 val cameraRelativePosition = Vector3f(worldPosition).sub(cameraPosition)
                 val viewSpacePosition = Vector3f(cameraRelativePosition)
                 viewMatrix.transformPosition(viewSpacePosition)
@@ -289,16 +318,20 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
                 }
 
                 collected += PreparedLight(
+                    cacheKey = record.stableKey.toString(),
                     component = component,
+                    worldPosition = worldPosition,
+                    worldSpaceDirection = worldSpaceDirection,
                     viewSpacePosition = viewSpacePosition,
                     viewSpaceDirection = when (component) {
                         is PointLightComponent -> Vector3f(0f, 0f, 0f)
-                        is SpotLightComponent -> spotLightDirection(transform.rotation).toJoml().apply {
+                        is SpotLightComponent -> Vector3f(worldSpaceDirection).apply {
                             viewMatrix.transformDirection(this)
                             normalize()
                         }
                     },
                     influenceRadius = influenceRadius,
+                    cameraDistance = cameraRelativePosition.length(),
                     flareScreenPosition = flarePosition,
                 )
             }
@@ -348,7 +381,7 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
                 }
             )
             coreLightBytes.putInt(index)
-            coreLightBytes.putInt(if (light.component.hasShadow) index else -1)
+            coreLightBytes.putInt(if (light.component.hasShadow) shadowFrameState.shadowIndexFor(light.cacheKey) else -1)
             coreLightBytes.putInt(flags)
 
             when (val component = light.component) {
@@ -435,6 +468,8 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
 
     private fun clearFrameState() {
         enabled = false
+        shadowFrameState = ShadowFrameState.EMPTY
+        LocalLightShadowManager.resetFrameState()
         lightCount = 0
         clusterCount = 0
         volumetricTileCount = 0
@@ -456,6 +491,7 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         flareBuffer.release()
         clusterIndexBuffer.release()
         volumetricTileIndexBuffer.release()
+        LocalLightShadowManager.invalidate()
     }
 
     private fun prepareClusterScratch(clusterCountLocal: Int): IntArray {
@@ -522,14 +558,6 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         buffer.asIntBuffer().put(values, 0, values.size)
         buffer.position(values.size * Int.SIZE_BYTES)
     }
-
-    private data class PreparedLight(
-        val component: LightComponent,
-        val viewSpacePosition: Vector3f,
-        val viewSpaceDirection: Vector3f,
-        val influenceRadius: Float,
-        val flareScreenPosition: ScreenSpaceLightPosition?,
-    )
 
     private class ShaderStorageBuffer(private val binding: Int) {
         private var id: Int = 0
