@@ -11,6 +11,9 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.geary.api.UNINITIALIZED_ENTITY_ID
 import ru.hollowhorizon.hollowengine.common.geary.api.geary
+import ru.hollowhorizon.hollowengine.common.geary.components.Model
+import ru.hollowhorizon.hollowengine.common.geary.components.PointLightComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.SpotLightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
@@ -28,6 +31,8 @@ class MaterializationService(
 ) {
     private val runtimeByStableKey = linkedMapOf<UUID, Long>()
     private val materializedByRuntime = linkedMapOf<Long, MaterializedRecord>()
+    private val modelRuntimes = linkedSetOf<Long>()
+    private val lightRuntimes = linkedSetOf<Long>()
     private val activeWorldStableKeysByChunk = linkedMapOf<Long, LinkedHashSet<UUID>>()
     private val activeWorldChunkByStableKey = linkedMapOf<UUID, Long>()
     private val entityChildrenByHost = linkedMapOf<UUID, LinkedHashSet<UUID>>()
@@ -37,6 +42,18 @@ class MaterializationService(
     private val playerChunkPositions = linkedMapOf<UUID, Long>()
 
     val records: Collection<MaterializedRecord> get() = materializedByRuntime.values
+
+    fun forEachModelRecord(action: (MaterializedRecord) -> Unit) {
+        modelRuntimes.forEach { runtimeId ->
+            materializedByRuntime[runtimeId]?.let(action)
+        }
+    }
+
+    fun forEachLightRecord(action: (MaterializedRecord) -> Unit) {
+        lightRuntimes.forEach { runtimeId ->
+            materializedByRuntime[runtimeId]?.let(action)
+        }
+    }
 
     fun tick() {
         if (level is ServerLevel) {
@@ -93,6 +110,7 @@ class MaterializationService(
         if (runtimeByStableKey[stableKey] != runtimeId) return
         runtimeByStableKey.remove(stableKey)
         materializedByRuntime.remove(runtimeId)
+        removeComponentIndexes(runtimeId)
         removeActiveWorldIndex(stableKey)
     }
 
@@ -102,6 +120,7 @@ class MaterializationService(
         if (runtimeId != null) {
             removed = true
             val record = materializedByRuntime.remove(runtimeId)
+            removeComponentIndexes(runtimeId)
             removeActiveWorldIndex(stableKey)
             val entityAnchor = record?.anchor as? EntityAnchor
             if (entityAnchor != null) {
@@ -362,6 +381,24 @@ class MaterializationService(
     private fun putMaterializedRecord(record: MaterializedRecord) {
         materializedByRuntime[record.runtimeId] = record
         updateActiveWorldIndex(record.stableKey, record.anchor)
+        refreshComponentIndexes(record.runtimeId)
+    }
+
+    private fun refreshComponentIndexes(runtimeId: Long) {
+        with(level.geary) {
+            val entity = runtimeId.toGeary()
+            if (entity.get<Model>() != null) modelRuntimes.add(runtimeId) else modelRuntimes.remove(runtimeId)
+            if (entity.get<PointLightComponent>() != null || entity.get<SpotLightComponent>() != null) {
+                lightRuntimes.add(runtimeId)
+            } else {
+                lightRuntimes.remove(runtimeId)
+            }
+        }
+    }
+
+    private fun removeComponentIndexes(runtimeId: Long) {
+        modelRuntimes.remove(runtimeId)
+        lightRuntimes.remove(runtimeId)
     }
 
     private fun updateActiveWorldIndex(stableKey: UUID, anchor: AnchorComponent) {

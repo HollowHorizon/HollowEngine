@@ -670,12 +670,8 @@ internal object LocalLightShadowManager {
 
             data.flip()
             GL15.glBindBuffer(GL43C.GL_SHADER_STORAGE_BUFFER, id)
-            val size = data.remaining()
-            if (capacity < size) {
-                GL15.glBufferData(GL43C.GL_SHADER_STORAGE_BUFFER, size.toLong(), GL15.GL_DYNAMIC_DRAW)
-                capacity = size
-            }
-            GL15.glBufferSubData(GL43C.GL_SHADER_STORAGE_BUFFER, 0, data)
+            GL15.glBufferData(GL43C.GL_SHADER_STORAGE_BUFFER, data, GL15.GL_STREAM_DRAW)
+            capacity = data.remaining()
             GL30C.glBindBufferBase(GL43C.GL_SHADER_STORAGE_BUFFER, binding, id)
             GL15.glBindBuffer(GL43C.GL_SHADER_STORAGE_BUFFER, 0)
         }

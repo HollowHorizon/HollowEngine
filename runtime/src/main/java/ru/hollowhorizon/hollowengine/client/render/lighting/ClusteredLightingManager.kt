@@ -269,10 +269,10 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         frustum: Frustum?,
     ): List<PreparedLight> {
         val materialization = MaterializationRuntimeState.service(level)
-        val collected = ArrayList<PreparedLight>(materialization.records.size)
+        val collected = ArrayList<PreparedLight>()
 
-        materialization.records.forEach { record ->
-            if ((record.anchor as? EntityAnchor)?.primary == true) return@forEach
+        materialization.forEachLightRecord { record ->
+            if ((record.anchor as? EntityAnchor)?.primary == true) return@forEachLightRecord
 
             with(level.geary) {
                 val entity = record.runtimeId.toGeary()
@@ -567,12 +567,8 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
             ensureCreated()
             data.flip()
             GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, id)
-            val size = data.remaining()
-            if (capacity < size) {
-                GL15.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, size.toLong(), GL15.GL_DYNAMIC_DRAW)
-                capacity = size
-            }
-            GL15.glBufferSubData(GL43.GL_SHADER_STORAGE_BUFFER, 0, data)
+            GL15.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, data, GL15.GL_STREAM_DRAW)
+            capacity = data.remaining()
             GL30.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, binding, id)
             GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, 0)
         }

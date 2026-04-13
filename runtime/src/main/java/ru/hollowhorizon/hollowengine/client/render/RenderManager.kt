@@ -217,8 +217,8 @@ object RenderManager {
         val level = minecraft.level ?: return
         val materialization = MaterializationRuntimeState.service(level)
 
-        materialization.records.forEach { record ->
-            if ((record.anchor as? EntityAnchor)?.primary == true) return@forEach
+        materialization.forEachModelRecord { record ->
+            if ((record.anchor as? EntityAnchor)?.primary == true) return@forEachModelRecord
 
             with(level.geary) {
                 val entity = record.runtimeId.toGeary()
