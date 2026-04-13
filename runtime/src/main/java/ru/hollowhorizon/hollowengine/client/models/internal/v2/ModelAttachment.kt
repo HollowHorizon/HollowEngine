@@ -32,6 +32,10 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
     private var compiledFor: AnimatedModel? = null
     @Volatile
     private var renderPipeline: ListRenderPipeline = ListRenderPipeline()
+    @Volatile
+    private var cachedBounds: Pair<Vec3f, Vec3f>? = null
+    @Volatile
+    private var cachedBoundsFrame = Int.MIN_VALUE
 
     val model get() = modelState.model
     val nodes get() = runtimeNodes
@@ -87,6 +91,8 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
             nodeIdToNode = runtimeNodes.flatMap { it.walk() }.associateBy { it.definition.index }
             nodeIdToTransform = nodeIdToNode.mapValues { it.value.transform }
             renderPipeline = ListRenderPipeline().apply(this@ModelAttachment::collectCommands)
+            cachedBounds = null
+            cachedBoundsFrame = Int.MIN_VALUE
             compiledFor = animated
         }
     }
@@ -144,6 +150,65 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
         ensureCompiled(flow.value)
         return runtimeNodes.asSequence().flatMap { it.walk().asSequence() }.firstOrNull { it.name == name }
     }
+
+    fun calculateBoundsCached(frame: Int = Time.frameCount): Pair<Vec3f, Vec3f>? {
+        if (cachedBoundsFrame == frame) return cachedBounds
+
+        synchronized(rebuildLock) {
+            if (cachedBoundsFrame == frame) return cachedBounds
+            val bounds = calculateBoundsInternal()
+            cachedBounds = bounds
+            cachedBoundsFrame = frame
+            return bounds
+        }
+    }
+
+    private fun calculateBoundsInternal(): Pair<Vec3f, Vec3f>? {
+        var minX = Float.POSITIVE_INFINITY
+        var minY = Float.POSITIVE_INFINITY
+        var minZ = Float.POSITIVE_INFINITY
+        var maxX = Float.NEGATIVE_INFINITY
+        var maxY = Float.NEGATIVE_INFINITY
+        var maxZ = Float.NEGATIVE_INFINITY
+        var hasBounds = false
+        val source = MutableVec3f()
+        val transformed = MutableVec3f()
+
+        nodes.forEach { node ->
+            node.walk().forEach { runtimeNode ->
+                val matrix = runtimeNode.globalMatrix
+                runtimeNode.definition.mesh?.primitives?.forEach { primitive ->
+                    val localBounds = primitive.localBounds ?: return@forEach
+                    val min = localBounds.first
+                    val max = localBounds.second
+
+                    fun update(x: Float, y: Float, z: Float) {
+                        source.set(x, y, z)
+                        matrix.transform(source, 1f, transformed)
+                        minX = kotlin.math.min(minX, transformed.x)
+                        minY = kotlin.math.min(minY, transformed.y)
+                        minZ = kotlin.math.min(minZ, transformed.z)
+                        maxX = kotlin.math.max(maxX, transformed.x)
+                        maxY = kotlin.math.max(maxY, transformed.y)
+                        maxZ = kotlin.math.max(maxZ, transformed.z)
+                    }
+
+                    update(min.x, min.y, min.z)
+                    update(min.x, min.y, max.z)
+                    update(min.x, max.y, min.z)
+                    update(min.x, max.y, max.z)
+                    update(max.x, min.y, min.z)
+                    update(max.x, min.y, max.z)
+                    update(max.x, max.y, min.z)
+                    update(max.x, max.y, max.z)
+                    hasBounds = true
+                }
+            }
+        }
+
+        if (!hasBounds) return null
+        return Vec3f(minX, minY, minZ) to Vec3f(maxX, maxY, maxZ)
+    }
 }
 
 class Animations(private val map: Map<String, AnimationInstance>) : Collection<AnimationInstance> {
@@ -159,50 +224,7 @@ class Animations(private val map: Map<String, AnimationInstance>) : Collection<A
     override fun containsAll(elements: Collection<AnimationInstance>) = map.values.containsAll(elements)
 }
 
-fun ModelAttachment.calculateBounds(): Pair<Vec3f, Vec3f>? {
-    var minX = Float.POSITIVE_INFINITY
-    var minY = Float.POSITIVE_INFINITY
-    var minZ = Float.POSITIVE_INFINITY
-    var maxX = Float.NEGATIVE_INFINITY
-    var maxY = Float.NEGATIVE_INFINITY
-    var maxZ = Float.NEGATIVE_INFINITY
-    var hasBounds = false
-    val transformed = MutableVec3f()
-
-    nodes.forEach { node ->
-        node.walk().forEach { runtimeNode ->
-            val matrix = runtimeNode.globalMatrix
-            runtimeNode.definition.mesh?.primitives?.forEach { primitive ->
-                val localBounds = primitive.localBounds ?: return@forEach
-                val min = localBounds.first
-                val max = localBounds.second
-
-                fun update(x: Float, y: Float, z: Float) {
-                    matrix.transform(Vec3f(x, y, z), 1f, transformed)
-                    minX = kotlin.math.min(minX, transformed.x)
-                    minY = kotlin.math.min(minY, transformed.y)
-                    minZ = kotlin.math.min(minZ, transformed.z)
-                    maxX = kotlin.math.max(maxX, transformed.x)
-                    maxY = kotlin.math.max(maxY, transformed.y)
-                    maxZ = kotlin.math.max(maxZ, transformed.z)
-                }
-
-                update(min.x, min.y, min.z)
-                update(min.x, min.y, max.z)
-                update(min.x, max.y, min.z)
-                update(min.x, max.y, max.z)
-                update(max.x, min.y, min.z)
-                update(max.x, min.y, max.z)
-                update(max.x, max.y, min.z)
-                update(max.x, max.y, max.z)
-                hasBounds = true
-            }
-        }
-    }
-
-    if (!hasBounds) return null
-    return Vec3f(minX, minY, minZ) to Vec3f(maxX, maxY, maxZ)
-}
+fun ModelAttachment.calculateBounds(): Pair<Vec3f, Vec3f>? = calculateBoundsCached()
 
 private const val MODEL_BATCHING_PRIMITIVE_THRESHOLD = 48
 private const val MODEL_BATCHING_DENSE_PRIMITIVE_THRESHOLD = 24

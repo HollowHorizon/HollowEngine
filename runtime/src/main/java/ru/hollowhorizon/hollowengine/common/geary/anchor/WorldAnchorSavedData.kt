@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 class WorldAnchorSavedData private constructor() : SavedData() {
     private val recordsByChunk = ConcurrentHashMap<Long, LinkedHashMap<UUID, CompoundTag>>()
+    private val chunkByStableKey = ConcurrentHashMap<UUID, Long>()
 
     fun recordsForChunk(chunkKey: Long): List<DormantRecord> =
         recordsByChunk[chunkKey]
@@ -18,6 +19,23 @@ class WorldAnchorSavedData private constructor() : SavedData() {
             ?.map { tag -> EntitySerialization.deserializeFromNbt(tag) }
             ?.map { snapshot -> DormantRecord(snapshot.requireStableKey(), snapshot) }
             .orEmpty()
+
+    fun forEachRecordInChunk(chunkKey: Long, action: (DormantRecord) -> Unit) {
+        recordsByChunk[chunkKey]
+            ?.values
+            ?.forEach { tag ->
+                val snapshot = EntitySerialization.deserializeFromNbt(tag)
+                action(DormantRecord(snapshot.requireStableKey(), snapshot))
+            }
+    }
+
+    fun forEachRecordInChunkRange(centerChunkX: Int, centerChunkZ: Int, radius: Int, action: (DormantRecord) -> Unit) {
+        for (chunkX in centerChunkX - radius..centerChunkX + radius) {
+            for (chunkZ in centerChunkZ - radius..centerChunkZ + radius) {
+                forEachRecordInChunk(ChunkKey.pack(chunkX, chunkZ), action)
+            }
+        }
+    }
 
     fun allRecords(): List<DormantRecord> = recordsByChunk.values
         .flatMap { records -> records.values }
@@ -27,24 +45,30 @@ class WorldAnchorSavedData private constructor() : SavedData() {
     fun put(record: DormantRecord) {
         val worldAnchor = record.anchor as? WorldAnchor
             ?: error("WorldAnchorSavedData can store only world-anchored records.")
-        recordsByChunk.computeIfAbsent(ChunkKey.pack(worldAnchor.chunkX, worldAnchor.chunkZ)) { linkedMapOf() }[record.stableKey] =
+        val chunkKey = ChunkKey.pack(worldAnchor.chunkX, worldAnchor.chunkZ)
+        chunkByStableKey.put(record.stableKey, chunkKey)?.takeIf { it != chunkKey }?.let { previousChunk ->
+            recordsByChunk[previousChunk]?.remove(record.stableKey)
+        }
+        recordsByChunk.computeIfAbsent(chunkKey) { linkedMapOf() }[record.stableKey] =
             EntitySerialization.serializeToNbt(record.snapshot) as CompoundTag
         setDirty()
     }
 
     fun remove(stableKey: UUID): DormantRecord? {
-        recordsByChunk.entries.forEach { (_, records) ->
-            val removed = records.remove(stableKey) ?: return@forEach
-            if (records.isEmpty()) recordsByChunk.entries.removeIf { it.value.isEmpty() }
-            setDirty()
-            val snapshot = EntitySerialization.deserializeFromNbt(removed)
-            return DormantRecord(snapshot.requireStableKey(), snapshot)
+        val chunkKey = chunkByStableKey.remove(stableKey) ?: return null
+        val records = recordsByChunk[chunkKey] ?: return null
+        val removed = records.remove(stableKey) ?: return null
+        if (records.isEmpty()) {
+            recordsByChunk.remove(chunkKey, records)
         }
-        return null
+        setDirty()
+        val snapshot = EntitySerialization.deserializeFromNbt(removed)
+        return DormantRecord(snapshot.requireStableKey(), snapshot)
     }
 
     fun removeChunk(chunkKey: Long): List<DormantRecord> {
         val removed = recordsByChunk.remove(chunkKey).orEmpty()
+        removed.keys.forEach(chunkByStableKey::remove)
         if (removed.isNotEmpty()) setDirty()
         return removed.values
             .map { tag -> EntitySerialization.deserializeFromNbt(tag) }
@@ -81,7 +105,9 @@ class WorldAnchorSavedData private constructor() : SavedData() {
                             for (entryIndex in 0 until list.size) {
                                 val entryTag = list.getCompound(entryIndex)
                                 val snapshot = EntitySerialization.deserializeFromNbt(entryTag)
-                                records[snapshot.requireStableKey()] = entryTag
+                                val stableKey = snapshot.requireStableKey()
+                                records[stableKey] = entryTag
+                                chunkByStableKey[stableKey] = chunkKey
                             }
                             if (records.isNotEmpty()) {
                                 recordsByChunk[chunkKey] = records

@@ -100,6 +100,7 @@ fun buildAnchoredRenderBounds(model: Model, transform: TrsTransformF, modelScale
     val min = localBounds.first
     val max = localBounds.second
     val matrix = worldTransform.matrixF
+    val source = MutableVec3f()
     val transformed = MutableVec3f()
     var minX = Float.POSITIVE_INFINITY
     var minY = Float.POSITIVE_INFINITY
@@ -109,7 +110,8 @@ fun buildAnchoredRenderBounds(model: Model, transform: TrsTransformF, modelScale
     var maxZ = Float.NEGATIVE_INFINITY
 
     fun update(x: Float, y: Float, z: Float) {
-        matrix.transform(Vec3f(x, y, z), 1f, transformed)
+        source.set(x, y, z)
+        matrix.transform(source, 1f, transformed)
         minX = kotlin.math.min(minX, transformed.x)
         minY = kotlin.math.min(minY, transformed.y)
         minZ = kotlin.math.min(minZ, transformed.z)
