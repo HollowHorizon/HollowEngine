@@ -9,9 +9,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import ru.hollowhorizon.hollowengine.bootstrap.iris.IrisLocalShadowFramebufferHook;
 
 @Pseudo
-@Mixin(value = FallbackShader.class, remap = false)
+@Mixin(value = FallbackShader.class)
 public class FallbackShaderMixin {
-    @Inject(method = "apply", at = @At("RETURN"), remap = false)
+    @Inject(method = {"apply", "method_34586", "m_173363_"}, at = @At("RETURN"), remap = false)
     private void hollowengine$restoreLocalShadowFramebuffer(CallbackInfo ci) {
         IrisLocalShadowFramebufferHook.rebindIfNeeded();
     }

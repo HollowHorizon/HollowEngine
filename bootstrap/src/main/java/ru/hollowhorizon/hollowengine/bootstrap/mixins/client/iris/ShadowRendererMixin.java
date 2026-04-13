@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.BootstrapRuntimeManager;
 
 @Pseudo
-@Mixin(value = ShadowRenderer.class, remap = false)
+@Mixin(value = ShadowRenderer.class)
 public class ShadowRendererMixin {
     @Inject(method = "renderShadows", at = @At("HEAD"), remap = false)
     private void hollowengine$clearShadowBatch(LevelRendererAccessor levelRenderer, Camera playerCamera, CallbackInfo ci) {
@@ -26,15 +26,9 @@ public class ShadowRendererMixin {
         method = "renderShadows",
         at = @At(
             value = "INVOKE",
-            //? if fabric {
             target = "Lnet/minecraft/client/renderer/MultiBufferSource$BufferSource;endBatch()V",
-            //?} else {
-            /*target = "Lnet/minecraft/client/renderer/MultiBufferSource$BufferSource;m_109911_()V",
-            *///?}
-            shift = At.Shift.BEFORE,
-            remap = false
-        ),
-        remap = false
+            shift = At.Shift.BEFORE
+        )
     )
     private void hollowengine$flushShadowBatch(
         LevelRendererAccessor levelRenderer,
