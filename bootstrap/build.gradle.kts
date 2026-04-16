@@ -1,25 +1,11 @@
+
 import net.fabricmc.loom.extension.LoomGradleExtensionImpl
-import org.gradle.api.tasks.Delete
-import org.gradle.api.tasks.SourceSetContainer
-import org.gradle.api.tasks.Copy
-import org.gradle.api.tasks.Sync
-import org.gradle.api.tasks.compile.JavaCompile
-import org.gradle.jvm.tasks.Jar
-import org.gradle.language.jvm.tasks.ProcessResources
 import net.fabricmc.loom.task.RemapJarTask
-import org.gradle.kotlin.dsl.configure
-import org.gradle.kotlin.dsl.getByType
-import org.gradle.kotlin.dsl.named
-import org.gradle.kotlin.dsl.register
-import ru.hollowhorizon.gradle.ModProject
-import ru.hollowhorizon.gradle.ResourcesSetup
-import ru.hollowhorizon.gradle.StonecutterSetup
+import org.gradle.jvm.tasks.Jar
+import ru.hollowhorizon.gradle.*
 import ru.hollowhorizon.gradle.fabric.FabricSetup
 import ru.hollowhorizon.gradle.forge.ForgeSetup
-import ru.hollowhorizon.gradle.minecraft
-import ru.hollowhorizon.gradle.modImplementation
 import ru.hollowhorizon.gradle.neoforge.NeoForgeSetup
-import ru.hollowhorizon.gradle.setupMappings
 import java.security.MessageDigest
 
 plugins {
@@ -242,7 +228,10 @@ dependencies {
             modImplementation("net.fabricmc.fabric-api:fabric-api:${FabricSetup.fabricApi(minecraftVersion)}")
             when (minecraftVersion) {
                 "1.21.1" -> "modCompileOnly"("mods:iris-fabric:1.8.8+mc1.21.1")
-                "1.20.1" -> "modCompileOnly"("mods:iris:1.7.2")
+                "1.20.1" -> {
+                    modImplementation("mods:iris:1.7.2")
+                    modImplementation("mods:sodium:0.5.11")
+                }
             }
         }
 
@@ -267,6 +256,8 @@ dependencies {
         "neoforge" -> embedBootstrapLibrary("io.github.llamalad7:mixinextras-neoforge:0.4.1")
     }
 
+    implementation("org.anarres:jcpp:1.4.14")
+    implementation("io.github.douira:glsl-transformer:2.0.1")
     implementation(project(path = bridgeProjectPath, configuration = "namedElements"))
     compileOnly("org.spongepowered:mixin:0.8.7")
     compileOnly("org.ow2.asm:asm-tree:9.7")

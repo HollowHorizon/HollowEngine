@@ -11,6 +11,9 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.geary.api.UNINITIALIZED_ENTITY_ID
 import ru.hollowhorizon.hollowengine.common.geary.api.geary
+import ru.hollowhorizon.hollowengine.common.geary.components.Model
+import ru.hollowhorizon.hollowengine.common.geary.components.PointLightComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.SpotLightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
@@ -28,6 +31,10 @@ class MaterializationService(
 ) {
     private val runtimeByStableKey = linkedMapOf<UUID, Long>()
     private val materializedByRuntime = linkedMapOf<Long, MaterializedRecord>()
+    private val modelRuntimes = linkedSetOf<Long>()
+    private val lightRuntimes = linkedSetOf<Long>()
+    private val activeWorldStableKeysByChunk = linkedMapOf<Long, LinkedHashSet<UUID>>()
+    private val activeWorldChunkByStableKey = linkedMapOf<UUID, Long>()
     private val entityChildrenByHost = linkedMapOf<UUID, LinkedHashSet<UUID>>()
     private val pendingEntitySnapshots = linkedMapOf<UUID, MutableList<EntitySnapshot>>()
     private val activeWorldChunks = linkedSetOf<Long>()
@@ -35,6 +42,18 @@ class MaterializationService(
     private val playerChunkPositions = linkedMapOf<UUID, Long>()
 
     val records: Collection<MaterializedRecord> get() = materializedByRuntime.values
+
+    fun forEachModelRecord(action: (MaterializedRecord) -> Unit) {
+        modelRuntimes.forEach { runtimeId ->
+            materializedByRuntime[runtimeId]?.let(action)
+        }
+    }
+
+    fun forEachLightRecord(action: (MaterializedRecord) -> Unit) {
+        lightRuntimes.forEach { runtimeId ->
+            materializedByRuntime[runtimeId]?.let(action)
+        }
+    }
 
     fun tick() {
         if (level is ServerLevel) {
@@ -46,7 +65,7 @@ class MaterializationService(
     fun ensurePrimaryEntity(entity: Entity, runtimeId: Long): UUID {
         val stableKey = entity.uuid
         runtimeByStableKey[stableKey] = runtimeId
-        materializedByRuntime[runtimeId] = MaterializedRecord(stableKey, runtimeId, EntityAnchor(entity.uuid, primary = true))
+        putMaterializedRecord(MaterializedRecord(stableKey, runtimeId, EntityAnchor(entity.uuid, primary = true)))
         with(level.geary) {
             val gearyEntity = runtimeId.toGeary()
             gearyEntity.set(StableKeyComponent(stableKey))
@@ -76,7 +95,7 @@ class MaterializationService(
             with(level.geary) {
                 applySnapshot(existing.toGeary(), snapshot)
             }
-            materializedByRuntime[existing] = MaterializedRecord(stableKey, existing, anchor)
+            putMaterializedRecord(MaterializedRecord(stableKey, existing, anchor))
             persistIfWorldAnchored(snapshot)
             return existing
         }
@@ -91,6 +110,8 @@ class MaterializationService(
         if (runtimeByStableKey[stableKey] != runtimeId) return
         runtimeByStableKey.remove(stableKey)
         materializedByRuntime.remove(runtimeId)
+        removeComponentIndexes(runtimeId)
+        removeActiveWorldIndex(stableKey)
     }
 
     fun remove(stableKey: UUID, syncToClients: Boolean = false): Boolean {
@@ -99,8 +120,10 @@ class MaterializationService(
         if (runtimeId != null) {
             removed = true
             val record = materializedByRuntime.remove(runtimeId)
-            if (record?.anchor is EntityAnchor) {
-                val entityAnchor = record.anchor as EntityAnchor
+            removeComponentIndexes(runtimeId)
+            removeActiveWorldIndex(stableKey)
+            val entityAnchor = record?.anchor as? EntityAnchor
+            if (entityAnchor != null) {
                 if (!entityAnchor.primary) {
                     entityChildrenByHost[entityAnchor.hostUuid]?.remove(stableKey)
                 }
@@ -201,7 +224,7 @@ class MaterializationService(
                 }
                 gearyEntity.set(transform)
                 val resolvedAnchor = updatedAnchor ?: materializedByRuntime[runtimeId]?.anchor ?: return false
-                materializedByRuntime[runtimeId] = MaterializedRecord(stableKey, runtimeId, resolvedAnchor)
+                putMaterializedRecord(MaterializedRecord(stableKey, runtimeId, resolvedAnchor))
                 val snapshot = snapshotOf(gearyEntity)
                 persistIfWorldAnchored(snapshot)
                 if (syncToClients) syncSnapshot(snapshot)
@@ -218,6 +241,29 @@ class MaterializationService(
             .withOrReplace(transform)
         savedData.put(DormantRecord(stableKey, updatedSnapshot))
         if (syncToClients) syncSnapshot(updatedSnapshot)
+        return true
+    }
+
+    fun updateSnapshot(stableKey: UUID, snapshot: EntitySnapshot, syncToClients: Boolean = false): Boolean {
+        val anchor = snapshot.anchorOrNull() ?: return false
+        val normalizedSnapshot = snapshot.withIdentity(anchor, stableKey)
+
+        val runtimeId = runtimeByStableKey[stableKey]
+        if (runtimeId != null) {
+            with(level.geary) {
+                applySnapshot(runtimeId.toGeary(), normalizedSnapshot)
+            }
+            putMaterializedRecord(MaterializedRecord(stableKey, runtimeId, anchor))
+            persistIfWorldAnchored(normalizedSnapshot)
+            if (syncToClients) syncSnapshot(normalizedSnapshot)
+            return true
+        }
+
+        val serverLevel = level as? ServerLevel ?: return false
+        val savedData = WorldAnchorSavedData.get(serverLevel)
+        if (savedData.remove(stableKey) == null) return false
+        savedData.put(DormantRecord(stableKey, normalizedSnapshot))
+        if (syncToClients) syncSnapshot(normalizedSnapshot)
         return true
     }
 
@@ -269,7 +315,7 @@ class MaterializationService(
                 applySnapshot(hostRuntime.toGeary(), snapshot)
             }
             runtimeByStableKey[stableKey] = hostRuntime
-            materializedByRuntime[hostRuntime] = MaterializedRecord(stableKey, hostRuntime, anchor)
+            putMaterializedRecord(MaterializedRecord(stableKey, hostRuntime, anchor))
             return hostRuntime
         }
 
@@ -278,7 +324,7 @@ class MaterializationService(
             applySnapshot(runtimeId.toGeary(), snapshot)
         }
         runtimeByStableKey[stableKey] = runtimeId
-        materializedByRuntime[runtimeId] = MaterializedRecord(stableKey, runtimeId, anchor)
+        putMaterializedRecord(MaterializedRecord(stableKey, runtimeId, anchor))
         entityChildrenByHost.computeIfAbsent(anchor.hostUuid) { linkedSetOf() }.add(stableKey)
         return runtimeId
     }
@@ -289,7 +335,7 @@ class MaterializationService(
             applySnapshot(runtimeId.toGeary(), snapshot)
         }
         runtimeByStableKey[stableKey] = runtimeId
-        materializedByRuntime[runtimeId] = MaterializedRecord(stableKey, runtimeId, anchor)
+        putMaterializedRecord(MaterializedRecord(stableKey, runtimeId, anchor))
         persistIfWorldAnchored(snapshot)
         return runtimeId
     }
@@ -332,30 +378,66 @@ class MaterializationService(
         pendingEntitySnapshots.remove(hostUuid)
     }
 
+    private fun putMaterializedRecord(record: MaterializedRecord) {
+        materializedByRuntime[record.runtimeId] = record
+        updateActiveWorldIndex(record.stableKey, record.anchor)
+        refreshComponentIndexes(record.runtimeId)
+    }
+
+    private fun refreshComponentIndexes(runtimeId: Long) {
+        with(level.geary) {
+            val entity = runtimeId.toGeary()
+            if (entity.get<Model>() != null) modelRuntimes.add(runtimeId) else modelRuntimes.remove(runtimeId)
+            if (entity.get<PointLightComponent>() != null || entity.get<SpotLightComponent>() != null) {
+                lightRuntimes.add(runtimeId)
+            } else {
+                lightRuntimes.remove(runtimeId)
+            }
+        }
+    }
+
+    private fun removeComponentIndexes(runtimeId: Long) {
+        modelRuntimes.remove(runtimeId)
+        lightRuntimes.remove(runtimeId)
+    }
+
+    private fun updateActiveWorldIndex(stableKey: UUID, anchor: AnchorComponent) {
+        removeActiveWorldIndex(stableKey)
+        val worldAnchor = anchor as? WorldAnchor ?: return
+        val chunkKey = ChunkKey.pack(worldAnchor.chunkX, worldAnchor.chunkZ)
+        activeWorldChunkByStableKey[stableKey] = chunkKey
+        activeWorldStableKeysByChunk.computeIfAbsent(chunkKey) { linkedSetOf() }.add(stableKey)
+    }
+
+    private fun removeActiveWorldIndex(stableKey: UUID) {
+        val chunkKey = activeWorldChunkByStableKey.remove(stableKey) ?: return
+        activeWorldStableKeysByChunk[chunkKey]?.let { stableKeys ->
+            stableKeys.remove(stableKey)
+            if (stableKeys.isEmpty()) activeWorldStableKeysByChunk.remove(chunkKey)
+        }
+    }
+
     private fun updateWorldMaterialization(level: ServerLevel) {
-        val currentChunks = level.chunkSource.chunkMap.getChunks()
-            .map { holder -> ChunkKey.pack(holder.pos.x, holder.pos.z) }
-            .toSet()
+        val savedData = WorldAnchorSavedData.get(level)
+        val currentChunks = linkedSetOf<Long>()
+        level.chunkSource.chunkMap.getChunks().forEach { holder ->
+            currentChunks += ChunkKey.pack(holder.pos.x, holder.pos.z)
+        }
 
-        val newlyVisible = currentChunks - activeWorldChunks
-        val noLongerVisible = activeWorldChunks - currentChunks
-
-        newlyVisible.forEach { chunkKey ->
-            WorldAnchorSavedData.get(level).recordsForChunk(chunkKey).forEach { record ->
+        currentChunks.forEach { chunkKey ->
+            if (chunkKey in activeWorldChunks) return@forEach
+            savedData.forEachRecordInChunk(chunkKey) { record ->
                 if (record.stableKey !in runtimeByStableKey) {
                     materialize(record.snapshot)
                 }
             }
         }
 
-        noLongerVisible.forEach { chunkKey ->
-            val toRemove = records
-                .filter { record ->
-                    val anchor = record.anchor as? WorldAnchor ?: return@filter false
-                    ChunkKey.pack(anchor.chunkX, anchor.chunkZ) == chunkKey
-                }
-                .map(MaterializedRecord::stableKey)
-            toRemove.forEach(::remove)
+        activeWorldChunks.forEach { chunkKey ->
+            if (chunkKey in currentChunks) return@forEach
+            activeWorldStableKeysByChunk[chunkKey]
+                ?.toList()
+                ?.forEach(::remove)
         }
 
         activeWorldChunks.clear()
@@ -375,13 +457,10 @@ class MaterializationService(
     }
 
     private fun syncWorldAnchorsForPlayer(player: ServerPlayer) {
-        val visible = mutableSetOf<UUID>()
+        val visible = linkedSetOf<UUID>()
         val viewDistance = player.server.playerList.viewDistance + 1
         val playerChunk = ChunkPos(player.blockPosition())
-        WorldAnchorSavedData.get(player.serverLevel()).allRecords().forEach { record ->
-            val anchor = record.anchor as? WorldAnchor ?: return@forEach
-            if (kotlin.math.abs(anchor.chunkX - playerChunk.x) > viewDistance) return@forEach
-            if (kotlin.math.abs(anchor.chunkZ - playerChunk.z) > viewDistance) return@forEach
+        WorldAnchorSavedData.get(player.serverLevel()).forEachRecordInChunkRange(playerChunk.x, playerChunk.z, viewDistance) { record ->
             visible += record.stableKey
             AnchoredEntitySnapshotPacket(record.snapshot).send(player)
         }

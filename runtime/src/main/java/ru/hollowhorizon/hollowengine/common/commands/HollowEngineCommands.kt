@@ -1,9 +1,14 @@
 package ru.hollowhorizon.hollowengine.common.commands
 
 import com.mineinabyss.geary.serialization.setPersisting
+import com.mojang.brigadier.arguments.BoolArgumentType
+import com.mojang.brigadier.arguments.FloatArgumentType
+import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.context.CommandContext
+import de.fabmax.kool.math.MutableVec3f
+import de.fabmax.kool.math.QuatF
 import de.fabmax.kool.math.Vec3f
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -55,7 +60,16 @@ import ru.hollowhorizon.hollowengine.common.geary.api.entity
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSyncPolicy
+import ru.hollowhorizon.hollowengine.common.geary.components.FlareSettings
+import ru.hollowhorizon.hollowengine.common.geary.components.LightColor
+import ru.hollowhorizon.hollowengine.common.geary.components.LightComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.PointLightComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.ShadowSettings
+import ru.hollowhorizon.hollowengine.common.geary.components.SpotLightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.VolumetricFogSettings
+import ru.hollowhorizon.hollowengine.common.geary.components.lightComponentOrNull
+import ru.hollowhorizon.hollowengine.common.geary.components.withLightComponent
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.geary.sync.setSyncing
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
@@ -72,9 +86,10 @@ import kotlin.math.roundToInt
 @SubscribeEvent
 fun onRegisterCommands(event: RegisterCommandsEvent) {
     event.dispatcher.onRegisterCommands {
-        "hollowengine" {
+        "hollowengine"("he") {
             registerParticleCommands()
             registerModelCommands()
+            registerLightCommands()
             registerUtilityCommands()
             registerCodeBlocksCommands()
             registerScriptCommands()
@@ -178,6 +193,374 @@ private fun CommandExtension.registerModelCommands() {
             executes {
                 val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
                 removeAnchoredModel(source, stableKey)
+            }
+        }
+    }
+}
+
+private fun CommandExtension.registerLightCommands() {
+    "light" {
+        "list" {
+            executes { listLights(source) }
+        }
+
+        "add" {
+            "point"(arg("radius", FloatArgumentType.floatArg(0f))) {
+                executes {
+                    val radius = FloatArgumentType.getFloat(this, "radius")
+                    val stableKey = spawnPointLight(source, radius)
+                    sendSuccess { "Spawned point light with StableKey $stableKey".literal }
+                }
+            }
+
+            "spot"(
+                arg("distance", FloatArgumentType.floatArg(0f)),
+                arg("innerAngle", FloatArgumentType.floatArg(0f, 90f)),
+                arg("outerAngle", FloatArgumentType.floatArg(0f, 90f))
+            ) {
+                executes {
+                    val distance = FloatArgumentType.getFloat(this, "distance")
+                    val innerAngle = FloatArgumentType.getFloat(this, "innerAngle")
+                    val outerAngle = FloatArgumentType.getFloat(this, "outerAngle")
+                    if (outerAngle < innerAngle) {
+                        return@executes sendFailure("Outer angle must be greater than or equal to inner angle".literal)
+                    }
+
+                    val stableKey = spawnSpotLight(source, distance, innerAngle, outerAngle)
+                    sendSuccess { "Spawned spot light with StableKey $stableKey".literal }
+                }
+            }
+        }
+
+        "remove" {
+            executes { removeLight(source, null) }
+        }
+        "remove"(arg("stableKey", StringArgumentType.string())) {
+            executes { removeLight(source, UUID.fromString(StringArgumentType.getString(this, "stableKey"))) }
+        }
+
+        "enable"(arg("enabled", BoolArgumentType.bool())) {
+            executes {
+                val enabled = BoolArgumentType.getBool(this, "enabled")
+                updateLight(source, null) { withEnabled(enabled) }
+            }
+        }
+        "enable"(arg("stableKey", StringArgumentType.string()), arg("enabled", BoolArgumentType.bool())) {
+            executes {
+                val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+                val enabled = BoolArgumentType.getBool(this, "enabled")
+                updateLight(
+                    source,
+                    stableKey
+                ) { withEnabled(enabled) }
+            }
+        }
+
+        "color"(
+            arg("r", FloatArgumentType.floatArg(0f, 1f)),
+            arg("g", FloatArgumentType.floatArg(0f, 1f)),
+            arg("b", FloatArgumentType.floatArg(0f, 1f))
+        ) {
+            executes {
+                val color = LightColor(
+                    FloatArgumentType.getFloat(this, "r"),
+                    FloatArgumentType.getFloat(this, "g"),
+                    FloatArgumentType.getFloat(this, "b"),
+                )
+                updateLight(source, null) { withColor(color) }
+            }
+        }
+        "color"(
+            arg("stableKey", StringArgumentType.string()),
+            arg("r", FloatArgumentType.floatArg(0f, 1f)),
+            arg("g", FloatArgumentType.floatArg(0f, 1f)),
+            arg("b", FloatArgumentType.floatArg(0f, 1f))
+        ) {
+            executes {
+                val color = LightColor(
+                    FloatArgumentType.getFloat(this, "r"),
+                    FloatArgumentType.getFloat(this, "g"),
+                    FloatArgumentType.getFloat(this, "b"),
+                )
+                updateLight(source, UUID.fromString(StringArgumentType.getString(this, "stableKey"))) { withColor(color) }
+            }
+        }
+
+        "intensity"(arg("value", FloatArgumentType.floatArg(0f))) {
+            executes {
+                val intensity = FloatArgumentType.getFloat(this, "value")
+                updateLight(source, null) { withIntensity(intensity) }
+            }
+        }
+        "intensity"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f))) {
+            executes {
+                val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+                val intensity = FloatArgumentType.getFloat(this, "value")
+                updateLight(
+                    source,
+                    stableKey
+                ) { withIntensity(intensity) }
+            }
+        }
+
+        "shadow" {
+            registerShadowLightCommands()
+        }
+
+        "fog" {
+            registerFogLightCommands()
+        }
+
+        "flare" {
+            registerFlareLightCommands()
+        }
+    }
+}
+
+private fun CommandExtension.registerShadowLightCommands() {
+    "enable"(arg("enabled", BoolArgumentType.bool())) {
+        executes {
+            val enabled = BoolArgumentType.getBool(this, "enabled")
+            updateLight(source, null) { withShadowSettings { copy(enabled = enabled) } }
+        }
+    }
+    "enable"(arg("stableKey", StringArgumentType.string()), arg("enabled", BoolArgumentType.bool())) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val enabled = BoolArgumentType.getBool(this, "enabled")
+            updateLight(source, stableKey) {
+                withShadowSettings { copy(enabled = enabled) }
+            }
+        }
+    }
+    "dynamic"(arg("value", BoolArgumentType.bool())) {
+        executes {
+            val dynamic = BoolArgumentType.getBool(this, "value")
+            updateLight(source, null) { withShadowSettings { copy(dynamic = dynamic) } }
+        }
+    }
+    "dynamic"(arg("stableKey", StringArgumentType.string()), arg("value", BoolArgumentType.bool())) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val dynamic = BoolArgumentType.getBool(this, "value")
+            updateLight(source, stableKey) {
+                withShadowSettings { copy(dynamic = dynamic) }
+            }
+        }
+    }
+    "distance"(arg("value", FloatArgumentType.floatArg(0f))) {
+        executes {
+            val distance = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, null) { withShadowSettings { copy(shadowDistance = distance) } }
+        }
+    }
+    "distance"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f))) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val distance = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, stableKey) {
+                withShadowSettings { copy(shadowDistance = distance) }
+            }
+        }
+    }
+    "fovOffset"(arg("value", FloatArgumentType.floatArg(-180f, 180f))) {
+        executes {
+            val fovOffset = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, null) { withShadowSettings { copy(fovOffset = fovOffset) } }
+        }
+    }
+    "fovOffset"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(-180f, 180f))) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val fovOffset = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, stableKey) {
+                withShadowSettings { copy(fovOffset = fovOffset) }
+            }
+        }
+    }
+}
+
+private fun CommandExtension.registerFogLightCommands() {
+    "enable"(arg("enabled", BoolArgumentType.bool())) {
+        executes {
+            val enabled = BoolArgumentType.getBool(this, "enabled")
+            updateLight(source, null) { withVolumetricFogSettings { copy(enabled = enabled) } }
+        }
+    }
+    "enable"(arg("stableKey", StringArgumentType.string()), arg("enabled", BoolArgumentType.bool())) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val enabled = BoolArgumentType.getBool(this, "enabled")
+            updateLight(source, stableKey) {
+                withVolumetricFogSettings { copy(enabled = enabled) }
+            }
+        }
+    }
+    "samples"(arg("value", IntegerArgumentType.integer(1, 128))) {
+        executes {
+            val samples = IntegerArgumentType.getInteger(this, "value")
+            updateLight(source, null) { withVolumetricFogSettings { copy(sampleCount = samples) } }
+        }
+    }
+    "samples"(arg("stableKey", StringArgumentType.string()), arg("value", IntegerArgumentType.integer(1, 128))) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val samples = IntegerArgumentType.getInteger(this, "value")
+            updateLight(source, stableKey) {
+                withVolumetricFogSettings { copy(sampleCount = samples) }
+            }
+        }
+    }
+    "scattering"(arg("value", FloatArgumentType.floatArg(0f, 1f))) {
+        executes {
+            val scattering = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, null) { withVolumetricFogSettings { copy(scattering = scattering) } }
+        }
+    }
+    "scattering"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 1f))) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val scattering = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, stableKey) {
+                withVolumetricFogSettings { copy(scattering = scattering) }
+            }
+        }
+    }
+    "density"(arg("value", FloatArgumentType.floatArg(0f, 5f))) {
+        executes {
+            val density = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, null) { withVolumetricFogSettings { copy(density = density) } }
+        }
+    }
+    "density"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 5f))) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val density = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, stableKey) {
+                withVolumetricFogSettings { copy(density = density) }
+            }
+        }
+    }
+    "anisotropy"(arg("value", FloatArgumentType.floatArg(-1f, 1f))) {
+        executes {
+            val anisotropy = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, null) { withVolumetricFogSettings { copy(anisotropy = anisotropy) } }
+        }
+    }
+    "anisotropy"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(-1f, 1f))) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val anisotropy = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, stableKey) {
+                withVolumetricFogSettings { copy(anisotropy = anisotropy) }
+            }
+        }
+    }
+}
+
+private fun CommandExtension.registerFlareLightCommands() {
+    "enable"(arg("enabled", BoolArgumentType.bool())) {
+        executes {
+            val enabled = BoolArgumentType.getBool(this, "enabled")
+            updateLight(source, null) { withFlareSettings { copy(enabled = enabled) } }
+        }
+    }
+    "enable"(arg("stableKey", StringArgumentType.string()), arg("enabled", BoolArgumentType.bool())) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val enabled = BoolArgumentType.getBool(this, "enabled")
+            updateLight(source, stableKey) {
+                withFlareSettings { copy(enabled = enabled) }
+            }
+        }
+    }
+    "sizeOffset"(arg("value", FloatArgumentType.floatArg(0f, 2f))) {
+        executes {
+            val sizeOffset = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, null) { withFlareSettings { copy(sizeOffset = sizeOffset) } }
+        }
+    }
+    "sizeOffset"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 2f))) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val sizeOffset = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, stableKey) {
+                withFlareSettings { copy(sizeOffset = sizeOffset) }
+            }
+        }
+    }
+    "falloffDistance"(arg("value", FloatArgumentType.floatArg(0f, 100f))) {
+        executes {
+            val falloffDistance = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, null) { withFlareSettings { copy(falloffDistance = falloffDistance) } }
+        }
+    }
+    "falloffDistance"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 100f))) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val falloffDistance = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, stableKey) {
+                withFlareSettings { copy(falloffDistance = falloffDistance) }
+            }
+        }
+    }
+    "startAngle"(arg("value", FloatArgumentType.floatArg(0f, 360f))) {
+        executes {
+            val startAngle = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, null) { withFlareSettings { copy(startAngle = startAngle) } }
+        }
+    }
+    "startAngle"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 360f))) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val startAngle = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, stableKey) {
+                withFlareSettings { copy(startAngle = startAngle) }
+            }
+        }
+    }
+    "endAngle"(arg("value", FloatArgumentType.floatArg(0f, 360f))) {
+        executes {
+            val endAngle = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, null) { withFlareSettings { copy(endAngle = endAngle) } }
+        }
+    }
+    "endAngle"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 360f))) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val endAngle = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, stableKey) {
+                withFlareSettings { copy(endAngle = endAngle) }
+            }
+        }
+    }
+    "angleFactorOffset"(arg("value", FloatArgumentType.floatArg(0f, 5f))) {
+        executes {
+            val angleFactorOffset = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, null) { withFlareSettings { copy(angleFactorOffset = angleFactorOffset) } }
+        }
+    }
+    "angleFactorOffset"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 5f))) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val angleFactorOffset = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, stableKey) {
+                withFlareSettings { copy(angleFactorOffset = angleFactorOffset) }
+            }
+        }
+    }
+    "intensity"(arg("value", FloatArgumentType.floatArg(0f, 1f))) {
+        executes {
+            val intensity = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, null) { withFlareSettings { copy(intensity = intensity) } }
+        }
+    }
+    "intensity"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 1f))) {
+        executes {
+            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val intensity = FloatArgumentType.getFloat(this, "value")
+            updateLight(source, stableKey) {
+                withFlareSettings { copy(intensity = intensity) }
             }
         }
     }
@@ -520,6 +903,230 @@ private fun getAvailableModels(): Collection<String> {
         .toList()
 
     return defaultModels + customModels
+}
+
+private fun spawnPointLight(source: CommandSourceStack, radius: Float): UUID {
+    val stableKey = UUID.randomUUID()
+    val position = source.position
+    val service = MaterializationRuntimeState.service(source.level)
+    val snapshot = EntitySnapshot(
+        components = listOf(
+            StableKeyComponent(stableKey),
+            worldAnchorFor(position),
+            TransformComponent().withWorldPosition(position),
+            PointLightComponent(radius = radius),
+        )
+    )
+    service.materialize(snapshot)
+    service.snapshot(stableKey)?.let(service::syncSnapshot)
+    return stableKey
+}
+
+private fun spawnSpotLight(source: CommandSourceStack, distance: Float, innerAngle: Float, outerAngle: Float): UUID {
+    val stableKey = UUID.randomUUID()
+    val position = source.position
+    val service = MaterializationRuntimeState.service(source.level)
+    val rotation = rotationFromPositiveZ(source.entity?.lookAngle ?: Vec3(0.0, 0.0, 1.0))
+    val snapshot = EntitySnapshot(
+        components = listOf(
+            StableKeyComponent(stableKey),
+            worldAnchorFor(position),
+            TransformComponent(
+                translation = Vec3f(position.x.toFloat(), position.y.toFloat(), position.z.toFloat()),
+                rotation = rotation,
+            ),
+            SpotLightComponent(distance = distance, innerAngle = innerAngle, outerAngle = outerAngle),
+        )
+    )
+    service.materialize(snapshot)
+    service.snapshot(stableKey)?.let(service::syncSnapshot)
+    return stableKey
+}
+
+private fun listLights(source: CommandSourceStack): Int {
+    val rows = arrayListOf<String>()
+    val seen = linkedSetOf<UUID>()
+
+    source.server.allLevels.forEach { level ->
+        val service = MaterializationRuntimeState.service(level)
+        service.records.forEach { record ->
+            val snapshot = service.snapshot(record.stableKey) ?: return@forEach
+            val light = snapshot.lightComponentOrNull() ?: return@forEach
+            if (!seen.add(record.stableKey)) return@forEach
+            rows += "${record.stableKey} | ${light.javaClass.simpleName} | enabled=${light.enabled} | pos=${formatPosition(snapshot.transformOrNull()?.translation)} | level=${level.dimension().location()}"
+        }
+        WorldAnchorSavedData.get(level).allRecords().forEach { record ->
+            val light = record.snapshot.lightComponentOrNull() ?: return@forEach
+            if (!seen.add(record.stableKey)) return@forEach
+            rows += "${record.stableKey} | ${light.javaClass.simpleName} | enabled=${light.enabled} | pos=${formatPosition(record.snapshot.transformOrNull()?.translation)} | level=${level.dimension().location()} | dormant=true"
+        }
+    }
+
+    if (rows.isEmpty()) {
+        source.sendFailure("No anchored lights found".literal)
+        return 0
+    }
+
+    source.sendSuccess({ "Anchored lights:".literal }, false)
+    rows.sorted().forEach { source.sendSuccess({ it.literal }, false) }
+    return 1
+}
+
+private fun removeLight(source: CommandSourceStack, stableKey: UUID?): Int {
+    val resolved = resolveLightTarget(source, stableKey) ?: return 0
+    if (resolved.isDormantWorldRecord) {
+        WorldAnchorSavedData.get(resolved.level).remove(resolved.stableKey)
+        source.sendSuccess({ "Removed anchored light ${resolved.stableKey}".literal }, true)
+        return 1
+    } else {
+        val service = MaterializationRuntimeState.service(resolved.level)
+        if (service.remove(resolved.stableKey, syncToClients = true)) {
+            source.sendSuccess({ "Removed anchored light ${resolved.stableKey}".literal }, true)
+            return 1
+        } else {
+            source.sendFailure("Anchored light ${resolved.stableKey} was not found".literal)
+            return 0
+        }
+    }
+}
+
+private fun updateLight(source: CommandSourceStack, stableKey: UUID?, updater: LightComponent.() -> LightComponent): Int {
+    val resolved = resolveLightTarget(source, stableKey) ?: return 0
+    val current = resolved.snapshot.lightComponentOrNull()
+        ?: run {
+            source.sendFailure("Anchored object ${resolved.stableKey} does not contain a light component".literal)
+            return 0
+        }
+
+    val updatedSnapshot = resolved.snapshot.withLightComponent(current.updater())
+    applyUpdatedLightSnapshot(resolved, updatedSnapshot)
+    source.sendSuccess({ "Updated anchored light ${resolved.stableKey}".literal }, true)
+    return 1
+}
+
+private fun resolveLightTarget(source: CommandSourceStack, stableKey: UUID?): LightTargetResolution? {
+    if (stableKey != null) {
+        val resolved = findAnchoredSnapshot(source, stableKey)
+            ?: run {
+                source.sendFailure("Anchored light $stableKey was not found".literal)
+                return null
+            }
+        if (resolved.snapshot.lightComponentOrNull() == null) {
+            source.sendFailure("Anchored object $stableKey does not contain a light component".literal)
+            return null
+        }
+        return LightTargetResolution(resolved.level, stableKey, resolved.snapshot, resolved.isDormantWorldRecord)
+    }
+
+    return findNearestLightTarget(source)
+        ?: run {
+            source.sendFailure("No nearby anchored world light was found".literal)
+            null
+        }
+}
+
+private fun findNearestLightTarget(source: CommandSourceStack): LightTargetResolution? {
+    val origin = source.position
+    val level = source.level
+    var best: LightTargetResolution? = null
+    var bestDistance = Double.MAX_VALUE
+
+    val service = MaterializationRuntimeState.service(level)
+    service.records.forEach { record ->
+        val snapshot = service.snapshot(record.stableKey) ?: return@forEach
+        if (snapshot.lightComponentOrNull() == null) return@forEach
+        if (snapshot.anchorOrNull() !is WorldAnchor) return@forEach
+        val transform = snapshot.transformOrNull() ?: return@forEach
+        val position = Vec3(transform.translation.x.toDouble(), transform.translation.y.toDouble(), transform.translation.z.toDouble())
+        val distance = position.distanceToSqr(origin)
+        if (distance < bestDistance) {
+            bestDistance = distance
+            best = LightTargetResolution(level, record.stableKey, snapshot, isDormantWorldRecord = false)
+        }
+    }
+
+    WorldAnchorSavedData.get(level).allRecords().forEach { record ->
+        if (record.snapshot.lightComponentOrNull() == null) return@forEach
+        if (record.snapshot.anchorOrNull() !is WorldAnchor) return@forEach
+        val transform = record.snapshot.transformOrNull() ?: return@forEach
+        val position = Vec3(transform.translation.x.toDouble(), transform.translation.y.toDouble(), transform.translation.z.toDouble())
+        val distance = position.distanceToSqr(origin)
+        if (distance < bestDistance) {
+            bestDistance = distance
+            best = LightTargetResolution(level, record.stableKey, record.snapshot, isDormantWorldRecord = true)
+        }
+    }
+
+    return best
+}
+
+private fun applyUpdatedLightSnapshot(resolved: LightTargetResolution, snapshot: EntitySnapshot) {
+    if (resolved.isDormantWorldRecord) {
+        WorldAnchorSavedData.get(resolved.level).put(DormantRecord(resolved.stableKey, snapshot))
+    } else {
+        val service = MaterializationRuntimeState.service(resolved.level)
+        service.materialize(snapshot)
+        service.snapshot(resolved.stableKey)?.let(service::syncSnapshot)
+    }
+}
+
+private data class LightTargetResolution(
+    val level: net.minecraft.server.level.ServerLevel,
+    val stableKey: UUID,
+    val snapshot: EntitySnapshot,
+    val isDormantWorldRecord: Boolean,
+)
+
+private fun formatPosition(position: Vec3f?): String {
+    if (position == null) return "unknown"
+    return "(${position.x.format(2)}, ${position.y.format(2)}, ${position.z.format(2)})"
+}
+
+private fun Float.format(decimals: Int): String = "%.${decimals}f".format(this)
+
+private fun rotationFromPositiveZ(direction: Vec3): QuatF {
+    val normalized = MutableVec3f(direction.x.toFloat(), direction.y.toFloat(), direction.z.toFloat())
+    if (normalized.length() <= 1e-5f) return QuatF.IDENTITY
+    normalized.norm()
+
+    val forward = Vec3f(0f, 0f, 1f)
+    val dot = forward.dot(normalized)
+    if (dot >= 0.9999f) return QuatF.IDENTITY
+    if (dot <= -0.9999f) return QuatF(0f, 1f, 0f, 0f)
+
+    val axis = forward.cross(normalized, MutableVec3f()).norm()
+    return QuatF(axis.x, axis.y, axis.z, 1f + dot).normed()
+}
+
+private fun LightComponent.withEnabled(value: Boolean): LightComponent = when (this) {
+    is PointLightComponent -> copy(enabled = value)
+    is SpotLightComponent -> copy(enabled = value)
+}
+
+private fun LightComponent.withColor(value: LightColor): LightComponent = when (this) {
+    is PointLightComponent -> copy(color = value)
+    is SpotLightComponent -> copy(color = value)
+}
+
+private fun LightComponent.withIntensity(value: Float): LightComponent = when (this) {
+    is PointLightComponent -> copy(intensity = value)
+    is SpotLightComponent -> copy(intensity = value)
+}
+
+private fun LightComponent.withShadowSettings(transform: ShadowSettings.() -> ShadowSettings): LightComponent = when (this) {
+    is PointLightComponent -> copy(shadow = (shadow ?: ShadowSettings()).transform())
+    is SpotLightComponent -> copy(shadow = (shadow ?: ShadowSettings()).transform())
+}
+
+private fun LightComponent.withVolumetricFogSettings(transform: VolumetricFogSettings.() -> VolumetricFogSettings): LightComponent =
+    when (this) {
+        is PointLightComponent -> copy(volumetricFog = (volumetricFog ?: VolumetricFogSettings()).transform())
+        is SpotLightComponent -> copy(volumetricFog = (volumetricFog ?: VolumetricFogSettings()).transform())
+    }
+
+private fun LightComponent.withFlareSettings(transform: FlareSettings.() -> FlareSettings): LightComponent = when (this) {
+    is PointLightComponent -> copy(flare = (flare ?: FlareSettings()).transform())
+    is SpotLightComponent -> copy(flare = (flare ?: FlareSettings()).transform())
 }
 
 private fun attachAnchoredModel(host: net.minecraft.world.entity.Entity, modelName: String): UUID {

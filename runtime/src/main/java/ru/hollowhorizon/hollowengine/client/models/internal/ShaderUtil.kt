@@ -8,6 +8,7 @@ package ru.hollowhorizon.hollowengine.client.models.internal
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.mojang.blaze3d.vertex.VertexFormat
+import net.irisshaders.iris.shadows.ShadowRenderer
 import net.minecraft.Util
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.client.renderer.RenderStateShard
@@ -91,7 +92,7 @@ val batchingRenderType: Function<Material, RenderType> = Util.memoize<Material, 
 
 val SHADER
     get() =
-        if (shouldOverrideShaders()) GameRenderer.getRendertypeEntityCutoutShader()!!
+        if (ShadowRenderer.ACTIVE || shouldOverrideShaders()) GameRenderer.getRendertypeEntityCutoutShader()!!
         else ModShaders.GLTF_ENTITY // Ванильный шейдер не поддерживает матрицу нормалей
 
 val INSTANCED_SHADER

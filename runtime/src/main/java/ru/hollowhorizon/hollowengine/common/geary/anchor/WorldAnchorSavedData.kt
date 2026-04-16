@@ -11,42 +11,72 @@ import java.util.concurrent.ConcurrentHashMap
 
 class WorldAnchorSavedData private constructor() : SavedData() {
     private val recordsByChunk = ConcurrentHashMap<Long, LinkedHashMap<UUID, CompoundTag>>()
+    private val chunkByStableKey = ConcurrentHashMap<UUID, Long>()
 
     fun recordsForChunk(chunkKey: Long): List<DormantRecord> =
-        recordsByChunk[chunkKey]
-            ?.values
-            ?.map { tag -> EntitySerialization.deserializeFromNbt(tag) }
-            ?.map { snapshot -> DormantRecord(snapshot.requireStableKey(), snapshot) }
-            .orEmpty()
+        snapshotChunkTags(chunkKey)
+            .map { tag -> EntitySerialization.deserializeFromNbt(tag) }
+            .map { snapshot -> DormantRecord(snapshot.requireStableKey(), snapshot) }
 
-    fun allRecords(): List<DormantRecord> = recordsByChunk.values
-        .flatMap { records -> records.values }
+    fun forEachRecordInChunk(chunkKey: Long, action: (DormantRecord) -> Unit) {
+        snapshotChunkTags(chunkKey).forEach { tag ->
+            val snapshot = EntitySerialization.deserializeFromNbt(tag)
+            action(DormantRecord(snapshot.requireStableKey(), snapshot))
+        }
+    }
+
+    fun forEachRecordInChunkRange(centerChunkX: Int, centerChunkZ: Int, radius: Int, action: (DormantRecord) -> Unit) {
+        for (chunkX in centerChunkX - radius..centerChunkX + radius) {
+            for (chunkZ in centerChunkZ - radius..centerChunkZ + radius) {
+                forEachRecordInChunk(ChunkKey.pack(chunkX, chunkZ), action)
+            }
+        }
+    }
+
+    fun allRecords(): List<DormantRecord> = snapshotAllTags()
         .map { tag -> EntitySerialization.deserializeFromNbt(tag) }
         .map { snapshot -> DormantRecord(snapshot.requireStableKey(), snapshot) }
 
     fun put(record: DormantRecord) {
         val worldAnchor = record.anchor as? WorldAnchor
             ?: error("WorldAnchorSavedData can store only world-anchored records.")
-        recordsByChunk.computeIfAbsent(ChunkKey.pack(worldAnchor.chunkX, worldAnchor.chunkZ)) { linkedMapOf() }[record.stableKey] =
-            EntitySerialization.serializeToNbt(record.snapshot) as CompoundTag
+        val chunkKey = ChunkKey.pack(worldAnchor.chunkX, worldAnchor.chunkZ)
+        chunkByStableKey.put(record.stableKey, chunkKey)?.takeIf { it != chunkKey }?.let { previousChunk ->
+            recordsByChunk[previousChunk]?.let { records ->
+                synchronized(records) {
+                    records.remove(record.stableKey)
+                }
+            }
+        }
+        val serialized = EntitySerialization.serializeToNbt(record.snapshot) as CompoundTag
+        val records = recordsByChunk.computeIfAbsent(chunkKey) { linkedMapOf() }
+        synchronized(records) {
+            records[record.stableKey] = serialized
+        }
         setDirty()
     }
 
     fun remove(stableKey: UUID): DormantRecord? {
-        recordsByChunk.entries.forEach { (_, records) ->
-            val removed = records.remove(stableKey) ?: return@forEach
-            if (records.isEmpty()) recordsByChunk.entries.removeIf { it.value.isEmpty() }
-            setDirty()
-            val snapshot = EntitySerialization.deserializeFromNbt(removed)
-            return DormantRecord(snapshot.requireStableKey(), snapshot)
+        val chunkKey = chunkByStableKey.remove(stableKey) ?: return null
+        val records = recordsByChunk[chunkKey] ?: return null
+        val removed = synchronized(records) {
+            records.remove(stableKey)
+        } ?: return null
+        if (synchronized(records) { records.isEmpty() }) {
+            recordsByChunk.remove(chunkKey, records)
         }
-        return null
+        setDirty()
+        val snapshot = EntitySerialization.deserializeFromNbt(removed)
+        return DormantRecord(snapshot.requireStableKey(), snapshot)
     }
 
     fun removeChunk(chunkKey: Long): List<DormantRecord> {
         val removed = recordsByChunk.remove(chunkKey).orEmpty()
+        removed.keys.forEach(chunkByStableKey::remove)
         if (removed.isNotEmpty()) setDirty()
-        return removed.values
+        return synchronized(removed) {
+            removed.values.toList()
+        }
             .map { tag -> EntitySerialization.deserializeFromNbt(tag) }
             .map { snapshot -> DormantRecord(snapshot.requireStableKey(), snapshot) }
     }
@@ -57,7 +87,9 @@ class WorldAnchorSavedData private constructor() : SavedData() {
             val chunkTag = CompoundTag()
             chunkTag.putLong("chunk", chunkKey)
             val entriesTag = ListTag()
-            records.values.forEach(entriesTag::add)
+            synchronized(records) {
+                records.values.toList()
+            }.forEach(entriesTag::add)
             chunkTag.put("records", entriesTag)
             chunksTag.add(chunkTag)
         }
@@ -81,7 +113,9 @@ class WorldAnchorSavedData private constructor() : SavedData() {
                             for (entryIndex in 0 until list.size) {
                                 val entryTag = list.getCompound(entryIndex)
                                 val snapshot = EntitySerialization.deserializeFromNbt(entryTag)
-                                records[snapshot.requireStableKey()] = entryTag
+                                val stableKey = snapshot.requireStableKey()
+                                records[stableKey] = entryTag
+                                chunkByStableKey[stableKey] = chunkKey
                             }
                             if (records.isNotEmpty()) {
                                 recordsByChunk[chunkKey] = records
@@ -93,6 +127,23 @@ class WorldAnchorSavedData private constructor() : SavedData() {
                 DATA_NAME,
             )
         }
+    }
+
+    private fun snapshotChunkTags(chunkKey: Long): List<CompoundTag> {
+        val records = recordsByChunk[chunkKey] ?: return emptyList()
+        return synchronized(records) {
+            records.values.toList()
+        }
+    }
+
+    private fun snapshotAllTags(): List<CompoundTag> {
+        val all = ArrayList<CompoundTag>()
+        recordsByChunk.values.forEach { records ->
+            synchronized(records) {
+                all.addAll(records.values)
+            }
+        }
+        return all
     }
 }
 

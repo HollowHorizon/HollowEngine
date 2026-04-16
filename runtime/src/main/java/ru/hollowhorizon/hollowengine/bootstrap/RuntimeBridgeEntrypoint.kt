@@ -11,6 +11,9 @@ import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.LocalKeyCode
 import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.input.UniversalKeyCode
+import net.irisshaders.iris.gl.image.GlImage
+import net.irisshaders.iris.gl.sampler.SamplerHolder
+import net.irisshaders.iris.gl.uniform.DynamicUniformHolder
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.Minecraft
 import net.minecraft.client.Camera
@@ -120,6 +123,8 @@ import ru.hollowhorizon.hollowengine.client.kool.KoolInputBridge
 import ru.hollowhorizon.hollowengine.client.kool.guiFramebuffer
 import ru.hollowhorizon.hollowengine.client.kool.onResize
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
+import ru.hollowhorizon.hollowengine.client.render.RenderManager
+import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import ru.hollowhorizon.hollowengine.runtime.bootstrap.ClassGraphRuntimeAnnotationIndex
 import net.minecraft.Util
@@ -535,6 +540,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         EventBus.post(BlockEvent.NeighborNotify(level.getBlockState(pos), pos, EnumSet.allOf(Direction::class.java)))
     }
 
+    override fun onClientLevelRendererChanged() {
+        ClusteredLightingManager.markLocalShadowWorldChanged()
+    }
+
     override fun onLevelTickBlockEntities(level: Level) {
         val profiler = level.profiler
         profiler.push("HollowEngine ECS")
@@ -654,6 +663,23 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onIrisPipelineDestroyed() {
         IrisHelper.invalidateInstancingPrograms()
+        ClusteredLightingManager.invalidate()
+    }
+
+    override fun onIrisAddDynamicUniforms(uniforms: Any?) {
+        val holder = uniforms as? DynamicUniformHolder ?: return
+        ClusteredLightingManager.registerDynamicUniforms(holder)
+    }
+
+    override fun onIrisAddCustomSamplers(samplers: Any?) {
+        val holder = samplers as? SamplerHolder ?: return
+        ClusteredLightingManager.addCustomSamplers(holder)
+    }
+
+    override fun onIrisAddCustomImages(customImages: MutableSet<*>?) {
+        @Suppress("UNCHECKED_CAST")
+        val images = customImages as? MutableSet<GlImage> ?: return
+        ClusteredLightingManager.addCustomImages(images)
     }
 
     override fun onIrisShadowRenderStart() {
@@ -664,9 +690,29 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         InstanceBatchManager.flush()
     }
 
+    override fun onIrisShadowRenderCasters(
+        poseStack: PoseStack,
+        bufferSource: MultiBufferSource,
+        partialTick: Float,
+        frustum: Frustum,
+        cameraX: Double,
+        cameraY: Double,
+        cameraZ: Double,
+    ) {
+        RenderManager.renderIrisShadowCasters(poseStack, bufferSource, partialTick, frustum, cameraX, cameraY, cameraZ)
+    }
+
     override fun onIrisShadowRenderEnd() {
         InstanceBatchManager.clear()
     }
+
+    override fun isIrisLocalShadowPassActive(): Boolean = ClusteredLightingManager.isLocalShadowPassActive()
+
+    override fun getIrisLocalShadowViewMatrix(): Matrix4f = ClusteredLightingManager.getIrisLocalShadowViewMatrix()
+
+    override fun getIrisLocalShadowProjectionMatrix(): Matrix4f = ClusteredLightingManager.getIrisLocalShadowProjectionMatrix()
+
+    override fun getIrisLocalShadowFramebuffer(): Any? = ClusteredLightingManager.getIrisLocalShadowFramebuffer()
 
     override fun onRenderOverlayPre(window: Window, guiGraphics: GuiGraphics, partialTick: Float, overlayKind: RuntimeBridge.OverlayKind): Boolean {
         val event = RenderOverlayEvent.Pre(window, guiGraphics, partialTick, overlayKind.toOverlay())
