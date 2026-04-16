@@ -15,9 +15,6 @@ import org.joml.Matrix4f
 import org.joml.Vector2i
 import org.joml.Vector3f
 import org.lwjgl.BufferUtils
-import org.lwjgl.opengl.GL15
-import org.lwjgl.opengl.GL30
-import org.lwjgl.opengl.GL43
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.render.resolveAnchoredTransform
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
@@ -105,11 +102,12 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
             return
         }
 
-        val cullingSupport = if (IrisHelper.isShaderPackInUse()) IrisHelper.currentLightCullingSupport() else LightCullingSupport(
-            direct = false,
-            tiled = false,
-            clustered = false,
-        )
+        val cullingSupport =
+            if (IrisHelper.isShaderPackInUse()) IrisHelper.currentLightCullingSupport() else LightCullingSupport(
+                direct = false,
+                tiled = false,
+                clustered = false,
+            )
         enabled = cullingSupport.anyEnabled()
         if (!enabled) {
             uploadEmptyState()
@@ -133,7 +131,7 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
             flareLightCount = 0
             overflowedClusters = 0
             overflowedVolumetricTiles = 0
-            uploadPackedState(collected, EMPTY_INDEX_LIST, EMPTY_INDEX_LIST)
+            uploadPackedState(collected)
             return
         }
 
@@ -160,7 +158,8 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
             LightCullingMode.CLUSTERED -> clusterCountLocal
             else -> 0
         }
-        volumetricTileCount = if (hasVolumetricLights && cullingMode != LightCullingMode.DIRECT) volumetricTileCountLocal else 0
+        volumetricTileCount =
+            if (hasVolumetricLights && cullingMode != LightCullingMode.DIRECT) volumetricTileCountLocal else 0
         volumetricLightCount = collected.count { it.component.hasVolumetricFog }
         flareLightCount = collected.count { it.component.hasFlare }
 
@@ -310,7 +309,9 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
     fun currentVolumetricLightCount(): Int = volumetricLightCount
     fun currentFlareLightCount(): Int = flareLightCount
     fun configuredTileSize(): Int = ClusteredLightingConfig.TILE_SIZE
-    fun configuredZSlices(): Int = if (cullingMode == LightCullingMode.CLUSTERED) ClusteredLightingConfig.Z_SLICES else 1
+    fun configuredZSlices(): Int =
+        if (cullingMode == LightCullingMode.CLUSTERED) ClusteredLightingConfig.Z_SLICES else 1
+
     fun currentNearPlane(): Float = clipPlanes.nearPlane
     fun currentFarPlane(): Float = clipPlanes.farPlane
     fun currentViewResolution(): Vector2i = Vector2i(viewResolution)
@@ -444,11 +445,16 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
     }
 
     private fun uploadLightState(lights: List<PreparedLight>) {
-        val coreLightBytes = prepareUploadBuffer(coreLightUploadBuffer, lights.size * ClusteredLightingConfig.CORE_LIGHT_STRIDE)
-        val pointLightBytes = prepareUploadBuffer(pointLightUploadBuffer, lights.size * ClusteredLightingConfig.POINT_LIGHT_STRIDE)
-        val spotLightBytes = prepareUploadBuffer(spotLightUploadBuffer, lights.size * ClusteredLightingConfig.SPOT_LIGHT_STRIDE)
-        val shadowBytes = prepareUploadBuffer(shadowUploadBuffer, lights.size * ClusteredLightingConfig.SHADOW_SETTINGS_STRIDE)
-        val volumetricBytes = prepareUploadBuffer(volumetricUploadBuffer, lights.size * ClusteredLightingConfig.VOLUMETRIC_FOG_STRIDE)
+        val coreLightBytes =
+            prepareUploadBuffer(coreLightUploadBuffer, lights.size * ClusteredLightingConfig.CORE_LIGHT_STRIDE)
+        val pointLightBytes =
+            prepareUploadBuffer(pointLightUploadBuffer, lights.size * ClusteredLightingConfig.POINT_LIGHT_STRIDE)
+        val spotLightBytes =
+            prepareUploadBuffer(spotLightUploadBuffer, lights.size * ClusteredLightingConfig.SPOT_LIGHT_STRIDE)
+        val shadowBytes =
+            prepareUploadBuffer(shadowUploadBuffer, lights.size * ClusteredLightingConfig.SHADOW_SETTINGS_STRIDE)
+        val volumetricBytes =
+            prepareUploadBuffer(volumetricUploadBuffer, lights.size * ClusteredLightingConfig.VOLUMETRIC_FOG_STRIDE)
         val flareBytes = prepareUploadBuffer(flareUploadBuffer, lights.size * ClusteredLightingConfig.FLARE_STRIDE)
         val visibleLightIndexBytes = prepareUploadBuffer(visibleLightIndexUploadBuffer, lights.size * Int.SIZE_BYTES)
 
@@ -543,7 +549,8 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
 
     private fun uploadClusterState(clusterList: IntArray, volumetricTileList: IntArray) {
         val clusterBytes = prepareUploadBuffer(clusterUploadBuffer, clusterList.size * Int.SIZE_BYTES)
-        val volumetricTileBytes = prepareUploadBuffer(volumetricTileUploadBuffer, volumetricTileList.size * Int.SIZE_BYTES)
+        val volumetricTileBytes =
+            prepareUploadBuffer(volumetricTileUploadBuffer, volumetricTileList.size * Int.SIZE_BYTES)
         clusterUploadBuffer = clusterBytes
         volumetricTileUploadBuffer = volumetricTileBytes
         putIntArray(clusterBytes, clusterList)
@@ -552,13 +559,9 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         volumetricTileIndexBuffer.upload(volumetricTileBytes)
     }
 
-    private fun uploadPackedState(
-        lights: List<PreparedLight>,
-        clusterList: IntArray,
-        volumetricTileList: IntArray,
-    ) {
+    private fun uploadPackedState(lights: List<PreparedLight>) {
         uploadLightState(lights)
-        uploadClusterState(clusterList, volumetricTileList)
+        uploadClusterState(EMPTY_INDEX_LIST, EMPTY_INDEX_LIST)
     }
 
     private fun buildFlags(component: LightComponent): Int {
@@ -577,7 +580,7 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         clearFrameState()
         resetClusterScratch()
         resetVolumetricTileScratch()
-        uploadPackedState(emptyList(), EMPTY_INDEX_LIST, EMPTY_INDEX_LIST)
+        uploadPackedState(emptyList())
     }
 
     private fun clearFrameState() {

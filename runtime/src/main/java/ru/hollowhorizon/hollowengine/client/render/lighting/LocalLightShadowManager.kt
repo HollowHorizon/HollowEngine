@@ -88,7 +88,6 @@ internal object LocalLightShadowManager {
         faceWidth = ClusteredLightingConfig.SPOT_SHADOW_TILE_SIZE,
         faceHeight = ClusteredLightingConfig.SPOT_SHADOW_TILE_SIZE,
         columnsPerSlot = 1,
-        rowsPerSlot = 1,
     )
     private val pointAtlas = ShadowAtlas(
         name = "hollowengine_local_point_shadows",
@@ -99,7 +98,6 @@ internal object LocalLightShadowManager {
         faceWidth = ClusteredLightingConfig.POINT_SHADOW_FACE_SIZE,
         faceHeight = ClusteredLightingConfig.POINT_SHADOW_FACE_SIZE,
         columnsPerSlot = 3,
-        rowsPerSlot = 2,
     )
 
     private val cacheEntries = LinkedHashMap<String, ShadowCacheEntry>()
@@ -383,7 +381,7 @@ internal object LocalLightShadowManager {
             ShadowRenderer.ACTIVE = true
             minecraft.smartCull = false
             rendererInvoker.`hollowengine$needsUpdate`()
-            renderer.setRenderBuffers(shadowRenderBuffers)
+            renderer.renderBuffers = shadowRenderBuffers
             (shadowRenderBuffers as? DrawCallTrackingRenderBuffers)?.resetDrawCounts()
             (shadowRenderBuffers as? RenderBuffersExt)?.beginLevelRendering()
             entry.farPlane = when (val component = light.component) {
@@ -487,7 +485,7 @@ internal object LocalLightShadowManager {
             minecraft.smartCull = originalCull
             renderer.setShouldRegenerateClouds(regenerateClouds)
             (shadowRenderBuffers as? RenderBuffersExt)?.endLevelRendering()
-            renderer.setRenderBuffers(originalRenderBuffers)
+            renderer.renderBuffers = originalRenderBuffers
             ShadowRenderer.ACTIVE = previousShadowPassActive
             activeIrisShadowFramebuffer = null
             localShadowPassActive = false
@@ -666,7 +664,6 @@ internal object LocalLightShadowManager {
         private val faceWidth: Int,
         private val faceHeight: Int,
         private val columnsPerSlot: Int,
-        private val rowsPerSlot: Int,
     ) {
         private val columns = max(width / slotWidth, 1)
         private val rows = max(height / slotHeight, 1)
@@ -710,7 +707,7 @@ internal object LocalLightShadowManager {
                 noDrawBuffers()
             }
 
-            val status = framebuffer?.getStatus() ?: GL30C.GL_FRAMEBUFFER_UNDEFINED
+            val status = framebuffer?.status ?: GL30C.GL_FRAMEBUFFER_UNDEFINED
             check(status == GL30C.GL_FRAMEBUFFER_COMPLETE) { "Framebuffer for $name is incomplete: $status" }
 
             GL11C.glViewport(0, 0, width, height)
