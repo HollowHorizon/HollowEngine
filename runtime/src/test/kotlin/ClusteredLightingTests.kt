@@ -1,7 +1,11 @@
 import de.fabmax.kool.math.QuatF
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
+import ru.hollowhorizon.hollowengine.client.render.lighting.LightCullingMode
+import ru.hollowhorizon.hollowengine.client.render.lighting.LightCullingSupport
+import ru.hollowhorizon.hollowengine.client.render.lighting.detectLightCullingSupport
 import ru.hollowhorizon.hollowengine.client.render.lighting.hasClusteredLightingFeatureFlag
+import ru.hollowhorizon.hollowengine.client.render.lighting.resolveLightCullingMode
 import ru.hollowhorizon.hollowengine.client.render.lighting.selectLogarithmicSlice
 import ru.hollowhorizon.hollowengine.client.render.lighting.spotLightDirection
 import ru.hollowhorizon.hollowengine.common.geary.components.FlareSettings
@@ -84,5 +88,48 @@ class ClusteredLightingTests {
         assertTrue(hasClusteredLightingFeatureFlag(listOf("HE_CLUSTERED_LIGHTING"), emptyList()))
         assertTrue(hasClusteredLightingFeatureFlag(emptyList(), listOf("CUSTOM_IMAGES", "HE_CLUSTERED_LIGHTING")))
         assertFalse(hasClusteredLightingFeatureFlag(listOf("CUSTOM_IMAGES"), emptyList()))
+    }
+
+    @Test
+    fun `light culling support detects all advertised modes`() {
+        val support = detectLightCullingSupport(
+            requiredFlags = listOf("HE_CLUSTERED_LIGHTING", "HE_TILED_LIGHTING"),
+            optionalFlags = listOf("CUSTOM_IMAGES", "HE_DIRECT_LIGHTING"),
+        )
+
+        assertEquals(
+            LightCullingSupport(
+                direct = true,
+                tiled = true,
+                clustered = true,
+            ),
+            support,
+        )
+    }
+
+    @Test
+    fun `light culling selector prefers cheapest supported mode`() {
+        val support = LightCullingSupport(
+            direct = true,
+            tiled = true,
+            clustered = true,
+        )
+
+        assertEquals(LightCullingMode.DISABLED, resolveLightCullingMode(0, support))
+        assertEquals(LightCullingMode.DIRECT, resolveLightCullingMode(2, support))
+        assertEquals(LightCullingMode.TILED, resolveLightCullingMode(24, support))
+        assertEquals(LightCullingMode.CLUSTERED, resolveLightCullingMode(128, support))
+    }
+
+    @Test
+    fun `light culling selector remains backward compatible with clustered only packs`() {
+        val support = LightCullingSupport(
+            direct = false,
+            tiled = false,
+            clustered = true,
+        )
+
+        assertEquals(LightCullingMode.CLUSTERED, resolveLightCullingMode(2, support))
+        assertEquals(LightCullingMode.CLUSTERED, resolveLightCullingMode(64, support))
     }
 }

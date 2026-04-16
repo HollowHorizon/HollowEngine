@@ -12,12 +12,17 @@ import kotlin.math.max
 import kotlin.math.min
 
 object ClusteredLightingConfig {
-    const val FEATURE_FLAG = "HE_CLUSTERED_LIGHTING"
+    const val CLUSTERED_FEATURE_FLAG = "HE_CLUSTERED_LIGHTING"
+    const val TILED_FEATURE_FLAG = "HE_TILED_LIGHTING"
+    const val DIRECT_FEATURE_FLAG = "HE_DIRECT_LIGHTING"
 
     const val TILE_SIZE = 16
     const val Z_SLICES = 12
     const val MAX_LIGHTS_PER_CLUSTER = 32
+    const val MAX_LIGHTS_PER_TILE = 64
     const val MAX_VOLUMETRIC_LIGHTS_PER_TILE = 64
+    const val MAX_DIRECT_LIGHTS = 4
+    const val MAX_TILED_LIGHTS = 96
 
     const val CORE_LIGHT_BINDING = 28
     const val POINT_LIGHT_BINDING = 29
@@ -28,6 +33,7 @@ object ClusteredLightingConfig {
     const val CLUSTER_INDEX_BINDING = 34
     const val VOLUMETRIC_TILE_INDEX_BINDING = 35
     const val SHADOW_DATA_BINDING = 36
+    const val VISIBLE_LIGHT_INDEX_BINDING = 37
 
     const val CORE_LIGHT_STRIDE = 48
     const val POINT_LIGHT_STRIDE = 16
@@ -46,6 +52,21 @@ object ClusteredLightingConfig {
     const val POINT_SHADOW_ATLAS_WIDTH = 2048
     const val POINT_SHADOW_ATLAS_HEIGHT = 1024
     const val POINT_SHADOW_FACE_SIZE = 256
+}
+
+enum class LightCullingMode(val id: Int) {
+    DISABLED(0),
+    DIRECT(1),
+    TILED(2),
+    CLUSTERED(3),
+}
+
+data class LightCullingSupport(
+    val direct: Boolean,
+    val tiled: Boolean,
+    val clustered: Boolean,
+) {
+    fun anyEnabled(): Boolean = direct || tiled || clustered
 }
 
 data class ClusterClipPlanes(
@@ -198,5 +219,37 @@ fun projectToScreen(
     )
 }
 
+fun detectLightCullingSupport(requiredFlags: List<String>, optionalFlags: List<String>): LightCullingSupport {
+    val flags = HashSet<String>(requiredFlags.size + optionalFlags.size).apply {
+        addAll(requiredFlags)
+        addAll(optionalFlags)
+    }
+
+    val clustered = ClusteredLightingConfig.CLUSTERED_FEATURE_FLAG in flags
+    val tiled = ClusteredLightingConfig.TILED_FEATURE_FLAG in flags || clustered
+    val direct = ClusteredLightingConfig.DIRECT_FEATURE_FLAG in flags
+
+    return LightCullingSupport(
+        direct = direct,
+        tiled = tiled,
+        clustered = clustered,
+    )
+}
+
+fun resolveLightCullingMode(
+    visibleLightCount: Int,
+    support: LightCullingSupport,
+    maxDirectLights: Int = ClusteredLightingConfig.MAX_DIRECT_LIGHTS,
+    maxTiledLights: Int = ClusteredLightingConfig.MAX_TILED_LIGHTS,
+): LightCullingMode {
+    if (visibleLightCount <= 0 || !support.anyEnabled()) return LightCullingMode.DISABLED
+    if (support.direct && visibleLightCount <= maxDirectLights) return LightCullingMode.DIRECT
+    if (support.tiled && visibleLightCount <= maxTiledLights) return LightCullingMode.TILED
+    if (support.clustered) return LightCullingMode.CLUSTERED
+    if (support.tiled) return LightCullingMode.TILED
+    if (support.direct) return LightCullingMode.DIRECT
+    return LightCullingMode.DISABLED
+}
+
 fun hasClusteredLightingFeatureFlag(requiredFlags: List<String>, optionalFlags: List<String>): Boolean =
-    requiredFlags.contains(ClusteredLightingConfig.FEATURE_FLAG) || optionalFlags.contains(ClusteredLightingConfig.FEATURE_FLAG)
+    detectLightCullingSupport(requiredFlags, optionalFlags).clustered

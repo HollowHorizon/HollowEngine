@@ -8,7 +8,8 @@ import net.irisshaders.iris.pipeline.ShaderRenderingPipeline
 import net.irisshaders.iris.shaderpack.loading.ProgramId
 import net.irisshaders.iris.shaderpack.properties.ShaderProperties
 import net.irisshaders.iris.uniforms.CapturedRenderingState
-import ru.hollowhorizon.hollowengine.client.render.lighting.hasClusteredLightingFeatureFlag
+import ru.hollowhorizon.hollowengine.client.render.lighting.LightCullingSupport
+import ru.hollowhorizon.hollowengine.client.render.lighting.detectLightCullingSupport
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ModelInstancingBackend
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.PipelineRenderer
 import ru.hollowhorizon.hollowengine.client.utils.InstancingEntityInfo
@@ -51,13 +52,19 @@ object IrisHelper {
         return null
     }
 
-    fun isClusteredLightingCompatible(): Boolean {
-        val shaderProperties = currentShaderProperties() ?: return false
-        return hasClusteredLightingFeatureFlag(
+    fun currentLightCullingSupport(): LightCullingSupport {
+        val shaderProperties = currentShaderProperties() ?: return LightCullingSupport(
+            direct = false,
+            tiled = false,
+            clustered = false,
+        )
+        return detectLightCullingSupport(
             requiredFlags = shaderProperties.requiredFeatureFlags,
             optionalFlags = shaderProperties.optionalFeatureFlags,
         )
     }
+
+    fun isClusteredLightingCompatible(): Boolean = currentLightCullingSupport().clustered
 
     fun instancingBackend(): ModelInstancingBackend = IrisInstancingBackend
 

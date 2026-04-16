@@ -45,6 +45,11 @@ object RenderManager {
     }
 
     @SubscribeEvent
+    fun onDispatchDeferredLightCulling(event: RenderLevelStageEvent) {
+        ClusteredLightingManager.dispatchDeferredCulling(event)
+    }
+
+    @SubscribeEvent
     fun onRenderInstanced(event: RenderLevelStageEvent) {
         when (event.stage) {
             RenderStage.AFTER_ENTITIES -> InstanceBatchManager.flush()

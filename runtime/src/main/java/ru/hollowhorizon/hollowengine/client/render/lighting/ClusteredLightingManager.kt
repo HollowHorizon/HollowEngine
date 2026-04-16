@@ -48,8 +48,10 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
     private val flareBuffer = ShaderStorageBuffer(ClusteredLightingConfig.FLARE_BINDING)
     private val clusterIndexBuffer = ShaderStorageBuffer(ClusteredLightingConfig.CLUSTER_INDEX_BINDING)
     private val volumetricTileIndexBuffer = ShaderStorageBuffer(ClusteredLightingConfig.VOLUMETRIC_TILE_INDEX_BINDING)
+    private val visibleLightIndexBuffer = ShaderStorageBuffer(ClusteredLightingConfig.VISIBLE_LIGHT_INDEX_BINDING)
 
     private var enabled = false
+    private var cullingMode = LightCullingMode.DISABLED
     private var lightCount = 0
     private var clusterCount = 0
     private var volumetricTileCount = 0
@@ -81,6 +83,9 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
     private var flareUploadBuffer: ByteBuffer? = null
     private var clusterUploadBuffer: ByteBuffer? = null
     private var volumetricTileUploadBuffer: ByteBuffer? = null
+    private var visibleLightIndexUploadBuffer: ByteBuffer? = null
+    private var tiledCullingPending = false
+    private var tiledHasVolumetricLights = false
 
     override fun onResourceManagerReload(resourceManager: ResourceManager) {
         invalidate()
@@ -100,7 +105,12 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
             return
         }
 
-        enabled = IrisHelper.isShaderPackInUse() && IrisHelper.isClusteredLightingCompatible()
+        val cullingSupport = if (IrisHelper.isShaderPackInUse()) IrisHelper.currentLightCullingSupport() else LightCullingSupport(
+            direct = false,
+            tiled = false,
+            clustered = false,
+        )
+        enabled = cullingSupport.anyEnabled()
         if (!enabled) {
             uploadEmptyState()
             return
@@ -113,6 +123,9 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
             resetClusterScratch()
             resetVolumetricTileScratch()
             shadowFrameState = ShadowFrameState.EMPTY
+            cullingMode = LightCullingMode.DISABLED
+            tiledCullingPending = false
+            tiledHasVolumetricLights = false
             lightCount = 0
             clusterCount = 0
             volumetricTileCount = 0
@@ -125,14 +138,65 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         }
 
         shadowFrameState = LocalLightShadowManager.prepareFrame(event, collected, viewMatrix)
+        cullingMode = resolveLightCullingMode(collected.size, cullingSupport)
 
         val tileCountX = maxOf(1, ceil(viewResolution.x / ClusteredLightingConfig.TILE_SIZE.toFloat()).toInt())
         val tileCountY = maxOf(1, ceil(viewResolution.y / ClusteredLightingConfig.TILE_SIZE.toFloat()).toInt())
         val clusterCountLocal = tileCountX * tileCountY * ClusteredLightingConfig.Z_SLICES
+        val tiledClusterCountLocal = tileCountX * tileCountY
         val volumetricTileCountLocal = tileCountX * tileCountY
         val hasVolumetricLights = collected.any { it.component.hasVolumetricFog }
-        val clusterStride = ClusteredLightingConfig.MAX_LIGHTS_PER_CLUSTER + 1
+        tiledHasVolumetricLights = hasVolumetricLights
+        val clusterStride = if (cullingMode == LightCullingMode.TILED) {
+            ClusteredLightingConfig.MAX_LIGHTS_PER_TILE + 1
+        } else {
+            ClusteredLightingConfig.MAX_LIGHTS_PER_CLUSTER + 1
+        }
         val volumetricStride = ClusteredLightingConfig.MAX_VOLUMETRIC_LIGHTS_PER_TILE + 1
+
+        lightCount = collected.size
+        clusterCount = when (cullingMode) {
+            LightCullingMode.TILED -> tiledClusterCountLocal
+            LightCullingMode.CLUSTERED -> clusterCountLocal
+            else -> 0
+        }
+        volumetricTileCount = if (hasVolumetricLights && cullingMode != LightCullingMode.DIRECT) volumetricTileCountLocal else 0
+        volumetricLightCount = collected.count { it.component.hasVolumetricFog }
+        flareLightCount = collected.count { it.component.hasFlare }
+
+        uploadLightState(collected)
+
+        if (cullingMode == LightCullingMode.DIRECT) {
+            resetClusterScratch()
+            resetVolumetricTileScratch()
+            overflowedClusters = 0
+            overflowedVolumetricTiles = 0
+            tiledCullingPending = false
+            uploadClusterState(EMPTY_INDEX_LIST, EMPTY_INDEX_LIST)
+            return
+        }
+
+        tiledCullingPending = cullingMode == LightCullingMode.TILED
+
+        val usedGpuCompute = cullingMode == LightCullingMode.CLUSTERED && ClusteredLightCompute.dispatch(
+            lightCount = collected.size,
+            tileCountX = tileCountX,
+            tileCountY = tileCountY,
+            clusterCount = clusterCountLocal,
+            volumetricTileCount = if (hasVolumetricLights) volumetricTileCountLocal else 0,
+            viewResolution = Vector2i(viewResolution),
+            projectionMatrix = Matrix4f(projectionMatrix),
+            clipPlanes = clipPlanes,
+            coreLightBuffer = coreLightBuffer,
+            clusterIndexBuffer = clusterIndexBuffer,
+            volumetricTileIndexBuffer = volumetricTileIndexBuffer,
+        )
+
+        if (usedGpuCompute) {
+            overflowedClusters = 0
+            overflowedVolumetricTiles = 0
+            return
+        }
 
         val clusterList = prepareClusterScratch(clusterCountLocal)
         val volumetricTileList = if (hasVolumetricLights) {
@@ -156,7 +220,10 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
                 farPlane = clipPlanes.farPlane,
             ) ?: return@forEachIndexed
 
-            for (slice in bounds.minSlice..bounds.maxSlice) {
+            val minSlice = if (cullingMode == LightCullingMode.CLUSTERED) bounds.minSlice else 0
+            val maxSlice = if (cullingMode == LightCullingMode.CLUSTERED) bounds.maxSlice else 0
+
+            for (slice in minSlice..maxSlice) {
                 for (tileY in bounds.minTileY..bounds.maxTileY) {
                     for (tileX in bounds.minTileX..bounds.maxTileX) {
                         val clusterIndex = ((slice * tileCountY) + tileY) * tileCountX + tileX
@@ -165,7 +232,12 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
                         if (currentCount == 0) {
                             touchedClusterIndices[touchedClusterCount++] = clusterIndex
                         }
-                        if (currentCount < ClusteredLightingConfig.MAX_LIGHTS_PER_CLUSTER) {
+                        val maxIndexedLights = if (cullingMode == LightCullingMode.TILED) {
+                            ClusteredLightingConfig.MAX_LIGHTS_PER_TILE
+                        } else {
+                            ClusteredLightingConfig.MAX_LIGHTS_PER_CLUSTER
+                        }
+                        if (currentCount < maxIndexedLights) {
                             clusterList[base] = currentCount + 1
                             clusterList[base + currentCount + 1] = lightIndex
                         } else {
@@ -195,29 +267,60 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
             }
         }
 
-        clusterCount = clusterCountLocal
-        volumetricTileCount = if (hasVolumetricLights) volumetricTileCountLocal else 0
-        lightCount = collected.size
-        volumetricLightCount = collected.count { it.component.hasVolumetricFog }
-        flareLightCount = collected.count { it.component.hasFlare }
+        uploadClusterState(clusterList, if (hasVolumetricLights) volumetricTileList else EMPTY_INDEX_LIST)
+    }
 
-        uploadPackedState(collected, clusterList, if (hasVolumetricLights) volumetricTileList else EMPTY_INDEX_LIST)
+    fun dispatchDeferredCulling(event: RenderLevelStageEvent) {
+        if (event.stage != ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage.AFTER_CUTOUT_BLOCKS) return
+        if (!enabled || cullingMode != LightCullingMode.TILED || !tiledCullingPending || lightCount <= 0) return
+
+        val tileCountX = maxOf(1, ceil(viewResolution.x / ClusteredLightingConfig.TILE_SIZE.toFloat()).toInt())
+        val tileCountY = maxOf(1, ceil(viewResolution.y / ClusteredLightingConfig.TILE_SIZE.toFloat()).toInt())
+        val usedGpuCompute = TiledLightCompute.dispatch(
+            lightCount = lightCount,
+            tileCountX = tileCountX,
+            tileCountY = tileCountY,
+            viewResolution = Vector2i(viewResolution),
+            clipPlanes = clipPlanes,
+            projectionMatrix = Matrix4f(projectionMatrix),
+            visibleLightIndexBuffer = visibleLightIndexBuffer,
+            coreLightBuffer = coreLightBuffer,
+            pointLightBuffer = pointLightBuffer,
+            spotLightBuffer = spotLightBuffer,
+            clusterIndexBuffer = clusterIndexBuffer,
+            volumetricTileIndexBuffer = volumetricTileIndexBuffer,
+            hasVolumetricLights = tiledHasVolumetricLights,
+        )
+
+        if (usedGpuCompute) {
+            overflowedClusters = 0
+            overflowedVolumetricTiles = 0
+        }
+        tiledCullingPending = false
     }
 
     fun isEnabled(): Boolean = enabled
+    fun currentLightCullingMode(): Int = cullingMode.id
+    fun isDirectLightingEnabled(): Boolean = cullingMode == LightCullingMode.DIRECT
+    fun isTiledLightingEnabled(): Boolean = cullingMode == LightCullingMode.TILED
+    fun isClusteredLightingEnabled(): Boolean = cullingMode == LightCullingMode.CLUSTERED
     fun currentLightCount(): Int = lightCount
     fun currentClusterCount(): Int = clusterCount
     fun currentVolumetricTileCount(): Int = volumetricTileCount
     fun currentVolumetricLightCount(): Int = volumetricLightCount
     fun currentFlareLightCount(): Int = flareLightCount
     fun configuredTileSize(): Int = ClusteredLightingConfig.TILE_SIZE
-    fun configuredZSlices(): Int = ClusteredLightingConfig.Z_SLICES
+    fun configuredZSlices(): Int = if (cullingMode == LightCullingMode.CLUSTERED) ClusteredLightingConfig.Z_SLICES else 1
     fun currentNearPlane(): Float = clipPlanes.nearPlane
     fun currentFarPlane(): Float = clipPlanes.farPlane
     fun currentViewResolution(): Vector2i = Vector2i(viewResolution)
 
     fun registerDynamicUniforms(uniforms: DynamicUniformHolder) {
         uniforms.uniform1b(UniformUpdateFrequency.PER_FRAME, "he_clusteredLightingEnabled", ::isEnabled)
+        uniforms.uniform1b(UniformUpdateFrequency.PER_FRAME, "he_tiledLightingEnabled", ::isTiledLightingEnabled)
+        uniforms.uniform1b(UniformUpdateFrequency.PER_FRAME, "he_directLightingEnabled", ::isDirectLightingEnabled)
+        uniforms.uniform1b(UniformUpdateFrequency.PER_FRAME, "he_localLightsEnabled", ::isEnabled)
+        uniforms.uniform1i(UniformUpdateFrequency.PER_FRAME, "he_lightCullingMode", ::currentLightCullingMode)
         uniforms.uniform1i(UniformUpdateFrequency.PER_FRAME, "he_lightCount", ::currentLightCount)
         uniforms.uniform1i(UniformUpdateFrequency.PER_FRAME, "he_clusterCount", ::currentClusterCount)
         uniforms.uniform1i(UniformUpdateFrequency.PER_FRAME, "he_volumetricTileCount", ::currentVolumetricTileCount)
@@ -340,19 +443,14 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         return collected
     }
 
-    private fun uploadPackedState(
-        lights: List<PreparedLight>,
-        clusterList: IntArray,
-        volumetricTileList: IntArray,
-    ) {
+    private fun uploadLightState(lights: List<PreparedLight>) {
         val coreLightBytes = prepareUploadBuffer(coreLightUploadBuffer, lights.size * ClusteredLightingConfig.CORE_LIGHT_STRIDE)
         val pointLightBytes = prepareUploadBuffer(pointLightUploadBuffer, lights.size * ClusteredLightingConfig.POINT_LIGHT_STRIDE)
         val spotLightBytes = prepareUploadBuffer(spotLightUploadBuffer, lights.size * ClusteredLightingConfig.SPOT_LIGHT_STRIDE)
         val shadowBytes = prepareUploadBuffer(shadowUploadBuffer, lights.size * ClusteredLightingConfig.SHADOW_SETTINGS_STRIDE)
         val volumetricBytes = prepareUploadBuffer(volumetricUploadBuffer, lights.size * ClusteredLightingConfig.VOLUMETRIC_FOG_STRIDE)
         val flareBytes = prepareUploadBuffer(flareUploadBuffer, lights.size * ClusteredLightingConfig.FLARE_STRIDE)
-        val clusterBytes = prepareUploadBuffer(clusterUploadBuffer, clusterList.size * Int.SIZE_BYTES)
-        val volumetricTileBytes = prepareUploadBuffer(volumetricTileUploadBuffer, volumetricTileList.size * Int.SIZE_BYTES)
+        val visibleLightIndexBytes = prepareUploadBuffer(visibleLightIndexUploadBuffer, lights.size * Int.SIZE_BYTES)
 
         coreLightUploadBuffer = coreLightBytes
         pointLightUploadBuffer = pointLightBytes
@@ -360,8 +458,7 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         shadowUploadBuffer = shadowBytes
         volumetricUploadBuffer = volumetricBytes
         flareUploadBuffer = flareBytes
-        clusterUploadBuffer = clusterBytes
-        volumetricTileUploadBuffer = volumetricTileBytes
+        visibleLightIndexUploadBuffer = visibleLightIndexBytes
 
         lights.forEachIndexed { index, light ->
             val flags = buildFlags(light.component)
@@ -432,10 +529,8 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
             flareBytes.putFloat(flare?.intensity ?: 0f)
             flareBytes.putFloat(light.flareScreenPosition?.x ?: -1f)
             flareBytes.putFloat(light.flareScreenPosition?.y ?: -1f)
+            visibleLightIndexBytes.putInt(index)
         }
-
-        putIntArray(clusterBytes, clusterList)
-        putIntArray(volumetricTileBytes, volumetricTileList)
 
         coreLightBuffer.upload(coreLightBytes)
         pointLightBuffer.upload(pointLightBytes)
@@ -443,8 +538,27 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         shadowSettingsBuffer.upload(shadowBytes)
         volumetricFogBuffer.upload(volumetricBytes)
         flareBuffer.upload(flareBytes)
+        visibleLightIndexBuffer.upload(visibleLightIndexBytes)
+    }
+
+    private fun uploadClusterState(clusterList: IntArray, volumetricTileList: IntArray) {
+        val clusterBytes = prepareUploadBuffer(clusterUploadBuffer, clusterList.size * Int.SIZE_BYTES)
+        val volumetricTileBytes = prepareUploadBuffer(volumetricTileUploadBuffer, volumetricTileList.size * Int.SIZE_BYTES)
+        clusterUploadBuffer = clusterBytes
+        volumetricTileUploadBuffer = volumetricTileBytes
+        putIntArray(clusterBytes, clusterList)
+        putIntArray(volumetricTileBytes, volumetricTileList)
         clusterIndexBuffer.upload(clusterBytes)
         volumetricTileIndexBuffer.upload(volumetricTileBytes)
+    }
+
+    private fun uploadPackedState(
+        lights: List<PreparedLight>,
+        clusterList: IntArray,
+        volumetricTileList: IntArray,
+    ) {
+        uploadLightState(lights)
+        uploadClusterState(clusterList, volumetricTileList)
     }
 
     private fun buildFlags(component: LightComponent): Int {
@@ -468,8 +582,11 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
 
     private fun clearFrameState() {
         enabled = false
+        cullingMode = LightCullingMode.DISABLED
         shadowFrameState = ShadowFrameState.EMPTY
         LocalLightShadowManager.resetFrameState()
+        tiledCullingPending = false
+        tiledHasVolumetricLights = false
         lightCount = 0
         clusterCount = 0
         volumetricTileCount = 0
@@ -491,11 +608,18 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         flareBuffer.release()
         clusterIndexBuffer.release()
         volumetricTileIndexBuffer.release()
+        visibleLightIndexBuffer.release()
+        ClusteredLightCompute.invalidate()
+        TiledLightCompute.invalidate()
         LocalLightShadowManager.invalidate()
     }
 
     private fun prepareClusterScratch(clusterCountLocal: Int): IntArray {
-        val clusterStride = ClusteredLightingConfig.MAX_LIGHTS_PER_CLUSTER + 1
+        val clusterStride = if (cullingMode == LightCullingMode.TILED) {
+            ClusteredLightingConfig.MAX_LIGHTS_PER_TILE + 1
+        } else {
+            ClusteredLightingConfig.MAX_LIGHTS_PER_CLUSTER + 1
+        }
         val requiredSize = clusterCountLocal * clusterStride
         if (clusterIndexScratch.size < requiredSize) {
             clusterIndexScratch = IntArray(requiredSize)
@@ -526,7 +650,11 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
 
     private fun resetClusterScratch() {
         if (touchedClusterCount == 0) return
-        val clusterStride = ClusteredLightingConfig.MAX_LIGHTS_PER_CLUSTER + 1
+        val clusterStride = if (cullingMode == LightCullingMode.TILED) {
+            ClusteredLightingConfig.MAX_LIGHTS_PER_TILE + 1
+        } else {
+            ClusteredLightingConfig.MAX_LIGHTS_PER_CLUSTER + 1
+        }
         for (index in 0 until touchedClusterCount) {
             clusterIndexScratch[touchedClusterIndices[index] * clusterStride] = 0
         }
@@ -559,33 +687,6 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         buffer.position(values.size * Int.SIZE_BYTES)
     }
 
-    private class ShaderStorageBuffer(private val binding: Int) {
-        private var id: Int = 0
-        private var capacity: Int = 0
-
-        fun upload(data: ByteBuffer) {
-            ensureCreated()
-            data.flip()
-            GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, id)
-            GL15.glBufferData(GL43.GL_SHADER_STORAGE_BUFFER, data, GL15.GL_STREAM_DRAW)
-            capacity = data.remaining()
-            GL30.glBindBufferBase(GL43.GL_SHADER_STORAGE_BUFFER, binding, id)
-            GL15.glBindBuffer(GL43.GL_SHADER_STORAGE_BUFFER, 0)
-        }
-
-        fun release() {
-            if (id == 0) return
-            GL15.glDeleteBuffers(id)
-            id = 0
-            capacity = 0
-        }
-
-        private fun ensureCreated() {
-            if (id == 0) {
-                id = GL15.glGenBuffers()
-            }
-        }
-    }
 }
 
 private fun Vec3f.toJoml(): Vector3f = Vector3f(x, y, z)

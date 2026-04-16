@@ -14,19 +14,15 @@ class WorldAnchorSavedData private constructor() : SavedData() {
     private val chunkByStableKey = ConcurrentHashMap<UUID, Long>()
 
     fun recordsForChunk(chunkKey: Long): List<DormantRecord> =
-        recordsByChunk[chunkKey]
-            ?.values
-            ?.map { tag -> EntitySerialization.deserializeFromNbt(tag) }
-            ?.map { snapshot -> DormantRecord(snapshot.requireStableKey(), snapshot) }
-            .orEmpty()
+        snapshotChunkTags(chunkKey)
+            .map { tag -> EntitySerialization.deserializeFromNbt(tag) }
+            .map { snapshot -> DormantRecord(snapshot.requireStableKey(), snapshot) }
 
     fun forEachRecordInChunk(chunkKey: Long, action: (DormantRecord) -> Unit) {
-        recordsByChunk[chunkKey]
-            ?.values
-            ?.forEach { tag ->
-                val snapshot = EntitySerialization.deserializeFromNbt(tag)
-                action(DormantRecord(snapshot.requireStableKey(), snapshot))
-            }
+        snapshotChunkTags(chunkKey).forEach { tag ->
+            val snapshot = EntitySerialization.deserializeFromNbt(tag)
+            action(DormantRecord(snapshot.requireStableKey(), snapshot))
+        }
     }
 
     fun forEachRecordInChunkRange(centerChunkX: Int, centerChunkZ: Int, radius: Int, action: (DormantRecord) -> Unit) {
@@ -37,8 +33,7 @@ class WorldAnchorSavedData private constructor() : SavedData() {
         }
     }
 
-    fun allRecords(): List<DormantRecord> = recordsByChunk.values
-        .flatMap { records -> records.values }
+    fun allRecords(): List<DormantRecord> = snapshotAllTags()
         .map { tag -> EntitySerialization.deserializeFromNbt(tag) }
         .map { snapshot -> DormantRecord(snapshot.requireStableKey(), snapshot) }
 
@@ -47,18 +42,27 @@ class WorldAnchorSavedData private constructor() : SavedData() {
             ?: error("WorldAnchorSavedData can store only world-anchored records.")
         val chunkKey = ChunkKey.pack(worldAnchor.chunkX, worldAnchor.chunkZ)
         chunkByStableKey.put(record.stableKey, chunkKey)?.takeIf { it != chunkKey }?.let { previousChunk ->
-            recordsByChunk[previousChunk]?.remove(record.stableKey)
+            recordsByChunk[previousChunk]?.let { records ->
+                synchronized(records) {
+                    records.remove(record.stableKey)
+                }
+            }
         }
-        recordsByChunk.computeIfAbsent(chunkKey) { linkedMapOf() }[record.stableKey] =
-            EntitySerialization.serializeToNbt(record.snapshot) as CompoundTag
+        val serialized = EntitySerialization.serializeToNbt(record.snapshot) as CompoundTag
+        val records = recordsByChunk.computeIfAbsent(chunkKey) { linkedMapOf() }
+        synchronized(records) {
+            records[record.stableKey] = serialized
+        }
         setDirty()
     }
 
     fun remove(stableKey: UUID): DormantRecord? {
         val chunkKey = chunkByStableKey.remove(stableKey) ?: return null
         val records = recordsByChunk[chunkKey] ?: return null
-        val removed = records.remove(stableKey) ?: return null
-        if (records.isEmpty()) {
+        val removed = synchronized(records) {
+            records.remove(stableKey)
+        } ?: return null
+        if (synchronized(records) { records.isEmpty() }) {
             recordsByChunk.remove(chunkKey, records)
         }
         setDirty()
@@ -70,7 +74,9 @@ class WorldAnchorSavedData private constructor() : SavedData() {
         val removed = recordsByChunk.remove(chunkKey).orEmpty()
         removed.keys.forEach(chunkByStableKey::remove)
         if (removed.isNotEmpty()) setDirty()
-        return removed.values
+        return synchronized(removed) {
+            removed.values.toList()
+        }
             .map { tag -> EntitySerialization.deserializeFromNbt(tag) }
             .map { snapshot -> DormantRecord(snapshot.requireStableKey(), snapshot) }
     }
@@ -81,7 +87,9 @@ class WorldAnchorSavedData private constructor() : SavedData() {
             val chunkTag = CompoundTag()
             chunkTag.putLong("chunk", chunkKey)
             val entriesTag = ListTag()
-            records.values.forEach(entriesTag::add)
+            synchronized(records) {
+                records.values.toList()
+            }.forEach(entriesTag::add)
             chunkTag.put("records", entriesTag)
             chunksTag.add(chunkTag)
         }
@@ -119,6 +127,23 @@ class WorldAnchorSavedData private constructor() : SavedData() {
                 DATA_NAME,
             )
         }
+    }
+
+    private fun snapshotChunkTags(chunkKey: Long): List<CompoundTag> {
+        val records = recordsByChunk[chunkKey] ?: return emptyList()
+        return synchronized(records) {
+            records.values.toList()
+        }
+    }
+
+    private fun snapshotAllTags(): List<CompoundTag> {
+        val all = ArrayList<CompoundTag>()
+        recordsByChunk.values.forEach { records ->
+            synchronized(records) {
+                all.addAll(records.values)
+            }
+        }
+        return all
     }
 }
 

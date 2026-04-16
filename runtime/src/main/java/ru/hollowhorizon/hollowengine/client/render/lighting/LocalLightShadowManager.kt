@@ -2,6 +2,8 @@ package ru.hollowhorizon.hollowengine.client.render.lighting
 
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.VertexSorting
+import net.irisshaders.batchedentityrendering.impl.DrawCallTrackingRenderBuffers
+import net.irisshaders.batchedentityrendering.impl.RenderBuffersExt
 import net.irisshaders.iris.gl.IrisRenderSystem
 import net.irisshaders.iris.gl.framebuffer.GlFramebuffer
 import net.irisshaders.iris.gl.sampler.GlSampler
@@ -20,8 +22,6 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.RenderBuffers
 import net.minecraft.client.renderer.RenderType
 import net.minecraft.client.renderer.culling.Frustum
-import net.irisshaders.batchedentityrendering.impl.DrawCallTrackingRenderBuffers
-import net.irisshaders.batchedentityrendering.impl.RenderBuffersExt
 import org.joml.Matrix4f
 import org.joml.Vector2i
 import org.joml.Vector3f
@@ -29,9 +29,7 @@ import org.joml.Vector4f
 import org.lwjgl.BufferUtils
 import org.lwjgl.opengl.GL11C
 import org.lwjgl.opengl.GL12C
-import org.lwjgl.opengl.GL15
 import org.lwjgl.opengl.GL30C
-import org.lwjgl.opengl.GL43C
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.bridge.mixins.client.CameraInvoker
 import ru.hollowhorizon.hollowengine.bridge.mixins.client.LevelRendererInvoker
@@ -658,32 +656,6 @@ internal object LocalLightShadowManager {
     }
 
     private fun mixHash(current: Long, value: Float): Long = current * 31L + value.toRawBits().toLong()
-
-    private class ShaderStorageBuffer(private val binding: Int) {
-        private var id = 0
-        private var capacity = 0
-
-        fun upload(data: java.nio.ByteBuffer) {
-            if (id == 0) {
-                id = GL15.glGenBuffers()
-            }
-
-            data.flip()
-            GL15.glBindBuffer(GL43C.GL_SHADER_STORAGE_BUFFER, id)
-            GL15.glBufferData(GL43C.GL_SHADER_STORAGE_BUFFER, data, GL15.GL_STREAM_DRAW)
-            capacity = data.remaining()
-            GL30C.glBindBufferBase(GL43C.GL_SHADER_STORAGE_BUFFER, binding, id)
-            GL15.glBindBuffer(GL43C.GL_SHADER_STORAGE_BUFFER, 0)
-        }
-
-        fun release() {
-            if (id != 0) {
-                GL15.glDeleteBuffers(id)
-                id = 0
-                capacity = 0
-            }
-        }
-    }
 
     private class ShadowAtlas(
         val name: String,
