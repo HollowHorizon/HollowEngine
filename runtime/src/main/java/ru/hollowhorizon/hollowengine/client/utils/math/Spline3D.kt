@@ -232,8 +232,7 @@ class Spline3D(points: List<Vector3d>, rotations: List<Vector3f>) {
         RenderSystem.setShader { GameRenderer.getPositionTexShader() }
         val tessellator = Tesselator.getInstance()
 
-        //? if >= 1.21 {
-        /*val bufferbuilder = tessellator.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR)
+        val bufferbuilder = tessellator.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR)
         var last: Vector3d? = null
         for (i in 0..100) {
             val p = i / 100.0
@@ -246,21 +245,5 @@ class Spline3D(points: List<Vector3d>, rotations: List<Vector3f>) {
             last = pos
         }
         BufferUploader.drawWithShader(bufferbuilder.buildOrThrow())
-        *///?} else {
-        val bufferbuilder = tessellator.builder
-        bufferbuilder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR)
-        var last: Vector3d? = null
-        for (i in 0..100) {
-            val p = i / 100.0
-
-            val pos = getPoint(p)
-            if (last == null) last = pos
-
-            OpenGLUtils.drawLine(bufferbuilder, stack.last().pose(), pos, last, 1.0f, 1.0f, 1.0f, 1.0f)
-
-            last = pos
-        }
-        tessellator.end()
-        //?}
     }
 }

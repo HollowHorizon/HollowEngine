@@ -1,0 +1,84 @@
+def assetsInputDir = rootProject.file("runtime/src/main/resources/assets")
+def generatedAssetsDir = layout.buildDirectory.dir("generated/sources/assets/kotlin")
+
+def toPascalCase = { String value ->
+    value.split(/[_\-.]/)
+            .findAll { !it.isEmpty() }
+            .collect { it.substring(0, 1).toUpperCase(Locale.ROOT) + it.substring(1) }
+            .join("")
+}
+
+def toUpperSnakeCase = { String value ->
+    def result = value
+            .replaceAll(/([a-z])([A-Z]+)/, '$1_$2')
+            .replace('-', '_')
+            .replace('.', '_')
+            .toUpperCase(Locale.ROOT)
+    result.toCharArray()[0].isDigit() ? "NUM_${result}" : result
+}
+def writeAssetNodes
+writeAssetNodes = { File directory, StringBuilder builder, String indent, String namespace, String relativePath ->
+    def entries = directory.listFiles() ?: [] as File[]
+
+    entries.findAll { it.isDirectory() }
+            .sort { it.name }
+            .each { child ->
+                builder.append("${indent}    object ${toPascalCase(child.name)} {\n")
+                writeAssetNodes(child, builder, "${indent}    ", namespace, "${relativePath}${child.name}/")
+                builder.append("${indent}    }\n")
+            }
+
+    entries.findAll { it.isFile() && !it.name.endsWith(".mcmeta") && !it.name.startsWith(".") }
+            .groupBy { it.name.substring(0, it.name.lastIndexOf('.')) }
+            .toSorted()
+            .each { baseName, files ->
+                def orderedFiles = files.sort { it.name }
+                if (orderedFiles.size() == 1) {
+                    def file = orderedFiles.first()
+                    builder.append("${indent}    val ${toUpperSnakeCase(baseName)} = \"${namespace}:${relativePath}${file.name}\".rl\n")
+                } else {
+                    orderedFiles.each { file ->
+                        def propertyName = toUpperSnakeCase("${baseName}_${file.name.substring(file.name.lastIndexOf('.') + 1)}")
+                        builder.append("${indent}    val ${propertyName} = \"${namespace}:${relativePath}${file.name}\".rl\n")
+                    }
+                }
+            }
+}
+
+tasks.register("generateAssets") {
+    group = "build"
+    description = "Generates the Assets Kotlin object from runtime resources."
+
+    inputs.dir(assetsInputDir)
+    outputs.dir(generatedAssetsDir)
+
+    doLast {
+        if (!assetsInputDir.exists()) {
+            return
+        }
+
+        def outputFile = generatedAssetsDir.get().file("ru/hollowhorizon/hollowengine/generated/Assets.kt").asFile
+        outputFile.parentFile.mkdirs()
+
+        def builder = new StringBuilder()
+        builder.append("// --- GENERATED CODE, DO NOT MODIFY! --- //\n")
+        builder.append("package ru.hollowhorizon.hollowengine.generated\n\n")
+        builder.append("import ru.hollowhorizon.hollowengine.common.utils.rl\n\n")
+        builder.append("object Assets {\n")
+
+        assetsInputDir.listFiles()
+            ?.findAll { it.isDirectory() }
+            ?.sort { it.name }
+            ?.each { namespaceDir ->
+                def objectName = toPascalCase(namespaceDir.name)
+                builder.append("    object ${objectName} {\n")
+                writeAssetNodes(namespaceDir, builder, "    ", namespaceDir.name, "")
+                builder.append("    }\n")
+            }
+
+        builder.append("}\n")
+        outputFile.text = builder.toString()
+    }
+}
+
+

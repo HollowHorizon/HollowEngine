@@ -1,7 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.world
 
+import com.mojang.serialization.MapCodec
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import net.minecraft.core.BlockPos
+import net.minecraft.core.RegistryAccess
 import net.minecraft.server.level.WorldGenRegion
 import net.minecraft.world.level.LevelHeightAccessor
 import net.minecraft.world.level.NoiseColumn
@@ -11,35 +13,15 @@ import net.minecraft.world.level.biome.BiomeSource
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.level.chunk.ChunkGenerator
+import net.minecraft.world.level.chunk.ChunkGeneratorStructureState
 import net.minecraft.world.level.levelgen.GenerationStep
 import net.minecraft.world.level.levelgen.Heightmap
 import net.minecraft.world.level.levelgen.RandomState
 import net.minecraft.world.level.levelgen.blending.Blender
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager
 import java.util.concurrent.CompletableFuture
 
-//? if <= 1.20.1 {
-import java.util.concurrent.Executor
-import com.mojang.serialization.Codec
-import net.minecraft.core.RegistryAccess
-import net.minecraft.world.level.chunk.ChunkGeneratorStructureState
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager
-
 class StoryTellerWorldChunkGenerator(biomeSource: BiomeSource) : ChunkGenerator(biomeSource) {
-//?} else {
-/*import com.mojang.serialization.MapCodec
-import net.minecraft.core.Registry
-import net.minecraft.resources.RegistryOps
-import com.mojang.serialization.Codec
-import net.minecraft.core.RegistryAccess
-import net.minecraft.world.level.chunk.ChunkGeneratorStructureState
-import net.minecraft.world.level.levelgen.structure.StructureSet
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager
-import java.util.concurrent.Executor
-import java.util.*
-
-class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSource: BiomeSource):
-    ChunkGenerator(structures, Optional.empty(), biomeSource) {
-*///?}
     override fun codec() = CODEC
 
     override fun applyCarvers(
@@ -66,9 +48,6 @@ class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSo
     override fun getGenDepth(): Int = 384
 
     override fun fillFromNoise(
-        //? if <=1.20.1 {
-        executor: Executor,
-        //?}
         blender: Blender,
         randomState: RandomState,
         structureManager: StructureManager,
@@ -110,28 +89,17 @@ class StoryTellerWorldChunkGenerator(structures: Registry<StructureSet>, biomeSo
         structureState: ChunkGeneratorStructureState,
         structureManager: StructureManager,
         chunk: ChunkAccess,
-        structureTemplateManager: StructureTemplateManager
+        structureTemplateManager: StructureTemplateManager,
     ) {
         // Структуры в этом измерении не нужны
     }
 
     companion object {
-        //? if >=1.21 {
-        /*val CODEC: MapCodec<StoryTellerWorldChunkGenerator> =
+        val CODEC: MapCodec<StoryTellerWorldChunkGenerator> =
             RecordCodecBuilder.mapCodec { builder ->
                 builder.group(BiomeSource.CODEC.fieldOf("biome_source").forGetter { it.biomeSource })
                     .apply(builder, ::StoryTellerWorldChunkGenerator)
             }
-        *///?} else {
-        val CODEC: Codec<StoryTellerWorldChunkGenerator> =
-            RecordCodecBuilder.create { instance: RecordCodecBuilder.Instance<StoryTellerWorldChunkGenerator> ->
-                instance.group(
-                    //? if <=1.19.2 {
-                    /*RegistryOps.retrieveRegistry(Registry.STRUCTURE_SET_REGISTRY).forGetter { it.structureSets },
-                    *///?}
-                    BiomeSource.CODEC.fieldOf("biome_source").forGetter { it.biomeSource }
-                ).apply(instance, ::StoryTellerWorldChunkGenerator)
-            }
-        //?}
+
     }
 }

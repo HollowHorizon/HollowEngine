@@ -5,12 +5,9 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import net.minecraft.client.Minecraft
 import net.minecraft.core.registries.BuiltInRegistries
-//? if <= 1.20.1
-import net.minecraft.world.Container
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.crafting.Recipe
-//? if > 1.20.1
-/*import net.minecraft.world.item.crafting.RecipeInput*/
+import net.minecraft.world.item.crafting.RecipeInput
 import net.minecraft.world.item.crafting.RecipeType
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.IdeContent
@@ -32,7 +29,10 @@ class RecipeEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.recipes", 
             items(RECIPE_TYPES) { recipeType ->
                 Box {
                     val isHovered by modifier.hoverable()
-                    val color by animateColorAsState(if(isHovered) colors.background else ColorTheme.UI.BackgroundGeneral, tween(easing = Easing.easeOutQuart))
+                    val color by animateColorAsState(
+                        if (isHovered) colors.background else ColorTheme.UI.BackgroundGeneral,
+                        tween(easing = Easing.easeOutQuart)
+                    )
                     modifier.padding(sizes.smallGap * 0.5f).margin(sizes.smallGap * 0.5f)
                         .width(Grow.Std)
                         .backgroundColor(color)
@@ -40,13 +40,9 @@ class RecipeEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.recipes", 
                             IdeContent.openFile(RecipeEditorFile("files.recipes"))
                         }
 
-                    //? if > 1.20.1 {
-                    /*val recipeItem = manager.getAllRecipesFor(recipeType as RecipeType<Recipe<RecipeInput>>)
+                    val recipeItem = manager.getAllRecipesFor(recipeType as RecipeType<Recipe<RecipeInput>>)
                         .firstOrNull()?.value?.toastSymbol ?: Items.CRAFTING_TABLE.defaultInstance
-                    *///?} else {
-                    val recipeItem = manager.getAllRecipesFor(recipeType as RecipeType<Recipe<Container>>)
-                        .firstOrNull()?.toastSymbol ?: Items.CRAFTING_TABLE.defaultInstance
-                    //?}
+
 
                     Row {
                         modifier.align(AlignmentX.Center, AlignmentY.Center)

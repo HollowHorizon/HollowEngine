@@ -12,6 +12,7 @@ import de.fabmax.kool.util.MsdfFont
 import de.fabmax.kool.util.Time
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 import kotlin.math.abs
@@ -115,6 +116,7 @@ fun <T: AttributedTextModifier> T.selectionRange(start: Int, cursor: Int, hasSel
     return this
 }
 
+@OptIn(ExperimentalContracts::class)
 inline fun UiScope.AttributedText(
     text: ScriptTextLine,
     scopeName: String? = null,

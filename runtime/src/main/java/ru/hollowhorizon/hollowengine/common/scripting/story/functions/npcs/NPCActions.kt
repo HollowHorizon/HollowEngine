@@ -93,9 +93,7 @@ suspend infix fun NpcEntity.useBlock(pos: Vec3) {
     val hit = level().clip(ClipContext(pos, pos, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, this))
     swing(InteractionHand.MAIN_HAND)
     val state = level().getBlockState(hit.blockPos)
-    //? if <= 1.20.1 {
-    state.use(level(), fakePlayer, InteractionHand.MAIN_HAND, hit)
-    //?}
+    state.useItemOn(mainHandItem, level(), fakePlayer, InteractionHand.MAIN_HAND, hit)
 }
 
 /**
@@ -160,16 +158,7 @@ fun item(item: String, count: Int = 1, nbt: CompoundTag? = null) = ItemStack(
     BuiltInRegistries.ITEM.get(item.rl),
     count
 ).apply {
-    //? if <= 1.20.1 {
-    nbt?.let {
-        tag = it
-        this.item.verifyTagAfterLoad(tag!!)
-    }
 
-    if (this.item.canBeDepleted()) {
-        this.damageValue = this.damageValue
-    }
-    //?}
 }
 
 /**

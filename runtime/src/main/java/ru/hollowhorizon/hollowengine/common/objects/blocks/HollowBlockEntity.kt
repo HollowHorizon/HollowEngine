@@ -21,15 +21,10 @@ open class HollowBlockEntity(type: BlockEntityType<*>, pos: BlockPos, blockState
 
     override fun getUpdatePacket(): Packet<ClientGamePacketListener>? = ClientboundBlockEntityDataPacket.create(this)
 
-    //? if >= 1.21 {
-    /*override fun getUpdateTag(registries: HolderLookup.Provider): CompoundTag {
+    override fun getUpdateTag(registries: HolderLookup.Provider): CompoundTag {
         return saveWithFullMetadata(registries)
     }
-    *///?} else {
-    
 
-    override fun getUpdateTag(): CompoundTag = this.saveWithFullMetadata()
-    //?}
 
     private fun syncForNearbyPlayers() {
         val level = this.level ?: return // check nonnull

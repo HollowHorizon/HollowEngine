@@ -13,11 +13,31 @@ import java.io.IOException;
 public interface IrisRenderingPipelineAccessor {
     ProgramSet getProgramSet();
 
-    ShaderInstance hollowengine$createShader(String name, ProgramSource source, ProgramId programId, AlphaTest fallbackAlpha,
-                                             VertexFormat vertexFormat, FogMode fogMode, boolean isIntensity,
-                                             boolean isFullbright, boolean isGlint, boolean isText) throws IOException;
+    default ShaderInstance hollowengine$createShader(
+        String name,
+        ProgramSource source,
+        ProgramId programId,
+        AlphaTest fallbackAlpha,
+        VertexFormat vertexFormat,
+        FogMode fogMode,
+        boolean isIntensity,
+        boolean isFullbright,
+        boolean isGlint,
+        boolean isText
+    ) throws IOException {
+        throw new UnsupportedOperationException("Iris shader creation is unavailable for this pipeline");
+    }
 
-    ShaderInstance hollowengine$createShadowShader(String name, ProgramSource source, ProgramId programId,
-                                                   AlphaTest fallbackAlpha, VertexFormat vertexFormat,
-                                                   boolean isIntensity, boolean isFullbright, boolean isText) throws IOException;
+    default ShaderInstance hollowengine$createShadowShader(
+        String name,
+        ProgramSource source,
+        ProgramId programId,
+        AlphaTest fallbackAlpha,
+        VertexFormat vertexFormat,
+        boolean isIntensity,
+        boolean isFullbright,
+        boolean isText
+    ) throws IOException {
+        throw new UnsupportedOperationException("Iris shadow shader creation is unavailable for this pipeline");
+    }
 }

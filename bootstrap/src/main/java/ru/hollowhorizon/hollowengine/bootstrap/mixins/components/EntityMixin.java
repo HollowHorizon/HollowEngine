@@ -7,6 +7,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.RelativeMovement;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.portal.DimensionTransition;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -47,8 +48,8 @@ public abstract class EntityMixin {
     }
 
     @Inject(method = "changeDimension", at = @At("RETURN"))
-    private void onChangeDimension(ServerLevel destination, CallbackInfoReturnable<Entity> cir) {
-        BootstrapRuntimeManager.bridge().onEntityChangedDimension((Entity) (Object) this, cir.getReturnValue(), level, destination);
+    private void onChangeDimension(DimensionTransition transition, CallbackInfoReturnable<Entity> cir) {
+        BootstrapRuntimeManager.bridge().onEntityChangedDimension((Entity) (Object) this, cir.getReturnValue(), level, transition.newLevel());
     }
 
     @Inject(method = "setLevel", at = @At("HEAD"))

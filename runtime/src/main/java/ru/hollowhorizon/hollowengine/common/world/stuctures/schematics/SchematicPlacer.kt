@@ -34,11 +34,8 @@ object SchematicPlacer {
                     finalTag.putInt("x", targetPos.x)
                     finalTag.putInt("y", targetPos.y)
                     finalTag.putInt("z", targetPos.z)
-                    //? if > 1.20.1 {
-                    /*blockEntity.loadWithComponents(finalTag, level.registryAccess())
-                    *///?} else {
-                    blockEntity.load(finalTag)
-                    //?}
+                    blockEntity.loadWithComponents(finalTag, level.registryAccess())
+
                     blockEntity.setChanged()
                 }
             }

@@ -5,12 +5,9 @@ import net.minecraft.tags.BlockTags
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.control.MoveControl
-//? if > 1.20.1 {
-/*import net.minecraft.world.level.pathfinder.PathType
+import net.minecraft.world.level.pathfinder.PathType
 import net.minecraft.world.level.pathfinder.PathfindingContext
-*///?} else {
-import net.minecraft.world.level.pathfinder.BlockPathTypes
-//?}
+
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import kotlin.math.abs
 import kotlin.math.max
@@ -109,18 +106,11 @@ class NpcMoveControl(mob: NpcEntity) : MoveControl(mob) {
     private fun isWalkable(relativeX: Float, relativeZ: Float): Boolean {
         val pathNavigation = mob.navigation
         val nodeEvaluator = pathNavigation.nodeEvaluator
-        //? if > 1.20.1 {
-        /*return nodeEvaluator.getPathType(
+        return nodeEvaluator.getPathType(
             PathfindingContext(mob.level(), mob), Mth.floor(
                 mob.x + relativeX.toDouble()
             ), mob.blockY, Mth.floor(mob.z + relativeZ.toDouble())
         ) == PathType.WALKABLE
-        *///?} else {
-        return nodeEvaluator.getBlockPathType(
-            mob.level(), Mth.floor(
-                mob.x + relativeX.toDouble()
-            ), mob.blockY, Mth.floor(mob.z + relativeZ.toDouble())
-        ) == BlockPathTypes.WALKABLE
-        //?}
+
     }
 }

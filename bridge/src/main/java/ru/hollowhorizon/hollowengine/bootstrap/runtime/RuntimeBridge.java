@@ -1,43 +1,36 @@
 package ru.hollowhorizon.hollowengine.bootstrap.runtime;
 
-import com.mojang.datafixers.util.Either;
+import com.google.common.collect.ImmutableMap;
 import com.mojang.blaze3d.audio.SoundBuffer;
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.google.common.collect.ImmutableMap;
-import net.minecraft.client.resources.sounds.Sound;
+import com.mojang.datafixers.util.Either;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.DebugScreenOverlay;
-import net.minecraft.client.gui.components.ChatComponent;
-import net.minecraft.client.gui.components.BossHealthOverlay;
-import net.minecraft.client.sounds.AudioStream;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.particle.ParticleEngine;
-import net.minecraft.client.resources.sounds.Sound;
-import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.client.model.SkullModelBase;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.particle.ParticleEngine;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.blockentity.SkullBlockRenderer;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.sounds.AudioStream;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -59,21 +52,26 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.SkullBlock;
-import net.minecraft.world.level.storage.loot.LootDataId;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-import org.joml.Matrix4f;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix4f;
+import ru.hollowhorizon.hollowengine.api.ModList;
+import ru.hollowhorizon.hollowengine.api.NetworkManager;
+import ru.hollowhorizon.hollowengine.api.extensions.FakePlayerFactory;
+import ru.hollowhorizon.hollowengine.api.extensions.ItemStackHelper;
 
 import java.nio.file.Path;
-import java.util.concurrent.CompletableFuture;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 public interface RuntimeBridge extends AutoCloseable {
+    EventBridge events();
+
     boolean shouldApplyMixin(String targetClassName, String mixinClassName);
 
     boolean onPlayerInteractEntity(Player player, InteractionHand hand, Entity target);
@@ -122,7 +120,9 @@ public interface RuntimeBridge extends AutoCloseable {
 
     @Nullable Path getStorageFolderOverride(ResourceKey<Level> dimensionKey, Path levelFolder);
 
-    void onRegisterLoot(Map<LootDataId<?>, Object> elements);
+    //? if < 1.21 {
+    /*void onRegisterLoot(Map<LootDataId<?>, Object> elements);
+    *///?}
 
     float getSkySunSize(ClientLevel level, float originalSize);
 
@@ -285,6 +285,14 @@ public interface RuntimeBridge extends AutoCloseable {
     @Override
     default void close() {
     }
+
+    void initFakePlayers(FakePlayerFactory factory);
+
+    void initStackHelper(ItemStackHelper helder);
+
+    void initNetwork(NetworkManager networkManager);
+
+    void initModList(ModList modList);
 
     final class BreedResult {
         private final @Nullable AgeableMob child;

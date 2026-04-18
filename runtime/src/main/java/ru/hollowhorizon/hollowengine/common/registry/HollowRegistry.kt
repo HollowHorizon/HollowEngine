@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.registry
 
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import net.minecraft.core.Registry
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.CreativeModeTab

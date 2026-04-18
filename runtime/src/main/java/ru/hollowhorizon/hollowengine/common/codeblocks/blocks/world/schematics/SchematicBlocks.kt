@@ -4,6 +4,7 @@ import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.core.BlockPos
+import net.minecraft.nbt.NbtAccounter
 import net.minecraft.nbt.NbtIo
 import net.minecraft.resources.ResourceKey
 import net.minecraft.world.level.Level
@@ -32,11 +33,8 @@ class PlaceSchematicBlock : StatementBlock() {
             .orElseThrow()
 
         val schematic = resource.open().use { inputStream ->
-            //? if > 1.20.1 {
-            /*val nbt = NbtIo.readCompressed(inputStream, NbtAccounter.unlimitedHeap())
-            *///?} else {
-            val nbt = NbtIo.readCompressed(inputStream)
-            //?}
+            val nbt = NbtIo.readCompressed(inputStream, NbtAccounter.unlimitedHeap())
+
             SchematicParser.parse(nbt)
         }
 

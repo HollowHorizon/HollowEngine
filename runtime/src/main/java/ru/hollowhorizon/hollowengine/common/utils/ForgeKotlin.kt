@@ -30,12 +30,14 @@ val isProduction: Boolean
         return !net.fabricmc.loader.api.FabricLoader.getInstance().isDevelopmentEnvironment
         //?}
     }
+
 /**
  * Checks if the current thread is the logical client thread.
  *
  * @return `true` if running on the logical client thread, otherwise `false`.
  */
 val isLogicalClient get() = isPhysicalClient && RenderSystem.isOnRenderThread()
+
 /**
  * Determines if the game is running on a physical client.
  *
@@ -62,19 +64,12 @@ lateinit var currentServer: MinecraftServer
 /**
  * Converts a string to a Minecraft resource location.
  */
-val String.rl: ResourceLocation get() =
-    //? if >= 1.21 {
-    /*ResourceLocation.parse(this)
-    *///?} else {
-    ResourceLocation.tryParse(this) ?: error("Unsupported string format: $this")
-    //?}
+val String.rl: ResourceLocation
+    get() =
+        ResourceLocation.parse(this)
 
 fun String.isValidRL(): Boolean {
-    //? if >= 1.21 {
-    /*return ResourceLocation.tryParse(this) != null
-    *///?} else {
-    return ResourceLocation.isValidResourceLocation(this)
-    //?}
+    return ResourceLocation.tryParse(this) != null
 }
 
 /**
@@ -149,11 +144,7 @@ fun <A, B> ((A) -> B).memoize(): (A) -> B {
  * @return A CompoundTag representing the saved ItemStack.
  */
 fun ItemStack.save() = CompoundTag().apply {
-    //? if >= 1.21 {
-    /*if(!isEmpty) save(registryAccess)
-    *///?} else {
-    this@save.save(this)
-    //?}
+    if (!isEmpty) save(registryAccess)
 }
 
 /**
@@ -162,8 +153,4 @@ fun ItemStack.save() = CompoundTag().apply {
  * @return An ItemStack instance loaded from the CompoundTag.
  */
 fun CompoundTag.readItem() =
-    //? if >= 1.21 {
-    /*if(isEmpty) ItemStack.EMPTY else ItemStack.parse(registryAccess, this).orElseThrow()
-    *///?} else {
-    ItemStack.of(this)
-    //?}
+    if (isEmpty) ItemStack.EMPTY else ItemStack.parse(registryAccess, this).orElseThrow()

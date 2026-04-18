@@ -31,16 +31,15 @@ class EntityAddEffectBlock : StatementBlock() {
     var position = Vec2f.ZERO
 
     override suspend fun execute() {
-        //? if > 1.20.1 {
-        /*val effect = BuiltInRegistries.MOB_EFFECT.getHolder(effectRl.rl).orElseThrow()
-        *///?} else {
-        val effect = BuiltInRegistries.MOB_EFFECT.get(effectRl.rl) ?: return
-        //?}
+        val effect = BuiltInRegistries.MOB_EFFECT.getHolder(effectRl.rl).orElseThrow()
+
         entity().addEffect(MobEffectInstance(effect, duration().toInt(), amplifier().toInt()))
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("hollowengine.gui.codeblocks.label.entity_add_effect".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_add_effect".lang) {
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+        }
         InputSlot(entity)
 
         Box {
@@ -55,7 +54,7 @@ class EntityAddEffectBlock : StatementBlock() {
                         effectRl = it
                         position = Vec2f(uiNode.leftPx, uiNode.bottomPx)
                     }
-                if(ResourceLocation.tryParse(effectRl)?.let { BuiltInRegistries.MOB_EFFECT.containsKey(it) } == true) {
+                if (ResourceLocation.tryParse(effectRl)?.let { BuiltInRegistries.MOB_EFFECT.containsKey(it) } == true) {
                     modifier.textColor = Color.WHITE
                 } else {
                     modifier.textColor = Color.RED
@@ -74,7 +73,10 @@ class EntityAddEffectBlock : StatementBlock() {
                             Box(Grow.Std) {
                                 modifier.backgroundColor(Color("252930FF")).padding(Dimensions.PaddingSmall.scaled())
                                     .onClick { effectRl = res }
-                                Text(res) { modifier.font(MsdfFont(MONOCRAFT, 18f)).textColor(Color.WHITE).zLayer(UiSurface.LAYER_POPUP) }
+                                Text(res) {
+                                    modifier.font(MsdfFont(MONOCRAFT, 18f)).textColor(Color.WHITE)
+                                        .zLayer(UiSurface.LAYER_POPUP)
+                                }
                             }
                         }
                     }
@@ -82,9 +84,13 @@ class EntityAddEffectBlock : StatementBlock() {
             }
         }
 
-        Text("hollowengine.gui.codeblocks.label.entity_effect_duration".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_effect_duration".lang) {
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+        }
         InputSlot(duration)
-        Text("hollowengine.gui.codeblocks.label.entity_effect_level".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_effect_level".lang) {
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+        }
         InputSlot(amplifier)
     }
 }
@@ -99,18 +105,19 @@ class EntityRemoveEffectBlock : StatementBlock() {
     var position = Vec2f.ZERO
 
     override suspend fun execute() {
-        //? if > 1.20.1 {
-        /*val effect = BuiltInRegistries.MOB_EFFECT.getHolder(effectRl.rl).orElseThrow()
-        *///?} else {
-        val effect = BuiltInRegistries.MOB_EFFECT.get(effectRl.rl) ?: return
-        //?}
+       val effect = BuiltInRegistries.MOB_EFFECT.getHolder(effectRl.rl).orElseThrow()
+
         entity().removeEffect(effect)
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("hollowengine.gui.codeblocks.label.entity_remove_effect".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_remove_effect".lang) {
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+        }
         InputSlot(entity)
-        Text("hollowengine.gui.codeblocks.label.entity_effect".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity_effect".lang) {
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+        }
 
         Box {
             modifier.alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled())
@@ -122,7 +129,7 @@ class EntityRemoveEffectBlock : StatementBlock() {
                         effectRl = it
                         position = Vec2f(uiNode.leftPx, uiNode.bottomPx)
                     }
-                if(ResourceLocation.tryParse(effectRl)?.let { BuiltInRegistries.MOB_EFFECT.containsKey(it) } == true) {
+                if (ResourceLocation.tryParse(effectRl)?.let { BuiltInRegistries.MOB_EFFECT.containsKey(it) } == true) {
                     modifier.textColor = Color.WHITE
                 } else {
                     modifier.textColor = Color.RED

@@ -12,13 +12,9 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.world.level.Level
-//? if >= 1.21 {
-/*import net.minecraft.world.level.pathfinder.PathType as BlockPathTypes
-*///?} else {
-import net.minecraft.world.level.pathfinder.BlockPathTypes
-//?}
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.utils.open
+import net.minecraft.world.level.pathfinder.PathType as BlockPathTypes
 
 class TestEntity(type: EntityType<TestEntity>, world: Level) : PathfinderMob(type, world) {
 

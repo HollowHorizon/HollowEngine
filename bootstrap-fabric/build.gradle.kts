@@ -1,0 +1,134 @@
+plugins {
+    id("architectury-plugin")
+    id("dev.architectury.loom")
+    id("com.github.johnrengelman.shadow")
+}
+
+val modId: String by properties
+val modName: String by properties
+val modVersion: String by properties
+val modAuthor: String by rootProject.properties
+val license: String by properties
+val modGroup: String by properties
+val minecraftVersion: String by rootProject.properties
+val fabricLoaderVersion: String by rootProject.properties
+val fabricApiVersion: String by rootProject.properties
+
+layout.buildDirectory.set(
+    rootProject.layout.projectDirectory.dir(
+        "build/${
+            project.path.removePrefix(":").replace(':', '/')
+        }"
+    )
+)
+group = modGroup
+version = modVersion
+base.archivesName.set("$modName-fabric-$minecraftVersion")
+
+val sourceSets = extensions.getByType<SourceSetContainer>()
+
+architectury {
+    platformSetupLoomIde()
+    fabric()
+}
+
+loom {
+    silentMojangMappingsLicense()
+
+    val accessWidener = rootProject.file("runtime/src/main/resources/$modId.accesswidener")
+    if (accessWidener.exists()) {
+        accessWidenerPath.set(accessWidener)
+    }
+
+    mixin.useLegacyMixinAp.set(true)
+    mixin.add(sourceSets.named("main").get(), "$modId-fabric.refmap.json")
+}
+
+configurations {
+    create("common") {
+        isCanBeResolved = true
+        isCanBeConsumed = false
+    }
+    named("compileClasspath") {
+        extendsFrom(getByName("common"))
+    }
+    named("runtimeClasspath") {
+        extendsFrom(getByName("common"))
+    }
+    named("developmentFabric") {
+        extendsFrom(getByName("common"))
+    }
+    create("shadowBundle") {
+        isCanBeResolved = true
+        isCanBeConsumed = false
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven("https://maven.fabricmc.net/")
+    maven("https://maven.architectury.dev/")
+    maven("https://repo.spongepowered.org/repository/maven-public/")
+    mavenLocal()
+    flatDir { dirs(rootProject.file("libs")) }
+}
+
+dependencies {
+    "minecraft"("com.mojang:minecraft:$minecraftVersion")
+    "mappings"(loom.officialMojangMappings())
+
+    modImplementation("net.fabricmc:fabric-loader:$fabricLoaderVersion")
+    modImplementation("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
+    modImplementation("lib:iris-fabric:1.8.8+mc1.21.1")
+    modImplementation("io.github.llamalad7:mixinextras-fabric:0.4.1")
+
+    "common"(project(path = ":bridge", configuration = "namedElements")) { isTransitive = false }
+    "shadowBundle"(project(path = ":bridge", configuration = "transformProductionFabric"))
+}
+
+sourceSets.named("main").configure {
+    java.setSrcDirs(
+        listOf(
+            rootProject.file("bootstrap/src/main/java"),
+            rootProject.file("bootstrap-fabric/src/main/java")
+        )
+    )
+    resources.setSrcDirs(
+        listOf(
+            rootProject.file("bootstrap/src/main/resources"),
+            rootProject.file("bootstrap-fabric/src/main/resources"),
+            rootProject.file("runtime/src/main/resources"),
+        )
+    )
+}
+
+tasks.named<ProcessResources>("processResources") {
+    filesMatching(listOf("fabric.mod.json", "$modId.mixins.json", "$modId.bridge.mixins.json", "pack.mcmeta")) {
+        expand(
+            mapOf(
+                "mod_id" to modId,
+                "mod_name" to modName,
+                "mod_version" to modVersion,
+                "mod_author" to modAuthor,
+                "license" to license,
+                "minecraft_version" to minecraftVersion,
+                "fabric_loader_version" to fabricLoaderVersion,
+            )
+        )
+    }
+    exclude("META-INF/neoforge.mods.toml")
+}
+
+tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+    configurations = listOf(project.configurations.getByName("shadowBundle"))
+    archiveClassifier.set("dev-shadow")
+}
+
+tasks.named<net.fabricmc.loom.task.RemapJarTask>("remapJar") {
+    inputFile.set(
+        tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar").flatMap { it.archiveFile })
+}
+
+tasks.named<JavaCompile>("compileJava") {
+    setSource(sourceSets.named("main").get().java)
+}

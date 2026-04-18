@@ -1,12 +1,14 @@
 package ru.hollowhorizon.hollowengine.common.geary.anchor
 
+import net.minecraft.core.HolderLookup
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.nbt.Tag
 import net.minecraft.server.level.ServerLevel
+import net.minecraft.util.datafix.DataFixTypes
 import net.minecraft.world.level.saveddata.SavedData
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 class WorldAnchorSavedData private constructor() : SavedData() {
@@ -81,7 +83,7 @@ class WorldAnchorSavedData private constructor() : SavedData() {
             .map { snapshot -> DormantRecord(snapshot.requireStableKey(), snapshot) }
     }
 
-    override fun save(tag: CompoundTag): CompoundTag {
+    override fun save(tag: CompoundTag, registries: HolderLookup.Provider): CompoundTag {
         val chunksTag = ListTag()
         recordsByChunk.forEach { (chunkKey, records) ->
             val chunkTag = CompoundTag()
@@ -102,7 +104,7 @@ class WorldAnchorSavedData private constructor() : SavedData() {
 
         fun get(level: ServerLevel): WorldAnchorSavedData {
             return level.dataStorage.computeIfAbsent(
-                { tag ->
+                Factory(::WorldAnchorSavedData, { tag, _ ->
                     WorldAnchorSavedData().apply {
                         val chunks = tag.getList("chunks", Tag.TAG_COMPOUND.toInt())
                         for (index in 0 until chunks.size) {
@@ -122,8 +124,7 @@ class WorldAnchorSavedData private constructor() : SavedData() {
                             }
                         }
                     }
-                },
-                ::WorldAnchorSavedData,
+                }, DataFixTypes.LEVEL),
                 DATA_NAME,
             )
         }

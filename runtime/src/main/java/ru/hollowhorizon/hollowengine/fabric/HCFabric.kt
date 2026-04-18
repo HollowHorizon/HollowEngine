@@ -1,21 +1,16 @@
 //? if fabric {
 package ru.hollowhorizon.hollowengine.fabric
 
-import net.fabricmc.loader.api.FabricLoader
-import net.fabricmc.loader.impl.launch.FabricLauncherBase
-import net.irisshaders.iris.api.v0.IrisApi
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.HollowCoreClient
-import ru.hollowhorizon.hollowengine.client.utils.areShadersEnabled_
-import ru.hollowhorizon.hollowengine.client.utils.instancingEntityInfoProvider
-import ru.hollowhorizon.hollowengine.client.utils.instancingBackendProvider
-import ru.hollowhorizon.hollowengine.client.utils.InstancingEntityInfo
-import ru.hollowhorizon.hollowengine.client.utils.shouldOverrideShaders
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.VanillaInstancingBackend
+import ru.hollowhorizon.hollowengine.client.utils.InstancingEntityInfo
+import ru.hollowhorizon.hollowengine.client.utils.instancingBackendProvider
+import ru.hollowhorizon.hollowengine.client.utils.instancingEntityInfoProvider
 import ru.hollowhorizon.hollowengine.common.registry.createRegistry
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
+import ru.hollowhorizon.hollowengine.common.utils.ModList
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
-import ru.hollowhorizon.hollowengine.fabric.internal.NetworkHelper
 import ru.hollowhorizon.hollowengine.fabric.internal.RegistryHolderFabric
 
 object HCFabric {
@@ -29,14 +24,11 @@ object HCFabric {
         HollowCore
         FabricEvents
 
-        NetworkHelper.register()
     }
 
     @JvmStatic
     fun onClientInitialize() {
-        if (FabricLoader.getInstance().isModLoaded("iris")) {
-            areShadersEnabled_ = IrisApi.getInstance().config::areShadersEnabled
-            shouldOverrideShaders = IrisHelper::shouldOverrideShaders
+        if (ModList.isLoaded("iris")) {
             instancingBackendProvider = {
                 if (IrisHelper.shouldOverrideShaders()) IrisHelper.instancingBackend() else VanillaInstancingBackend
             }
@@ -44,13 +36,10 @@ object HCFabric {
                 if (IrisHelper.shouldOverrideShaders()) IrisHelper.capturedEntityInfo() else InstancingEntityInfo()
             }
         } else {
-            areShadersEnabled_ = { false }
-            shouldOverrideShaders = { false }
             instancingBackendProvider = { VanillaInstancingBackend }
             instancingEntityInfoProvider = { InstancingEntityInfo() }
         }
 
-        FabricClientEvents
         HollowCoreClient
 
     }

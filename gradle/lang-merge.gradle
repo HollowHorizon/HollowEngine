@@ -1,0 +1,107 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import java.nio.charset.StandardCharsets
+
+def modId = property("modId")
+def splitLangDir = rootProject.file("runtime/src/main/lang")
+def legacyLangDir = rootProject.file("runtime/src/main/resources/assets/${modId}/lang")
+def mergedLangDir = layout.buildDirectory.dir("generated/lang/${modId}")
+def jsonSlurper = new JsonSlurper()
+
+def mergeLegacyLangFiles = { File inputDir, Map merged, Map origins, File projectDir, JsonSlurper slurper ->
+    if (!inputDir.exists()) {
+        return
+    }
+
+    inputDir.listFiles()
+            ?.findAll { it.isFile() && it.name.endsWith(".json") }
+            ?.sort { it.name }
+            ?.each { localeFile ->
+                def locale = localeFile.name[0..-6]
+                def localeTranslations = merged[locale]
+                def localeOrigins = origins[locale]
+                decodeLangFile(localeFile, slurper).each { key, value ->
+                    putTranslation(locale, key, value, localeFile.relativeTo(projectDir).invariantSeparatorsPath, localeTranslations, localeOrigins)
+                }
+            }
+}
+
+def buildLangPrefix = { File localeDir, File langFile ->
+    def relativePath = langFile.relativeTo(localeDir).invariantSeparatorsPath.replaceAll(/\.json$/, "")
+    if (relativePath == "index") {
+        return ""
+    }
+    if (relativePath.endsWith("/index")) {
+        return relativePath.substring(0, relativePath.length() - "/index".length()).replace('/', '.')
+    }
+    relativePath.replace('/', '.')
+}
+
+def mergeSplitLangFiles = { File inputDir, Map merged, Map origins, File projectDir, JsonSlurper slurper ->
+    if (!inputDir.exists()) {
+        return
+    }
+
+    inputDir.listFiles()
+            ?.findAll { it.isDirectory() }
+            ?.sort { it.name }
+            ?.each { localeDir ->
+                def locale = localeDir.name
+                def localeTranslations = merged[locale]
+                def localeOrigins = origins[locale]
+
+                localeDir.traverse(type: groovy.io.FileType.FILES, nameFilter: ~/.*\.json/) { langFile ->
+                    def prefix = buildLangPrefix(localeDir, langFile)
+                    decodeLangFile(langFile, slurper).each { key, value ->
+                        def finalKey = prefix.isEmpty() ? key : (key.isEmpty() ? prefix : "${prefix}.${key}")
+                        if (finalKey.isEmpty()) {
+                            throw new GradleException("Translation key in ${langFile.relativeTo(projectDir).invariantSeparatorsPath} resolves to an empty key")
+                        }
+                        putTranslation(locale, finalKey, value, langFile.relativeTo(projectDir).invariantSeparatorsPath, localeTranslations, localeOrigins)
+                    }
+                }
+            }
+}
+
+def decodeLangFile = { File file, JsonSlurper slurper ->
+    slurper.parse(file, StandardCharsets.UTF_8.name()) as Map<String, String>
+}
+
+def putTranslation = { String locale, String key, String value, String source, Map<String, String> localeTranslations, Map<String, String> localeOrigins ->
+    def previous = localeOrigins.putIfAbsent(key, source)
+    if (previous != null) {
+        throw new GradleException("Duplicate translation key '${key}' for locale '${locale}' in '${previous}' and '${source}'")
+    }
+    localeTranslations[key] = value
+}
+
+
+
+tasks.register("mergeLang") {
+    group = "build"
+    description = "Merges split and legacy lang files into standard locale json files."
+
+    inputs.dir(splitLangDir)
+    inputs.dir(legacyLangDir)
+    outputs.dir(mergedLangDir)
+
+    doLast {
+        def outputDir = mergedLangDir.get().asFile
+        if (outputDir.exists()) {
+            outputDir.deleteDir()
+        }
+        outputDir.mkdirs()
+
+        def merged = [:].withDefault { new LinkedHashMap<String, String>() }
+        def origins = [:].withDefault { new LinkedHashMap<String, String>() }
+
+        mergeLegacyLangFiles(legacyLangDir, merged, origins, project.projectDir, jsonSlurper)
+        mergeSplitLangFiles(splitLangDir, merged, origins, project.projectDir, jsonSlurper)
+
+        merged.keySet().sort().each { locale ->
+            def outputFile = new File(outputDir, "${locale}.json")
+            def sortedTranslations = new TreeMap<>(merged[locale])
+            outputFile.write(JsonOutput.prettyPrint(JsonOutput.toJson(sortedTranslations)), StandardCharsets.UTF_8.name())
+        }
+    }
+}

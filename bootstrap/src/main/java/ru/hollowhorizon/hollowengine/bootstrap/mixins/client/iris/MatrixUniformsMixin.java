@@ -9,6 +9,7 @@ import net.irisshaders.iris.uniforms.CapturedRenderingState;
 import net.irisshaders.iris.uniforms.MatrixUniforms;
 import net.minecraft.util.Mth;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -32,10 +33,12 @@ public class MatrixUniformsMixin {
             }
 
             return new Matrix4f(
-                ShadowRenderer.createShadowModelView(
-                    directives.getSunPathRotation(),
-                    directives.getShadowDirectives().getIntervalSize()
-                ).last().pose()
+                    ShadowRenderer.createShadowModelView(
+                            directives.getSunPathRotation(),
+                            directives.getShadowDirectives().getIntervalSize(),
+                            directives.getShadowDirectives().getNearPlane(),
+                            directives.getShadowDirectives().getFarPlane()
+                    ).last().pose()
             );
         });
         addShadowMatrix(uniforms, "Projection", () -> {
@@ -44,42 +47,42 @@ public class MatrixUniformsMixin {
             }
 
             return ShadowMatrices.createOrthoMatrix(
-                directives.getShadowDirectives().getDistance(),
-                Mth.equal(directives.getShadowDirectives().getNearPlane(), -1.0f)
-                    ? -DHCompat.getRenderDistance() * 16
-                    : directives.getShadowDirectives().getNearPlane(),
-                Mth.equal(directives.getShadowDirectives().getFarPlane(), -1.0f)
-                    ? DHCompat.getRenderDistance() * 16
-                    : directives.getShadowDirectives().getFarPlane()
+                    directives.getShadowDirectives().getDistance(),
+                    Mth.equal(directives.getShadowDirectives().getNearPlane(), -1.0f)
+                            ? -DHCompat.getRenderDistance() * 16
+                            : directives.getShadowDirectives().getNearPlane(),
+                    Mth.equal(directives.getShadowDirectives().getFarPlane(), -1.0f)
+                            ? DHCompat.getRenderDistance() * 16
+                            : directives.getShadowDirectives().getFarPlane()
             );
         });
         ci.cancel();
     }
 
-    private static void addMatrix(UniformHolder uniforms, String name, Supplier<Matrix4f> supplier) {
+    private static void addMatrix(UniformHolder uniforms, String name, Supplier<Matrix4fc> supplier) {
         uniforms
-            .uniformMatrix(PER_FRAME, "gbuffer" + name, supplier)
-            .uniformMatrix(PER_FRAME, "gbuffer" + name + "Inverse", new Inverted(supplier))
-            .uniformMatrix(PER_FRAME, "gbufferPrevious" + name, new Previous(supplier));
+                .uniformMatrix(PER_FRAME, "gbuffer" + name, supplier)
+                .uniformMatrix(PER_FRAME, "gbuffer" + name + "Inverse", new Inverted(supplier))
+                .uniformMatrix(PER_FRAME, "gbufferPrevious" + name, new Previous(supplier));
     }
 
-    private static void addDHMatrix(UniformHolder uniforms, String name, Supplier<Matrix4f> supplier) {
+    private static void addDHMatrix(UniformHolder uniforms, String name, Supplier<Matrix4fc> supplier) {
         uniforms
-            .uniformMatrix(PER_FRAME, "dh" + name, supplier)
-            .uniformMatrix(PER_FRAME, "dh" + name + "Inverse", new Inverted(supplier))
-            .uniformMatrix(PER_FRAME, "dhPrevious" + name, new Previous(supplier));
+                .uniformMatrix(PER_FRAME, "dh" + name, supplier)
+                .uniformMatrix(PER_FRAME, "dh" + name + "Inverse", new Inverted(supplier))
+                .uniformMatrix(PER_FRAME, "dhPrevious" + name, new Previous(supplier));
     }
 
-    private static void addShadowMatrix(UniformHolder uniforms, String name, Supplier<Matrix4f> supplier) {
+    private static void addShadowMatrix(UniformHolder uniforms, String name, Supplier<Matrix4fc> supplier) {
         uniforms
-            .uniformMatrix(PER_FRAME, "shadow" + name, supplier)
-            .uniformMatrix(PER_FRAME, "shadow" + name + "Inverse", new Inverted(supplier));
+                .uniformMatrix(PER_FRAME, "shadow" + name, supplier)
+                .uniformMatrix(PER_FRAME, "shadow" + name + "Inverse", new Inverted(supplier));
     }
 
-    private static class Inverted implements Supplier<Matrix4f> {
-        private final Supplier<Matrix4f> parent;
+    private static class Inverted implements Supplier<Matrix4fc> {
+        private final Supplier<Matrix4fc> parent;
 
-        private Inverted(Supplier<Matrix4f> parent) {
+        private Inverted(Supplier<Matrix4fc> parent) {
             this.parent = parent;
         }
 
@@ -89,16 +92,16 @@ public class MatrixUniformsMixin {
         }
     }
 
-    private static class Previous implements Supplier<Matrix4f> {
-        private final Supplier<Matrix4f> parent;
+    private static class Previous implements Supplier<Matrix4fc> {
+        private final Supplier<Matrix4fc> parent;
         private Matrix4f previous = new Matrix4f();
 
-        private Previous(Supplier<Matrix4f> parent) {
+        private Previous(Supplier<Matrix4fc> parent) {
             this.parent = parent;
         }
 
         @Override
-        public Matrix4f get() {
+        public Matrix4fc get() {
             Matrix4f copy = new Matrix4f(parent.get());
             Matrix4f result = new Matrix4f(previous);
             previous = copy;

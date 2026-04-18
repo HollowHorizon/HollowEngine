@@ -13,16 +13,11 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.events.OnStartBloc
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.items.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.math.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.nbt.*
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerChatBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerDeathBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.OnPlayerJoinBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.PlayerInteractWithItem
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.PlayerSelectedBlockPopupBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.PlayerSelectedItemPopupBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.players.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.*
-import ru.hollowhorizon.hollowengine.common.codeblocks.walk
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.walk
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 @PublishedApi
@@ -88,7 +83,6 @@ object StandardModules {
                 block("hollowengine.gui.codeblocks.block.item_get_durability".lang) { ItemStackGetDurabilityBlock() }
                 block("hollowengine.gui.codeblocks.block.item_are_items_equal".lang) { ItemStackAreItemsEqualBlock() }
                 block("hollowengine.gui.codeblocks.block.item_are_stacks_equal".lang) { ItemStackAreStacksEqualBlock() }
-                block("hollowengine.gui.codeblocks.block.item_is_enchanted".lang) { ItemStackIsEnchantedBlock() }
                 block("hollowengine.gui.codeblocks.block.item_has_enchant".lang) { ItemStackHasEnchantBlock() }
                 block("hollowengine.gui.codeblocks.block.item_get_enchant_level".lang) { ItemStackGetEnchantLevelBlock() }
                 block("hollowengine.gui.codeblocks.block.item_is_food".lang) { ItemStackIsFoodBlock() }
@@ -97,9 +91,6 @@ object StandardModules {
 
                 block("hollowengine.gui.codeblocks.block.item_has_tag".lang) { ItemStackHasItemTagBlock() }
 
-                block("hollowengine.gui.codeblocks.block.item_get_tag".lang) { ItemStackGetNbtBlock() }
-                block("hollowengine.gui.codeblocks.block.item_set_tag".lang) { ItemStackSetNbtBlock() }
-                block("hollowengine.gui.codeblocks.block.item_clear_tag".lang) { ItemStackClearNbtBlock() }
             }
 
             category("hollowengine.gui.codeblocks.category.nbt".lang, icons.TYPES) {

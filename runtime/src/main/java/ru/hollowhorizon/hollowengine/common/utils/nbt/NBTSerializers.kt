@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.utils.nbt
 
 import com.google.gson.JsonParser
-import de.fabmax.kool.math.QuatF
 import com.mojang.serialization.JsonOps
+import de.fabmax.kool.math.QuatF
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.util.Color
 import io.netty.buffer.Unpooled
@@ -33,7 +33,6 @@ import net.minecraft.world.phys.Vec3
 import org.joml.Matrix4f
 import org.joml.Vector3d
 import org.joml.Vector3f
-import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.client.utils.registryAccess
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.literal
@@ -120,18 +119,11 @@ object ForStringNBT : KSerializer<StringTag> {
 object ForTextComponent : KSerializer<Component> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("StringNBT", PrimitiveKind.STRING)
     override fun serialize(encoder: Encoder, value: Component) =
-    //? if >= 1.21 {
-            /*encoder.encodeString(Component.Serializer.toJson(value, registryAccess))
-            *///?} else {
-        encoder.encodeString(Component.Serializer.toJson(value))
-    //?}
+        encoder.encodeString(Component.Serializer.toJson(value, registryAccess))
 
     override fun deserialize(decoder: Decoder) =
-    //? if >= 1.21 {
-            /*Component.Serializer.fromJson(decoder.decodeString(), registryAccess) ?: "".literal
-            *///?} else {
-        Component.Serializer.fromJson(decoder.decodeString()) ?: "".literal
-    //?}
+        Component.Serializer.fromJson(decoder.decodeString(), registryAccess) ?: "".literal
+
 }
 
 object ForNbtNull : KSerializer<EndTag> {
@@ -309,11 +301,8 @@ object ForItemStackJson : KSerializer<ItemStack> {
         val ops = RegistryOps.create(JsonOps.INSTANCE, registryAccess)
 
         val gsonElement = ItemStack.CODEC.encodeStart(ops, value)
-            //? if > 1.20.1 {
-            /*.getOrThrow { id -> SerializationException("Failed to serialize ItemStack: $id") }
-            *///?} else {
-            .getOrThrow(true) { id -> SerializationException("Failed to serialize ItemStack: $id") }
-            //?}
+            .getOrThrow { id -> SerializationException("Failed to serialize ItemStack: $id") }
+
 
         val jsonPrimitive: JsonElement = JsonFormat.decodeFromString(gsonElement.toString())
 
@@ -329,11 +318,8 @@ object ForItemStackJson : KSerializer<ItemStack> {
         val gsonElement = JsonFormat.encodeToString(jsonElement)
 
         return ItemStack.CODEC.parse(ops, JsonParser.parseString(gsonElement))
-            //? if > 1.20.1 {
-            /*.getOrThrow { id -> SerializationException("Failed to deserialize ItemStack: $id") }
-            *///?} else {
-            .getOrThrow(true) { id -> SerializationException("Failed to deserialize ItemStack: $id") }
-            //?}
+            .getOrThrow { id -> SerializationException("Failed to deserialize ItemStack: $id") }
+
 
     }
 }

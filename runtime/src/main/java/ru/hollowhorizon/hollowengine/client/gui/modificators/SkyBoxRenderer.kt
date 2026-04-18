@@ -5,10 +5,8 @@ import com.mojang.blaze3d.vertex.*
 import net.minecraft.client.renderer.GameRenderer
 import net.minecraft.util.Mth
 import org.joml.Quaternionf
-//? if > 1.20.1 {
-/*import ru.hollowhorizon.hollowengine.client.utils.uv
+import ru.hollowhorizon.hollowengine.client.utils.uv
 import ru.hollowhorizon.hollowengine.client.utils.vertex
-*///?}
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
 
@@ -51,12 +49,7 @@ object SkyBoxRenderer {
     ) {
         val tessellator = Tesselator.getInstance()
 
-        //? if > 1.20.1 {
-        /*val bufferBuilder: BufferBuilder = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
-        *///?} else {
-        val bufferBuilder: BufferBuilder = tessellator.builder
-        bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
-        //?}
+        val bufferBuilder: BufferBuilder = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)
         RenderSystem.setShaderTexture(0, TEXTURE)
         for (face in 0..5) {
             val tex: UVRange = TEXTURE_FACES[face]
@@ -97,10 +90,7 @@ object SkyBoxRenderer {
 
             matrices.popPose()
         }
-        //? if > 1.20.1 {
-        /*BufferUploader.drawWithShader(bufferBuilder.buildOrThrow())
-        *///?} else {
-        BufferUploader.drawWithShader(bufferBuilder.end())
-        //?}
+        BufferUploader.drawWithShader(bufferBuilder.buildOrThrow())
+
     }
 }

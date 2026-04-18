@@ -20,12 +20,12 @@ public class MinecraftMixin {
         BootstrapRuntimeManager.bridge().onClientTick((Minecraft) (Object) this);
     }
 
-    @Inject(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;render(FJZ)V"))
+    @Inject(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;render(Lnet/minecraft/client/DeltaTracker;Z)V"))
     private void onRenderPre(CallbackInfo ci) {
         BootstrapRuntimeManager.bridge().onClientRenderTickPre((Minecraft) (Object) this);
     }
 
-    @Inject(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;render(FJZ)V", shift = At.Shift.AFTER))
+    @Inject(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;render(Lnet/minecraft/client/DeltaTracker;Z)V", shift = At.Shift.AFTER))
     private void onRenderPost(CallbackInfo ci) {
         BootstrapRuntimeManager.bridge().onClientRenderTickPost((Minecraft) (Object) this);
     }

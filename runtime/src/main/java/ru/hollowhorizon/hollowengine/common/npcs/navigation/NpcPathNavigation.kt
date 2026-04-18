@@ -5,14 +5,10 @@ import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.DoorBlock
-//? if > 1.20.1 {
-/*import net.minecraft.world.level.pathfinder.PathType as BlockPathTypes
-*///?} else {
-import net.minecraft.world.level.pathfinder.BlockPathTypes
-//?}
 import net.minecraft.world.level.pathfinder.PathFinder
 import net.minecraft.world.phys.Vec3
 import kotlin.math.sqrt
+import net.minecraft.world.level.pathfinder.PathType as BlockPathTypes
 
 class NpcPathNavigation(level: Level, mob: Mob) : GroundPathNavigation(mob, level) {
     override fun createPathFinder(maxVisitedNodes: Int): PathFinder {
@@ -27,9 +23,9 @@ class NpcPathNavigation(level: Level, mob: Mob) : GroundPathNavigation(mob, leve
 
         val node = path?.nextNode ?: return
 
-        if(node.type == BlockPathTypes.WALKABLE_DOOR) {
+        if (node.type == BlockPathTypes.WALKABLE_DOOR) {
             val state = level.getBlockState(node.asBlockPos())
-            if(DoorBlock.isWoodenDoor(state)) {
+            if (DoorBlock.isWoodenDoor(state)) {
                 val door = state.block as DoorBlock
                 door.setOpen(mob, level, state, node.asBlockPos(), true)
             }

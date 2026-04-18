@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs
 
-//? if > 1.20.1
-/*import ru.hollowhorizon.hollowengine.client.utils.mulPoseMatrix*/
 import com.mojang.blaze3d.vertex.PoseStack
 import de.fabmax.kool.math.MutableVec3f
 import de.fabmax.kool.math.Vec2f
@@ -41,6 +39,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.v2.walk
 import ru.hollowhorizon.hollowengine.client.render.OpenGLUtils
 import ru.hollowhorizon.hollowengine.client.utils.exists
 import ru.hollowhorizon.hollowengine.client.utils.lang
+import ru.hollowhorizon.hollowengine.client.utils.mulPoseMatrix
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
@@ -234,7 +233,10 @@ class ModelController {
                     Row(Grow.Std) {
                         modifier.alignY(AlignmentY.Center)
 
-                        Text(animations.getOrNull(animationId.use())?.name ?: "hollowengine.gui.model_controller.no_animations".lang) {
+                        Text(
+                            animations.getOrNull(animationId.use())?.name
+                                ?: "hollowengine.gui.model_controller.no_animations".lang
+                        ) {
                             modifier.font(remember { MsdfFont(ColorTheme.Fonts.MONOCRAFT, 14f) })
                                 .textColor(ColorTheme.UI.WhiteReplacement)
                                 .alignY(AlignmentY.Center)
@@ -313,25 +315,30 @@ class ModelController {
         }
     }
 
-    private fun buildAnimationMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem("hollowengine.gui.model_controller.animations".lang) {
-        if (animations.isEmpty()) {
-            item("hollowengine.gui.model_controller.no_animations_available".lang, null) {}
-        } else {
-            animations.forEachIndexed { index, anim ->
-                item(anim.name) {
-                    animationId.set(index)
-                    menu.hide()
+    private fun buildAnimationMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> =
+        SubMenuItem("hollowengine.gui.model_controller.animations".lang) {
+            if (animations.isEmpty()) {
+                item("hollowengine.gui.model_controller.no_animations_available".lang, null) {}
+            } else {
+                animations.forEachIndexed { index, anim ->
+                    item(anim.name) {
+                        animationId.set(index)
+                        menu.hide()
+                    }
                 }
             }
         }
-    }
 
     fun UiScope.EditorButtons() {
         Row {
             modifier.align(AlignmentX.Start, AlignmentY.Top)
                 .zLayer(1000)
 
-            Toggle(icons.AUTOCOMPLETE_CLASS, isBoundingBoxVisible, "hollowengine.gui.model_controller.bounding_box".lang)
+            Toggle(
+                icons.AUTOCOMPLETE_CLASS,
+                isBoundingBoxVisible,
+                "hollowengine.gui.model_controller.bounding_box".lang
+            )
             Toggle(icons.LAYERS, isWireframeVisible, "hollowengine.gui.model_controller.wireframe".lang)
             Toggle(icons.RECIPES, isGridVisible, "hollowengine.gui.model_controller.grid".lang)
             Toggle(icons.RELOAD, isAutoRotateEnabled, "hollowengine.gui.model_controller.auto_rotate".lang)
@@ -381,13 +388,13 @@ class ModelController {
             val isHovered by modifier.hoverable()
 
             val borderColor by animateColorAsState(
-                if (selected.use()) ColorTheme.Accents.Main.mulRgb(if(isHovered) 1.2f else 1f)
+                if (selected.use()) ColorTheme.Accents.Main.mulRgb(if (isHovered) 1.2f else 1f)
                 else ColorTheme.UI.BackgroundAccent
             )
             val backgroundColor by animateColorAsState(
                 if (selected.use() || isHovered) ColorTheme.UI.BackgroundElements
                     .mix(ColorTheme.Accents.Main, 0.5f)
-                    .mulRgb(if(isHovered) 1.2f else 1f)
+                    .mulRgb(if (isHovered) 1.2f else 1f)
                 else ColorTheme.UI.BackgroundElements
             )
 

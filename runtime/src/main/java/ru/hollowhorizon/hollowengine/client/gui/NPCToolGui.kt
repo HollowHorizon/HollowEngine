@@ -164,7 +164,10 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
                         items(models) { resource ->
                             Box(Grow.Std) {
                                 val isHovered by modifier.hoverable()
-                                val color by animateColorAsState(if(isHovered) Color("1B1E23FF") else Color("252930FF"), tween(easing = Easing.easeOutQuart))
+                                val color by animateColorAsState(
+                                    if (isHovered) Color("1B1E23FF") else Color("252930FF"),
+                                    tween(easing = Easing.easeOutQuart)
+                                )
                                 modifier.backgroundColor(color).padding(sizes.smallGap)
                                     .onClick {
                                         model = resource
@@ -284,24 +287,14 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
 
 
             LazyColumn {
-                items(BuiltInRegistries.ATTRIBUTE
-                    //? if > 1.20.1 {
-
-                    /*.holders().toList()
-                    *///?}
-                    .filter { npc.attributes.hasAttribute(it) }
+                items(
+                    BuiltInRegistries.ATTRIBUTE
+                        .holders().toList()
+                        .filter { npc.attributes.hasAttribute(it) }
                 ) { attribute ->
-                    //? if > 1.20.1 {
-                    /*val desc = attribute.value().descriptionId
-                    *///?} else {
-                    val desc = attribute.descriptionId
-                    //?}
+                    val desc = attribute.value().descriptionId
                     val attributeInstance = npc.getAttribute(attribute)!!
-                    //? if > 1.20.1 {
-                    /*val location = BuiltInRegistries.ATTRIBUTE.getKey(attribute.value())?.toString() ?: "unknown"
-                    *///?} else {
-                    val location = BuiltInRegistries.ATTRIBUTE.getKey(attribute)?.toString() ?: "unknown"
-                    //?}
+                    val location = BuiltInRegistries.ATTRIBUTE.getKey(attribute.value())?.toString() ?: "unknown"
                     Property(desc.lang) {
                         var tempText by remember(attributeInstance.baseValue.toString())
 
@@ -339,7 +332,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
 
         override fun UiScope.compose() {
             modifier.padding(sizes.smallGap)
-            Entity({npc}) {
+            Entity({ npc }) {
                 modifier.size(Grow.Std, Grow.Std)
             }
         }
@@ -383,11 +376,7 @@ class UpdateAttributePacket(
     override fun handle(player: Player) {
         if (player.hasPermissions(PlayerPermissions.GAMEMASTER)) {
             (player.level().getEntity(npcId) as? LivingEntity)?.let {
-                //? if > 1.20.1 {
-                /*val attr = BuiltInRegistries.ATTRIBUTE.getHolder(attribute.rl).orElseThrow()
-                *///?} else {
-                val attr = BuiltInRegistries.ATTRIBUTE.get(attribute.rl)!!
-                //?}
+                val attr = BuiltInRegistries.ATTRIBUTE.getHolder(attribute.rl).orElseThrow()
                 it.attributes.getInstance(attr)?.baseValue = value
             }
         }

@@ -10,45 +10,35 @@ pluginManagement {
         maven("https://maven.neoforged.net/releases")
         maven("https://maven.architectury.dev")
         maven("https://maven.minecraftforge.net")
-        maven("https://maven.kikugie.dev/snapshots")
     }
 
     val kotlinVersion: String by settings
+    val architecturyPluginVersion: String by settings
+    val architecturyLoomVersion: String by settings
+    val shadowVersion: String by settings
+    val yamlangVersion: String by settings
     plugins {
         kotlin("jvm") version kotlinVersion
         kotlin("plugin.serialization") version kotlinVersion
+        id("architectury-plugin") version architecturyPluginVersion
+        id("dev.architectury.loom") version architecturyLoomVersion
+        id("com.github.johnrengelman.shadow") version shadowVersion
+        id("me.fallenbreath.yamlang") version yamlangVersion
     }
 }
 
 plugins {
-    id("dev.kikugie.stonecutter") version "0.7.10"
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
 
-include("compiler")
-include("bootstrap")
-include("bridge")
+include("bootstrap:fabric")
+include("bootstrap:neoforge")
 include("runtime")
+include("bridge")
 
-stonecutter {
-
-    kotlinController = true
-    centralScript = "build.gradle.kts"
-//    shared {
-//    }
-    create(rootProject) {
-
-        rootProject.projectDir.resolve("versions")
-            .listFiles()
-            .filter { it.isDirectory }
-            .filter { !it.resolve(".build-ignore").exists() }
-            .forEach { version(it.name) }
-        branch("compiler")
-        branch("bootstrap")
-        branch("bridge")
-        branch("runtime")
-    }
-}
+project(":bootstrap").buildFileName = "parent.gradle.kts"
+project(":bootstrap:fabric").projectDir = file("bootstrap-fabric")
+project(":bootstrap:neoforge").projectDir = file("bootstrap-neoforge")
 
 val modName: String by settings
 rootProject.name = modName

@@ -3,25 +3,23 @@ package ru.hollowhorizon.hollowengine.client.render
 import com.mojang.blaze3d.vertex.PoseStack
 import de.fabmax.kool.math.QuatF
 import de.fabmax.kool.math.Vec3f
-import net.minecraft.client.Minecraft
+import net.irisshaders.iris.mixin.LevelRendererAccessor
 import net.minecraft.client.CameraType
+import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.culling.Frustum
 import net.minecraft.client.renderer.texture.OverlayTexture
-import net.minecraft.util.Mth
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec3
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.api.system
-import ru.hollowhorizon.hollowengine.client.handlers.TickHandler
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.particles.ParticleVertexConsumerProvider
 import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
-import net.irisshaders.iris.mixin.LevelRendererAccessor
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
@@ -181,8 +179,18 @@ object RenderManager {
 
         entities.forEach { entity ->
             if (!entity.isAlive || entity.isSpectator) return@forEach
-            if (!dispatcher.shouldRender(entity, frustum, cameraPosition.x, cameraPosition.y, cameraPosition.z)) return@forEach
-            renderer.invokeRenderEntity(entity, cameraPosition.x, cameraPosition.y, cameraPosition.z, partialTick, modelView, bufferSource)
+            if (!dispatcher.shouldRender(
+                    entity,
+                    frustum,
+                    cameraPosition.x,
+                    cameraPosition.y,
+                    cameraPosition.z
+                )
+            ) return@forEach
+            renderer.invokeRenderEntity(
+                entity, cameraPosition.x, cameraPosition.y, cameraPosition.z, partialTick,
+                modelView, bufferSource
+            )
         }
     }
 
@@ -201,12 +209,36 @@ object RenderManager {
         if (!dispatcher.shouldRender(player, frustum, cameraPosition.x, cameraPosition.y, cameraPosition.z)) return
 
         player.vehicle?.let { vehicle ->
-            renderer.invokeRenderEntity(vehicle, cameraPosition.x, cameraPosition.y, cameraPosition.z, partialTick, modelView, bufferSource)
+            renderer.invokeRenderEntity(
+                vehicle,
+                cameraPosition.x,
+                cameraPosition.y,
+                cameraPosition.z,
+                partialTick,
+                modelView,
+                bufferSource
+            )
         }
         player.passengers.forEach { passenger ->
-            renderer.invokeRenderEntity(passenger, cameraPosition.x, cameraPosition.y, cameraPosition.z, partialTick, modelView, bufferSource)
+            renderer.invokeRenderEntity(
+                passenger,
+                cameraPosition.x,
+                cameraPosition.y,
+                cameraPosition.z,
+                partialTick,
+                modelView,
+                bufferSource
+            )
         }
-        renderer.invokeRenderEntity(player, cameraPosition.x, cameraPosition.y, cameraPosition.z, partialTick, modelView, bufferSource)
+        renderer.invokeRenderEntity(
+            player,
+            cameraPosition.x,
+            cameraPosition.y,
+            cameraPosition.z,
+            partialTick,
+            modelView,
+            bufferSource
+        )
     }
 
     private fun renderAnchoredModels(

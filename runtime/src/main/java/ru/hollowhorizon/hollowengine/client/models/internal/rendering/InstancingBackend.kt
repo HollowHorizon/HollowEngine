@@ -5,11 +5,7 @@ import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.ShaderInstance
 import org.lwjgl.opengl.GL33
-import ru.hollowhorizon.hollowengine.client.models.internal.INSTANCED_SHADER
-import ru.hollowhorizon.hollowengine.client.models.internal.SHADER
-import ru.hollowhorizon.hollowengine.client.models.internal.drawWithShader
-import ru.hollowhorizon.hollowengine.client.models.internal.opaqueShaderState
-import ru.hollowhorizon.hollowengine.client.models.internal.translucentShaderState
+import ru.hollowhorizon.hollowengine.client.models.internal.*
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 
 interface ModelInstancingBackend {
@@ -82,13 +78,9 @@ inline fun withInstancingRenderState(body: () -> Unit) {
         RenderSystem.bindTexture(texture0)
         RenderSystem.activeTexture(activeTexture)
 
-        //? if > 1.20.1 {
-        /*RenderSystem.glBindVertexArray(currentVao)
+        RenderSystem.glBindVertexArray(currentVao)
         RenderSystem.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER, currentElementArrayBuffer)
-        *///?} else {
-        RenderSystem.glBindVertexArray { currentVao }
-        RenderSystem.glBindBuffer(GL33.GL_ELEMENT_ARRAY_BUFFER) { currentElementArrayBuffer }
-        //?}
+
         GlStateManager._glUseProgram(0)
     }
 }

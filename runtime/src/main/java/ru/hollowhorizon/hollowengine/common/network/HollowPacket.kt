@@ -1,84 +1,57 @@
 package ru.hollowhorizon.hollowengine.common.network
 
-//? if forge {
-/*import net.minecraftforge.network.PacketDistributor
-import ru.hollowhorizon.hollowengine.forge.internal.ForgeNetworkHelper
-*///?} elif fabric {
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
-import io.netty.buffer.Unpooled
-import net.minecraft.network.FriendlyByteBuf
-//?}
-import net.minecraft.network.protocol.Packet
 
-//? if >= 1.21 {
-/*import net.minecraft.network.protocol.common.custom.CustomPacketPayload
-import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket
-import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket
-*///?}
+import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.serializer
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.server.level.ServerChunkCache
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
-import ru.hollowhorizon.hollowengine.HollowCore.MODID
-import ru.hollowhorizon.hollowengine.common.utils.bytebuf.ByteBufFormat
-import ru.hollowhorizon.hollowengine.common.utils.bytebuf.serializeNoInline
 import ru.hollowhorizon.hollowengine.common.utils.rl
-
-interface CustomPacketPayload
+import ru.hollowhorizon.hollowengine.network.CommonNetworkManager
+import kotlin.reflect.KClass
 
 interface HollowPacket : CustomPacketPayload {
     fun handle(player: Player)
 
     fun send() {
-        sendPacketToServer(this)
+        CommonNetworkManager.sendToServer(this)
     }
 
     fun send(vararg players: ServerPlayer) {
         players.forEach {
-            sendPacketToClient(it, this)
+            CommonNetworkManager.sendToClient(it, this)
         }
     }
 
     fun send(players: Collection<ServerPlayer>) {
         players.forEach {
-            sendPacketToClient(it, this)
+            CommonNetworkManager.sendToClient(it, this)
         }
     }
 
-
-    //? if >= 1.21 {
-    /*override fun type(): CustomPacketPayload.Type<HollowPacket> {
-        return CustomPacketPayload.Type("hollowengine:${this::class.java.name.lowercase().filter { ResourceLocation.validPathChar(it) }}".rl)
+    @OptIn(InternalSerializationApi::class)
+    override fun type(): CustomPacketPayload.Type<HollowPacket> {
+        return CustomPacketPayload.Type(nameFor(this::class).rl)
     }
-    *///?}
+
+    companion object {
+        @OptIn(InternalSerializationApi::class)
+        fun nameFor(packet: KClass<*>): String {
+            packet.serializer().descriptor.serialName.lowercase().filter { ResourceLocation.validPathChar(it) }
+                .let { return if (it.contains(':')) it else "hollowengine$it" }
+        }
+        fun nameFor(packet: Class<*>) = nameFor(packet.kotlin)
+    }
 }
 
 fun HollowPacket.send(players: Iterable<ServerPlayer>) {
     send(*players.toList().toTypedArray())
 }
 
-val HollowPacket.packetName: ResourceLocation
-    get() = "$MODID:${
-        this.javaClass.name.lowercase().replace("\$", ".")
-    }".rl
-
-fun HollowPacket.sendTrackingEntity(entity: Entity) {
-    val chunkCache = entity.level().chunkSource
-    if (chunkCache is ServerChunkCache) {
-        //? if forge {
-        /*ForgeNetworkHelper.hollowCoreChannel.send(PacketDistributor.TRACKING_ENTITY.with { entity }, this)
-        *///?} else {
-        chunkCache.broadcastAndSend(
-            entity, this.asVanillaPacket(true)
-        )
-        //?}
-    } else {
-        throw IllegalStateException("Cannot send clientbound payloads on the client")
-    }
-}
+fun HollowPacket.sendTrackingEntity(entity: Entity) = CommonNetworkManager.sendTrackingEntity(entity, this)
 
 fun HollowPacket.sendTrackingEntityAndSelf(entity: Entity) {
     sendTrackingEntity(entity)
@@ -89,21 +62,3 @@ fun HollowPacket.sendAllInDimension(level: Level) {
     val server = level.server ?: return
     send(server.playerList.players)
 }
-
-//? if fabric && <= 1.21 {
-fun HollowPacket.asVanillaPacket(toClient: Boolean): Packet<*> {
-    val byteBuf = FriendlyByteBuf(Unpooled.buffer())
-    ByteBufFormat.serializeNoInline(this, javaClass, byteBuf)
-    return if (!toClient) ClientPlayNetworking.createC2SPacket(packetName, byteBuf)
-    else ServerPlayNetworking.createS2CPacket(packetName, byteBuf)
-
-    throw NotImplementedError("AsVanillaPacket method is not implemented for this platform")
-}//?} elif >= 1.21 {
-/*fun HollowPacket.asVanillaPacket(toClient: Boolean): Packet<*> =
-    if (toClient) ClientboundCustomPayloadPacket(this) else ServerboundCustomPayloadPacket(this)
-*///?}
-
-lateinit var sendPacketToServer: (HollowPacket) -> Unit
-lateinit var sendPacketToClient: (ServerPlayer, HollowPacket) -> Unit
-lateinit var registerPacket: (Class<*>) -> Unit
-lateinit var registerPackets: () -> Unit

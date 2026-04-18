@@ -14,14 +14,13 @@ import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListen
 import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.network.registerPacket
-import ru.hollowhorizon.hollowengine.common.network.registerPackets
 import ru.hollowhorizon.hollowengine.common.registry.system.RegistryManager
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 import ru.hollowhorizon.hollowengine.common.utils.Side
 import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBT_TAGS
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.network.CommonNetworkManager.registerPacket
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
@@ -52,12 +51,8 @@ object HollowModProcessor {
         val runnables = arrayListOf<Runnable>()
 
         registerClassHandler<HollowPacketHandler> { type, _ ->
-            if (HollowPacket::class.java.isAssignableFrom(type)) runnables += Runnable { registerPacket(type) }
+            if (HollowPacket::class.java.isAssignableFrom(type)) runnables += Runnable { registerPacket(type as Class<HollowPacket>) }
             else HollowCore.LOGGER.warn("Unsupported packet: ${type.simpleName}")
-        }
-
-        registerPackets = {
-            runnables.forEach(Runnable::run)
         }
 
         registerClassHandler<Polymorphic> { type, annotation ->

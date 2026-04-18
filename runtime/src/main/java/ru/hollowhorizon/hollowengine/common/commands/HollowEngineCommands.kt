@@ -18,9 +18,9 @@ import net.minecraft.client.Minecraft
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.coordinates.Vec3Argument
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.Tag
-import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
@@ -44,32 +44,9 @@ import ru.hollowhorizon.hollowengine.common.events.registry.RegisterCommandsEven
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
-import ru.hollowhorizon.hollowengine.common.geary.anchor.DormantRecord
-import ru.hollowhorizon.hollowengine.common.geary.anchor.EntityAnchor
-import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.anchor.StableKeyComponent
-import ru.hollowhorizon.hollowengine.common.geary.anchor.WorldAnchor
-import ru.hollowhorizon.hollowengine.common.geary.anchor.WorldAnchorSavedData
-import ru.hollowhorizon.hollowengine.common.geary.anchor.anchorOrNull
-import ru.hollowhorizon.hollowengine.common.geary.anchor.transformOrNull
-import ru.hollowhorizon.hollowengine.common.geary.anchor.withIdentity
-import ru.hollowhorizon.hollowengine.common.geary.anchor.withOrReplace
-import ru.hollowhorizon.hollowengine.common.geary.anchor.withWorldPosition
-import ru.hollowhorizon.hollowengine.common.geary.anchor.worldAnchorFor
+import ru.hollowhorizon.hollowengine.common.geary.anchor.*
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
-import ru.hollowhorizon.hollowengine.common.geary.components.Model
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSyncPolicy
-import ru.hollowhorizon.hollowengine.common.geary.components.FlareSettings
-import ru.hollowhorizon.hollowengine.common.geary.components.LightColor
-import ru.hollowhorizon.hollowengine.common.geary.components.LightComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.PointLightComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.ShadowSettings
-import ru.hollowhorizon.hollowengine.common.geary.components.SpotLightComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.VolumetricFogSettings
-import ru.hollowhorizon.hollowengine.common.geary.components.lightComponentOrNull
-import ru.hollowhorizon.hollowengine.common.geary.components.withLightComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.geary.sync.setSyncing
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
@@ -79,7 +56,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.compiling.start
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.LivingEntityQuery
 import java.io.File
-import java.util.UUID
+import java.util.*
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -282,7 +259,10 @@ private fun CommandExtension.registerLightCommands() {
                     FloatArgumentType.getFloat(this, "g"),
                     FloatArgumentType.getFloat(this, "b"),
                 )
-                updateLight(source, UUID.fromString(StringArgumentType.getString(this, "stableKey"))) { withColor(color) }
+                updateLight(
+                    source,
+                    UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+                ) { withColor(color) }
             }
         }
 
@@ -495,7 +475,10 @@ private fun CommandExtension.registerFlareLightCommands() {
             updateLight(source, null) { withFlareSettings { copy(falloffDistance = falloffDistance) } }
         }
     }
-    "falloffDistance"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 100f))) {
+    "falloffDistance"(
+        arg("stableKey", StringArgumentType.string()),
+        arg("value", FloatArgumentType.floatArg(0f, 100f))
+    ) {
         executes {
             val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
             val falloffDistance = FloatArgumentType.getFloat(this, "value")
@@ -540,7 +523,10 @@ private fun CommandExtension.registerFlareLightCommands() {
             updateLight(source, null) { withFlareSettings { copy(angleFactorOffset = angleFactorOffset) } }
         }
     }
-    "angleFactorOffset"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 5f))) {
+    "angleFactorOffset"(
+        arg("stableKey", StringArgumentType.string()),
+        arg("value", FloatArgumentType.floatArg(0f, 5f))
+    ) {
         executes {
             val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
             val angleFactorOffset = FloatArgumentType.getFloat(this, "value")
@@ -788,7 +774,7 @@ private fun CommandExtension.registerScriptCommands() {
                 } else {
                     val script = result.getOrThrow()
                     val result = script.execute<Any>()
-                    if(result.isSuccess) {
+                    if (result.isSuccess) {
                         sendSuccess { "Script evaluated successfully: ${result.getOrThrow()}".literal }
                     } else {
                         sendFailure("Script evaluation failed: ${result.exceptionOrNull()}".literal)
@@ -866,11 +852,8 @@ private fun copyHandItemToClipboard(player: Player) {
     val item = player.mainHandItem
     val location = "\"" + BuiltInRegistries.ITEM.getKey(item.item).toString() + "\""
     val count = item.count
-    //? if > 1.20.1 {
-    /*val nbt = item.components
-    *///?} else {
-    val nbt = item.tag
-    //?}
+    val nbt = item.components
+
 
     val itemCommand = when {
         nbt == null && count > 1 -> "item($location, $count)"
@@ -953,12 +936,20 @@ private fun listLights(source: CommandSourceStack): Int {
             val snapshot = service.snapshot(record.stableKey) ?: return@forEach
             val light = snapshot.lightComponentOrNull() ?: return@forEach
             if (!seen.add(record.stableKey)) return@forEach
-            rows += "${record.stableKey} | ${light.javaClass.simpleName} | enabled=${light.enabled} | pos=${formatPosition(snapshot.transformOrNull()?.translation)} | level=${level.dimension().location()}"
+            rows += "${record.stableKey} | ${light.javaClass.simpleName} | enabled=${light.enabled} | pos=${
+                formatPosition(
+                    snapshot.transformOrNull()?.translation
+                )
+            } | level=${level.dimension().location()}"
         }
         WorldAnchorSavedData.get(level).allRecords().forEach { record ->
             val light = record.snapshot.lightComponentOrNull() ?: return@forEach
             if (!seen.add(record.stableKey)) return@forEach
-            rows += "${record.stableKey} | ${light.javaClass.simpleName} | enabled=${light.enabled} | pos=${formatPosition(record.snapshot.transformOrNull()?.translation)} | level=${level.dimension().location()} | dormant=true"
+            rows += "${record.stableKey} | ${light.javaClass.simpleName} | enabled=${light.enabled} | pos=${
+                formatPosition(
+                    record.snapshot.transformOrNull()?.translation
+                )
+            } | level=${level.dimension().location()} | dormant=true"
         }
     }
 
@@ -990,7 +981,11 @@ private fun removeLight(source: CommandSourceStack, stableKey: UUID?): Int {
     }
 }
 
-private fun updateLight(source: CommandSourceStack, stableKey: UUID?, updater: LightComponent.() -> LightComponent): Int {
+private fun updateLight(
+    source: CommandSourceStack,
+    stableKey: UUID?,
+    updater: LightComponent.() -> LightComponent,
+): Int {
     val resolved = resolveLightTarget(source, stableKey) ?: return 0
     val current = resolved.snapshot.lightComponentOrNull()
         ?: run {
@@ -1037,7 +1032,11 @@ private fun findNearestLightTarget(source: CommandSourceStack): LightTargetResol
         if (snapshot.lightComponentOrNull() == null) return@forEach
         if (snapshot.anchorOrNull() !is WorldAnchor) return@forEach
         val transform = snapshot.transformOrNull() ?: return@forEach
-        val position = Vec3(transform.translation.x.toDouble(), transform.translation.y.toDouble(), transform.translation.z.toDouble())
+        val position = Vec3(
+            transform.translation.x.toDouble(),
+            transform.translation.y.toDouble(),
+            transform.translation.z.toDouble()
+        )
         val distance = position.distanceToSqr(origin)
         if (distance < bestDistance) {
             bestDistance = distance
@@ -1049,7 +1048,11 @@ private fun findNearestLightTarget(source: CommandSourceStack): LightTargetResol
         if (record.snapshot.lightComponentOrNull() == null) return@forEach
         if (record.snapshot.anchorOrNull() !is WorldAnchor) return@forEach
         val transform = record.snapshot.transformOrNull() ?: return@forEach
-        val position = Vec3(transform.translation.x.toDouble(), transform.translation.y.toDouble(), transform.translation.z.toDouble())
+        val position = Vec3(
+            transform.translation.x.toDouble(),
+            transform.translation.y.toDouble(),
+            transform.translation.z.toDouble()
+        )
         val distance = position.distanceToSqr(origin)
         if (distance < bestDistance) {
             bestDistance = distance
@@ -1113,10 +1116,11 @@ private fun LightComponent.withIntensity(value: Float): LightComponent = when (t
     is SpotLightComponent -> copy(intensity = value)
 }
 
-private fun LightComponent.withShadowSettings(transform: ShadowSettings.() -> ShadowSettings): LightComponent = when (this) {
-    is PointLightComponent -> copy(shadow = (shadow ?: ShadowSettings()).transform())
-    is SpotLightComponent -> copy(shadow = (shadow ?: ShadowSettings()).transform())
-}
+private fun LightComponent.withShadowSettings(transform: ShadowSettings.() -> ShadowSettings): LightComponent =
+    when (this) {
+        is PointLightComponent -> copy(shadow = (shadow ?: ShadowSettings()).transform())
+        is SpotLightComponent -> copy(shadow = (shadow ?: ShadowSettings()).transform())
+    }
 
 private fun LightComponent.withVolumetricFogSettings(transform: VolumetricFogSettings.() -> VolumetricFogSettings): LightComponent =
     when (this) {
@@ -1124,10 +1128,11 @@ private fun LightComponent.withVolumetricFogSettings(transform: VolumetricFogSet
         is SpotLightComponent -> copy(volumetricFog = (volumetricFog ?: VolumetricFogSettings()).transform())
     }
 
-private fun LightComponent.withFlareSettings(transform: FlareSettings.() -> FlareSettings): LightComponent = when (this) {
-    is PointLightComponent -> copy(flare = (flare ?: FlareSettings()).transform())
-    is SpotLightComponent -> copy(flare = (flare ?: FlareSettings()).transform())
-}
+private fun LightComponent.withFlareSettings(transform: FlareSettings.() -> FlareSettings): LightComponent =
+    when (this) {
+        is PointLightComponent -> copy(flare = (flare ?: FlareSettings()).transform())
+        is SpotLightComponent -> copy(flare = (flare ?: FlareSettings()).transform())
+    }
 
 private fun attachAnchoredModel(host: net.minecraft.world.entity.Entity, modelName: String): UUID {
     host.entity
@@ -1182,6 +1187,7 @@ private fun moveAnchoredModel(source: CommandSourceStack, stableKey: UUID, posit
         is WorldAnchor -> snapshot
             .withIdentity(worldAnchorFor(position, anchor.localId), stableKey)
             .withOrReplace((snapshot.transformOrNull() ?: TransformComponent()).withWorldPosition(position))
+
         is EntityAnchor -> snapshot
             .withOrReplace(
                 (snapshot.transformOrNull() ?: TransformComponent())

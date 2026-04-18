@@ -1,7 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.runtime
 
+import net.minecraft.core.HolderLookup
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
+import net.minecraft.util.datafix.DataFixTypes
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.saveddata.SavedData
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -16,7 +18,10 @@ class BlocksSystemSavedData private constructor(
         setDirty()
     }
 
-    override fun save(tag: CompoundTag): CompoundTag {
+    override fun save(
+        tag: CompoundTag,
+        registries: HolderLookup.Provider,
+    ): CompoundTag {
         system.serialize(tag)
         return tag
     }
@@ -27,16 +32,18 @@ class BlocksSystemSavedData private constructor(
         fun get(server: MinecraftServer): BlocksSystem {
             val storage = server.overworld().dataStorage
             val data = storage.computeIfAbsent(
-                { tag ->
-                    BlocksSystemSavedData(server).apply {
-                        system.deserialize(tag)
-                    }
-                },
-                {
-                    BlocksSystemSavedData(server).apply {
-                        system.reloadScripts()
-                    }
-                },
+                Factory(
+                    {
+                        BlocksSystemSavedData(server).apply {
+                            system.reloadScripts()
+                        }
+                    },
+                    { tag, _ ->
+                        BlocksSystemSavedData(server).apply {
+                            system.deserialize(tag)
+                        }
+                    }, DataFixTypes.LEVEL
+                ),
                 DATA_NAME,
             )
             return data.system

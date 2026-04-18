@@ -44,16 +44,10 @@ class SeatEntity(entityType: EntityType<SeatEntity>, pLevel: Level) : LivingEnti
 
     override fun getMainArm(): HumanoidArm = HumanoidArm.RIGHT
 
-    //? if > 1.20.1 {
-    /*override fun defineSynchedData(builder: SynchedEntityData.Builder) {}
+    override fun defineSynchedData(builder: SynchedEntityData.Builder) {}
     override fun getAddEntityPacket(entity: ServerEntity): Packet<ClientGamePacketListener?>? {
         return ClientboundAddEntityPacket(this, entity)
     }
-    *///?} else {
-    override fun defineSynchedData() {}
-    override fun getPassengersRidingOffset(): Double = 0.0
-    override fun getAddEntityPacket() = ClientboundAddEntityPacket(this)
-    //?}
 
     override fun readAdditionalSaveData(p0: CompoundTag) {}
     override fun getArmorSlots(): Iterable<ItemStack> = emptySet()

@@ -39,19 +39,12 @@ object ParticleVertexConsumerProvider : VertexConsumerProvider {
         }
 
         if (!prevCull) GlStateManager._enableCull()
-
-        //? if >= 1.21 {
-        /*Tesselator.getInstance().apply {
+        Tesselator.getInstance().apply {
             val builder = begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE)
             block(builder)
             BufferUploader.drawWithShader(builder.buildOrThrow())
         }
-        *///?} else {
-        val renderer = Tesselator.getInstance().builder
-        renderer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE)
-        block(renderer)
-        BufferUploader.drawWithShader(renderer.end())
-        //?}
+
 
         RenderSystem.setShader { old }
 

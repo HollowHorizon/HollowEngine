@@ -36,17 +36,6 @@ public abstract class PlayerMixin extends LivingEntity implements PlayerExtensio
         }
     }
 
-    //? if fabric {
-    @Inject(
-        method = "drop(Lnet/minecraft/world/item/ItemStack;Z)Lnet/minecraft/world/entity/item/ItemEntity;",
-        at = @At("HEAD"),
-        cancellable = true
-    )
-    private void onDrop(ItemStack itemStack, boolean includeThrowerName, CallbackInfoReturnable<ItemEntity> cir) {
-        ItemEntity dropped = this.drop(itemStack, false, includeThrowerName);
-        cir.setReturnValue(BootstrapRuntimeManager.bridge().onPlayerDrop(itemStack, includeThrowerName, dropped, (Player) (Object) this));
-    }
-    //?}
 
     @Override
     public void hollowcore$closeContainer() {

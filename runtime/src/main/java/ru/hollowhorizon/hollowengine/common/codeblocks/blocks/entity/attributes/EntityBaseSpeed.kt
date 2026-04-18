@@ -18,6 +18,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
+import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.util.*
 
 @Serializable
@@ -31,31 +32,24 @@ class EntitySetBaseSpeed : StatementBlock() {
     override suspend fun execute() {
         val entity = entity()
         val attribute = entity.attributes.getInstance(Attributes.MOVEMENT_SPEED) ?: return
-
-        //? if > 1.20.1 {
-        /*val modifier = AttributeModifier(
+        val modifier = AttributeModifier(
             "hollowengine:speed_modifier".rl,
             speed().toDouble(),
             AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
         )
         if (attribute.hasModifier(modifier.id)) attribute.removeModifier(modifier)
         attribute.addPermanentModifier(modifier)
-        *///?} else {
-        val modifier = AttributeModifier(
-            MODIFIER,
-            "HollowEngine Base Speed Modifier",
-            speed().toDouble(),
-            AttributeModifier.Operation.MULTIPLY_TOTAL
-        )
-        if (attribute.hasModifier(modifier)) attribute.removeModifier(modifier)
-        attribute.addPermanentModifier(modifier)
-        //?}
+
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("hollowengine.gui.codeblocks.block.set_speed_modifier".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.set_speed_modifier".lang) {
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+        }
         InputSlot(entity)
-        Text("hollowengine.gui.codeblocks.label.entity".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.entity".lang) {
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+        }
         InputSlot(speed)
     }
 }
@@ -70,15 +64,15 @@ class EntityGetBaseSpeed : ExpressionBlock() {
     val entity by input<LivingEntity>()
 
     override suspend fun execute(): Any? {
-        //? if > 1.20.1 {
-        /*return entity().attributes.getInstance(Attributes.MOVEMENT_SPEED)?.getModifier("hollowengine:speed_modifier".rl)?.amount ?: 1.0
-        *///?} else {
-        return entity().attributes.getInstance(Attributes.MOVEMENT_SPEED)?.getModifier(MODIFIER)?.amount ?: 1.0
-        //?}
+        return entity().attributes.getInstance(Attributes.MOVEMENT_SPEED)
+            ?.getModifier("hollowengine:speed_modifier".rl)?.amount ?: 1.0
+
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("hollowengine.gui.codeblocks.block.get_speed_modifier".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.block.get_speed_modifier".lang) {
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+        }
         InputSlot(entity)
     }
 }

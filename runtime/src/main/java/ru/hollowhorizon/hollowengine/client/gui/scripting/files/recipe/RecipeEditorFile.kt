@@ -11,8 +11,8 @@ import net.minecraft.world.item.crafting.RecipeType
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.EditorFile
 import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.textLine
-//? if > 1.20.1
-/*import ru.hollowhorizon.hollowengine.client.utils.getTooltipLines*/
+
+import ru.hollowhorizon.hollowengine.client.utils.getTooltipLines
 
 class RecipeEditorFile(path: String) : EditorFile(path) {
 
@@ -30,11 +30,7 @@ class RecipeEditorFile(path: String) : EditorFile(path) {
             items(recipes) { chunk ->
                 Row {
                     chunk.forEach {
-                        //? if > 1.20.1 {
-                        /*Recipe(it.value)
-                        *///?} else {
-                        Recipe(it)
-                        //?}
+                        Recipe(it.value)
                     }
                 }
             }
@@ -62,7 +58,8 @@ class RecipeEditorFile(path: String) : EditorFile(path) {
                     }
                 }
                 Arrow {
-                    modifier.size(50.dp, 50.dp).alignY(AlignmentY.Center).colors(colors.onBackground, colors.onBackground)
+                    modifier.size(50.dp, 50.dp).alignY(AlignmentY.Center)
+                        .colors(colors.onBackground, colors.onBackground)
                 }
                 Slot(recipe.getResultItem(Minecraft.getInstance().connection!!.registryAccess()), 55.dp) {
                     modifier.alignY(AlignmentY.Center)

@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.render.lighting
 
 import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.PoseStack
 import com.mojang.blaze3d.vertex.VertexSorting
 import net.irisshaders.batchedentityrendering.impl.DrawCallTrackingRenderBuffers
 import net.irisshaders.batchedentityrendering.impl.RenderBuffersExt
@@ -34,6 +35,9 @@ import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.bridge.mixins.client.CameraInvoker
 import ru.hollowhorizon.hollowengine.bridge.mixins.client.LevelRendererInvoker
 import ru.hollowhorizon.hollowengine.client.render.RenderManager
+import ru.hollowhorizon.hollowengine.client.utils.popPose
+import ru.hollowhorizon.hollowengine.client.utils.pushPose
+import ru.hollowhorizon.hollowengine.client.utils.setIdentity
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.blocks.BlockEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
@@ -259,7 +263,8 @@ internal object LocalLightShadowManager {
             shadowSampler = GlSampler(USE_LINEAR_SHADOW_FILTERING, false, true, true)
         }
         if (localShadowRenderBuffers == null) {
-            localShadowRenderBuffers = RenderBuffers()
+            val processors = Runtime.getRuntime().availableProcessors()
+            localShadowRenderBuffers = RenderBuffers(processors)
         }
 
         spotAtlas.ensureCreated()
@@ -363,7 +368,8 @@ internal object LocalLightShadowManager {
         val lightWorldZ = light.worldPosition.z.toDouble()
         val lightCameraPosition = net.minecraft.world.phys.Vec3(lightWorldX, lightWorldY, lightWorldZ)
         val originalRenderBuffers = renderer.renderBuffers
-        val shadowRenderBuffers = localShadowRenderBuffers ?: RenderBuffers().also { localShadowRenderBuffers = it }
+        val processors = Runtime.getRuntime().availableProcessors()
+        val shadowRenderBuffers = localShadowRenderBuffers ?: RenderBuffers(processors).also { localShadowRenderBuffers = it }
 
         atlas.bind()
         GL11C.glEnable(GL11C.GL_SCISSOR_TEST)
@@ -422,7 +428,7 @@ internal object LocalLightShadowManager {
                 val stack = RenderSystem.getModelViewStack()
                 stack.pushPose()
                 stack.setIdentity()
-                stack.mulPoseMatrix(renderMatrices.fullViewMatrix)
+                stack.mul(renderMatrices.fullViewMatrix)
 
                 try {
                     IrisRenderSystem.setShadowProjection(renderMatrices.projectionMatrix)
@@ -430,28 +436,28 @@ internal object LocalLightShadowManager {
                     GL11C.glViewport(viewport.x, viewport.y, viewport.width, viewport.height)
                     GL11C.glScissor(viewport.x, viewport.y, viewport.width, viewport.height)
 
-                    renderer.invokeRenderChunkLayer(
+                    renderer.invokeRenderSectionLayer(
                         RenderType.solid(),
-                        stack,
                         lightWorldX,
                         lightWorldY,
                         lightWorldZ,
+                        stack,
                         renderMatrices.projectionMatrix,
                     )
-                    renderer.invokeRenderChunkLayer(
+                    renderer.invokeRenderSectionLayer(
                         RenderType.cutout(),
-                        stack,
                         lightWorldX,
                         lightWorldY,
                         lightWorldZ,
+                        stack,
                         renderMatrices.projectionMatrix,
                     )
-                    renderer.invokeRenderChunkLayer(
+                    renderer.invokeRenderSectionLayer(
                         RenderType.cutoutMipped(),
-                        stack,
                         lightWorldX,
                         lightWorldY,
                         lightWorldZ,
+                        stack,
                         renderMatrices.projectionMatrix,
                     )
                     atlas.bind()
@@ -459,7 +465,7 @@ internal object LocalLightShadowManager {
                     GL11C.glScissor(viewport.x, viewport.y, viewport.width, viewport.height)
                     RenderManager.renderLocalShadowCasters(
                         renderer = renderer,
-                        modelView = stack,
+                        modelView = PoseStack().apply { mulPose(stack) },
                         cameraPosition = lightCameraPosition,
                         partialTick = event.partialTick,
                         frustum = frustum,

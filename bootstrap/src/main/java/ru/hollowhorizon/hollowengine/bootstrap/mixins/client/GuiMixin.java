@@ -11,15 +11,9 @@ import ru.hollowhorizon.hollowengine.bootstrap.runtime.BootstrapRuntimeManager;
 
 @Mixin(Gui.class)
 public class GuiMixin {
-    //? if >= 1.21 {
-    /*@Inject(method = "render", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "render", at = @At("HEAD"), cancellable = true)
     public void hollowengine$hideScreen(GuiGraphics guiGraphics, net.minecraft.client.DeltaTracker deltaTracker, CallbackInfo ci) {
         if (BootstrapRuntimeManager.bridge().shouldHideGui(Minecraft.getInstance().screen)) ci.cancel();
     }
-    *///?} else {
-    @Inject(method = "render", at = @At("HEAD"), cancellable = true)
-    public void hollowengine$hideScreen(GuiGraphics guiGraphics, float partialTick, CallbackInfo ci) {
-        if (BootstrapRuntimeManager.bridge().shouldHideGui(Minecraft.getInstance().screen)) ci.cancel();
-    }
-    //?}
+
 }

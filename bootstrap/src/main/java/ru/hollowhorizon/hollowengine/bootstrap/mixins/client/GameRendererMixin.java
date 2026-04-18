@@ -1,10 +1,9 @@
 package ru.hollowhorizon.hollowengine.bootstrap.mixins.client;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.GameRenderer;
-import org.joml.Matrix4f;
+import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,9 +20,11 @@ public abstract class GameRendererMixin {
         at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V", shift = At.Shift.AFTER),
         locals = LocalCapture.CAPTURE_FAILHARD
     )
-    private void onCameraSetup(float partialTicks, long finishTimeNano, PoseStack poseStack, CallbackInfo ci, boolean renderBlockOutline, Camera camera, PoseStack poseStack2, double d, float f, float g, Matrix4f matrix4f) {
-        RuntimeBridge.CameraSetup setup = BootstrapRuntimeManager.bridge().onCameraSetup((GameRenderer) (Object) this, camera, partialTicks);
+    private void onCameraSetup(DeltaTracker deltaTracker, CallbackInfo ci, float partialTick, boolean bl, Camera camera, Entity entity, float g) {
+        RuntimeBridge.CameraSetup setup = BootstrapRuntimeManager.bridge().onCameraSetup((GameRenderer) (Object) this, camera, partialTick);
         ((CameraInvoker) camera).hollowcore$rotate(setup.yaw(), setup.pitch());
-        poseStack.mulPose(Axis.ZP.rotationDegrees(setup.roll()));
+
+        // TODO: Нужно разобраться, как теперь вращать roll
+        // poseStack.mulPose(Axis.ZP.rotationDegrees(setup.roll()));
     }
 }

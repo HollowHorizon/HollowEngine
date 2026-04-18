@@ -1,17 +1,9 @@
-//? if fabric {
 package ru.hollowhorizon.hollowengine.fabric.internal
 
-//? if < 1.21 {
-import net.minecraft.world.item.enchantment.Enchantment
-import net.minecraft.world.level.chunk.ChunkStatus
-import net.minecraft.world.entity.decoration.PaintingVariant
-import net.minecraft.world.level.block.entity.BannerPattern
-//?}
 
-//? if >= 1.21
-/*import net.minecraft.core.component.DataComponentType*/
 import net.minecraft.commands.synchronization.ArgumentTypeInfo
 import net.minecraft.core.Registry
+import net.minecraft.core.component.DataComponentType
 import net.minecraft.core.particles.ParticleType
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.ResourceKey
@@ -42,6 +34,7 @@ import net.minecraft.world.item.crafting.RecipeSerializer
 import net.minecraft.world.item.crafting.RecipeType
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.entity.BlockEntityType
+import net.minecraft.world.level.chunk.status.ChunkStatus
 import net.minecraft.world.level.gameevent.GameEvent
 import net.minecraft.world.level.gameevent.PositionSourceType
 import net.minecraft.world.level.levelgen.blockpredicates.BlockPredicateType
@@ -174,16 +167,11 @@ class RegistryHolderFabric<T : Any>(
             Fluid::class.isAssigned() -> BuiltInRegistries.FLUID
             MobEffect::class.isAssigned() -> BuiltInRegistries.MOB_EFFECT
             Block::class.isAssigned() -> BuiltInRegistries.BLOCK
-            //? if < 1.21
-            Enchantment::class.isAssigned() -> BuiltInRegistries.ENCHANTMENT
             EntityType::class.isAssigned() -> BuiltInRegistries.ENTITY_TYPE
             Item::class.isAssigned() -> BuiltInRegistries.ITEM
             Potion::class.isAssigned() -> BuiltInRegistries.POTION
             ParticleType::class.isAssigned() -> BuiltInRegistries.PARTICLE_TYPE
             BlockEntityType::class.isAssigned() -> BuiltInRegistries.BLOCK_ENTITY_TYPE
-            //? if < 1.21
-            PaintingVariant::class.isAssigned() -> BuiltInRegistries.PAINTING_VARIANT
-            //? if < 1.21
             ChunkStatus::class.isAssigned() -> BuiltInRegistries.CHUNK_STATUS
             RuleTestType::class.isAssigned() -> BuiltInRegistries.RULE_TEST
             RuleBlockEntityModifierType::class.isAssigned() -> BuiltInRegistries.RULE_BLOCK_ENTITY_MODIFIER
@@ -226,13 +214,10 @@ class RegistryHolderFabric<T : Any>(
             StructurePoolElementType::class.isAssigned() -> BuiltInRegistries.STRUCTURE_POOL_ELEMENT
             CatVariant::class.isAssigned() -> BuiltInRegistries.CAT_VARIANT
             FrogVariant::class.isAssigned() -> BuiltInRegistries.FROG_VARIANT
-            //? if < 1.21
-            BannerPattern::class.isAssigned() -> BuiltInRegistries.BANNER_PATTERN
             Instrument::class.isAssigned() -> BuiltInRegistries.INSTRUMENT
             CreativeModeTab::class.isAssigned() -> BuiltInRegistries.CREATIVE_MODE_TAB
-            //? if >=1.21 {
-            /*DataComponentType::class.isAssigned() -> BuiltInRegistries.DATA_COMPONENT_TYPE
-            *///?}
+            DataComponentType::class.isAssigned() -> BuiltInRegistries.DATA_COMPONENT_TYPE
+
 
             registry != null -> registry
 

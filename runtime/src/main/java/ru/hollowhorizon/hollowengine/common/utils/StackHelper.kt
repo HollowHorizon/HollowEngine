@@ -1,10 +1,10 @@
-
 /**
  * Utility for handling various ItemStack operations.
  *
  * This file provides methods for comparing, combining, and modifying item stacks.
  */
 @file:JvmName("StackHelper")
+
 package ru.hollowhorizon.hollowengine.common.utils
 
 import net.minecraft.world.item.ItemStack
@@ -28,11 +28,8 @@ fun ItemStack.areItemsEqual(with: ItemStack): Boolean {
  */
 fun ItemStack.areStacksEqual(with: ItemStack): Boolean {
     return this.areItemsEqual(with) &&
-            //? if >= 1.21 {
-            /*ItemStack.isSameItemSameComponents(this, with)
-            *///?} else {
-            ItemStack.isSameItemSameTags(this, with)
-            //?}
+            ItemStack.isSameItemSameComponents(this, with)
+
 }
 
 /**
@@ -67,11 +64,7 @@ fun ItemStack.canCombine(hand: ItemStack, count: Int, ingredientCount: Int): Boo
 fun ItemStack.withSize(size: Int, container: Boolean): ItemStack {
     var itemStack = this
     if (size <= 0) {
-        return if (container && this.hasCraftingRemainder) {
-            this.craftingRemainder
-        } else {
-            ItemStack.EMPTY
-        }
+        return craftingRemainder?.takeIf { container } ?: ItemStack.EMPTY
     }
 
     itemStack = itemStack.copy()
@@ -96,18 +89,10 @@ fun ItemStack.shrink(amount: Int, container: Boolean): ItemStack {
 /**
  * Checks if the ItemStack has a crafting remainder.
  */
-val ItemStack.hasCraftingRemainder get() = //? if fabric {
-    this.recipeRemainder != ItemStack.EMPTY
- //?} elif forge || neoforge {
-    /*this.hasCraftingRemainingItem()
-*///?}
+val ItemStack.hasCraftingRemainder get() = ItemStackUtil.remainer(this) != ItemStack.EMPTY
 
 /**
-* Gets the crafting remainder of the ItemStack.
-*/
+ * Gets the crafting remainder of the ItemStack.
+ */
 val ItemStack.craftingRemainder
-get() = //? if fabric {
-    this.recipeRemainder
-//?} elif forge || neoforge {
-    /*this.craftingRemainingItem
-*///?}
+    get() = ItemStackUtil.remainer(this)

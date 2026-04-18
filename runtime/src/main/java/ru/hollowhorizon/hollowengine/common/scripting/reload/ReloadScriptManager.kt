@@ -38,6 +38,5 @@ object ReloadScriptManager : ResourceManagerReloadListener {
                 }
             }
 
-        context.flushRecipes()
     }
 }

@@ -22,6 +22,7 @@ import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcMoveControl
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.NpcPathNavigation
 import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
+import ru.hollowhorizon.hollowengine.common.utils.FakePlayer
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
@@ -36,11 +37,7 @@ class NpcEntity : PathfinderMob {
     val goals get() = goalSelector
 
     val fakePlayer: ServerPlayer by lazy {
-        //? if fabric {
-        val player = net.fabricmc.fabric.api.entity.FakePlayer.get(level() as ServerLevel)
-        //?} elif forge || neoforge {
-        /*val player = net.minecraftforge.common.util.FakePlayerFactory.getMinecraft(level() as ServerLevel)
-        *///?}
+        val player = FakePlayer.create(level() as ServerLevel)
         player.setGameMode(GameType.CREATIVE)
         player
     }
@@ -124,16 +121,12 @@ class NpcEntity : PathfinderMob {
 
     fun setAttributes(attributes: Map<String, Float>) {
         attributes.forEach { (attributeName, value) ->
-            //? if > 1.20.1 {
-            /*BuiltInRegistries.ATTRIBUTE.getHolder(attributeName.rl).orElseThrow()
-            *///?} else {
-            BuiltInRegistries.ATTRIBUTE[attributeName.rl]
-            //?}
+            BuiltInRegistries.ATTRIBUTE.getHolder(attributeName.rl).orElseThrow()
                 ?.let { attribute ->
-                this.attributes.getInstance(attribute)?.let { instance ->
-                    instance.baseValue = value.toDouble()
+                    this.attributes.getInstance(attribute)?.let { instance ->
+                        instance.baseValue = value.toDouble()
+                    }
                 }
-            }
         }
     }
 

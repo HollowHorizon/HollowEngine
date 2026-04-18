@@ -6,9 +6,7 @@ interface Cancelable {
     var isCanceled: Boolean
 }
 
-interface ClientEvent: Event
+interface ClientEvent : Event
 
 
-fun Event.post() {
-    EventBus.post(this)
-}
+fun <T: Event> T.post() = apply { EventBus.post(this) }

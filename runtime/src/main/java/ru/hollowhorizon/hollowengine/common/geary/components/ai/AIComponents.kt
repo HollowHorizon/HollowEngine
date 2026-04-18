@@ -15,7 +15,8 @@ import ru.hollowhorizon.hollowengine.common.geary.components.EditorName
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForUuid
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForVec3
-import java.util.UUID
+import ru.hollowhorizon.hollowengine.common.utils.rl
+import java.util.*
 
 private val EMPTY_UUID: UUID = UUID(0L, 0L)
 
@@ -25,7 +26,7 @@ data class EntityReference(
     @EditorName("UUID")
     val uuid: @Serializable(ForUuid::class) UUID = EMPTY_UUID,
     @EditorName("Dimension")
-    val level: @Serializable(ForResourceLocation::class) ResourceLocation = ResourceLocation("minecraft", "overworld"),
+    val level: @Serializable(ForResourceLocation::class) ResourceLocation = "minecraft:overworld".rl,
 ) {
     fun isEmpty(): Boolean = uuid == EMPTY_UUID
 

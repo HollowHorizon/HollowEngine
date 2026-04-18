@@ -1,16 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.utils
 
 
-
-//? if > 1.20.1 {
-/*import net.minecraft.server.packs.PackLocationInfo
-import net.minecraft.server.packs.PackSelectionConfig
-import java.util.Optional
-*///?}
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.server.packs.PackLocationInfo
 import net.minecraft.server.packs.PackResources
+import net.minecraft.server.packs.PackSelectionConfig
 import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.metadata.MetadataSectionSerializer
 import net.minecraft.server.packs.repository.Pack
@@ -20,9 +16,9 @@ import ru.hollowhorizon.hollowengine.common.registry.AutoModelType
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.io.ByteArrayInputStream
-import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStream
+import java.util.*
 
 object HollowPack : PackResources {
     private val resourceMap = HashMap<ResourceLocation, IoSupplier<InputStream>?>()
@@ -129,7 +125,9 @@ object HollowPack : PackResources {
             //var - java 16 feature
             val obj = JsonObject()
             val supportedFormats = JsonArray()
-            for (i in 6..9) { supportedFormats.add(i) } // From 1.16.2-rc1 to 1.19.3
+            for (i in 6..9) {
+                supportedFormats.add(i)
+            } // From 1.16.2-rc1 to 1.19.3
             obj.addProperty("pack_format", 9)
             obj.add("supported_formats", supportedFormats)
             obj.addProperty("description", "Generated resources for HollowCore")
@@ -138,11 +136,9 @@ object HollowPack : PackResources {
         return null
     }
 
-    //? if >= 1.21 {
-    /*override fun location(): PackLocationInfo {
+    override fun location(): PackLocationInfo {
         return PackLocationInfo(packId(), packId().literal, PackSource.BUILT_IN, Optional.empty())
     }
-    *///?}
 
     override fun packId() = "HollowEngine Embed Resources"
     override fun close() {}
@@ -151,25 +147,19 @@ object HollowPack : PackResources {
 }
 
 fun PackResources.asPack() =
-//? if >= 1.21 {
-        /*Pack.readMetaAndCreate(
-            location(), object: Pack.ResourcesSupplier {
-                override fun openPrimary(location: PackLocationInfo): PackResources {
-                    return this@asPack
-                }
-
-                override fun openFull(
-                    location: PackLocationInfo,
-                    metadata: Pack.Metadata,
-                ): PackResources {
-                    return this@asPack
-                }
-
-            }, PackType.CLIENT_RESOURCES, PackSelectionConfig(true, Pack.Position.TOP, true)
-        )
-        *///?} else {
     Pack.readMetaAndCreate(
-        packId(), packId().literal, true, { this }, PackType.CLIENT_RESOURCES,
-        Pack.Position.TOP, PackSource.BUILT_IN
-    ) ?: throw FileNotFoundException("Could not find the pack resource $this")
-//?}
+        location(), object : Pack.ResourcesSupplier {
+            override fun openPrimary(location: PackLocationInfo): PackResources {
+                return this@asPack
+            }
+
+            override fun openFull(
+                location: PackLocationInfo,
+                metadata: Pack.Metadata,
+            ): PackResources {
+                return this@asPack
+            }
+
+        }, PackType.CLIENT_RESOURCES, PackSelectionConfig(true, Pack.Position.TOP, true)
+    )
+

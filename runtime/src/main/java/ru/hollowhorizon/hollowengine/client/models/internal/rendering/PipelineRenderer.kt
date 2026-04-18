@@ -410,11 +410,8 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         val binding = getInstancedBinding(shader, layoutMode)
         applyMaterial(shader, primitive.material, binding.colorLocation)
 
-        //? if > 1.20.1 {
-        /*RenderSystem.glBindVertexArray(binding.vao)
-        *///?} else {
-        RenderSystem.glBindVertexArray { binding.vao }
-        //?}
+        RenderSystem.glBindVertexArray(binding.vao)
+
         indexBuffer?.bind()
 
         val count = primitive.indices?.size ?: (primitive.positionsCount / 3)
@@ -433,11 +430,8 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
         GL33.glVertexAttribI2i(3, instance.overlay and FFFF, instance.overlay shr 16 and FFFF)
         GL33.glVertexAttribI2i(4, instance.light and FFFF, instance.light shr 16 and FFFF)
 
-        //? if > 1.20.1 {
-        /*RenderSystem.glBindVertexArray(vao)
-        *///?} else {
-        RenderSystem.glBindVertexArray(::vao)
-        //?}
+        RenderSystem.glBindVertexArray(vao)
+
         indexBuffer?.bind()
 
         shader.MODEL_VIEW_MATRIX?.set(instance.modelView)
@@ -547,11 +541,8 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
 
         applyMaterial(shader, primitive.material)
 
-        //? if > 1.20.1 {
-        /*RenderSystem.glBindVertexArray(vao)
-        *///?} else {
-        RenderSystem.glBindVertexArray(::vao)
-        //?}
+        RenderSystem.glBindVertexArray(vao)
+
         indexBuffer?.bind()
 
         val modelView = Matrix4f(RenderSystem.getModelViewMatrix()).mul(stack.last().pose())

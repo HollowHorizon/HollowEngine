@@ -9,11 +9,8 @@ import java.util.*
 
 fun ItemStack.getArmorTexture(entity: Entity, slot: EquipmentSlot): ResourceLocation {
     val item = item as ArmorItem
-    //? if >=1.21 {
-    /*var texture = item.material.registeredName
-    *///?} else {
-    var texture = item.material.name
-    //?}
+    var texture = item.material.registeredName
+
     var domain = "minecraft"
     val idx = texture.indexOf(':')
     if (idx != -1) {
