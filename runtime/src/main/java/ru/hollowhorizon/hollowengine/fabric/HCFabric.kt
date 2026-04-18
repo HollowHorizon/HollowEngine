@@ -22,8 +22,6 @@ object HCFabric {
 
         CoreInitializationFabric
         HollowCore
-        FabricEvents
-
     }
 
     @JvmStatic

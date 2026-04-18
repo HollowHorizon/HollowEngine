@@ -14,6 +14,7 @@ public final class HCFabricBootstrap {
     }
 
     public static void onCommonInitialize() {
+        FabricCommonEvents.init();
         BootstrapRuntimeManager.bridge().onCommonInitialize();
     }
 
