@@ -1,12 +1,31 @@
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import java.nio.charset.StandardCharsets
+import java.nio.file.Path
 
 def modId = property("modId")
 def splitLangDir = rootProject.file("runtime/src/main/lang")
 def legacyLangDir = rootProject.file("runtime/src/main/resources/assets/${modId}/lang")
 def mergedLangDir = layout.buildDirectory.dir("generated/lang/${modId}")
 def jsonSlurper = new JsonSlurper()
+
+def toInvariantRelativePath = { File baseDir, File file ->
+    Path basePath = baseDir.toPath().toAbsolutePath().normalize()
+    Path filePath = file.toPath().toAbsolutePath().normalize()
+    basePath.relativize(filePath).toString().replace(File.separatorChar, '/' as char)
+}
+
+def decodeLangFile = { File file, JsonSlurper slurper ->
+    slurper.parse(file, StandardCharsets.UTF_8.name()) as Map<String, String>
+}
+
+def putTranslation = { String locale, String key, String value, String source, Map<String, String> localeTranslations, Map<String, String> localeOrigins ->
+    def previous = localeOrigins.putIfAbsent(key, source)
+    if (previous != null) {
+        throw new GradleException("Duplicate translation key '${key}' for locale '${locale}' in '${previous}' and '${source}'")
+    }
+    localeTranslations[key] = value
+}
 
 def mergeLegacyLangFiles = { File inputDir, Map merged, Map origins, File projectDir, JsonSlurper slurper ->
     if (!inputDir.exists()) {
@@ -20,14 +39,14 @@ def mergeLegacyLangFiles = { File inputDir, Map merged, Map origins, File projec
                 def locale = localeFile.name[0..-6]
                 def localeTranslations = merged[locale]
                 def localeOrigins = origins[locale]
-                decodeLangFile(localeFile, slurper).each { key, value ->
-                    putTranslation(locale, key, value, localeFile.relativeTo(projectDir).invariantSeparatorsPath, localeTranslations, localeOrigins)
+                decodeLangFile.call(localeFile, slurper).each { key, value ->
+                    putTranslation.call(locale, key, value, toInvariantRelativePath.call(projectDir, localeFile), localeTranslations, localeOrigins)
                 }
             }
 }
 
 def buildLangPrefix = { File localeDir, File langFile ->
-    def relativePath = langFile.relativeTo(localeDir).invariantSeparatorsPath.replaceAll(/\.json$/, "")
+    def relativePath = toInvariantRelativePath.call(localeDir, langFile).replaceAll(/\.json$/, "")
     if (relativePath == "index") {
         return ""
     }
@@ -51,31 +70,17 @@ def mergeSplitLangFiles = { File inputDir, Map merged, Map origins, File project
                 def localeOrigins = origins[locale]
 
                 localeDir.traverse(type: groovy.io.FileType.FILES, nameFilter: ~/.*\.json/) { langFile ->
-                    def prefix = buildLangPrefix(localeDir, langFile)
-                    decodeLangFile(langFile, slurper).each { key, value ->
+                    def prefix = buildLangPrefix.call(localeDir, langFile)
+                    decodeLangFile.call(langFile, slurper).each { key, value ->
                         def finalKey = prefix.isEmpty() ? key : (key.isEmpty() ? prefix : "${prefix}.${key}")
                         if (finalKey.isEmpty()) {
-                            throw new GradleException("Translation key in ${langFile.relativeTo(projectDir).invariantSeparatorsPath} resolves to an empty key")
+                            throw new GradleException("Translation key in ${toInvariantRelativePath.call(projectDir, langFile)} resolves to an empty key")
                         }
-                        putTranslation(locale, finalKey, value, langFile.relativeTo(projectDir).invariantSeparatorsPath, localeTranslations, localeOrigins)
+                        putTranslation.call(locale, finalKey, value, toInvariantRelativePath.call(projectDir, langFile), localeTranslations, localeOrigins)
                     }
                 }
             }
 }
-
-def decodeLangFile = { File file, JsonSlurper slurper ->
-    slurper.parse(file, StandardCharsets.UTF_8.name()) as Map<String, String>
-}
-
-def putTranslation = { String locale, String key, String value, String source, Map<String, String> localeTranslations, Map<String, String> localeOrigins ->
-    def previous = localeOrigins.putIfAbsent(key, source)
-    if (previous != null) {
-        throw new GradleException("Duplicate translation key '${key}' for locale '${locale}' in '${previous}' and '${source}'")
-    }
-    localeTranslations[key] = value
-}
-
-
 
 tasks.register("mergeLang") {
     group = "build"
@@ -95,8 +100,8 @@ tasks.register("mergeLang") {
         def merged = [:].withDefault { new LinkedHashMap<String, String>() }
         def origins = [:].withDefault { new LinkedHashMap<String, String>() }
 
-        mergeLegacyLangFiles(legacyLangDir, merged, origins, project.projectDir, jsonSlurper)
-        mergeSplitLangFiles(splitLangDir, merged, origins, project.projectDir, jsonSlurper)
+        mergeLegacyLangFiles.call(legacyLangDir, merged, origins, project.projectDir, jsonSlurper)
+        mergeSplitLangFiles.call(splitLangDir, merged, origins, project.projectDir, jsonSlurper)
 
         merged.keySet().sort().each { locale ->
             def outputFile = new File(outputDir, "${locale}.json")
