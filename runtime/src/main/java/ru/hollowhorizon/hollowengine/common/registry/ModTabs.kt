@@ -6,7 +6,7 @@ import ru.hollowhorizon.hollowengine.common.utils.mcTranslate
 
 object ModTabs : HollowRegistry(HollowEngine.MODID) {
     val HOLLOW_ENGINE: CreativeModeTab by creativeTab("creative_tab") {
-        icon { ModItems.STORYTELLER_DIM_TELEPORTER.defaultInstance }
+        icon { ModItems.NPC_TOOL.defaultInstance }
         title("itemGroup.hollowengine".mcTranslate)
     }
 }

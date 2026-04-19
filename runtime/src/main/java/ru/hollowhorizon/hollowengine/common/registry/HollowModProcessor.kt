@@ -48,10 +48,8 @@ object HollowModProcessor {
             (type.kotlin.objectInstance as Config).initialize()
         }
 
-        val runnables = arrayListOf<Runnable>()
-
         registerClassHandler<HollowPacketHandler> { type, _ ->
-            if (HollowPacket::class.java.isAssignableFrom(type)) runnables += Runnable { registerPacket(type as Class<HollowPacket>) }
+            if (HollowPacket::class.java.isAssignableFrom(type)) registerPacket(type as Class<HollowPacket>)
             else HollowCore.LOGGER.warn("Unsupported packet: ${type.simpleName}")
         }
 

@@ -10,7 +10,6 @@ import de.fabmax.kool.pipeline.backend.gl.RenderBackendGl;
 import de.fabmax.kool.pipeline.backend.gl.ShaderManager;
 import de.fabmax.kool.util.Time;
 import de.fabmax.kool.util.TriggeredCoroutineDispatcher;
-import org.jetbrains.annotations.NotNull;
 import ru.hollowhorizon.hollowengine.common.utils.UnsafeTools;
 import sun.misc.Unsafe;
 
@@ -95,15 +94,15 @@ public class KoolHooks {
         }
     }
 
-    public static boolean hasAnyFocus(UiSurface.@NotNull UiInputHandler inputHandler) {
+    public static boolean hasAnyFocus(UiSurface.UiInputHandler inputHandler) {
         return inputHandler.getFocusedNode$kool_core() != null;
     }
 
-    public static Focusable activeFocus(UiSurface.@NotNull UiInputHandler inputHandler) {
+    public static Focusable activeFocus(UiSurface.UiInputHandler inputHandler) {
         return inputHandler.getFocusedNode$kool_core();
     }
 
-    public static void setFocus(UiSurface.@NotNull UiInputHandler inputHandler, Focusable aNew) {
+    public static void setFocus(UiSurface.UiInputHandler inputHandler, Focusable aNew) {
         inputHandler.setFocusedNode$kool_core(aNew);
     }
 

@@ -261,7 +261,7 @@ object MCGlApi: GlApi {
     override fun getUniformBlockIndex(program: GlProgram, uniformBlockName: String): Int = glGetUniformBlockIndex(program.handle, uniformBlockName)
     override fun getUniformIndices(program: GlProgram, names: Array<String>): IntArray = getUniformIndicesImpl(program, names)
     override fun getUniformLocation(program: GlProgram, uniformName: String): Int = glGetUniformLocation(program.handle, uniformName)
-    override fun lineWidth(width: Float) = glLineWidth(width)
+    override fun lineWidth(width: Float) = Unit // В современном OpenGL такое нельзя
     override fun linkProgram(program: GlProgram) = glLinkProgram(program.handle)
     override fun memoryBarrier(barriers: Int) = glMemoryBarrier(barriers)
     override fun queryCounter(query: GlQuery, target: Int) = glQueryCounter(query.handle, target)

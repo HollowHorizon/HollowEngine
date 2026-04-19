@@ -41,7 +41,7 @@ interface HollowPacket : CustomPacketPayload {
         @OptIn(InternalSerializationApi::class)
         fun nameFor(packet: KClass<*>): String {
             packet.serializer().descriptor.serialName.lowercase().filter { ResourceLocation.validPathChar(it) }
-                .let { return if (it.contains(':')) it else "hollowengine$it" }
+                .let { return if (it.contains(':')) it else "hollowengine:$it" }
         }
         fun nameFor(packet: Class<*>) = nameFor(packet.kotlin)
     }

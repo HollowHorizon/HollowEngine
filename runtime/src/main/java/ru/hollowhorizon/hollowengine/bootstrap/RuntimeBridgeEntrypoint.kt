@@ -110,7 +110,6 @@ import ru.hollowhorizon.hollowengine.common.events.server.ServerEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
-import ru.hollowhorizon.hollowengine.common.registry.ModDimensions
 import ru.hollowhorizon.hollowengine.common.runtime.EmptyRuntimeAnnotationIndex
 import ru.hollowhorizon.hollowengine.common.runtime.RuntimeAnnotationEnvironment
 import ru.hollowhorizon.hollowengine.common.utils.FakePlayer
@@ -296,21 +295,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
             )
         )
     }
-
-    override fun getStorageFolderOverride(dimensionKey: ResourceKey<Level>, levelFolder: Path): Path? {
-        return if (dimensionKey == ModDimensions.STORYTELLER_DIMENSION) {
-            DirectoryManager.HOLLOW_ENGINE.resolve("storyteller_dimension")
-        } else {
-            null
-        }
-    }
-
-    //? if < 1.21 {
-    /*override fun onRegisterLoot(elements: Map<LootDataId<*>, Any>) {
-        @Suppress("UNCHECKED_CAST")
-        EventBus.post(RegisterLootEvent(elements as MutableMap<LootDataId<*>, *>))
-    }
-    *///?}
 
     override fun getSkySunSize(level: ClientLevel, originalSize: Float): Float {
         val event = SkyRenderEvent.SunSize(level, originalSize)

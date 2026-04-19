@@ -8,7 +8,6 @@ import de.fabmax.kool.pipeline.DepthCompareOp
 import de.fabmax.kool.pipeline.backend.gl.glOp
 import de.fabmax.kool.scene.Scene
 import kotlinx.coroutines.runBlocking
-import net.minecraft.client.Minecraft
 import org.lwjgl.opengl.GL30
 import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.client.kool.KoolHooks
@@ -77,9 +76,6 @@ object GlContext {
             }
 
             else -> MCGlApi.disable(MCGlApi.CULL_FACE)
-        }
-        KoolHooks.getGlStateLineWidth().takeIf { it != 0f }?.let {
-            MCGlApi.lineWidth(it)
         }
         KoolHooks.resetShaders(KoolManager.context)
     }

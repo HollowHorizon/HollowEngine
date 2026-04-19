@@ -3,10 +3,8 @@ package ru.hollowhorizon.hollowengine.common.events.client.render
 import com.mojang.blaze3d.platform.Window
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.resources.ResourceLocation
-import org.jetbrains.annotations.ApiStatus
 import ru.hollowhorizon.hollowengine.common.events.Cancelable
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
-import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
 enum class GuiOverlay(val location: ResourceLocation) {
@@ -44,7 +42,7 @@ enum class GuiOverlay(val location: ResourceLocation) {
     }
 }
 
-abstract class RenderOverlayEvent @ApiStatus.Internal protected constructor(
+abstract class RenderOverlayEvent protected constructor(
     val window: Window,
     val guiGraphics: GuiGraphics,
     val partialTick: Float,

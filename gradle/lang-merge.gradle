@@ -1,17 +1,17 @@
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+
 import java.nio.charset.StandardCharsets
-import java.nio.file.Path
 
 def modId = property("modId")
 def splitLangDir = rootProject.file("runtime/src/main/lang")
 def legacyLangDir = rootProject.file("runtime/src/main/resources/assets/${modId}/lang")
-def mergedLangDir = layout.buildDirectory.dir("generated/lang/${modId}")
+def mergedLangDir = layout.buildDirectory.dir("generated/lang/assets/${modId}/lang")
 def jsonSlurper = new JsonSlurper()
 
 def toInvariantRelativePath = { File baseDir, File file ->
-    Path basePath = baseDir.toPath().toAbsolutePath().normalize()
-    Path filePath = file.toPath().toAbsolutePath().normalize()
+    def basePath = baseDir.toPath().toAbsolutePath().normalize()
+    def filePath = file.toPath().toAbsolutePath().normalize()
     basePath.relativize(filePath).toString().replace(File.separatorChar, '/' as char)
 }
 

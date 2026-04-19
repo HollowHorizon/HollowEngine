@@ -6,7 +6,7 @@ import ru.hollowhorizon.hollowengine.fabric.internal.FabricModList;
 import ru.hollowhorizon.hollowengine.fabric.internal.FabricNetworkManager;
 
 public final class HCFabricBootstrap {
-    private HCFabricBootstrap() {
+    static {
         BootstrapRuntimeManager.bridge().initFakePlayers(new FabricFakePlayerFactory());
         BootstrapRuntimeManager.bridge().initStackHelper(item -> item.getRecipeRemainder());
         BootstrapRuntimeManager.bridge().initNetwork(new FabricNetworkManager());

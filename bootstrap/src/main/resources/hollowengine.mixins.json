@@ -10,7 +10,6 @@
     "BrewingStandBlockEntityMixin",
     "BrewingStandMenuMixin",
     "DimensionDataStorageAccessor",
-    "DimensionTypeMixin",
     "LivingEntityMixin",
     "MinecraftServerMixin",
     "PackRepositoryMixin",

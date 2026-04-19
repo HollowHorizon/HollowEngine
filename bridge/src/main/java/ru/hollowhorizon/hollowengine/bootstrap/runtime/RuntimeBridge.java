@@ -31,7 +31,6 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.FileToIdConverter;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -117,8 +116,6 @@ public interface RuntimeBridge extends AutoCloseable {
     @Nullable ItemStack onArrowNock(ItemStack stack, Level level, Player player, InteractionHand usedHand);
 
     void onRegisterTags(Object registry, Map<ResourceLocation, List<TagLoader.EntryWithSource>> value);
-
-    @Nullable Path getStorageFolderOverride(ResourceKey<Level> dimensionKey, Path levelFolder);
 
     //? if < 1.21 {
     /*void onRegisterLoot(Map<LootDataId<?>, Object> elements);

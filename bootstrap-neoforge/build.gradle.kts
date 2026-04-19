@@ -1,6 +1,5 @@
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.JavaCompile
-import org.gradle.jvm.tasks.Jar
 import org.gradle.language.jvm.tasks.ProcessResources
 import java.security.MessageDigest
 
@@ -27,7 +26,8 @@ base.archivesName.set("$modName-neoforge-$minecraftVersion")
 
 val sourceSets = extensions.getByType<SourceSetContainer>()
 val embeddedRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime")
-val runtimeJarTask = project(":runtime").tasks.named<Jar>("jar")
+val generatedMetadataDir = layout.buildDirectory.dir("generated/mod-metadata")
+val mergedRuntimeLangDir = rootProject.layout.projectDirectory.dir("build/runtime/generated/lang/$modId")
 
 architectury {
     platformSetupLoomIde()
@@ -63,6 +63,11 @@ configurations {
     }
 }
 
+val embeddedRuntime by configurations.creating {
+    isCanBeResolved = true
+    isCanBeConsumed = false
+}
+
 repositories {
     mavenCentral()
     maven("https://maven.neoforged.net/releases")
@@ -80,23 +85,23 @@ dependencies {
     modImplementation("dev.architectury:architectury-neoforge:$architecturyApiVersion")
     implementation("io.github.llamalad7:mixinextras-neoforge:0.4.1")
 
+    add("embeddedRuntime", project(path = ":runtime", configuration = "embeddedRuntimeElements"))
     "common"(project(path = ":bridge", configuration = "namedElements")) { isTransitive = false }
     "shadowBundle"(project(path = ":bridge", configuration = "transformProductionNeoForge"))
 }
 
 val embedRuntimeJar = tasks.register("embedRuntimeJar") {
     group = "build"
-    description = "Embeds the current runtime jar into bootstrap resources."
+    description = "Embeds the isolated runtime jar into bootstrap resources."
 
-    dependsOn(runtimeJarTask)
-    inputs.file(runtimeJarTask.flatMap { it.archiveFile })
+    inputs.files(embeddedRuntime)
     outputs.dir(embeddedRuntimeDir)
 
     doLast {
         val outputDir = embeddedRuntimeDir.get().dir("META-INF/hollowengine/runtime").asFile
         outputDir.mkdirs()
 
-        val runtimeJar = runtimeJarTask.get().archiveFile.get().asFile
+        val runtimeJar = embeddedRuntime.singleFile
         val targetJar = outputDir.resolve("HollowEngineRuntime.jar")
         runtimeJar.copyTo(targetJar, overwrite = true)
 
@@ -104,6 +109,29 @@ val embedRuntimeJar = tasks.register("embedRuntimeJar") {
             .digest(targetJar.readBytes())
             .joinToString("") { "%02x".format(it) }
         outputDir.resolve("HollowEngineRuntime.sha256").writeText(sha256)
+    }
+}
+
+val generateNeoForgeModMetadata = tasks.register<ProcessResources>("generateNeoForgeModMetadata") {
+    group = "build"
+    description = "Generates the expanded neoforge.mods.toml for IDE and Loom consumption."
+
+    val properties = mapOf(
+        "mod_id" to modId,
+        "mod_name" to modName,
+        "mod_version" to modVersion,
+        "mod_author" to modAuthor,
+        "license" to license,
+        "minecraft_version" to minecraftVersion,
+        "neo_version" to neoForgeVersion,
+        "architectury_api_version" to architecturyApiVersion,
+    )
+
+    inputs.properties(properties)
+    from(rootProject.file("bootstrap-neoforge/src/main/templates"))
+    into(generatedMetadataDir)
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand(properties)
     }
 }
 
@@ -119,14 +147,16 @@ sourceSets.named("main").configure {
             rootProject.file("bootstrap/src/main/resources"),
             rootProject.file("bootstrap-neoforge/src/main/resources"),
             rootProject.file("runtime/src/main/resources"),
+            generatedMetadataDir,
+            mergedRuntimeLangDir,
             embeddedRuntimeDir,
         )
     )
 }
 
 tasks.named<ProcessResources>("processResources") {
-    dependsOn(embedRuntimeJar)
-    filesMatching(listOf("META-INF/neoforge.mods.toml", "$modId.mixins.json", "$modId.bridge.mixins.json", "pack.mcmeta")) {
+    dependsOn(embedRuntimeJar, generateNeoForgeModMetadata, ":runtime:mergeLang")
+    filesMatching(listOf("$modId.mixins.json", "$modId.bridge.mixins.json", "pack.mcmeta")) {
         expand(
             mapOf(
                 "mod_id" to modId,
@@ -144,12 +174,28 @@ tasks.named<ProcessResources>("processResources") {
 }
 
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+    dependsOn(embedRuntimeJar)
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     configurations = listOf(project.configurations.getByName("shadowBundle"))
     archiveClassifier.set("dev-shadow")
 }
 
+val bootstrapDevJar = tasks.register<Jar>("bootstrapDevJar") {
+    group = "build"
+    description = "Packages the shaded bootstrap jar with the isolated runtime payload."
+
+    dependsOn("shadowJar", embedRuntimeJar)
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    archiveBaseName.set(base.archivesName.get())
+    archiveVersion.set(project.version.toString())
+    archiveClassifier.set("dev")
+
+    from(zipTree(tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar").flatMap { it.archiveFile }))
+    from(embeddedRuntimeDir)
+}
+
 tasks.named<net.fabricmc.loom.task.RemapJarTask>("remapJar") {
-    inputFile.set(tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar").flatMap { it.archiveFile })
+    inputFile.set(bootstrapDevJar.flatMap { it.archiveFile })
 }
 
 tasks.named<JavaCompile>("compileJava") {
@@ -157,5 +203,5 @@ tasks.named<JavaCompile>("compileJava") {
 }
 
 tasks.matching { it.name.startsWith("run") }.configureEach {
-    dependsOn(embedRuntimeJar)
+    dependsOn("classes")
 }

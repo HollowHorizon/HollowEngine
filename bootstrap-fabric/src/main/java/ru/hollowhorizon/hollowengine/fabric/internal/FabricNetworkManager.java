@@ -16,13 +16,13 @@ import java.util.function.BiConsumer;
 public class FabricNetworkManager implements NetworkManager {
     @Override
     public <T extends CustomPacketPayload> void registerClient(CustomPacketPayload.@NotNull Type<T> type, @NotNull StreamCodec<RegistryFriendlyByteBuf, T> codec, @NotNull BiConsumer<T, LocalPlayer> consumer) {
-        PayloadTypeRegistry.playC2S().register(type, codec);
+        PayloadTypeRegistry.playS2C().register(type, codec);
         ClientPlayNetworking.registerGlobalReceiver(type, (payload, context) -> consumer.accept(payload, context.player()));
     }
 
     @Override
     public <T extends CustomPacketPayload> void registerServer(CustomPacketPayload.@NotNull Type<T> type, @NotNull StreamCodec<RegistryFriendlyByteBuf, T> codec, @NotNull BiConsumer<T, ServerPlayer> consumer) {
-        PayloadTypeRegistry.playS2C().register(type, codec);
+        PayloadTypeRegistry.playC2S().register(type, codec);
         ServerPlayNetworking.registerGlobalReceiver(type, (payload, context) -> consumer.accept(payload, context.player()));
     }
 }
