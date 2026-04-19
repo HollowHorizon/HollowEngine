@@ -2,8 +2,6 @@ package ru.hollowhorizon.hollowengine.network
 
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
-import net.fabricmc.api.EnvType
-import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.client.Minecraft
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.network.RegistryFriendlyByteBuf
@@ -20,6 +18,7 @@ import ru.hollowhorizon.hollowengine.api.NetworkManager
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
 import ru.hollowhorizon.hollowengine.common.utils.bytebuf.ByteBufFormat
 import ru.hollowhorizon.hollowengine.common.utils.bytebuf.deserializeNoInline
 import ru.hollowhorizon.hollowengine.common.utils.bytebuf.serializeNoInline
@@ -52,7 +51,7 @@ object CommonNetworkManager : NetworkManager {
     fun <T : HollowPacket> registerPacket(type: Class<T>) {
         val annotation = type.getAnnotation(HollowPacketHandler::class.java)
         val location = CustomPacketPayload.Type<T>(HollowPacket.nameFor(type).rl)
-        val isClient = FabricLoader.getInstance().environmentType == EnvType.CLIENT
+        val isClient = isPhysicalClient
         val codec: StreamCodec<RegistryFriendlyByteBuf, T> = CustomPacketPayload.codec(
             { packet, buffer ->
                 ByteBufFormat.serializeNoInline(packet, type, buffer)

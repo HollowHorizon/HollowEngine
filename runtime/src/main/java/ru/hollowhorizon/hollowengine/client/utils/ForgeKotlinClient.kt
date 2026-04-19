@@ -24,9 +24,12 @@ enum class Axis(val x: Float, val y: Float, val z: Float) {
 
 var instancingBackendProvider: () -> ModelInstancingBackend = { VanillaInstancingBackend }
 var instancingEntityInfoProvider: () -> InstancingEntityInfo = { InstancingEntityInfo() }
+var areShadersEnabled_: () -> Boolean = { false }
+var shouldOverrideShaders: () -> Boolean = { false }
 
 val instancingBackend get() = instancingBackendProvider()
 val instancingEntityInfo get() = instancingEntityInfoProvider()
+val areShadersEnabled get() = areShadersEnabled_()
 
 data class InstancingEntityInfo(
     val entity: Int = -1,

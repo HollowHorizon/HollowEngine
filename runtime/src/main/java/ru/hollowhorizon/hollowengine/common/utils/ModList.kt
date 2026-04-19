@@ -17,6 +17,8 @@ object ModList : ModList {
     override fun getFile(modId: String): File {
         return modList.getFile(modId)
     }
+
+    fun getAllFiles(modId: String): List<File> = listOf(getFile(modId))
 }
 
 //? if fabric {

@@ -1,3 +1,7 @@
+
+import org.gradle.jvm.tasks.Jar
+import java.security.MessageDigest
+
 plugins {
     id("architectury-plugin")
     id("dev.architectury.loom")
@@ -26,6 +30,8 @@ version = modVersion
 base.archivesName.set("$modName-fabric-$minecraftVersion")
 
 val sourceSets = extensions.getByType<SourceSetContainer>()
+val embeddedRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime")
+val runtimeJarTask = project(":runtime").tasks.named<Jar>("jar")
 
 architectury {
     platformSetupLoomIde()
@@ -86,6 +92,29 @@ dependencies {
     "shadowBundle"(project(path = ":bridge", configuration = "transformProductionFabric"))
 }
 
+val embedRuntimeJar = tasks.register("embedRuntimeJar") {
+    group = "build"
+    description = "Embeds the current runtime jar into bootstrap resources."
+
+    dependsOn(runtimeJarTask)
+    inputs.file(runtimeJarTask.flatMap { it.archiveFile })
+    outputs.dir(embeddedRuntimeDir)
+
+    doLast {
+        val outputDir = embeddedRuntimeDir.get().dir("META-INF/hollowengine/runtime").asFile
+        outputDir.mkdirs()
+
+        val runtimeJar = runtimeJarTask.get().archiveFile.get().asFile
+        val targetJar = outputDir.resolve("HollowEngineRuntime.jar")
+        runtimeJar.copyTo(targetJar, overwrite = true)
+
+        val sha256 = MessageDigest.getInstance("SHA-256")
+            .digest(targetJar.readBytes())
+            .joinToString("") { "%02x".format(it) }
+        outputDir.resolve("HollowEngineRuntime.sha256").writeText(sha256)
+    }
+}
+
 sourceSets.named("main").configure {
     java.setSrcDirs(
         listOf(
@@ -98,11 +127,13 @@ sourceSets.named("main").configure {
             rootProject.file("bootstrap/src/main/resources"),
             rootProject.file("bootstrap-fabric/src/main/resources"),
             rootProject.file("runtime/src/main/resources"),
+            embeddedRuntimeDir,
         )
     )
 }
 
 tasks.named<ProcessResources>("processResources") {
+    dependsOn(embedRuntimeJar)
     filesMatching(listOf("fabric.mod.json", "$modId.mixins.json", "$modId.bridge.mixins.json", "pack.mcmeta")) {
         expand(
             mapOf(
@@ -131,4 +162,8 @@ tasks.named<net.fabricmc.loom.task.RemapJarTask>("remapJar") {
 
 tasks.named<JavaCompile>("compileJava") {
     setSource(sourceSets.named("main").get().java)
+}
+
+tasks.matching { it.name.startsWith("run") }.configureEach {
+    dependsOn(embedRuntimeJar)
 }

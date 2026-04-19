@@ -1,6 +1,8 @@
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.tasks.Jar
 import org.gradle.language.jvm.tasks.ProcessResources
+import java.security.MessageDigest
 
 plugins {
     id("architectury-plugin")
@@ -24,6 +26,8 @@ version = modVersion
 base.archivesName.set("$modName-neoforge-$minecraftVersion")
 
 val sourceSets = extensions.getByType<SourceSetContainer>()
+val embeddedRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime")
+val runtimeJarTask = project(":runtime").tasks.named<Jar>("jar")
 
 architectury {
     platformSetupLoomIde()
@@ -76,10 +80,31 @@ dependencies {
     modImplementation("dev.architectury:architectury-neoforge:$architecturyApiVersion")
     implementation("io.github.llamalad7:mixinextras-neoforge:0.4.1")
 
-    "common"(project(path = ":runtime", configuration = "namedElements")) { isTransitive = false }
     "common"(project(path = ":bridge", configuration = "namedElements")) { isTransitive = false }
-    "shadowBundle"(project(path = ":runtime", configuration = "transformProductionNeoForge"))
     "shadowBundle"(project(path = ":bridge", configuration = "transformProductionNeoForge"))
+}
+
+val embedRuntimeJar = tasks.register("embedRuntimeJar") {
+    group = "build"
+    description = "Embeds the current runtime jar into bootstrap resources."
+
+    dependsOn(runtimeJarTask)
+    inputs.file(runtimeJarTask.flatMap { it.archiveFile })
+    outputs.dir(embeddedRuntimeDir)
+
+    doLast {
+        val outputDir = embeddedRuntimeDir.get().dir("META-INF/hollowengine/runtime").asFile
+        outputDir.mkdirs()
+
+        val runtimeJar = runtimeJarTask.get().archiveFile.get().asFile
+        val targetJar = outputDir.resolve("HollowEngineRuntime.jar")
+        runtimeJar.copyTo(targetJar, overwrite = true)
+
+        val sha256 = MessageDigest.getInstance("SHA-256")
+            .digest(targetJar.readBytes())
+            .joinToString("") { "%02x".format(it) }
+        outputDir.resolve("HollowEngineRuntime.sha256").writeText(sha256)
+    }
 }
 
 sourceSets.named("main").configure {
@@ -94,11 +119,13 @@ sourceSets.named("main").configure {
             rootProject.file("bootstrap/src/main/resources"),
             rootProject.file("bootstrap-neoforge/src/main/resources"),
             rootProject.file("runtime/src/main/resources"),
+            embeddedRuntimeDir,
         )
     )
 }
 
 tasks.named<ProcessResources>("processResources") {
+    dependsOn(embedRuntimeJar)
     filesMatching(listOf("META-INF/neoforge.mods.toml", "$modId.mixins.json", "$modId.bridge.mixins.json", "pack.mcmeta")) {
         expand(
             mapOf(
@@ -127,4 +154,8 @@ tasks.named<net.fabricmc.loom.task.RemapJarTask>("remapJar") {
 
 tasks.named<JavaCompile>("compileJava") {
     setSource(sourceSets.named("main").get().java)
+}
+
+tasks.matching { it.name.startsWith("run") }.configureEach {
+    dependsOn(embedRuntimeJar)
 }
