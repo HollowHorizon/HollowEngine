@@ -1,6 +1,4 @@
-import org.gradle.api.tasks.SourceSetContainer
-import org.gradle.api.tasks.compile.JavaCompile
-import org.gradle.language.jvm.tasks.ProcessResources
+
 import java.security.MessageDigest
 
 plugins {
@@ -78,12 +76,17 @@ repositories {
 }
 
 dependencies {
-    "minecraft"("com.mojang:minecraft:$minecraftVersion")
-    "mappings"(loom.officialMojangMappings())
+    minecraft("com.mojang:minecraft:$minecraftVersion")
+    mappings(loom.officialMojangMappings())
 
-    "neoForge"("net.neoforged:neoforge:$neoForgeVersion")
+    neoForge("net.neoforged:neoforge:$neoForgeVersion")
     modImplementation("dev.architectury:architectury-neoforge:$architecturyApiVersion")
+    modImplementation("lib:iris-neoforge:1.8.12+mc1.21.1")
+    modImplementation("lib:sodium-neoforge:0.6.13+mc1.21.1")
     implementation("io.github.llamalad7:mixinextras-neoforge:0.4.1")
+
+    implementation("org.anarres:jcpp:1.4.14")
+    implementation("io.github.douira:glsl-transformer:2.0.1")
 
     add("embeddedRuntime", project(path = ":runtime", configuration = "embeddedRuntimeElements"))
     "common"(project(path = ":bridge", configuration = "namedElements")) { isTransitive = false }

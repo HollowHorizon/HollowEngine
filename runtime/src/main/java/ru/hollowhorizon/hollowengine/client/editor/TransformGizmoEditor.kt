@@ -706,7 +706,6 @@ object TransformGizmoEditor {
         private var lastBounds: AABB? = null
         private var lastBoundsColor = BOUNDS_COLOR
         private var lastResolved: ResolvedAnchorTransform? = null
-        private val gizmoClientOffset = MutableMat4d()
         private val gizmoWorldMatrix = MutableMat4d()
         private val decomposedTranslation = MutableVec3d()
         private val decomposedRotation = MutableQuatD()
@@ -754,6 +753,7 @@ object TransformGizmoEditor {
                 GizmoEditMode.SCALE -> scaleHandles
             }
             handles.forEach(gizmo::addHandle)
+            refreshGizmoTransformForMode()
         }
 
         fun refreshFromRuntime() {
@@ -777,23 +777,7 @@ object TransformGizmoEditor {
         ) {
             lastResolved = resolved
             if (!gizmo.isManipulating) {
-                gizmoClientOffset.setIdentity()
-                    .rotate(quatFToGizmoRotation(resolved.transform.rotation))
-                    .scale(
-                        MutableVec3d(
-                            resolved.transform.scale.x.toDouble(),
-                            resolved.transform.scale.y.toDouble(),
-                            resolved.transform.scale.z.toDouble(),
-                        )
-                    )
-                gizmo.gizmoTransform.setCompositionOf(
-                    Vec3d(
-                        resolved.transform.translation.x.toDouble(),
-                        resolved.transform.translation.y.toDouble(),
-                        resolved.transform.translation.z.toDouble(),
-                    ),
-                )
-                gizmo.updateModelMatRecursive()
+                refreshGizmoTransformForMode(resolved)
             }
             rebuildBounds(bounds)
             updateLightVisual(
@@ -801,6 +785,38 @@ object TransformGizmoEditor {
                 isHovered = TransformGizmoEditor.hoveredKey == stableKey,
                 isActive = TransformGizmoEditor.activeKey == stableKey,
             )
+        }
+
+        fun refreshGizmoTransformForMode(resolved: ResolvedAnchorTransform? = lastResolved) {
+            val current = resolved ?: return
+            if (gizmo.isManipulating) return
+            val gizmoRotation = when (TransformGizmoEditor.mode) {
+                GizmoEditMode.TRANSLATE -> quatFToGizmoRotation(QuatF.IDENTITY)
+                GizmoEditMode.ROTATE,
+                GizmoEditMode.SCALE,
+                -> quatFToGizmoRotation(current.transform.rotation)
+            }
+            val gizmoScale = when (TransformGizmoEditor.mode) {
+                GizmoEditMode.SCALE -> Vec3d(
+                    current.transform.scale.x.toDouble(),
+                    current.transform.scale.y.toDouble(),
+                    current.transform.scale.z.toDouble(),
+                )
+                GizmoEditMode.TRANSLATE,
+                GizmoEditMode.ROTATE,
+                -> Vec3d(1.0, 1.0, 1.0)
+            }
+
+            gizmo.gizmoTransform.setCompositionOf(
+                Vec3d(
+                    current.transform.translation.x.toDouble(),
+                    current.transform.translation.y.toDouble(),
+                    current.transform.translation.z.toDouble(),
+                ),
+                gizmoRotation,
+                gizmoScale,
+            )
+            gizmo.updateModelMatRecursive()
         }
 
         fun updatePresentation(isHovered: Boolean, isActive: Boolean) {
@@ -904,11 +920,9 @@ object TransformGizmoEditor {
                     val previewDistance = spotLightPreviewDistance(light)
                     val outerRadius = max((tan(Math.toRadians((light.outerAngle * 0.5f).toDouble())) * previewDistance).toFloat(), 0.035f)
                     val innerRadius = max((tan(Math.toRadians((light.innerAngle * 0.5f).toDouble())) * previewDistance).toFloat(), 0.015f)
-                    val directionRotation = rotationFromForwardZ(spotLightDirection(resolved.transform.rotation))
-
                     lightVisualTransform.setCompositionOf(
                         resolved.transform.translation,
-                        directionRotation,
+                        resolved.transform.rotation,
                         Vec3f(1f, 1f, 1f),
                     )
                     spotOuterTransform.setCompositionOf(
@@ -982,18 +996,31 @@ object TransformGizmoEditor {
             val level = Minecraft.getInstance().level ?: return
             gizmoWorldMatrix.setIdentity()
                 .mul(gizmo.gizmoTransform.matrixD)
-                .mul(gizmoClientOffset)
             gizmoWorldMatrix.decompose(decomposedTranslation, decomposedRotation, decomposedScale)
-            val updatedTransform = worldTransformToComponent(
-                level = level,
-                anchor = anchor,
-                worldPosition = Vec3(decomposedTranslation.x, decomposedTranslation.y, decomposedTranslation.z),
-                worldRotation = gizmoRotationToQuatF(decomposedRotation),
-                worldScale = Vec3f(
+            val resolved = lastResolved ?: return
+            val worldPosition = Vec3(decomposedTranslation.x, decomposedTranslation.y, decomposedTranslation.z)
+            val worldRotation = when (TransformGizmoEditor.mode) {
+                GizmoEditMode.TRANSLATE -> resolved.transform.rotation
+                GizmoEditMode.ROTATE,
+                GizmoEditMode.SCALE,
+                -> gizmoRotationToQuatF(decomposedRotation)
+            }
+            val worldScale = when (TransformGizmoEditor.mode) {
+                GizmoEditMode.TRANSLATE,
+                GizmoEditMode.ROTATE,
+                -> Vec3f(resolved.transform.scale)
+                GizmoEditMode.SCALE -> Vec3f(
                     decomposedScale.x.toFloat(),
                     decomposedScale.y.toFloat(),
                     decomposedScale.z.toFloat(),
-                ),
+                )
+            }
+            val updatedTransform = worldTransformToComponent(
+                level = level,
+                anchor = anchor,
+                worldPosition = worldPosition,
+                worldRotation = worldRotation,
+                worldScale = worldScale,
                 partialTick = TickHandler.partialTick,
             ) ?: return
 

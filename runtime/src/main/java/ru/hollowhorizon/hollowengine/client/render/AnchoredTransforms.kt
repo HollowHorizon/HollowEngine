@@ -184,10 +184,10 @@ fun worldTransformToComponent(
 }
 
 fun quatFToGizmoRotation(rotation: QuatF): QuatD =
-    MutableQuatD(rotation.x.toDouble(), rotation.y.toDouble(), rotation.z.toDouble(), rotation.w.toDouble())
+    MutableQuatD(rotation.x.toDouble(), rotation.y.toDouble(), rotation.z.toDouble(), rotation.w.toDouble()).norm()
 
 fun gizmoRotationToQuatF(rotation: QuatD): QuatF =
-    QuatF(rotation.x.toFloat(), rotation.y.toFloat(), rotation.z.toFloat(), rotation.w.toFloat())
+    MutableQuatF(rotation.x.toFloat(), rotation.y.toFloat(), rotation.z.toFloat(), rotation.w.toFloat()).norm()
 
 fun findAnchorHostEntity(level: net.minecraft.world.level.Level, hostUuid: java.util.UUID): MCEntity? {
     val runtimeId = MaterializationRuntimeState.service(level).runtimeIdOf(hostUuid) ?: return null

@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.bootstrap.fabric;
+package ru.hollowhorizon.hollowengine.fabric.bootstap;
 
 import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.minecraft.server.level.ServerLevel;

@@ -23,24 +23,22 @@ public class ShadowRendererMixin {
     }
 
     @Inject(
-        method = "renderShadows",
-        at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/MultiBufferSource$BufferSource;endBatch()V",
-            shift = At.Shift.BEFORE
-        )
+            method = "renderShadows",
+            at = @At(
+                    value = "CONSTANT",
+                    args = "stringValue=draw entities")
     )
     private void hollowengine$flushShadowBatch(
-        LevelRendererAccessor levelRenderer,
-        Camera playerCamera,
-        CallbackInfo ci,
-        @Local(name = "modelView") PoseStack modelView,
-        @Local(name = "bufferSource") MultiBufferSource.BufferSource bufferSource,
-        @Local(name = "tickDelta") float tickDelta,
-        @Local(name = "entityShadowFrustum") Frustum entityShadowFrustum,
-        @Local(name = "cameraX") double cameraX,
-        @Local(name = "cameraY")  double cameraY,
-        @Local(name = "cameraZ")  double cameraZ
+            LevelRendererAccessor levelRenderer,
+            Camera playerCamera,
+            CallbackInfo ci,
+            @Local(name = "modelView") PoseStack modelView,
+            @Local(name = "bufferSource") MultiBufferSource.BufferSource bufferSource,
+            @Local(name = "tickDelta") float tickDelta,
+            @Local(name = "entityShadowFrustum") Frustum entityShadowFrustum,
+            @Local(name = "cameraX") double cameraX,
+            @Local(name = "cameraY") double cameraY,
+            @Local(name = "cameraZ") double cameraZ
     ) {
         BootstrapRuntimeManager.bridge().onIrisShadowRenderCasters(modelView, bufferSource, tickDelta, entityShadowFrustum, cameraX, cameraY, cameraZ);
         BootstrapRuntimeManager.bridge().onIrisShadowRenderBeforeEndBatch();

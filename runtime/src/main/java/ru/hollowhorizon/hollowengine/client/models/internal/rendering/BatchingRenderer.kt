@@ -3,6 +3,8 @@ package ru.hollowhorizon.hollowengine.client.models.internal.rendering
 import com.mojang.blaze3d.vertex.VertexConsumer
 import de.fabmax.kool.math.MutableMat3f
 import de.fabmax.kool.math.MutableVec3f
+import de.fabmax.kool.math.Vec2f
+import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.util.Color
 import org.joml.Matrix3f
 import org.joml.Matrix4f
@@ -24,19 +26,28 @@ class BatchingRenderer(
         visibilityGetter: VisibilityGetter
     ) {
         val indices = primitive.indices
+        val positions = primitive.positions
+        val normals = primitive.normals
+        val texCoords = primitive.texCoords
         val iterator = indices?.asIterable() ?: (0 until primitive.positionsCount / 3)
 
         pipeline.addBatchedRenderable {
             if (!visibilityGetter()) return@addBatchedRenderable
+            val posArray = positions ?: return@addBatchedRenderable
+            val normArray = normals ?: return@addBatchedRenderable
+            val texArray = texCoords ?: return@addBatchedRenderable
+            if (posArray.isEmpty() || normArray.isEmpty() || texArray.isEmpty()) return@addBatchedRenderable
+            if (indices != null && indices.isEmpty()) return@addBatchedRenderable
 
             val renderType = batchingRenderType.apply(primitive.material)
+            openedBatchedRenderTypes?.add(renderType)
             val vertexConsumer = source.getBuffer(renderType)
             val pose = stack.last().pose()
             val normal = stack.last().normal()
             val color = primitive.material.color
 
             for (i in iterator) {
-                putVertex(matrixGetter, i, vertexConsumer, pose, normal, color, overlay, light)
+                putVertex(matrixGetter, i, vertexConsumer, pose, normal, color, overlay, light, posArray, normArray, texArray)
             }
         }
     }
@@ -49,11 +60,12 @@ class BatchingRenderer(
         normalMat: Matrix3f,
         color: Color,
         overlayCoords: Int,
-        packedLight: Int
+        packedLight: Int,
+        posArray: Array<Vec3f>,
+        normArray: Array<Vec3f>,
+        texArray: Array<Vec2f>,
     ) {
-        val posArray = primitive.positions ?: return
-        val normArray = primitive.normals ?: return
-        val texArray = primitive.texCoords ?: return
+        if (index !in posArray.indices || index !in normArray.indices || index !in texArray.indices) return
 
         val global = getter()
         val pos = global.transform(posArray[index], 1f, MutableVec3f())
@@ -66,7 +78,6 @@ class BatchingRenderer(
             .overlayCoords(overlayCoords)
             .uv2(packedLight)
             .normal(normalMat, normal.x, normal.y, normal.z)
-            .endVertex()
     }
 
     override fun destroy() {

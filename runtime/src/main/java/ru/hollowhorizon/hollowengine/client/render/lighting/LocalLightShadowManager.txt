@@ -424,7 +424,6 @@ internal object LocalLightShadowManager {
                 }
 
                 renderer.setShouldRegenerateClouds(regenerateClouds)
-                ShadowRenderer.renderDistance = (entry.farPlane / 16f).toInt().coerceAtLeast(1)
                 renderer.invokeSetupRender(lightCamera, frustum, false, false)
 
                 val stack = RenderSystem.getModelViewStack()

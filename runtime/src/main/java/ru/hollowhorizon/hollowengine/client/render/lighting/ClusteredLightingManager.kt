@@ -361,8 +361,8 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
 
         viewResolution = Vector2i(minecraft.window.width, minecraft.window.height)
         cameraPosition = Vector3f(cameraPos.x.toFloat(), cameraPos.y.toFloat(), cameraPos.z.toFloat())
-        viewMatrix = Matrix4f(event.poseStack.last().pose())
-        projectionMatrix = Matrix4f(event.projectionMatrix)
+        viewMatrix = IrisHelper.currentGbufferModelViewMatrix()
+        projectionMatrix = IrisHelper.currentGbufferProjectionMatrix(event.projectionMatrix)
         viewProjectionMatrix = Matrix4f(projectionMatrix).mul(viewMatrix)
         clipPlanes = extractClipPlanes(projectionMatrix)
     }

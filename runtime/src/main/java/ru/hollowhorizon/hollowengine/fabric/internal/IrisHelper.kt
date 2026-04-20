@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.fabric.internal
 
+import com.mojang.blaze3d.systems.RenderSystem
 import net.irisshaders.iris.Iris
 import net.irisshaders.iris.api.v0.IrisApi
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline
@@ -8,6 +9,7 @@ import net.irisshaders.iris.pipeline.ShaderRenderingPipeline
 import net.irisshaders.iris.shaderpack.loading.ProgramId
 import net.irisshaders.iris.shaderpack.properties.ShaderProperties
 import net.irisshaders.iris.uniforms.CapturedRenderingState
+import org.joml.Matrix4f
 import ru.hollowhorizon.hollowengine.client.render.lighting.LightCullingSupport
 import ru.hollowhorizon.hollowengine.client.render.lighting.detectLightCullingSupport
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ModelInstancingBackend
@@ -65,6 +67,18 @@ object IrisHelper {
     }
 
     fun isClusteredLightingCompatible(): Boolean = currentLightCullingSupport().clustered
+
+    fun currentGbufferModelViewMatrix(): Matrix4f = if (isShaderPackInUse()) {
+        Matrix4f(CapturedRenderingState.INSTANCE.gbufferModelView)
+    } else {
+        Matrix4f(RenderSystem.getModelViewMatrix())
+    }
+
+    fun currentGbufferProjectionMatrix(fallback: Matrix4f): Matrix4f = if (isShaderPackInUse()) {
+        Matrix4f(CapturedRenderingState.INSTANCE.gbufferProjection)
+    } else {
+        Matrix4f(fallback)
+    }
 
     fun instancingBackend(): ModelInstancingBackend = IrisInstancingBackend
 

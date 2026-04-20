@@ -64,7 +64,7 @@ object RenderManager {
         minecraft.level ?: return
         val bufferSource = minecraft.renderBuffers().bufferSource()
 
-        renderAnchoredModels(
+        val renderStats = renderAnchoredModels(
             partialTick = event.partialTick,
             poseStack = event.poseStack,
             bufferSource = bufferSource,
@@ -73,8 +73,7 @@ object RenderManager {
             packedLight = -1,
             allowInstancing = shouldAllowInstancingInCurrentPass(),
         )
-
-        bufferSource.endBatch()
+        flushAnchoredBatches(bufferSource, renderStats)
     }
 
     fun renderLocalShadowCasters(
@@ -249,10 +248,12 @@ object RenderManager {
         frustum: Frustum?,
         packedLight: Int,
         allowInstancing: Boolean,
-    ) {
+    ): AnchoredRenderStats {
         val minecraft = Minecraft.getInstance()
-        val level = minecraft.level ?: return
+        val level = minecraft.level ?: return AnchoredRenderStats.EMPTY
         val materialization = MaterializationRuntimeState.service(level)
+        var renderedAny = false
+        val openedBatchedRenderTypes = LinkedHashSet<net.minecraft.client.renderer.RenderType>()
 
         materialization.forEachModelRecord { record ->
             if ((record.anchor as? EntityAnchor)?.primary == true) return@forEachModelRecord
@@ -293,11 +294,14 @@ object RenderManager {
                         if (packedLight >= 0) packedLight else resolved.light,
                         OverlayTexture.NO_OVERLAY,
                         allowInstancing = allowInstancing,
+                        openedBatchedRenderTypes = openedBatchedRenderTypes,
                     )
                 )
                 poseStack.popPose()
+                renderedAny = true
             }
         }
+        return AnchoredRenderStats(renderedAny, openedBatchedRenderTypes)
     }
 
     private fun renderAnchoredShadowCasters(
@@ -309,7 +313,7 @@ object RenderManager {
         packedLight: Int,
         allowInstancing: Boolean,
     ) {
-        renderAnchoredModels(
+        val renderStats = renderAnchoredModels(
             partialTick = partialTick,
             poseStack = poseStack,
             bufferSource = bufferSource,
@@ -318,8 +322,24 @@ object RenderManager {
             packedLight = packedLight,
             allowInstancing = allowInstancing,
         )
+        flushAnchoredBatches(bufferSource, renderStats)
+    }
+
+    private fun flushAnchoredBatches(bufferSource: MultiBufferSource, renderStats: AnchoredRenderStats) {
+        if (!renderStats.renderedAny || renderStats.openedBatchedRenderTypes.isEmpty()) return
+        val flushable = bufferSource as? MultiBufferSource.BufferSource ?: return
+        renderStats.openedBatchedRenderTypes.forEach(flushable::endBatch)
     }
 
     private fun shouldAllowInstancingInCurrentPass(): Boolean =
         !IrisHelper.isShadowRendering() && !ClusteredLightingManager.isLocalShadowPassActive()
+
+    private data class AnchoredRenderStats(
+        val renderedAny: Boolean,
+        val openedBatchedRenderTypes: Set<net.minecraft.client.renderer.RenderType>,
+    ) {
+        companion object {
+            val EMPTY = AnchoredRenderStats(renderedAny = false, openedBatchedRenderTypes = emptySet())
+        }
+    }
 }

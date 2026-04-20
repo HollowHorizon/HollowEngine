@@ -5,6 +5,7 @@ import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.MultiBufferSource
+import net.minecraft.client.renderer.RenderType
 import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.client.models.internal.drawWithShader
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
@@ -30,7 +31,8 @@ data class RenderContext(
     val source: MultiBufferSource,
     val light: Int,
     val overlay: Int,
-    val allowInstancing: Boolean = false
+    val allowInstancing: Boolean = false,
+    val openedBatchedRenderTypes: MutableSet<RenderType>? = null,
 )
 
 
