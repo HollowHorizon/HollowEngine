@@ -1,4 +1,3 @@
-//? if fabric {
 package ru.hollowhorizon.hollowengine.fabric
 
 import ru.hollowhorizon.hollowengine.HollowCore
@@ -35,4 +34,3 @@ object HCInit {
 
     }
 }
-//?}

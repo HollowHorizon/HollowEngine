@@ -1,11 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.utils
 
-//? if forge {
-/*import net.minecraftforge.fml.loading.FMLConfig
-*///?} else if neoforge {
-/*import net.neoforged.fml.loading.FMLConfig
-*///?}
-
 import ru.hollowhorizon.hollowengine.common.config.Config
 import ru.hollowhorizon.hollowengine.common.config.ConfigName
 import ru.hollowhorizon.hollowengine.common.config.PropertyComment
@@ -25,6 +19,7 @@ object HollowCoreLoader : Config() {
     fun canAttachRenderdoc(): Boolean {
         if (!enableRenderDoc) return false
 
+        // TODO: fix on neoforge
         //? if fabric {
         return true
         //?} else {

@@ -122,10 +122,6 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void onRegisterTags(Object registry, Map<ResourceLocation, List<TagLoader.EntryWithSource>> value);
 
-    //? if < 1.21 {
-    /*void onRegisterLoot(Map<LootDataId<?>, Object> elements);
-     *///?}
-
     float getSkySunSize(ClientLevel level, float originalSize);
 
     float getSkyMoonSize(ClientLevel level, float originalSize);

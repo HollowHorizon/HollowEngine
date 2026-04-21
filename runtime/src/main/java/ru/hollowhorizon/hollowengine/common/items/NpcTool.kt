@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.items
 
-//? if <=1.19.2
-/*import ru.hollowhorizon.hollowengine.client.utils.math.level*/
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResultHolder
 import net.minecraft.world.entity.player.Player

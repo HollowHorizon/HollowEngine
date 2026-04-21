@@ -1,4 +1,3 @@
-//? if fabric {
 package ru.hollowhorizon.hollowengine.fabric
 
 import sun.misc.Unsafe
@@ -16,4 +15,3 @@ fun <T> findField(lookup: Any, name: String): T {
     val offset = unsafe.objectFieldOffset(field)
     return unsafe.getObject(lookup, offset) as T
 }
-//?}
