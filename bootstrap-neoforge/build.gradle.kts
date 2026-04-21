@@ -1,4 +1,3 @@
-
 import java.security.MessageDigest
 
 plugins {
@@ -17,7 +16,13 @@ val minecraftVersion: String by rootProject.properties
 val neoForgeVersion: String by rootProject.properties
 val architecturyApiVersion: String by rootProject.properties
 
-layout.buildDirectory.set(rootProject.layout.projectDirectory.dir("build/${project.path.removePrefix(":").replace(':', '/')}"))
+layout.buildDirectory.set(
+    rootProject.layout.projectDirectory.dir(
+        "build/${
+            project.path.removePrefix(":").replace(':', '/')
+        }"
+    )
+)
 group = modGroup
 version = modVersion
 base.archivesName.set("$modName-neoforge-$minecraftVersion")
@@ -81,8 +86,14 @@ dependencies {
 
     neoForge("net.neoforged:neoforge:$neoForgeVersion")
     modImplementation("dev.architectury:architectury-neoforge:$architecturyApiVersion")
-    modImplementation("lib:iris-neoforge:1.8.12+mc1.21.1")
-    modImplementation("lib:sodium-neoforge:0.6.13+mc1.21.1")
+
+    implementation("lib:iris-neoforge:1.8.12+mc1.21.1")
+    runtimeOnly("lib:iris-neoforge:1.8.12+mc1.21.1")
+
+    implementation("lib:sodium-neoforge:0.6.13+mc1.21.1")
+    runtimeOnly("lib:sodium-neoforge:0.6.13+mc1.21.1")
+
+
     implementation("io.github.llamalad7:mixinextras-neoforge:0.4.1")
 
     implementation("org.anarres:jcpp:1.4.14")
@@ -139,7 +150,12 @@ val generateNeoForgeModMetadata = tasks.register<ProcessResources>("generateNeoF
 }
 
 sourceSets.named("main").configure {
-    java.setSrcDirs(listOf(rootProject.file("bootstrap/src/main/java")))
+    java.setSrcDirs(
+        listOf(
+            rootProject.file("bootstrap/src/main/java"),
+            rootProject.file("bootstrap-neoforge/src/main/java"),
+        )
+    )
     java.exclude(
         "ru/hollowhorizon/hollowengine/bootstrap/fabric/**",
         "ru/hollowhorizon/hollowengine/bootstrap/forge/**",
@@ -193,7 +209,11 @@ val bootstrapDevJar = tasks.register<Jar>("bootstrapDevJar") {
     archiveVersion.set(project.version.toString())
     archiveClassifier.set("dev")
 
-    from(zipTree(tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar").flatMap { it.archiveFile }))
+    from(
+        zipTree(
+            tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar")
+                .flatMap { it.archiveFile })
+    )
     from(embeddedRuntimeDir)
 }
 

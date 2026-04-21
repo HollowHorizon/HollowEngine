@@ -1,16 +1,13 @@
-package ru.hollowhorizon.hollowengine.bootstrap.runtime;
+package ru.hollowhorizon.hollowengine.bootstrap.impl;
 
-import ru.hollowhorizon.hollowengine.bootstrap.runtime.transform.RuntimeClassTransformer;
+
+import ru.hollowhorizon.hollowengine.bootstrap.impl.transform.RuntimeClassTransformer;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class ChildFirstUrlClassLoader extends URLClassLoader {
     private final Set<String> parentFirstPackages;

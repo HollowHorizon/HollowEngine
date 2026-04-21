@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.bootstrap.runtime.transform;
+package ru.hollowhorizon.hollowengine.bootstrap.impl.transform;
 
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;

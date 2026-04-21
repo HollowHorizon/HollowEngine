@@ -20,16 +20,7 @@ import ru.hollowhorizon.hollowengine.client.utils.registryAccess
  *
  * @return `true` if the game is in production mode, otherwise `false`.
  */
-val isProduction: Boolean
-    get() {
-        //? if neoforge {
-        /*return net.neoforged.fml.loading.FMLLoader.isProduction()
-        *///?} elif forge {
-        /*return net.minecraftforge.fml.loading.FMLLoader.isProduction()
-        *///?} else {
-        return !net.fabricmc.loader.api.FabricLoader.getInstance().isDevelopmentEnvironment
-        //?}
-    }
+var isProduction: Boolean = false
 
 /**
  * Checks if the current thread is the logical client thread.
@@ -43,16 +34,7 @@ val isLogicalClient get() = isPhysicalClient && RenderSystem.isOnRenderThread()
  *
  * @return `true` if running on the client side, otherwise `false`.
  */
-val isPhysicalClient: Boolean
-    get() {
-        //? if neoforge {
-        /*return net.neoforged.fml.loading.FMLLoader.getDist().isClient
-        *///?} elif forge {
-        /*return net.minecraftforge.fml.loading.FMLLoader.getDist().isClient
-        *///?} else {
-        return net.fabricmc.loader.api.FabricLoader.getInstance().environmentType == net.fabricmc.api.EnvType.CLIENT
-        //?}
-    }
+var isPhysicalClient = false
 
 val RANDOM = RandomSource.create()
 

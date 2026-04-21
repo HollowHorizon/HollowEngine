@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
-import ru.hollowhorizon.hollowengine.bootstrap.runtime.BootstrapRuntimeManager;
+import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
 
 import java.util.Set;
 

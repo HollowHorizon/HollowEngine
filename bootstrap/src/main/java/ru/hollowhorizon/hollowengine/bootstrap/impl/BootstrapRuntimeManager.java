@@ -1,9 +1,9 @@
-package ru.hollowhorizon.hollowengine.bootstrap.runtime;
-
-import ru.hollowhorizon.hollowengine.bootstrap.runtime.transform.RuntimeClassTransformers;
+package ru.hollowhorizon.hollowengine.bootstrap.impl;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import ru.hollowhorizon.hollowengine.bootstrap.impl.transform.RuntimeClassTransformers;
+import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimeBridge;
 
 import java.io.File;
 import java.lang.reflect.Constructor;

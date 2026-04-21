@@ -1,44 +1,41 @@
-//? if fabric {
 package ru.hollowhorizon.hollowengine.fabric
 
-import net.fabricmc.api.EnvType
-import net.fabricmc.loader.api.FabricLoader
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
-import ru.hollowhorizon.hollowengine.common.runtime.RuntimeAnnotationEnvironment
-import ru.hollowhorizon.hollowengine.common.runtime.loadBootstrapOrRuntimeClass
-import ru.hollowhorizon.hollowengine.common.runtime.resolve
 import ru.hollowhorizon.hollowengine.common.registry.HollowModProcessor
 import ru.hollowhorizon.hollowengine.common.registry.getAnnotatedClasses
 import ru.hollowhorizon.hollowengine.common.registry.getAnnotatedMethods
 import ru.hollowhorizon.hollowengine.common.registry.getSubTypes
+import ru.hollowhorizon.hollowengine.common.runtime.RuntimeAnnotationEnvironment
+import ru.hollowhorizon.hollowengine.common.runtime.loadBootstrapOrRuntimeClass
+import ru.hollowhorizon.hollowengine.common.runtime.resolve
+import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
 
-object CoreInitializationFabric {
+object CoreInitialization {
     init {
-        val isClient = FabricLoader.getInstance().environmentType == EnvType.CLIENT
 
         getSubTypes =
             { superType ->
                 RuntimeAnnotationEnvironment.annotationIndex
-                    .getSubTypes(superType.name, isClient)
+                    .getSubTypes(superType.name, isPhysicalClient)
                     .mapNotNull { loadBootstrapOrRuntimeClass(it, HollowCore::class.java.classLoader) }
-                    .filter { isClient || !it.isAnnotationPresent(ClientOnly::class.java) }
+                    .filter { isPhysicalClient || !it.isAnnotationPresent(ClientOnly::class.java) }
                     .toSet()
             }
         getAnnotatedClasses =
             { annotation ->
                 RuntimeAnnotationEnvironment.annotationIndex
-                    .getAnnotatedClasses(annotation.name, isClient)
+                    .getAnnotatedClasses(annotation.name, isPhysicalClient)
                     .mapNotNull { loadBootstrapOrRuntimeClass(it, HollowCore::class.java.classLoader) }
-                    .filter { isClient || !it.isAnnotationPresent(ClientOnly::class.java) }
+                    .filter { isPhysicalClient || !it.isAnnotationPresent(ClientOnly::class.java) }
                     .toSet()
             }
         getAnnotatedMethods =
             { annotation ->
                 RuntimeAnnotationEnvironment.annotationIndex
-                    .getAnnotatedMethods(annotation.name, isClient)
+                    .getAnnotatedMethods(annotation.name, isPhysicalClient)
                     .mapNotNull { it.resolve(HollowCore::class.java.classLoader) }
-                    .filter { isClient || !it.isAnnotationPresent(ClientOnly::class.java) }
+                    .filter { isPhysicalClient || !it.isAnnotationPresent(ClientOnly::class.java) }
                     .toSet()
             }
 
@@ -50,4 +47,3 @@ object CoreInitializationFabric {
         getAnnotatedMethods = { emptySet() }
     }
 }
-//?}

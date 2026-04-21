@@ -1,3 +1,4 @@
+@file:Suppress("UNCHECKED_CAST")
 package ru.hollowhorizon.hollowengine.common.registry
 
 import net.minecraft.core.Registry
@@ -5,16 +6,17 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.item.CreativeModeTab
 import net.minecraft.world.item.Items
 import ru.hollowhorizon.hollowengine.HollowCore.MODID
+import ru.hollowhorizon.hollowengine.api.AutoModelType
+import ru.hollowhorizon.hollowengine.api.RegistryHolder
 import ru.hollowhorizon.hollowengine.common.utils.HollowCreativeTab
 import ru.hollowhorizon.hollowengine.common.utils.mcTranslate
 import ru.hollowhorizon.hollowengine.common.utils.rl
-import kotlin.properties.ReadOnlyProperty
+import kotlin.reflect.KProperty
 
 open class HollowRegistry(val modId: String = MODID) {
     /**
      * Avoid fake NotNulls parameters like BlockEntityType.Builder::build
      */
-    @Suppress("UNCHECKED_CAST")
     fun <T> promise(): T = null as T
 
     inline fun <reified T : Any> register(
@@ -22,14 +24,14 @@ open class HollowRegistry(val modId: String = MODID) {
         autoModel: AutoModelType? = AutoModelType.DEFAULT,
         registry: Registry<in T>? = null,
         noinline registryEntry: (ResourceLocation) -> T,
-    ): IRegistryHolder<T> {
-        return createRegistry(
+    ): RegistryHolder<T> {
+        return CommonRegistryProvider.register(
             location,
-            registry,
+            registry as Registry<Any>?,
             autoModel,
             { registryEntry(location) },
-            T::class.java
-        ) as IRegistryHolder<T>
+            T::class.java as Class<Any>
+        ) as RegistryHolder<T>
     }
 
     inline fun <reified T : Any> register(
@@ -37,7 +39,7 @@ open class HollowRegistry(val modId: String = MODID) {
         autoModel: AutoModelType? = AutoModelType.DEFAULT,
         registry: Registry<in T>? = null,
         noinline registryEntry: (ResourceLocation) -> T,
-    ): IRegistryHolder<T> = register("$modId:$id".rl, autoModel, registry, registryEntry)
+    ): RegistryHolder<T> = register("$modId:$id".rl, autoModel, registry, registryEntry)
 
     fun creativeTab(name: String, block: CreativeModeTab.Builder.() -> Unit = {}) = register(name) {
         HollowCreativeTab.builder()
@@ -48,6 +50,4 @@ open class HollowRegistry(val modId: String = MODID) {
     }
 }
 
-lateinit var createRegistry: (ResourceLocation, Registry<*>?, AutoModelType?, () -> Any, Class<*>) -> IRegistryHolder<*>
-
-typealias IRegistryHolder<T> = ReadOnlyProperty<Any?, T>
+operator fun <T> RegistryHolder<T>.getValue(thisRef: Any?, property: KProperty<*>): T = get()

@@ -7,20 +7,13 @@ import ru.hollowhorizon.hollowengine.client.models.internal.rendering.VanillaIns
 import ru.hollowhorizon.hollowengine.client.utils.InstancingEntityInfo
 import ru.hollowhorizon.hollowengine.client.utils.instancingBackendProvider
 import ru.hollowhorizon.hollowengine.client.utils.instancingEntityInfoProvider
-import ru.hollowhorizon.hollowengine.common.registry.createRegistry
-import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 import ru.hollowhorizon.hollowengine.common.utils.ModList
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
-import ru.hollowhorizon.hollowengine.fabric.internal.RegistryHolderFabric
 
-object HCFabric {
+object HCInit {
     @JvmStatic
     fun onCommonInitialize() {
-        createRegistry = { rl, reg, bool, f, a ->
-            RegistryHolderFabric(rl, JavaHacks.forceCast(reg), bool, JavaHacks.forceCast(f), a)
-        }
-
-        CoreInitializationFabric
+        CoreInitialization
         HollowCore
     }
 

@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
-import ru.hollowhorizon.hollowengine.bootstrap.runtime.BootstrapRuntimeManager;
+import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimeBridge;
 import ru.hollowhorizon.hollowengine.bridge.mixins.client.CameraInvoker;
 

@@ -12,7 +12,7 @@ import net.minecraft.server.packs.metadata.MetadataSectionSerializer
 import net.minecraft.server.packs.repository.Pack
 import net.minecraft.server.packs.repository.PackSource
 import net.minecraft.server.packs.resources.IoSupplier
-import ru.hollowhorizon.hollowengine.common.registry.AutoModelType
+import ru.hollowhorizon.hollowengine.api.AutoModelType
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.io.ByteArrayInputStream

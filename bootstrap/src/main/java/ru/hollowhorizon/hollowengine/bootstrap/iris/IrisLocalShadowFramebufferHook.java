@@ -1,7 +1,7 @@
 package ru.hollowhorizon.hollowengine.bootstrap.iris;
 
 import net.irisshaders.iris.gl.framebuffer.GlFramebuffer;
-import ru.hollowhorizon.hollowengine.bootstrap.runtime.BootstrapRuntimeManager;
+import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
 
 public final class IrisLocalShadowFramebufferHook {
     private IrisLocalShadowFramebufferHook() {

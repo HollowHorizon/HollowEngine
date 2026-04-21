@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.bootstrap.runtime;
+package ru.hollowhorizon.hollowengine.bootstrap.impl;
 
 import org.jetbrains.annotations.Nullable;
 

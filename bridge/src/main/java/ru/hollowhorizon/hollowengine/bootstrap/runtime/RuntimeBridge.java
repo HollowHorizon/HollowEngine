@@ -58,6 +58,8 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import ru.hollowhorizon.hollowengine.api.ModList;
 import ru.hollowhorizon.hollowengine.api.NetworkManager;
+import ru.hollowhorizon.hollowengine.api.RegistryHelper;
+import ru.hollowhorizon.hollowengine.api.RegistryProvider;
 import ru.hollowhorizon.hollowengine.api.extensions.FakePlayerFactory;
 import ru.hollowhorizon.hollowengine.api.extensions.ItemStackHelper;
 
@@ -70,6 +72,8 @@ import java.util.function.Supplier;
 
 public interface RuntimeBridge extends AutoCloseable {
     EventBridge events();
+
+    void setProduction(boolean production);
 
     boolean shouldApplyMixin(String targetClassName, String mixinClassName);
 
@@ -119,7 +123,7 @@ public interface RuntimeBridge extends AutoCloseable {
 
     //? if < 1.21 {
     /*void onRegisterLoot(Map<LootDataId<?>, Object> elements);
-    *///?}
+     *///?}
 
     float getSkySunSize(ClientLevel level, float originalSize);
 
@@ -210,9 +214,9 @@ public interface RuntimeBridge extends AutoCloseable {
     void onRecipeManagerCreated(RecipeManager recipeManager);
 
     void onAddEntityRendererLayers(
-        Map<EntityType<?>, EntityRenderer<?>> renderers,
-        Map<String, EntityRenderer<? extends Player>> playerRenderers,
-        EntityRendererProvider.Context context
+            Map<EntityType<?>, EntityRenderer<?>> renderers,
+            Map<String, EntityRenderer<? extends Player>> playerRenderers,
+            EntityRendererProvider.Context context
     );
 
     boolean onRenderEntityPre(Entity entity, float entityYaw, float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight);
@@ -275,9 +279,6 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void onClientInitialize();
 
-    void onForgeInitialize();
-
-    void onNeoForgeInitialize(Object modBus);
 
     @Override
     default void close() {
@@ -290,6 +291,42 @@ public interface RuntimeBridge extends AutoCloseable {
     void initNetwork(NetworkManager networkManager);
 
     void initModList(ModList modList);
+
+    RegistryHelper getRegistryHelper();
+
+    void initRegistryProvider(RegistryProvider<?> provider);
+
+    enum OverlayKind {
+        VIGNETTE,
+        SPYGLASS,
+        HELMET,
+        PORTAL,
+        HOTBAR,
+        CROSSHAIR,
+        PLAYER_HEALTH,
+        MOUNT_HEALTH,
+        JUMP_BAR,
+        EXPERIENCE_BAR,
+        ITEM_NAME,
+        POTION_ICONS,
+        BOSS_EVENT_PROGRESS,
+        CHAT_PANEL,
+        DEBUG_TEXT
+    }
+
+    enum RenderLevelStage {
+        AFTER_LEVEL,
+        AFTER_SKY,
+        AFTER_ENTITIES,
+        AFTER_BLOCK_ENTITIES,
+        AFTER_PARTICLES,
+        AFTER_WEATHER,
+        AFTER_SOLID_BLOCKS,
+        AFTER_CUTOUT_MIPPED_BLOCKS,
+        AFTER_CUTOUT_BLOCKS,
+        AFTER_TRANSLUCENT_BLOCKS,
+        AFTER_TRIPWIRE_BLOCKS
+    }
 
     final class BreedResult {
         private final @Nullable AgeableMob child;
@@ -331,37 +368,5 @@ public interface RuntimeBridge extends AutoCloseable {
     }
 
     record MouseMoveResult(float x, float y, boolean cancel, boolean resetMousePosition) {
-    }
-
-    enum OverlayKind {
-        VIGNETTE,
-        SPYGLASS,
-        HELMET,
-        PORTAL,
-        HOTBAR,
-        CROSSHAIR,
-        PLAYER_HEALTH,
-        MOUNT_HEALTH,
-        JUMP_BAR,
-        EXPERIENCE_BAR,
-        ITEM_NAME,
-        POTION_ICONS,
-        BOSS_EVENT_PROGRESS,
-        CHAT_PANEL,
-        DEBUG_TEXT
-    }
-
-    enum RenderLevelStage {
-        AFTER_LEVEL,
-        AFTER_SKY,
-        AFTER_ENTITIES,
-        AFTER_BLOCK_ENTITIES,
-        AFTER_PARTICLES,
-        AFTER_WEATHER,
-        AFTER_SOLID_BLOCKS,
-        AFTER_CUTOUT_MIPPED_BLOCKS,
-        AFTER_CUTOUT_BLOCKS,
-        AFTER_TRANSLUCENT_BLOCKS,
-        AFTER_TRIPWIRE_BLOCKS
     }
 }

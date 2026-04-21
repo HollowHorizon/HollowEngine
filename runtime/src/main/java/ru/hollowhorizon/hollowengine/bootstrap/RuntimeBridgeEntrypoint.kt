@@ -36,7 +36,6 @@ import net.minecraft.core.Direction
 import net.minecraft.core.NonNullList
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.FileToIdConverter
-import net.minecraft.resources.ResourceKey
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerLevel
@@ -64,10 +63,8 @@ import net.minecraft.world.phys.BlockHitResult
 import org.joml.Matrix4f
 import ru.hollowhorizon.hollowengine.ConsoleAppender
 import ru.hollowhorizon.hollowengine.LOGGER
-import ru.hollowhorizon.hollowengine.api.AutoScaled
-import ru.hollowhorizon.hollowengine.api.HudHideable
+import ru.hollowhorizon.hollowengine.api.*
 import ru.hollowhorizon.hollowengine.api.ModList
-import ru.hollowhorizon.hollowengine.api.NetworkManager
 import ru.hollowhorizon.hollowengine.api.extensions.FakePlayerFactory
 import ru.hollowhorizon.hollowengine.api.extensions.ItemStackHelper
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.EventBridge
@@ -108,14 +105,12 @@ import ru.hollowhorizon.hollowengine.common.events.registry.RegisterTagsEvent
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hollowengine.common.events.server.ServerEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
+import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryHelper
+import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryProvider
 import ru.hollowhorizon.hollowengine.common.runtime.EmptyRuntimeAnnotationIndex
 import ru.hollowhorizon.hollowengine.common.runtime.RuntimeAnnotationEnvironment
-import ru.hollowhorizon.hollowengine.common.utils.FakePlayer
-import ru.hollowhorizon.hollowengine.common.utils.ItemStackUtil
-import ru.hollowhorizon.hollowengine.common.utils.currentServer
-import ru.hollowhorizon.hollowengine.common.utils.isProduction
+import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import ru.hollowhorizon.hollowengine.network.CommonNetworkManager
 import ru.hollowhorizon.hollowengine.runtime.bootstrap.ClassGraphRuntimeAnnotationIndex
@@ -132,6 +127,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         if (RuntimeAnnotationEnvironment.annotationIndex === EmptyRuntimeAnnotationIndex) {
             RuntimeAnnotationEnvironment.annotationIndex = ClassGraphRuntimeAnnotationIndex.create()
         }
+    }
+
+    override fun setProduction(production: Boolean) {
+        isProduction = production
     }
 
     override fun events(): EventBridge = EventBridgeImpl
@@ -837,25 +836,12 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onCommonInitialize() {
-        ru.hollowhorizon.hollowengine.fabric.HCFabric.onCommonInitialize()
+        ru.hollowhorizon.hollowengine.fabric.HCInit.onCommonInitialize()
     }
 
     override fun onClientInitialize() {
-        //? if fabric {
-        ru.hollowhorizon.hollowengine.fabric.HCFabric.onClientInitialize()
-        //?}
-    }
-
-    override fun onForgeInitialize() {
-        //? if forge {
-        /*ru.hollowhorizon.hollowengine.forge.HollowRuntimeForgeEntrypoints.initialize()
-        *///?}
-    }
-
-    override fun onNeoForgeInitialize(modBus: Any?) {
-        //? if neoforge {
-        /*ru.hollowhorizon.hollowengine.neoforge.HollowRuntimeNeoForgeEntrypoints.initialize(modBus as net.neoforged.bus.api.IEventBus)
-        *///?}
+        isPhysicalClient = true
+        ru.hollowhorizon.hollowengine.fabric.HCInit.onClientInitialize()
     }
 
     override fun initFakePlayers(factory: FakePlayerFactory) {
@@ -873,6 +859,13 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     override fun initModList(modList: ModList) {
         ru.hollowhorizon.hollowengine.common.utils.ModList.init(modList)
     }
+
+    @Suppress("UNCHECKED_CAST")
+    override fun initRegistryProvider(provider: RegistryProvider<*>) {
+        CommonRegistryProvider.init(provider as RegistryProvider<Any>)
+    }
+
+    override fun getRegistryHelper(): RegistryHelper = CommonRegistryHelper
 
     override fun close() {
         val index = RuntimeAnnotationEnvironment.annotationIndex

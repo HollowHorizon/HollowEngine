@@ -4,7 +4,7 @@ import net.irisshaders.iris.gl.framebuffer.GlFramebuffer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import ru.hollowhorizon.hollowengine.bootstrap.runtime.BootstrapRuntimeManager;
+import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
 
 @Pseudo
 @Mixin(targets = "net.irisshaders.iris.pipeline.SodiumTerrainPipeline", remap = false)

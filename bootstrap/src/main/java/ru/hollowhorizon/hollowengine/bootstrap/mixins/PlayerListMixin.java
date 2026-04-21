@@ -6,7 +6,7 @@ import net.minecraft.world.entity.Entity;import org.spongepowered.asm.mixin.Mixi
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import ru.hollowhorizon.hollowengine.bootstrap.runtime.BootstrapRuntimeManager;
+import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
 
 @Mixin(PlayerList.class)
 public class PlayerListMixin {
