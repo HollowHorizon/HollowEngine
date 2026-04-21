@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.internal;
+package ru.hollowhorizon.hollowengine.neoforge.internal;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;

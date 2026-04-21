@@ -9,6 +9,14 @@ displayName = "${mod_name}"
 authors = "${mod_author}"
 description = "${mod_name}"
 
+[[mixins]]
+config = "hollowengine.mixins.json"
+[[mixins]]
+config = "hollowengine-neoforge.mixins.json"
+[[mixins]]
+config = "hollowengine.bridge.mixins.json"
+
+
 [[dependencies.${mod_id}]]
 modId = "neoforge"
 type = "required"
@@ -21,11 +29,4 @@ modId = "minecraft"
 type = "required"
 versionRange = "[${minecraft_version}]"
 ordering = "NONE"
-side = "BOTH"
-
-[[dependencies.${mod_id}]]
-modId = "architectury"
-type = "required"
-versionRange = "[${architectury_api_version},)"
-ordering = "AFTER"
 side = "BOTH"

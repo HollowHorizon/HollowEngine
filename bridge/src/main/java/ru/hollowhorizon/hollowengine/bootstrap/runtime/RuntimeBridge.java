@@ -74,6 +74,7 @@ public interface RuntimeBridge extends AutoCloseable {
     EventBridge events();
 
     void setProduction(boolean production);
+    void setClient(boolean physicalClient);
 
     boolean shouldApplyMixin(String targetClassName, String mixinClassName);
 

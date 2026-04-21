@@ -1,4 +1,3 @@
-
 import org.gradle.jvm.tasks.Jar
 import java.security.MessageDigest
 
@@ -18,7 +17,13 @@ val minecraftVersion: String by rootProject.properties
 val fabricLoaderVersion: String by rootProject.properties
 val fabricApiVersion: String by rootProject.properties
 
-layout.buildDirectory.set(rootProject.layout.projectDirectory.dir("build/${project.path.removePrefix(":").replace(':', '/')}"))
+layout.buildDirectory.set(
+    rootProject.layout.projectDirectory.dir(
+        "build/${
+            project.path.removePrefix(":").replace(':', '/')
+        }"
+    )
+)
 group = modGroup
 version = modVersion
 base.archivesName.set("$modName-fabric-$minecraftVersion")
@@ -195,7 +200,11 @@ val bootstrapDevJar = tasks.register<Jar>("bootstrapDevJar") {
     archiveVersion.set(project.version.toString())
     archiveClassifier.set("dev")
 
-    from(zipTree(tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar").flatMap { it.archiveFile }))
+    from(
+        zipTree(
+            tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar")
+                .flatMap { it.archiveFile })
+    )
     from(embeddedRuntimeDir)
 }
 

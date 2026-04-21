@@ -11,7 +11,7 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
 import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.server.packs.PackType;
-import ru.hollowhorizon.hollowengine.bootstrap.runtime.BootstrapRuntimeManager;
+import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.EventBridge;
 import ru.hollowhorizon.hollowengine.fabric.internal.DelegatedReloadListener;
 
@@ -33,7 +33,7 @@ public class FabricClientEvents {
 
     private static void registerReloadListeners() {
         var helper = ResourceManagerHelper.get(PackType.CLIENT_RESOURCES);
-        events.onRegisterReloadListeners(registration -> helper.registerReloadListener(new DelegatedReloadListener(registration)));
+        events.onRegisterClientReloadListeners(registration -> helper.registerReloadListener(new DelegatedReloadListener(registration)));
     }
 
     private static void registerShaders() {

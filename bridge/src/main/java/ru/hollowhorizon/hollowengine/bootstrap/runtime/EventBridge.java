@@ -46,7 +46,7 @@ public interface EventBridge {
 
     void onRegisterKeybindings(Consumer<KeyMapping> consumer);
 
-    void onRegisterReloadListeners(ReloadListenerRegistration registration);
+    void onRegisterClientReloadListeners(ReloadListenerRegistration registration);
 
     void onRegisterServerReloadListeners(ReloadListenerRegistration registration);
 

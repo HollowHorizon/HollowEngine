@@ -13,6 +13,7 @@
     "BossHealthOverlayMixin",
     "DebugScreenOverlayMixin",
     "GuiMixin",
+    "client.CameraMixin",
     "client.LevelRendererStagesMixin"
   ],
   "injectors": {

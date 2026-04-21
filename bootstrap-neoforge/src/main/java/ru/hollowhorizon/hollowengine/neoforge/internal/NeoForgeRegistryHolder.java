@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.internal;
+package ru.hollowhorizon.hollowengine.neoforge.internal;
 
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;

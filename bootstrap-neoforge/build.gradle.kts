@@ -14,7 +14,6 @@ val license: String by properties
 val modGroup: String by properties
 val minecraftVersion: String by rootProject.properties
 val neoForgeVersion: String by rootProject.properties
-val architecturyApiVersion: String by rootProject.properties
 
 layout.buildDirectory.set(
     rootProject.layout.projectDirectory.dir(
@@ -30,7 +29,7 @@ base.archivesName.set("$modName-neoforge-$minecraftVersion")
 val sourceSets = extensions.getByType<SourceSetContainer>()
 val embeddedRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime")
 val generatedMetadataDir = layout.buildDirectory.dir("generated/mod-metadata")
-val mergedRuntimeLangDir = rootProject.layout.projectDirectory.dir("build/runtime/generated/lang/$modId")
+val mergedRuntimeLangDir = rootProject.layout.projectDirectory.dir("build/runtime/generated/lang/")
 
 architectury {
     platformSetupLoomIde()
@@ -44,6 +43,10 @@ loom {
     if (accessWidener.exists()) {
         accessWidenerPath.set(accessWidener)
     }
+
+
+    mixin.useLegacyMixinAp.set(true)
+    mixin.add(sourceSets.named("main").get(), "$modId-neoforge.refmap.json")
 }
 
 configurations {
@@ -85,7 +88,6 @@ dependencies {
     mappings(loom.officialMojangMappings())
 
     neoForge("net.neoforged:neoforge:$neoForgeVersion")
-    modImplementation("dev.architectury:architectury-neoforge:$architecturyApiVersion")
 
     implementation("lib:iris-neoforge:1.8.12+mc1.21.1")
     runtimeOnly("lib:iris-neoforge:1.8.12+mc1.21.1")
@@ -138,7 +140,6 @@ val generateNeoForgeModMetadata = tasks.register<ProcessResources>("generateNeoF
         "license" to license,
         "minecraft_version" to minecraftVersion,
         "neo_version" to neoForgeVersion,
-        "architectury_api_version" to architecturyApiVersion,
     )
 
     inputs.properties(properties)
@@ -185,7 +186,6 @@ tasks.named<ProcessResources>("processResources") {
                 "license" to license,
                 "minecraft_version" to minecraftVersion,
                 "neo_version" to neoForgeVersion,
-                "architectury_api_version" to architecturyApiVersion,
             )
         )
     }

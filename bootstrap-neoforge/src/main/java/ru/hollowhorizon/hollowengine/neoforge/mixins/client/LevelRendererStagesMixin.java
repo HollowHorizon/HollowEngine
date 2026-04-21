@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.fabric.mixins.client;
+package ru.hollowhorizon.hollowengine.neoforge.mixins.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -47,7 +47,7 @@ public class LevelRendererStagesMixin {
     }
 
 
-    @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/particle/ParticleEngine;render(Lnet/minecraft/client/renderer/LightTexture;Lnet/minecraft/client/Camera;F)V", shift = At.Shift.AFTER))
+    @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/particle/ParticleEngine;render(Lnet/minecraft/client/renderer/LightTexture;Lnet/minecraft/client/Camera;FLnet/minecraft/client/renderer/culling/Frustum;Ljava/util/function/Predicate;)V", shift = At.Shift.AFTER))
     private void afterRenderParticles(DeltaTracker deltaTracker, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightTexture lightTexture, Matrix4f frustumMatrix, Matrix4f projectionMatrix, CallbackInfo ci) {
         BootstrapRuntimeManager.bridge().onRenderLevelStage((LevelRenderer) (Object) this, new PoseStack(), projectionMatrix, ticks, deltaTracker.getGameTimeDeltaPartialTick(false), camera, cullingFrustum, RuntimeBridge.RenderLevelStage.AFTER_PARTICLES);
     }

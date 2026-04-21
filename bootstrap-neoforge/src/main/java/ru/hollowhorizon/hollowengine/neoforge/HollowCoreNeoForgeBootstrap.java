@@ -5,34 +5,33 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.fml.loading.FMLEnvironment;
 import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
-import ru.hollowhorizon.hollowengine.internal.NeoForgeFakePlayerFactory;
-import ru.hollowhorizon.hollowengine.internal.NeoForgeModList;
-import ru.hollowhorizon.hollowengine.internal.NeoForgeNetworkManager;
-import ru.hollowhorizon.hollowengine.internal.NeoForgeRegistryHolder;
+import ru.hollowhorizon.hollowengine.neoforge.internal.NeoForgeFakePlayerFactory;
+import ru.hollowhorizon.hollowengine.neoforge.internal.NeoForgeModList;
+import ru.hollowhorizon.hollowengine.neoforge.internal.NeoForgeNetworkManager;
+import ru.hollowhorizon.hollowengine.neoforge.internal.NeoForgeRegistryHolder;
 
 @Mod("hollowengine")
 public final class HollowCoreNeoForgeBootstrap {
     public HollowCoreNeoForgeBootstrap(IEventBus modBus) {
+        BootstrapRuntimeManager.bridge().setProduction(FMLEnvironment.production);
+        BootstrapRuntimeManager.bridge().setClient(FMLEnvironment.dist.isClient());
+
         BootstrapRuntimeManager.bridge().initFakePlayers(new NeoForgeFakePlayerFactory());
         BootstrapRuntimeManager.bridge().initStackHelper(item -> item.getCraftingRemainingItem());
         BootstrapRuntimeManager.bridge().initNetwork(new NeoForgeNetworkManager());
         BootstrapRuntimeManager.bridge().initModList(new NeoForgeModList());
         BootstrapRuntimeManager.bridge().initRegistryProvider((location, registry, model, generator, type) ->
                 new NeoForgeRegistryHolder<>(modBus, location, registry, model, generator, type));
-        BootstrapRuntimeManager.bridge().setProduction(FMLEnvironment.production);
 
-        modBus.addListener(HollowCoreNeoForgeBootstrap::onCommonInitialize);
+        BootstrapRuntimeManager.bridge().onCommonInitialize();
         modBus.addListener(NeoForgeNetworkManager::onRegisterPackets);
+        NeoForgeEvents.init(modBus);
         if (FMLEnvironment.dist.isClient()) {
             modBus.addListener(HollowCoreNeoForgeBootstrap::onClientInitialize);
+            NeoForgeClientEvents.init(modBus);
         }
-    }
-
-    public static void onCommonInitialize(FMLCommonSetupEvent event) {
-        BootstrapRuntimeManager.bridge().onCommonInitialize();
     }
 
     @OnlyIn(Dist.CLIENT)

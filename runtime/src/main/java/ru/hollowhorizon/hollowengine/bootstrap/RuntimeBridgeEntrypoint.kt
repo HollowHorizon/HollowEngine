@@ -133,6 +133,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         isProduction = production
     }
 
+    override fun setClient(physicalClient: Boolean) {
+        isPhysicalClient = physicalClient
+    }
+
     override fun events(): EventBridge = EventBridgeImpl
 
     override fun shouldApplyMixin(targetClassName: String, mixinClassName: String): Boolean {
@@ -840,7 +844,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onClientInitialize() {
-        isPhysicalClient = true
         ru.hollowhorizon.hollowengine.fabric.HCInit.onClientInitialize()
     }
 

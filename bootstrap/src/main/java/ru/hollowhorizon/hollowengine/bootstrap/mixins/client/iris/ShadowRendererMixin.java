@@ -26,7 +26,7 @@ public class ShadowRendererMixin {
             method = "renderShadows",
             at = @At(
                     value = "CONSTANT",
-                    args = "stringValue=draw entities")
+                    args = "stringValue=draw entities"), remap = false
     )
     private void hollowengine$flushShadowBatch(
             LevelRendererAccessor levelRenderer,

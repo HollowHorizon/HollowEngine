@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.internal;
+package ru.hollowhorizon.hollowengine.neoforge.internal;
 
 import ru.hollowhorizon.hollowengine.api.ModList;
 

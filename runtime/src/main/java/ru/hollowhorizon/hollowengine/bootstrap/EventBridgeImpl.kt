@@ -61,7 +61,7 @@ object EventBridgeImpl : EventBridge {
         RegisterKeyBindingsEvent(consumer::accept).post()
     }
 
-    override fun onRegisterReloadListeners(registration: EventBridge.ReloadListenerRegistration) {
+    override fun onRegisterClientReloadListeners(registration: EventBridge.ReloadListenerRegistration) {
         val event = RegisterReloadListenersEvent.Client().post()
         event.listeners.forEach(registration::register)
     }

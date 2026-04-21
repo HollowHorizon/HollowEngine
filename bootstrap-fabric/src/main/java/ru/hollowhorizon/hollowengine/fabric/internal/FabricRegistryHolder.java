@@ -9,7 +9,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import ru.hollowhorizon.hollowengine.api.*;
 import ru.hollowhorizon.hollowengine.bootstrap.BlockItemCreativeTab;
-import ru.hollowhorizon.hollowengine.bootstrap.runtime.BootstrapRuntimeManager;
+import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
 
 import java.util.function.Supplier;
 

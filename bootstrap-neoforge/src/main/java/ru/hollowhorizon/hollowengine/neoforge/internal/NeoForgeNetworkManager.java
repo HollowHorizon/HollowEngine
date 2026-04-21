@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.internal;
+package ru.hollowhorizon.hollowengine.neoforge.internal;
 
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -24,12 +24,12 @@ public class NeoForgeNetworkManager implements NetworkManager {
 
     @Override
     public <T extends CustomPacketPayload> void registerClient(CustomPacketPayload.@NotNull Type<T> type, @NotNull StreamCodec<RegistryFriendlyByteBuf, T> codec, @NotNull BiConsumer<T, LocalPlayer> consumer) {
-        PACKETS.add(new ToServerPacket<>(type, codec, consumer));
+        PACKETS.add(new ToClientPacket<>(type, codec, consumer));
     }
 
     @Override
     public <T extends CustomPacketPayload> void registerServer(CustomPacketPayload.@NotNull Type<T> type, @NotNull StreamCodec<RegistryFriendlyByteBuf, T> codec, @NotNull BiConsumer<T, ServerPlayer> consumer) {
-        PACKETS.add(new ToClientPacket<>(type, codec, consumer));
+        PACKETS.add(new ToServerPacket<>(type, codec, consumer));
     }
 
     private interface Registrable {
@@ -39,22 +39,22 @@ public class NeoForgeNetworkManager implements NetworkManager {
     private record ToClientPacket<T extends CustomPacketPayload>(
             CustomPacketPayload.@NotNull Type<T> type,
             @NotNull StreamCodec<RegistryFriendlyByteBuf, T> codec,
-            @NotNull BiConsumer<T, ServerPlayer> consumer
+            @NotNull BiConsumer<T, LocalPlayer> consumer
     ) implements Registrable {
         @Override
         public void register(PayloadRegistrar registrar) {
-            registrar.playToServer(type, codec, ((packet, context) -> consumer.accept(packet, (ServerPlayer) context.player())));
+            registrar.playToClient(type, codec, ((packet, context) -> consumer.accept(packet, (LocalPlayer) context.player())));
         }
     }
 
     private record ToServerPacket<T extends CustomPacketPayload>(
             CustomPacketPayload.@NotNull Type<T> type,
             @NotNull StreamCodec<RegistryFriendlyByteBuf, T> codec,
-            @NotNull BiConsumer<T, LocalPlayer> consumer
+            @NotNull BiConsumer<T, ServerPlayer> consumer
     ) implements Registrable {
         @Override
         public void register(PayloadRegistrar registrar) {
-            registrar.playToServer(type, codec, ((packet, context) -> consumer.accept(packet, (LocalPlayer) context.player())));
+            registrar.playToServer(type, codec, ((packet, context) -> consumer.accept(packet, (ServerPlayer) context.player())));
         }
     }
 }
