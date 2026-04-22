@@ -1,5 +1,6 @@
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import net.fabricmc.loom.task.RemapJarTask
 import org.gradle.jvm.tasks.Jar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -22,11 +23,11 @@ val minecraftVersion: String by rootProject.properties
 val enabledPlatforms = (rootProject.property("enabledPlatforms") as String).split(',').map(String::trim).toTypedArray()
 val fabricLoaderVersion: String by rootProject.properties
 val architecturyApiVersion: String by rootProject.properties
+val parchmentVersion: String by rootProject.properties
 val kotlinVersion: String by rootProject.properties
 val koolVersion: String by rootProject.properties
 val hollowcore: String by rootProject.properties
 
-layout.buildDirectory.set(rootProject.layout.projectDirectory.dir("build/${project.path.removePrefix(":").replace(':', '/')}"))
 group = modGroup
 version = modVersion
 base.archivesName.set("${modName}Runtime")
@@ -37,6 +38,7 @@ apply(from = rootProject.file("gradle/lang-merge.gradle"))
 val sourceSets = extensions.getByType<SourceSetContainer>()
 val generatedAssetsDir = layout.buildDirectory.dir("generated/sources/assets/kotlin")
 val mergedLangDir = layout.buildDirectory.dir("generated/lang/assets/$modId/lang")
+val runtimeMappingAttribute = Attribute.of("hollowengine.runtime.mapping", String::class.java)
 val shadowBundle = configurations.create("shadowBundle") {
     isCanBeResolved = true
     isCanBeConsumed = false
@@ -94,7 +96,7 @@ dependencies {
     "minecraft"("com.mojang:minecraft:$minecraftVersion")
     "mappings"(loom.layered {
         officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-$minecraftVersion:2024.11.17")
+        parchment("org.parchmentmc.data:parchment-$minecraftVersion:$parchmentVersion")
     })
 
     modImplementation("net.fabricmc:fabric-loader:$fabricLoaderVersion")
@@ -202,6 +204,15 @@ tasks.named<ShadowJar>("shadowJar") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
+tasks.named<RemapJarTask>("remapJar") {
+    inputFile.set(tasks.named<ShadowJar>("shadowJar").flatMap { it.archiveFile })
+    archiveClassifier.set("fabric")
+}
+
+tasks.matching { it.name == "transformProductionFabric" || it.name == "transformProductionNeoForge" }.configureEach {
+    enabled = false
+}
+
 val embeddedRuntimeElements = configurations.create("embeddedRuntimeElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
@@ -212,9 +223,26 @@ val embeddedRuntimeElements = configurations.create("embeddedRuntimeElements") {
         attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
         attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
         attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
+        attribute(runtimeMappingAttribute, "named")
     }
 
     outgoing.artifact(tasks.named<ShadowJar>("shadowJar"))
+}
+
+val embeddedFabricRuntimeElements = configurations.create("embeddedFabricRuntimeElements") {
+    isCanBeConsumed = true
+    isCanBeResolved = false
+    isVisible = false
+
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
+        attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
+        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
+        attribute(runtimeMappingAttribute, "fabric")
+    }
+
+    outgoing.artifact(tasks.named<RemapJarTask>("remapJar"))
 }
 
 tasks.withType<Test>().configureEach {

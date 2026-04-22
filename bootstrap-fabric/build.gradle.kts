@@ -15,24 +15,21 @@ val modAuthor: String by rootProject.properties
 val license: String by properties
 val modGroup: String by properties
 val minecraftVersion: String by rootProject.properties
+val parchmentVersion: String by rootProject.properties
 val fabricLoaderVersion: String by rootProject.properties
 val fabricApiVersion: String by rootProject.properties
 
-layout.buildDirectory.set(
-    rootProject.layout.projectDirectory.dir(
-        "build/${
-            project.path.removePrefix(":").replace(':', '/')
-        }"
-    )
-)
 group = modGroup
 version = modVersion
 base.archivesName.set("$modName-fabric-$minecraftVersion")
 
 val sourceSets = extensions.getByType<SourceSetContainer>()
 val embeddedRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime")
+val embeddedProductionRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime-production")
 val generatedMetadataDir = layout.buildDirectory.dir("generated/mod-metadata")
 val mergedRuntimeLangDir = rootProject.layout.projectDirectory.dir("build/runtime/generated/lang/")
+val runtimeMappingAttribute = Attribute.of("hollowengine.runtime.mapping", String::class.java)
+val bootstrapRefmap = "$modId-fabric.refmap.json"
 
 architectury {
     platformSetupLoomIde()
@@ -48,7 +45,20 @@ loom {
     }
 
     mixin.useLegacyMixinAp.set(true)
-    mixin.add(sourceSets.named("main").get(), "$modId-fabric.refmap.json")
+    mixin.add(sourceSets.named("main").get(), bootstrapRefmap)
+
+    runs {
+        configureEach {
+            runDir("../run")
+            if (name == "client") {
+                programArgs("--username", "TheHollowHorizon")
+            }
+        }
+    }
+
+    settingsPostEdit.add {
+        it.runDirIdeaUrl = "file://\$PROJECT_DIR\$/run"
+    }
 }
 
 configurations {
@@ -74,6 +84,19 @@ configurations {
 val embeddedRuntime by configurations.creating {
     isCanBeResolved = true
     isCanBeConsumed = false
+    isTransitive = false
+    attributes {
+        attribute(runtimeMappingAttribute, "named")
+    }
+}
+
+val embeddedProductionRuntime by configurations.creating {
+    isCanBeResolved = true
+    isCanBeConsumed = false
+    isTransitive = false
+    attributes {
+        attribute(runtimeMappingAttribute, "fabric")
+    }
 }
 
 repositories {
@@ -87,20 +110,23 @@ repositories {
 
 dependencies {
     minecraft("com.mojang:minecraft:$minecraftVersion")
-    mappings(loom.officialMojangMappings())
+    mappings(loom.layered {
+        officialMojangMappings()
+        parchment("org.parchmentmc.data:parchment-$minecraftVersion:$parchmentVersion")
+    })
 
     modImplementation("net.fabricmc:fabric-loader:$fabricLoaderVersion")
     modImplementation("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
     modImplementation("lib:iris-fabric:1.8.8+mc1.21.1")
     modImplementation("lib:sodium-fabric:0.6.13+mc1.21.1")
-    modImplementation("io.github.llamalad7:mixinextras-fabric:0.4.1")
-
-    implementation("org.anarres:jcpp:1.4.14")
-    implementation("io.github.douira:glsl-transformer:2.0.1")
+    val mixinExtras = "io.github.llamalad7:mixinextras-fabric:0.4.1"
+    modImplementation(mixinExtras)
+    include(mixinExtras)
 
     add("embeddedRuntime", project(path = ":runtime", configuration = "embeddedRuntimeElements"))
+    add("embeddedProductionRuntime", project(path = ":runtime", configuration = "embeddedFabricRuntimeElements"))
     "common"(project(path = ":bridge", configuration = "namedElements")) { isTransitive = false }
-    "shadowBundle"(project(path = ":bridge", configuration = "transformProductionFabric"))
+    "shadowBundle"(project(path = ":bridge", configuration = "transformProductionFabric")) { isTransitive = false }
 }
 
 val embedRuntimeJar = tasks.register("embedRuntimeJar") {
@@ -115,6 +141,28 @@ val embedRuntimeJar = tasks.register("embedRuntimeJar") {
         outputDir.mkdirs()
 
         val runtimeJar = embeddedRuntime.singleFile
+        val targetJar = outputDir.resolve("HollowEngineRuntime.jar")
+        runtimeJar.copyTo(targetJar, overwrite = true)
+
+        val sha256 = MessageDigest.getInstance("SHA-256")
+            .digest(targetJar.readBytes())
+            .joinToString("") { "%02x".format(it) }
+        outputDir.resolve("HollowEngineRuntime.sha256").writeText(sha256)
+    }
+}
+
+val embedProductionRuntimeJar = tasks.register("embedProductionRuntimeJar") {
+    group = "build"
+    description = "Embeds the remapped Fabric runtime jar into the production bootstrap resources."
+
+    inputs.files(embeddedProductionRuntime)
+    outputs.dir(embeddedProductionRuntimeDir)
+
+    doLast {
+        val outputDir = embeddedProductionRuntimeDir.get().dir("META-INF/hollowengine/runtime").asFile
+        outputDir.mkdirs()
+
+        val runtimeJar = embeddedProductionRuntime.singleFile
         val targetJar = outputDir.resolve("HollowEngineRuntime.jar")
         runtimeJar.copyTo(targetJar, overwrite = true)
 
@@ -168,7 +216,7 @@ sourceSets.named("main").configure {
 
 tasks.named<ProcessResources>("processResources") {
     dependsOn(embedRuntimeJar, generateFabricModMetadata, ":runtime:mergeLang")
-    filesMatching(listOf("$modId.mixins.json", "$modId.bridge.mixins.json", "pack.mcmeta")) {
+    filesMatching(listOf("*.mixins.json", "pack.mcmeta")) {
         expand(
             mapOf(
                 "mod_id" to modId,
@@ -178,6 +226,7 @@ tasks.named<ProcessResources>("processResources") {
                 "license" to license,
                 "minecraft_version" to minecraftVersion,
                 "fabric_loader_version" to fabricLoaderVersion,
+                "refmap" to bootstrapRefmap,
             )
         )
     }
@@ -185,7 +234,7 @@ tasks.named<ProcessResources>("processResources") {
 }
 
 tasks.named<ShadowJar>("shadowJar") {
-    dependsOn(embedRuntimeJar)
+    enabled = false
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     configurations = listOf(project.configurations.getByName("shadowBundle"))
     archiveClassifier.set("dev-shadow")
@@ -195,22 +244,35 @@ val bootstrapDevJar = tasks.register<Jar>("bootstrapDevJar") {
     group = "build"
     description = "Packages the shaded bootstrap jar with the isolated runtime payload."
 
-    dependsOn("shadowJar", embedRuntimeJar)
+    dependsOn("classes", embedRuntimeJar, ":bridge:transformProductionFabric")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     archiveBaseName.set(base.archivesName.get())
     archiveVersion.set(project.version.toString())
     archiveClassifier.set("dev")
 
-    from(
-        zipTree(
-            tasks.named<ShadowJar>("shadowJar")
-                .flatMap { it.archiveFile })
-    )
-    from(embeddedRuntimeDir)
+    from(sourceSets.named("main").map { it.output })
+    from({ project.configurations.getByName("shadowBundle").map { zipTree(it) } })
+}
+
+val bootstrapProductionJar = tasks.register<Jar>("bootstrapProductionJar") {
+    group = "build"
+    description = "Packages the production bootstrap jar with the remapped isolated runtime payload."
+
+    dependsOn("classes", embedProductionRuntimeJar, ":bridge:transformProductionFabric")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    archiveBaseName.set(base.archivesName.get())
+    archiveVersion.set(project.version.toString())
+    archiveClassifier.set("production-dev")
+
+    from(sourceSets.named("main").map { it.output }) {
+        exclude("META-INF/hollowengine/runtime/**")
+    }
+    from(embeddedProductionRuntimeDir)
+    from({ project.configurations.getByName("shadowBundle").map { zipTree(it) } })
 }
 
 tasks.named<net.fabricmc.loom.task.RemapJarTask>("remapJar") {
-    inputFile.set(bootstrapDevJar.flatMap { it.archiveFile })
+    inputFile.set(bootstrapProductionJar.flatMap { it.archiveFile })
 }
 
 tasks.named<JavaCompile>("compileJava") {

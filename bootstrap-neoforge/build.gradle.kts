@@ -13,15 +13,9 @@ val modAuthor: String by rootProject.properties
 val license: String by properties
 val modGroup: String by properties
 val minecraftVersion: String by rootProject.properties
+val parchmentVersion: String by rootProject.properties
 val neoForgeVersion: String by rootProject.properties
 
-layout.buildDirectory.set(
-    rootProject.layout.projectDirectory.dir(
-        "build/${
-            project.path.removePrefix(":").replace(':', '/')
-        }"
-    )
-)
 group = modGroup
 version = modVersion
 base.archivesName.set("$modName-neoforge-$minecraftVersion")
@@ -30,6 +24,8 @@ val sourceSets = extensions.getByType<SourceSetContainer>()
 val embeddedRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime")
 val generatedMetadataDir = layout.buildDirectory.dir("generated/mod-metadata")
 val mergedRuntimeLangDir = rootProject.layout.projectDirectory.dir("build/runtime/generated/lang/")
+val runtimeMappingAttribute = Attribute.of("hollowengine.runtime.mapping", String::class.java)
+val bootstrapRefmap = "$modId-neoforge.refmap.json"
 
 architectury {
     platformSetupLoomIde()
@@ -46,7 +42,20 @@ loom {
 
 
     mixin.useLegacyMixinAp.set(true)
-    mixin.add(sourceSets.named("main").get(), "$modId-neoforge.refmap.json")
+    mixin.add(sourceSets.named("main").get(), bootstrapRefmap)
+
+    runs {
+        configureEach {
+            runDir("../run")
+            if (name == "client") {
+                programArgs("--username", "TheHollowHorizon")
+            }
+        }
+    }
+
+    settingsPostEdit.add {
+        it.runDirIdeaUrl = "file://\$PROJECT_DIR\$/run"
+    }
 }
 
 configurations {
@@ -72,6 +81,10 @@ configurations {
 val embeddedRuntime by configurations.creating {
     isCanBeResolved = true
     isCanBeConsumed = false
+    isTransitive = false
+    attributes {
+        attribute(runtimeMappingAttribute, "named")
+    }
 }
 
 repositories {
@@ -85,7 +98,10 @@ repositories {
 
 dependencies {
     minecraft("com.mojang:minecraft:$minecraftVersion")
-    mappings(loom.officialMojangMappings())
+    mappings(loom.layered {
+        officialMojangMappings()
+        parchment("org.parchmentmc.data:parchment-$minecraftVersion:$parchmentVersion")
+    })
 
     neoForge("net.neoforged:neoforge:$neoForgeVersion")
 
@@ -96,14 +112,13 @@ dependencies {
     runtimeOnly("lib:sodium-neoforge:0.6.13+mc1.21.1")
 
 
-    implementation("io.github.llamalad7:mixinextras-neoforge:0.4.1")
-
-    implementation("org.anarres:jcpp:1.4.14")
-    implementation("io.github.douira:glsl-transformer:2.0.1")
+    val mixinExtras = "io.github.llamalad7:mixinextras-neoforge:0.4.1"
+    implementation(mixinExtras)
+    include(mixinExtras)
 
     add("embeddedRuntime", project(path = ":runtime", configuration = "embeddedRuntimeElements"))
     "common"(project(path = ":bridge", configuration = "namedElements")) { isTransitive = false }
-    "shadowBundle"(project(path = ":bridge", configuration = "transformProductionNeoForge"))
+    "shadowBundle"(project(path = ":bridge", configuration = "transformProductionNeoForge")) { isTransitive = false }
 }
 
 val embedRuntimeJar = tasks.register("embedRuntimeJar") {
@@ -176,7 +191,7 @@ sourceSets.named("main").configure {
 
 tasks.named<ProcessResources>("processResources") {
     dependsOn(embedRuntimeJar, generateNeoForgeModMetadata, ":runtime:mergeLang")
-    filesMatching(listOf("$modId.mixins.json", "$modId.bridge.mixins.json", "pack.mcmeta")) {
+    filesMatching(listOf("*.mixins.json", "pack.mcmeta")) {
         expand(
             mapOf(
                 "mod_id" to modId,
@@ -186,6 +201,7 @@ tasks.named<ProcessResources>("processResources") {
                 "license" to license,
                 "minecraft_version" to minecraftVersion,
                 "neo_version" to neoForgeVersion,
+                "refmap" to bootstrapRefmap,
             )
         )
     }
@@ -193,7 +209,7 @@ tasks.named<ProcessResources>("processResources") {
 }
 
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
-    dependsOn(embedRuntimeJar)
+    enabled = false
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     configurations = listOf(project.configurations.getByName("shadowBundle"))
     archiveClassifier.set("dev-shadow")
@@ -203,18 +219,14 @@ val bootstrapDevJar = tasks.register<Jar>("bootstrapDevJar") {
     group = "build"
     description = "Packages the shaded bootstrap jar with the isolated runtime payload."
 
-    dependsOn("shadowJar", embedRuntimeJar)
+    dependsOn("classes", embedRuntimeJar, ":bridge:transformProductionNeoForge")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     archiveBaseName.set(base.archivesName.get())
     archiveVersion.set(project.version.toString())
     archiveClassifier.set("dev")
 
-    from(
-        zipTree(
-            tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar")
-                .flatMap { it.archiveFile })
-    )
-    from(embeddedRuntimeDir)
+    from(sourceSets.named("main").map { it.output })
+    from({ project.configurations.getByName("shadowBundle").map { zipTree(it) } })
 }
 
 tasks.named<net.fabricmc.loom.task.RemapJarTask>("remapJar") {

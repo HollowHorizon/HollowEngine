@@ -12,14 +12,8 @@ val modGroup: String by properties
 val minecraftVersion: String by rootProject.properties
 val enabledPlatforms = (rootProject.property("enabledPlatforms") as String).split(',').map(String::trim).toTypedArray()
 val fabricLoaderVersion: String by rootProject.properties
+val parchmentVersion: String by rootProject.properties
 
-layout.buildDirectory.set(
-    rootProject.layout.projectDirectory.dir(
-        "build/${
-            project.path.removePrefix(":").replace(':', '/')
-        }"
-    )
-)
 group = modGroup
 version = modVersion
 base.archivesName.set("HollowEngineBridge")
@@ -50,7 +44,7 @@ dependencies {
     "minecraft"("com.mojang:minecraft:$minecraftVersion")
     "mappings"(loom.layered {
         officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-$minecraftVersion:2024.11.17")
+        parchment("org.parchmentmc.data:parchment-$minecraftVersion:$parchmentVersion")
     })
 
     modImplementation("lib:iris-fabric:1.8.8+mc1.21.1")
@@ -67,7 +61,7 @@ sourceSets.named("main").configure {
 
 tasks.named<ProcessResources>("processResources") {
     filesMatching("hollowengine.bridge.mixins.json") {
-        expand("mod_id" to modId)
+        expand("refmap" to "$modId.bridge.refmap.json")
     }
 }
 

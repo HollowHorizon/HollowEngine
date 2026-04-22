@@ -2,7 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "ru.hollowhorizon.hollowengine.bootstrap.mixins",
-  "refmap": "${mod_id}.refmap.json",
+  "refmap": "${refmap}",
   "plugin": "ru.hollowhorizon.hollowengine.bootstrap.mixins.HollowCoreMixinConfigPlugin",
   "compatibilityLevel": "JAVA_17",
   "mixins": [

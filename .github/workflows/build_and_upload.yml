@@ -1,7 +1,7 @@
 name: build
 on:
   push:
-    branches: [ "disabled" ]
+    branches: [ "dev" ]
 
 jobs:
   build:
@@ -57,9 +57,9 @@ jobs:
         id: create_release
         uses: ncipollo/release-action@v1
         with:
-          name: "[HollowEngine 1.20.1 | Latest Release]"
+          name: "[HollowEngine 1.21.1 | Latest Release]"
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: "latest-1.20.1"
+          tag: "latest-1.21.1"
           removeArtifacts: true
           allowUpdates: true
           artifacts: "merged/*.jar"
@@ -74,7 +74,7 @@ jobs:
           MOD_VERSION: ${{ env.MOD_VERSION }}
         run: |
           REPO_NAME="${GITHUB_REPOSITORY#*/}"
-          RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/latest-1.20.1"
+          RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/tag/latest-1.21.1"
           
           HEADER="<b>📦 <a href=\"$RELEASE_URL\">[$REPO_NAME] Build Success</a></b>"
           
