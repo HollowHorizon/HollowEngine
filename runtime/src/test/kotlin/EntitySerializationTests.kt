@@ -1,3 +1,4 @@
+
 import com.mineinabyss.geary.prefabs.PrefabKey
 import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
@@ -9,26 +10,23 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptor
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentPersistencePolicy
-import ru.hollowhorizon.hollowengine.common.geary.components.ai.EntityReference
-import ru.hollowhorizon.hollowengine.common.geary.components.ai.LookAtTargetComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.ai.LookTargetMode
-import ru.hollowhorizon.hollowengine.common.geary.components.ai.PatrolPathComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.ai.PatrolPoint
+import ru.hollowhorizon.hollowengine.common.geary.components.ai.*
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.prefabs.PrefabSystem
+import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.io.File
 import java.lang.reflect.Proxy
-import java.util.UUID
+import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class EntitySerializationTests {
-    private val basicId = ResourceLocation("test", "basic_component")
-    private val looseId = ResourceLocation("test", "loose_component")
-    private val lookAtId = ResourceLocation("hollowengine", "look_at_target")
-    private val patrolId = ResourceLocation("hollowengine", "patrol_path")
+    private val basicId = "test:basic_component".rl
+    private val looseId = "test:loose_component".rl
+    private val lookAtId = "hollowengine:look_at_target".rl
+    private val patrolId = "hollowengine:patrol_path".rl
     private val testPrefabDir = DirectoryManager.HOLLOW_ENGINE.resolve("prefabs/tests/entity-serialization").toFile()
     private val registeredForTest = mutableSetOf<ResourceLocation>()
 
@@ -123,7 +121,7 @@ class EntitySerializationTests {
                     targetMode = LookTargetMode.ENTITY,
                     targetEntity = EntityReference(
                         uuid = UUID.fromString("123e4567-e89b-12d3-a456-426614174000"),
-                        level = ResourceLocation("minecraft", "overworld"),
+                        level = "minecraft:overworld".rl,
                     ),
                     targetPosition = Vec3(1.0, 2.0, 3.0),
                     yawSpeed = 25f,
@@ -152,7 +150,7 @@ class EntitySerializationTests {
 
         assertEquals(LookTargetMode.ENTITY, yamlLook.targetMode)
         assertEquals(UUID.fromString("123e4567-e89b-12d3-a456-426614174000"), yamlLook.targetEntity.uuid)
-        assertEquals(ResourceLocation("minecraft", "overworld"), yamlLook.targetEntity.level)
+        assertEquals("minecraft:overworld".rl, yamlLook.targetEntity.level)
         assertEquals(2, yamlPatrol.points.size)
         assertEquals(1.0, yamlPatrol.points.first().position.x)
         assertEquals(64.0, yamlPatrol.points.first().position.y)
@@ -161,7 +159,7 @@ class EntitySerializationTests {
 
         assertEquals(LookTargetMode.ENTITY, nbtLook.targetMode)
         assertEquals(UUID.fromString("123e4567-e89b-12d3-a456-426614174000"), nbtLook.targetEntity.uuid)
-        assertEquals(ResourceLocation("minecraft", "overworld"), nbtLook.targetEntity.level)
+        assertEquals("minecraft:overworld".rl, nbtLook.targetEntity.level)
         assertEquals(2, nbtPatrol.points.size)
         assertEquals(10, nbtPatrol.points.first().waitTicks)
         assertEquals(1.25f, nbtPatrol.speed)

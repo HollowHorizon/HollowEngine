@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine
 
 import de.fabmax.kool.util.RingBuffer
-import kotlinx.datetime.Clock
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -13,6 +12,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console.LogMess
 import ru.hollowhorizon.hollowengine.common.utils.molang.compiler.MolangCompiler
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import kotlin.time.Clock
 
 object HollowCore {
     const val MODID: String = "hollowengine"

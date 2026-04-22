@@ -1,7 +1,7 @@
-import net.minecraft.resources.ResourceLocation
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelReloadCoordinator
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.PreparedModelUpdate
+import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -9,8 +9,8 @@ import kotlin.test.assertSame
 class ModelReloadCoordinatorTests {
     @Test
     fun `reload targets include cached models without metadata`() {
-        val cached = setOf(ResourceLocation("test", "models/custom/no_meta.gltf"))
-        val indexed = setOf(ResourceLocation("test", "models/indexed/with_meta.gltf"))
+        val cached = setOf("test:models/custom/no_meta.gltf".rl)
+        val indexed = setOf("test:models/indexed/with_meta.gltf".rl)
 
         val targets = ModelReloadCoordinator.reloadTargets(cached, indexed)
 

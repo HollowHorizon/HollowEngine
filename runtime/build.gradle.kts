@@ -54,6 +54,10 @@ configurations.named(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME) {
     extendsFrom(shadowBundle)
 }
 
+configurations.named(JavaPlugin.TEST_IMPLEMENTATION_CONFIGURATION_NAME) {
+    extendsFrom(shadowBundle)
+}
+
 fun DependencyHandler.addShadow(
     notation: String,
     configure: ExternalModuleDependency.() -> Unit = {},
@@ -101,27 +105,22 @@ dependencies {
     compileOnly("org.jetbrains:annotations:24.1.0")
 
     addShadow("net.peanuuutz.tomlkt:tomlkt:0.5.0")
-    addShadow("de.fabmax.kool:kool-core-desktop:$koolVersion") {
-        exclude(group = "org.lwjgl")
-        exclude(group = "org.lwjglx")
-    }
     addShadow("com.github.weisj:jsvg:2.0.0")
-    addShadow("com.facebook:ktfmt:0.54")
     addShadow("org.jetbrains:markdown:0.7.3")
     addShadow("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
     addShadow("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
     addShadow("org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.0")
     addShadow("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
     addShadow("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-    addShadow("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+    //addShadow("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
     addShadow("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
-    addShadow("org.jetbrains.kotlinx:atomicfu:0.30.0-beta")
+    //addShadow("org.jetbrains.kotlinx:atomicfu:0.30.0-beta")
     addShadow("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
-    addShadow("org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.10.0-RC")
-    addShadow("com.squareup.okio:okio:3.9.0")
-    addShadow("it.krzeminski:snakeyaml-engine-kmp:4.0.1")
-    addShadow("net.thauvin.erik.urlencoder:urlencoder-lib:1.6.0")
-    addShadow("androidx.compose.runtime:runtime:1.10.3")
+    //addShadow("org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.10.0-RC")
+    //addShadow("com.squareup.okio:okio:3.9.0")
+    //addShadow("it.krzeminski:snakeyaml-engine-kmp:4.0.1")
+    //addShadow("net.thauvin.erik.urlencoder:urlencoder-lib:1.6.0")
+    //addShadow("androidx.compose.runtime:runtime:1.10.3")
     addShadow("io.insert-koin:koin-core:4.0.0")
     addShadow("co.touchlab:kermit-core-mcfriendly:2.0.4")
     addShadow("androidx.collection:collection:1.4.0")
@@ -133,6 +132,11 @@ dependencies {
     addShadow("com.mineinabyss:geary-serialization:0.28")
     addShadow("org.jetbrains.kotlinx:kotlinx-io-bytestring:0.8.2")
     addShadow("io.github.classgraph:classgraph:4.8.173")
+
+    addShadow("de.fabmax.kool:kool-core-desktop:$koolVersion") {
+        exclude(group = "org.lwjgl")
+        exclude(group = "org.lwjglx")
+    }
 
     val jeiVersion = "19.25.1.332"
     add("modCompileOnly", "mezz.jei:jei-$minecraftVersion-fabric-api:$jeiVersion")

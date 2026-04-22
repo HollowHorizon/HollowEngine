@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.commands
 
-import com.facebook.ktfmt.format.Formatter
-import com.facebook.ktfmt.format.Formatter.KOTLINLANG_FORMAT
 import de.fabmax.kool.input.UniversalKeyCode
 import de.fabmax.kool.util.logW
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.Command
@@ -21,7 +19,7 @@ class ReformatCommand : Command {
 
         return try {
             val original = c.lineProvider.fullText()
-            val formatted = Formatter.format(KOTLINLANG_FORMAT, original)
+            val formatted = original //TODO Formatter.format(KOTLINLANG_FORMAT, original)
             if (original == formatted) return false
             editorHandler.setText(formatted)
             true

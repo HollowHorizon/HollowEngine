@@ -388,23 +388,18 @@ class BlockControllerTests {
 
     @Test
     fun `test expression connects to compatible input`() {
-        // Создаем блок, который принимает String
         val consumer = TestConsumerBlock("TEXT", typeOf<String>())
-        // Создаем блок-выражение String
         val expression = TestExpressionBlock(typeOf<String>())
 
         editor.rootBlocks.add(consumer)
         editor.rootBlocks.add(expression)
 
-        // Эмулируем Drag & Drop
         editor.controller.handleDragStart(expression, Vec2f.ZERO, Vec2f.ZERO)
 
-        // Устанавливаем действие: Присоединить к инпуту "TEXT"
         setPotentialAction(editor.controller, DropAction.AttachToInput(consumer, "TEXT", true))
 
         editor.controller.handleDragEnd(expression)
 
-        // Проверки
         assertEquals(expression, consumer.inputs["TEXT"], "Expression should be in consumer input")
         assertEquals(consumer, expression.parentBlock, "Consumer should be parentBlock")
         assertEquals("TEXT", expression.parentInputName, "Input name should be set")
@@ -416,17 +411,14 @@ class BlockControllerTests {
         val consumer = TestConsumerBlock("TEXT", typeOf<String>())
         val expression = TestExpressionBlock(typeOf<String>())
 
-        // Начальное состояние: оба в корне
         editor.rootBlocks.add(consumer)
         editor.rootBlocks.add(expression)
         val startX = expression.positionX.value
 
-        // Выполняем соединение
         editor.controller.handleDragStart(expression, Vec2f.ZERO, Vec2f.ZERO)
         setPotentialAction(editor.controller, DropAction.AttachToInput(consumer, "TEXT", true))
         editor.controller.handleDragEnd(expression)
 
-        // Undo
         editor.controller.history.undo()
 
         // Проверки восстановления
@@ -444,17 +436,10 @@ class BlockControllerTests {
         editor.rootBlocks.add(mathBlock)
         editor.rootBlocks.add(stringExpr)
 
-        // Пробуем соединить через контроллер (проверка валидности)
         editor.controller.handleDragStart(stringExpr, Vec2f.ZERO, Vec2f.ZERO)
         val action = DropAction.AttachToInput(mathBlock, "NUMBER", true)
 
-        // В реальном коде isValidDrop вызывается внутри handleDrag.
-        // Проверим логику isValidDrop через рефлексию или вручную,
-        // но проще проверить, что будет если мы насильно попробуем это сделать через DragEnd,
-        // ЕСЛИ логика валидации находится в handleDrag, то potentialAction просто не выставится.
-
         editor.controller.isValidDrop(stringExpr, action)
-        // Имитируем логику поиска таргета:
         val isValid = editor.controller.isValidDrop(stringExpr, action)
 
         assertFalse(isValid, "Controller should reject String -> Int connection")

@@ -1,3 +1,4 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.jvm.tasks.Jar
 import java.security.MessageDigest
 
@@ -183,7 +184,7 @@ tasks.named<ProcessResources>("processResources") {
     exclude("META-INF/neoforge.mods.toml")
 }
 
-tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+tasks.named<ShadowJar>("shadowJar") {
     dependsOn(embedRuntimeJar)
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     configurations = listOf(project.configurations.getByName("shadowBundle"))
@@ -202,7 +203,7 @@ val bootstrapDevJar = tasks.register<Jar>("bootstrapDevJar") {
 
     from(
         zipTree(
-            tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar")
+            tasks.named<ShadowJar>("shadowJar")
                 .flatMap { it.archiveFile })
     )
     from(embeddedRuntimeDir)

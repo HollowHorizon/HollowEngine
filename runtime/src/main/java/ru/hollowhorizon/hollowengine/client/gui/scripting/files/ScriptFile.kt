@@ -1,7 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files
 
-import com.facebook.ktfmt.format.Formatter
-import com.facebook.ktfmt.format.Formatter.KOTLINLANG_FORMAT
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
@@ -141,7 +139,7 @@ class ScriptFile(path: String) : EditorFile(path) {
         item("Format", icons.ICON_41) {
             try {
                 val original = editorState.provider.lines.joinToString("\n") { it.text }
-                val new = Formatter.format(KOTLINLANG_FORMAT, original)
+                val new = original //TODO Formatter.format(KOTLINLANG_FORMAT, original)
                 if (original == new) return@item
                 editorState.provider.setText(new)
                 modifier.onSelectionChanged?.let { it(-1, -1, 0, 0) }

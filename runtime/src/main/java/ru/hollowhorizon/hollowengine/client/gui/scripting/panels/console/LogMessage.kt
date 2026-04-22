@@ -6,13 +6,13 @@ import de.fabmax.kool.modules.ui2.mutableStateOf
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MdColor
 import de.fabmax.kool.util.MsdfFont
-import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import org.apache.logging.log4j.spi.StandardLevel
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.common.utils.mutableLazy
+import java.time.ZoneId
+import kotlin.time.Instant
+import kotlin.time.toJavaInstant
 
 class LogMessage(
     val level: StandardLevel,
@@ -62,8 +62,8 @@ class LogMessage(
         }
 
     private fun formatTime(time: Instant): String {
-        val date = time.toLocalDateTime(TimeZone.currentSystemDefault())
-        return "${fmtInt(date.hour)}:${fmtInt(date.minute)}:${fmtInt(date.second)}"
+        val ztd = time.toJavaInstant().atZone(ZoneId.systemDefault())
+        return "${fmtInt(ztd.hour)}:${fmtInt(ztd.minute)}:${fmtInt(ztd.second)}"
     }
 
     private fun fmtInt(i: Int, len: Int = 2): String {

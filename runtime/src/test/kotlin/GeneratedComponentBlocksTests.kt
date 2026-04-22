@@ -7,53 +7,29 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.phys.Vec3
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockCategory
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockEntry
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockModule
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlockRepository
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlocksScope
+import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
+import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.BoolBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.NumberBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.StringValueBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.CreateComponentBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.EntityReferenceLiteralBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.EnumLiteralBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.GetComponentFieldBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.HasComponentBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.ListBuilderBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.RemoveComponentBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.ResourceLocationLiteralBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.SetComponentBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.UuidLiteralBlock
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.types.PositionBlock
-import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
+import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.GeneratedComponentBlocksModule
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
-import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptor
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSchemaRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.EditorHidden
-import ru.hollowhorizon.hollowengine.common.geary.components.EditorName
-import ru.hollowhorizon.hollowengine.common.geary.components.EditorRange
-import ru.hollowhorizon.hollowengine.common.geary.components.FieldValueKind
+import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.geary.components.ai.EntityReference
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForUuid
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForVec3
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.io.ByteArrayInputStream
-import java.util.UUID
-import kotlin.reflect.full.createType
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import java.util.*
+import kotlin.test.*
 
 class GeneratedComponentBlocksTests {
-    private val componentId = ResourceLocation("test", "generated_component")
+    private val componentId = "test:generated_component".rl
 
     @AfterEach
     fun cleanup() {
@@ -113,8 +89,8 @@ class GeneratedComponentBlocksTests {
         val getterEntry = entries.firstOrNull {
             val block = it.createItem()
             block is GetComponentFieldBlock &&
-                block.descriptorId == componentId.toString() &&
-                block.fieldName == "playerName"
+                    block.descriptorId == componentId.toString() &&
+                    block.fieldName == "playerName"
         }
 
         assertNotNull(createEntry)
@@ -150,7 +126,10 @@ class GeneratedComponentBlocksTests {
             attachInput("itemId", ResourceLocationLiteralBlock("minecraft:diamond"))
             attachInput(
                 "position",
-                ConstantExpressionBlock(Vec3(1.25, 64.0, -3.5), ru.hollowhorizon.hollowengine.common.codeblocks.typeOf<Vec3>())
+                ConstantExpressionBlock(
+                    Vec3(1.25, 64.0, -3.5),
+                    ru.hollowhorizon.hollowengine.common.codeblocks.typeOf<Vec3>()
+                )
             )
             attachInput(
                 "target",
@@ -182,10 +161,10 @@ class GeneratedComponentBlocksTests {
         assertEquals(7, result.level)
         assertEquals(TestMode.AGGRESSIVE, result.mode)
         assertEquals(UUID.fromString("123e4567-e89b-12d3-a456-426614174000"), result.uuid)
-        assertEquals(ResourceLocation("minecraft", "diamond"), result.itemId)
+        assertEquals("minecraft:diamond".rl, result.itemId)
         assertEquals(Vec3(1.25, 64.0, -3.5), result.position)
         assertEquals(UUID.fromString("123e4567-e89b-12d3-a456-426614174001"), result.target.uuid)
-        assertEquals(ResourceLocation("minecraft", "the_nether"), result.target.level)
+        assertEquals("minecraft:the_nether".rl, result.target.level)
         assertEquals(GeneratedNested("quest", 3), result.nested)
         assertEquals(listOf("alpha", "beta"), result.tags)
         assertTrue(result.enabled)
@@ -227,7 +206,7 @@ class GeneratedComponentBlocksTests {
 
         assertEquals("kotlin.Boolean", hasBlock.expressionType.toString())
         assertEquals("kotlin.String", getterBlock.expressionType.toString())
-        assertEquals(UUID::class.createType().toString(), uuidGetter.expressionType.toString())
+        assertEquals("java.util.UUID", uuidGetter.expressionType.toString())
     }
 
     private fun registerDescriptor() {
