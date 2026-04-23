@@ -111,6 +111,8 @@ dependencies {
     implementation("lib:sodium-neoforge:0.6.13+mc1.21.1")
     runtimeOnly("lib:sodium-neoforge:0.6.13+mc1.21.1")
 
+    implementation("org.anarres:jcpp:1.4.14")
+    implementation("io.github.douira:glsl-transformer:2.0.1")
 
     val mixinExtras = "io.github.llamalad7:mixinextras-neoforge:0.4.1"
     implementation(mixinExtras)

@@ -4,27 +4,31 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
+import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariScriptSystem
 
 interface ServerRuntimeContextProvider {
     val `hollowengine$serverRuntimeContext`: ServerRuntimeContext
 }
 
 class ServerRuntimeContext(
-    server: MinecraftServer,
+    private val server: MinecraftServer,
 ) {
     val scope = ServerOwnerScope(
         server.dispatcher + SupervisorJob(server.coroutineScope.coroutineContext[Job]),
         ::markDirty,
     )
+    val katari = KatariScriptSystem(server, server.coroutineScope, ::markDirty)
 
     private var dirty = false
 
     fun serialize(tag: CompoundTag) {
         tag.put("scope", CompoundTag().also(scope::serialize))
+        katari.serialize(tag)
     }
 
     fun deserialize(tag: CompoundTag) {
         scope.deserialize(tag.getCompound("scope"))
+        katari.deserialize(tag)
         dirty = false
     }
 

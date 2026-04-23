@@ -6,17 +6,17 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.OwnerScopeRestoredEvent
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineScope
 import ru.hollowhorizon.hollowengine.common.events.EventBus
-import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.GearyPlatform
+import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.encodeComponentsTo
 import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.loadComponentsFrom
-import java.util.Collections
-import java.util.WeakHashMap
+import java.util.*
 
 private data class EntityState(
     var entityId: Long = UNINITIALIZED_ENTITY_ID,
@@ -59,19 +59,23 @@ object GearyRuntimeState {
     fun coroutineScope(entity: Entity): SerializableCoroutineScope = state(entity as MCEntity).coroutineScope
 
     fun saveEntity(entity: Entity, tag: CompoundTag) {
-        val state = state(entity as MCEntity)
-        if (state.entityId != UNINITIALIZED_ENTITY_ID) {
-            val gearyTag = CompoundTag()
-            with(geary(entity.level())) {
-                state.entityId.encodeComponentsTo(gearyTag)
+        try {
+            val state = state(entity as MCEntity)
+            if (state.entityId != UNINITIALIZED_ENTITY_ID) {
+                val gearyTag = CompoundTag()
+                with(geary(entity.level())) {
+                    state.entityId.encodeComponentsTo(gearyTag)
+                }
+                if (!gearyTag.isEmpty) tag.put("geary", gearyTag)
             }
-            if (!gearyTag.isEmpty) tag.put("geary", gearyTag)
-        }
-        MaterializationRuntimeState.service(entity.level()).saveEntityChildren(entity.uuid, tag)
+            MaterializationRuntimeState.service(entity.level()).saveEntityChildren(entity.uuid, tag)
 
-        val scopeTag = CompoundTag()
-        state.coroutineScope.serialize(scopeTag)
-        tag.put("EntityScope", scopeTag)
+            val scopeTag = CompoundTag()
+            state.coroutineScope.serialize(scopeTag)
+            tag.put("EntityScope", scopeTag)
+        } catch (e: Exception) {
+            HollowEngine.LOGGER.warn("Failed to save entity $entity", e)
+        }
     }
 
     fun loadEntity(entity: Entity, tag: CompoundTag) {

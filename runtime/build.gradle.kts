@@ -68,6 +68,7 @@ fun DependencyHandler.addShadow(
 }
 
 repositories {
+    flatDir { dirs(rootProject.file("libs")) }
     mavenCentral()
     maven("https://maven.fabricmc.net/")
     maven("https://maven.architectury.dev/")
@@ -76,7 +77,6 @@ repositories {
     maven("https://jitpack.io")
     maven("https://maven.google.com/")
     mavenLocal()
-    flatDir { dirs(rootProject.file("libs")) }
 }
 
 architectury {
@@ -118,7 +118,7 @@ dependencies {
     addShadow("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
     //addShadow("org.jetbrains.kotlinx:atomicfu:0.30.0-beta")
     addShadow("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
-    //addShadow("org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.10.0-RC")
+    addShadow("org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.10.0-RC")
     //addShadow("com.squareup.okio:okio:3.9.0")
     //addShadow("it.krzeminski:snakeyaml-engine-kmp:4.0.1")
     //addShadow("net.thauvin.erik.urlencoder:urlencoder-lib:1.6.0")
@@ -134,6 +134,8 @@ dependencies {
     addShadow("com.mineinabyss:geary-serialization:0.28")
     addShadow("org.jetbrains.kotlinx:kotlinx-io-bytestring:0.8.2")
     addShadow("io.github.classgraph:classgraph:4.8.173")
+    addShadow("lib:katari-interpreter:1.1.2")
+    addShadow("lib:katari-stdlib:1.1.0")
 
     addShadow("de.fabmax.kool:kool-core-desktop:$koolVersion") {
         exclude(group = "org.lwjgl")

@@ -10,7 +10,7 @@ import ru.hollowhorizon.hollowengine.fabric.internal.FabricRegistryHolder;
 public final class HCFabricBootstrap {
     static {
         BootstrapRuntimeManager.bridge().setProduction(!FabricLoader.getInstance().isDevelopmentEnvironment());
-        BootstrapRuntimeManager.bridge().setClient(!FabricLoader.getInstance().getEnvironmentType().equals(EnvType.CLIENT));
+        BootstrapRuntimeManager.bridge().setClient(FabricLoader.getInstance().getEnvironmentType().equals(EnvType.CLIENT));
 
         BootstrapRuntimeManager.bridge().initFakePlayers(new FabricFakePlayerFactory());
         BootstrapRuntimeManager.bridge().initStackHelper(item -> item.getRecipeRemainder());

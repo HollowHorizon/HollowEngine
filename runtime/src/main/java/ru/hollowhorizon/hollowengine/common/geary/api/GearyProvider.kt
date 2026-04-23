@@ -7,6 +7,7 @@ import com.mineinabyss.geary.datatypes.EntityId
 import com.mineinabyss.geary.modules.Geary
 import com.mineinabyss.geary.modules.get
 import net.minecraft.world.level.Level
+import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityLoadedEvent
 import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
@@ -76,7 +77,11 @@ fun move(old: Level, new: Level, entity: Long, mcEntity: MCEntity): EntityId {
 fun removeEntity(level: Level, entity: Int, gearyEntity: Long = UNINITIALIZED_ENTITY_ID) {
     if (level.geary.get<MinecraftEntityLookup>().remove(entity)) return
     if (gearyEntity != UNINITIALIZED_ENTITY_ID) {
-        level.geary.entityRemoveProvider.remove(gearyEntity.toULong())
+        try {
+            level.geary.entityRemoveProvider.remove(gearyEntity.toULong())
+        } catch (e: Exception) {
+            HollowEngine.LOGGER.warn("Failed to remove entity $entity", e)
+        }
     }
 }
 

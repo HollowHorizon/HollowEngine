@@ -123,6 +123,9 @@ dependencies {
     modImplementation(mixinExtras)
     include(mixinExtras)
 
+    implementation("org.anarres:jcpp:1.4.14")
+    implementation("io.github.douira:glsl-transformer:2.0.1")
+
     add("embeddedRuntime", project(path = ":runtime", configuration = "embeddedRuntimeElements"))
     add("embeddedProductionRuntime", project(path = ":runtime", configuration = "embeddedFabricRuntimeElements"))
     "common"(project(path = ":bridge", configuration = "namedElements")) { isTransitive = false }
