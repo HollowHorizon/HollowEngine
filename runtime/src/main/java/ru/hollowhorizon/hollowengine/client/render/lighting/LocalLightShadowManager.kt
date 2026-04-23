@@ -19,7 +19,6 @@ import net.irisshaders.iris.shadows.CullingDataCache
 import net.irisshaders.iris.shadows.ShadowRenderer
 import net.irisshaders.iris.shadows.frustum.BoxCuller
 import net.irisshaders.iris.shadows.frustum.fallback.BoxCullingFrustum
-import net.minecraft.client.Camera
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.RenderBuffers
 import net.minecraft.client.renderer.RenderType
@@ -33,7 +32,6 @@ import org.lwjgl.opengl.GL11C
 import org.lwjgl.opengl.GL12C
 import org.lwjgl.opengl.GL30C
 import ru.hollowhorizon.hollowengine.HollowCore
-import ru.hollowhorizon.hollowengine.bridge.mixins.client.CameraInvoker
 import ru.hollowhorizon.hollowengine.bridge.mixins.client.LevelRendererInvoker
 import ru.hollowhorizon.hollowengine.client.render.RenderManager
 import ru.hollowhorizon.hollowengine.client.utils.popPose
@@ -46,8 +44,6 @@ import ru.hollowhorizon.hollowengine.common.geary.components.LightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.PointLightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.SpotLightComponent
 import kotlin.math.abs
-import kotlin.math.asin
-import kotlin.math.atan2
 import kotlin.math.max
 
 internal data class PreparedLight(
@@ -122,7 +118,6 @@ internal object LocalLightShadowManager {
     private val currentShadowViewMatrixInverse = Matrix4f()
     private val currentShadowProjectionMatrixInverse = Matrix4f()
     private val reusableOrigin = Vector3f()
-    private val reusableShadowCamera = ShadowCamera()
     private val localShadowMatrixNotifier = object : ValueUpdateNotifier {
         private var listener: Runnable? = null
 
@@ -387,8 +382,8 @@ internal object LocalLightShadowManager {
             activeIrisShadowFramebuffer = atlas.irisFramebuffer()
             ShadowRenderer.ACTIVE = true
             minecraft.smartCull = false
-            rendererInvoker.`hollowengine$needsUpdate`()
             renderer.renderBuffers = shadowRenderBuffers
+            rendererInvoker.`hollowengine$needsUpdate`()
             (shadowRenderBuffers as? DrawCallTrackingRenderBuffers)?.resetDrawCounts()
             (shadowRenderBuffers as? RenderBuffersExt)?.beginLevelRendering()
             entry.farPlane = when (val component = light.component) {
@@ -411,9 +406,6 @@ internal object LocalLightShadowManager {
                 entry.localViewProjection[face].set(renderMatrices.localViewProjection)
                 entry.tileData[face].set(viewport.biasX, viewport.biasY, viewport.scaleX, viewport.scaleY)
 
-                val lightCamera = reusableShadowCamera.apply {
-                    set(light.worldPosition, renderMatrices.direction)
-                }
                 val frustum = when (entry.shadowType) {
                     ShadowType.SPOT -> Frustum(Matrix4f(renderMatrices.fullViewMatrix), Matrix4f(renderMatrices.projectionMatrix)).apply {
                         prepare(lightWorldX, lightWorldY, lightWorldZ)
@@ -425,7 +417,7 @@ internal object LocalLightShadowManager {
 
                 renderer.setShouldRegenerateClouds(regenerateClouds)
                 ShadowRenderer.renderDistance = (entry.farPlane / 16f).toInt().coerceAtLeast(1)
-                renderer.invokeSetupRender(lightCamera, frustum, false, false)
+                renderer.invokeSetupRender(event.camera, frustum, false, false)
 
                 val stack = RenderSystem.getModelViewStack()
                 stack.pushPose()
@@ -840,29 +832,6 @@ internal object LocalLightShadowManager {
         val localViewProjection: Matrix4f,
         val farPlane: Float,
     )
-
-    @Suppress("CAST_NEVER_SUCCEEDS")
-    private class ShadowCamera : Camera() {
-        private val pos = Vector3f()
-        private var yaw = 0f
-        private var pitch = 0f
-
-        fun set(position: Vector3f, direction: Vector3f) {
-            pos.set(position)
-            yaw = Math.toDegrees(atan2(-direction.x.toDouble(), direction.z.toDouble())).toFloat()
-            pitch = Math.toDegrees(asin((-direction.y).coerceIn(-1f, 1f).toDouble())).toFloat()
-            applyTransform()
-        }
-
-        override fun setup(area: net.minecraft.world.level.BlockGetter, focusedEntity: net.minecraft.world.entity.Entity, thirdPerson: Boolean, inverseView: Boolean, tickDelta: Float) {
-            applyTransform()
-        }
-
-        private fun applyTransform() {
-            (this as CameraInvoker).`hollowcore$setPosition`(pos.x.toDouble(), pos.y.toDouble(), pos.z.toDouble())
-            (this as CameraInvoker).`hollowcore$rotate`(yaw, pitch)
-        }
-    }
 
     private fun lookAt(origin: Vector3f, direction: Vector3f, up: Vector3f): Matrix4f =
         Matrix4f().lookAt(

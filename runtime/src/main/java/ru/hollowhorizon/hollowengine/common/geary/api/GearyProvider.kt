@@ -78,7 +78,11 @@ fun removeEntity(level: Level, entity: Int, gearyEntity: Long = UNINITIALIZED_EN
     if (level.geary.get<MinecraftEntityLookup>().remove(entity)) return
     if (gearyEntity != UNINITIALIZED_ENTITY_ID) {
         try {
-            level.geary.entityRemoveProvider.remove(gearyEntity.toULong())
+            with(level.geary) {
+                if (gearyEntity.toGeary().exists()) {
+                    entityRemoveProvider.remove(gearyEntity.toULong())
+                }
+            }
         } catch (e: Exception) {
             HollowEngine.LOGGER.warn("Failed to remove entity $entity", e)
         }

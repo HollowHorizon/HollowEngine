@@ -51,6 +51,7 @@
     "client.iris.FallbackShaderMixin",
     "client.iris.MatrixUniformsMixin",
     "client.iris.ShadowRendererMixin",
+    "client.iris.SodiumShaderMixin",
     "client.iris.SodiumTerrainPipelineMixin",
     "kool.KeyboardHandlerMixin",
     "kool.MouseHandlerMixin"

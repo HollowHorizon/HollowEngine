@@ -113,6 +113,8 @@ object TransformGizmoEditor {
     private var lastFrustum: Frustum? = null
     private var isInitialized = false
     private var isInputHandlerInstalled = false
+    private var isInputHandlerInstallStaged = false
+    private var isInputHandlerPriorityDirty = true
     private var contextMenu: ContextMenuState? = null
 
     private val overlayLabelState = mutableStateOf<OverlayLabelState?>(null)
@@ -309,25 +311,33 @@ object TransformGizmoEditor {
         val shouldInstall = isInitialized && isEnabled && isEditorAvailable()
         when {
             shouldInstall -> {
-                InputStack.pushTop(inputHandler)
-                if (!isInputHandlerInstalled) {
+                val isAlreadyTop = InputStack.handlerStack.lastOrNull() === inputHandler
+                if (!isAlreadyTop && (isInputHandlerPriorityDirty || !isInputHandlerInstalled) && !isInputHandlerInstallStaged) {
+                    InputStack.pushTop(inputHandler)
+                    isInputHandlerInstallStaged = true
+                }
+                if (isAlreadyTop || isInputHandlerInstallStaged) {
                     isInputHandlerInstalled = true
+                    isInputHandlerPriorityDirty = false
                 }
             }
 
-            !shouldInstall && isInputHandlerInstalled -> {
+            !shouldInstall && (isInputHandlerInstalled || isInputHandlerInstallStaged) -> {
                 InputStack.remove(inputHandler)
                 isInputHandlerInstalled = false
+                isInputHandlerInstallStaged = false
+                isInputHandlerPriorityDirty = true
             }
+        }
+        if (InputStack.handlerStack.lastOrNull() === inputHandler) {
+            isInputHandlerInstallStaged = false
         }
         updateInputBlockingState()
     }
 
     private fun maintainInputHandlerPriority() {
-        if (!isInputHandlerInstalled || !isEnabled || !isEditorAvailable()) return
-        if (InputStack.handlerStack.lastOrNull() !== inputHandler) {
-            InputStack.pushTop(inputHandler)
-        }
+        isInputHandlerInstallStaged = false
+        isInputHandlerPriorityDirty = InputStack.handlerStack.lastOrNull() !== inputHandler
     }
 
     private fun updateInputBlockingState() {
@@ -470,8 +480,6 @@ object TransformGizmoEditor {
 
     private fun preparePickState(): Boolean {
         if (!isInitialized || !isEditorAvailable()) return false
-        ensureInputHandlerState()
-        syncVisibleEntries()
 
         val ctx = KoolManager.context
         val pass = scene.mainRenderPass

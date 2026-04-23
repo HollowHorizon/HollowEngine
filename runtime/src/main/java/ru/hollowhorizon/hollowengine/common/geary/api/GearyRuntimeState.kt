@@ -26,7 +26,7 @@ private data class EntityState(
 
 object GearyRuntimeState {
     private val levelGeary = Collections.synchronizedMap(WeakHashMap<Level, Geary>())
-    private val entityStates = Collections.synchronizedMap(WeakHashMap<MCEntity, EntityState>())
+    private val entityStates = Collections.synchronizedMap(IdentityHashMap<MCEntity, EntityState>())
 
     fun initLevel(level: Level) {
         levelGeary.computeIfAbsent(level) { GearyPlatform.create(level) }
@@ -44,10 +44,13 @@ object GearyRuntimeState {
     fun close(level: Level) {
         MaterializationRuntimeState.close(level)
         levelGeary.remove(level)?.application?.close()
+        synchronized(entityStates) {
+            entityStates.entries.removeIf { (entity, _) -> entity.level() == level }
+        }
     }
 
     fun initEntity(entity: MCEntity) {
-        entityStates[entity] = EntityState(coroutineScope = EntityScope(entity))
+        entityStates.putIfAbsent(entity, EntityState(coroutineScope = EntityScope(entity)))
     }
 
     fun entityId(entity: MCEntity): Long = state(entity).entityId
@@ -56,11 +59,11 @@ object GearyRuntimeState {
         state(entity).entityId = entityId
     }
 
-    fun coroutineScope(entity: Entity): SerializableCoroutineScope = state(entity as MCEntity).coroutineScope
+    fun coroutineScope(entity: Entity): SerializableCoroutineScope = state(entity).coroutineScope
 
     fun saveEntity(entity: Entity, tag: CompoundTag) {
         try {
-            val state = state(entity as MCEntity)
+            val state = state(entity)
             if (state.entityId != UNINITIALIZED_ENTITY_ID) {
                 val gearyTag = CompoundTag()
                 with(geary(entity.level())) {
@@ -80,7 +83,7 @@ object GearyRuntimeState {
 
     fun loadEntity(entity: Entity, tag: CompoundTag) {
         loadComponentsFrom(entity, tag.getCompound("geary"))
-        val state = state(entity as MCEntity)
+        val state = state(entity)
         if (state.entityId != UNINITIALIZED_ENTITY_ID) {
             MaterializationRuntimeState.service(entity.level()).ensurePrimaryEntity(entity, state.entityId)
         }
@@ -90,7 +93,7 @@ object GearyRuntimeState {
     }
 
     fun onSetLevel(entity: Entity, newLevel: Level) {
-        val state = state(entity as MCEntity)
+        val state = stateOrNull(entity) ?: return
         if (state.entityId != UNINITIALIZED_ENTITY_ID && !state.gearyRemoved) {
             val oldLevel = entity.level()
             val previousRuntimeId = state.entityId
@@ -103,26 +106,28 @@ object GearyRuntimeState {
     }
 
     fun onRemove(entity: Entity) {
-        if (entity is Player) return
-        val state = state(entity as MCEntity)
+        val state = stateOrNull(entity) ?: return
         if (state.gearyRemoved) return
         state.gearyRemoved = true
-        if (state.entityId != UNINITIALIZED_ENTITY_ID) {
+        if (entity !is Player && state.entityId != UNINITIALIZED_ENTITY_ID) {
             val materialization = MaterializationRuntimeState.service(entity.level())
             materialization.onHostRemoved(entity.uuid)
             materialization.detachPrimaryEntity(entity.uuid, state.entityId)
             removeEntity(entity.level(), entity.id, state.entityId)
         }
         state.coroutineScope.cancel()
+        entityStates.remove(entity)
     }
 
     fun onSetId(entity: Entity, newId: Int, previousId: Int) {
-        val state = state(entity as MCEntity)
+        val state = stateOrNull(entity) ?: return
         if (!state.gearyRemoved && state.entityId != UNINITIALIZED_ENTITY_ID) {
             state.entityId = bind(entity.level(), entity, newId, previousId).toLong()
             MaterializationRuntimeState.service(entity.level()).ensurePrimaryEntity(entity, state.entityId)
         }
     }
+
+    private fun stateOrNull(entity: MCEntity) = entityStates[entity]
 
     private fun state(entity: MCEntity) =
         entityStates[entity] ?: error("Entity state is not initialized for $entity")
