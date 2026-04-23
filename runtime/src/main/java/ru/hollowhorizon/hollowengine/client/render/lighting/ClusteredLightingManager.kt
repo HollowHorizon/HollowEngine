@@ -46,6 +46,7 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
     private val clusterIndexBuffer = ShaderStorageBuffer(ClusteredLightingConfig.CLUSTER_INDEX_BINDING)
     private val volumetricTileIndexBuffer = ShaderStorageBuffer(ClusteredLightingConfig.VOLUMETRIC_TILE_INDEX_BINDING)
     private val visibleLightIndexBuffer = ShaderStorageBuffer(ClusteredLightingConfig.VISIBLE_LIGHT_INDEX_BINDING)
+    private val volumetricComputeOutputBuffer = ShaderStorageBuffer(ClusteredLightingConfig.VOLUMETRIC_COMPUTE_OUTPUT_BINDING)
 
     private var enabled = false
     private var cullingMode = LightCullingMode.DISABLED
@@ -56,6 +57,9 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
     private var flareLightCount = 0
     private var overflowedClusters = 0
     private var overflowedVolumetricTiles = 0
+    private var volumetricFogComputeEnabled = false
+    private var volumetricFogComputeResolution = Vector2i(1, 1)
+    private var volumetricFogComputeDownsample = 1
 
     private var viewResolution = Vector2i()
     private var cameraPosition = Vector3f()
@@ -271,31 +275,36 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
 
     fun dispatchDeferredCulling(event: RenderLevelStageEvent) {
         if (event.stage != ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage.AFTER_CUTOUT_BLOCKS) return
-        if (!enabled || cullingMode != LightCullingMode.TILED || !tiledCullingPending || lightCount <= 0) return
+        if (!enabled) return
 
         val tileCountX = maxOf(1, ceil(viewResolution.x / ClusteredLightingConfig.TILE_SIZE.toFloat()).toInt())
         val tileCountY = maxOf(1, ceil(viewResolution.y / ClusteredLightingConfig.TILE_SIZE.toFloat()).toInt())
-        val usedGpuCompute = TiledLightCompute.dispatch(
-            lightCount = lightCount,
-            tileCountX = tileCountX,
-            tileCountY = tileCountY,
-            viewResolution = Vector2i(viewResolution),
-            clipPlanes = clipPlanes,
-            projectionMatrix = Matrix4f(projectionMatrix),
-            visibleLightIndexBuffer = visibleLightIndexBuffer,
-            coreLightBuffer = coreLightBuffer,
-            pointLightBuffer = pointLightBuffer,
-            spotLightBuffer = spotLightBuffer,
-            clusterIndexBuffer = clusterIndexBuffer,
-            volumetricTileIndexBuffer = volumetricTileIndexBuffer,
-            hasVolumetricLights = tiledHasVolumetricLights,
-        )
 
-        if (usedGpuCompute) {
-            overflowedClusters = 0
-            overflowedVolumetricTiles = 0
+        if (cullingMode == LightCullingMode.TILED && tiledCullingPending && lightCount > 0) {
+            val usedGpuCompute = TiledLightCompute.dispatch(
+                lightCount = lightCount,
+                tileCountX = tileCountX,
+                tileCountY = tileCountY,
+                viewResolution = Vector2i(viewResolution),
+                clipPlanes = clipPlanes,
+                projectionMatrix = Matrix4f(projectionMatrix),
+                visibleLightIndexBuffer = visibleLightIndexBuffer,
+                coreLightBuffer = coreLightBuffer,
+                pointLightBuffer = pointLightBuffer,
+                spotLightBuffer = spotLightBuffer,
+                clusterIndexBuffer = clusterIndexBuffer,
+                volumetricTileIndexBuffer = volumetricTileIndexBuffer,
+                hasVolumetricLights = tiledHasVolumetricLights,
+            )
+
+            if (usedGpuCompute) {
+                overflowedClusters = 0
+                overflowedVolumetricTiles = 0
+            }
+            tiledCullingPending = false
         }
-        tiledCullingPending = false
+
+        dispatchVolumetricFogCompute(tileCountX, tileCountY)
     }
 
     fun isEnabled(): Boolean = enabled
@@ -308,6 +317,9 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
     fun currentVolumetricTileCount(): Int = volumetricTileCount
     fun currentVolumetricLightCount(): Int = volumetricLightCount
     fun currentFlareLightCount(): Int = flareLightCount
+    fun isVolumetricFogComputeEnabled(): Boolean = volumetricFogComputeEnabled
+    fun currentVolumetricFogComputeResolution(): Vector2i = Vector2i(volumetricFogComputeResolution)
+    fun currentVolumetricFogComputeDownsample(): Int = volumetricFogComputeDownsample
     fun configuredTileSize(): Int = ClusteredLightingConfig.TILE_SIZE
     fun configuredZSlices(): Int =
         if (cullingMode == LightCullingMode.CLUSTERED) ClusteredLightingConfig.Z_SLICES else 1
@@ -327,6 +339,21 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         uniforms.uniform1i(UniformUpdateFrequency.PER_FRAME, "he_volumetricTileCount", ::currentVolumetricTileCount)
         uniforms.uniform1i(UniformUpdateFrequency.PER_FRAME, "he_volumetricLightCount", ::currentVolumetricLightCount)
         uniforms.uniform1i(UniformUpdateFrequency.PER_FRAME, "he_flareLightCount", ::currentFlareLightCount)
+        uniforms.uniform1b(
+            UniformUpdateFrequency.PER_FRAME,
+            "he_volumetricFogComputeEnabled",
+            ::isVolumetricFogComputeEnabled
+        )
+        uniforms.uniform2i(
+            UniformUpdateFrequency.PER_FRAME,
+            "he_volumetricFogBufferResolution",
+            ::currentVolumetricFogComputeResolution
+        )
+        uniforms.uniform1i(
+            UniformUpdateFrequency.PER_FRAME,
+            "he_volumetricFogDownsample",
+            ::currentVolumetricFogComputeDownsample
+        )
         uniforms.uniform1i(UniformUpdateFrequency.PER_FRAME, "he_tileSize", ::configuredTileSize)
         uniforms.uniform1i(UniformUpdateFrequency.PER_FRAME, "he_zSlices", ::configuredZSlices)
         uniforms.uniform1f(UniformUpdateFrequency.PER_FRAME, "he_nearPlane", ::currentNearPlane)
@@ -353,6 +380,44 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
 
     fun markLocalShadowWorldChanged() {
         LocalLightShadowManager.markWorldChanged()
+    }
+
+    private fun dispatchVolumetricFogCompute(tileCountX: Int, tileCountY: Int) {
+        if (!enabled || lightCount <= 0 || volumetricLightCount <= 0) {
+            volumetricFogComputeEnabled = false
+            volumetricFogComputeResolution.set(1, 1)
+            volumetricFogComputeDownsample = 1
+            volumetricComputeOutputBuffer.ensureCapacity(4 * Float.SIZE_BYTES)
+            return
+        }
+
+        val useTileLists = cullingMode != LightCullingMode.DIRECT && volumetricTileCount > 0
+        val usedGpuCompute = VolumetricFogCompute.dispatch(
+            lightCount = lightCount,
+            tileCountX = tileCountX,
+            tileCountY = tileCountY,
+            viewResolution = Vector2i(viewResolution),
+            clipPlanes = clipPlanes,
+            viewMatrix = Matrix4f(viewMatrix),
+            cameraPosition = Vector3f(cameraPosition),
+            projectionMatrix = Matrix4f(projectionMatrix),
+            useTileLists = useTileLists,
+            coreLightBuffer = coreLightBuffer,
+            pointLightBuffer = pointLightBuffer,
+            spotLightBuffer = spotLightBuffer,
+            volumetricFogBuffer = volumetricFogBuffer,
+            volumetricTileIndexBuffer = volumetricTileIndexBuffer,
+            outputBuffer = volumetricComputeOutputBuffer,
+        )
+
+        volumetricFogComputeEnabled = usedGpuCompute
+        if (usedGpuCompute) {
+            volumetricFogComputeResolution.set(VolumetricFogCompute.currentFogResolution())
+            volumetricFogComputeDownsample = VolumetricFogCompute.currentDownsample()
+        } else {
+            volumetricFogComputeResolution.set(1, 1)
+            volumetricFogComputeDownsample = 1
+        }
     }
 
     private fun updateFrameMatrices(event: RenderLevelStageEvent) {
@@ -597,6 +662,9 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         flareLightCount = 0
         overflowedClusters = 0
         overflowedVolumetricTiles = 0
+        volumetricFogComputeEnabled = false
+        volumetricFogComputeResolution.set(1, 1)
+        volumetricFogComputeDownsample = 1
     }
 
     private fun releaseGpuState() {
@@ -612,8 +680,10 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         clusterIndexBuffer.release()
         volumetricTileIndexBuffer.release()
         visibleLightIndexBuffer.release()
+        volumetricComputeOutputBuffer.release()
         ClusteredLightCompute.invalidate()
         TiledLightCompute.invalidate()
+        VolumetricFogCompute.invalidate()
         LocalLightShadowManager.invalidate()
     }
 

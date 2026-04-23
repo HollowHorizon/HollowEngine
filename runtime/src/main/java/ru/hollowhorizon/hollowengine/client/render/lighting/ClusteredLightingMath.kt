@@ -34,6 +34,7 @@ object ClusteredLightingConfig {
     const val VOLUMETRIC_TILE_INDEX_BINDING = 35
     const val SHADOW_DATA_BINDING = 36
     const val VISIBLE_LIGHT_INDEX_BINDING = 37
+    const val VOLUMETRIC_COMPUTE_OUTPUT_BINDING = 38
 
     const val CORE_LIGHT_STRIDE = 48
     const val POINT_LIGHT_STRIDE = 16

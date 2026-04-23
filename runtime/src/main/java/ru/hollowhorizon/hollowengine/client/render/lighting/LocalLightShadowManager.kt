@@ -222,6 +222,26 @@ internal object LocalLightShadowManager {
         uniforms.uniformMatrix("he_localShadowProjectionMatrixInverse", { Matrix4f(currentShadowProjectionMatrixInverse) }, localShadowMatrixNotifier)
     }
 
+    internal fun bindShadowDataBuffer() {
+        shadowBuffer.bindBase()
+    }
+
+    internal fun currentShadowLightCount(): Int = shadowLightCount
+
+    internal fun currentSpotShadowAtlasResolution(): Vector2i = Vector2i(spotAtlasResolution)
+
+    internal fun currentPointShadowAtlasResolution(): Vector2i = Vector2i(pointAtlasResolution)
+
+    internal fun currentSpotShadowAtlasTextureId(): Int {
+        ensureResourcesCreated()
+        return spotAtlas.textureId()
+    }
+
+    internal fun currentPointShadowAtlasTextureId(): Int {
+        ensureResourcesCreated()
+        return pointAtlas.textureId()
+    }
+
     internal fun addCustomSamplers(samplers: SamplerHolder) {
         ensureResourcesCreated()
         val sampler = shadowSampler ?: return
