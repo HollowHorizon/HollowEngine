@@ -25,7 +25,8 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStag
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
 import ru.hollowhorizon.hollowengine.common.geary.anchor.EntityAnchor
 import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.api.geary
+import ru.hollowhorizon.hollowengine.common.geary.anchor.modelOrNull
+import ru.hollowhorizon.hollowengine.common.geary.anchor.transformOrNull
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
@@ -257,49 +258,46 @@ object RenderManager {
 
         materialization.forEachModelRecord { record ->
             if ((record.anchor as? EntityAnchor)?.primary == true) return@forEachModelRecord
+            val snapshot = record.snapshot
+            val model = snapshot.modelOrNull() ?: return@forEachModelRecord
+            val transform = snapshot.transformOrNull() ?: TransformComponent()
+            val resolved = resolveAnchoredTransform(level, record.anchor, transform, partialTick)
+                ?: return@forEachModelRecord
 
-            with(level.geary) {
-                val entity = record.runtimeId.toGeary()
-                val model = entity.get<Model>() ?: return@with
-                val transform = entity.get<TransformComponent>() ?: TransformComponent()
-                val resolved = resolveAnchoredTransform(level, record.anchor, transform, partialTick)
-                    ?: return@with
+            val bounds = buildAnchoredRenderBounds(model, resolved.transform, model.scale)
+            if (frustum != null && !frustum.isVisible(bounds)) return@forEachModelRecord
 
-                val bounds = buildAnchoredRenderBounds(model, resolved.transform, model.scale)
-                if (frustum != null && !frustum.isVisible(bounds)) return@with
-
-                poseStack.pushPose()
-                poseStack.translate(
-                    resolved.transform.translation.x - cameraPosition.x,
-                    resolved.transform.translation.y - cameraPosition.y,
-                    resolved.transform.translation.z - cameraPosition.z,
+            poseStack.pushPose()
+            poseStack.translate(
+                resolved.transform.translation.x - cameraPosition.x,
+                resolved.transform.translation.y - cameraPosition.y,
+                resolved.transform.translation.z - cameraPosition.z,
+            )
+            poseStack.mulPose(
+                Quaternionf(
+                    resolved.transform.rotation.x,
+                    resolved.transform.rotation.y,
+                    resolved.transform.rotation.z,
+                    resolved.transform.rotation.w,
                 )
-                poseStack.mulPose(
-                    Quaternionf(
-                        resolved.transform.rotation.x,
-                        resolved.transform.rotation.y,
-                        resolved.transform.rotation.z,
-                        resolved.transform.rotation.w,
-                    )
+            )
+            poseStack.scale(
+                model.scale * resolved.transform.scale.x,
+                model.scale * resolved.transform.scale.y,
+                model.scale * resolved.transform.scale.z,
+            )
+            model.attachment.pipeline.render(
+                RenderContext(
+                    poseStack,
+                    bufferSource,
+                    if (packedLight >= 0) packedLight else resolved.light,
+                    OverlayTexture.NO_OVERLAY,
+                    allowInstancing = allowInstancing,
+                    openedBatchedRenderTypes = openedBatchedRenderTypes,
                 )
-                poseStack.scale(
-                    model.scale * resolved.transform.scale.x,
-                    model.scale * resolved.transform.scale.y,
-                    model.scale * resolved.transform.scale.z,
-                )
-                model.attachment.pipeline.render(
-                    RenderContext(
-                        poseStack,
-                        bufferSource,
-                        if (packedLight >= 0) packedLight else resolved.light,
-                        OverlayTexture.NO_OVERLAY,
-                        allowInstancing = allowInstancing,
-                        openedBatchedRenderTypes = openedBatchedRenderTypes,
-                    )
-                )
-                poseStack.popPose()
-                renderedAny = true
-            }
+            )
+            poseStack.popPose()
+            renderedAny = true
         }
         return AnchoredRenderStats(renderedAny, openedBatchedRenderTypes)
     }

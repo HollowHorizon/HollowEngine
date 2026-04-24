@@ -20,11 +20,12 @@ import ru.hollowhorizon.hollowengine.client.render.resolveAnchoredTransform
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
 import ru.hollowhorizon.hollowengine.common.geary.anchor.EntityAnchor
 import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.api.geary
+import ru.hollowhorizon.hollowengine.common.geary.anchor.transformOrNull
 import ru.hollowhorizon.hollowengine.common.geary.components.LightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.PointLightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.SpotLightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.lightComponentOrNull
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import java.nio.ByteBuffer
 import kotlin.math.ceil
@@ -380,68 +381,54 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
 
         materialization.forEachLightRecord { record ->
             if ((record.anchor as? EntityAnchor)?.primary == true) return@forEachLightRecord
+            val component = record.snapshot.lightComponentOrNull() ?: return@forEachLightRecord
+            if (!component.enabled) return@forEachLightRecord
 
-            with(level.geary) {
-                val entity = record.runtimeId.toGeary()
-                val pointLight = entity.get<PointLightComponent>()
-                val spotLight = entity.get<SpotLightComponent>()
-                if (pointLight != null && spotLight != null) {
-                    HollowCore.LOGGER.warn(
-                        "Skipping anchored light {} because both point and spot components are present",
-                        record.stableKey,
-                    )
-                    return@with
-                }
-
-                val component = pointLight ?: spotLight ?: return@with
-                if (!component.enabled) return@with
-
-                val transform = entity.get<TransformComponent>() ?: TransformComponent()
-                val resolved = resolveAnchoredTransform(level, record.anchor, transform, partialTick) ?: return@with
-                val worldPosition = Vector3f(
-                    resolved.transform.translation.x,
-                    resolved.transform.translation.y,
-                    resolved.transform.translation.z,
-                )
-                val worldSpaceDirection = when (component) {
-                    is PointLightComponent -> Vector3f(0f, 0f, 0f)
-                    is SpotLightComponent -> spotLightDirection(transform.rotation).toJoml().normalize()
-                }
-                val cameraRelativePosition = Vector3f(worldPosition).sub(cameraPosition)
-                val viewSpacePosition = Vector3f(cameraRelativePosition)
-                viewMatrix.transformPosition(viewSpacePosition)
-
-                val influenceRadius = when (component) {
-                    is PointLightComponent -> component.radius
-                    is SpotLightComponent -> component.distance
-                }
-                if (frustum != null && !frustum.isVisible(buildLightBounds(worldPosition, influenceRadius))) return@with
-
-                if (viewSpacePosition.z > influenceRadius) return@with
-                val flarePosition = if (component.hasFlare) {
-                    projectToScreen(cameraRelativePosition, viewProjectionMatrix, viewResolution.x, viewResolution.y)
-                } else {
-                    null
-                }
-
-                collected += PreparedLight(
-                    cacheKey = record.stableKey.toString(),
-                    component = component,
-                    worldPosition = worldPosition,
-                    worldSpaceDirection = worldSpaceDirection,
-                    viewSpacePosition = viewSpacePosition,
-                    viewSpaceDirection = when (component) {
-                        is PointLightComponent -> Vector3f(0f, 0f, 0f)
-                        is SpotLightComponent -> Vector3f(worldSpaceDirection).apply {
-                            viewMatrix.transformDirection(this)
-                            normalize()
-                        }
-                    },
-                    influenceRadius = influenceRadius,
-                    cameraDistance = cameraRelativePosition.length(),
-                    flareScreenPosition = flarePosition,
-                )
+            val transform = record.snapshot.transformOrNull() ?: TransformComponent()
+            val resolved = resolveAnchoredTransform(level, record.anchor, transform, partialTick) ?: return@forEachLightRecord
+            val worldPosition = Vector3f(
+                resolved.transform.translation.x,
+                resolved.transform.translation.y,
+                resolved.transform.translation.z,
+            )
+            val worldSpaceDirection = when (component) {
+                is PointLightComponent -> Vector3f(0f, 0f, 0f)
+                is SpotLightComponent -> spotLightDirection(transform.rotation).toJoml().normalize()
             }
+            val cameraRelativePosition = Vector3f(worldPosition).sub(cameraPosition)
+            val viewSpacePosition = Vector3f(cameraRelativePosition)
+            viewMatrix.transformPosition(viewSpacePosition)
+
+            val influenceRadius = when (component) {
+                is PointLightComponent -> component.radius
+                is SpotLightComponent -> component.distance
+            }
+            if (frustum != null && !frustum.isVisible(buildLightBounds(worldPosition, influenceRadius))) return@forEachLightRecord
+
+            if (viewSpacePosition.z > influenceRadius) return@forEachLightRecord
+            val flarePosition = if (component.hasFlare) {
+                projectToScreen(cameraRelativePosition, viewProjectionMatrix, viewResolution.x, viewResolution.y)
+            } else {
+                null
+            }
+
+            collected += PreparedLight(
+                cacheKey = record.stableKey.toString(),
+                component = component,
+                worldPosition = worldPosition,
+                worldSpaceDirection = worldSpaceDirection,
+                viewSpacePosition = viewSpacePosition,
+                viewSpaceDirection = when (component) {
+                    is PointLightComponent -> Vector3f(0f, 0f, 0f)
+                    is SpotLightComponent -> Vector3f(worldSpaceDirection).apply {
+                        viewMatrix.transformDirection(this)
+                        normalize()
+                    }
+                },
+                influenceRadius = influenceRadius,
+                cameraDistance = cameraRelativePosition.length(),
+                flareScreenPosition = flarePosition,
+            )
         }
 
         return collected

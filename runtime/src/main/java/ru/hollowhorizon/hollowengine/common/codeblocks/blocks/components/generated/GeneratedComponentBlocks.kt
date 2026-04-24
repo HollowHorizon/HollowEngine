@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated
 
-import com.mineinabyss.geary.datatypes.Component
-import com.mineinabyss.geary.serialization.setPersisting
+import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
@@ -84,7 +83,7 @@ object ComponentBlockRuntime {
         if (descriptor.syncPolicy.name == "SYNC") {
             gearyEntity.setSyncing(value, componentClass)
         } else {
-            gearyEntity.setPersisting(value, componentClass)
+            gearyEntity.set(value, componentClass)
         }
     }
 

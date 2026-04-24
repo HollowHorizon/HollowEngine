@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.editor
 
-import com.mineinabyss.geary.datatypes.Component as GearyComponent
+import ru.hollowhorizon.hollowengine.common.geary.api.Component as GearyComponent
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import kotlinx.serialization.KSerializer

@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.geary.anchor
 
-import com.mineinabyss.geary.datatypes.Component
+import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import net.minecraft.core.BlockPos
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.level.ChunkPos
@@ -9,7 +9,9 @@ import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptor
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
-import java.util.UUID
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.withComponent
+import java.util.*
+import kotlin.collections.toList
 
 data class DormantRecord(
     val stableKey: UUID,
@@ -20,24 +22,19 @@ data class DormantRecord(
 
 data class MaterializedRecord(
     val stableKey: UUID,
-    val runtimeId: Long,
+    val snapshot: EntitySnapshot,
     val anchor: AnchorComponent,
 )
 
-fun EntitySnapshot.stableKeyOrNull(): UUID? =
-    components.filterIsInstance<StableKeyComponent>().firstOrNull()?.value
+fun EntitySnapshot.stableKeyOrNull(): UUID? = stableKey
 
 fun EntitySnapshot.requireStableKey(): UUID =
-    stableKeyOrNull() ?: error("Entity snapshot is missing StableKeyComponent.")
+    stableKeyOrNull() ?: error("Entity snapshot is missing stable key.")
 
-fun EntitySnapshot.anchorOrNull(): AnchorComponent? {
-    val entityAnchor = components.filterIsInstance<EntityAnchor>().firstOrNull()
-    if (entityAnchor != null) return entityAnchor
-    return components.filterIsInstance<WorldAnchor>().firstOrNull()
-}
+fun EntitySnapshot.anchorOrNull(): AnchorComponent? = anchor
 
 fun EntitySnapshot.requireAnchor(): AnchorComponent =
-    anchorOrNull() ?: error("Entity snapshot is missing an anchor component.")
+    anchorOrNull() ?: error("Entity snapshot is missing anchor.")
 
 fun EntitySnapshot.transformOrNull(): TransformComponent? =
     components.filterIsInstance<TransformComponent>().firstOrNull()
@@ -46,7 +43,7 @@ fun EntitySnapshot.modelOrNull(): Model? =
     components.filterIsInstance<Model>().firstOrNull()
 
 fun EntitySnapshot.primaryAnchorOrNull(): PrimaryAnchorObject? =
-    components.filterIsInstance<PrimaryAnchorObject>().firstOrNull()
+    if ((anchor as? EntityAnchor)?.primary == true) PrimaryAnchorObject() else null
 
 fun EntitySnapshot.withOrReplace(component: Component): EntitySnapshot {
     val id = ComponentDescriptorRegistry.idFor(component::class)
@@ -64,13 +61,8 @@ fun EntitySnapshot.withOrReplace(component: Component): EntitySnapshot {
 fun EntitySnapshot.removeComponents(predicate: (Component) -> Boolean): EntitySnapshot =
     copy(components = components.filterNot(predicate))
 
-fun EntitySnapshot.withIdentity(anchor: AnchorComponent, stableKey: UUID): EntitySnapshot {
-    return this
-        .removeComponents {
-            it is StableKeyComponent || it is EntityAnchor || it is WorldAnchor || it is PrimaryAnchorObject
-        }
-        .withOrReplace(StableKeyComponent(stableKey))
-        .withOrReplace(anchor)
+fun EntitySnapshot.withIdentity(anchor: AnchorComponent): EntitySnapshot {
+    return withComponent<AnchorComponent>(anchor)
 }
 
 fun worldAnchorFor(position: Vec3, localId: UUID = UUID.randomUUID()): WorldAnchor {

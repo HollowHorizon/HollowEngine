@@ -6,7 +6,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.animations.AnimationControllerFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.CodeBlocksFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.GLTFFile
-import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.PrefabEditorFile
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 
 @SubscribeEvent
@@ -34,10 +33,5 @@ fun registerDefaultFileTypes(event: RegisterFileTypeEvent) {
         { path, _ -> GLTFFile(path) }
     )
 
-    event.registerSuffix(
-        ".entity.prefab",
-        { path, bytes -> PrefabEditorFile(path, bytes) }
-    )
-    
     event.register(".png", { path, bytes -> ImageFile(path, bytes) })
 }

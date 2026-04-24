@@ -2,91 +2,71 @@
 
 package ru.hollowhorizon.hollowengine.common.geary.api
 
-import com.mineinabyss.geary.datatypes.Entity
-import com.mineinabyss.geary.datatypes.EntityId
-import com.mineinabyss.geary.modules.Geary
-import com.mineinabyss.geary.modules.get
+import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.level.Level
-import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityLoadedEvent
-import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.applySnapshot
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
-import ru.hollowhorizon.hollowengine.common.geary.tracking.MinecraftEntityLookup
-
-interface GearyProvider {
-    val `hollowengine$geary`: Geary
-}
-
-interface EntityProvider {
-    var `hollowengine$entity`: Long
-}
-
-val Level.geary: Geary
-    get() = GearyRuntimeState.geary(this)
+import java.util.LinkedHashMap
+import kotlin.reflect.KClass
 
 const val UNINITIALIZED_ENTITY_ID: Long = -1L
 
-private fun create(level: Level, entity: MCEntity): EntityId {
-    val created = level.geary.get<MinecraftEntityLookup>().createDetached(level, entity)
-    GearyRuntimeState.setEntityId(entity, created.toLong())
-    MaterializationRuntimeState.service(level).ensurePrimaryEntity(entity, created.toLong())
-    if (level.getEntity(entity.id) == entity) {
-        return level.geary.get<MinecraftEntityLookup>().bind(level, entity.id, created.toLong(), entity)
-    }
-    return created
-}
+/**
+ * Runtime component view over a Minecraft entity.
+ * Keeps descriptor-aware storage so existing editor/codeblocks APIs can stay unchanged.
+ */
+class RuntimeEntityComponents internal constructor(
+    private val entity: MCEntity,
+) {
+    fun allById(): LinkedHashMap<ResourceLocation, Any> = GearyRuntimeState.componentsById(entity)
 
-fun ensureEntity(level: Level, entity: MCEntity): EntityId {
-    val existing = GearyRuntimeState.entityId(entity)
-    if (existing != UNINITIALIZED_ENTITY_ID) return existing.toULong()
-    return create(level, entity)
+    @Suppress("UNCHECKED_CAST")
+    fun <T : Any> get(type: KClass<T>): T? {
+        val id = ComponentDescriptorRegistry.idFor(type) ?: return null
+        return allById()[id] as? T
+    }
+
+    inline fun <reified T : Any> get(): T? = get(T::class)
+
+    fun <T : Any> set(component: T, type: KClass<out T>, noEvent: Boolean = false): T {
+        val id = ComponentDescriptorRegistry.idFor(type)
+            ?: error("Component descriptor not found for ${type.qualifiedName}")
+        allById()[id] = component
+        if (!noEvent) GearyRuntimeState.markDirty(entity)
+        return component
+    }
+
+    inline fun <reified T : Any> set(component: T, noEvent: Boolean = false): T = set(component, T::class, noEvent)
+
+    fun remove(type: KClass<*>, noEvent: Boolean = false) {
+        val id = ComponentDescriptorRegistry.idFor(type) ?: return
+        allById().remove(id)
+        if (!noEvent) GearyRuntimeState.markDirty(entity)
+    }
 }
 
 val MCEntity.entityId: Long
-    get() = ensureEntity(level(), this).toLong()
+    get() = GearyRuntimeState.entityId(this)
 
-val MCEntity.entity: Entity
-    get() = with(level().geary) { entityId.toGeary() }
+val MCEntity.entity: RuntimeEntityComponents
+    get() = RuntimeEntityComponents(this)
 
-fun bind(level: Level, entity: MCEntity, entityId: Int = entity.id, previousEntityId: Int = entity.id): EntityId {
-    val gearyEntity = ensureEntity(level, entity)
-    return level.geary.get<MinecraftEntityLookup>().bind(level, entityId, gearyEntity.toLong(), entity, previousEntityId)
-}
+fun ensureEntity(level: Level, entity: MCEntity): Long = GearyRuntimeState.ensureEntity(level, entity)
 
-fun bindIfInitialized(level: Level, entity: MCEntity): EntityId? {
-    val current = GearyRuntimeState.entityId(entity)
-    if (current == UNINITIALIZED_ENTITY_ID) return null
+fun bind(level: Level, entity: MCEntity, entityId: Int = entity.id, previousEntityId: Int = entity.id): Long =
+    GearyRuntimeState.bind(level, entity, entityId, previousEntityId)
 
-    val bound = level.geary.get<MinecraftEntityLookup>().bind(level, entity.id, current, entity)
-    GearyRuntimeState.setEntityId(entity, bound.toLong())
-    return bound
-}
+fun bindIfInitialized(level: Level, entity: MCEntity): Long? =
+    GearyRuntimeState.bindIfInitialized(level, entity)
 
-fun move(old: Level, new: Level, entity: Long, mcEntity: MCEntity): EntityId {
-    val snapshot = with(old.geary) { snapshotOf(entity.toGeary()) }
-    with(new.geary) {
-        val newEntityId = create(new, mcEntity)
-        applySnapshot(newEntityId.toGeary(), snapshot)
-        return newEntityId
-    }
-}
+fun move(old: Level, new: Level, entity: Long, mcEntity: MCEntity): Long =
+    GearyRuntimeState.move(old, new, entity, mcEntity)
 
 fun removeEntity(level: Level, entity: Int, gearyEntity: Long = UNINITIALIZED_ENTITY_ID) {
-    if (level.geary.get<MinecraftEntityLookup>().remove(entity)) return
-    if (gearyEntity != UNINITIALIZED_ENTITY_ID) {
-        try {
-            with(level.geary) {
-                if (gearyEntity.toGeary().exists()) {
-                    entityRemoveProvider.remove(gearyEntity.toULong())
-                }
-            }
-        } catch (e: Exception) {
-            HollowEngine.LOGGER.warn("Failed to remove entity $entity", e)
-        }
-    }
+    GearyRuntimeState.removeEntity(level, entity, gearyEntity)
 }
 
 @SubscribeEvent

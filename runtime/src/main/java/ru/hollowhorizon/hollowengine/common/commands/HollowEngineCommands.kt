@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.commands
 
-import com.mineinabyss.geary.serialization.setPersisting
 import com.mojang.brigadier.arguments.BoolArgumentType
 import com.mojang.brigadier.arguments.FloatArgumentType
 import com.mojang.brigadier.arguments.IntegerArgumentType
@@ -584,7 +583,7 @@ private fun CommandExtension.registerUtilityCommands() {
                         if (isSyncing) {
                             entity.entity.setSyncing(c.create(), c.value)
                         } else {
-                            entity.entity.setPersisting(c.create(), c.value)
+                            entity.entity.set(c.create(), c.value)
                         }
                         SUCCESS
                     }
@@ -1277,7 +1276,7 @@ private fun moveAnchoredModel(source: CommandSourceStack, stableKey: UUID, posit
 
     val updated = when (anchor) {
         is WorldAnchor -> snapshot
-            .withIdentity(worldAnchorFor(position, anchor.localId), stableKey)
+            .withIdentity(worldAnchorFor(position, anchor.localId))
             .withOrReplace((snapshot.transformOrNull() ?: TransformComponent()).withWorldPosition(position))
 
         is EntityAnchor -> snapshot

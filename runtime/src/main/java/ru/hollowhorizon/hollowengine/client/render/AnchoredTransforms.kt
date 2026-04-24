@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.render
 
-import com.mineinabyss.geary.modules.get
 import de.fabmax.kool.math.MutableQuatD
 import de.fabmax.kool.math.MutableQuatF
 import de.fabmax.kool.math.MutableVec3f
@@ -12,6 +11,7 @@ import de.fabmax.kool.math.deg
 import de.fabmax.kool.scene.TrsTransformF
 import net.minecraft.client.renderer.LevelRenderer
 import net.minecraft.core.BlockPos
+import net.minecraft.server.level.ServerLevel
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.phys.AABB
@@ -20,9 +20,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.v2.calculateBounds
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
 import ru.hollowhorizon.hollowengine.common.geary.anchor.AnchorComponent
 import ru.hollowhorizon.hollowengine.common.geary.anchor.EntityAnchor
-import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.anchor.WorldAnchor
-import ru.hollowhorizon.hollowengine.common.geary.api.geary
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
@@ -190,8 +188,7 @@ fun gizmoRotationToQuatF(rotation: QuatD): QuatF =
     MutableQuatF(rotation.x.toFloat(), rotation.y.toFloat(), rotation.z.toFloat(), rotation.w.toFloat()).norm()
 
 fun findAnchorHostEntity(level: net.minecraft.world.level.Level, hostUuid: java.util.UUID): MCEntity? {
-    val runtimeId = MaterializationRuntimeState.service(level).runtimeIdOf(hostUuid) ?: return null
-    return with(level.geary) { runtimeId.toGeary().get<MCEntity>() }
+    return (level as? ServerLevel)?.getEntity(hostUuid) as? MCEntity
 }
 
 private fun sanitizeScale(scale: Vec3f): Vec3f =

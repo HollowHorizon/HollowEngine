@@ -84,18 +84,6 @@ class FilePopup : Composable {
                             }
                         }
                     }
-                    if (node.treePath.startsWith("prefabs")) {
-                        subMenu(ACTIONS("create.prefab"), icons.CREATE_FILE) {
-                            item("hollowengine.gui.ide.actions.create.prefab.npc".lang, icons.NPCS) {
-                                fileExtension = ".entity.prefab"
-                                createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
-                            }
-                            item("hollowengine.gui.ide.actions.create.prefab.item".lang, icons.TYPES) {
-                                fileExtension = ".item.prefab"
-                                createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
-                            }
-                        }
-                    }
                 }
             } else {
                 item(ACTIONS("open"), icons.FILE_KTS) {

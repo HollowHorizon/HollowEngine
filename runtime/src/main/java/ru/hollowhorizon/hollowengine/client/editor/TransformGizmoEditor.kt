@@ -50,7 +50,6 @@ import ru.hollowhorizon.hollowengine.client.render.gizmoRotationToQuatF
 import ru.hollowhorizon.hollowengine.client.render.quatFToGizmoRotation
 import ru.hollowhorizon.hollowengine.client.render.resolveAnchoredTransform
 import ru.hollowhorizon.hollowengine.client.render.worldTransformToComponent
-import ru.hollowhorizon.hollowengine.client.render.lighting.spotLightDirection
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
@@ -75,14 +74,12 @@ import ru.hollowhorizon.hollowengine.common.geary.components.SpotLightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.lightComponentOrNull
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
-import ru.hollowhorizon.hollowengine.common.network.send
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.tan
 
@@ -1048,7 +1045,6 @@ object TransformGizmoEditor {
                             ),
                             currentAnchor.localId,
                         ),
-                        stableKey,
                     )
                     .withOrReplace(updatedTransform)
 

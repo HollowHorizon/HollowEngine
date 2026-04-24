@@ -1,22 +1,14 @@
 package ru.hollowhorizon.hollowengine.common.geary.sync
 
-import com.mineinabyss.geary.datatypes.Component
-import com.mineinabyss.geary.datatypes.Entity
-import com.mineinabyss.geary.helpers.componentId
-import com.mineinabyss.geary.modules.Geary
-import com.mineinabyss.geary.modules.get
-import com.mineinabyss.geary.serialization.SerializableComponents
-import com.mineinabyss.geary.serialization.components.Persists
+import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import kotlinx.serialization.Polymorphic
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hollowengine.common.geary.api.entityId
-import ru.hollowhorizon.hollowengine.common.geary.api.geary
-import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
+import ru.hollowhorizon.hollowengine.common.geary.api.entity
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
-import ru.hollowhorizon.hollowengine.common.geary.tracking.MinecraftEntityLookup
+import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
@@ -24,26 +16,11 @@ import kotlin.reflect.KClass
 
 object Syncs
 
-inline fun <reified T : Component> Entity.setSyncing(
+inline fun <reified T : Component> ru.hollowhorizon.hollowengine.common.geary.api.RuntimeEntityComponents.setSyncing(
     component: T,
     kClass: KClass<out T> = T::class,
     noEvent: Boolean = false,
-): T {
-    setRelation(world.getAddon(SerializableComponents).persists, world.componentId(kClass), Persists(), noEvent)
-    setRelation(world.getAddon(SyncableComponents).syncs, world.componentId(kClass), Syncs, noEvent)
-    set(component, kClass, noEvent)
-    return component
-}
-
-fun Geary.registerSyncingNoinline(type: KClass<*>) {
-    val componentId = componentId(type)
-    val name = ComponentDescriptorRegistry.idFor(type)
-        ?: error("SerialName not registered for ${type.simpleName}")
-    componentId.toGeary().apply {
-        set(name)
-        add<Syncs>()
-    }
-}
+): T = set(component, kClass, noEvent)
 
 @Serializable
 sealed interface ComponentSyncPacket : HollowPacket {
@@ -59,12 +36,8 @@ data class ComponentUpdatePacket(
     val component: @Polymorphic Component,
 ) : ComponentSyncPacket {
     override fun handle(player: Player) {
-        val geary = level.geary
-        val entity = (level.getEntity(entityId) as? MCEntity)?.entityId
-            ?: geary.get<MinecraftEntityLookup>().getOrCreateById(entityId)
-        with(geary) {
-            entity.toGeary().set(component, component::class)
-        }
+        val entity = level.getEntity(entityId) as? MCEntity ?: return
+        entity.entity.set(component, component::class)
     }
 }
 
@@ -75,12 +48,8 @@ data class ComponentRemovePacket(
     val componentTypeId: @Serializable(ForResourceLocation::class) ResourceLocation,
 ) : ComponentSyncPacket {
     override fun handle(player: Player) {
-        val geary = level.geary
-        val entity = (level.getEntity(entityId) as? MCEntity)?.entityId
-            ?: geary.get<MinecraftEntityLookup>().getOrCreateById(entityId)
-        with(geary) {
-            val descriptor = ComponentDescriptorRegistry.descriptorOrNull(componentTypeId) ?: return
-            entity.toGeary().remove(descriptor.value)
-        }
+        val entity = level.getEntity(entityId) as? MCEntity ?: return
+        val descriptor = ComponentDescriptorRegistry.descriptorOrNull(componentTypeId) ?: return
+        entity.entity.remove(descriptor.value)
     }
 }

@@ -1,20 +1,15 @@
 package ru.hollowhorizon.hollowengine.common.geary.snapshot
 
-import com.mineinabyss.geary.datatypes.Component
-import com.mineinabyss.geary.datatypes.Entity
-import com.mineinabyss.geary.datatypes.GearyEntity
-import com.mineinabyss.geary.prefabs.PrefabKey
-import com.mineinabyss.geary.serialization.getAllPersisting
+import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import io.netty.buffer.Unpooled
 import net.minecraft.nbt.Tag
 import net.minecraft.network.FriendlyByteBuf
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import ru.hollowhorizon.hollowengine.common.geary.api.RuntimeEntityComponents
 import ru.hollowhorizon.hollowengine.common.geary.api.entity
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.PrefabNamespaceMigrations
-import ru.hollowhorizon.hollowengine.common.geary.tracking.datastore.setAllSyncablePersisting
 import ru.hollowhorizon.hollowengine.common.utils.bytebuf.ByteBufFormat
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 import ru.hollowhorizon.hollowengine.common.utils.yaml.YamlFormat
@@ -42,6 +37,7 @@ object EntitySerialization {
     fun tryDeserializeFromByteBuf(buf: FriendlyByteBuf, source: String = "ByteBuf entity snapshot"): EntitySnapshot? =
         softDeserialize(source) { deserializeFromByteBuf(buf) }
 
+    // Kept for backward compatibility with existing UI/files, now encoded as JSON text.
     fun serializeToYaml(snapshot: EntitySnapshot): String =
         YamlFormat.encodeToString(EntitySnapshot.serializer(), snapshot, serializersModule())
     fun deserializeFromYaml(text: String): EntitySnapshot =
@@ -75,32 +71,12 @@ object EntitySerialization {
     }
 }
 
-fun snapshotOf(entity: Entity): EntitySnapshot {
-    val prefabRefs = entity.get<PrefabRefsComponent>()?.refs ?: prefabRefsOf(entity)
-    val components = entity.getAllPersisting().filterNot { it is PrefabRefsComponent }.toList()
-    return EntitySnapshot(prefabRefs = prefabRefs, components = components)
-}
+fun snapshotOf(entity: RuntimeEntityComponents): EntitySnapshot =
+    EntitySnapshot(components = entity.allById().values.toList())
 
-fun applySnapshot(target: Entity, snapshot: EntitySnapshot) {
+fun applySnapshot(target: RuntimeEntityComponents, snapshot: EntitySnapshot) {
     val desired = snapshot.componentById()
-    target.getAllPersisting().forEach { existing ->
-        if (existing is PrefabRefsComponent) return@forEach
-        val id = ComponentDescriptorRegistry.idFor(existing::class) ?: return@forEach
-        if (id !in desired) target.remove(existing::class)
-    }
-    target.remove(PrefabRefsComponent::class)
-    target.setAllSyncablePersisting(snapshot.components)
-    if (snapshot.prefabRefs.isNotEmpty()) {
-        target.setAllSyncablePersisting(listOf(PrefabRefsComponent(snapshot.prefabRefs)))
-    }
-}
-
-private fun prefabRefsOf(entity: GearyEntity): Set<PrefabKey> {
-    return entity.collectPrefabs()
-        .mapNotNull { prefab -> prefab.get<PrefabKey>() }
-        .map { key ->
-            val migrated = PrefabNamespaceMigrations.migrations.getOrDefault(key.namespace, key.namespace)
-            PrefabKey.of(migrated, key.key)
-        }
-        .toSet()
+    val all = target.allById()
+    all.keys.removeIf { it !in desired.keys }
+    desired.forEach { (id, component) -> all[id] = component }
 }

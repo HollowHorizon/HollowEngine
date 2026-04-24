@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.geary.components
 
-import com.mineinabyss.geary.datatypes.Component
+import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic

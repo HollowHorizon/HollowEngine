@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.geary.components
 
-import com.mineinabyss.geary.datatypes.Component
+import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import de.fabmax.kool.math.Vec3f
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

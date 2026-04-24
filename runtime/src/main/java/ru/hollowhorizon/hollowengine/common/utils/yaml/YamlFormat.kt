@@ -1,8 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.utils.yaml
 
-import com.charleskorn.kaml.Yaml
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.SerializationStrategy
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.modules.SerializersModule
@@ -11,10 +11,16 @@ import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 
 object YamlFormat {
-    val yaml = Yaml.default
+    val yaml = Json {
+        encodeDefaults = true
+        ignoreUnknownKeys = true
+        prettyPrint = true
+    }
 
-    fun withModule(serializersModule: SerializersModule): Yaml {
-        return Yaml(configuration = yaml.configuration, serializersModule = serializersModule)
+    fun withModule(serializersModule: SerializersModule): Json {
+        return Json(yaml) {
+            this.serializersModule = serializersModule
+        }
     }
 
     inline fun <reified T> encodeToString(value: T): String {

@@ -1,57 +1,46 @@
 package ru.hollowhorizon.hollowengine.common.geary.anchor
 
-import com.mineinabyss.geary.engine.EntityProvider
-import com.mineinabyss.geary.modules.Geary
-import com.mineinabyss.geary.modules.get
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.common.geary.api.UNINITIALIZED_ENTITY_ID
-import ru.hollowhorizon.hollowengine.common.geary.api.geary
-import ru.hollowhorizon.hollowengine.common.geary.components.Model
-import ru.hollowhorizon.hollowengine.common.geary.components.PointLightComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.SpotLightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.lightComponentOrNull
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.applySnapshot
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
-import ru.hollowhorizon.hollowengine.common.network.send
 import ru.hollowhorizon.hollowengine.common.network.sendAllInDimension
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
-import java.util.UUID
+import java.util.*
 
 private const val ENTITY_CHILDREN_NBT = "AnchoredChildren"
 
 class MaterializationService(
     private val level: Level,
 ) {
-    private val runtimeByStableKey = linkedMapOf<UUID, Long>()
-    private val materializedByRuntime = linkedMapOf<Long, MaterializedRecord>()
-    private val modelRuntimes = linkedSetOf<Long>()
-    private val lightRuntimes = linkedSetOf<Long>()
-    private val activeWorldStableKeysByChunk = linkedMapOf<Long, LinkedHashSet<UUID>>()
-    private val activeWorldChunkByStableKey = linkedMapOf<UUID, Long>()
+    private val activeSnapshots = linkedMapOf<UUID, EntitySnapshot>()
     private val entityChildrenByHost = linkedMapOf<UUID, LinkedHashSet<UUID>>()
     private val pendingEntitySnapshots = linkedMapOf<UUID, MutableList<EntitySnapshot>>()
     private val activeWorldChunks = linkedSetOf<Long>()
     private val playerVisibleAnchors = linkedMapOf<UUID, MutableSet<UUID>>()
     private val playerChunkPositions = linkedMapOf<UUID, Long>()
 
-    val records: Collection<MaterializedRecord> get() = materializedByRuntime.values
+    val records: Collection<MaterializedRecord>
+        get() = activeSnapshots.entries.mapNotNull { (stableKey, snapshot) ->
+            val anchor = snapshot.anchorOrNull() ?: return@mapNotNull null
+            MaterializedRecord(stableKey, snapshot, anchor)
+        }
 
     fun forEachModelRecord(action: (MaterializedRecord) -> Unit) {
-        modelRuntimes.forEach { runtimeId ->
-            materializedByRuntime[runtimeId]?.let(action)
+        records.forEach { record ->
+            if (record.snapshot.modelOrNull() != null) action(record)
         }
     }
 
     fun forEachLightRecord(action: (MaterializedRecord) -> Unit) {
-        lightRuntimes.forEach { runtimeId ->
-            materializedByRuntime[runtimeId]?.let(action)
+        records.forEach { record ->
+            if (record.snapshot.lightComponentOrNull() != null) action(record)
         }
     }
 
@@ -62,27 +51,18 @@ class MaterializationService(
         }
     }
 
-    fun ensurePrimaryEntity(entity: Entity, runtimeId: Long): UUID {
-        val stableKey = entity.uuid
-        runtimeByStableKey[stableKey] = runtimeId
-        putMaterializedRecord(MaterializedRecord(stableKey, runtimeId, EntityAnchor(entity.uuid, primary = true)))
-        with(level.geary) {
-            val gearyEntity = runtimeId.toGeary()
-            gearyEntity.set(StableKeyComponent(stableKey))
-            gearyEntity.set(EntityAnchor(entity.uuid, primary = true))
-            gearyEntity.set(PrimaryAnchorObject())
-        }
+    fun ensurePrimaryEntity(entity: Entity): UUID {
         onHostAvailable(entity)
-        return stableKey
+        return entity.uuid
     }
 
-    fun stableKeyOf(runtimeId: Long): UUID? = materializedByRuntime[runtimeId]?.stableKey
-
-    fun runtimeIdOf(stableKey: UUID): Long? = runtimeByStableKey[stableKey]
+    fun stableKeyOf(runtimeId: Long): UUID? = null
+    fun runtimeIdOf(stableKey: UUID): Long? = null
 
     fun snapshot(stableKey: UUID): EntitySnapshot? {
-        val runtimeId = runtimeByStableKey[stableKey] ?: return null
-        return with(level.geary) { snapshotOf(runtimeId.toGeary()) }
+        activeSnapshots[stableKey]?.let { return it }
+        val serverLevel = level as? ServerLevel ?: return null
+        return WorldAnchorSavedData.get(serverLevel).allRecords().firstOrNull { it.stableKey == stableKey }?.snapshot
     }
 
     fun childStableKeys(hostUuid: UUID): Set<UUID> = entityChildrenByHost[hostUuid].orEmpty().toSet()
@@ -90,45 +70,44 @@ class MaterializationService(
     fun materialize(snapshot: EntitySnapshot): Long {
         val stableKey = snapshot.requireStableKey()
         val anchor = snapshot.requireAnchor()
-        val existing = runtimeByStableKey[stableKey]
-        if (existing != null) {
-            with(level.geary) {
-                applySnapshot(existing.toGeary(), snapshot)
+        val normalized = snapshot.withIdentity(anchor)
+
+        when (anchor) {
+            is EntityAnchor -> {
+                if (!anchor.primary && level.findEntityByUuid(anchor.hostUuid) == null) {
+                    pendingEntitySnapshots.computeIfAbsent(anchor.hostUuid) { mutableListOf() }.add(normalized)
+                    return 0L
+                }
+                activeSnapshots[stableKey] = normalized
+                if (!anchor.primary) {
+                    entityChildrenByHost.computeIfAbsent(anchor.hostUuid) { linkedSetOf() }.add(stableKey)
+                }
             }
-            putMaterializedRecord(MaterializedRecord(stableKey, existing, anchor))
-            persistIfWorldAnchored(snapshot)
-            return existing
+
+            is WorldAnchor -> {
+                activeSnapshots[stableKey] = normalized
+                persistIfWorldAnchored(normalized)
+            }
         }
 
-        return when (anchor) {
-            is EntityAnchor -> materializeEntityAnchored(stableKey, anchor, snapshot)
-            is WorldAnchor -> materializeWorldAnchored(stableKey, anchor, snapshot)
-        }
+        return 0L
     }
 
-    fun detachPrimaryEntity(stableKey: UUID, runtimeId: Long) {
-        if (runtimeByStableKey[stableKey] != runtimeId) return
-        runtimeByStableKey.remove(stableKey)
-        materializedByRuntime.remove(runtimeId)
-        removeComponentIndexes(runtimeId)
-        removeActiveWorldIndex(stableKey)
+    fun detachPrimaryEntity(stableKey: UUID) {
+        val snapshot = activeSnapshots[stableKey] ?: return
+        if ((snapshot.anchorOrNull() as? EntityAnchor)?.primary != true) return
+        activeSnapshots.remove(stableKey)
     }
 
     fun remove(stableKey: UUID, syncToClients: Boolean = false): Boolean {
         var removed = false
-        val runtimeId = runtimeByStableKey.remove(stableKey)
-        if (runtimeId != null) {
+        val snapshot = activeSnapshots.remove(stableKey)
+        if (snapshot != null) {
             removed = true
-            val record = materializedByRuntime.remove(runtimeId)
-            removeComponentIndexes(runtimeId)
-            removeActiveWorldIndex(stableKey)
-            val entityAnchor = record?.anchor as? EntityAnchor
-            if (entityAnchor != null) {
-                if (!entityAnchor.primary) {
-                    entityChildrenByHost[entityAnchor.hostUuid]?.remove(stableKey)
-                }
+            val entityAnchor = snapshot.anchorOrNull() as? EntityAnchor
+            if (entityAnchor != null && !entityAnchor.primary) {
+                entityChildrenByHost[entityAnchor.hostUuid]?.remove(stableKey)
             }
-            level.geary.entityRemoveProvider.remove(runtimeId.toULong())
         }
 
         pendingEntitySnapshots.values.forEach { pending ->
@@ -138,13 +117,10 @@ class MaterializationService(
         }
 
         if (level is ServerLevel) {
-            if (WorldAnchorSavedData.get(level).remove(stableKey) != null) {
-                removed = true
-            }
+            if (WorldAnchorSavedData.get(level).remove(stableKey) != null) removed = true
             playerVisibleAnchors.values.forEach { it.remove(stableKey) }
             if (syncToClients) AnchoredEntityRemovePacket(stableKey).sendAllInDimension(level)
         }
-
         return removed
     }
 
@@ -163,10 +139,8 @@ class MaterializationService(
         val children = mutableListOf<EntitySnapshot>()
         val list = tag.getList(ENTITY_CHILDREN_NBT, net.minecraft.nbt.Tag.TAG_COMPOUND.toInt())
         for (index in 0 until list.size) {
-            val snapshot = EntitySerialization.deserializeFromNbt(list.getCompound(index))
-            children += snapshot
+            children += EntitySerialization.deserializeFromNbt(list.getCompound(index))
         }
-
         if (children.isEmpty()) return
         pendingEntitySnapshots.computeIfAbsent(entity.uuid) { mutableListOf() }.addAll(children)
         onHostAvailable(entity)
@@ -186,7 +160,8 @@ class MaterializationService(
     }
 
     fun rebindEntityAnchors(hostUuid: UUID) {
-        transferEntityAnchors(hostUuid, this)
+        val host = level.findEntityByUuid(hostUuid) ?: return
+        onHostAvailable(host)
     }
 
     fun onHostAvailable(entity: Entity) {
@@ -202,67 +177,31 @@ class MaterializationService(
     }
 
     fun updateWorldAnchorPosition(stableKey: UUID, position: Vec3) {
-        val runtimeId = runtimeByStableKey[stableKey] ?: return
-        with(level.geary) {
-            val gearyEntity = runtimeId.toGeary()
-            val current = gearyEntity.get<TransformComponent>() ?: TransformComponent()
-            updateTransform(stableKey, current.withWorldPosition(position))
-        }
+        val snapshot = snapshot(stableKey) ?: return
+        val current = snapshot.transformOrNull() ?: TransformComponent()
+        updateTransform(stableKey, current.withWorldPosition(position))
     }
 
     fun updateTransform(stableKey: UUID, transform: TransformComponent, syncToClients: Boolean = false): Boolean {
-        val runtimeId = runtimeByStableKey[stableKey]
-        if (runtimeId != null) {
-            with(level.geary) {
-                val gearyEntity = runtimeId.toGeary()
-                val updatedAnchor = gearyEntity.get<WorldAnchor>()?.let { anchor ->
-                    val worldPosition = Vec3(transform.x.toDouble(), transform.y.toDouble(), transform.z.toDouble())
-                    worldAnchorFor(worldPosition, anchor.localId)
-                } ?: gearyEntity.get<EntityAnchor>()
-                if (updatedAnchor is WorldAnchor) {
-                    gearyEntity.set(updatedAnchor)
-                }
-                gearyEntity.set(transform)
-                val resolvedAnchor = updatedAnchor ?: materializedByRuntime[runtimeId]?.anchor ?: return false
-                putMaterializedRecord(MaterializedRecord(stableKey, runtimeId, resolvedAnchor))
-                val snapshot = snapshotOf(gearyEntity)
-                persistIfWorldAnchored(snapshot)
-                if (syncToClients) syncSnapshot(snapshot)
-                return true
-            }
+        val current = snapshot(stableKey) ?: return false
+        val anchor = current.anchorOrNull() ?: return false
+        val updatedAnchor = if (anchor is WorldAnchor) {
+            worldAnchorFor(Vec3(transform.x.toDouble(), transform.y.toDouble(), transform.z.toDouble()), anchor.localId)
+        } else {
+            anchor
         }
-
-        val serverLevel = level as? ServerLevel ?: return false
-        val savedData = WorldAnchorSavedData.get(serverLevel)
-        val existing = savedData.remove(stableKey) ?: return false
-        val anchor = existing.anchor as? WorldAnchor ?: return false
-        val updatedSnapshot = existing.snapshot
-            .withIdentity(worldAnchorFor(Vec3(transform.x.toDouble(), transform.y.toDouble(), transform.z.toDouble()), anchor.localId), stableKey)
-            .withOrReplace(transform)
-        savedData.put(DormantRecord(stableKey, updatedSnapshot))
-        if (syncToClients) syncSnapshot(updatedSnapshot)
+        val updated = current.withIdentity(updatedAnchor).withOrReplace(transform)
+        activeSnapshots[stableKey] = updated
+        persistIfWorldAnchored(updated)
+        if (syncToClients) syncSnapshot(updated)
         return true
     }
 
     fun updateSnapshot(stableKey: UUID, snapshot: EntitySnapshot, syncToClients: Boolean = false): Boolean {
         val anchor = snapshot.anchorOrNull() ?: return false
-        val normalizedSnapshot = snapshot.withIdentity(anchor, stableKey)
-
-        val runtimeId = runtimeByStableKey[stableKey]
-        if (runtimeId != null) {
-            with(level.geary) {
-                applySnapshot(runtimeId.toGeary(), normalizedSnapshot)
-            }
-            putMaterializedRecord(MaterializedRecord(stableKey, runtimeId, anchor))
-            persistIfWorldAnchored(normalizedSnapshot)
-            if (syncToClients) syncSnapshot(normalizedSnapshot)
-            return true
-        }
-
-        val serverLevel = level as? ServerLevel ?: return false
-        val savedData = WorldAnchorSavedData.get(serverLevel)
-        if (savedData.remove(stableKey) == null) return false
-        savedData.put(DormantRecord(stableKey, normalizedSnapshot))
+        val normalizedSnapshot = snapshot.withIdentity(anchor)
+        activeSnapshots[stableKey] = normalizedSnapshot
+        persistIfWorldAnchored(normalizedSnapshot)
         if (syncToClients) syncSnapshot(normalizedSnapshot)
         return true
     }
@@ -275,6 +214,7 @@ class MaterializationService(
                 val host = level.getEntity(anchor.hostUuid) ?: return
                 AnchoredEntitySnapshotPacket(snapshot).sendTrackingEntityAndSelf(host)
             }
+
             is WorldAnchor -> {
                 persistIfWorldAnchored(snapshot)
                 val affectedPlayers = level.players()
@@ -286,16 +226,9 @@ class MaterializationService(
     }
 
     fun syncEntityAnchorsToPlayer(player: ServerPlayer, hostEntity: Entity) {
-        val primaryRuntime = runtimeByStableKey[hostEntity.uuid] ?: return
-        val primarySnapshot = with(level.geary) { snapshotOf(primaryRuntime.toGeary()) }
-            .withIdentity(EntityAnchor(hostEntity.uuid, primary = true), hostEntity.uuid)
-            .withOrReplace(PrimaryAnchorObject())
-        AnchoredEntitySnapshotPacket(primarySnapshot).send(player)
-
-        entityChildrenByHost[hostEntity.uuid].orEmpty().forEach { childKey ->
-            val runtimeId = runtimeByStableKey[childKey] ?: return@forEach
-            val snapshot = with(level.geary) { snapshotOf(runtimeId.toGeary()) }
-            AnchoredEntitySnapshotPacket(snapshot).send(player)
+        val hostUuid = hostEntity.uuid
+        entityChildrenByHost[hostUuid].orEmpty().forEach { childKey ->
+            activeSnapshots[childKey]?.let { AnchoredEntitySnapshotPacket(it).send(player) }
         }
     }
 
@@ -303,65 +236,19 @@ class MaterializationService(
         childStableKeys(hostUuid).forEach { AnchoredEntityRemovePacket(it).send(player) }
     }
 
-    private fun materializeEntityAnchored(stableKey: UUID, anchor: EntityAnchor, snapshot: EntitySnapshot): Long {
-        val hostRuntime = runtimeByStableKey[anchor.hostUuid]
-        if (hostRuntime == null) {
-            pendingEntitySnapshots.computeIfAbsent(anchor.hostUuid) { mutableListOf() }.add(snapshot)
-            return runtimeByStableKey[stableKey] ?: UNINITIALIZED_ENTITY_ID
-        }
-
-        if (anchor.primary) {
-            with(level.geary) {
-                applySnapshot(hostRuntime.toGeary(), snapshot)
-            }
-            runtimeByStableKey[stableKey] = hostRuntime
-            putMaterializedRecord(MaterializedRecord(stableKey, hostRuntime, anchor))
-            return hostRuntime
-        }
-
-        val runtimeId = createRuntimeEntity()
-        with(level.geary) {
-            applySnapshot(runtimeId.toGeary(), snapshot)
-        }
-        runtimeByStableKey[stableKey] = runtimeId
-        putMaterializedRecord(MaterializedRecord(stableKey, runtimeId, anchor))
-        entityChildrenByHost.computeIfAbsent(anchor.hostUuid) { linkedSetOf() }.add(stableKey)
-        return runtimeId
-    }
-
-    private fun materializeWorldAnchored(stableKey: UUID, anchor: WorldAnchor, snapshot: EntitySnapshot): Long {
-        val runtimeId = createRuntimeEntity()
-        with(level.geary) {
-            applySnapshot(runtimeId.toGeary(), snapshot)
-        }
-        runtimeByStableKey[stableKey] = runtimeId
-        putMaterializedRecord(MaterializedRecord(stableKey, runtimeId, anchor))
-        persistIfWorldAnchored(snapshot)
-        return runtimeId
-    }
-
-    private fun createRuntimeEntity(): Long =
-        level.geary.get<EntityProvider>().create().toLong()
-
     private fun persistIfWorldAnchored(snapshot: EntitySnapshot) {
         val level = level as? ServerLevel ?: return
         val anchor = snapshot.anchorOrNull() as? WorldAnchor ?: return
         val savedData = WorldAnchorSavedData.get(level)
-        savedData.remove(snapshot.requireStableKey())
-        savedData.put(
-            DormantRecord(
-                stableKey = snapshot.requireStableKey(),
-                snapshot = snapshot.withIdentity(anchor, snapshot.requireStableKey()),
-            )
-        )
+        val stableKey = snapshot.requireStableKey()
+        savedData.remove(stableKey)
+        savedData.put(DormantRecord(stableKey, snapshot.withIdentity(anchor)))
     }
 
     private fun captureEntityChildSnapshots(hostUuid: UUID): List<EntitySnapshot> {
         val snapshots = mutableListOf<EntitySnapshot>()
         entityChildrenByHost[hostUuid].orEmpty().forEach { childKey ->
-            val runtimeId = runtimeByStableKey[childKey] ?: return@forEach
-            val snapshot = with(level.geary) { snapshotOf(runtimeId.toGeary()) }
-            snapshots += snapshot
+            activeSnapshots[childKey]?.let(snapshots::add)
         }
         snapshots += pendingEntitySnapshots[hostUuid].orEmpty()
         return snapshots
@@ -373,48 +260,9 @@ class MaterializationService(
 
         target.queuePendingEntitySnapshots(hostUuid, movedChildren)
         entityChildrenByHost.remove(hostUuid).orEmpty().forEach { childKey ->
-            remove(childKey)
+            activeSnapshots.remove(childKey)
         }
         pendingEntitySnapshots.remove(hostUuid)
-    }
-
-    private fun putMaterializedRecord(record: MaterializedRecord) {
-        materializedByRuntime[record.runtimeId] = record
-        updateActiveWorldIndex(record.stableKey, record.anchor)
-        refreshComponentIndexes(record.runtimeId)
-    }
-
-    private fun refreshComponentIndexes(runtimeId: Long) {
-        with(level.geary) {
-            val entity = runtimeId.toGeary()
-            if (entity.get<Model>() != null) modelRuntimes.add(runtimeId) else modelRuntimes.remove(runtimeId)
-            if (entity.get<PointLightComponent>() != null || entity.get<SpotLightComponent>() != null) {
-                lightRuntimes.add(runtimeId)
-            } else {
-                lightRuntimes.remove(runtimeId)
-            }
-        }
-    }
-
-    private fun removeComponentIndexes(runtimeId: Long) {
-        modelRuntimes.remove(runtimeId)
-        lightRuntimes.remove(runtimeId)
-    }
-
-    private fun updateActiveWorldIndex(stableKey: UUID, anchor: AnchorComponent) {
-        removeActiveWorldIndex(stableKey)
-        val worldAnchor = anchor as? WorldAnchor ?: return
-        val chunkKey = ChunkKey.pack(worldAnchor.chunkX, worldAnchor.chunkZ)
-        activeWorldChunkByStableKey[stableKey] = chunkKey
-        activeWorldStableKeysByChunk.computeIfAbsent(chunkKey) { linkedSetOf() }.add(stableKey)
-    }
-
-    private fun removeActiveWorldIndex(stableKey: UUID) {
-        val chunkKey = activeWorldChunkByStableKey.remove(stableKey) ?: return
-        activeWorldStableKeysByChunk[chunkKey]?.let { stableKeys ->
-            stableKeys.remove(stableKey)
-            if (stableKeys.isEmpty()) activeWorldStableKeysByChunk.remove(chunkKey)
-        }
     }
 
     private fun updateWorldMaterialization(level: ServerLevel) {
@@ -427,17 +275,18 @@ class MaterializationService(
         currentChunks.forEach { chunkKey ->
             if (chunkKey in activeWorldChunks) return@forEach
             savedData.forEachRecordInChunk(chunkKey) { record ->
-                if (record.stableKey !in runtimeByStableKey) {
-                    materialize(record.snapshot)
+                if (record.stableKey !in activeSnapshots) {
+                    activeSnapshots[record.stableKey] = record.snapshot
                 }
             }
         }
 
         activeWorldChunks.forEach { chunkKey ->
             if (chunkKey in currentChunks) return@forEach
-            activeWorldStableKeysByChunk[chunkKey]
-                ?.toList()
-                ?.forEach(::remove)
+            activeSnapshots.entries.removeIf { (_, snapshot) ->
+                val worldAnchor = snapshot.anchorOrNull() as? WorldAnchor ?: return@removeIf false
+                ChunkKey.pack(worldAnchor.chunkX, worldAnchor.chunkZ) == chunkKey
+            }
         }
 
         activeWorldChunks.clear()
@@ -479,8 +328,11 @@ class MaterializationService(
     }
 }
 
+private fun Level.findEntityByUuid(uuid: UUID): Entity? =
+    (this as? ServerLevel)?.getEntity(uuid)
+
 object MaterializationRuntimeState {
-    private val services = java.util.Collections.synchronizedMap(java.util.WeakHashMap<Level, MaterializationService>())
+    private val services = Collections.synchronizedMap(WeakHashMap<Level, MaterializationService>())
 
     fun init(level: Level) {
         services.computeIfAbsent(level, ::MaterializationService)

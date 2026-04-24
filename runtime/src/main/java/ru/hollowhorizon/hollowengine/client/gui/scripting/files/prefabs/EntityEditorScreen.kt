@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs
 
-import com.mineinabyss.geary.datatypes.Component
+import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.Scene

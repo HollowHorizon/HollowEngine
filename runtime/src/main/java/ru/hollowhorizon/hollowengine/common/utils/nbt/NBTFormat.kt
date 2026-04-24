@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.utils.nbt
 
-import com.mineinabyss.geary.datatypes.Component
+import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.PrimitiveKind
