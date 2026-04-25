@@ -11,8 +11,9 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
-import ru.hollowhorizon.hollowengine.common.geary.anchor.AnchoredSnapshotUpdatePacket
-import ru.hollowhorizon.hollowengine.common.geary.anchor.stableKeyOrNull
+import ru.hollowhorizon.hollowengine.common.geary.binding.NodeSnapshotUpdatePacket
+import ru.hollowhorizon.hollowengine.common.geary.binding.stableKeyOrNull
+import ru.hollowhorizon.hollowengine.common.geary.binding.withOrReplace
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSchemaRegistry
@@ -46,7 +47,7 @@ internal enum class TransformGizmoTargetType {
 
 internal object TransformGizmoInspectorPackets {
     fun sendSnapshot(snapshot: EntitySnapshot) {
-        AnchoredSnapshotUpdatePacket(snapshot).send()
+        NodeSnapshotUpdatePacket(snapshot).send()
     }
 }
 
@@ -94,7 +95,7 @@ internal class TransformGizmoInspectorState(
         components.clear()
         hiddenComponents.clear()
 
-        snapshot.components.forEach { component ->
+        snapshot.rootNode().components.forEach { component ->
             val descriptor = EntitySerialization.descriptorFor(component) ?: run {
                 hiddenComponents += component
                 return@forEach
@@ -113,7 +114,16 @@ internal class TransformGizmoInspectorState(
 
     private fun commitSnapshot() {
         val base = snapshotState.value ?: return
-        val updatedSnapshot = base.copy(components = components.map { it.state.value } + hiddenComponents)
+        val targetNode = base.rootNode()
+        var updatedSnapshot = base.withNodes(
+            base.nodeList().map { node ->
+                if (node.id == targetNode.id) node.copy(components = components.map { it.state.value } + hiddenComponents) else node
+            },
+            targetNode.id,
+        )
+        components.forEach { editable ->
+            updatedSnapshot = updatedSnapshot.withOrReplace(editable.state.value, targetNode.id)
+        }
         snapshotState.set(updatedSnapshot)
         onSnapshotUpdated(updatedSnapshot)
     }

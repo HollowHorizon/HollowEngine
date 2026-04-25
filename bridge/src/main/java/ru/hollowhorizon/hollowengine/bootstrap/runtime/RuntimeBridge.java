@@ -198,11 +198,9 @@ public interface RuntimeBridge extends AutoCloseable {
 
     boolean onEntityHurt(Entity entity, DamageSource damageSource, float amount);
 
-    void onEntityChangedDimension(Entity entity, @Nullable Entity resultEntity, Level fromLevel, Level toLevel);
+    void onEntityChangedDimension(Entity original, Entity entity, Level fromLevel, Level toLevel);
 
     void onEntitySetLevel(Entity entity, Level level);
-
-    void onEntityTeleported(Entity entity, Entity newEntity, Level fromLevel, ServerLevel toLevel);
 
     void onEntityRemoved(Entity entity);
 

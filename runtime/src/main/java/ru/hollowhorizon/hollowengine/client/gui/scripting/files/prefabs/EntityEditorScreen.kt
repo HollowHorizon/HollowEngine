@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs
 
-import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.scene.Scene
@@ -18,33 +17,27 @@ import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
-import ru.hollowhorizon.hollowengine.common.geary.api.entity
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
-import ru.hollowhorizon.hollowengine.common.geary.components.EditorIcon
-import ru.hollowhorizon.hollowengine.common.geary.components.GenericEditor
-import ru.hollowhorizon.hollowengine.common.geary.components.Model
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSchemaRegistry
+import ru.hollowhorizon.hollowengine.common.geary.api.Component
+import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.reflect.full.findAnnotation
 
 class EntityEditorScreen(val target: Entity) : KoolScreen() {
     private val modelController = ModelController()
-    private val gearyEntity = target.entity
     private val components = mutableStateListOf<EditorComponent>()
 
     init {
         ComponentDescriptorRegistry.forEach { holder ->
             if (!holder.value.editable) return@forEach
-            val component = gearyEntity.get(holder.value.value)
-            if (component != null) {
-                val state = mutableStateOf(component)
-                state.onChange { _, newValue ->
-                    gearyEntity.set(newValue, newValue::class)
-                    refreshModelPreview()
-                }
-                components += EditorComponent(holder.value.id, holder.value, state)
-            }
+//            val component = gearyEntity.get(holder.value.value)
+//            if (component != null) {
+//                val state = mutableStateOf(component)
+//                state.onChange { _, newValue ->
+//                    gearyEntity.set(newValue, newValue::class)
+//                    refreshModelPreview()
+//                }
+//                components += EditorComponent(holder.value.id, holder.value, state)
+//            }
         }
         refreshModelPreview()
     }
@@ -132,11 +125,11 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
         val holder = ComponentDescriptorRegistry[key]
         if (!holder.editable) return
         val component = holder.create()
-        gearyEntity.set(component, holder.value)
+        //gearyEntity.set(component, holder.value)
 
         val state = mutableStateOf(component)
         state.onChange { _, newValue ->
-            gearyEntity.set(newValue, newValue::class)
+            //gearyEntity.set(newValue, newValue::class)
             refreshModelPreview()
         }
 
@@ -193,7 +186,7 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
         @Suppress("UNCHECKED_CAST")
         val serializer = component.holder.serializer as KSerializer<Any>
         GenericEditor(state, serializer) {
-            gearyEntity.remove(component.holder.value)
+            //gearyEntity.remove(component.holder.value)
             components.remove(component)
             refreshModelPreview()
         }

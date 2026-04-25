@@ -1,4 +1,4 @@
-package ru.hollowhorizon.hollowengine.common.geary.anchor
+package ru.hollowhorizon.hollowengine.common.geary.binding
 
 import net.minecraft.core.HolderLookup
 import net.minecraft.nbt.CompoundTag
@@ -11,7 +11,7 @@ import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
-class WorldAnchorSavedData private constructor() : SavedData() {
+class WorldNodeSavedData private constructor() : SavedData() {
     private val recordsByChunk = ConcurrentHashMap<Long, LinkedHashMap<UUID, CompoundTag>>()
     private val chunkByStableKey = ConcurrentHashMap<UUID, Long>()
 
@@ -40,9 +40,7 @@ class WorldAnchorSavedData private constructor() : SavedData() {
         .map { snapshot -> DormantRecord(snapshot.requireStableKey(), snapshot) }
 
     fun put(record: DormantRecord) {
-        val worldAnchor = record.anchor as? WorldAnchor
-            ?: error("WorldAnchorSavedData can store only world-anchored records.")
-        val chunkKey = ChunkKey.pack(worldAnchor.chunkX, worldAnchor.chunkZ)
+        val chunkKey = ChunkKey.pack(record.worldChunkX, record.worldChunkZ)
         chunkByStableKey.put(record.stableKey, chunkKey)?.takeIf { it != chunkKey }?.let { previousChunk ->
             recordsByChunk[previousChunk]?.let { records ->
                 synchronized(records) {
@@ -100,12 +98,12 @@ class WorldAnchorSavedData private constructor() : SavedData() {
     }
 
     companion object {
-        private const val DATA_NAME = "hollowengine_world_anchors"
+        private const val DATA_NAME = "hollowengine_world_nodes"
 
-        fun get(level: ServerLevel): WorldAnchorSavedData {
+        fun get(level: ServerLevel): WorldNodeSavedData {
             return level.dataStorage.computeIfAbsent(
-                Factory(::WorldAnchorSavedData, { tag, _ ->
-                    WorldAnchorSavedData().apply {
+                Factory(::WorldNodeSavedData, { tag, _ ->
+                    WorldNodeSavedData().apply {
                         val chunks = tag.getList("chunks", Tag.TAG_COMPOUND.toInt())
                         for (index in 0 until chunks.size) {
                             val chunkTag = chunks.getCompound(index)

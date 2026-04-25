@@ -580,10 +580,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         GearyRuntimeState.onSetLevel(entity, level)
     }
 
-    override fun onEntityTeleported(entity: Entity, newEntity: Entity, fromLevel: Level, toLevel: ServerLevel) {
-        EventBus.post(EntityEvent.ChangeDimension(entity, newEntity, fromLevel, toLevel))
-    }
-
     override fun onEntityRemoved(entity: Entity) {
         GearyRuntimeState.onRemove(entity)
     }

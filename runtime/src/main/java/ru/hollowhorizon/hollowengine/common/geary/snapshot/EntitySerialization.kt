@@ -1,13 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.geary.snapshot
 
-import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import io.netty.buffer.Unpooled
 import net.minecraft.nbt.Tag
 import net.minecraft.network.FriendlyByteBuf
+import net.minecraft.world.entity.Entity
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
-import ru.hollowhorizon.hollowengine.common.geary.api.RuntimeEntityComponents
-import ru.hollowhorizon.hollowengine.common.geary.api.entity
+import ru.hollowhorizon.hollowengine.common.geary.api.Component
+import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.utils.bytebuf.ByteBufFormat
@@ -22,8 +22,8 @@ object EntitySerialization {
     fun nbtFormat() = NBTFormat(serializersModule())
     fun byteBufFormat() = ByteBufFormat(serializersModule())
 
-    fun extract(entity: MCEntity): EntitySnapshot = snapshotOf(entity.entity)
-    fun apply(target: MCEntity, snapshot: EntitySnapshot) = applySnapshot(target.entity, snapshot)
+    fun extract(entity: MCEntity): EntitySnapshot = snapshotOf(entity)
+    fun apply(target: MCEntity, snapshot: EntitySnapshot) = applySnapshot(target, snapshot)
 
     fun serializeToNbt(snapshot: EntitySnapshot): Tag = nbtFormat().serialize(EntitySnapshot.serializer(), snapshot)
     fun deserializeFromNbt(tag: Tag): EntitySnapshot = nbtFormat().deserialize(EntitySnapshot.serializer(), tag)
@@ -71,12 +71,12 @@ object EntitySerialization {
     }
 }
 
-fun snapshotOf(entity: RuntimeEntityComponents): EntitySnapshot =
-    EntitySnapshot(components = entity.allById().values.toList())
+fun snapshotOf(entity: Entity): EntitySnapshot =
+    EntitySnapshot(components = GearyRuntimeState.componentsById(entity).values.toList())
 
-fun applySnapshot(target: RuntimeEntityComponents, snapshot: EntitySnapshot) {
+fun applySnapshot(target: Entity, snapshot: EntitySnapshot) {
     val desired = snapshot.componentById()
-    val all = target.allById()
+    val all = GearyRuntimeState.componentsById(target)
     all.keys.removeIf { it !in desired.keys }
     desired.forEach { (id, component) -> all[id] = component }
 }

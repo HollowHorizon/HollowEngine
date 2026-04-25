@@ -15,17 +15,12 @@ import org.joml.Matrix4f
 import org.joml.Vector2i
 import org.joml.Vector3f
 import org.lwjgl.BufferUtils
-import ru.hollowhorizon.hollowengine.HollowCore
-import ru.hollowhorizon.hollowengine.client.render.resolveAnchoredTransform
+import ru.hollowhorizon.hollowengine.client.render.resolveNodeTransform
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
-import ru.hollowhorizon.hollowengine.common.geary.anchor.EntityAnchor
-import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.anchor.transformOrNull
+import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.components.LightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.PointLightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.SpotLightComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.lightComponentOrNull
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import java.nio.ByteBuffer
 import kotlin.math.ceil
@@ -376,16 +371,16 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         partialTick: Float,
         frustum: Frustum?,
     ): List<PreparedLight> {
-        val materialization = MaterializationRuntimeState.service(level)
+        val materialization = NodeRuntimeState.service(level)
         val collected = ArrayList<PreparedLight>()
 
-        materialization.forEachLightRecord { record ->
-            if ((record.anchor as? EntityAnchor)?.primary == true) return@forEachLightRecord
-            val component = record.snapshot.lightComponentOrNull() ?: return@forEachLightRecord
-            if (!component.enabled) return@forEachLightRecord
+        materialization.forEachLightNodeRecord { record, node ->
+            if (record.primary) return@forEachLightNodeRecord
+            val component = node.light
+            if (!component.enabled) return@forEachLightNodeRecord
 
-            val transform = record.snapshot.transformOrNull() ?: TransformComponent()
-            val resolved = resolveAnchoredTransform(level, record.anchor, transform, partialTick) ?: return@forEachLightRecord
+            val transform = node.transform
+            val resolved = resolveNodeTransform(level, record.hostUuid, transform, partialTick) ?: return@forEachLightNodeRecord
             val worldPosition = Vector3f(
                 resolved.transform.translation.x,
                 resolved.transform.translation.y,
@@ -403,9 +398,9 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
                 is PointLightComponent -> component.radius
                 is SpotLightComponent -> component.distance
             }
-            if (frustum != null && !frustum.isVisible(buildLightBounds(worldPosition, influenceRadius))) return@forEachLightRecord
+            if (frustum != null && !frustum.isVisible(buildLightBounds(worldPosition, influenceRadius))) return@forEachLightNodeRecord
 
-            if (viewSpacePosition.z > influenceRadius) return@forEachLightRecord
+            if (viewSpacePosition.z > influenceRadius) return@forEachLightNodeRecord
             val flarePosition = if (component.hasFlare) {
                 projectToScreen(cameraRelativePosition, viewProjectionMatrix, viewResolution.x, viewResolution.y)
             } else {

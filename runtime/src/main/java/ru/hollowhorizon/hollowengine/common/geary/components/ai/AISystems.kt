@@ -6,11 +6,12 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.Mob
 import net.minecraft.world.entity.PathfinderMob
 import net.minecraft.world.entity.item.ItemEntity
-import ru.hollowhorizon.hollowengine.common.geary.api.entity
+import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.faceTowards
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.moveTowards
-import java.util.UUID
+import java.util.*
 
 private object AIRuntimeState {
     val attackCooldowns = hashMapOf<UUID, Int>()
@@ -20,13 +21,20 @@ private object AIRuntimeState {
 }
 
 object AIComponentSystems {
+    private val attackId by lazy { descriptorId(AttackTargetComponent::class) }
+    private val followId by lazy { descriptorId(FollowTargetComponent::class) }
+    private val moveToId by lazy { descriptorId(MoveToPositionComponent::class) }
+    private val patrolId by lazy { descriptorId(PatrolPathComponent::class) }
+    private val lookAtId by lazy { descriptorId(LookAtTargetComponent::class) }
+    private val pickupId by lazy { descriptorId(PickupLootComponent::class) }
+
     fun tickEntity(entity: MCEntity, components: Map<ResourceLocation, Any>) {
-        val attack = components.values.firstOrNull { it is AttackTargetComponent } as? AttackTargetComponent
-        val follow = components.values.firstOrNull { it is FollowTargetComponent } as? FollowTargetComponent
-        val moveTo = components.values.firstOrNull { it is MoveToPositionComponent } as? MoveToPositionComponent
-        val patrol = components.values.firstOrNull { it is PatrolPathComponent } as? PatrolPathComponent
-        val lookAt = components.values.firstOrNull { it is LookAtTargetComponent } as? LookAtTargetComponent
-        val pickup = components.values.firstOrNull { it is PickupLootComponent } as? PickupLootComponent
+        val attack = components[attackId] as? AttackTargetComponent
+        val follow = components[followId] as? FollowTargetComponent
+        val moveTo = components[moveToId] as? MoveToPositionComponent
+        val patrol = components[patrolId] as? PatrolPathComponent
+        val lookAt = components[lookAtId] as? LookAtTargetComponent
+        val pickup = components[pickupId] as? PickupLootComponent
 
         handleAttack(entity, attack)
         handleFollow(entity, follow, attack)
@@ -111,7 +119,7 @@ object AIComponentSystems {
         if (move?.enabled != true) return
         val mob = entity as? PathfinderMob ?: return
         if (mob.moveTowards(move.target, move.speed.toDouble(), move.arrivalRadius.toDouble()) && move.stopOnArrival) {
-            entity.entity.remove(MoveToPositionComponent::class)
+            GearyRuntimeState.componentsById(entity).remove(ComponentDescriptorRegistry.idFor(MoveToPositionComponent::class))
         }
     }
 
@@ -206,4 +214,8 @@ object AIComponentSystems {
         }
         if (pickup == null) AIRuntimeState.lootScanCooldowns.remove(entityId)
     }
+
+    private fun descriptorId(type: kotlin.reflect.KClass<*>): ResourceLocation =
+        ComponentDescriptorRegistry.idFor(type)
+            ?: error("Component descriptor not found for ${type.qualifiedName}")
 }

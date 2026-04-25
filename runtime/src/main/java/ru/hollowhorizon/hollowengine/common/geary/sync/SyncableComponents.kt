@@ -7,20 +7,19 @@ import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityTrackingEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
-import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.api.entity
+import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
+import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.applySnapshot
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 
 @SubscribeEvent
 fun startTracking(event: EntityTrackingEvent.Start) {
-    MaterializationRuntimeState.service(event.entity.level()).syncEntityAnchorsToPlayer(event.player as ServerPlayer, event.entity)
+    NodeRuntimeState.service(event.entity.level()).syncEntityNodesToPlayer(event.player as ServerPlayer, event.entity)
 }
 
 @SubscribeEvent
 fun stopTracking(event: EntityTrackingEvent.Stop) {
-    MaterializationRuntimeState.service(event.entity.level())
-        .removeEntityAnchorsFromPlayer(event.player as ServerPlayer, event.entity.uuid)
+    NodeRuntimeState.service(event.entity.level())
+        .removeEntityNodesFromPlayer(event.player as ServerPlayer, event.entity.uuid)
 }
 
 @SubscribeEvent
@@ -28,13 +27,37 @@ fun onClone(event: PlayerEvent.Clone) {
     val old = event.oldPlayer
     val new = event.player
 
-    MaterializationRuntimeState.service(old.level()).rebindEntityAnchors(old.uuid)
+    NodeRuntimeState.service(old.level()).rebindEntityNodes(old.uuid)
 
-    val snapshot = snapshotOf(old.entity)
-    val filtered = if (event.wasDeath) snapshot.dropLooseOnDeathComponents() else snapshot
+    val snapshot = GearyRuntimeState.snapshotForTransfer(old)
 
     new.server?.coroutineScope?.launch {
         yield()
-        applySnapshot(new.entity, filtered)
+        applySnapshot(new, snapshot)
+        GearyRuntimeState.markDirty(new)
+        (new as? ServerPlayer)?.let { serverPlayer ->
+            NodeRuntimeState.service(serverPlayer.level()).syncEntityNodesToPlayer(serverPlayer, serverPlayer)
+        }
+    }
+}
+
+@SubscribeEvent
+fun onJoin(event: PlayerEvent.Join) {
+    val player = event.player as? ServerPlayer ?: return
+    NodeRuntimeState.service(player.level()).syncEntityNodesToPlayer(player, player)
+}
+
+@SubscribeEvent
+fun onRespawn(event: PlayerEvent.Respawn) {
+    val player = event.player as? ServerPlayer ?: return
+    NodeRuntimeState.service(player.level()).syncEntityNodesToPlayer(player, player)
+}
+
+@SubscribeEvent
+fun onChangeDimension(event: PlayerEvent.ChangeDimension) {
+    val player = event.player as? ServerPlayer ?: return
+    player.server?.coroutineScope?.launch {
+        yield()
+        NodeRuntimeState.service(player.level()).syncEntityNodesToPlayer(player, player)
     }
 }

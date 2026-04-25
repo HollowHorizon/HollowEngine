@@ -1,14 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.render
 
-import de.fabmax.kool.math.MutableQuatD
-import de.fabmax.kool.math.MutableQuatF
-import de.fabmax.kool.math.MutableVec3f
-import de.fabmax.kool.math.QuatD
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3d
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.deg
+import de.fabmax.kool.math.*
 import de.fabmax.kool.scene.TrsTransformF
+import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.renderer.LevelRenderer
 import net.minecraft.core.BlockPos
 import net.minecraft.server.level.ServerLevel
@@ -18,16 +12,13 @@ import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.calculateBounds
 import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
-import ru.hollowhorizon.hollowengine.common.geary.anchor.AnchorComponent
-import ru.hollowhorizon.hollowengine.common.geary.anchor.EntityAnchor
-import ru.hollowhorizon.hollowengine.common.geary.anchor.WorldAnchor
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
 import kotlin.math.abs
 import kotlin.math.max
 
-data class ResolvedAnchorTransform(
+data class ResolvedNodeTransform(
     val transform: TrsTransformF,
     val light: Int,
 ) {
@@ -39,19 +30,19 @@ data class ResolvedAnchorTransform(
         )
 }
 
-fun resolveAnchoredTransform(
+fun resolveNodeTransform(
     level: net.minecraft.world.level.Level,
-    anchor: AnchorComponent,
+    hostUuid: java.util.UUID?,
     transform: TransformComponent,
     partialTick: Float,
-): ResolvedAnchorTransform? {
-    val worldTransform = when (anchor) {
-        is WorldAnchor -> TrsTransformF().set(transform.transform)
-        is EntityAnchor -> {
-            val host = findAnchorHostEntity(level, anchor.hostUuid) ?: return null
+): ResolvedNodeTransform? {
+    val worldTransform = if (hostUuid == null) {
+        TrsTransformF().set(transform.transform)
+    } else {
+        val host = findNodeHostEntity(level, hostUuid) ?: return null
             val hostYaw = when (host) {
-                is LivingEntity -> Mth.rotLerp(partialTick, host.yBodyRotO, host.yBodyRot)
-                else -> Mth.rotLerp(partialTick, host.yRotO, host.yRot)
+                is LivingEntity -> -Mth.rotLerp(partialTick, host.yBodyRotO, host.yBodyRot)
+                else -> -Mth.rotLerp(partialTick, host.yRotO, host.yRot)
             }
             val hostPosition = Vec3f(
                 Mth.lerp(partialTick.toDouble(), host.xOld, host.x).toFloat(),
@@ -68,16 +59,15 @@ fun resolveAnchoredTransform(
                 worldRotation,
                 Vec3f(local.scale),
             )
-        }
     }
 
-    return ResolvedAnchorTransform(
+    return ResolvedNodeTransform(
         transform = worldTransform,
         light = LevelRenderer.getLightColor(level, BlockPos.containing(worldTransform.translation.x.toDouble(), worldTransform.translation.y.toDouble(), worldTransform.translation.z.toDouble())),
     )
 }
 
-fun buildAnchoredRenderBounds(model: Model, transform: TrsTransformF, modelScale: Float): AABB {
+fun buildNodeRenderBounds(model: Model, transform: TrsTransformF, modelScale: Float): AABB {
     val localBounds = model.attachment.calculateBounds()
     val worldTransform = TrsTransformF().set(transform)
     worldTransform.scale(Vec3f(modelScale, modelScale, modelScale))
@@ -139,22 +129,21 @@ fun buildAnchoredRenderBounds(model: Model, transform: TrsTransformF, modelScale
 
 fun worldTransformToComponent(
     level: net.minecraft.world.level.Level,
-    anchor: AnchorComponent,
+    hostUuid: java.util.UUID?,
     worldPosition: Vec3,
     worldRotation: QuatF,
     worldScale: Vec3f,
     partialTick: Float,
 ): TransformComponent? {
     val normalizedScale = sanitizeScale(worldScale)
-    return when (anchor) {
-        is WorldAnchor -> TransformComponent(
+    return if (hostUuid == null) {
+        TransformComponent(
             translation = Vec3f(worldPosition.x.toFloat(), worldPosition.y.toFloat(), worldPosition.z.toFloat()),
             rotation = QuatF(worldRotation),
             scale = normalizedScale,
         )
-
-        is EntityAnchor -> {
-            val host = findAnchorHostEntity(level, anchor.hostUuid) ?: return null
+    } else {
+            val host = findNodeHostEntity(level, hostUuid) ?: return null
             val hostYaw = when (host) {
                 is LivingEntity -> Mth.rotLerp(partialTick, host.yBodyRotO, host.yBodyRot)
                 else -> Mth.rotLerp(partialTick, host.yRotO, host.yRot)
@@ -177,7 +166,6 @@ fun worldTransformToComponent(
                 rotation = localRotation,
                 scale = normalizedScale,
             )
-        }
     }
 }
 
@@ -187,8 +175,14 @@ fun quatFToGizmoRotation(rotation: QuatF): QuatD =
 fun gizmoRotationToQuatF(rotation: QuatD): QuatF =
     MutableQuatF(rotation.x.toFloat(), rotation.y.toFloat(), rotation.z.toFloat(), rotation.w.toFloat()).norm()
 
-fun findAnchorHostEntity(level: net.minecraft.world.level.Level, hostUuid: java.util.UUID): MCEntity? {
-    return (level as? ServerLevel)?.getEntity(hostUuid) as? MCEntity
+fun findNodeHostEntity(level: net.minecraft.world.level.Level, hostUuid: java.util.UUID): MCEntity? {
+    if (level is ServerLevel) return level.getEntity(hostUuid)
+    if (level is ClientLevel) {
+        level.entitiesForRendering().forEach { entity ->
+            if (entity.uuid == hostUuid) return entity
+        }
+    }
+    return null
 }
 
 private fun sanitizeScale(scale: Vec3f): Vec3f =

@@ -1,30 +1,19 @@
 package ru.hollowhorizon.hollowengine.common.codeblocks.blocks.components.generated
 
-import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.descriptors.PrimitiveKind
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.*
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
-import ru.hollowhorizon.hollowengine.common.codeblocks.BlocksScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
-import ru.hollowhorizon.hollowengine.common.codeblocks.DynamicDisplayNameProvider
-import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
-import ru.hollowhorizon.hollowengine.common.codeblocks.KTypeExpressionType
+import ru.hollowhorizon.hollowengine.common.codeblocks.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.BoolBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.DefaultText
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.NumberBlock
@@ -35,17 +24,11 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.execution.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
-import ru.hollowhorizon.hollowengine.common.geary.api.entity
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptor
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentFieldSchema
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSchema
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentSchemaRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.FieldValueKind
+import ru.hollowhorizon.hollowengine.common.geary.api.Component
+import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.geary.components.ai.EntityReference
-import ru.hollowhorizon.hollowengine.common.geary.sync.setSyncing
 import ru.hollowhorizon.hollowengine.common.utils.rl
-import java.util.UUID
+import java.util.*
 import kotlin.reflect.KClass
 import kotlin.reflect.full.createType
 
@@ -61,12 +44,13 @@ private val ENTITY_REFERENCE_EXPRESSION_TYPE = KTypeExpressionType(EntityReferen
 
 object ComponentBlockRuntime {
     fun hasComponent(entity: Entity, descriptor: ComponentDescriptor<*>): Boolean {
-        return entity.entity.get(descriptor.value) != null
+        return false // entity.entity.get(descriptor.value) != null
     }
 
     fun getComponent(entity: Entity, descriptor: ComponentDescriptor<*>): Any {
-        return entity.entity.get(descriptor.value)
-            ?: error("Entity ${entity.stringUUID} does not have component ${descriptor.id}.")
+//        return entity.entity.get(descriptor.value)
+//            ?:
+        error("Entity ${entity.stringUUID} does not have component ${descriptor.id}.")
     }
 
     fun setComponent(entity: Entity, descriptor: ComponentDescriptor<*>, component: Any) {
@@ -76,19 +60,20 @@ object ComponentBlockRuntime {
 
         @Suppress("UNCHECKED_CAST")
         val componentClass = descriptor.value as KClass<Component>
+
         @Suppress("UNCHECKED_CAST")
         val value = component as Component
-        val gearyEntity = entity.entity
+        //val gearyEntity = entity.entity
 
         if (descriptor.syncPolicy.name == "SYNC") {
-            gearyEntity.setSyncing(value, componentClass)
+          //  gearyEntity.setSyncing(value, componentClass)
         } else {
-            gearyEntity.set(value, componentClass)
+            //gearyEntity.set(value, componentClass)
         }
     }
 
     fun removeComponent(entity: Entity, descriptor: ComponentDescriptor<*>) {
-        entity.entity.remove(descriptor.value)
+        //entity.entity.remove(descriptor.value)
     }
 }
 
@@ -332,7 +317,8 @@ class HasComponentBlock(var descriptorId: String = "") : ExpressionBlock(), Dyna
 
 @Serializable
 @SerialName("hollowengine:components/get_field")
-class GetComponentFieldBlock(var descriptorId: String = "", var fieldName: String = "") : ExpressionBlock(), DynamicDisplayNameProvider {
+class GetComponentFieldBlock(var descriptorId: String = "", var fieldName: String = "") : ExpressionBlock(),
+    DynamicDisplayNameProvider {
     override val color: Color get() = CodeBlocksColors.ENTITIES
     override val expressionType: ExpressionType get() = field().outputExpressionType
 
@@ -353,7 +339,10 @@ class GetComponentFieldBlock(var descriptorId: String = "", var fieldName: Strin
             .jsonObject
         val field = field()
         val fieldJson = json[field.name] ?: field.defaultJson ?: JsonNull
-        return ru.hollowhorizon.hollowengine.common.geary.components.AutoEditor.json.decodeFromJsonElement(field.serializer, fieldJson)
+        return ru.hollowhorizon.hollowengine.common.geary.components.AutoEditor.json.decodeFromJsonElement(
+            field.serializer,
+            fieldJson
+        )
     }
 
     override fun InputSlotScope.composeContent() {
@@ -371,7 +360,8 @@ class GetComponentFieldBlock(var descriptorId: String = "", var fieldName: Strin
         DefaultText("Получить ${field().displayName}")
     }
 
-    override fun resolveDisplayName(scope: BlocksScope): String = "Получить ${field().displayName} у ${schema().displayName}"
+    override fun resolveDisplayName(scope: BlocksScope): String =
+        "Получить ${field().displayName} у ${schema().displayName}"
 
     private fun ensureConfigured() {
         if (configured || descriptorId.isBlank()) return
@@ -394,7 +384,8 @@ class GetComponentFieldBlock(var descriptorId: String = "", var fieldName: Strin
 
 @Serializable
 @SerialName("hollowengine:components/list")
-class ListBuilderBlock(var ownerSchemaKey: String = "", var fieldName: String = "") : ExpressionBlock(), DynamicDisplayNameProvider {
+class ListBuilderBlock(var ownerSchemaKey: String = "", var fieldName: String = "") : ExpressionBlock(),
+    DynamicDisplayNameProvider {
     override val color: Color get() = CodeBlocksColors.TYPES
     override val expressionType: ExpressionType get() = field().outputExpressionType
 
@@ -562,8 +553,9 @@ class EntityReferenceLiteralBlock(
         val uuid = if (uuidValue.isBlank()) UUID(0L, 0L)
         else ru.hollowhorizon.hollowengine.common.geary.components.AutoEditor.parseUuid(uuidValue)
             ?: error("Invalid UUID literal '$uuidValue'.")
-        val dimension = ru.hollowhorizon.hollowengine.common.geary.components.AutoEditor.parseResourceLocation(dimensionValue)
-            ?: error("Invalid resource location literal '$dimensionValue'.")
+        val dimension =
+            ru.hollowhorizon.hollowengine.common.geary.components.AutoEditor.parseResourceLocation(dimensionValue)
+                ?: error("Invalid resource location literal '$dimensionValue'.")
         return EntityReference(uuid, dimension)
     }
 
@@ -745,7 +737,8 @@ private suspend fun evaluateBlock(block: BlockModel): Any? {
 private fun encodeFieldValue(field: ComponentFieldSchema, value: Any?): JsonElement {
     if (value == null) return JsonNull
     if (field.valueKind == FieldValueKind.NUMBER) {
-        val number = value as? Number ?: error("Field ${field.displayName} expects a number, got ${value::class.simpleName}.")
+        val number =
+            value as? Number ?: error("Field ${field.displayName} expects a number, got ${value::class.simpleName}.")
         return when (field.serializer.descriptor.kind) {
             PrimitiveKind.INT -> JsonPrimitive(number.toInt())
             PrimitiveKind.LONG -> JsonPrimitive(number.toLong())
@@ -756,7 +749,10 @@ private fun encodeFieldValue(field: ComponentFieldSchema, value: Any?): JsonElem
             else -> JsonPrimitive(number.toDouble())
         }
     }
-    return ru.hollowhorizon.hollowengine.common.geary.components.AutoEditor.json.encodeToJsonElement(field.serializer, value)
+    return ru.hollowhorizon.hollowengine.common.geary.components.AutoEditor.json.encodeToJsonElement(
+        field.serializer,
+        value
+    )
 }
 
 private fun resolveListElementInputType(field: ComponentFieldSchema): ExpressionType {

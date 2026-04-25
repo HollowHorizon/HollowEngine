@@ -23,12 +23,7 @@ import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingMan
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
-import ru.hollowhorizon.hollowengine.common.geary.anchor.EntityAnchor
-import ru.hollowhorizon.hollowengine.common.geary.anchor.MaterializationRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.anchor.modelOrNull
-import ru.hollowhorizon.hollowengine.common.geary.anchor.transformOrNull
-import ru.hollowhorizon.hollowengine.common.geary.components.Model
-import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
+import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 
 object RenderManager {
@@ -58,14 +53,14 @@ object RenderManager {
     }
 
     @SubscribeEvent
-    fun onRenderAnchoredModels(event: RenderLevelStageEvent) {
+    fun onRenderNodeModels(event: RenderLevelStageEvent) {
         if (event.stage != RenderStage.AFTER_ENTITIES) return
 
         val minecraft = Minecraft.getInstance()
         minecraft.level ?: return
         val bufferSource = minecraft.renderBuffers().bufferSource()
 
-        val renderStats = renderAnchoredModels(
+        val renderStats = renderNodeModels(
             partialTick = event.partialTick,
             poseStack = event.poseStack,
             bufferSource = bufferSource,
@@ -74,7 +69,7 @@ object RenderManager {
             packedLight = -1,
             allowInstancing = shouldAllowInstancingInCurrentPass(),
         )
-        flushAnchoredBatches(bufferSource, renderStats)
+        flushNodeBatches(bufferSource, renderStats)
     }
 
     fun renderLocalShadowCasters(
@@ -105,7 +100,7 @@ object RenderManager {
             partialTick = partialTick,
             frustum = frustum,
         )
-        renderAnchoredShadowCasters(
+        renderNodeShadowCasters(
             partialTick = partialTick,
             poseStack = modelView,
             bufferSource = bufferSource,
@@ -125,7 +120,7 @@ object RenderManager {
         cameraY: Double,
         cameraZ: Double,
     ) {
-        renderAnchoredShadowCasters(
+        renderNodeShadowCasters(
             partialTick = partialTick,
             poseStack = modelView,
             bufferSource = bufferSource,
@@ -241,7 +236,7 @@ object RenderManager {
         )
     }
 
-    private fun renderAnchoredModels(
+    private fun renderNodeModels(
         partialTick: Float,
         poseStack: PoseStack,
         bufferSource: MultiBufferSource,
@@ -249,23 +244,22 @@ object RenderManager {
         frustum: Frustum?,
         packedLight: Int,
         allowInstancing: Boolean,
-    ): AnchoredRenderStats {
+    ): NodeRenderStats {
         val minecraft = Minecraft.getInstance()
-        val level = minecraft.level ?: return AnchoredRenderStats.EMPTY
-        val materialization = MaterializationRuntimeState.service(level)
+        val level = minecraft.level ?: return NodeRenderStats.EMPTY
+        val materialization = NodeRuntimeState.service(level)
         var renderedAny = false
         val openedBatchedRenderTypes = LinkedHashSet<net.minecraft.client.renderer.RenderType>()
 
-        materialization.forEachModelRecord { record ->
-            if ((record.anchor as? EntityAnchor)?.primary == true) return@forEachModelRecord
-            val snapshot = record.snapshot
-            val model = snapshot.modelOrNull() ?: return@forEachModelRecord
-            val transform = snapshot.transformOrNull() ?: TransformComponent()
-            val resolved = resolveAnchoredTransform(level, record.anchor, transform, partialTick)
-                ?: return@forEachModelRecord
+        materialization.forEachModelNodeRecord { record, node ->
+            if (record.primary) return@forEachModelNodeRecord
+            val model = node.model
+            val transform = node.transform
+            val resolved = resolveNodeTransform(level, record.hostUuid, transform, partialTick)
+                ?: return@forEachModelNodeRecord
 
-            val bounds = buildAnchoredRenderBounds(model, resolved.transform, model.scale)
-            if (frustum != null && !frustum.isVisible(bounds)) return@forEachModelRecord
+            val bounds = buildNodeRenderBounds(model, resolved.transform, model.scale)
+            if (frustum != null && !frustum.isVisible(bounds)) return@forEachModelNodeRecord
 
             poseStack.pushPose()
             poseStack.translate(
@@ -299,10 +293,10 @@ object RenderManager {
             poseStack.popPose()
             renderedAny = true
         }
-        return AnchoredRenderStats(renderedAny, openedBatchedRenderTypes)
+        return NodeRenderStats(renderedAny, openedBatchedRenderTypes)
     }
 
-    private fun renderAnchoredShadowCasters(
+    private fun renderNodeShadowCasters(
         partialTick: Float,
         poseStack: PoseStack,
         bufferSource: MultiBufferSource,
@@ -311,7 +305,7 @@ object RenderManager {
         packedLight: Int,
         allowInstancing: Boolean,
     ) {
-        val renderStats = renderAnchoredModels(
+        val renderStats = renderNodeModels(
             partialTick = partialTick,
             poseStack = poseStack,
             bufferSource = bufferSource,
@@ -320,10 +314,10 @@ object RenderManager {
             packedLight = packedLight,
             allowInstancing = allowInstancing,
         )
-        flushAnchoredBatches(bufferSource, renderStats)
+        flushNodeBatches(bufferSource, renderStats)
     }
 
-    private fun flushAnchoredBatches(bufferSource: MultiBufferSource, renderStats: AnchoredRenderStats) {
+    private fun flushNodeBatches(bufferSource: MultiBufferSource, renderStats: NodeRenderStats) {
         if (!renderStats.renderedAny || renderStats.openedBatchedRenderTypes.isEmpty()) return
         val flushable = bufferSource as? MultiBufferSource.BufferSource ?: return
         renderStats.openedBatchedRenderTypes.forEach(flushable::endBatch)
@@ -332,12 +326,12 @@ object RenderManager {
     private fun shouldAllowInstancingInCurrentPass(): Boolean =
         !IrisHelper.isShadowRendering() && !ClusteredLightingManager.isLocalShadowPassActive()
 
-    private data class AnchoredRenderStats(
+    private data class NodeRenderStats(
         val renderedAny: Boolean,
         val openedBatchedRenderTypes: Set<net.minecraft.client.renderer.RenderType>,
     ) {
         companion object {
-            val EMPTY = AnchoredRenderStats(renderedAny = false, openedBatchedRenderTypes = emptySet())
+            val EMPTY = NodeRenderStats(renderedAny = false, openedBatchedRenderTypes = emptySet())
         }
     }
 }

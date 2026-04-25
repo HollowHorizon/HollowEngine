@@ -6,8 +6,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.api.Registerable
 import ru.hollowhorizon.hollowengine.api.Syncable
-import ru.hollowhorizon.hollowengine.common.geary.anchor.removeComponents
-import ru.hollowhorizon.hollowengine.common.geary.anchor.withOrReplace
+import ru.hollowhorizon.hollowengine.common.geary.binding.lightNodes
+import ru.hollowhorizon.hollowengine.common.geary.binding.removeComponents
+import ru.hollowhorizon.hollowengine.common.geary.binding.withOrReplace
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 
 @Serializable
@@ -154,14 +155,14 @@ data class SpotLightComponent(
 ) : LightComponent()
 
 fun EntitySnapshot.lightComponentOrNull(): LightComponent? =
-    components.filterIsInstance<LightComponent>().firstOrNull()
+    lightNodes().firstOrNull()?.light
 
 fun EntitySnapshot.pointLightOrNull(): PointLightComponent? =
-    components.filterIsInstance<PointLightComponent>().firstOrNull()
+    lightNodes().firstOrNull()?.light as? PointLightComponent
 
 fun EntitySnapshot.spotLightOrNull(): SpotLightComponent? =
-    components.filterIsInstance<SpotLightComponent>().firstOrNull()
+    lightNodes().firstOrNull()?.light as? SpotLightComponent
 
 fun EntitySnapshot.withLightComponent(component: LightComponent): EntitySnapshot =
-    removeComponents { it is PointLightComponent || it is SpotLightComponent }
+    removeComponents({ it is PointLightComponent || it is SpotLightComponent })
         .withOrReplace(component as Component)

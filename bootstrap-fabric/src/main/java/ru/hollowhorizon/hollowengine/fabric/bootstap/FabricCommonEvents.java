@@ -44,8 +44,7 @@ public final class FabricCommonEvents {
     }
 
     private static void registerCommands() {
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
-            EVENTS.onRegisterCommands(dispatcher, registryAccess, environment)
+        CommandRegistrationCallback.EVENT.register(EVENTS::onRegisterCommands
         );
     }
 

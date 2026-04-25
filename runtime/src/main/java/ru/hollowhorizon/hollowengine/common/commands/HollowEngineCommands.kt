@@ -44,11 +44,9 @@ import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
-import ru.hollowhorizon.hollowengine.common.geary.anchor.*
-import ru.hollowhorizon.hollowengine.common.geary.api.entity
+import ru.hollowhorizon.hollowengine.common.geary.binding.*
 import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
-import ru.hollowhorizon.hollowengine.common.geary.sync.setSyncing
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
@@ -149,8 +147,8 @@ private fun CommandExtension.registerModelCommands() {
             executes {
                 val host = EntityArgument.getEntity(this, "entity")
                 val modelName = StringArgumentType.getString(this, "model")
-                val stableKey = attachAnchoredModel(host, modelName)
-                sendSuccess { "Attached anchored model with StableKey $stableKey".literal }
+                val stableKey = attachNodeModel(host, modelName)
+                sendSuccess { "Attached node model with StableKey $stableKey".literal }
             }
         }
 
@@ -161,8 +159,8 @@ private fun CommandExtension.registerModelCommands() {
             executes {
                 val position = Vec3Argument.getVec3(this, "pos")
                 val modelName = StringArgumentType.getString(this, "model")
-                val stableKey = spawnAnchoredModel(source, position, modelName)
-                sendSuccess { "Spawned anchored model with StableKey $stableKey".literal }
+                val stableKey = spawnNodeModel(source, position, modelName)
+                sendSuccess { "Spawned node model with StableKey $stableKey".literal }
             }
         }
 
@@ -173,14 +171,14 @@ private fun CommandExtension.registerModelCommands() {
             executes {
                 val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
                 val position = Vec3Argument.getVec3(this, "pos")
-                moveAnchoredModel(source, stableKey, position)
+                moveNodeModel(source, stableKey, position)
             }
         }
 
         "remove"(arg("stableKey", StringArgumentType.string())) {
             executes {
                 val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
-                removeAnchoredModel(source, stableKey)
+                removeNodeModel(source, stableKey)
             }
         }
     }
@@ -571,35 +569,6 @@ private fun CommandExtension.registerUtilityCommands() {
         }
     }
 
-    "geary" {
-        ComponentDescriptorRegistry.forEach { holder ->
-            val c = holder.value
-            if (!c.editable) return@forEach
-            val isSyncing = c.syncPolicy == ComponentSyncPolicy.SYNC
-            "${holder.key}" {
-                "add"(arg("entity", EntityArgument.entity())) {
-                    executes {
-                        val entity = EntityArgument.getEntity(this, "entity")
-                        if (isSyncing) {
-                            entity.entity.setSyncing(c.create(), c.value)
-                        } else {
-                            entity.entity.set(c.create(), c.value)
-                        }
-                        SUCCESS
-                    }
-                }
-
-                "remove"(arg("entity", EntityArgument.entity())) {
-                    executes {
-                        val entity = EntityArgument.getEntity(this, "entity")
-                        entity.entity.remove(c.value)
-                        SUCCESS
-                    }
-                }
-            }
-        }
-    }
-
     "pos" {
         executes {
             copyTargetPositionToClipboard(source.playerOrException)
@@ -982,11 +951,14 @@ private fun getAvailableModels(): Collection<String> {
 private fun spawnPointLight(source: CommandSourceStack, radius: Float): UUID {
     val stableKey = UUID.randomUUID()
     val position = source.position
-    val service = MaterializationRuntimeState.service(source.level)
+    val service = NodeRuntimeState.service(source.level)
     val snapshot = EntitySnapshot(
+        stableKey = stableKey,
+        hostUuid = null,
+        worldChunkX = net.minecraft.world.level.ChunkPos(net.minecraft.core.BlockPos(position.x.toInt(), position.y.toInt(), position.z.toInt())).x,
+        worldChunkZ = net.minecraft.world.level.ChunkPos(net.minecraft.core.BlockPos(position.x.toInt(), position.y.toInt(), position.z.toInt())).z,
+        worldLocalId = UUID.randomUUID(),
         components = listOf(
-            StableKeyComponent(stableKey),
-            worldAnchorFor(position),
             TransformComponent().withWorldPosition(position),
             PointLightComponent(radius = radius),
         )
@@ -999,12 +971,15 @@ private fun spawnPointLight(source: CommandSourceStack, radius: Float): UUID {
 private fun spawnSpotLight(source: CommandSourceStack, distance: Float, innerAngle: Float, outerAngle: Float): UUID {
     val stableKey = UUID.randomUUID()
     val position = source.position
-    val service = MaterializationRuntimeState.service(source.level)
+    val service = NodeRuntimeState.service(source.level)
     val rotation = rotationFromPositiveZ(source.entity?.lookAngle ?: Vec3(0.0, 0.0, 1.0))
     val snapshot = EntitySnapshot(
+        stableKey = stableKey,
+        hostUuid = null,
+        worldChunkX = net.minecraft.world.level.ChunkPos(net.minecraft.core.BlockPos(position.x.toInt(), position.y.toInt(), position.z.toInt())).x,
+        worldChunkZ = net.minecraft.world.level.ChunkPos(net.minecraft.core.BlockPos(position.x.toInt(), position.y.toInt(), position.z.toInt())).z,
+        worldLocalId = UUID.randomUUID(),
         components = listOf(
-            StableKeyComponent(stableKey),
-            worldAnchorFor(position),
             TransformComponent(
                 translation = Vec3f(position.x.toFloat(), position.y.toFloat(), position.z.toFloat()),
                 rotation = rotation,
@@ -1022,7 +997,7 @@ private fun listLights(source: CommandSourceStack): Int {
     val seen = linkedSetOf<UUID>()
 
     source.server.allLevels.forEach { level ->
-        val service = MaterializationRuntimeState.service(level)
+        val service = NodeRuntimeState.service(level)
         service.records.forEach { record ->
             val snapshot = service.snapshot(record.stableKey) ?: return@forEach
             val light = snapshot.lightComponentOrNull() ?: return@forEach
@@ -1033,7 +1008,7 @@ private fun listLights(source: CommandSourceStack): Int {
                 )
             } | level=${level.dimension().location()}"
         }
-        WorldAnchorSavedData.get(level).allRecords().forEach { record ->
+        WorldNodeSavedData.get(level).allRecords().forEach { record ->
             val light = record.snapshot.lightComponentOrNull() ?: return@forEach
             if (!seen.add(record.stableKey)) return@forEach
             rows += "${record.stableKey} | ${light.javaClass.simpleName} | enabled=${light.enabled} | pos=${
@@ -1045,11 +1020,11 @@ private fun listLights(source: CommandSourceStack): Int {
     }
 
     if (rows.isEmpty()) {
-        source.sendFailure("No anchored lights found".literal)
+        source.sendFailure("No node lights found".literal)
         return 0
     }
 
-    source.sendSuccess({ "Anchored lights:".literal }, false)
+    source.sendSuccess({ "Node lights:".literal }, false)
     rows.sorted().forEach { source.sendSuccess({ it.literal }, false) }
     return 1
 }
@@ -1057,16 +1032,16 @@ private fun listLights(source: CommandSourceStack): Int {
 private fun removeLight(source: CommandSourceStack, stableKey: UUID?): Int {
     val resolved = resolveLightTarget(source, stableKey) ?: return 0
     if (resolved.isDormantWorldRecord) {
-        WorldAnchorSavedData.get(resolved.level).remove(resolved.stableKey)
-        source.sendSuccess({ "Removed anchored light ${resolved.stableKey}".literal }, true)
+        WorldNodeSavedData.get(resolved.level).remove(resolved.stableKey)
+        source.sendSuccess({ "Removed node light ${resolved.stableKey}".literal }, true)
         return 1
     } else {
-        val service = MaterializationRuntimeState.service(resolved.level)
+        val service = NodeRuntimeState.service(resolved.level)
         if (service.remove(resolved.stableKey, syncToClients = true)) {
-            source.sendSuccess({ "Removed anchored light ${resolved.stableKey}".literal }, true)
+            source.sendSuccess({ "Removed node light ${resolved.stableKey}".literal }, true)
             return 1
         } else {
-            source.sendFailure("Anchored light ${resolved.stableKey} was not found".literal)
+            source.sendFailure("Node light ${resolved.stableKey} was not found".literal)
             return 0
         }
     }
@@ -1080,25 +1055,25 @@ private fun updateLight(
     val resolved = resolveLightTarget(source, stableKey) ?: return 0
     val current = resolved.snapshot.lightComponentOrNull()
         ?: run {
-            source.sendFailure("Anchored object ${resolved.stableKey} does not contain a light component".literal)
+            source.sendFailure("Node object ${resolved.stableKey} does not contain a light component".literal)
             return 0
         }
 
     val updatedSnapshot = resolved.snapshot.withLightComponent(current.updater())
     applyUpdatedLightSnapshot(resolved, updatedSnapshot)
-    source.sendSuccess({ "Updated anchored light ${resolved.stableKey}".literal }, true)
+    source.sendSuccess({ "Updated node light ${resolved.stableKey}".literal }, true)
     return 1
 }
 
 private fun resolveLightTarget(source: CommandSourceStack, stableKey: UUID?): LightTargetResolution? {
     if (stableKey != null) {
-        val resolved = findAnchoredSnapshot(source, stableKey)
+        val resolved = findNodeSnapshot(source, stableKey)
             ?: run {
-                source.sendFailure("Anchored light $stableKey was not found".literal)
+                source.sendFailure("Node light $stableKey was not found".literal)
                 return null
             }
         if (resolved.snapshot.lightComponentOrNull() == null) {
-            source.sendFailure("Anchored object $stableKey does not contain a light component".literal)
+            source.sendFailure("Node object $stableKey does not contain a light component".literal)
             return null
         }
         return LightTargetResolution(resolved.level, stableKey, resolved.snapshot, resolved.isDormantWorldRecord)
@@ -1106,7 +1081,7 @@ private fun resolveLightTarget(source: CommandSourceStack, stableKey: UUID?): Li
 
     return findNearestLightTarget(source)
         ?: run {
-            source.sendFailure("No nearby anchored world light was found".literal)
+            source.sendFailure("No nearby world node light was found".literal)
             null
         }
 }
@@ -1117,11 +1092,11 @@ private fun findNearestLightTarget(source: CommandSourceStack): LightTargetResol
     var best: LightTargetResolution? = null
     var bestDistance = Double.MAX_VALUE
 
-    val service = MaterializationRuntimeState.service(level)
+    val service = NodeRuntimeState.service(level)
     service.records.forEach { record ->
         val snapshot = service.snapshot(record.stableKey) ?: return@forEach
         if (snapshot.lightComponentOrNull() == null) return@forEach
-        if (snapshot.anchorOrNull() !is WorldAnchor) return@forEach
+        if (snapshot.isEntityBound()) return@forEach
         val transform = snapshot.transformOrNull() ?: return@forEach
         val position = Vec3(
             transform.translation.x.toDouble(),
@@ -1135,9 +1110,9 @@ private fun findNearestLightTarget(source: CommandSourceStack): LightTargetResol
         }
     }
 
-    WorldAnchorSavedData.get(level).allRecords().forEach { record ->
+    WorldNodeSavedData.get(level).allRecords().forEach { record ->
         if (record.snapshot.lightComponentOrNull() == null) return@forEach
-        if (record.snapshot.anchorOrNull() !is WorldAnchor) return@forEach
+        if (record.snapshot.isEntityBound()) return@forEach
         val transform = record.snapshot.transformOrNull() ?: return@forEach
         val position = Vec3(
             transform.translation.x.toDouble(),
@@ -1156,9 +1131,9 @@ private fun findNearestLightTarget(source: CommandSourceStack): LightTargetResol
 
 private fun applyUpdatedLightSnapshot(resolved: LightTargetResolution, snapshot: EntitySnapshot) {
     if (resolved.isDormantWorldRecord) {
-        WorldAnchorSavedData.get(resolved.level).put(DormantRecord(resolved.stableKey, snapshot))
+        WorldNodeSavedData.get(resolved.level).put(DormantRecord(resolved.stableKey, snapshot))
     } else {
-        val service = MaterializationRuntimeState.service(resolved.level)
+        val service = NodeRuntimeState.service(resolved.level)
         service.materialize(snapshot)
         service.snapshot(resolved.stableKey)?.let(service::syncSnapshot)
     }
@@ -1225,14 +1200,14 @@ private fun LightComponent.withFlareSettings(transform: FlareSettings.() -> Flar
         is SpotLightComponent -> copy(flare = (flare ?: FlareSettings()).transform())
     }
 
-private fun attachAnchoredModel(host: net.minecraft.world.entity.Entity, modelName: String): UUID {
-    host.entity
+private fun attachNodeModel(host: net.minecraft.world.entity.Entity, modelName: String): UUID {
     val stableKey = UUID.randomUUID()
-    val service = MaterializationRuntimeState.service(host.level())
+    val service = NodeRuntimeState.service(host.level())
     val snapshot = EntitySnapshot(
+        stableKey = stableKey,
+        hostUuid = host.uuid,
+        primary = false,
         components = listOf(
-            StableKeyComponent(stableKey),
-            EntityAnchor(host.uuid),
             Model(modelName),
             TransformComponent(),
         )
@@ -1242,14 +1217,16 @@ private fun attachAnchoredModel(host: net.minecraft.world.entity.Entity, modelNa
     return stableKey
 }
 
-private fun spawnAnchoredModel(source: CommandSourceStack, position: Vec3, modelName: String): UUID {
+private fun spawnNodeModel(source: CommandSourceStack, position: Vec3, modelName: String): UUID {
     val stableKey = UUID.randomUUID()
-    val service = MaterializationRuntimeState.service(source.level)
-    val anchor = worldAnchorFor(position)
+    val service = NodeRuntimeState.service(source.level)
     val snapshot = EntitySnapshot(
+        stableKey = stableKey,
+        hostUuid = null,
+        worldChunkX = net.minecraft.world.level.ChunkPos(net.minecraft.core.BlockPos(position.x.toInt(), position.y.toInt(), position.z.toInt())).x,
+        worldChunkZ = net.minecraft.world.level.ChunkPos(net.minecraft.core.BlockPos(position.x.toInt(), position.y.toInt(), position.z.toInt())).z,
+        worldLocalId = UUID.randomUUID(),
         components = listOf(
-            StableKeyComponent(stableKey),
-            anchor,
             Model(modelName),
             TransformComponent().withWorldPosition(position),
         )
@@ -1259,27 +1236,21 @@ private fun spawnAnchoredModel(source: CommandSourceStack, position: Vec3, model
     return stableKey
 }
 
-private fun moveAnchoredModel(source: CommandSourceStack, stableKey: UUID, position: Vec3): Int {
-    val resolved = findAnchoredSnapshot(source, stableKey)
+private fun moveNodeModel(source: CommandSourceStack, stableKey: UUID, position: Vec3): Int {
+    val resolved = findNodeSnapshot(source, stableKey)
         ?: run {
-            source.sendFailure("Anchored object $stableKey was not found".literal)
+            source.sendFailure("Node object $stableKey was not found".literal)
             return 0
         }
 
     val (level, snapshot, isDormantWorldRecord) = resolved
-    val service = MaterializationRuntimeState.service(level)
-    val anchor = snapshot.anchorOrNull()
-        ?: run {
-            source.sendFailure("Anchored object $stableKey does not have an anchor".literal)
-            return 0
-        }
-
-    val updated = when (anchor) {
-        is WorldAnchor -> snapshot
-            .withIdentity(worldAnchorFor(position, anchor.localId))
+    val service = NodeRuntimeState.service(level)
+    val updated = if (snapshot.isWorldBound()) {
+        snapshot
+            .withWorldBinding(position, snapshot.worldLocalIdOrRandom())
             .withOrReplace((snapshot.transformOrNull() ?: TransformComponent()).withWorldPosition(position))
-
-        is EntityAnchor -> snapshot
+    } else {
+        snapshot
             .withOrReplace(
                 (snapshot.transformOrNull() ?: TransformComponent())
                     .withTranslation(position.x.toFloat(), position.y.toFloat(), position.z.toFloat())
@@ -1287,45 +1258,45 @@ private fun moveAnchoredModel(source: CommandSourceStack, stableKey: UUID, posit
     }
 
     if (isDormantWorldRecord) {
-        WorldAnchorSavedData.get(level).put(DormantRecord(stableKey, updated))
+        WorldNodeSavedData.get(level).put(DormantRecord(stableKey, updated))
     } else {
         service.materialize(updated)
         service.snapshot(stableKey)?.let(service::syncSnapshot)
     }
 
-    source.sendSuccess({ "Moved anchored object $stableKey".literal }, true)
+    source.sendSuccess({ "Moved node object $stableKey".literal }, true)
     return 1
 }
 
-private fun removeAnchoredModel(source: CommandSourceStack, stableKey: UUID): Int {
+private fun removeNodeModel(source: CommandSourceStack, stableKey: UUID): Int {
     source.server.allLevels.forEach { level ->
-        val service = MaterializationRuntimeState.service(level)
+        val service = NodeRuntimeState.service(level)
         if (service.remove(stableKey, syncToClients = true)) {
-            source.sendSuccess({ "Removed anchored object $stableKey".literal }, true)
+            source.sendSuccess({ "Removed node object $stableKey".literal }, true)
             return 1
         }
     }
-    source.sendFailure("Anchored object $stableKey was not found".literal)
+    source.sendFailure("Node object $stableKey was not found".literal)
     return 0
 }
 
-private data class AnchoredSnapshotResolution(
+private data class NodeSnapshotResolution(
     val level: net.minecraft.server.level.ServerLevel,
     val snapshot: EntitySnapshot,
     val isDormantWorldRecord: Boolean,
 )
 
-private fun findAnchoredSnapshot(source: CommandSourceStack, stableKey: UUID): AnchoredSnapshotResolution? {
+private fun findNodeSnapshot(source: CommandSourceStack, stableKey: UUID): NodeSnapshotResolution? {
     source.server.allLevels.forEach { level ->
-        val service = MaterializationRuntimeState.service(level)
+        val service = NodeRuntimeState.service(level)
         val runtimeSnapshot = service.snapshot(stableKey)
         if (runtimeSnapshot != null) {
-            return AnchoredSnapshotResolution(level, runtimeSnapshot, isDormantWorldRecord = false)
+            return NodeSnapshotResolution(level, runtimeSnapshot, isDormantWorldRecord = false)
         }
 
-        val dormant = WorldAnchorSavedData.get(level).allRecords().firstOrNull { it.stableKey == stableKey }
+        val dormant = WorldNodeSavedData.get(level).allRecords().firstOrNull { it.stableKey == stableKey }
         if (dormant != null) {
-            return AnchoredSnapshotResolution(level, dormant.snapshot, isDormantWorldRecord = true)
+            return NodeSnapshotResolution(level, dormant.snapshot, isDormantWorldRecord = true)
         }
     }
     return null
