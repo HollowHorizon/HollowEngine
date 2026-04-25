@@ -21,7 +21,6 @@ data class EntitySnapshot(
     val version: Int = CURRENT_VERSION,
     val stableKey: @Serializable(ForUuid::class) UUID = UUID.randomUUID(),
     val hostUuid: @Serializable(ForUuid::class) UUID? = null,
-    val primary: Boolean = false,
     val worldChunkX: Int? = null,
     val worldChunkZ: Int? = null,
     val worldLocalId: @Serializable(ForUuid::class) UUID? = null,
@@ -30,9 +29,7 @@ data class EntitySnapshot(
     val components: List<@Polymorphic Component> = emptyList(),
 ) {
     fun nodeList(): List<EntityNodeSnapshot> =
-        if (nodes.isNotEmpty()) {
-            nodes
-        } else {
+        nodes.ifEmpty {
             listOf(EntityNodeSnapshot(id = LEGACY_ROOT_NODE_ID, parentId = null, components = components))
         }
 

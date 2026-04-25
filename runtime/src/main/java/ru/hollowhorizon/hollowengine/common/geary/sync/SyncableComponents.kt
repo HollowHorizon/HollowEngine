@@ -9,7 +9,6 @@ import ru.hollowhorizon.hollowengine.common.events.entity.EntityTrackingEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.applySnapshot
 
 @SubscribeEvent
 fun startTracking(event: EntityTrackingEvent.Start) {
@@ -29,12 +28,10 @@ fun onClone(event: PlayerEvent.Clone) {
 
     NodeRuntimeState.service(old.level()).rebindEntityNodes(old.uuid)
 
-    val snapshot = GearyRuntimeState.snapshotForTransfer(old)
+    GearyRuntimeState.cloneOwnedState(old, new, dropLooseOnDeath = event.wasDeath)
 
     new.server?.coroutineScope?.launch {
         yield()
-        applySnapshot(new, snapshot)
-        GearyRuntimeState.markDirty(new)
         (new as? ServerPlayer)?.let { serverPlayer ->
             NodeRuntimeState.service(serverPlayer.level()).syncEntityNodesToPlayer(serverPlayer, serverPlayer)
         }

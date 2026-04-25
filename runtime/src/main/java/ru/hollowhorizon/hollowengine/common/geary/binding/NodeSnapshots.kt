@@ -25,7 +25,6 @@ data class NodeMaterializedRecord(
     val stableKey: UUID,
     val snapshot: EntitySnapshot,
     val hostUuid: UUID?,
-    val primary: Boolean,
 ) {
     val isEntityBound: Boolean get() = hostUuid != null
     val isWorldBound: Boolean get() = hostUuid == null
@@ -51,7 +50,6 @@ fun EntitySnapshot.requireStableKey(): UUID =
 fun EntitySnapshot.isEntityBound(): Boolean = hostUuid != null
 fun EntitySnapshot.isWorldBound(): Boolean = hostUuid == null
 fun EntitySnapshot.hostUuidOrNull(): UUID? = hostUuid
-fun EntitySnapshot.isPrimaryEntityOwner(): Boolean = hostUuid != null && primary
 
 fun EntitySnapshot.requireHostUuid(): UUID = hostUuid ?: error("Entity snapshot is not bound to an entity host.")
 
@@ -130,16 +128,16 @@ fun EntitySnapshot.removeComponents(predicate: (Component) -> Boolean, nodeId: U
     return withNodes(updatedNodes)
 }
 
-fun EntitySnapshot.withEntityBinding(hostUuid: UUID, primary: Boolean = false): EntitySnapshot =
-    copy(hostUuid = hostUuid, primary = primary, worldChunkX = null, worldChunkZ = null, worldLocalId = null)
+fun EntitySnapshot.withEntityBinding(hostUuid: UUID): EntitySnapshot =
+    copy(hostUuid = hostUuid, worldChunkX = null, worldChunkZ = null, worldLocalId = null)
 
 fun EntitySnapshot.withWorldBinding(position: Vec3, localId: UUID = UUID.randomUUID()): EntitySnapshot {
     val chunkPos = ChunkPos(BlockPos(position.x.toInt(), position.y.toInt(), position.z.toInt()))
-    return copy(hostUuid = null, primary = false, worldChunkX = chunkPos.x, worldChunkZ = chunkPos.z, worldLocalId = localId)
+    return copy(hostUuid = null, worldChunkX = chunkPos.x, worldChunkZ = chunkPos.z, worldLocalId = localId)
 }
 
 fun EntitySnapshot.withWorldChunkBinding(chunkX: Int, chunkZ: Int, localId: UUID = UUID.randomUUID()): EntitySnapshot =
-    copy(hostUuid = null, primary = false, worldChunkX = chunkX, worldChunkZ = chunkZ, worldLocalId = localId)
+    copy(hostUuid = null, worldChunkX = chunkX, worldChunkZ = chunkZ, worldLocalId = localId)
 
 fun EntitySnapshot.withAddedNode(
     nodeId: UUID = UUID.randomUUID(),

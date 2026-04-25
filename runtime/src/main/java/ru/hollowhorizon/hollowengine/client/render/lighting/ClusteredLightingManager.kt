@@ -375,7 +375,6 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
         val collected = ArrayList<PreparedLight>()
 
         materialization.forEachLightNodeRecord { record, node ->
-            if (record.primary) return@forEachLightNodeRecord
             val component = node.light
             if (!component.enabled) return@forEachLightNodeRecord
 

@@ -40,25 +40,24 @@ fun resolveNodeTransform(
         TrsTransformF().set(transform.transform)
     } else {
         val host = findNodeHostEntity(level, hostUuid) ?: return null
-            val hostYaw = when (host) {
-                is LivingEntity -> -Mth.rotLerp(partialTick, host.yBodyRotO, host.yBodyRot)
-                else -> -Mth.rotLerp(partialTick, host.yRotO, host.yRot)
-            }
-            val hostPosition = Vec3f(
-                Mth.lerp(partialTick.toDouble(), host.xOld, host.x).toFloat(),
-                Mth.lerp(partialTick.toDouble(), host.yOld, host.y).toFloat(),
-                Mth.lerp(partialTick.toDouble(), host.zOld, host.z).toFloat(),
-            )
-            val hostOffsetRotation = QuatF((-hostYaw).deg, Vec3f.Y_AXIS)
-            val hostRenderRotation = QuatF(hostYaw.deg, Vec3f.Y_AXIS)
-            val local = transform.transform
-            val worldTranslation = local.translation.rotateBy(hostOffsetRotation) + hostPosition
-            val worldRotation = MutableQuatF(hostRenderRotation).mul(local.rotation).norm()
-            TrsTransformF().setCompositionOf(
-                worldTranslation,
-                worldRotation,
-                Vec3f(local.scale),
-            )
+        val hostYaw = when (host) {
+            is LivingEntity -> Mth.rotLerp(partialTick, host.yBodyRotO, host.yBodyRot)
+            else -> Mth.rotLerp(partialTick, host.yRotO, host.yRot)
+        }
+        val hostPosition = Vec3f(
+            Mth.lerp(partialTick.toDouble(), host.xOld, host.x).toFloat(),
+            Mth.lerp(partialTick.toDouble(), host.yOld, host.y).toFloat(),
+            Mth.lerp(partialTick.toDouble(), host.zOld, host.z).toFloat(),
+        )
+        val hostRotation = QuatF((-hostYaw).deg, Vec3f.Y_AXIS)
+        val local = transform.transform
+        val worldTranslation = Vec3f(local.translation).rotateBy(hostRotation) + hostPosition
+        val worldRotation = MutableQuatF(hostRotation).mul(local.rotation).norm()
+        TrsTransformF().setCompositionOf(
+            worldTranslation,
+            worldRotation,
+            Vec3f(local.scale),
+        )
     }
 
     return ResolvedNodeTransform(
@@ -143,29 +142,31 @@ fun worldTransformToComponent(
             scale = normalizedScale,
         )
     } else {
-            val host = findNodeHostEntity(level, hostUuid) ?: return null
-            val hostYaw = when (host) {
-                is LivingEntity -> Mth.rotLerp(partialTick, host.yBodyRotO, host.yBodyRot)
-                else -> Mth.rotLerp(partialTick, host.yRotO, host.yRot)
-            }
-            val hostPosition = Vec3f(
-                Mth.lerp(partialTick.toDouble(), host.xOld, host.x).toFloat(),
-                Mth.lerp(partialTick.toDouble(), host.yOld, host.y).toFloat(),
-                Mth.lerp(partialTick.toDouble(), host.zOld, host.z).toFloat(),
-            )
-            val hostOffsetInverse = QuatF(hostYaw.deg, Vec3f.Y_AXIS)
-            val hostRenderRotation = QuatF(hostYaw.deg, Vec3f.Y_AXIS)
-            val localTranslation = Vec3f(
-                (worldPosition.x - hostPosition.x).toFloat(),
-                (worldPosition.y - hostPosition.y).toFloat(),
-                (worldPosition.z - hostPosition.z).toFloat(),
-            ).rotateBy(hostOffsetInverse)
-            val localRotation = MutableQuatF(hostRenderRotation).invert().mul(worldRotation).norm()
-            TransformComponent(
-                translation = localTranslation,
-                rotation = localRotation,
-                scale = normalizedScale,
-            )
+        val host = findNodeHostEntity(level, hostUuid) ?: return null
+        val hostYaw = when (host) {
+            is LivingEntity -> Mth.rotLerp(partialTick, host.yBodyRotO, host.yBodyRot)
+            else -> Mth.rotLerp(partialTick, host.yRotO, host.yRot)
+        }
+        val hostPosition = Vec3f(
+            Mth.lerp(partialTick.toDouble(), host.xOld, host.x).toFloat(),
+            Mth.lerp(partialTick.toDouble(), host.yOld, host.y).toFloat(),
+            Mth.lerp(partialTick.toDouble(), host.zOld, host.z).toFloat(),
+        )
+        val hostTranslationRotation = QuatF((-hostYaw).deg, Vec3f.Y_AXIS)
+        val inverseHostTranslationRotation = MutableQuatF(hostTranslationRotation).invert().norm()
+        val hostRotation = QuatF(hostYaw.deg, Vec3f.Y_AXIS)
+        val inverseHostRotation = MutableQuatF(hostRotation).invert().norm()
+        val localTranslation = Vec3f(
+            (worldPosition.x - hostPosition.x).toFloat(),
+            (worldPosition.y - hostPosition.y).toFloat(),
+            (worldPosition.z - hostPosition.z).toFloat(),
+        ).rotateBy(inverseHostTranslationRotation)
+        val localRotation = MutableQuatF(inverseHostRotation).mul(worldRotation).norm()
+        TransformComponent(
+            translation = localTranslation,
+            rotation = localRotation,
+            scale = normalizedScale,
+        )
     }
 }
 

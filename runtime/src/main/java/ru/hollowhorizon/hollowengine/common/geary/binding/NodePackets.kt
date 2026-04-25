@@ -9,7 +9,6 @@ import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntityNodeSnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.applySnapshot
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
@@ -26,9 +25,6 @@ data class NodeEntitySnapshotPacket(
         val level = player.level()
         NodeRuntimeState.init(level)
         NodeRuntimeState.service(level).materialize(snapshot)
-        if (!snapshot.isPrimaryEntityOwner()) return
-        val host = level.players().firstOrNull { it.uuid == snapshot.requireHostUuid() } ?: return
-        applySnapshot(host, snapshot)
     }
 }
 

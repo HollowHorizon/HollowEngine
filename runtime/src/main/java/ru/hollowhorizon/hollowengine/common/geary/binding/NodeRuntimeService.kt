@@ -22,7 +22,7 @@ import java.util.*
 class NodeRuntimeService(
     private val level: Level,
 ) {
-    private val activeSnapshots = linkedMapOf<UUID, EntitySnapshot>()
+    private val activeWorldSnapshots = linkedMapOf<UUID, EntitySnapshot>()
     private val activeWorldChunks = linkedSetOf<Long>()
     private val playerVisibleNodes = linkedMapOf<UUID, MutableSet<UUID>>()
     private val playerChunkPositions = linkedMapOf<UUID, Long>()
@@ -30,12 +30,12 @@ class NodeRuntimeService(
     val records: Collection<NodeMaterializedRecord>
         get() {
             val combined = linkedMapOf<UUID, EntitySnapshot>()
-            activeSnapshots.forEach { (stableKey, snapshot) -> combined[stableKey] = snapshot }
+            activeWorldSnapshots.forEach { (stableKey, snapshot) -> combined[stableKey] = snapshot }
             GearyRuntimeState.nodeSnapshots(level).forEach { snapshot ->
                 combined[snapshot.requireStableKey()] = snapshot
             }
             return combined.entries.mapNotNull { (stableKey, snapshot) ->
-                NodeMaterializedRecord(stableKey, snapshot, snapshot.hostUuidOrNull(), snapshot.isPrimaryEntityOwner())
+                NodeMaterializedRecord(stableKey, snapshot, snapshot.hostUuidOrNull())
             }
         }
 
@@ -74,24 +74,8 @@ class NodeRuntimeService(
         }
     }
 
-    fun ensurePrimaryEntity(entity: Entity): UUID {
-        val stableKey = entity.uuid
-        val current = activeSnapshots[stableKey]
-        if (current == null) {
-            activeSnapshots[stableKey] = EntitySnapshot(
-                stableKey = stableKey,
-            ).withEntityBinding(stableKey, primary = true)
-        } else {
-            activeSnapshots[stableKey] = current
-                .copy(stableKey = stableKey)
-                .withEntityBinding(stableKey, primary = true)
-        }
-        onHostAvailable(entity)
-        return stableKey
-    }
-
     fun snapshot(stableKey: UUID): EntitySnapshot? {
-        activeSnapshots[stableKey]?.let { return it }
+        activeWorldSnapshots[stableKey]?.let { return it }
         GearyRuntimeState.nodeSnapshot(level, stableKey)?.let { return it }
         val serverLevel = level as? ServerLevel ?: return null
         return WorldNodeSavedData.get(serverLevel).allRecords().firstOrNull { it.stableKey == stableKey }?.snapshot
@@ -105,26 +89,18 @@ class NodeRuntimeService(
         val normalized = snapshot
 
         if (normalized.isEntityBound()) {
-            val hostUuid = normalized.requireHostUuid()
-            if (normalized.isPrimaryEntityOwner()) activeSnapshots[stableKey] = normalized
-            else GearyRuntimeState.upsertNodeSnapshot(level, hostUuid, normalized)
+            GearyRuntimeState.upsertNodeSnapshot(level, normalized.requireHostUuid(), normalized)
         } else {
-            activeSnapshots[stableKey] = normalized
+            activeWorldSnapshots[stableKey] = normalized
             persistIfWorldBound(normalized)
         }
 
         return 0L
     }
 
-    fun detachPrimaryEntity(stableKey: UUID) {
-        val snapshot = activeSnapshots[stableKey] ?: return
-        if (!snapshot.isPrimaryEntityOwner()) return
-        activeSnapshots.remove(stableKey)
-    }
-
     fun remove(stableKey: UUID, syncToClients: Boolean = false): Boolean {
         var removed = false
-        val snapshot = activeSnapshots.remove(stableKey)
+        val snapshot = activeWorldSnapshots.remove(stableKey)
         if (snapshot != null) {
             removed = true
         }
@@ -201,39 +177,13 @@ class NodeRuntimeService(
     fun updateSnapshot(stableKey: UUID, snapshot: EntitySnapshot, syncToClients: Boolean = false): Boolean {
         val normalizedSnapshot = snapshot.copy(stableKey = stableKey)
         if (normalizedSnapshot.isEntityBound()) {
-            if (normalizedSnapshot.isPrimaryEntityOwner()) activeSnapshots[stableKey] = normalizedSnapshot
-            else GearyRuntimeState.upsertNodeSnapshot(level, normalizedSnapshot.requireHostUuid(), normalizedSnapshot)
+            GearyRuntimeState.upsertNodeSnapshot(level, normalizedSnapshot.requireHostUuid(), normalizedSnapshot)
         } else {
-            activeSnapshots[stableKey] = normalizedSnapshot
+            activeWorldSnapshots[stableKey] = normalizedSnapshot
             persistIfWorldBound(normalizedSnapshot)
         }
         if (syncToClients) syncSnapshot(normalizedSnapshot)
         return true
-    }
-
-    fun updatePrimaryComponents(
-        hostEntity: Entity,
-        components: Collection<Any>,
-        syncToClients: Boolean = false,
-    ): Boolean {
-        val stableKey = ensurePrimaryEntity(hostEntity)
-        val current = snapshot(stableKey) ?: return false
-        val rootNode = current.rootNode()
-
-        val byId = linkedMapOf<ResourceLocation, Component>()
-
-        components.filterIsInstance<Component>().forEach { component ->
-            val componentId = ComponentDescriptorRegistry.idFor(component::class)
-                ?: error("Component descriptor not found for ${component::class.qualifiedName}")
-            byId[componentId] = component
-        }
-
-        val updatedRoot = rootNode.copy(components = byId.values.toList())
-        val updated = current.copy(stableKey = stableKey).withEntityBinding(stableKey, primary = true).withNodes(
-            current.nodeList().map { node -> if (node.id == rootNode.id) updatedRoot else node },
-            explicitRootNodeId = current.rootNodeId ?: rootNode.id,
-        )
-        return updateSnapshot(stableKey, updated, syncToClients)
     }
 
     fun updateNode(
@@ -365,15 +315,15 @@ class NodeRuntimeService(
         currentChunks.forEach { chunkKey ->
             if (chunkKey in activeWorldChunks) return@forEach
             savedData.forEachRecordInChunk(chunkKey) { record ->
-                if (record.stableKey !in activeSnapshots) {
-                    activeSnapshots[record.stableKey] = record.snapshot
+                if (record.stableKey !in activeWorldSnapshots) {
+                    activeWorldSnapshots[record.stableKey] = record.snapshot
                 }
             }
         }
 
         activeWorldChunks.forEach { chunkKey ->
             if (chunkKey in currentChunks) return@forEach
-            activeSnapshots.entries.removeIf { (_, snapshot) ->
+            activeWorldSnapshots.entries.removeIf { (_, snapshot) ->
                 if (snapshot.isEntityBound()) return@removeIf false
                 ChunkKey.pack(snapshot.requireWorldChunkX(), snapshot.requireWorldChunkZ()) == chunkKey
             }

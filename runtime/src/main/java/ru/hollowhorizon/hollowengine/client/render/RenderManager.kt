@@ -252,7 +252,6 @@ object RenderManager {
         val openedBatchedRenderTypes = LinkedHashSet<net.minecraft.client.renderer.RenderType>()
 
         materialization.forEachModelNodeRecord { record, node ->
-            if (record.primary) return@forEachModelNodeRecord
             val model = node.model
             val transform = node.transform
             val resolved = resolveNodeTransform(level, record.hostUuid, transform, partialTick)

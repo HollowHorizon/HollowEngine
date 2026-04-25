@@ -1206,7 +1206,6 @@ private fun attachNodeModel(host: net.minecraft.world.entity.Entity, modelName: 
     val snapshot = EntitySnapshot(
         stableKey = stableKey,
         hostUuid = host.uuid,
-        primary = false,
         components = listOf(
             Model(modelName),
             TransformComponent(),

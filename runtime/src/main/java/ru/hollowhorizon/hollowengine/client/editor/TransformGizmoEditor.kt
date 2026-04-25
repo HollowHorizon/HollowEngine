@@ -62,7 +62,6 @@ import ru.hollowhorizon.hollowengine.common.geary.binding.lightNodes
 import ru.hollowhorizon.hollowengine.common.geary.binding.modelNodes
 import ru.hollowhorizon.hollowengine.common.geary.binding.nodeByIdOrNull
 import ru.hollowhorizon.hollowengine.common.geary.binding.hostUuidOrNull
-import ru.hollowhorizon.hollowengine.common.geary.binding.isPrimaryEntityOwner
 import ru.hollowhorizon.hollowengine.common.geary.binding.stableKeyOrNull
 import ru.hollowhorizon.hollowengine.common.geary.binding.withOrReplace
 import ru.hollowhorizon.hollowengine.common.geary.binding.withWorldBinding
@@ -389,7 +388,6 @@ object TransformGizmoEditor {
         service.records.forEach { record ->
             val snapshot = service.snapshot(record.stableKey) ?: return@forEach
             val hostUuid = snapshot.hostUuidOrNull() ?: record.hostUuid
-            if (record.primary || snapshot.isPrimaryEntityOwner()) return@forEach
 
             val claimedNodes = hashSetOf<java.util.UUID>()
             snapshot.modelNodes().forEach { modelNode ->
