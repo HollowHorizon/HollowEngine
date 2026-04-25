@@ -1,22 +1,16 @@
 
-import com.mineinabyss.geary.prefabs.PrefabKey
 import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.server.packs.resources.ResourceManager
 import net.minecraft.world.phys.Vec3
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptor
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentPersistencePolicy
 import ru.hollowhorizon.hollowengine.common.geary.components.ai.*
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
-import ru.hollowhorizon.hollowengine.common.prefabs.PrefabSystem
 import ru.hollowhorizon.hollowengine.common.utils.rl
-import java.io.File
-import java.lang.reflect.Proxy
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -27,7 +21,6 @@ class EntitySerializationTests {
     private val looseId = "test:loose_component".rl
     private val lookAtId = "hollowengine:look_at_target".rl
     private val patrolId = "hollowengine:patrol_path".rl
-    private val testPrefabDir = DirectoryManager.HOLLOW_ENGINE.resolve("prefabs/tests/entity-serialization").toFile()
     private val registeredForTest = mutableSetOf<ResourceLocation>()
 
     @AfterEach
@@ -36,15 +29,12 @@ class EntitySerializationTests {
         ComponentDescriptorRegistry.unregisterDescriptor(looseId)
         registeredForTest.forEach(ComponentDescriptorRegistry::unregisterDescriptor)
         registeredForTest.clear()
-        if (testPrefabDir.exists()) testPrefabDir.deleteRecursively()
-        PrefabSystem.onResourceManagerReload(dummyResourceManager())
     }
 
     @Test
-    fun `snapshot roundtrip preserves components and prefab refs across yaml and nbt`() {
+    fun `snapshot roundtrip preserves components across yaml and nbt`() {
         registerDescriptors()
         val snapshot = EntitySnapshot(
-            prefabRefs = setOf(PrefabKey.of("test:base"), PrefabKey.of("test:visuals")),
             components = listOf(BasicComponent("hello"), LooseComponent("temp")),
         )
 
@@ -68,38 +58,9 @@ class EntitySerializationTests {
     }
 
     @Test
-    fun `prefab resolver merges inherited components and keeps deterministic overrides`() {
-        registerDescriptors()
-        testPrefabDir.mkdirs()
-
-        writePrefab(
-            File(testPrefabDir, "base.entity.prefab"),
-            EntitySnapshot(
-                components = listOf(BasicComponent("base"), LooseComponent("base-loose")),
-            )
-        )
-        writePrefab(
-            File(testPrefabDir, "derived.entity.prefab"),
-            EntitySnapshot(
-                prefabRefs = setOf(PrefabKey.of("hollowengine:tests/entity-serialization/base")),
-                components = listOf(BasicComponent("derived")),
-            )
-        )
-
-        PrefabSystem.onResourceManagerReload(dummyResourceManager())
-        val resolved = PrefabSystem.resolve("prefabs/tests/entity-serialization/derived.entity.prefab")
-
-        assertEquals(BasicComponent("derived"), resolved.components.filterIsInstance<BasicComponent>().single())
-        assertEquals(LooseComponent("base-loose"), resolved.components.filterIsInstance<LooseComponent>().single())
-        assertEquals(setOf(PrefabKey.of("hollowengine:tests/entity-serialization/base")), resolved.prefabRefs)
-    }
-
-    @Test
     fun `safe yaml deserialize returns null for unknown component`() {
         registerDescriptors()
         val yaml = """
-            version: 2
-            prefabRefs: []
             components:
               - type: test:missing_component
                 value: nope
@@ -203,20 +164,6 @@ class EntitySerializationTests {
             )
         )
         registeredForTest += id
-    }
-
-    private fun writePrefab(file: File, snapshot: EntitySnapshot) {
-        file.parentFile.mkdirs()
-        file.writeText(EntitySerialization.serializeToYaml(snapshot))
-    }
-
-    private fun dummyResourceManager(): ResourceManager {
-        return Proxy.newProxyInstance(
-            ResourceManager::class.java.classLoader,
-            arrayOf(ResourceManager::class.java),
-        ) { _, _, _ ->
-            throw UnsupportedOperationException("Not used in tests")
-        } as ResourceManager
     }
 }
 

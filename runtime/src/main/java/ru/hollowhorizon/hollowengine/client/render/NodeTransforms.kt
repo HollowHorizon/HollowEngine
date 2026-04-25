@@ -8,6 +8,7 @@ import net.minecraft.core.BlockPos
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.level.Level
 import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.calculateBounds
@@ -15,8 +16,10 @@ import ru.hollowhorizon.hollowengine.client.utils.math.rotateBy
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
+import java.util.*
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 
 data class ResolvedNodeTransform(
     val transform: TrsTransformF,
@@ -31,15 +34,15 @@ data class ResolvedNodeTransform(
 }
 
 fun resolveNodeTransform(
-    level: net.minecraft.world.level.Level,
-    hostUuid: java.util.UUID?,
+    level: Level,
+    hostEntityUuid: UUID?,
     transform: TransformComponent,
     partialTick: Float,
 ): ResolvedNodeTransform? {
-    val worldTransform = if (hostUuid == null) {
+    val worldTransform = if (hostEntityUuid == null) {
         TrsTransformF().set(transform.transform)
     } else {
-        val host = findNodeHostEntity(level, hostUuid) ?: return null
+        val host = findNodeHostEntity(level, hostEntityUuid) ?: return null
         val hostYaw = when (host) {
             is LivingEntity -> Mth.rotLerp(partialTick, host.yBodyRotO, host.yBodyRot)
             else -> Mth.rotLerp(partialTick, host.yRotO, host.yRot)
@@ -99,12 +102,12 @@ fun buildNodeRenderBounds(model: Model, transform: TrsTransformF, modelScale: Fl
     fun update(x: Float, y: Float, z: Float) {
         source.set(x, y, z)
         matrix.transform(source, 1f, transformed)
-        minX = kotlin.math.min(minX, transformed.x)
-        minY = kotlin.math.min(minY, transformed.y)
-        minZ = kotlin.math.min(minZ, transformed.z)
-        maxX = kotlin.math.max(maxX, transformed.x)
-        maxY = kotlin.math.max(maxY, transformed.y)
-        maxZ = kotlin.math.max(maxZ, transformed.z)
+        minX = min(minX, transformed.x)
+        minY = min(minY, transformed.y)
+        minZ = min(minZ, transformed.z)
+        maxX = max(maxX, transformed.x)
+        maxY = max(maxY, transformed.y)
+        maxZ = max(maxZ, transformed.z)
     }
 
     update(min.x, min.y, min.z)
@@ -128,21 +131,21 @@ fun buildNodeRenderBounds(model: Model, transform: TrsTransformF, modelScale: Fl
 
 fun worldTransformToComponent(
     level: net.minecraft.world.level.Level,
-    hostUuid: java.util.UUID?,
+    hostEntityUuid: java.util.UUID?,
     worldPosition: Vec3,
     worldRotation: QuatF,
     worldScale: Vec3f,
     partialTick: Float,
 ): TransformComponent? {
     val normalizedScale = sanitizeScale(worldScale)
-    return if (hostUuid == null) {
+    return if (hostEntityUuid == null) {
         TransformComponent(
             translation = Vec3f(worldPosition.x.toFloat(), worldPosition.y.toFloat(), worldPosition.z.toFloat()),
             rotation = QuatF(worldRotation),
             scale = normalizedScale,
         )
     } else {
-        val host = findNodeHostEntity(level, hostUuid) ?: return null
+        val host = findNodeHostEntity(level, hostEntityUuid) ?: return null
         val hostYaw = when (host) {
             is LivingEntity -> Mth.rotLerp(partialTick, host.yBodyRotO, host.yBodyRot)
             else -> Mth.rotLerp(partialTick, host.yRotO, host.yRot)
@@ -176,11 +179,11 @@ fun quatFToGizmoRotation(rotation: QuatF): QuatD =
 fun gizmoRotationToQuatF(rotation: QuatD): QuatF =
     MutableQuatF(rotation.x.toFloat(), rotation.y.toFloat(), rotation.z.toFloat(), rotation.w.toFloat()).norm()
 
-fun findNodeHostEntity(level: net.minecraft.world.level.Level, hostUuid: java.util.UUID): MCEntity? {
-    if (level is ServerLevel) return level.getEntity(hostUuid)
+fun findNodeHostEntity(level: net.minecraft.world.level.Level, hostEntityUuid: java.util.UUID): MCEntity? {
+    if (level is ServerLevel) return level.getEntity(hostEntityUuid)
     if (level is ClientLevel) {
         level.entitiesForRendering().forEach { entity ->
-            if (entity.uuid == hostUuid) return entity
+            if (entity.uuid == hostEntityUuid) return entity
         }
     }
     return null

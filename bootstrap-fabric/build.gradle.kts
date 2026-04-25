@@ -236,6 +236,10 @@ tasks.named<ProcessResources>("processResources") {
     exclude("META-INF/neoforge.mods.toml")
 }
 
+tasks.named("classes") {
+    dependsOn(embedRuntimeJar)
+}
+
 tasks.named<ShadowJar>("shadowJar") {
     enabled = false
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE

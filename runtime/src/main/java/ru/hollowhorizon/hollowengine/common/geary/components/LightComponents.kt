@@ -9,7 +9,7 @@ import ru.hollowhorizon.hollowengine.api.Syncable
 import ru.hollowhorizon.hollowengine.common.geary.binding.lightNodes
 import ru.hollowhorizon.hollowengine.common.geary.binding.removeComponents
 import ru.hollowhorizon.hollowengine.common.geary.binding.withOrReplace
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
 
 @Serializable
 sealed class LightComponent {
@@ -154,15 +154,15 @@ data class SpotLightComponent(
     val distance: Float = 20f,
 ) : LightComponent()
 
-fun EntitySnapshot.lightComponentOrNull(): LightComponent? =
+fun Snapshot.lightComponentOrNull(): LightComponent? =
     lightNodes().firstOrNull()?.light
 
-fun EntitySnapshot.pointLightOrNull(): PointLightComponent? =
+fun Snapshot.pointLightOrNull(): PointLightComponent? =
     lightNodes().firstOrNull()?.light as? PointLightComponent
 
-fun EntitySnapshot.spotLightOrNull(): SpotLightComponent? =
+fun Snapshot.spotLightOrNull(): SpotLightComponent? =
     lightNodes().firstOrNull()?.light as? SpotLightComponent
 
-fun EntitySnapshot.withLightComponent(component: LightComponent): EntitySnapshot =
+fun <T : Snapshot> T.withLightComponent(component: LightComponent): T =
     removeComponents({ it is PointLightComponent || it is SpotLightComponent })
         .withOrReplace(component as Component)

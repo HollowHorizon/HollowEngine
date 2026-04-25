@@ -379,7 +379,7 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
             if (!component.enabled) return@forEachLightNodeRecord
 
             val transform = node.transform
-            val resolved = resolveNodeTransform(level, record.hostUuid, transform, partialTick) ?: return@forEachLightNodeRecord
+            val resolved = resolveNodeTransform(level, record.hostEntityUuid, transform, partialTick) ?: return@forEachLightNodeRecord
             val worldPosition = Vector3f(
                 resolved.transform.translation.x,
                 resolved.transform.translation.y,
@@ -407,7 +407,7 @@ object ClusteredLightingManager : ResourceManagerReloadListener {
             }
 
             collected += PreparedLight(
-                cacheKey = record.stableKey.toString(),
+                cacheKey = record.snapshotId.toString(),
                 component = component,
                 worldPosition = worldPosition,
                 worldSpaceDirection = worldSpaceDirection,

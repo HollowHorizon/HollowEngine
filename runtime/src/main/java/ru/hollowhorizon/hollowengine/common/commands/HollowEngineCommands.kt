@@ -47,6 +47,8 @@ import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePat
 import ru.hollowhorizon.hollowengine.common.geary.binding.*
 import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
@@ -147,8 +149,8 @@ private fun CommandExtension.registerModelCommands() {
             executes {
                 val host = EntityArgument.getEntity(this, "entity")
                 val modelName = StringArgumentType.getString(this, "model")
-                val stableKey = attachNodeModel(host, modelName)
-                sendSuccess { "Attached node model with StableKey $stableKey".literal }
+                val snapshotId = attachNodeModel(host, modelName)
+                sendSuccess { "Attached node model with snapshotId $snapshotId".literal }
             }
         }
 
@@ -159,26 +161,26 @@ private fun CommandExtension.registerModelCommands() {
             executes {
                 val position = Vec3Argument.getVec3(this, "pos")
                 val modelName = StringArgumentType.getString(this, "model")
-                val stableKey = spawnNodeModel(source, position, modelName)
-                sendSuccess { "Spawned node model with StableKey $stableKey".literal }
+                val snapshotId = spawnNodeModel(source, position, modelName)
+                sendSuccess { "Spawned node model with snapshotId $snapshotId".literal }
             }
         }
 
         "move"(
-            arg("stableKey", StringArgumentType.string()),
+            arg("snapshotId", StringArgumentType.string()),
             arg("pos", Vec3Argument.vec3())
         ) {
             executes {
-                val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+                val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
                 val position = Vec3Argument.getVec3(this, "pos")
-                moveNodeModel(source, stableKey, position)
+                moveNodeModel(source, snapshotId, position)
             }
         }
 
-        "remove"(arg("stableKey", StringArgumentType.string())) {
+        "remove"(arg("snapshotId", StringArgumentType.string())) {
             executes {
-                val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
-                removeNodeModel(source, stableKey)
+                val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
+                removeNodeModel(source, snapshotId)
             }
         }
     }
@@ -194,8 +196,8 @@ private fun CommandExtension.registerLightCommands() {
             "point"(arg("radius", FloatArgumentType.floatArg(0f))) {
                 executes {
                     val radius = FloatArgumentType.getFloat(this, "radius")
-                    val stableKey = spawnPointLight(source, radius)
-                    sendSuccess { "Spawned point light with StableKey $stableKey".literal }
+                    val snapshotId = spawnPointLight(source, radius)
+                    sendSuccess { "Spawned point light with snapshotId $snapshotId".literal }
                 }
             }
 
@@ -212,8 +214,8 @@ private fun CommandExtension.registerLightCommands() {
                         return@executes sendFailure("Outer angle must be greater than or equal to inner angle".literal)
                     }
 
-                    val stableKey = spawnSpotLight(source, distance, innerAngle, outerAngle)
-                    sendSuccess { "Spawned spot light with StableKey $stableKey".literal }
+                    val snapshotId = spawnSpotLight(source, distance, innerAngle, outerAngle)
+                    sendSuccess { "Spawned spot light with snapshotId $snapshotId".literal }
                 }
             }
         }
@@ -221,8 +223,8 @@ private fun CommandExtension.registerLightCommands() {
         "remove" {
             executes { removeLight(source, null) }
         }
-        "remove"(arg("stableKey", StringArgumentType.string())) {
-            executes { removeLight(source, UUID.fromString(StringArgumentType.getString(this, "stableKey"))) }
+        "remove"(arg("snapshotId", StringArgumentType.string())) {
+            executes { removeLight(source, UUID.fromString(StringArgumentType.getString(this, "snapshotId"))) }
         }
 
         "enable"(arg("enabled", BoolArgumentType.bool())) {
@@ -231,13 +233,13 @@ private fun CommandExtension.registerLightCommands() {
                 updateLight(source, null) { withEnabled(enabled) }
             }
         }
-        "enable"(arg("stableKey", StringArgumentType.string()), arg("enabled", BoolArgumentType.bool())) {
+        "enable"(arg("snapshotId", StringArgumentType.string()), arg("enabled", BoolArgumentType.bool())) {
             executes {
-                val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+                val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
                 val enabled = BoolArgumentType.getBool(this, "enabled")
                 updateLight(
                     source,
-                    stableKey
+                    snapshotId
                 ) { withEnabled(enabled) }
             }
         }
@@ -257,7 +259,7 @@ private fun CommandExtension.registerLightCommands() {
             }
         }
         "color"(
-            arg("stableKey", StringArgumentType.string()),
+            arg("snapshotId", StringArgumentType.string()),
             arg("r", FloatArgumentType.floatArg(0f, 1f)),
             arg("g", FloatArgumentType.floatArg(0f, 1f)),
             arg("b", FloatArgumentType.floatArg(0f, 1f))
@@ -270,7 +272,7 @@ private fun CommandExtension.registerLightCommands() {
                 )
                 updateLight(
                     source,
-                    UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+                    UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
                 ) { withColor(color) }
             }
         }
@@ -281,13 +283,13 @@ private fun CommandExtension.registerLightCommands() {
                 updateLight(source, null) { withIntensity(intensity) }
             }
         }
-        "intensity"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f))) {
+        "intensity"(arg("snapshotId", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f))) {
             executes {
-                val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+                val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
                 val intensity = FloatArgumentType.getFloat(this, "value")
                 updateLight(
                     source,
-                    stableKey
+                    snapshotId
                 ) { withIntensity(intensity) }
             }
         }
@@ -313,11 +315,11 @@ private fun CommandExtension.registerShadowLightCommands() {
             updateLight(source, null) { withShadowSettings { copy(enabled = enabled) } }
         }
     }
-    "enable"(arg("stableKey", StringArgumentType.string()), arg("enabled", BoolArgumentType.bool())) {
+    "enable"(arg("snapshotId", StringArgumentType.string()), arg("enabled", BoolArgumentType.bool())) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val enabled = BoolArgumentType.getBool(this, "enabled")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withShadowSettings { copy(enabled = enabled) }
             }
         }
@@ -328,11 +330,11 @@ private fun CommandExtension.registerShadowLightCommands() {
             updateLight(source, null) { withShadowSettings { copy(dynamic = dynamic) } }
         }
     }
-    "dynamic"(arg("stableKey", StringArgumentType.string()), arg("value", BoolArgumentType.bool())) {
+    "dynamic"(arg("snapshotId", StringArgumentType.string()), arg("value", BoolArgumentType.bool())) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val dynamic = BoolArgumentType.getBool(this, "value")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withShadowSettings { copy(dynamic = dynamic) }
             }
         }
@@ -343,11 +345,11 @@ private fun CommandExtension.registerShadowLightCommands() {
             updateLight(source, null) { withShadowSettings { copy(shadowDistance = distance) } }
         }
     }
-    "distance"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f))) {
+    "distance"(arg("snapshotId", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f))) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val distance = FloatArgumentType.getFloat(this, "value")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withShadowSettings { copy(shadowDistance = distance) }
             }
         }
@@ -358,11 +360,11 @@ private fun CommandExtension.registerShadowLightCommands() {
             updateLight(source, null) { withShadowSettings { copy(fovOffset = fovOffset) } }
         }
     }
-    "fovOffset"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(-180f, 180f))) {
+    "fovOffset"(arg("snapshotId", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(-180f, 180f))) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val fovOffset = FloatArgumentType.getFloat(this, "value")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withShadowSettings { copy(fovOffset = fovOffset) }
             }
         }
@@ -376,11 +378,11 @@ private fun CommandExtension.registerFogLightCommands() {
             updateLight(source, null) { withVolumetricFogSettings { copy(enabled = enabled) } }
         }
     }
-    "enable"(arg("stableKey", StringArgumentType.string()), arg("enabled", BoolArgumentType.bool())) {
+    "enable"(arg("snapshotId", StringArgumentType.string()), arg("enabled", BoolArgumentType.bool())) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val enabled = BoolArgumentType.getBool(this, "enabled")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withVolumetricFogSettings { copy(enabled = enabled) }
             }
         }
@@ -391,11 +393,11 @@ private fun CommandExtension.registerFogLightCommands() {
             updateLight(source, null) { withVolumetricFogSettings { copy(sampleCount = samples) } }
         }
     }
-    "samples"(arg("stableKey", StringArgumentType.string()), arg("value", IntegerArgumentType.integer(1, 128))) {
+    "samples"(arg("snapshotId", StringArgumentType.string()), arg("value", IntegerArgumentType.integer(1, 128))) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val samples = IntegerArgumentType.getInteger(this, "value")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withVolumetricFogSettings { copy(sampleCount = samples) }
             }
         }
@@ -406,11 +408,11 @@ private fun CommandExtension.registerFogLightCommands() {
             updateLight(source, null) { withVolumetricFogSettings { copy(scattering = scattering) } }
         }
     }
-    "scattering"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 1f))) {
+    "scattering"(arg("snapshotId", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 1f))) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val scattering = FloatArgumentType.getFloat(this, "value")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withVolumetricFogSettings { copy(scattering = scattering) }
             }
         }
@@ -421,11 +423,11 @@ private fun CommandExtension.registerFogLightCommands() {
             updateLight(source, null) { withVolumetricFogSettings { copy(density = density) } }
         }
     }
-    "density"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 5f))) {
+    "density"(arg("snapshotId", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 5f))) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val density = FloatArgumentType.getFloat(this, "value")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withVolumetricFogSettings { copy(density = density) }
             }
         }
@@ -436,11 +438,11 @@ private fun CommandExtension.registerFogLightCommands() {
             updateLight(source, null) { withVolumetricFogSettings { copy(anisotropy = anisotropy) } }
         }
     }
-    "anisotropy"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(-1f, 1f))) {
+    "anisotropy"(arg("snapshotId", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(-1f, 1f))) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val anisotropy = FloatArgumentType.getFloat(this, "value")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withVolumetricFogSettings { copy(anisotropy = anisotropy) }
             }
         }
@@ -454,11 +456,11 @@ private fun CommandExtension.registerFlareLightCommands() {
             updateLight(source, null) { withFlareSettings { copy(enabled = enabled) } }
         }
     }
-    "enable"(arg("stableKey", StringArgumentType.string()), arg("enabled", BoolArgumentType.bool())) {
+    "enable"(arg("snapshotId", StringArgumentType.string()), arg("enabled", BoolArgumentType.bool())) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val enabled = BoolArgumentType.getBool(this, "enabled")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withFlareSettings { copy(enabled = enabled) }
             }
         }
@@ -469,11 +471,11 @@ private fun CommandExtension.registerFlareLightCommands() {
             updateLight(source, null) { withFlareSettings { copy(sizeOffset = sizeOffset) } }
         }
     }
-    "sizeOffset"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 2f))) {
+    "sizeOffset"(arg("snapshotId", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 2f))) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val sizeOffset = FloatArgumentType.getFloat(this, "value")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withFlareSettings { copy(sizeOffset = sizeOffset) }
             }
         }
@@ -485,13 +487,13 @@ private fun CommandExtension.registerFlareLightCommands() {
         }
     }
     "falloffDistance"(
-        arg("stableKey", StringArgumentType.string()),
+        arg("snapshotId", StringArgumentType.string()),
         arg("value", FloatArgumentType.floatArg(0f, 100f))
     ) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val falloffDistance = FloatArgumentType.getFloat(this, "value")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withFlareSettings { copy(falloffDistance = falloffDistance) }
             }
         }
@@ -502,11 +504,11 @@ private fun CommandExtension.registerFlareLightCommands() {
             updateLight(source, null) { withFlareSettings { copy(startAngle = startAngle) } }
         }
     }
-    "startAngle"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 360f))) {
+    "startAngle"(arg("snapshotId", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 360f))) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val startAngle = FloatArgumentType.getFloat(this, "value")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withFlareSettings { copy(startAngle = startAngle) }
             }
         }
@@ -517,11 +519,11 @@ private fun CommandExtension.registerFlareLightCommands() {
             updateLight(source, null) { withFlareSettings { copy(endAngle = endAngle) } }
         }
     }
-    "endAngle"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 360f))) {
+    "endAngle"(arg("snapshotId", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 360f))) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val endAngle = FloatArgumentType.getFloat(this, "value")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withFlareSettings { copy(endAngle = endAngle) }
             }
         }
@@ -533,13 +535,13 @@ private fun CommandExtension.registerFlareLightCommands() {
         }
     }
     "angleFactorOffset"(
-        arg("stableKey", StringArgumentType.string()),
+        arg("snapshotId", StringArgumentType.string()),
         arg("value", FloatArgumentType.floatArg(0f, 5f))
     ) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val angleFactorOffset = FloatArgumentType.getFloat(this, "value")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withFlareSettings { copy(angleFactorOffset = angleFactorOffset) }
             }
         }
@@ -550,11 +552,11 @@ private fun CommandExtension.registerFlareLightCommands() {
             updateLight(source, null) { withFlareSettings { copy(intensity = intensity) } }
         }
     }
-    "intensity"(arg("stableKey", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 1f))) {
+    "intensity"(arg("snapshotId", StringArgumentType.string()), arg("value", FloatArgumentType.floatArg(0f, 1f))) {
         executes {
-            val stableKey = UUID.fromString(StringArgumentType.getString(this, "stableKey"))
+            val snapshotId = UUID.fromString(StringArgumentType.getString(this, "snapshotId"))
             val intensity = FloatArgumentType.getFloat(this, "value")
-            updateLight(source, stableKey) {
+            updateLight(source, snapshotId) {
                 withFlareSettings { copy(intensity = intensity) }
             }
         }
@@ -949,36 +951,30 @@ private fun getAvailableModels(): Collection<String> {
 }
 
 private fun spawnPointLight(source: CommandSourceStack, radius: Float): UUID {
-    val stableKey = UUID.randomUUID()
+    val snapshotId = UUID.randomUUID()
     val position = source.position
     val service = NodeRuntimeState.service(source.level)
-    val snapshot = EntitySnapshot(
-        stableKey = stableKey,
-        hostUuid = null,
-        worldChunkX = net.minecraft.world.level.ChunkPos(net.minecraft.core.BlockPos(position.x.toInt(), position.y.toInt(), position.z.toInt())).x,
-        worldChunkZ = net.minecraft.world.level.ChunkPos(net.minecraft.core.BlockPos(position.x.toInt(), position.y.toInt(), position.z.toInt())).z,
-        worldLocalId = UUID.randomUUID(),
+    val snapshot = LevelSnapshot(
+        id = snapshotId,
+        dimension = source.level.dimension().location(),
         components = listOf(
             TransformComponent().withWorldPosition(position),
             PointLightComponent(radius = radius),
         )
     )
     service.materialize(snapshot)
-    service.snapshot(stableKey)?.let(service::syncSnapshot)
-    return stableKey
+    service.snapshot(snapshotId)?.let(service::syncSnapshot)
+    return snapshotId
 }
 
 private fun spawnSpotLight(source: CommandSourceStack, distance: Float, innerAngle: Float, outerAngle: Float): UUID {
-    val stableKey = UUID.randomUUID()
+    val snapshotId = UUID.randomUUID()
     val position = source.position
     val service = NodeRuntimeState.service(source.level)
     val rotation = rotationFromPositiveZ(source.entity?.lookAngle ?: Vec3(0.0, 0.0, 1.0))
-    val snapshot = EntitySnapshot(
-        stableKey = stableKey,
-        hostUuid = null,
-        worldChunkX = net.minecraft.world.level.ChunkPos(net.minecraft.core.BlockPos(position.x.toInt(), position.y.toInt(), position.z.toInt())).x,
-        worldChunkZ = net.minecraft.world.level.ChunkPos(net.minecraft.core.BlockPos(position.x.toInt(), position.y.toInt(), position.z.toInt())).z,
-        worldLocalId = UUID.randomUUID(),
+    val snapshot = LevelSnapshot(
+        id = snapshotId,
+        dimension = source.level.dimension().location(),
         components = listOf(
             TransformComponent(
                 translation = Vec3f(position.x.toFloat(), position.y.toFloat(), position.z.toFloat()),
@@ -988,8 +984,8 @@ private fun spawnSpotLight(source: CommandSourceStack, distance: Float, innerAng
         )
     )
     service.materialize(snapshot)
-    service.snapshot(stableKey)?.let(service::syncSnapshot)
-    return stableKey
+    service.snapshot(snapshotId)?.let(service::syncSnapshot)
+    return snapshotId
 }
 
 private fun listLights(source: CommandSourceStack): Int {
@@ -999,10 +995,10 @@ private fun listLights(source: CommandSourceStack): Int {
     source.server.allLevels.forEach { level ->
         val service = NodeRuntimeState.service(level)
         service.records.forEach { record ->
-            val snapshot = service.snapshot(record.stableKey) ?: return@forEach
+            val snapshot = service.snapshot(record.snapshotId) ?: return@forEach
             val light = snapshot.lightComponentOrNull() ?: return@forEach
-            if (!seen.add(record.stableKey)) return@forEach
-            rows += "${record.stableKey} | ${light.javaClass.simpleName} | enabled=${light.enabled} | pos=${
+            if (!seen.add(record.snapshotId)) return@forEach
+            rows += "${record.snapshotId} | ${light.javaClass.simpleName} | enabled=${light.enabled} | pos=${
                 formatPosition(
                     snapshot.transformOrNull()?.translation
                 )
@@ -1010,8 +1006,8 @@ private fun listLights(source: CommandSourceStack): Int {
         }
         WorldNodeSavedData.get(level).allRecords().forEach { record ->
             val light = record.snapshot.lightComponentOrNull() ?: return@forEach
-            if (!seen.add(record.stableKey)) return@forEach
-            rows += "${record.stableKey} | ${light.javaClass.simpleName} | enabled=${light.enabled} | pos=${
+            if (!seen.add(record.id)) return@forEach
+            rows += "${record.id} | ${light.javaClass.simpleName} | enabled=${light.enabled} | pos=${
                 formatPosition(
                     record.snapshot.transformOrNull()?.translation
                 )
@@ -1029,19 +1025,19 @@ private fun listLights(source: CommandSourceStack): Int {
     return 1
 }
 
-private fun removeLight(source: CommandSourceStack, stableKey: UUID?): Int {
-    val resolved = resolveLightTarget(source, stableKey) ?: return 0
+private fun removeLight(source: CommandSourceStack, snapshotId: UUID?): Int {
+    val resolved = resolveLightTarget(source, snapshotId) ?: return 0
     if (resolved.isDormantWorldRecord) {
-        WorldNodeSavedData.get(resolved.level).remove(resolved.stableKey)
-        source.sendSuccess({ "Removed node light ${resolved.stableKey}".literal }, true)
+        WorldNodeSavedData.get(resolved.level).remove(resolved.snapshotId)
+        source.sendSuccess({ "Removed node light ${resolved.snapshotId}".literal }, true)
         return 1
     } else {
         val service = NodeRuntimeState.service(resolved.level)
-        if (service.remove(resolved.stableKey, syncToClients = true)) {
-            source.sendSuccess({ "Removed node light ${resolved.stableKey}".literal }, true)
+        if (service.remove(resolved.snapshotId, syncToClients = true)) {
+            source.sendSuccess({ "Removed node light ${resolved.snapshotId}".literal }, true)
             return 1
         } else {
-            source.sendFailure("Node light ${resolved.stableKey} was not found".literal)
+            source.sendFailure("Node light ${resolved.snapshotId} was not found".literal)
             return 0
         }
     }
@@ -1049,34 +1045,34 @@ private fun removeLight(source: CommandSourceStack, stableKey: UUID?): Int {
 
 private fun updateLight(
     source: CommandSourceStack,
-    stableKey: UUID?,
+    snapshotId: UUID?,
     updater: LightComponent.() -> LightComponent,
 ): Int {
-    val resolved = resolveLightTarget(source, stableKey) ?: return 0
+    val resolved = resolveLightTarget(source, snapshotId) ?: return 0
     val current = resolved.snapshot.lightComponentOrNull()
         ?: run {
-            source.sendFailure("Node object ${resolved.stableKey} does not contain a light component".literal)
+            source.sendFailure("Node object ${resolved.snapshotId} does not contain a light component".literal)
             return 0
         }
 
     val updatedSnapshot = resolved.snapshot.withLightComponent(current.updater())
     applyUpdatedLightSnapshot(resolved, updatedSnapshot)
-    source.sendSuccess({ "Updated node light ${resolved.stableKey}".literal }, true)
+    source.sendSuccess({ "Updated node light ${resolved.snapshotId}".literal }, true)
     return 1
 }
 
-private fun resolveLightTarget(source: CommandSourceStack, stableKey: UUID?): LightTargetResolution? {
-    if (stableKey != null) {
-        val resolved = findNodeSnapshot(source, stableKey)
+private fun resolveLightTarget(source: CommandSourceStack, snapshotId: UUID?): LightTargetResolution? {
+    if (snapshotId != null) {
+        val resolved = findNodeSnapshot(source, snapshotId)
             ?: run {
-                source.sendFailure("Node light $stableKey was not found".literal)
+                source.sendFailure("Node light $snapshotId was not found".literal)
                 return null
             }
         if (resolved.snapshot.lightComponentOrNull() == null) {
-            source.sendFailure("Node object $stableKey does not contain a light component".literal)
+            source.sendFailure("Node object $snapshotId does not contain a light component".literal)
             return null
         }
-        return LightTargetResolution(resolved.level, stableKey, resolved.snapshot, resolved.isDormantWorldRecord)
+        return LightTargetResolution(resolved.level, snapshotId, resolved.snapshot, resolved.isDormantWorldRecord)
     }
 
     return findNearestLightTarget(source)
@@ -1094,9 +1090,9 @@ private fun findNearestLightTarget(source: CommandSourceStack): LightTargetResol
 
     val service = NodeRuntimeState.service(level)
     service.records.forEach { record ->
-        val snapshot = service.snapshot(record.stableKey) ?: return@forEach
+        val snapshot = service.snapshot(record.snapshotId) ?: return@forEach
         if (snapshot.lightComponentOrNull() == null) return@forEach
-        if (snapshot.isEntityBound()) return@forEach
+        if (record.isEntityBound) return@forEach
         val transform = snapshot.transformOrNull() ?: return@forEach
         val position = Vec3(
             transform.translation.x.toDouble(),
@@ -1106,13 +1102,12 @@ private fun findNearestLightTarget(source: CommandSourceStack): LightTargetResol
         val distance = position.distanceToSqr(origin)
         if (distance < bestDistance) {
             bestDistance = distance
-            best = LightTargetResolution(level, record.stableKey, snapshot, isDormantWorldRecord = false)
+            best = LightTargetResolution(level, record.snapshotId, snapshot, isDormantWorldRecord = false)
         }
     }
 
     WorldNodeSavedData.get(level).allRecords().forEach { record ->
         if (record.snapshot.lightComponentOrNull() == null) return@forEach
-        if (record.snapshot.isEntityBound()) return@forEach
         val transform = record.snapshot.transformOrNull() ?: return@forEach
         val position = Vec3(
             transform.translation.x.toDouble(),
@@ -1122,27 +1117,27 @@ private fun findNearestLightTarget(source: CommandSourceStack): LightTargetResol
         val distance = position.distanceToSqr(origin)
         if (distance < bestDistance) {
             bestDistance = distance
-            best = LightTargetResolution(level, record.stableKey, record.snapshot, isDormantWorldRecord = true)
+            best = LightTargetResolution(level, record.id, record.snapshot, isDormantWorldRecord = true)
         }
     }
 
     return best
 }
 
-private fun applyUpdatedLightSnapshot(resolved: LightTargetResolution, snapshot: EntitySnapshot) {
+private fun applyUpdatedLightSnapshot(resolved: LightTargetResolution, snapshot: Snapshot) {
     if (resolved.isDormantWorldRecord) {
-        WorldNodeSavedData.get(resolved.level).put(DormantRecord(resolved.stableKey, snapshot))
+        WorldNodeSavedData.get(resolved.level).put(DormantRecord(resolved.snapshotId, snapshot as LevelSnapshot))
     } else {
         val service = NodeRuntimeState.service(resolved.level)
         service.materialize(snapshot)
-        service.snapshot(resolved.stableKey)?.let(service::syncSnapshot)
+        service.snapshot(resolved.snapshotId)?.let(service::syncSnapshot)
     }
 }
 
 private data class LightTargetResolution(
     val level: net.minecraft.server.level.ServerLevel,
-    val stableKey: UUID,
-    val snapshot: EntitySnapshot,
+    val snapshotId: UUID,
+    val snapshot: Snapshot,
     val isDormantWorldRecord: Boolean,
 )
 
@@ -1201,99 +1196,90 @@ private fun LightComponent.withFlareSettings(transform: FlareSettings.() -> Flar
     }
 
 private fun attachNodeModel(host: net.minecraft.world.entity.Entity, modelName: String): UUID {
-    val stableKey = UUID.randomUUID()
+    val snapshotId = host.uuid
     val service = NodeRuntimeState.service(host.level())
     val snapshot = EntitySnapshot(
-        stableKey = stableKey,
-        hostUuid = host.uuid,
         components = listOf(
             Model(modelName),
             TransformComponent(),
         )
-    )
+    ).withEntity(host)
     service.materialize(snapshot)
-    service.snapshot(stableKey)?.let(service::syncSnapshot)
-    return stableKey
+    service.snapshot(snapshotId)?.let(service::syncSnapshot)
+    return snapshotId
 }
 
 private fun spawnNodeModel(source: CommandSourceStack, position: Vec3, modelName: String): UUID {
-    val stableKey = UUID.randomUUID()
+    val snapshotId = UUID.randomUUID()
     val service = NodeRuntimeState.service(source.level)
-    val snapshot = EntitySnapshot(
-        stableKey = stableKey,
-        hostUuid = null,
-        worldChunkX = net.minecraft.world.level.ChunkPos(net.minecraft.core.BlockPos(position.x.toInt(), position.y.toInt(), position.z.toInt())).x,
-        worldChunkZ = net.minecraft.world.level.ChunkPos(net.minecraft.core.BlockPos(position.x.toInt(), position.y.toInt(), position.z.toInt())).z,
-        worldLocalId = UUID.randomUUID(),
+    val snapshot = LevelSnapshot(
+        id = snapshotId,
+        dimension = source.level.dimension().location(),
         components = listOf(
             Model(modelName),
             TransformComponent().withWorldPosition(position),
         )
     )
     service.materialize(snapshot)
-    service.snapshot(stableKey)?.let(service::syncSnapshot)
-    return stableKey
+    service.snapshot(snapshotId)?.let(service::syncSnapshot)
+    return snapshotId
 }
 
-private fun moveNodeModel(source: CommandSourceStack, stableKey: UUID, position: Vec3): Int {
-    val resolved = findNodeSnapshot(source, stableKey)
+private fun moveNodeModel(source: CommandSourceStack, snapshotId: UUID, position: Vec3): Int {
+    val resolved = findNodeSnapshot(source, snapshotId)
         ?: run {
-            source.sendFailure("Node object $stableKey was not found".literal)
+            source.sendFailure("Node object $snapshotId was not found".literal)
             return 0
         }
 
     val (level, snapshot, isDormantWorldRecord) = resolved
     val service = NodeRuntimeState.service(level)
-    val updated = if (snapshot.isWorldBound()) {
-        snapshot
-            .withWorldBinding(position, snapshot.worldLocalIdOrRandom())
-            .withOrReplace((snapshot.transformOrNull() ?: TransformComponent()).withWorldPosition(position))
-    } else {
-        snapshot
-            .withOrReplace(
-                (snapshot.transformOrNull() ?: TransformComponent())
-                    .withTranslation(position.x.toFloat(), position.y.toFloat(), position.z.toFloat())
-            )
+    val updated = when (snapshot) {
+        is LevelSnapshot -> snapshot.withWorldBinding(position)
+        else -> snapshot.withOrReplace(
+            (snapshot.transformOrNull() ?: TransformComponent())
+                .withTranslation(position.x.toFloat(), position.y.toFloat(), position.z.toFloat())
+        )
     }
 
     if (isDormantWorldRecord) {
-        WorldNodeSavedData.get(level).put(DormantRecord(stableKey, updated))
+        WorldNodeSavedData.get(level).put(DormantRecord(snapshotId, updated as LevelSnapshot))
     } else {
         service.materialize(updated)
-        service.snapshot(stableKey)?.let(service::syncSnapshot)
+        service.snapshot(snapshotId)?.let(service::syncSnapshot)
     }
 
-    source.sendSuccess({ "Moved node object $stableKey".literal }, true)
+    source.sendSuccess({ "Moved node object $snapshotId".literal }, true)
     return 1
 }
 
-private fun removeNodeModel(source: CommandSourceStack, stableKey: UUID): Int {
+private fun removeNodeModel(source: CommandSourceStack, snapshotId: UUID): Int {
     source.server.allLevels.forEach { level ->
         val service = NodeRuntimeState.service(level)
-        if (service.remove(stableKey, syncToClients = true)) {
-            source.sendSuccess({ "Removed node object $stableKey".literal }, true)
+        if (service.remove(snapshotId, syncToClients = true)) {
+            source.sendSuccess({ "Removed node object $snapshotId".literal }, true)
             return 1
         }
     }
-    source.sendFailure("Node object $stableKey was not found".literal)
+    source.sendFailure("Node object $snapshotId was not found".literal)
     return 0
 }
 
 private data class NodeSnapshotResolution(
     val level: net.minecraft.server.level.ServerLevel,
-    val snapshot: EntitySnapshot,
+    val snapshot: Snapshot,
     val isDormantWorldRecord: Boolean,
 )
 
-private fun findNodeSnapshot(source: CommandSourceStack, stableKey: UUID): NodeSnapshotResolution? {
+private fun findNodeSnapshot(source: CommandSourceStack, snapshotId: UUID): NodeSnapshotResolution? {
     source.server.allLevels.forEach { level ->
         val service = NodeRuntimeState.service(level)
-        val runtimeSnapshot = service.snapshot(stableKey)
+        val runtimeSnapshot = service.snapshot(snapshotId)
         if (runtimeSnapshot != null) {
             return NodeSnapshotResolution(level, runtimeSnapshot, isDormantWorldRecord = false)
         }
 
-        val dormant = WorldNodeSavedData.get(level).allRecords().firstOrNull { it.stableKey == stableKey }
+        val dormant = WorldNodeSavedData.get(level).allRecords().firstOrNull { it.id == snapshotId }
         if (dormant != null) {
             return NodeSnapshotResolution(level, dormant.snapshot, isDormantWorldRecord = true)
         }

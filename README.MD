@@ -1,83 +1,77 @@
-<p align="center">  
-  <img src="https://raw.githubusercontent.com/0mods/HollowEngineDocumentation/refs/heads/master/static/img/headers/welcome2.webp"   
-       style="background-color: #110E11; padding: 0 20%; width: 100%; box-sizing: border-box;" alt="Logo">  
-  <h1 align="center">Hollow Engine</h1>  
-</p>  
+<p align="center">
+  <img src="https://raw.githubusercontent.com/0mods/HollowEngineDocumentation/refs/heads/master/static/img/headers/welcome2.webp"
+       style="background-color: #110E11; padding: 0 20%; width: 100%; box-sizing: border-box;" alt="Logo">
+  <h1 align="center">Hollow Engine</h1>
+</p>
 
-<p align="center">  
-  <a href="https://github.com/HollowHorizon/HollowEngine/commits/"><img src="https://img.shields.io/github/commit-activity/t/HollowHorizon/HollowEngine?style=for-the-badge&labelColor=a39774&color=ccac4b" alt="Stars"></a>  
-  <a href="https://github.com/HollowHorizon/HollowEngine/stargazers"><img src="https://img.shields.io/github/stars/HollowHorizon/HollowEngine.svg?style=for-the-badge&labelColor=a39774&color=ccac4b" alt="Stars"></a>  
-  <a href="https://github.com/HollowHorizon/HollowEngine/graphs/contributors"><img src="https://img.shields.io/github/contributors/HollowHorizon/HollowEngine.svg?style=for-the-badge&labelColor=a39774&color=ccac4b" alt="Contributors"></a>  
-  <a href="https://github.com/HollowHorizon/HollowEngine/releases"><img src="https://img.shields.io/github/downloads/HollowHorizon/HollowEngine/total?style=for-the-badge&labelColor=a39774&color=ccac4b" alt="Downloads"></a>  
-  <a href="https://discord.gg/qKpPhkwGCY"><img src="https://img.shields.io/discord/1081609215484887051?style=for-the-badge&label=Discord&logo=discord&logoColor=d9e0ee&labelColor=a39774&color=ccac4b" alt="Discord"></a>  
-  <img src="https://img.shields.io/codefactor/grade/github/HollowHorizon/HollowEngine?style=for-the-badge&labelColor=a39774&color=ccac4b" alt="CodeFactor">  
-</p>  
-  
----  
+<p align="center">
+  <a href="https://github.com/HollowHorizon/HollowEngine/commits/"><img src="https://img.shields.io/github/commit-activity/t/HollowHorizon/HollowEngine?style=for-the-badge&labelColor=a39774&color=ccac4b" alt="Commits"></a>
+  <a href="https://github.com/HollowHorizon/HollowEngine/stargazers"><img src="https://img.shields.io/github/stars/HollowHorizon/HollowEngine.svg?style=for-the-badge&labelColor=a39774&color=ccac4b" alt="Stars"></a>
+  <a href="https://github.com/HollowHorizon/HollowEngine/graphs/contributors"><img src="https://img.shields.io/github/contributors/HollowHorizon/HollowEngine.svg?style=for-the-badge&labelColor=a39774&color=ccac4b" alt="Contributors"></a>
+  <a href="https://github.com/HollowHorizon/HollowEngine/releases"><img src="https://img.shields.io/github/downloads/HollowHorizon/HollowEngine/total?style=for-the-badge&labelColor=a39774&color=ccac4b" alt="Downloads"></a>
+  <a href="https://discord.gg/qKpPhkwGCY"><img src="https://img.shields.io/discord/1081609215484887051?style=for-the-badge&label=Discord&logo=discord&logoColor=d9e0ee&labelColor=a39774&color=ccac4b" alt="Discord"></a>
+  <img src="https://img.shields.io/codefactor/grade/github/HollowHorizon/HollowEngine?style=for-the-badge&labelColor=a39774&color=ccac4b" alt="CodeFactor">
+</p>
+
+---
 
 ## Introduction
 
-HollowEngine is a powerful content creation engine for Minecraft. It provides an integrated development environment with both text-based Kotlin scripting and visual programming capabilities for creating NPCs, events, game modifications, and interactive experiences.
+HollowEngine is a content creation engine for Minecraft. It combines Kotlin scripting, a visual programming, and tools for building NPCs, events, gameplay systems, and interactive experiences.
 
-## Features
+## What It Provides
 
-### 🎯 Integrated Development Environment
-- [x] In-game IDE with syntax highlighting and code analysis
-- [x] Auto-completion and IntelliSense support for Kotlin scripts
-- [x] Scratch-like visual programming with drag-and-drop code blocks
-- [x] Real-time script compilation and execution
-- [x] Embedded resourcepacks & datapacks loader
+- In-game IDE with syntax highlighting and code analysis
+- Kotlin script autocompletion and execution
+- Block-based visual programming
+- Runtime support for custom events, commands, entities, and levels
+- NPC tooling with models, textures, animations, and interactions
+- Scene and camera tooling for cinematic workflows
+- Embedded asset, resource pack, and datapack loading
 
-### 🤝 NPCs & Interactive Characters
-- [x] Advanced NPC creation with glTF model support
-- [x] Custom models, textures, and animations
-- [x] Component-based NPC system for extensible behaviors
-- [x] NPC actions: movement, look control, teleport, animations
-- [x] Item interactions, requests, and drops
-- [ ] Dialogue system with branching conversations
-- [ ] NPC trading system
-- [ ] Quest system integration
+## Current Platform Support
 
-### 🎬 Scene & Cinematics
-- [x] Camera control system for cinematics
-- [ ] Scene management and world manipulation
-- [x] Particle effects and visual effects
-- [ ] Post-processing shaders
-- [ ] Smooth transitions between scenes
+- Minecraft `1.21.1`
+- Fabric
+- NeoForge
+- Kotlin `2.3.0`
 
-### 🎮 Game Modifications
-- [x] Comprehensive event handling system
-- [x] Player interaction events (join, death, etc.)
-- [x] Custom command system
-- [x] Component system for server, entities and levels
+## Project Layout
 
-### 🔧 (WIP) Visual Programming
-- [x] Block-based coding interface
-- [x] Variable management (set/get operations)
-- [x] Function creation and calling
-- [x] Event-driven programming
-- [x] Loop structures (while, repeat)
-- [x] Logic and control flow blocks
-- [ ] Execution context serialization
-
-### 🌐 Technical Features
-- [x] Built on Minecraft 1.20.1 for Forge & Fabric
-- [x] Kotlin 2.3.0 with coroutines support
+- `runtime/`: main engine, UI, gameplay integration, tests
+- `bridge/`: shared compatibility layer
+- `bootstrap/`: shared bootstrap code and resources
+- `bootstrap-fabric/`: Fabric bootstrap implementation
+- `bootstrap-neoforge/`: NeoForge bootstrap implementation
+- `compiler/`: scripting/compiler module
 
 ## Quick Start
 
-1. **Install**: Download HollowEngine JAR and place in your `mods/` folder
-2. **Setup**: Place `HollowEngineCompiler.jar` in `hollowengine/` directory for full features
-3. **Launch**: Start Minecraft
-4. **Create**: Open the in-game IDE in top left corner of screen to start creating content
+1. Install the platform-specific HollowEngine jar for Fabric or NeoForge into your `mods/` folder.
+2. If you use the compiler workflow, place `HollowEngineCompiler.jar` in the `hollowengine/` directory.
+3. Start Minecraft.
+4. Open the in-game editor and begin creating content.
+
+## Build From Source
+
+Use the Gradle wrapper from the repository root:
+
+- `.\gradlew.bat buildAndCollect` - build enabled bootstrap platforms and collect outputs into `merged/`
+- `.\gradlew.bat test` - run JVM tests
+- `.\gradlew.bat :runtime:build` - build the runtime module
+- `.\gradlew.bat :bridge:build` - build the bridge module
+- `.\gradlew.bat :compiler:build` - build the compiler module
+- `.\gradlew.bat :bootstrap:fabric:build` - build the Fabric bootstrap
+- `.\gradlew.bat :bootstrap:neoforge:build` - build the NeoForge bootstrap
+- `.\gradlew.bat projects` - inspect the current project graph
 
 ## Links
 
-- 📚 [Documentation](https://0mods.team/) - Comprehensive guides and API reference
-- 💬 [Discord Community](https://discord.gg/qKpPhkwGCY) - Get help and share creations
-- 💬 [Telegram Channel](https://t.me/hollowengine) - Devlogs and updates
-- 🤖 [AI Wiki Assistant](https://deepwiki.com/HollowHorizon/HollowEngine) - Interactive help
+- [Documentation](https://0mods.team/) - Guides and API reference
+- [Discord Community](https://discord.gg/qKpPhkwGCY) - Help and updates
+- [Telegram Channel](https://t.me/hollowengine) - Devlogs and announcements
+- [AI Wiki Assistant](https://deepwiki.com/HollowHorizon/HollowEngine) - Interactive help
 
-# LICENSE
+## License
 
-This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License**.
+This project is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.

@@ -30,6 +30,9 @@ object EntitySerialization {
     fun tryDeserializeFromNbt(tag: Tag, source: String = "NBT entity snapshot"): EntitySnapshot? =
         softDeserialize(source) { deserializeFromNbt(tag) }
 
+    fun serializeLevelToNbt(snapshot: LevelSnapshot): Tag = nbtFormat().serialize(LevelSnapshot.serializer(), snapshot)
+    fun deserializeLevelFromNbt(tag: Tag): LevelSnapshot = nbtFormat().deserialize(LevelSnapshot.serializer(), tag)
+
     fun serializeToByteBuf(snapshot: EntitySnapshot, buf: FriendlyByteBuf = FriendlyByteBuf(Unpooled.buffer())): FriendlyByteBuf =
         byteBufFormat().serialize(EntitySnapshot.serializer(), snapshot, buf)
     fun deserializeFromByteBuf(buf: FriendlyByteBuf): EntitySnapshot =
@@ -72,7 +75,7 @@ object EntitySerialization {
 }
 
 fun snapshotOf(entity: Entity): EntitySnapshot =
-    EntitySnapshot(components = GearyRuntimeState.componentsById(entity).values.toList())
+    EntitySnapshot(components = GearyRuntimeState.componentsById(entity).values.filterIsInstance<Component>().toList()).withEntity(entity)
 
 fun applySnapshot(target: Entity, snapshot: EntitySnapshot) {
     val desired = snapshot.componentById()

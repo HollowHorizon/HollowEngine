@@ -210,6 +210,10 @@ tasks.named<ProcessResources>("processResources") {
     exclude("fabric.mod.json")
 }
 
+tasks.named("classes") {
+    dependsOn(embedRuntimeJar)
+}
+
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
     enabled = false
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE

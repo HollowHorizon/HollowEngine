@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.geary.api
 
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import kotlinx.coroutines.cancel
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.nbt.CompoundTag
@@ -16,14 +15,10 @@ import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineScope
 import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.binding.isEntityBound
-import ru.hollowhorizon.hollowengine.common.geary.binding.requireStableKey
-import ru.hollowhorizon.hollowengine.common.geary.binding.withEntityBinding
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.NoAi
 import ru.hollowhorizon.hollowengine.common.geary.components.NoAiRuntime
 import ru.hollowhorizon.hollowengine.common.geary.components.ai.AIComponentSystems
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntityNodeSnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.geary.tracking.MCEntity
@@ -35,26 +30,25 @@ import java.util.concurrent.atomic.AtomicLong
 
 private data class EntityState(
     var entity: MCEntity,
+    var snapshot: EntitySnapshot? = null,
     var runtimeId: Long = UNINITIALIZED_ENTITY_ID,
-    val snapshotsByStableKey: MutableMap<UUID, EntitySnapshot> = Object2ObjectOpenHashMap(),
     val coroutineScope: SerializableCoroutineScope,
 )
 
 private data class LevelEntityState(
-    val byUuid: MutableMap<UUID, EntityState> = Object2ObjectOpenHashMap(),
+    val byUuid: MutableMap<UUID, EntityState> = linkedMapOf(),
 )
 
 private data class SideTransferState(
-    val pendingSnapshotsByHostUuid: MutableMap<UUID, MutableMap<UUID, EntitySnapshot>> = Object2ObjectOpenHashMap(),
+    val pendingSnapshotsByEntityUuid: MutableMap<UUID, EntitySnapshot> = linkedMapOf(),
     val transferringEntityUuids: MutableSet<UUID> = linkedSetOf(),
 )
 
 object GearyRuntimeState {
-    private const val NODE_STATE_NBT = "NodeState"
-    private const val NODE_STATE_CHILDREN_NBT = "children"
+    private const val ENTITY_SNAPSHOT_NBT = "EntitySnapshot"
 
     private val levelStates = Collections.synchronizedMap(WeakHashMap<Level, LevelEntityState>())
-    private val sideTransferState = Collections.synchronizedMap(Object2ObjectOpenHashMap<Boolean, SideTransferState>())
+    private val sideTransferState = Collections.synchronizedMap(linkedMapOf<Boolean, SideTransferState>())
     private val ids = AtomicLong(1L)
 
     private val noAiId by lazy {
@@ -73,7 +67,7 @@ object GearyRuntimeState {
         }
         states.forEach { state ->
             val entity = state.entity
-            if (entity.level() != level || state.snapshotCount == 0) return@forEach
+            if (entity.level() != level || state.snapshot == null) return@forEach
             if (state.runtimeId == UNINITIALIZED_ENTITY_ID) state.runtimeId = ids.getAndIncrement()
 
             val components = EntityComponentMap(state)
@@ -91,7 +85,6 @@ object GearyRuntimeState {
     }
 
     fun initEntity(entity: MCEntity) {
-        // Entity state is intentionally lazy. Empty vanilla entities should not allocate runtime state.
     }
 
     fun componentsById(entity: MCEntity): MutableMap<ResourceLocation, Any> =
@@ -126,7 +119,6 @@ object GearyRuntimeState {
         val rebound = if (oldState.entity !== mcEntity) rebindStateEntity(oldState, mcEntity) else oldState
         rebound.runtimeId = ids.getAndIncrement()
         levelState(new).byUuid[mcEntity.uuid] = rebound
-        NodeRuntimeState.service(old).moveEntityNodes(mcEntity.uuid, new)
         return rebound.runtimeId
     }
 
@@ -134,17 +126,13 @@ object GearyRuntimeState {
 
     fun saveEntity(entity: Entity, tag: CompoundTag) {
         val state = stateOrNull(entity.level(), entity.uuid)
-        if (state == null || state.snapshotCount == 0) {
-            tag.remove(NODE_STATE_NBT)
+        if (state?.snapshot == null) {
+            tag.remove(ENTITY_SNAPSHOT_NBT)
             return
         }
 
         try {
-            val list = net.minecraft.nbt.ListTag()
-            state.snapshotsByStableKey.values.forEach { snapshot ->
-                list.add(EntitySerialization.serializeToNbt(snapshot))
-            }
-            tag.put(NODE_STATE_NBT, CompoundTag().apply { put(NODE_STATE_CHILDREN_NBT, list) })
+            tag.put(ENTITY_SNAPSHOT_NBT, EntitySerialization.serializeToNbt(state.snapshot!!))
 
             val scopeTag = CompoundTag()
             state.coroutineScope.serialize(scopeTag)
@@ -155,22 +143,13 @@ object GearyRuntimeState {
     }
 
     fun loadEntity(entity: Entity, tag: CompoundTag) {
-        if (!tag.contains(NODE_STATE_NBT, Tag.TAG_COMPOUND.toInt()) && !tag.contains("EntityScope", Tag.TAG_COMPOUND.toInt())) {
+        if (!tag.contains(ENTITY_SNAPSHOT_NBT, Tag.TAG_COMPOUND.toInt()) && !tag.contains("EntityScope", Tag.TAG_COMPOUND.toInt())) {
             return
         }
 
         val state = state(entity)
-        state.snapshotsByStableKey.clear()
-
-        if (tag.contains(NODE_STATE_NBT, Tag.TAG_COMPOUND.toInt())) {
-            val nodeState = tag.getCompound(NODE_STATE_NBT)
-            val list = nodeState.getList(NODE_STATE_CHILDREN_NBT, Tag.TAG_COMPOUND.toInt())
-            for (index in 0 until list.size) {
-                val snapshot = EntitySerialization.deserializeFromNbt(list.getCompound(index))
-                val normalized = if (snapshot.hostUuid == entity.uuid && snapshot.isEntityBound()) snapshot
-                else snapshot.withEntityBinding(entity.uuid)
-                state.snapshotsByStableKey[normalized.requireStableKey()] = normalized
-            }
+        if (tag.contains(ENTITY_SNAPSHOT_NBT, Tag.TAG_COMPOUND.toInt())) {
+            state.snapshot = EntitySerialization.deserializeFromNbt(tag.getCompound(ENTITY_SNAPSHOT_NBT)).withEntity(entity)
         }
 
         state.coroutineScope.deserialize(tag.getCompound("EntityScope"))
@@ -192,10 +171,6 @@ object GearyRuntimeState {
         levelState(level).byUuid.remove(entity.uuid)
         state.coroutineScope.cancel()
 
-        if (entity !is Player && !transfer) {
-            NodeRuntimeState.service(level).onHostRemoved(entity.uuid)
-        }
-
         NoAiRuntime.cleanup(entity)
         AIComponentSystems.cleanup(entity)
     }
@@ -204,76 +179,40 @@ object GearyRuntimeState {
         if (newId != previousId) markDirty(entity)
     }
 
-    fun snapshotForTransfer(entity: MCEntity): EntitySnapshot =
-        stateOrNull(entity.level(), entity.uuid)?.entitySnapshot()
-            ?: EntitySnapshot(stableKey = entity.uuid, hostUuid = entity.uuid)
-
     fun cloneOwnedState(old: Entity, new: Entity, dropLooseOnDeath: Boolean) {
         val source = stateOrNull(old.level(), old.uuid) ?: return
-        val target = state(new)
-        target.snapshotsByStableKey.clear()
-        source.snapshotsByStableKey.values.forEach { snapshot ->
-            val normalized = snapshot
-                .withEntityBinding(new.uuid)
-                .let { if (dropLooseOnDeath) it.dropLooseOnDeathComponents() else it }
-            target.snapshotsByStableKey[normalized.requireStableKey()] = normalized
-        }
+        val snapshot = source.snapshot
+            ?.let { if (dropLooseOnDeath) it.dropLooseOnDeathComponents() else it }
+            ?.withEntity(new)
+        state(new).snapshot = snapshot
     }
 
-    fun upsertNodeSnapshot(level: Level, hostUuid: UUID, snapshot: EntitySnapshot) {
-        val stableKey = snapshot.requireStableKey()
-        val normalized = if (snapshot.hostUuid == hostUuid && snapshot.isEntityBound()) snapshot
-        else snapshot.withEntityBinding(hostUuid)
+    fun entitySnapshot(level: Level, entityUuid: UUID): EntitySnapshot? =
+        stateOrNull(level, entityUuid)?.snapshot
 
-        val holder = stateOrNull(level, hostUuid) ?: level.findEntityByUuid(hostUuid)?.let(::state)
-        if (holder != null) {
-            holder.snapshotsByStableKey[stableKey] = normalized
-        } else {
-            sideState(level)
-                .pendingSnapshotsByHostUuid
-                .computeIfAbsent(hostUuid) { Object2ObjectOpenHashMap() }[stableKey] = normalized
+    fun entitySnapshots(level: Level): List<Pair<Entity, EntitySnapshot>> =
+        synchronized(levelStates) {
+            levelStates[level]?.byUuid?.values
+                ?.mapNotNull { state ->
+                    val entity = state.entity as? Entity ?: return@mapNotNull null
+                    val snapshot = state.snapshot ?: return@mapNotNull null
+                    entity to snapshot.withEntity(entity)
+                }
+                .orEmpty()
         }
+
+    fun updateEntitySnapshot(entity: Entity, snapshot: EntitySnapshot) {
+        state(entity).snapshot = snapshot.withEntity(entity)
+        markDirty(entity)
     }
 
-    fun removeNodeSnapshot(level: Level, stableKey: UUID): Boolean {
-        var removed = false
-        levelState(level).byUuid.values.forEach { state ->
-            if (state.snapshotsByStableKey.remove(stableKey) != null) removed = true
-        }
-        sideState(level).pendingSnapshotsByHostUuid.values.forEach { pending ->
-            if (pending.remove(stableKey) != null) removed = true
-        }
-        return removed
-    }
-
-    fun nodeSnapshot(level: Level, stableKey: UUID): EntitySnapshot? {
-        levelState(level).byUuid.values.forEach { state ->
-            state.snapshotsByStableKey[stableKey]?.let { return it }
-        }
-        sideState(level).pendingSnapshotsByHostUuid.values.forEach { pending ->
-            pending[stableKey]?.let { return it }
-        }
-        return null
-    }
-
-    fun clearNodeSnapshots(level: Level, hostUuid: UUID) {
-        stateOrNull(level, hostUuid)?.snapshotsByStableKey?.clear()
-        sideState(level).pendingSnapshotsByHostUuid.remove(hostUuid)
-    }
-
-    fun nodeSnapshots(level: Level, hostUuid: UUID): List<EntitySnapshot> {
-        val byStableKey = linkedMapOf<UUID, EntitySnapshot>()
-        stateOrNull(level, hostUuid)?.snapshotsByStableKey?.values?.forEach { byStableKey[it.requireStableKey()] = it }
-        sideState(level).pendingSnapshotsByHostUuid[hostUuid]?.values?.forEach { byStableKey[it.requireStableKey()] = it }
-        return byStableKey.values.toList()
-    }
-
-    fun nodeSnapshots(level: Level): List<EntitySnapshot> {
-        val byStableKey = linkedMapOf<UUID, EntitySnapshot>()
-        levelState(level).byUuid.values.forEach { state ->
-            state.snapshotsByStableKey.values.forEach { snapshot -> byStableKey[snapshot.requireStableKey()] = snapshot }
-        }
-        return byStableKey.values.toList()
+    fun removeEntitySnapshot(level: Level, entityUuid: UUID): Entity? {
+        sideState(level).pendingSnapshotsByEntityUuid.remove(entityUuid)
+        val state = stateOrNull(level, entityUuid) ?: return null
+        state.snapshot = null
+        val entity = state.entity as? Entity ?: return null
+        markDirty(entity)
+        return entity
     }
 
     fun onDimensionChanged(old: Entity, new: Entity, from: Level, to: Level) {
@@ -283,8 +222,7 @@ object GearyRuntimeState {
             levelState(from).byUuid.remove(old.uuid)
             state.coroutineScope.cancel()
         }
-        val newState = state(new)
-        restoreFromTransfer(to, new.uuid, newState)
+        restoreFromTransfer(to, new.uuid, state(new))
     }
 
     fun onPlayerDimensionChanged(player: Player, from: Level, to: Level) {
@@ -293,20 +231,14 @@ object GearyRuntimeState {
     }
 
     private fun cacheForTransfer(level: Level, uuid: UUID, state: EntityState) {
-        val transfer = sideState(level)
-        if (state.snapshotsByStableKey.isNotEmpty()) {
-            transfer.pendingSnapshotsByHostUuid[uuid] = Object2ObjectOpenHashMap<UUID, EntitySnapshot>().apply {
-                putAll(state.snapshotsByStableKey)
-            }
-        } else {
-            transfer.pendingSnapshotsByHostUuid.remove(uuid)
-        }
+        val snapshot = state.snapshot
+        if (snapshot == null) sideState(level).pendingSnapshotsByEntityUuid.remove(uuid)
+        else sideState(level).pendingSnapshotsByEntityUuid[uuid] = snapshot
     }
 
     private fun restoreFromTransfer(level: Level, uuid: UUID, target: EntityState) {
-        sideState(level).pendingSnapshotsByHostUuid.remove(uuid)?.let { restored ->
-            target.snapshotsByStableKey.clear()
-            target.snapshotsByStableKey.putAll(restored)
+        sideState(level).pendingSnapshotsByEntityUuid.remove(uuid)?.let { restored ->
+            target.snapshot = restored.withEntity(target.entity as Entity)
         }
         sideState(level).transferringEntityUuids.remove(uuid)
     }
@@ -344,9 +276,10 @@ object GearyRuntimeState {
         source.coroutineScope.cancel()
         return EntityState(
             entity = entity,
+            snapshot = source.snapshot?.withEntity(entity as Entity),
             runtimeId = source.runtimeId,
             coroutineScope = EntityScope(entity),
-        ).also { rebound -> rebound.snapshotsByStableKey.putAll(source.snapshotsByStableKey) }
+        )
     }
 
     private fun levelState(level: Level): LevelEntityState = synchronized(levelStates) {
@@ -358,25 +291,11 @@ object GearyRuntimeState {
     }
 }
 
-private val EntityState.snapshotCount: Int
-    get() = snapshotsByStableKey.size
-
-private fun EntityState.entitySnapshot(): EntitySnapshot? =
-    snapshotsByStableKey[entity.uuid]
-
 private fun EntityState.entitySnapshotOrEmpty(): EntitySnapshot =
-    entitySnapshot() ?: EntitySnapshot(stableKey = entity.uuid, hostUuid = entity.uuid)
+    snapshot ?: EntitySnapshot().withEntity(entity as Entity)
 
 private fun EntityState.writeEntityComponents(components: Collection<Any>) {
-    val root = entitySnapshotOrEmpty().rootNode()
-    val updatedRoot = root.copy(components = components.toList())
-    val updated = entitySnapshotOrEmpty()
-        .withNodes(
-            entitySnapshotOrEmpty().nodeList().map { node -> if (node.id == root.id) updatedRoot else node },
-            explicitRootNodeId = root.id,
-        )
-        .withEntityBinding(entity.uuid)
-    snapshotsByStableKey[entity.uuid] = updated
+    snapshot = EntitySnapshot(components = components.filterIsInstance<Component>()).withEntity(entity as Entity)
 }
 
 private class EntityComponentMap(private val state: EntityState) : AbstractMutableMap<ResourceLocation, Any>() {
@@ -405,12 +324,12 @@ private class EntityComponentMap(private val state: EntityState) : AbstractMutab
     }
 
     override fun clear() {
-        state.snapshotsByStableKey.remove(state.entity.uuid)
+        state.snapshot = null
     }
 
     private fun snapshotMap(): LinkedHashMap<ResourceLocation, Any> =
         LinkedHashMap<ResourceLocation, Any>().apply {
-            state.entitySnapshotOrEmpty().rootNode().components.forEach { component ->
+            state.entitySnapshotOrEmpty().components.forEach { component ->
                 val id = ComponentDescriptorRegistry.idFor(component::class)
                     ?: error("Component descriptor not found for ${component::class.qualifiedName}")
                 put(id, component)
@@ -418,7 +337,7 @@ private class EntityComponentMap(private val state: EntityState) : AbstractMutab
         }
 }
 
-private fun Level.findEntityByUuid(uuid: UUID): Entity? =
+fun Level.findEntityByUuid(uuid: UUID): Entity? =
     when (this) {
         is ServerLevel -> getEntity(uuid)
         is ClientLevel -> {

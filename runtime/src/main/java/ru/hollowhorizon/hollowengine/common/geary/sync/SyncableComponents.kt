@@ -26,8 +26,6 @@ fun onClone(event: PlayerEvent.Clone) {
     val old = event.oldPlayer
     val new = event.player
 
-    NodeRuntimeState.service(old.level()).rebindEntityNodes(old.uuid)
-
     GearyRuntimeState.cloneOwnedState(old, new, dropLooseOnDeath = event.wasDeath)
 
     new.server?.coroutineScope?.launch {

@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.geary.binding
 
 import net.minecraft.core.BlockPos
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.geary.api.Component
@@ -9,26 +10,34 @@ import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptor
 import ru.hollowhorizon.hollowengine.common.geary.components.LightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntityNodeSnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
 import java.util.UUID
 
+val ROOT_COMPONENT_ID: UUID = UUID(0L, 1L)
+
 data class DormantRecord(
-    val stableKey: UUID,
-    val snapshot: EntitySnapshot,
+    val id: UUID,
+    val snapshot: LevelSnapshot,
 ) {
     val worldChunkX: Int = snapshot.requireWorldChunkX()
     val worldChunkZ: Int = snapshot.requireWorldChunkZ()
 }
 
 data class NodeMaterializedRecord(
-    val stableKey: UUID,
-    val snapshot: EntitySnapshot,
-    val hostUuid: UUID?,
+    val snapshotId: UUID,
+    val snapshot: Snapshot,
+    val hostEntity: Entity?,
 ) {
-    val isEntityBound: Boolean get() = hostUuid != null
-    val isWorldBound: Boolean get() = hostUuid == null
+    val hostEntityUuid: UUID? get() = hostEntity?.uuid
+    val isEntityBound: Boolean get() = hostEntity != null
 }
+
+data class SnapshotComponentView(
+    val id: UUID = ROOT_COMPONENT_ID,
+    val components: List<Component>,
+)
 
 data class ModelNodeEntry(
     val nodeId: UUID,
@@ -42,127 +51,69 @@ data class LightNodeEntry(
     val transform: TransformComponent,
 )
 
-fun EntitySnapshot.stableKeyOrNull(): UUID? = runCatching { stableKey }.getOrNull()
+fun LevelSnapshot.requireWorldChunkX(): Int = worldChunkFromTransform().first
 
-fun EntitySnapshot.requireStableKey(): UUID =
-    stableKeyOrNull() ?: error("Entity snapshot is missing stable key.")
+fun LevelSnapshot.requireWorldChunkZ(): Int = worldChunkFromTransform().second
 
-fun EntitySnapshot.isEntityBound(): Boolean = hostUuid != null
-fun EntitySnapshot.isWorldBound(): Boolean = hostUuid == null
-fun EntitySnapshot.hostUuidOrNull(): UUID? = hostUuid
-
-fun EntitySnapshot.requireHostUuid(): UUID = hostUuid ?: error("Entity snapshot is not bound to an entity host.")
-
-fun EntitySnapshot.requireWorldChunkX(): Int =
-    worldChunkX ?: worldChunkFromTransform().first
-
-fun EntitySnapshot.requireWorldChunkZ(): Int =
-    worldChunkZ ?: worldChunkFromTransform().second
-
-fun EntitySnapshot.worldLocalIdOrRandom(): UUID = worldLocalId ?: UUID.randomUUID()
-
-private fun EntitySnapshot.worldChunkFromTransform(): Pair<Int, Int> {
-    val transform = transformOrNull() ?: error("World-bound snapshot requires transform with world position.")
+private fun Snapshot.worldChunkFromTransform(): Pair<Int, Int> {
+    val transform = transformOrNull() ?: error("Level snapshot requires transform with world position.")
     val chunkPos = ChunkPos(BlockPos(transform.x.toInt(), transform.y.toInt(), transform.z.toInt()))
     return chunkPos.x to chunkPos.z
 }
 
-fun EntitySnapshot.nodeByIdOrNull(nodeId: UUID): EntityNodeSnapshot? =
-    nodeList().firstOrNull { it.id == nodeId }
-
-fun EntitySnapshot.transformOrNull(): TransformComponent? =
-    rootNode().components.filterIsInstance<TransformComponent>().firstOrNull()
-        ?: nodeList().asSequence().mapNotNull { node -> node.components.filterIsInstance<TransformComponent>().firstOrNull() }.firstOrNull()
-
-fun EntitySnapshot.modelOrNull(): Model? =
-    rootNode().components.filterIsInstance<Model>().firstOrNull()
-        ?: nodeList().asSequence().mapNotNull { node -> node.components.filterIsInstance<Model>().firstOrNull() }.firstOrNull()
-
-fun EntitySnapshot.modelNodes(): List<ModelNodeEntry> {
-    val result = arrayListOf<ModelNodeEntry>()
-    nodeList().forEach { node ->
-        val model = node.components.filterIsInstance<Model>().firstOrNull() ?: return@forEach
-        val transform = node.components.filterIsInstance<TransformComponent>().firstOrNull() ?: TransformComponent()
-        result += ModelNodeEntry(node.id, model, transform)
-    }
-    return result
+fun Snapshot.snapshotIdOrNull(): UUID? = when (this) {
+    is EntitySnapshot -> entity?.uuid
+    is LevelSnapshot -> id
 }
 
-fun EntitySnapshot.lightNodes(): List<LightNodeEntry> {
-    val result = arrayListOf<LightNodeEntry>()
-    nodeList().forEach { node ->
-        val light = node.components.filterIsInstance<LightComponent>().firstOrNull() ?: return@forEach
-        val transform = node.components.filterIsInstance<TransformComponent>().firstOrNull() ?: TransformComponent()
-        result += LightNodeEntry(node.id, light, transform)
-    }
-    return result
+fun Snapshot.hostEntityUuidOrNull(): UUID? = (this as? EntitySnapshot)?.entity?.uuid
+
+fun Snapshot.nodeByIdOrNull(nodeId: UUID): SnapshotComponentView? =
+    if (nodeId == ROOT_COMPONENT_ID) SnapshotComponentView(components = components) else null
+
+fun Snapshot.transformOrNull(): TransformComponent? =
+    components.filterIsInstance<TransformComponent>().firstOrNull()
+
+fun Snapshot.modelOrNull(): Model? =
+    components.filterIsInstance<Model>().firstOrNull()
+
+fun Snapshot.modelNodes(): List<ModelNodeEntry> {
+    val model = components.filterIsInstance<Model>().firstOrNull() ?: return emptyList()
+    val transform = components.filterIsInstance<TransformComponent>().firstOrNull() ?: TransformComponent()
+    return listOf(ModelNodeEntry(ROOT_COMPONENT_ID, model, transform))
 }
 
-fun EntitySnapshot.withOrReplace(component: Component, nodeId: UUID? = null): EntitySnapshot {
-    val targetNodeId = nodeId
-        ?: nodeList().firstOrNull { node -> node.components.any { it::class == component::class } }?.id
-        ?: rootNode().id
+fun Snapshot.lightNodes(): List<LightNodeEntry> {
+    val light = components.filterIsInstance<LightComponent>().firstOrNull() ?: return emptyList()
+    val transform = components.filterIsInstance<TransformComponent>().firstOrNull() ?: TransformComponent()
+    return listOf(LightNodeEntry(ROOT_COMPONENT_ID, light, transform))
+}
+
+fun <T : Snapshot> T.withOrReplace(component: Component, nodeId: UUID? = null): T {
+    if (nodeId != null && nodeId != ROOT_COMPONENT_ID) return this
     val id = ComponentDescriptorRegistry.idFor(component::class)
         ?: error("Component descriptor not found for ${component::class.qualifiedName}")
-    val updatedNodes = nodeList().map { node ->
-        if (node.id != targetNodeId) node
-        else {
-            val merged = LinkedHashMap<ResourceLocation, Component>()
-            node.components.forEach { existing ->
-                val existingId = ComponentDescriptorRegistry.idFor(existing::class)
-                    ?: error("Component descriptor not found for ${existing::class.qualifiedName}")
-                merged[existingId] = existing
-            }
-            merged[id] = component
-            node.copy(components = merged.values.toList())
-        }
+    val merged = LinkedHashMap<ResourceLocation, Component>()
+    components.forEach { existing ->
+        val existingId = ComponentDescriptorRegistry.idFor(existing::class)
+            ?: error("Component descriptor not found for ${existing::class.qualifiedName}")
+        merged[existingId] = existing
     }
-    return withNodes(updatedNodes)
+    merged[id] = component
+    return withComponents(merged.values.toList())
 }
 
-fun EntitySnapshot.removeComponents(predicate: (Component) -> Boolean, nodeId: UUID? = null): EntitySnapshot {
-    val updatedNodes = nodeList().map { node ->
-        if (nodeId != null && node.id != nodeId) node
-        else node.copy(components = node.components.filterNot(predicate))
-    }
-    return withNodes(updatedNodes)
+fun <T : Snapshot> T.removeComponents(predicate: (Component) -> Boolean, nodeId: UUID? = null): T {
+    if (nodeId != null && nodeId != ROOT_COMPONENT_ID) return this
+    return withComponents(components.filterNot(predicate))
 }
 
-fun EntitySnapshot.withEntityBinding(hostUuid: UUID): EntitySnapshot =
-    copy(hostUuid = hostUuid, worldChunkX = null, worldChunkZ = null, worldLocalId = null)
+@Suppress("UNCHECKED_CAST")
+fun <T : Snapshot> T.withComponents(updatedComponents: List<Component>): T =
+    when (this) {
+        is EntitySnapshot -> copy(components = updatedComponents).also { it.entity = entity }
+        is LevelSnapshot -> copy(components = updatedComponents)
+    } as T
 
-fun EntitySnapshot.withWorldBinding(position: Vec3, localId: UUID = UUID.randomUUID()): EntitySnapshot {
-    val chunkPos = ChunkPos(BlockPos(position.x.toInt(), position.y.toInt(), position.z.toInt()))
-    return copy(hostUuid = null, worldChunkX = chunkPos.x, worldChunkZ = chunkPos.z, worldLocalId = localId)
-}
-
-fun EntitySnapshot.withWorldChunkBinding(chunkX: Int, chunkZ: Int, localId: UUID = UUID.randomUUID()): EntitySnapshot =
-    copy(hostUuid = null, worldChunkX = chunkX, worldChunkZ = chunkZ, worldLocalId = localId)
-
-fun EntitySnapshot.withAddedNode(
-    nodeId: UUID = UUID.randomUUID(),
-    parentId: UUID = rootNode().id,
-    nodeComponents: List<Component> = emptyList(),
-): EntitySnapshot {
-    val updated = nodeList() + EntityNodeSnapshot(id = nodeId, parentId = parentId, components = nodeComponents)
-    return withNodes(updated)
-}
-
-fun EntitySnapshot.withRemovedNode(nodeId: UUID): EntitySnapshot {
-    if (nodeId == rootNode().id) return this
-    val toRemove = linkedSetOf(nodeId)
-    var changed = true
-    while (changed) {
-        changed = false
-        nodeList().forEach { node ->
-            if (node.parentId in toRemove && node.id !in toRemove) {
-                toRemove += node.id
-                changed = true
-            }
-        }
-    }
-    return withNodes(nodeList().filter { it.id !in toRemove })
-}
-
-fun TransformComponent.withWorldPosition(position: Vec3): TransformComponent =
-    withTranslation(position.x.toFloat(), position.y.toFloat(), position.z.toFloat())
+fun LevelSnapshot.withWorldBinding(position: Vec3): LevelSnapshot =
+    withOrReplace((transformOrNull() ?: TransformComponent()).withWorldPosition(position))

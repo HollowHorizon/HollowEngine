@@ -56,22 +56,23 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
+import ru.hollowhorizon.hollowengine.common.geary.binding.EntitySnapshotUpdatePacket
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeTransformUpdatePacket
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.binding.lightNodes
 import ru.hollowhorizon.hollowengine.common.geary.binding.modelNodes
 import ru.hollowhorizon.hollowengine.common.geary.binding.nodeByIdOrNull
-import ru.hollowhorizon.hollowengine.common.geary.binding.hostUuidOrNull
-import ru.hollowhorizon.hollowengine.common.geary.binding.stableKeyOrNull
+import ru.hollowhorizon.hollowengine.common.geary.binding.hostEntityUuidOrNull
+import ru.hollowhorizon.hollowengine.common.geary.binding.snapshotIdOrNull
 import ru.hollowhorizon.hollowengine.common.geary.binding.withOrReplace
 import ru.hollowhorizon.hollowengine.common.geary.binding.withWorldBinding
-import ru.hollowhorizon.hollowengine.common.geary.binding.worldLocalIdOrRandom
 import ru.hollowhorizon.hollowengine.common.geary.components.LightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.components.PointLightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.SpotLightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.util.UUID
@@ -230,7 +231,7 @@ object TransformGizmoEditor {
     private fun UiScope.renderContextMenu() {
         val menu = contextMenu ?: return
         val entry = entries[menu.entryId] ?: return
-        val isInspectorOpened = inspectorState.isVisibleFor(menu.entryId.stableKey)
+        val isInspectorOpened = inspectorState.isVisibleFor(menu.entryId.snapshotId)
 
         Column(width = FitContent, height = FitContent) {
             modifier
@@ -247,9 +248,9 @@ object TransformGizmoEditor {
                 else inspectorState.open(entry.snapshot ?: return@PopupActionRow, entry.target ?: return@PopupActionRow)
                 contextMenu = null
             }
-            PopupActionRow(label = "Copy Stable Key", icon = icons.COPY) {
-                Minecraft.getInstance().keyboardHandler.clipboard = menu.entryId.stableKey.toString()
-                Minecraft.getInstance().player?.displayClientMessage(Component.literal("Stable key copied"), true)
+            PopupActionRow(label = "Copy Snapshot ID", icon = icons.COPY) {
+                Minecraft.getInstance().keyboardHandler.clipboard = menu.entryId.snapshotId.toString()
+                Minecraft.getInstance().player?.displayClientMessage(Component.literal("Snapshot id copied"), true)
                 contextMenu = null
             }
             PopupActionRow(label = "Clear Selection", icon = icons.REMOVE) {
@@ -386,20 +387,21 @@ object TransformGizmoEditor {
         val partialTick = TickHandler.partialTick
 
         service.records.forEach { record ->
-            val snapshot = service.snapshot(record.stableKey) ?: return@forEach
-            val hostUuid = snapshot.hostUuidOrNull() ?: record.hostUuid
+            val snapshot = service.snapshot(record.snapshotId) ?: return@forEach
+            val hostEntityUuid = snapshot.hostEntityUuidOrNull() ?: record.hostEntityUuid
 
             val claimedNodes = hashSetOf<java.util.UUID>()
             snapshot.modelNodes().forEach { modelNode ->
-                val resolved = resolveNodeTransform(level, hostUuid, modelNode.transform, partialTick) ?: return@forEach
+                val resolved = resolveNodeTransform(level, hostEntityUuid, modelNode.transform, partialTick) ?: return@forEach
                 val bounds = buildNodeRenderBounds(modelNode.model, resolved.transform, modelNode.model.scale)
                 val visible = frustum?.isVisible(bounds) ?: true
-                val entryId = GizmoEntryId(record.stableKey, modelNode.nodeId)
+                val entryId = GizmoEntryId(record.snapshotId, modelNode.nodeId)
                 val entry = entries.getOrPut(entryId) {
                     GizmoEntry(entryId).also { root.addNode(it.node) }
                 }
                 val target = resolveTarget(model = modelNode.model, light = null)
-                entry.hostUuid = hostUuid
+                entry.hostEntityUuid = hostEntityUuid
+                entry.entityId = record.hostEntity?.id
                 entry.snapshot = snapshot
                 entry.target = target
                 entry.node.isVisible = visible
@@ -413,15 +415,16 @@ object TransformGizmoEditor {
 
             snapshot.lightNodes().forEach { lightNode ->
                 if (lightNode.nodeId in claimedNodes) return@forEach
-                val resolved = resolveNodeTransform(level, hostUuid, lightNode.transform, partialTick) ?: return@forEach
+                val resolved = resolveNodeTransform(level, hostEntityUuid, lightNode.transform, partialTick) ?: return@forEach
                 val target = resolveTarget(model = null, light = lightNode.light)
                 val bounds = computeTargetBounds(target, resolved, null)
                 val visible = frustum?.isVisible(bounds) ?: true
-                val entryId = GizmoEntryId(record.stableKey, lightNode.nodeId)
+                val entryId = GizmoEntryId(record.snapshotId, lightNode.nodeId)
                 val entry = entries.getOrPut(entryId) {
                     GizmoEntry(entryId).also { root.addNode(it.node) }
                 }
-                entry.hostUuid = hostUuid
+                entry.hostEntityUuid = hostEntityUuid
+                entry.entityId = record.hostEntity?.id
                 entry.snapshot = snapshot
                 entry.target = target
                 entry.node.isVisible = visible
@@ -441,7 +444,7 @@ object TransformGizmoEditor {
             if (draggingKey == entryId) draggingKey = null
             if (activeKey == entryId) activeKey = null
             if (contextMenu?.entryId == entryId) contextMenu = null
-            if (inspectorState.isVisibleFor(entryId.stableKey)) inspectorState.close()
+            if (inspectorState.isVisibleFor(entryId.snapshotId)) inspectorState.close()
             root.removeNode(entry.node)
             entry.node.release()
             iterator.remove()
@@ -587,24 +590,28 @@ object TransformGizmoEditor {
     }
 
     private fun refreshInspectorIfSelected(entryId: GizmoEntryId) {
-        if (!inspectorState.isVisibleFor(entryId.stableKey)) return
+        if (!inspectorState.isVisibleFor(entryId.snapshotId)) return
         val entry = entries[entryId] ?: return
         val snapshot = entry.snapshot ?: return
         val target = entry.target ?: return
         inspectorState.refresh(snapshot, target)
     }
 
-    private fun applySnapshotUpdate(snapshot: EntitySnapshot) {
-        val stableKey = snapshot.stableKeyOrNull() ?: return
+    private fun applySnapshotUpdate(snapshot: Snapshot) {
+        val snapshotId = snapshot.snapshotIdOrNull() ?: return
         val level = Minecraft.getInstance().level ?: return
         val service = NodeRuntimeState.service(level)
         service.materialize(snapshot)
-        val activeEntry = entries.values.firstOrNull { it.entryId.stableKey == stableKey }
+        val activeEntry = entries.values.firstOrNull { it.entryId.snapshotId == snapshotId }
         if (activeEntry != null) {
             inspectorState.refresh(snapshot, activeEntry.target ?: resolveTarget(activeEntry.modelComponent, activeEntry.lightComponent))
             activeEntry.refreshFromRuntime()
         }
-        TransformGizmoInspectorPackets.sendSnapshot(snapshot)
+        if (snapshot is ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot) {
+            activeEntry?.entityId?.let { EntitySnapshotUpdatePacket(it, snapshot).send() }
+        } else {
+            TransformGizmoInspectorPackets.sendSnapshot(snapshot)
+        }
     }
 
     private object PointerRouter : InputStack.PointerListener {
@@ -692,16 +699,16 @@ object TransformGizmoEditor {
     private class GizmoEntry(
         val entryId: GizmoEntryId,
     ) {
-        val stableKey: java.util.UUID get() = entryId.stableKey
+        val snapshotId: java.util.UUID get() = entryId.snapshotId
         val nodeId: java.util.UUID get() = entryId.nodeId
 
-        val gizmo = GizmoNode("transform-gizmo-$stableKey-$nodeId").apply {
+        val gizmo = GizmoNode("transform-gizmo-$snapshotId-$nodeId").apply {
             gizmoSize = 2.5f
         }
         val translationOverlay = TranslationOverlay(gizmo)
         val rotationOverlay = RotationOverlay(gizmo)
         val scaleOverlay = ScaleOverlay(gizmo)
-        private val lightVisual = Node("transform-light-visual-$stableKey-$nodeId").apply {
+        private val lightVisual = Node("transform-light-visual-$snapshotId-$nodeId").apply {
             transform = TrsTransformF()
         }
         private val lightVisualTransform = lightVisual.transform as TrsTransformF
@@ -720,7 +727,7 @@ object TransformGizmoEditor {
         private val translationHandles = buildTranslationHandles()
         private val rotationHandles = buildRotationHandles()
         private val scaleHandles = buildScaleHandles()
-        val node = Node("transform-gizmo-root-$stableKey-$nodeId").apply {
+        val node = Node("transform-gizmo-root-$snapshotId-$nodeId").apply {
             addNode(boundsMesh)
             addNode(lightVisual)
             addNode(gizmo)
@@ -729,9 +736,9 @@ object TransformGizmoEditor {
             addNode(scaleOverlay)
         }
 
-        var hostUuid: UUID? = null
-        var worldLocalId: UUID? = null
-        var snapshot: EntitySnapshot? = null
+        var hostEntityUuid: UUID? = null
+        var entityId: Int? = null
+        var snapshot: Snapshot? = null
         var target: TransformGizmoTarget? = null
         var modelComponent: Model? = null
         var lightComponent: LightComponent? = null
@@ -792,17 +799,16 @@ object TransformGizmoEditor {
 
         fun refreshFromRuntime() {
             val level = Minecraft.getInstance().level ?: return
-            val snapshot = NodeRuntimeState.service(level).snapshot(stableKey) ?: return
+            val snapshot = NodeRuntimeState.service(level).snapshot(snapshotId) ?: return
             val nodeSnapshot = snapshot.nodeByIdOrNull(nodeId) ?: return
             val transform = nodeSnapshot.components.filterIsInstance<TransformComponent>().firstOrNull() ?: TransformComponent()
             val model = nodeSnapshot.components.filterIsInstance<Model>().firstOrNull()
             val light = nodeSnapshot.components.filterIsInstance<LightComponent>().firstOrNull()
             val target = TransformGizmoEditor.resolveTarget(model, light)
-            val hostUuid = snapshot.hostUuidOrNull() ?: this.hostUuid
-            val resolved = resolveNodeTransform(level, hostUuid, transform, TickHandler.partialTick) ?: return
+            val hostEntityUuid = snapshot.hostEntityUuidOrNull() ?: this.hostEntityUuid
+            val resolved = resolveNodeTransform(level, hostEntityUuid, transform, TickHandler.partialTick) ?: return
 
-            this.hostUuid = hostUuid
-            this.worldLocalId = snapshot.worldLocalId
+            this.hostEntityUuid = hostEntityUuid
             this.snapshot = snapshot
             this.target = target
             this.modelComponent = model
@@ -901,7 +907,7 @@ object TransformGizmoEditor {
         }
 
         private fun createBoundsMesh(): LineMesh =
-            LineMesh("transform-bounds-$stableKey").apply {
+            LineMesh("transform-bounds-$snapshotId").apply {
                 isCastingShadow = false
                 transform = TrsTransformF()
                 shader = boundsShader
@@ -987,7 +993,7 @@ object TransformGizmoEditor {
         }
 
         private fun createPointLightMesh(): LightVisualMesh =
-            LightVisualMesh("point-light-visual-$stableKey").apply {
+            LightVisualMesh("point-light-visual-$snapshotId").apply {
                 transform = TrsTransformF()
                 addCircleLines(Vec3f.X_AXIS)
                 addCircleLines(Vec3f.Y_AXIS)
@@ -996,7 +1002,7 @@ object TransformGizmoEditor {
             }
 
         private fun createSpotLightMesh(name: String): LightVisualMesh =
-            LightVisualMesh("$name-$stableKey").apply {
+            LightVisualMesh("$name-$snapshotId").apply {
                 transform = TrsTransformF()
                 addConeLines()
             }
@@ -1057,7 +1063,7 @@ object TransformGizmoEditor {
             }
             val updatedTransform = worldTransformToComponent(
                 level = level,
-                hostUuid = hostUuid,
+                hostEntityUuid = hostEntityUuid,
                 worldPosition = worldPosition,
                 worldRotation = worldRotation,
                 worldScale = worldScale,
@@ -1068,25 +1074,23 @@ object TransformGizmoEditor {
             lastAppliedTransform = updatedTransform
 
             val service = NodeRuntimeState.service(level)
-            val snapshot = service.snapshot(stableKey) ?: return
-            val updatedSnapshot = if (hostUuid == null) {
-                snapshot
+            val snapshot = service.snapshot(snapshotId) ?: return
+            val updatedSnapshot = when (snapshot) {
+                is LevelSnapshot -> snapshot
                     .withWorldBinding(
                         Vec3(
                             updatedTransform.translation.x.toDouble(),
                             updatedTransform.translation.y.toDouble(),
                             updatedTransform.translation.z.toDouble(),
                         ),
-                        worldLocalId ?: snapshot.worldLocalIdOrRandom(),
                     )
                     .withOrReplace(updatedTransform, nodeId)
-            } else {
-                snapshot.withOrReplace(updatedTransform, nodeId)
+                else -> snapshot.withOrReplace(updatedTransform, nodeId)
             }
 
             this.snapshot = updatedSnapshot
             service.materialize(updatedSnapshot)
-            NodeTransformUpdatePacket(stableKey, nodeId, updatedTransform).send()
+            NodeTransformUpdatePacket(snapshotId, nodeId, updatedTransform).send()
         }
 
         private fun fallbackLabelState(): OverlayLabelState? {
@@ -1105,7 +1109,7 @@ object TransformGizmoEditor {
         }
     }
 
-    private data class GizmoEntryId(val stableKey: java.util.UUID, val nodeId: java.util.UUID)
+    private data class GizmoEntryId(val snapshotId: java.util.UUID, val nodeId: java.util.UUID)
     private data class PickResult(val entry: GizmoEntry, val target: PickTarget)
     private data class ContextMenuState(val entryId: GizmoEntryId, val position: Vec2f)
     private data class OverlayLabelState(val position: Vec2f, val value: Double)

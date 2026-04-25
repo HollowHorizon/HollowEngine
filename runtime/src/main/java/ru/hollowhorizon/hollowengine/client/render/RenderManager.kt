@@ -254,7 +254,7 @@ object RenderManager {
         materialization.forEachModelNodeRecord { record, node ->
             val model = node.model
             val transform = node.transform
-            val resolved = resolveNodeTransform(level, record.hostUuid, transform, partialTick)
+            val resolved = resolveNodeTransform(level, record.hostEntityUuid, transform, partialTick)
                 ?: return@forEachModelNodeRecord
 
             val bounds = buildNodeRenderBounds(model, resolved.transform, model.scale)

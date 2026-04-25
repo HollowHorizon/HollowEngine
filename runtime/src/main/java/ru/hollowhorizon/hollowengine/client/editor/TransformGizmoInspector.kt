@@ -12,7 +12,8 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeSnapshotUpdatePacket
-import ru.hollowhorizon.hollowengine.common.geary.binding.stableKeyOrNull
+import ru.hollowhorizon.hollowengine.common.geary.binding.snapshotIdOrNull
+import ru.hollowhorizon.hollowengine.common.geary.binding.withComponents
 import ru.hollowhorizon.hollowengine.common.geary.binding.withOrReplace
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentHolder
@@ -21,7 +22,8 @@ import ru.hollowhorizon.hollowengine.common.geary.components.EditorIcon
 import ru.hollowhorizon.hollowengine.common.geary.components.GenericEditor
 import ru.hollowhorizon.hollowengine.common.geary.components.SmallActionButton
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
-import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
 import ru.hollowhorizon.hollowengine.common.network.send
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.reflect.full.findAnnotation
@@ -46,34 +48,34 @@ internal enum class TransformGizmoTargetType {
 }
 
 internal object TransformGizmoInspectorPackets {
-    fun sendSnapshot(snapshot: EntitySnapshot) {
-        NodeSnapshotUpdatePacket(snapshot).send()
+    fun sendSnapshot(snapshot: Snapshot) {
+        if (snapshot is LevelSnapshot) NodeSnapshotUpdatePacket(snapshot).send()
     }
 }
 
 internal class TransformGizmoInspectorState(
-    private val onSnapshotUpdated: (EntitySnapshot) -> Unit,
+    private val onSnapshotUpdated: (Snapshot) -> Unit,
 ) {
     private val visibleState = mutableStateOf(false)
     private val selectedKeyState = mutableStateOf<java.util.UUID?>(null)
     private val headerState = mutableStateOf<InspectorHeader?>(null)
-    private val snapshotState = mutableStateOf<EntitySnapshot?>(null)
+    private val snapshotState = mutableStateOf<Snapshot?>(null)
     private val components = mutableStateListOf<EditableComponentState>()
     private val hiddenComponents = mutableListOf<GearyComponent>()
 
     val isVisible: Boolean get() = visibleState.value
 
-    fun isVisibleFor(stableKey: java.util.UUID): Boolean =
-        visibleState.value && selectedKeyState.value == stableKey
+    fun isVisibleFor(snapshotId: java.util.UUID): Boolean =
+        visibleState.value && selectedKeyState.value == snapshotId
 
-    fun open(snapshot: EntitySnapshot, target: TransformGizmoTarget) {
+    fun open(snapshot: Snapshot, target: TransformGizmoTarget) {
         visibleState.set(true)
         rebuild(snapshot, target)
     }
 
-    fun refresh(snapshot: EntitySnapshot, target: TransformGizmoTarget) {
+    fun refresh(snapshot: Snapshot, target: TransformGizmoTarget) {
         if (!visibleState.value) return
-        if (selectedKeyState.value != snapshot.stableKeyOrNull()) return
+        if (selectedKeyState.value != snapshot.snapshotIdOrNull()) return
         if (snapshotState.value == snapshot && headerState.value?.title == target.title && headerState.value?.icon == target.icon) return
         rebuild(snapshot, target)
     }
@@ -87,15 +89,15 @@ internal class TransformGizmoInspectorState(
         hiddenComponents.clear()
     }
 
-    private fun rebuild(snapshot: EntitySnapshot, target: TransformGizmoTarget) {
-        val stableKey = snapshot.stableKeyOrNull() ?: return close()
-        selectedKeyState.set(stableKey)
-        headerState.set(InspectorHeader(stableKey, target.title, target.icon))
+    private fun rebuild(snapshot: Snapshot, target: TransformGizmoTarget) {
+        val snapshotId = snapshot.snapshotIdOrNull() ?: return close()
+        selectedKeyState.set(snapshotId)
+        headerState.set(InspectorHeader(snapshotId, target.title, target.icon))
         snapshotState.set(snapshot)
         components.clear()
         hiddenComponents.clear()
 
-        snapshot.rootNode().components.forEach { component ->
+        snapshot.components.forEach { component ->
             val descriptor = EntitySerialization.descriptorFor(component) ?: run {
                 hiddenComponents += component
                 return@forEach
@@ -114,15 +116,9 @@ internal class TransformGizmoInspectorState(
 
     private fun commitSnapshot() {
         val base = snapshotState.value ?: return
-        val targetNode = base.rootNode()
-        var updatedSnapshot = base.withNodes(
-            base.nodeList().map { node ->
-                if (node.id == targetNode.id) node.copy(components = components.map { it.state.value } + hiddenComponents) else node
-            },
-            targetNode.id,
-        )
+        var updatedSnapshot = base.withComponents(components.map { it.state.value } + hiddenComponents)
         components.forEach { editable ->
-            updatedSnapshot = updatedSnapshot.withOrReplace(editable.state.value, targetNode.id)
+            updatedSnapshot = updatedSnapshot.withOrReplace(editable.state.value)
         }
         snapshotState.set(updatedSnapshot)
         onSnapshotUpdated(updatedSnapshot)
@@ -193,7 +189,7 @@ internal class TransformGizmoInspectorState(
                     Text(header.title) {
                         modifier.textColor(ColorTheme.UI.WhiteReplacement)
                     }
-                    Text(header.stableKey.toString()) {
+                    Text(header.snapshotId.toString()) {
                         modifier.margin(top = Dimensions.PaddingSmall)
                             .textColor(ColorTheme.UI.BackgroundAccent)
                     }
@@ -243,7 +239,7 @@ internal class TransformGizmoInspectorState(
     )
 
     private data class InspectorHeader(
-        val stableKey: java.util.UUID,
+        val snapshotId: java.util.UUID,
         val title: String,
         val icon: ResourceLocation,
     )
