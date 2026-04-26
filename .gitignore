@@ -1,5 +1,7 @@
 # User-specific stuff
-.idea/
+.idea/*
+!.idea/icon.svg
+
 mc-src/
 *.iml
 *.ipr
