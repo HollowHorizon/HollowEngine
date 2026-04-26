@@ -17,7 +17,6 @@ fun registerReloadScriptManager(event: RegisterReloadListenersEvent.Server) {
 
 object ReloadScriptManager : ResourceManagerReloadListener {
     override fun onResourceManagerReload(resourceManager: ResourceManager) {
-        if (!HollowEngine.compilerLoader.isLoaded) return
         val recipeManager = currentRecipeManagerOrNull() ?: run {
             HollowEngine.LOGGER.warn("Skipping reload scripts: RecipeManager is not initialized yet")
             return

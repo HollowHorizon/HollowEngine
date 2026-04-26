@@ -75,7 +75,6 @@ fun onRegisterCommands(event: RegisterCommandsEvent) {
             registerLightCommands()
             registerUtilityCommands()
             registerCodeBlocksCommands()
-            registerScriptCommands()
             registerKatariCommands()
         }
     }
@@ -782,87 +781,6 @@ private fun CommandExtension.registerCodeBlocksCommands() {
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-private fun CommandExtension.registerScriptCommands() {
-    "script" {
-        requires { hasPermission(2) }
-
-        "run"(arg("path", StringArgumentType.greedyString()) { getAvailableScripts() }) {
-            executes {
-                if (!HollowEngine.compilerLoader.isLoaded) {
-                    return@executes sendFailure("Scripting environment is not loaded. Please check if HollowEngineCompiler.jar exists.".literal)
-                }
-
-                val path = StringArgumentType.getString(this, "path")
-                val file = path.fromReadablePath()
-
-                if (!file.exists()) {
-                    return@executes sendFailure("Script file not found: $path".literal)
-                }
-                if (path.endsWith(".reload.kts")) {
-                    return@executes sendFailure("Reload scripts run only during server resource reload".literal)
-                }
-
-                val result = ScriptingEnvironment.INSTANCE.compiler.compile(file)
-                if (result.isFailure) {
-                    val exception = result.exceptionOrNull()
-                    sendFailure("Script compilation failed: ${exception?.message ?: "Unknown error"}".literal)
-                    HollowEngine.LOGGER.error("Script compilation failed", exception)
-                } else {
-                    val script = result.getOrThrow()
-                    script.start()
-                    sendSuccess { "Script started: $path".literal }
-                }
-                SUCCESS
-            }
-        }
-
-        "list" {
-            executes {
-                if (!HollowEngine.compilerLoader.isLoaded) {
-                    return@executes sendFailure("Scripting environment is not loaded.".literal)
-                }
-
-                val scripts = getAvailableScripts()
-                if (scripts.isEmpty()) {
-                    sendSuccess { "No .kts scripts found in hollowengine/scripts/".literal }
-                } else {
-                    sendSuccess { "Available Kotlin scripts:".literal }
-                    scripts.sorted().forEach { scriptPath ->
-                        source.sendSuccess({ "- $scriptPath".literal }, false)
-                    }
-                }
-                SUCCESS
-            }
-        }
-
-        "eval"(arg("code", StringArgumentType.greedyString())) {
-            executes {
-                if (!HollowEngine.compilerLoader.isLoaded) {
-                    return@executes sendFailure("Scripting environment is not loaded.".literal)
-                }
-
-                val code = StringArgumentType.getString(this, "code")
-                val result = ScriptingEnvironment.INSTANCE.compiler.compile("eval.kts", code)
-
-                if (result.isFailure) {
-                    val exception = result.exceptionOrNull()
-                    sendFailure("Script evaluation failed: ${exception?.message ?: "Unknown error"}".literal)
-                    HollowEngine.LOGGER.error("Script evaluation failed", exception)
-                } else {
-                    val script = result.getOrThrow()
-                    val result = script.execute<Any>()
-                    if (result.isSuccess) {
-                        sendSuccess { "Script evaluated successfully: ${result.getOrThrow()}".literal }
-                    } else {
-                        sendFailure("Script evaluation failed: ${result.exceptionOrNull()}".literal)
-                    }
-                }
-                SUCCESS
             }
         }
     }

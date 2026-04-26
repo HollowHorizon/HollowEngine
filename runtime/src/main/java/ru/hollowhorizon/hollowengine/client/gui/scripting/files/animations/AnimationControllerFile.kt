@@ -81,8 +81,6 @@ class AnimationControllerFile(path: String, bytes: ByteArray) : EditorFile(path)
     }
 
     private fun generateControllerClass(graph: AnimationControllerGraph) {
-        if (!HollowEngine.compilerLoader.isLoaded) return
-
         val file = filePath.fromReadablePath()
         val className = file.nameWithoutExtension
             .replace('.', '_')

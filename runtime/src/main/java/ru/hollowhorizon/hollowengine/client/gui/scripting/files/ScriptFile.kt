@@ -5,7 +5,6 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.logE
-import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextSource
@@ -13,7 +12,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
-import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.client.utils.offset
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -36,11 +34,6 @@ class ScriptFile(path: String) : EditorFile(path) {
 
     override fun UiScope.compose() {
         modifier.background(null)
-
-        if(!HollowEngine.compilerLoader.isLoaded) {
-            Text("hollowengine.gui.script.compiler_not_found".lang) {}
-            return
-        }
 
         Box(Grow.Std, Grow.Std) {
 
@@ -153,7 +146,7 @@ class ScriptFile(path: String) : EditorFile(path) {
 
     override fun close() {
         super.close()
-        if (!isDisposed && HollowEngine.compilerLoader.isLoaded) {
+        if (!isDisposed) {
             isDisposed = true
             editorState.dispose()
         }

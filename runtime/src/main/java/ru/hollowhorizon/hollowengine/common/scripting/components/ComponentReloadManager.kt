@@ -21,7 +21,6 @@ fun onRegisterManagers(event: RegisterReloadListenersEvent.Server) {
 
 object ComponentReloadManager : ResourceManagerReloadListener {
     override fun onResourceManagerReload(resourceManager: ResourceManager) {
-        if (!HollowEngine.compilerLoader.isLoaded) return
 
         val components = DirectoryManager.HOLLOW_ENGINE.resolve("scripts").toFile()
             .walk()

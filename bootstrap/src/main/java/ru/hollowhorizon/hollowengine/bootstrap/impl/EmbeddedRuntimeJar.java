@@ -2,15 +2,12 @@ package ru.hollowhorizon.hollowengine.bootstrap.impl;
 
 import org.jetbrains.annotations.Nullable;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Comparator;
 
 final class EmbeddedRuntimeJar {
     private static final String RUNTIME_JAR = "META-INF/hollowengine/runtime/HollowEngineRuntime.jar";
@@ -37,13 +34,30 @@ final class EmbeddedRuntimeJar {
         Path target = runtimeDir.resolve("HollowEngineRuntime-" + checksum + ".jar");
         if (Files.exists(target)) return target.toFile();
 
-        Path temp = runtimeDir.resolve("HollowEngineRuntime-" + checksum + ".jar.tmp");
+        cleanDirectory(cacheDirectory);
+
         try (InputStream jarStream = classLoader.getResourceAsStream(RUNTIME_JAR)) {
             if (jarStream == null) return null;
-            Files.copy(jarStream, temp, StandardCopyOption.REPLACE_EXISTING);
+            Files.createDirectory(target.getParent());
+            Files.createFile(target);
+            Files.copy(jarStream, target, StandardCopyOption.REPLACE_EXISTING);
         }
 
-        Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         return target.toFile();
+    }
+
+    private static void cleanDirectory(File file) throws IOException {
+        var path = file.toPath();
+        try (var stream = Files.walk(path)) {
+            stream.sorted(Comparator.reverseOrder())
+                    .filter(p -> !p.equals(path))
+                    .forEach(p -> {
+                        try {
+                            Files.delete(p);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    });
+        }
     }
 }

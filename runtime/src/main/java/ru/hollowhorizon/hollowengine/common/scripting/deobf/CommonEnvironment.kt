@@ -1,11 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.scripting.deobf
 
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
-import ru.hollowhorizon.hollowengine.common.runtime.EmbeddedRuntimeJar
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.Mappings
 import ru.hollowhorizon.hollowengine.common.scripting.deobf.mappings.MappingsLoader
 import ru.hollowhorizon.hollowengine.common.utils.isProduction
-import ru.hollowhorizon.hollowengine.HollowEngine
 import java.io.File
 import java.util.jar.JarFile
 
@@ -60,7 +58,7 @@ object CommonEnvironment {
             ?.takeIf(File::isFile)
         if (devRuntimeJar != null) return devRuntimeJar
 
-        return EmbeddedRuntimeJar.extract(HollowEngine::class.java, DirectoryManager.HOLLOW_ENGINE.toFile())
+        return TODO() //.extract(HollowEngine::class.java, DirectoryManager.HOLLOW_ENGINE.toFile())
     }
 
 }

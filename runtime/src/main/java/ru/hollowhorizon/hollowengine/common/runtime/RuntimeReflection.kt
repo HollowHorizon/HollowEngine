@@ -1,13 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.runtime
 
+import ru.hollowhorizon.hollowengine.HollowEngine
 import java.lang.reflect.Method
 
 fun loadBootstrapOrRuntimeClass(className: String, fallbackClassLoader: ClassLoader): Class<*>? {
-    val localClassLoader = HollowRuntimeManager::class.java.classLoader
+    val localClassLoader = HollowEngine::class.java.classLoader
     val contextClassLoader = Thread.currentThread().contextClassLoader
 
     return runCatching { Class.forName(className, false, localClassLoader) }.getOrNull()
-        ?: HollowRuntimeManager.loadClass(className)
         ?: runCatching { Class.forName(className, false, contextClassLoader) }.getOrNull()
         ?: runCatching { Class.forName(className, false, fallbackClassLoader) }.getOrNull()
 }
