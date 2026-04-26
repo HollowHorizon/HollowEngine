@@ -28,5 +28,5 @@ fun VertexConsumer.color(value: Int) = setColor(value)
 fun VertexConsumer.endVertex() {}
 
 fun PoseStack.mulPoseMatrix(matrix: Matrix4f) {
-    mulPose(matrix)
+    last().pose().mul(matrix)
 }

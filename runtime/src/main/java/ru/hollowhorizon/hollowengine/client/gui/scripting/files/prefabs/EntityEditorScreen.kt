@@ -141,7 +141,7 @@ class EntityEditorScreen(val target: Entity) : KoolScreen() {
         val modelPath = components.firstNotNullOfOrNull { editor ->
             (editor.state.value as? Model)?.model
         }
-        if (modelPath != null) modelController.setModel(modelPath) else modelController.clearModel()
+        if (modelPath != null) modelController.model.set(modelPath) else modelController.clearModel()
     }
 
     private fun buildComponentMenu(menu: ItemPopupMenu<Unit>): SubMenuItem<Unit> =

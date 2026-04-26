@@ -5,7 +5,9 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.EditorFile
 
 abstract class ModelEditorFile(path: String) : EditorFile(path) {
-    val modelController = ModelController()
+    val modelController = ModelController().apply {
+        model.set(path.substringAfter("assets/").replaceFirst("/", ":"))
+    }
 
     override fun UiScope.compose() {
         Row(Grow.Std, Grow.Std) {

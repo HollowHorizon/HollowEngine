@@ -128,8 +128,8 @@ operator fun Color.component2() = g
 operator fun Color.component3() = b
 operator fun Color.component4() = a
 
-private val CUSTOM_IMGUI_LIGHT_0: Vector3f = Vector3f(-0.3f, 1f, 1f).normalize()
-private val CUSTOM_IMGUI_LIGHT_1: Vector3f = Vector3f(0.3f, -1f, -1f).normalize()
+val CUSTOM_IMGUI_LIGHT_0: Vector3f = Vector3f(-0.3f, 1f, 1f).normalize()
+val CUSTOM_IMGUI_LIGHT_1: Vector3f = Vector3f(0.3f, -1f, -1f).normalize()
 
 fun LivingEntity.render(
     x: Float,

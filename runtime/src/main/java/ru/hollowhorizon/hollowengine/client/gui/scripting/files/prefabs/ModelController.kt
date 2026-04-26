@@ -1,5 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs
 
+import com.mojang.blaze3d.platform.Lighting
+import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import de.fabmax.kool.math.MutableVec3f
 import de.fabmax.kool.math.Vec2f
@@ -36,6 +38,8 @@ import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelM
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.ModelAttachment
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.walk
+import ru.hollowhorizon.hollowengine.client.render.CUSTOM_IMGUI_LIGHT_0
+import ru.hollowhorizon.hollowengine.client.render.CUSTOM_IMGUI_LIGHT_1
 import ru.hollowhorizon.hollowengine.client.render.OpenGLUtils
 import ru.hollowhorizon.hollowengine.client.utils.exists
 import ru.hollowhorizon.hollowengine.client.utils.lang
@@ -56,7 +60,6 @@ class ModelController {
     val model = mutableStateOf("")
         .onChange { _, new ->
             if (new.isValidRL() && new.rl.exists() && HollowModelManager.supports(new.rl)) {
-                hasModel.set(true)
                 val flow = HollowModelManager.getOrCreate(new.rl)
                 modelSwapJob?.cancel()
                 if (flow.value !== AnimatedModel.EMPTY) {
@@ -90,10 +93,6 @@ class ModelController {
     val isGridVisible = mutableStateOf(true)
     val isAutoRotateEnabled = mutableStateOf(false)
 
-    fun setModel(path: String) {
-        model.set(path)
-    }
-
     fun clearModel() {
         model.set("")
     }
@@ -102,6 +101,7 @@ class ModelController {
         attachment = newAttachment
         animations = attachment.animations.map { it }
         animationId.set(0)
+        hasModel.set(true)
     }
 
     context(scope: UiScope)
@@ -537,6 +537,11 @@ inline fun UiScope.Model(
             old
         }
 
+        RenderSystem.setShaderLights(
+            CUSTOM_IMGUI_LIGHT_0,
+            CUSTOM_IMGUI_LIGHT_1
+        )
+
         val bufferSource = Minecraft.getInstance().renderBuffers().bufferSource()
         attachment.pipeline.render(
             RenderContext(
@@ -556,6 +561,8 @@ inline fun UiScope.Model(
         bounds?.let { (min, max) ->
             OpenGLUtils.renderBoundingBox(stack, min, max, ColorTheme.UI.WhiteReplacement.withAlpha(0.75f))
         }
+
+        Lighting.setupFor3DItems()
     }
     modelNode.block()
 }
