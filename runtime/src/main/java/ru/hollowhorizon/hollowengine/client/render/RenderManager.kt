@@ -10,11 +10,15 @@ import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.culling.Frustum
 import net.minecraft.client.renderer.texture.OverlayTexture
+import net.minecraft.util.Mth
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.phys.Vec3
 import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.api.system
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeKey
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
@@ -25,6 +29,7 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStag
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
+import kotlin.math.abs
 
 object RenderManager {
     fun onInitialize() {
@@ -279,6 +284,11 @@ object RenderManager {
                 model.scale * resolved.transform.scale.y,
                 model.scale * resolved.transform.scale.z,
             )
+            model.attachment.configureAnimator(
+                animator = node.animator,
+                key = AnimatorRuntimeKey(record.snapshotId, node.nodeId, model.model),
+                context = animatorContext(record.hostEntity, partialTick),
+            )
             model.attachment.pipeline.render(
                 RenderContext(
                     poseStack,
@@ -293,6 +303,60 @@ object RenderManager {
             renderedAny = true
         }
         return NodeRenderStats(renderedAny, openedBatchedRenderTypes)
+    }
+
+    private fun animatorContext(entity: Entity?, partialTick: Float): AnimatorEvaluationContext {
+        val levelTime = Minecraft.getInstance().level?.gameTime?.toFloat() ?: 0f
+        val time = (entity?.tickCount?.toFloat() ?: levelTime) + partialTick
+        val values = linkedMapOf(
+            "partial_tick" to partialTick,
+            "life_time" to time,
+            "age" to time,
+        )
+        if (entity != null) {
+            val velocity = entity.deltaMovement
+            val movementYaw = when (entity) {
+                is LivingEntity -> Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot)
+                else -> Mth.rotLerp(partialTick, entity.yRotO, entity.yRot)
+            }
+            val localForwardSpeed = localForwardSpeed(velocity, movementYaw)
+            val localSideSpeed = localSideSpeed(velocity, movementYaw)
+            val rawHorizontalSpeed = velocity.horizontalDistance().toFloat()
+            val horizontalSpeed = entity.partialTickMovementSpeed(partialTick, rawHorizontalSpeed)
+            val signedLocomotionSpeed = signedLocomotionSpeed(horizontalSpeed, localForwardSpeed)
+            values += mapOf(
+                "entity_id" to entity.id.toFloat(),
+                "is_alive" to if (entity.isAlive) 1f else 0f,
+                "is_on_ground" to if (entity.onGround()) 1f else 0f,
+                "velocity_x" to velocity.x.toFloat(),
+                "velocity_y" to velocity.y.toFloat(),
+                "velocity_z" to velocity.z.toFloat(),
+                "raw_horizontal_speed" to rawHorizontalSpeed,
+                "horizontal_speed" to horizontalSpeed,
+                "local_forward_speed" to localForwardSpeed,
+                "local_side_speed" to localSideSpeed,
+                "signed_horizontal_speed" to signedLocomotionSpeed,
+                "movement_animation_speed" to signedLocomotionSpeed * MOVEMENT_ANIMATION_SPEED_SCALE,
+            )
+        }
+        if (entity is LivingEntity) {
+            val bodyYaw = Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot)
+            val headYaw = Mth.rotLerp(partialTick, entity.yHeadRotO, entity.yHeadRot)
+            val headPitch = Mth.lerp(partialTick, entity.xRotO, entity.xRot)
+            val headBodyYaw = Mth.wrapDegrees(headYaw - bodyYaw)
+            values += mapOf(
+                "hurt_time" to entity.hurtTime.toFloat(),
+                "head_y_rotation" to headYaw,
+                "head_x_rotation" to headPitch,
+                "body_y_rotation" to bodyYaw,
+                "head_body_y_delta" to headBodyYaw,
+                "walk_animation_speed" to entity.walkAnimation.speed(partialTick),
+                "walk_animation_position" to entity.walkAnimation.position(partialTick),
+                "is_sprinting" to if (entity.isSprinting) 1f else 0f,
+                "is_sneaking" to if (entity.isShiftKeyDown) 1f else 0f,
+            )
+        }
+        return AnimatorEvaluationContext(deltaTime = 0f, time = time, values = values)
     }
 
     private fun renderNodeShadowCasters(
@@ -325,6 +389,30 @@ object RenderManager {
     private fun shouldAllowInstancingInCurrentPass(): Boolean =
         !IrisHelper.isShadowRendering() && !ClusteredLightingManager.isLocalShadowPassActive()
 
+    private fun localForwardSpeed(velocity: Vec3, yaw: Float): Float {
+        val yawRad = yaw * Mth.DEG_TO_RAD
+        val forwardX = -Mth.sin(yawRad)
+        val forwardZ = Mth.cos(yawRad)
+        return velocity.x.toFloat() * forwardX + velocity.z.toFloat() * forwardZ
+    }
+
+    private fun localSideSpeed(velocity: Vec3, yaw: Float): Float {
+        val yawRad = yaw * Mth.DEG_TO_RAD
+        val rightX = Mth.cos(yawRad)
+        val rightZ = Mth.sin(yawRad)
+        return velocity.x.toFloat() * rightX + velocity.z.toFloat() * rightZ
+    }
+
+    private fun Entity.partialTickMovementSpeed(partialTick: Float, fallback: Float): Float =
+        if (this is LivingEntity) walkAnimation.speed(partialTick) else fallback
+
+    private fun signedLocomotionSpeed(horizontalSpeed: Float, localForwardSpeed: Float): Float =
+        if (abs(localForwardSpeed) > LOCAL_MOVEMENT_EPSILON && localForwardSpeed < 0f) {
+            -horizontalSpeed
+        } else {
+            horizontalSpeed
+        }
+
     private data class NodeRenderStats(
         val renderedAny: Boolean,
         val openedBatchedRenderTypes: Set<net.minecraft.client.renderer.RenderType>,
@@ -334,3 +422,6 @@ object RenderManager {
         }
     }
 }
+
+private const val LOCAL_MOVEMENT_EPSILON = 0.001f
+private const val MOVEMENT_ANIMATION_SPEED_SCALE = 1f

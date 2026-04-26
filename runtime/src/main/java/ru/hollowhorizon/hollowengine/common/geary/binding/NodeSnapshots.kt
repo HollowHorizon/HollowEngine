@@ -7,6 +7,7 @@ import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.geary.api.Component
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
+import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.LightComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
@@ -43,6 +44,7 @@ data class ModelNodeEntry(
     val nodeId: UUID,
     val model: Model,
     val transform: TransformComponent,
+    val animator: AnimatorComponent?,
 )
 
 data class LightNodeEntry(
@@ -77,10 +79,14 @@ fun Snapshot.transformOrNull(): TransformComponent? =
 fun Snapshot.modelOrNull(): Model? =
     components.filterIsInstance<Model>().firstOrNull()
 
+fun Snapshot.animatorOrNull(): AnimatorComponent? =
+    components.filterIsInstance<AnimatorComponent>().firstOrNull()
+
 fun Snapshot.modelNodes(): List<ModelNodeEntry> {
     val model = components.filterIsInstance<Model>().firstOrNull() ?: return emptyList()
     val transform = components.filterIsInstance<TransformComponent>().firstOrNull() ?: TransformComponent()
-    return listOf(ModelNodeEntry(ROOT_COMPONENT_ID, model, transform))
+    val animator = components.filterIsInstance<AnimatorComponent>().firstOrNull()
+    return listOf(ModelNodeEntry(ROOT_COMPONENT_ID, model, transform, animator))
 }
 
 fun Snapshot.lightNodes(): List<LightNodeEntry> {

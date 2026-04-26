@@ -1,13 +1,18 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.v2
 
-import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.math.MutableVec3f
+import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.math.deg
+import de.fabmax.kool.scene.TrsTransformF
 import de.fabmax.kool.util.Time
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import net.minecraft.client.Minecraft
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntime
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeKey
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeRegistry
 import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
 import ru.hollowhorizon.hollowengine.client.models.internal.Primitive
@@ -16,8 +21,11 @@ import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelM
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorComponent
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
+import kotlin.math.max
+import kotlin.math.min
 
 fun ModelAttachment(model: String) = ModelAttachment(HollowModelManager.getOrCreate(model.rl), null)
 class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) : Attachment(parent) {
@@ -27,7 +35,11 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
     private var runtimeAnimations: Animations = Animations(emptyMap())
     private var runtimeMaterials: Set<Material> = emptySet()
     private var nodeIdToNode: Map<Int, RuntimeNode> = emptyMap()
-    private var nodeIdToTransform = emptyMap<Int, de.fabmax.kool.scene.TrsTransformF>()
+    private var nodeIdToTransform = emptyMap<Int, TrsTransformF>()
+    private val localAnimatorRuntime = AnimatorRuntime()
+    private var animatorComponent: AnimatorComponent? = null
+    private var animatorRuntimeKey: AnimatorRuntimeKey? = null
+    private var animatorContext: AnimatorEvaluationContext = AnimatorEvaluationContext(0f, 0f)
     @Volatile
     private var compiledFor: AnimatedModel? = null
     @Volatile
@@ -64,6 +76,16 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
 
     private val onUpdates = mutableListOf<ModelAttachment.() -> Unit>()
     private val onPostUpdates = mutableListOf<ModelAttachment.() -> Unit>()
+
+    fun configureAnimator(
+        animator: AnimatorComponent?,
+        key: AnimatorRuntimeKey?,
+        context: AnimatorEvaluationContext,
+    ) {
+        animatorComponent = animator
+        animatorRuntimeKey = key
+        animatorContext = context
+    }
 
     fun onUpdate(action: ModelAttachment.() -> Unit) {
         onUpdates.add(action)
@@ -120,6 +142,7 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
         val transforms = nodeIdToTransform
         val indexedNodes = nodeIdToNode
         val currentAnimations = runtimeAnimations
+        val currentAnimator = animatorComponent
 
         transforms.forEach { (key, value) ->
             val base = indexedNodes[key]?.definition?.baseTransform ?: return@forEach
@@ -128,8 +151,18 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
 
         onUpdates.forEach { it() }
 
-        for (animation in currentAnimations) {
-            animation.update(transforms, dt)
+        if (currentAnimator != null) {
+            val runtime = animatorRuntimeKey?.let(AnimatorRuntimeRegistry::get) ?: localAnimatorRuntime
+            runtime.apply(
+                animator = currentAnimator,
+                rootNodes = runtimeNodes,
+                animations = model.animations.associateBy { it.name },
+                context = animatorContext.copy(deltaTime = dt),
+            )
+        } else {
+            for (animation in currentAnimations) {
+                animation.update(transforms, dt)
+            }
         }
 
         onPostUpdates.forEach { it() }
@@ -185,12 +218,12 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
                     fun update(x: Float, y: Float, z: Float) {
                         source.set(x, y, z)
                         matrix.transform(source, 1f, transformed)
-                        minX = kotlin.math.min(minX, transformed.x)
-                        minY = kotlin.math.min(minY, transformed.y)
-                        minZ = kotlin.math.min(minZ, transformed.z)
-                        maxX = kotlin.math.max(maxX, transformed.x)
-                        maxY = kotlin.math.max(maxY, transformed.y)
-                        maxZ = kotlin.math.max(maxZ, transformed.z)
+                        minX = min(minX, transformed.x)
+                        minY = min(minY, transformed.y)
+                        minZ = min(minZ, transformed.z)
+                        maxX = max(maxX, transformed.x)
+                        maxY = max(maxY, transformed.y)
+                        maxZ = max(maxZ, transformed.z)
                     }
 
                     update(min.x, min.y, min.z)

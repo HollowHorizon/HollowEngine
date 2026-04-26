@@ -116,6 +116,7 @@ dependencies {
     addShadow("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     addShadow("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
     addShadow("io.github.classgraph:classgraph:4.8.173")
+    addShadow("lib:kermit-core-mcfriendly:2.0.4")
     addShadow("lib:katari-interpreter:1.1.2")
     addShadow("lib:katari-stdlib:1.1.0")
 

@@ -110,7 +110,7 @@ object TransformGizmoEditor {
     private var lastFrustum: Frustum? = null
     private var isInitialized = false
     private var isInputHandlerInstalled = false
-    private var isInputHandlerInstallStaged = false
+    private var isInputHandlerStateDirty = true
     private var isInputHandlerPriorityDirty = true
     private var contextMenu: ContextMenuState? = null
 
@@ -180,7 +180,7 @@ object TransformGizmoEditor {
                     it.node.isVisible = true
                 }
             }
-            ensureInputHandlerState()
+            requestInputHandlerStateUpdate()
         }
         modeState.onChange { _, mode ->
             KeyValueStore.setInt(MODE_KEY, mode.ordinal)
@@ -211,7 +211,7 @@ object TransformGizmoEditor {
             )
             isInitialized = true
         }
-        ensureInputHandlerState()
+        applyInputHandlerStateIfNeeded()
     }
 
     @SubscribeEvent
@@ -224,6 +224,7 @@ object TransformGizmoEditor {
     fun onRenderOverlay(event: RenderOverlayEvent.Pre) {
         if (event.overlay != GuiOverlay.HOTBAR) return
         if (!isInitialized) return
+        applyInputHandlerStateIfNeeded()
         if (!isEditorAvailable()) return
         renderLateScene()
     }
@@ -304,36 +305,41 @@ object TransformGizmoEditor {
         return minecraft.screen is ChatScreen || !ScriptingEnvironmentOverlay.isCollapsed
     }
 
-    private fun ensureInputHandlerState() {
+    private fun requestInputHandlerStateUpdate() {
+        isInputHandlerStateDirty = true
+        updateInputBlockingState()
+    }
+
+    private fun applyInputHandlerStateIfNeeded() {
+        if (!isInputHandlerStateDirty && !isInputHandlerPriorityDirty) {
+            updateInputBlockingState()
+            return
+        }
+
         val shouldInstall = isInitialized && isEnabled && isEditorAvailable()
         when {
             shouldInstall -> {
                 val isAlreadyTop = InputStack.handlerStack.lastOrNull() === inputHandler
-                if (!isAlreadyTop && (isInputHandlerPriorityDirty || !isInputHandlerInstalled) && !isInputHandlerInstallStaged) {
+                if (!isAlreadyTop && (isInputHandlerPriorityDirty || !isInputHandlerInstalled)) {
                     InputStack.pushTop(inputHandler)
-                    isInputHandlerInstallStaged = true
                 }
-                if (isAlreadyTop || isInputHandlerInstallStaged) {
-                    isInputHandlerInstalled = true
-                    isInputHandlerPriorityDirty = false
-                }
+                isInputHandlerInstalled = true
+                isInputHandlerPriorityDirty = false
             }
 
-            !shouldInstall && (isInputHandlerInstalled || isInputHandlerInstallStaged) -> {
-                InputStack.remove(inputHandler)
-                isInputHandlerInstalled = false
-                isInputHandlerInstallStaged = false
-                isInputHandlerPriorityDirty = true
+            !shouldInstall -> {
+                if (isInputHandlerInstalled) {
+                    InputStack.remove(inputHandler)
+                    isInputHandlerInstalled = false
+                }
+                isInputHandlerPriorityDirty = false
             }
         }
-        if (InputStack.handlerStack.lastOrNull() === inputHandler) {
-            isInputHandlerInstallStaged = false
-        }
+        isInputHandlerStateDirty = false
         updateInputBlockingState()
     }
 
     private fun maintainInputHandlerPriority() {
-        isInputHandlerInstallStaged = false
         isInputHandlerPriorityDirty = InputStack.handlerStack.lastOrNull() !== inputHandler
     }
 
@@ -492,7 +498,7 @@ object TransformGizmoEditor {
 
     private fun prepareRenderSceneState(): Boolean {
         if (!isInitialized || !isEditorAvailable()) return false
-        ensureInputHandlerState()
+        applyInputHandlerStateIfNeeded()
         syncVisibleEntries()
         KoolManager.context.backend.collectScene(scene, latePassData)
         return true

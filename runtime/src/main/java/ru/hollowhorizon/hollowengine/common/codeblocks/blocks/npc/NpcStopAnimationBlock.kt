@@ -12,7 +12,8 @@ import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
+import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
+import ru.hollowhorizon.hollowengine.common.network.send
 
 @Serializable
 @SerialName("hollowengine:npcs/stop_animation")
@@ -26,7 +27,11 @@ class NpcStopAnimationBlock : StatementBlock() {
         val npc = npc()
         val anim = animation()
         if (anim.isBlank()) return
-        NpcAnimationTransitionPacket(npc.id, from = anim, to = null).sendTrackingEntityAndSelf(npc)
+        if (npc.level().isClientSide) {
+            NpcAnimationTransitionPacket(npc.id, from = anim, to = null).send()
+        } else {
+            NpcAnimationRuntime.apply(npc, from = anim, to = null, playMode = AnimationPlayMode.Once)
+        }
     }
 
     override fun InputSlotScope.composeContent() {

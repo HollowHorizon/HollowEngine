@@ -6,12 +6,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.client.gui.codeblocks.InputSlotScope
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
-import ru.hollowhorizon.hollowengine.client.models.internal.controller.WrapMode
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
+import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
+import ru.hollowhorizon.hollowengine.common.network.send
 
 @Serializable
 @SerialName("hollowengine:npcs/play_animation")
@@ -26,13 +26,18 @@ class NpcPlayAnimationBlock : StatementBlock() {
         val npc = npc()
         val anim = animation()
         if (anim.isBlank()) return
-        val wrapMode = when (wrapModeInt) {
-            1 -> WrapMode.Loop
-            2 -> WrapMode.ClampForever
-            3 -> WrapMode.PingPong
-            else -> WrapMode.Once
+        val playMode = when (wrapModeInt) {
+            1 -> AnimationPlayMode.Loop
+            2 -> AnimationPlayMode.ClampForever
+            3 -> AnimationPlayMode.PingPong
+            else -> AnimationPlayMode.Once
         }
-        NpcAnimationTransitionPacket(npc.id, from = null, to = anim, wrapMode = wrapMode).sendTrackingEntityAndSelf(npc)
+
+        if (npc.level().isClientSide) {
+            NpcAnimationTransitionPacket(npc.id, from = null, to = anim, playMode = playMode).send()
+        } else {
+            NpcAnimationRuntime.apply(npc, from = null, to = anim, playMode = playMode)
+        }
     }
 
     override fun InputSlotScope.composeContent() {

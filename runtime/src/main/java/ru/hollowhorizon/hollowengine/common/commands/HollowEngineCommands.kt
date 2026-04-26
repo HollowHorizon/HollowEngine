@@ -44,13 +44,16 @@ import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
+import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.binding.*
 import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.start
 import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariRunStatus
@@ -151,6 +154,35 @@ private fun CommandExtension.registerModelCommands() {
                 val modelName = StringArgumentType.getString(this, "model")
                 val snapshotId = attachNodeModel(host, modelName)
                 sendSuccess { "Attached node model with snapshotId $snapshotId".literal }
+            }
+        }
+
+        "player-preset"(arg("entity", EntityArgument.entity())) {
+            executes {
+                val host = EntityArgument.getEntity(this, "entity")
+                applyStandardPlayerAnimationPreset(source, host, hideVanilla = true)
+            }
+        }
+
+        "player-preset"(
+            arg("entity", EntityArgument.entity()),
+            arg("hideVanilla", BoolArgumentType.bool())
+        ) {
+            executes {
+                val host = EntityArgument.getEntity(this, "entity")
+                val hideVanilla = BoolArgumentType.getBool(this, "hideVanilla")
+                applyStandardPlayerAnimationPreset(source, host, hideVanilla)
+            }
+        }
+
+        "hide-vanilla"(
+            arg("entity", EntityArgument.entity()),
+            arg("hidden", BoolArgumentType.bool())
+        ) {
+            executes {
+                val entity = EntityArgument.getEntity(this, "entity")
+                setHideVanillaEntityModel(entity, BoolArgumentType.getBool(this, "hidden"))
+                sendSuccess { "Vanilla model visibility component updated for ${entity.name.string}".literal }
             }
         }
 
@@ -1195,14 +1227,54 @@ private fun LightComponent.withFlareSettings(transform: FlareSettings.() -> Flar
         is SpotLightComponent -> copy(flare = (flare ?: FlareSettings()).transform())
     }
 
-private fun attachNodeModel(host: net.minecraft.world.entity.Entity, modelName: String): UUID {
+private fun applyStandardPlayerAnimationPreset(
+    source: CommandSourceStack,
+    host: net.minecraft.world.entity.Entity,
+    hideVanilla: Boolean,
+): Int {
+    val snapshotId = attachNodeModel(
+        host = host,
+        modelName = StandardPlayerAnimatorPreset.MODEL,
+        extraComponents = listOf(StandardPlayerAnimatorPreset.create()),
+    )
+    if (!setHideVanillaEntityModel(host, hideVanilla)) {
+        source.sendFailure("Hide vanilla model component is not registered".literal)
+        return 0
+    }
+    source.sendSuccess(
+        { "Applied standard player animation preset to ${host.name.string} with snapshotId $snapshotId".literal },
+        true,
+    )
+    return 1
+}
+
+private fun setHideVanillaEntityModel(entity: net.minecraft.world.entity.Entity, hidden: Boolean): Boolean {
+    val componentId = ComponentDescriptorRegistry.idFor(HideVanillaEntityModelComponent::class) ?: return false
+    val components = GearyRuntimeState.componentsById(entity)
+    if (hidden) {
+        components[componentId] = HideVanillaEntityModelComponent()
+    } else {
+        components.remove(componentId)
+    }
+    GearyRuntimeState.markDirty(entity)
+    if (!entity.level().isClientSide) {
+        EntitySnapshotPacket(entity.id, snapshotOf(entity)).sendTrackingEntityAndSelf(entity)
+    }
+    return true
+}
+
+private fun attachNodeModel(
+    host: net.minecraft.world.entity.Entity,
+    modelName: String,
+    extraComponents: List<Any> = emptyList(),
+): UUID {
     val snapshotId = host.uuid
     val service = NodeRuntimeState.service(host.level())
     val snapshot = EntitySnapshot(
         components = listOf(
             Model(modelName),
             TransformComponent(),
-        )
+        ) + extraComponents
     ).withEntity(host)
     service.materialize(snapshot)
     service.snapshot(snapshotId)?.let(service::syncSnapshot)
