@@ -8,10 +8,16 @@ import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
 import ru.hollowhorizon.hollowengine.client.models.internal.Model
 import ru.hollowhorizon.hollowengine.client.models.internal.Scene
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
 import ru.hollowhorizon.hollowengine.client.utils.stream
+import ru.hollowhorizon.hollowengine.common.models.ModelResourceIO
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
-class OBJModel(private var location: ResourceLocation, private var mtlLocation: ResourceLocation? = null) {
+class OBJModel(
+    private var location: ResourceLocation,
+    private var mtlLocation: ResourceLocation? = null,
+    private val side: ModelSide = ModelSide.CLIENT,
+) {
     private val vertices = mutableListOf<Vec3f>()
     private val textures = mutableListOf<Vec2f>()
     private val normals = mutableListOf<Vec3f>()
@@ -27,7 +33,8 @@ class OBJModel(private var location: ResourceLocation, private var mtlLocation: 
     fun readMTL() {
         var currentMaterial: OBJMaterial? = null
 
-        mtlLocation?.stream?.bufferedReader()?.useLines { lines ->
+        val materialLocation = mtlLocation?.takeIf { it.exists() } ?: return
+        materialLocation.open().bufferedReader().useLines { lines ->
             lines.filter { it.isNotBlank() }.forEach { line ->
                 val tokens = line.trim().split("\\s+".toRegex()).toTypedArray()
                 when (tokens.firstOrNull()) {
@@ -80,7 +87,7 @@ class OBJModel(private var location: ResourceLocation, private var mtlLocation: 
         var currentMesh: OBJDataMesh? = null
         var currentMaterial: OBJMaterial? = null
 
-        location.stream.bufferedReader().useLines { lines ->
+        location.open().bufferedReader().useLines { lines ->
             lines.filter { it.isNotBlank() }.forEach { line ->
                 isBlockBench = isBlockBench || line.contains("blockbench", ignoreCase = true)
                 val tokens = line.trim().split("\\s+".toRegex()).toTypedArray()
@@ -206,5 +213,17 @@ class OBJModel(private var location: ResourceLocation, private var mtlLocation: 
 
     private fun Array<String>.dropFirst(amount: Int = 1) = drop(amount).toTypedArray()
     private fun processMaterialName(name: String): String = name.replace("[/|\\\\]+".toRegex(), "-")
+
+    private fun ResourceLocation.open() =
+        when (side) {
+            ModelSide.CLIENT -> stream
+            ModelSide.SERVER -> ModelResourceIO.open(this)
+        }
+
+    private fun ResourceLocation.exists(): Boolean =
+        when (side) {
+            ModelSide.CLIENT -> true
+            ModelSide.SERVER -> ModelResourceIO.exists(this)
+        }
 
 }

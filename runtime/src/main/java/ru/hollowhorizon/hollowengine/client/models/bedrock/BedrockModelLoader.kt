@@ -11,6 +11,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
 import ru.hollowhorizon.hollowengine.client.utils.exists
 import ru.hollowhorizon.hollowengine.client.utils.stream
+import ru.hollowhorizon.hollowengine.common.models.ModelResourceIO
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation as InternalAnimation
@@ -21,13 +22,13 @@ object BedrockModelLoader : ModelLoader {
     private var index = 0
 
     override suspend fun load(location: ResourceLocation, side: ModelSide): AnimatedModel {
-        val modelData = JsonFormat.decodeFromStream<BedrockFile>(location.stream)
-        val parsedModel = convertGeometry(modelData, location)
+        val modelData = location.open(side).use { JsonFormat.decodeFromStream<BedrockFile>(it) }
+        val parsedModel = convertGeometry(modelData, location, side)
 
         val animLocation = location.withPath(location.path.substringBefore('.') + ".animation.json")
         val animations = try {
-            if (animLocation.exists()) {
-                val animFile = JsonFormat.decodeFromStream<BedrockAnimationFile>(animLocation.stream)
+            if (animLocation.exists(side)) {
+                val animFile = animLocation.open(side).use { JsonFormat.decodeFromStream<BedrockAnimationFile>(it) }
                 convertAnimations(animFile, parsedModel)
             } else emptyList()
         } catch (e: Exception) {
@@ -41,13 +42,13 @@ object BedrockModelLoader : ModelLoader {
         return AnimatedModel(modelWithAnim)
     }
 
-    private fun convertGeometry(file: BedrockFile, location: ResourceLocation): Model {
+    private fun convertGeometry(file: BedrockFile, location: ResourceLocation, side: ModelSide): Model {
         val scenes = file.geometries.map { geometry ->
             Scene(
                 listOf(
                     NodeDefinition(
                         index++,
-                        children = geometry.convertNodes(location).toMutableList(),
+                        children = geometry.convertNodes(location, side).toMutableList(),
                         transform = TrsTransformF().scale(Vec3f(-1 / 16f, 1 / 16f, 1 / 16f))
                     )
                 )
@@ -58,11 +59,11 @@ object BedrockModelLoader : ModelLoader {
         }
     }
 
-    private fun BedrockFile.Geometry.convertNodes(location: ResourceLocation): List<NodeDefinition> {
+    private fun BedrockFile.Geometry.convertNodes(location: ResourceLocation, side: ModelSide): List<NodeDefinition> {
         val material = Material(
             description.color,
             location.withPath(location.path.removeSuffix("geo.json") + "png")
-                ?.takeIf { it.exists() } ?: description.texture.rl,
+                ?.takeIf { it.exists(side) } ?: description.texture.rl,
             blend = if (description.textureTranslucent) Material.Blend.BLEND else Material.Blend.OPAQUE,
             doubleSided = true
         )
@@ -253,4 +254,16 @@ object BedrockModelLoader : ModelLoader {
             InternalAnimation(name, nodeAnimations, anim.animationLength ?: 0f)
         }
     }
+
+    private fun ResourceLocation.open(side: ModelSide) =
+        when (side) {
+            ModelSide.CLIENT -> stream
+            ModelSide.SERVER -> ModelResourceIO.open(this)
+        }
+
+    private fun ResourceLocation.exists(side: ModelSide): Boolean =
+        when (side) {
+            ModelSide.CLIENT -> exists()
+            ModelSide.SERVER -> ModelResourceIO.exists(this)
+        }
 }

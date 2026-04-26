@@ -257,6 +257,10 @@ object RenderManager {
         val openedBatchedRenderTypes = LinkedHashSet<net.minecraft.client.renderer.RenderType>()
 
         materialization.forEachModelNodeRecord { record, node ->
+            if (record.hostEntity === minecraft.player && minecraft.options.cameraType == CameraType.FIRST_PERSON) {
+                return@forEachModelNodeRecord
+            }
+
             val model = node.model
             val transform = node.transform
             val resolved = resolveNodeTransform(level, record.hostEntityUuid, transform, partialTick)
@@ -306,10 +310,12 @@ object RenderManager {
     }
 
     private fun animatorContext(entity: Entity?, partialTick: Float): AnimatorEvaluationContext {
-        val levelTime = Minecraft.getInstance().level?.gameTime?.toFloat() ?: 0f
-        val time = (entity?.tickCount?.toFloat() ?: levelTime) + partialTick
+        val baseLevelTime = Minecraft.getInstance().level?.gameTime?.toFloat() ?: 0f
+        val levelTime = baseLevelTime + partialTick
+        val time = (entity?.tickCount?.toFloat() ?: baseLevelTime) + partialTick
         val values = linkedMapOf(
             "partial_tick" to partialTick,
+            "game_time" to levelTime,
             "life_time" to time,
             "age" to time,
         )

@@ -6,6 +6,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
 import ru.hollowhorizon.hollowengine.client.models.util.startsWith
 import ru.hollowhorizon.hollowengine.client.utils.stream
+import ru.hollowhorizon.hollowengine.common.models.ModelResourceIO
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -13,11 +14,11 @@ object FbxModelLoader: ModelLoader {
     override val supportedFormats = setOf("fbx")
 
     override suspend fun load(location: ResourceLocation, side: ModelSide): AnimatedModel {
-        return AnimatedModel(import(location).convert(location))
+        return AnimatedModel(import(location, side).convert(location))
     }
 
-    fun import(location: ResourceLocation): Document {
-        val bytes = ByteBuffer.wrap(location.stream.readBytes()).order(ByteOrder.nativeOrder())
+    fun import(location: ResourceLocation, side: ModelSide = ModelSide.CLIENT): Document {
+        val bytes = ByteBuffer.wrap(location.readModelBytes(side)).order(ByteOrder.nativeOrder())
 
         val tokens = ArrayList<Token>()
         buffer = bytes
@@ -32,6 +33,12 @@ object FbxModelLoader: ModelLoader {
 
         return Document(parser)
     }
+
+    private fun ResourceLocation.readModelBytes(side: ModelSide): ByteArray =
+        when (side) {
+            ModelSide.CLIENT -> stream.readBytes()
+            ModelSide.SERVER -> ModelResourceIO.open(this).use { it.readBytes() }
+        }
 }
 
 lateinit var buffer: ByteBuffer

@@ -55,14 +55,14 @@ object StandardPlayerAnimatorPreset {
                     ProceduralBoneTransformSpec(
                         bone = "LeftEye",
                         translation = vector(
-                            x = "clamp(head_body_y_delta, -18, 0) * 0.0012",
+                            x = "clamp(head_body_y_delta, -18, 0) * 0.0036",
                             y = "clamp(head_x_rotation, -10, 10) * 0.0010",
                         ),
                     ),
                     ProceduralBoneTransformSpec(
                         bone = "RightEye",
                         translation = vector(
-                            x = "clamp(head_body_y_delta, 0, 18) * 0.0012",
+                            x = "clamp(head_body_y_delta, 0, 18) * 0.0036",
                             y = "clamp(head_x_rotation, -10, 10) * 0.0010",
                         ),
                     ),

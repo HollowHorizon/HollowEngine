@@ -9,6 +9,9 @@ import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimationPo
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntime
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.LayerRuntimeState
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.applyAnimationPose
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationData
+import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 import ru.hollowhorizon.hollowengine.common.geary.components.ANY_STATE
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationExpression
@@ -28,7 +31,9 @@ import ru.hollowhorizon.hollowengine.common.geary.components.withLayer
 import ru.hollowhorizon.hollowengine.common.geary.components.withoutClip
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
+import ru.hollowhorizon.hollowengine.common.models.ServerModelAnimationMetadata
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -218,6 +223,45 @@ class AnimatorRuntimeTests {
     }
 
     @Test
+    fun `layer fade in scales clip influence`() {
+        val runtime = AnimatorRuntime()
+        val node = testNode()
+
+        runtime.apply(
+            animator = AnimatorComponent(
+                layers = listOf(
+                    clip(id = "manual:wave", animation = "wave").copy(fadeIn = 1f)
+                ),
+            ),
+            rootNodes = listOf(node),
+            animations = mapOf("wave" to constantTranslationAnimation()),
+            context = AnimatorEvaluationContext(deltaTime = 0.5f, time = 1f),
+        )
+
+        assertEquals(0.5f, node.transform.translation.x, 0.0001f)
+    }
+
+    @Test
+    fun `once layer fades out after final frame`() {
+        val runtime = AnimatorRuntime()
+        val node = testNode()
+
+        runtime.apply(
+            animator = AnimatorComponent(
+                layers = listOf(
+                    clip(id = "manual:wave", animation = "wave").copy(fadeOut = 0.5f)
+                ),
+            ),
+            rootNodes = listOf(node),
+            animations = mapOf("wave" to constantTranslationAnimation()),
+            context = AnimatorEvaluationContext(deltaTime = 1.25f, time = 1f),
+        )
+
+        assertEquals(0.5f, node.transform.translation.x, 0.0001f)
+        assertTrue(runtime.stateFor("manual:wave")?.ended == true)
+    }
+
+    @Test
     fun `controller keeps current state when it is the highest priority matching transition`() {
         val runtime = AnimatorRuntime()
         val layer = AnimationControllerLayerSpec(
@@ -279,6 +323,25 @@ class AnimatorRuntimeTests {
     }
 
     @Test
+    fun `animation expressions can use game time for fade out`() {
+        val evaluator = AnimationExpressionEvaluator()
+        val expression = AnimationExpression("clamp(1 - (game_time - 10) / 40.0, 0, 1)")
+
+        assertEquals(
+            0.5f,
+            evaluator.float(expression, AnimatorEvaluationContext(0.05f, 1f, mapOf("game_time" to 30f))),
+            0.0001f,
+        )
+    }
+
+    @Test
+    fun `server model metadata reads animation duration from gltf assets`() {
+        val duration = ServerModelAnimationMetadata.animationDuration(StandardPlayerAnimatorPreset.MODEL, "walk")
+
+        assertTrue(duration != null && duration > 0f)
+    }
+
+    @Test
     fun `pose translation channels apply as local deltas from base pose`() {
         val baseTransform = TrsTransformF().apply {
             translate(Vec3f(0f, 10f, 0f))
@@ -323,6 +386,31 @@ class AnimatorRuntimeTests {
         playMode = playMode,
     )
 
+    private fun testNode(): RuntimeNode =
+        RuntimeNode(
+            NodeDefinition(
+                index = 0,
+                name = "Bone",
+                children = mutableListOf(),
+                transform = TrsTransformF(),
+            ),
+            parent = null,
+        )
+
+    private fun constantTranslationAnimation(): Animation =
+        Animation(
+            name = "wave",
+            nodes = mapOf(
+                0 to AnimationData(
+                    translation = ConstantVec3fInterpolator(Vec3f(1f, 0f, 0f), 1f),
+                    rotation = null,
+                    scale = null,
+                    weights = null,
+                )
+            ),
+            duration = 1f,
+        )
+
     private fun registerAnimatorDescriptor() {
         if (ComponentDescriptorRegistry.descriptorOrNull(animatorId) != null) return
         ComponentDescriptorRegistry.register(
@@ -344,4 +432,11 @@ class AnimatorRuntimeTests {
             )
         )
     }
+}
+
+private class ConstantVec3fInterpolator(
+    private val value: Vec3f,
+    override val duration: Float,
+) : Interpolator<Vec3f> {
+    override fun compute(time: Float, context: MolangContext): Vec3f = value
 }

@@ -8,14 +8,16 @@ import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import net.minecraft.resources.ResourceLocation
 import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
 import ru.hollowhorizon.hollowengine.client.utils.stream
+import ru.hollowhorizon.hollowengine.common.models.ModelResourceIO
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ListOrSingle
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.util.*
 
-suspend fun loadGltf(location: ResourceLocation): Result<GltfFile> {
-    val data = Uint8BufferImpl(location.stream.readBytes())
+suspend fun loadGltf(location: ResourceLocation, side: ModelSide = ModelSide.CLIENT): Result<GltfFile> {
+    val data = Uint8BufferImpl(location.readModelBytes(side))
 
     return try {
         val filePath = location.path
@@ -49,7 +51,7 @@ suspend fun loadGltf(location: ResourceLocation): Result<GltfFile> {
                             } else {
                                 "${location.namespace}:$modelBasePath/$uri"
                             }
-                            it.data = Uint8BufferImpl(bufferUri.rl.stream.readBytes())
+                            it.data = Uint8BufferImpl(bufferUri.rl.readModelBytes(side))
                         }
                     }.awaitAll()
                     m.images.filter { it.uri != null }.forEach {
@@ -65,6 +67,12 @@ suspend fun loadGltf(location: ResourceLocation): Result<GltfFile> {
         Result.failure(t)
     }
 }
+
+private fun ResourceLocation.readModelBytes(side: ModelSide): ByteArray =
+    when (side) {
+        ModelSide.CLIENT -> stream.readBytes()
+        ModelSide.SERVER -> ModelResourceIO.open(this).use { it.readBytes() }
+    }
 
 private fun loadGlb(data: Uint8Buffer): GltfFile {
     val str = DataStream(data)

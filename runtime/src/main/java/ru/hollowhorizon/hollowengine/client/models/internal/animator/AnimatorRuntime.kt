@@ -6,7 +6,16 @@ import de.fabmax.kool.math.deg
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.walk
-import ru.hollowhorizon.hollowengine.common.geary.components.*
+import ru.hollowhorizon.hollowengine.common.geary.components.ANY_STATE
+import ru.hollowhorizon.hollowengine.common.geary.components.AnimationControllerLayerSpec
+import ru.hollowhorizon.hollowengine.common.geary.components.AnimationControllerStateSpec
+import ru.hollowhorizon.hollowengine.common.geary.components.AnimationControllerTransitionSpec
+import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
+import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorLayerSpec
+import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.BoneMask
+import ru.hollowhorizon.hollowengine.common.geary.components.ClipAnimationLayerSpec
+import ru.hollowhorizon.hollowengine.common.geary.components.ProceduralLayerSpec
 
 class AnimatorRuntime {
     private val evaluator = AnimationExpressionEvaluator()
@@ -34,16 +43,26 @@ class AnimatorRuntime {
             .sortedBy { it.priority }
             .forEach { layer ->
                 val state = layerStates.getOrPut(layer.id) { LayerRuntimeState() }
+                state.advanceAge(context.deltaTime)
                 val layerContext = context.with(
                     "layer_time" to state.time,
+                    "layer_age" to state.age,
                     "layer_weight" to evaluator.float(layer.weight, context, 1f),
                 )
-                val weight = evaluator.float(layer.weight, layerContext, 1f).coerceIn(0f, 1f)
-                if (weight <= 0f || state.ended) return@forEach
+                val weight = evaluator.float(layer.weight, layerContext, 1f)
+                    .coerceIn(0f, 1f)
+                    .times(layer.fadeInScale(state))
+                if (weight <= 0f) return@forEach
 
                 val allowedNodes = bakedMask(layer.mask, rootNodes)
-                val pose = when (layer) {
-                    is ClipAnimationLayerSpec -> sampleClipLayer(layer, state, animations, allowedNodes, layerContext)
+                val sample = when (layer) {
+                    is ClipAnimationLayerSpec -> sampleClipLayer(
+                        layer,
+                        state,
+                        animations,
+                        allowedNodes,
+                        layerContext,
+                    )
                     is AnimationControllerLayerSpec -> sampleControllerLayer(
                         layer,
                         state,
@@ -52,15 +71,17 @@ class AnimatorRuntime {
                         layerContext
                     )
 
-                    is ProceduralLayerSpec -> sampleProceduralLayer(layer, rootNodes, allowedNodes, layerContext)
+                    is ProceduralLayerSpec -> LayerSample(sampleProceduralLayer(layer, rootNodes, allowedNodes, layerContext))
                 } ?: return@forEach
+                val finalWeight = weight * sample.weightScale
+                if (finalWeight <= 0f) return@forEach
 
                 val reference = (layer as? ClipAnimationLayerSpec)
                     ?.referencePose
                     ?.let(animations::get)
                     ?.let { AnimationPose.sample(it, 0f, allowedNodes) }
 
-                applyAnimationPose(pose, runtimeNodes, layer.blendMode, weight, reference)
+                applyAnimationPose(sample.pose, runtimeNodes, layer.blendMode, finalWeight, reference)
             }
     }
 
@@ -72,12 +93,13 @@ class AnimatorRuntime {
         animations: Map<String, Animation>,
         allowedNodes: Set<Int>,
         context: AnimatorEvaluationContext,
-    ): AnimationPose? {
+    ): LayerSample? {
         val animation = animations[layer.animation] ?: return null
         val speed = evaluator.float(layer.speed, context, 1f)
         val sampleTime = state.advance(animation.duration, layer.playMode, speed, context.deltaTime)
-        if (state.ended && layer.removeOnEnd) return null
-        return AnimationPose.sample(animation, sampleTime, allowedNodes)
+        val fadeOutScale = layer.onceFadeOutScale(state)
+        if (state.ended && layer.removeOnEnd && fadeOutScale <= 0f) return null
+        return LayerSample(AnimationPose.sample(animation, sampleTime, allowedNodes), fadeOutScale)
     }
 
     private fun sampleControllerLayer(
@@ -86,7 +108,7 @@ class AnimatorRuntime {
         animations: Map<String, Animation>,
         allowedNodes: Set<Int>,
         context: AnimatorEvaluationContext,
-    ): AnimationPose? {
+    ): LayerSample? {
         if (layer.states.isEmpty()) return null
         if (state.currentState == null) state.currentState = layer.entryState ?: layer.states.first().id
         val current = layer.states.firstOrNull { it.id == state.currentState } ?: layer.states.first()
@@ -117,10 +139,10 @@ class AnimatorRuntime {
                 state.transition = null
             }
 
-            return AnimationPose.mix(fromPose, toPose, factor)
+            return LayerSample(AnimationPose.mix(fromPose, toPose, factor))
         }
 
-        return sampleControllerState(current, state, animations, allowedNodes, context)
+        return LayerSample(sampleControllerState(current, state, animations, allowedNodes, context))
     }
 
     private fun sampleControllerState(
@@ -215,7 +237,9 @@ class AnimatorRuntime {
 }
 
 class LayerRuntimeState {
+    var age = 0f
     var time = 0f
+    var endElapsed = 0f
     var reversed = false
     var ended = false
     var currentState: String? = null
@@ -223,14 +247,28 @@ class LayerRuntimeState {
     val stateTimes = linkedMapOf<String, Float>()
     private val stateReversed = linkedMapOf<String, Boolean>()
 
+    fun advanceAge(deltaTime: Float) {
+        age += deltaTime.coerceAtLeast(0f)
+    }
+
     fun advance(duration: Float, playMode: AnimationPlayMode, speed: Float, deltaTime: Float): Float {
         if (duration <= 0f) return 0f
-        if (ended && playMode == AnimationPlayMode.Once) return duration
-        time += speed * deltaTime * if (reversed) -1f else 1f
-        val result = wrapTime(time, duration, playMode, reversed)
+        val delta = speed * deltaTime * if (reversed) -1f else 1f
+        if (ended && playMode == AnimationPlayMode.Once) {
+            endElapsed += deltaTime.coerceAtLeast(0f) * speed.absoluteValue
+            return duration
+        }
+
+        val rawTime = time + delta
+        val result = wrapTime(rawTime, duration, playMode, reversed)
         time = result.time
         reversed = result.reversed
         ended = result.ended
+        endElapsed = if (playMode == AnimationPlayMode.Once && result.ended) {
+            (rawTime - duration).coerceAtLeast(0f)
+        } else {
+            0f
+        }
         return result.sampleTime
     }
 
@@ -251,6 +289,11 @@ class LayerRuntimeState {
         return result.sampleTime
     }
 }
+
+private data class LayerSample(
+    val pose: AnimationPose,
+    val weightScale: Float = 1f,
+)
 
 data class ControllerTransitionRuntime(
     val from: String,
@@ -301,3 +344,16 @@ private fun wrapTime(time: Float, duration: Float, playMode: AnimationPlayMode, 
 
 private fun Float.modPositive(divisor: Float): Float =
     ((this % divisor) + divisor) % divisor
+
+private fun AnimatorLayerSpec.fadeInScale(state: LayerRuntimeState): Float =
+    if (fadeIn <= 0f) 1f else (state.age / fadeIn).coerceIn(0f, 1f)
+
+private fun ClipAnimationLayerSpec.onceFadeOutScale(state: LayerRuntimeState): Float =
+    if (playMode != AnimationPlayMode.Once || fadeOut <= 0f || !state.ended) {
+        1f
+    } else {
+        (1f - state.endElapsed / fadeOut).coerceIn(0f, 1f)
+    }
+
+private val Float.absoluteValue: Float
+    get() = if (this < 0f) -this else this

@@ -10,7 +10,7 @@ object ObjModelLoader: ModelLoader {
         get() = setOf("obj")
 
     override suspend fun load(location: ResourceLocation, side: ModelSide): AnimatedModel {
-        return AnimatedModel(OBJModel(location, null).toInternalModel())
+        return AnimatedModel(OBJModel(location, null, side).toInternalModel())
     }
 
 }

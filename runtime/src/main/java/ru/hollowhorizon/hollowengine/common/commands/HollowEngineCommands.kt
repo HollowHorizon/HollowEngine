@@ -35,6 +35,7 @@ import ru.hollowhorizon.hollowengine.client.utils.mc
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.VariableMap
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.clearDevHistory
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.NpcAnimationRuntime
 import ru.hollowhorizon.hollowengine.common.coroutines.OwnerScope
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
@@ -183,6 +184,73 @@ private fun CommandExtension.registerModelCommands() {
                 val entity = EntityArgument.getEntity(this, "entity")
                 setHideVanillaEntityModel(entity, BoolArgumentType.getBool(this, "hidden"))
                 sendSuccess { "Vanilla model visibility component updated for ${entity.name.string}".literal }
+            }
+        }
+
+        "animation" {
+            "play"(
+                arg("entity", EntityArgument.entity()),
+                arg("animation", StringArgumentType.string())
+            ) {
+                executes {
+                    val entity = EntityArgument.getEntity(this, "entity")
+                    val animation = StringArgumentType.getString(this, "animation")
+                    playEntityAnimation(source, entity, animation, AnimationPlayMode.Once)
+                }
+            }
+
+            "play"(
+                arg("entity", EntityArgument.entity()),
+                arg("animation", StringArgumentType.string()),
+                arg("mode", StringArgumentType.string()) { animationPlayModeNames() }
+            ) {
+                executes {
+                    val entity = EntityArgument.getEntity(this, "entity")
+                    val animation = StringArgumentType.getString(this, "animation")
+                    val mode = parseAnimationPlayMode(StringArgumentType.getString(this, "mode"))
+                    playEntityAnimation(source, entity, animation, mode)
+                }
+            }
+
+            "play"(
+                arg("entity", EntityArgument.entity()),
+                arg("animation", StringArgumentType.string()),
+                arg("mode", StringArgumentType.string()) { animationPlayModeNames() },
+                arg("fadeIn", FloatArgumentType.floatArg(0f, 10f)),
+                arg("fadeOut", FloatArgumentType.floatArg(0f, 10f))
+            ) {
+                executes {
+                    val entity = EntityArgument.getEntity(this, "entity")
+                    val animation = StringArgumentType.getString(this, "animation")
+                    val mode = parseAnimationPlayMode(StringArgumentType.getString(this, "mode"))
+                    val fadeIn = FloatArgumentType.getFloat(this, "fadeIn")
+                    val fadeOut = FloatArgumentType.getFloat(this, "fadeOut")
+                    playEntityAnimation(source, entity, animation, mode, fadeIn, fadeOut)
+                }
+            }
+
+            "stop"(
+                arg("entity", EntityArgument.entity()),
+                arg("animation", StringArgumentType.string())
+            ) {
+                executes {
+                    val entity = EntityArgument.getEntity(this, "entity")
+                    val animation = StringArgumentType.getString(this, "animation")
+                    stopEntityAnimation(source, entity, animation, DEFAULT_ANIMATION_FADE_DURATION)
+                }
+            }
+
+            "stop"(
+                arg("entity", EntityArgument.entity()),
+                arg("animation", StringArgumentType.string()),
+                arg("fade", FloatArgumentType.floatArg(0f, 10f))
+            ) {
+                executes {
+                    val entity = EntityArgument.getEntity(this, "entity")
+                    val animation = StringArgumentType.getString(this, "animation")
+                    val fade = FloatArgumentType.getFloat(this, "fade")
+                    stopEntityAnimation(source, entity, animation, fade)
+                }
             }
         }
 
@@ -1248,6 +1316,69 @@ private fun applyStandardPlayerAnimationPreset(
     return 1
 }
 
+private fun playEntityAnimation(
+    source: CommandSourceStack,
+    entity: net.minecraft.world.entity.Entity,
+    animation: String,
+    playMode: AnimationPlayMode,
+    fadeIn: Float = DEFAULT_ANIMATION_FADE_DURATION,
+    fadeOut: Float = DEFAULT_ANIMATION_FADE_DURATION,
+): Int {
+    if (animation.isBlank()) {
+        source.sendFailure("Animation name must not be blank".literal)
+        return 0
+    }
+
+    NpcAnimationRuntime.apply(
+        entity = entity,
+        from = null,
+        to = animation,
+        playMode = playMode,
+        fadeIn = fadeIn,
+        fadeOut = fadeOut,
+    )
+    source.sendSuccess(
+        {
+            "Playing animation '$animation' on ${entity.name.string} with mode $playMode, fadeIn=${
+                fadeIn.format(2)
+            }s, fadeOut=${fadeOut.format(2)}s".literal
+        },
+        true,
+    )
+    return 1
+}
+
+private fun stopEntityAnimation(
+    source: CommandSourceStack,
+    entity: net.minecraft.world.entity.Entity,
+    animation: String,
+    fadeDuration: Float,
+): Int {
+    if (animation.isBlank()) {
+        source.sendFailure("Animation name must not be blank".literal)
+        return 0
+    }
+
+    NpcAnimationRuntime.apply(
+        entity = entity,
+        from = animation,
+        to = null,
+        playMode = AnimationPlayMode.Once,
+        duration = fadeDuration,
+    )
+    source.sendSuccess(
+        { "Stopping animation '$animation' on ${entity.name.string} with ${fadeDuration.format(2)}s fade".literal },
+        true,
+    )
+    return 1
+}
+
+private fun parseAnimationPlayMode(value: String): AnimationPlayMode =
+    AnimationPlayMode.entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: AnimationPlayMode.Once
+
+private fun animationPlayModeNames(): List<String> =
+    AnimationPlayMode.entries.map { it.name.lowercase() }
+
 private fun setHideVanillaEntityModel(entity: net.minecraft.world.entity.Entity, hidden: Boolean): Boolean {
     val componentId = ComponentDescriptorRegistry.idFor(HideVanillaEntityModelComponent::class) ?: return false
     val components = GearyRuntimeState.componentsById(entity)
@@ -1262,6 +1393,8 @@ private fun setHideVanillaEntityModel(entity: net.minecraft.world.entity.Entity,
     }
     return true
 }
+
+private const val DEFAULT_ANIMATION_FADE_DURATION = 0.33f
 
 private fun attachNodeModel(
     host: net.minecraft.world.entity.Entity,

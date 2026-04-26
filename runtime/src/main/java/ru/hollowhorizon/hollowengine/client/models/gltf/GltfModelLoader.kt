@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelLoader
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.ModelSide
 import ru.hollowhorizon.hollowengine.client.utils.exists
+import ru.hollowhorizon.hollowengine.common.models.ModelResourceIO
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation as InternalAnimation
 
@@ -16,15 +17,15 @@ import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 object GltfModelLoader : ModelLoader {
     override val supportedFormats = setOf("gltf", "glb")
 
-    override suspend fun load(model: ResourceLocation, side: ModelSide): AnimatedModel {
-        val location = if (!model.exists()) "$MODID:models/error.gltf".rl else model
+    override suspend fun load(location: ResourceLocation, side: ModelSide): AnimatedModel {
+        val resolvedLocation = if (!location.exists(side)) "$MODID:models/error.gltf".rl else location
 
-        val gltf = loadGltf(location)
-        return load(gltf.getOrThrow(), location, side)
+        val gltf = loadGltf(resolvedLocation, side)
+        return load(gltf.getOrThrow(), resolvedLocation, side)
     }
 
     suspend fun load(file: GltfFile, location: ResourceLocation, side: ModelSide): AnimatedModel {
-        val skins = if (side == ModelSide.SERVER) emptyList() else parseSkins(file)
+        val skins = parseSkins(file)
         val materials = if (side == ModelSide.SERVER) emptyList() else {
             file.materials.map { material -> material.toMaterial(file, location) }
         }
@@ -103,7 +104,7 @@ object GltfModelLoader : ModelLoader {
     ): NodeDefinition {
 
         val children = node.children.map { parseNode(file, it, file.nodes[it], skins, materials, side) }
-        val mesh = node.meshRef?.takeIf { side == ModelSide.CLIENT }?.let { mesh ->
+        val mesh = node.meshRef?.let { mesh ->
             val primitives = mesh.primitives.map { prim ->
                 val attributes = prim.attributes.map { it.key to file.accessors[it.value] }.toMap()
                 val positions =
@@ -121,7 +122,7 @@ object GltfModelLoader : ModelLoader {
                 Primitive(
                     positions, normals, texCoord0, texCoord1, tangents, joints, weights,
                     if (prim.indices != -1) IntAccessor(file.accessors[prim.indices]).list.toIntArray() else null,
-                    if (prim.material != -1) materials[prim.material] else Material(),
+                    if (side == ModelSide.CLIENT && prim.material != -1) materials[prim.material] else Material(),
                     prim.targets.map { map ->
                         map.map { entry ->
                             entry.key to file.accessors[entry.value].let { accessor ->
@@ -197,5 +198,11 @@ object GltfModelLoader : ModelLoader {
             Animation(animation.name, channels)
         }
     }
+
+    private fun ResourceLocation.exists(side: ModelSide): Boolean =
+        when (side) {
+            ModelSide.CLIENT -> exists()
+            ModelSide.SERVER -> ModelResourceIO.exists(this)
+        }
 
 }

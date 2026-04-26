@@ -27,6 +27,8 @@ sealed class AnimatorLayerSpec {
     abstract val priority: Int
     abstract val blendMode: LayerBlendMode
     abstract val mask: BoneMask
+    abstract val fadeIn: Float
+    abstract val fadeOut: Float
 }
 
 @Serializable
@@ -40,8 +42,11 @@ data class ClipAnimationLayerSpec(
     override val priority: Int = 0,
     override val blendMode: LayerBlendMode = LayerBlendMode.Override,
     override val mask: BoneMask = BoneMask.full(),
+    override val fadeIn: Float = 0f,
+    override val fadeOut: Float = 0f,
     val referencePose: String? = null,
     val removeOnEnd: Boolean = playMode == AnimationPlayMode.Once,
+    val removeAtGameTime: Long? = null,
 ) : AnimatorLayerSpec()
 
 @Serializable
@@ -55,6 +60,8 @@ data class AnimationControllerLayerSpec(
     override val priority: Int = 0,
     override val blendMode: LayerBlendMode = LayerBlendMode.Override,
     override val mask: BoneMask = BoneMask.full(),
+    override val fadeIn: Float = 0f,
+    override val fadeOut: Float = 0f,
 ) : AnimatorLayerSpec()
 
 @Serializable
@@ -66,6 +73,8 @@ data class ProceduralLayerSpec(
     override val priority: Int = 0,
     override val blendMode: LayerBlendMode = LayerBlendMode.Additive,
     override val mask: BoneMask = BoneMask.full(),
+    override val fadeIn: Float = 0f,
+    override val fadeOut: Float = 0f,
 ) : AnimatorLayerSpec()
 
 @Serializable
