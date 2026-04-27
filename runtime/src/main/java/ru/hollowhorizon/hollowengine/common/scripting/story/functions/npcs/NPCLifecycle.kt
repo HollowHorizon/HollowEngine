@@ -1,10 +1,17 @@
 package ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs
 
+import de.fabmax.kool.math.Vec3f
+import de.fabmax.kool.math.deg
+import de.fabmax.kool.scene.TrsTransformF
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.models.internal.Transform
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
+import ru.hollowhorizon.hollowengine.common.geary.api.set
+import ru.hollowhorizon.hollowengine.common.geary.components.Model
+import ru.hollowhorizon.hollowengine.common.geary.components.StandardPlayerAnimatorPreset
+import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.isValidRL
 import ru.hollowhorizon.hollowengine.common.utils.literal
@@ -63,8 +70,11 @@ fun npc(
 
     return NpcEntity(level).apply {
         setPos(pos.x, pos.y, pos.z)
-
         moveTo(pos.x, pos.y, pos.z, rotation.x, rotation.y)
+
+        set(Model(model))
+        set(StandardPlayerAnimatorPreset.create())
+        set(TransformComponent(TrsTransformF().rotate(180f.deg, Vec3f.Y_AXIS)))
 
         if (attributes.isNotEmpty()) {
             setAttributes(attributes)

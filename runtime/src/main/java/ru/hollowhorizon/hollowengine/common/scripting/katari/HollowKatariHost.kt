@@ -1,16 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
-import com.sunnychung.lib.multiplatform.kotlite.katari.ChoiceOptionSnapshot
-import com.sunnychung.lib.multiplatform.kotlite.katari.FunctionResponse
-import com.sunnychung.lib.multiplatform.kotlite.katari.FunctionResult
-import com.sunnychung.lib.multiplatform.kotlite.katari.ImmediateKatariFunctionDefinition
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariFunctionDefinition
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariValue
-import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeHost
-import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindings
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariBindings
-import com.sunnychung.lib.multiplatform.kotlite.katari.SuspendableKatariFunctionDefinition
-import com.sunnychung.lib.multiplatform.kotlite.katari.toKatari
+import com.sunnychung.lib.multiplatform.kotlite.katari.*
 import com.sunnychung.lib.multiplatform.kotlite.stdlib.AllStdLibModules
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -21,10 +11,9 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.Mob
-import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.rotate
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.move
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.npc
@@ -110,7 +99,7 @@ fun createHollowKatariBindings(
     return bindings to host
 }
 
-private fun com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindingsBuilder.registerHostTypes(
+private fun NarrativeBindingsBuilder.registerHostTypes(
     server: MinecraftServer,
 ) {
     registerHostType(
@@ -160,9 +149,11 @@ private fun hollowKatariFunctions(server: MinecraftServer): List<KatariFunctionD
             val distance = args.getOrNull(3)?.asDouble() ?: 1.5
             val resolved = entity.resolve(server)
             val targetEntity = target.toEntityOrNull(server)
-            if (resolved is NpcEntity && targetEntity != null) resolved.move(targetEntity, distance, speed)
-            else if (resolved is NpcEntity) resolved.move(target.toTargetPosition(server), distance, speed)
-            else error("moveTo is only supported for NPC references")
+            when (resolved) {
+                is NpcEntity if targetEntity != null -> resolved.move(targetEntity, distance, speed)
+                is NpcEntity -> resolved.move(target.toTargetPosition(server), distance, speed)
+                else -> error("moveTo is only supported for NPC references")
+            }
         },
         suspendable("lookAt", server) { args ->
             val entity = args.receiver<KatariEntityRef>("lookAt")
@@ -189,12 +180,25 @@ private fun hollowKatariFunctions(server: MinecraftServer): List<KatariFunctionD
             val entity = args.receiver<KatariEntityRef>("setCustomName").resolve(server)
             entity.customName = (args.getOrNull(1)?.asText() ?: "").literal
         },
-        immediate("isAlive") { args -> KatariValue.Bool(args.receiver<KatariEntityRef>("isAlive").resolve(server).isAlive) },
-        immediate("position") { args ->
-            KatariValue.HostObject("Position", args.receiver<KatariEntityRef>("position").resolve(server).position().toPositionRef())
+        immediate("isAlive") { args ->
+            KatariValue.Bool(
+                args.receiver<KatariEntityRef>("isAlive").resolve(server).isAlive
+            )
         },
-        immediate("dimension") { args -> KatariValue.Text(args.receiver<KatariEntityRef>("dimension").resolve(server).level().dimension().location().toString()) },
-        immediate("stopNavigation") { args -> (args.receiver<KatariEntityRef>("stopNavigation").resolve(server) as? Mob)?.navigation?.stop() },
+        immediate("position") { args ->
+            KatariValue.HostObject(
+                "Position",
+                args.receiver<KatariEntityRef>("position").resolve(server).position().toPositionRef()
+            )
+        },
+        immediate("dimension") { args ->
+            KatariValue.Text(
+                args.receiver<KatariEntityRef>("dimension").resolve(server).level().dimension().location().toString()
+            )
+        },
+        immediate("stopNavigation") { args ->
+            (args.receiver<KatariEntityRef>("stopNavigation").resolve(server) as? Mob)?.navigation?.stop()
+        },
     )
 }
 

@@ -117,8 +117,8 @@ dependencies {
     addShadow("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
     addShadow("io.github.classgraph:classgraph:4.8.173")
     addShadow("lib:kermit-core-mcfriendly:2.0.4")
-    addShadow("lib:katari-interpreter:1.1.2")
-    addShadow("lib:katari-stdlib:1.1.0")
+    addShadow("lib:katari-interpreter-jvm:1.1.2")
+    addShadow("lib:katari-stdlib-jvm:1.1.0")
 
     addShadow("de.fabmax.kool:kool-core-desktop:$koolVersion") {
         exclude(group = "org.lwjgl")

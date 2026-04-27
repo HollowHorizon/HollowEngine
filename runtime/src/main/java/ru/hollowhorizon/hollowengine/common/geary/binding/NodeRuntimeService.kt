@@ -16,9 +16,7 @@ import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
 import ru.hollowhorizon.hollowengine.common.network.sendAllInDimension
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
-import java.util.Collections
-import java.util.UUID
-import java.util.WeakHashMap
+import java.util.*
 
 class NodeRuntimeService(
     private val level: Level,
@@ -81,7 +79,7 @@ class NodeRuntimeService(
         return WorldNodeSavedData.get(serverLevel).allRecords().firstOrNull { it.id == id }?.snapshot
     }
 
-    fun materialize(snapshot: Snapshot): Long {
+    fun materialize(snapshot: Snapshot) {
         when (snapshot) {
             is LevelSnapshot -> {
                 activeLevelSnapshots[snapshot.id] = snapshot
@@ -92,7 +90,6 @@ class NodeRuntimeService(
                 if (entity != null) GearyRuntimeState.updateEntitySnapshot(entity, snapshot)
             }
         }
-        return 0L
     }
 
     fun remove(id: UUID, syncToClients: Boolean = false): Boolean {

@@ -3,12 +3,11 @@ package ru.hollowhorizon.hollowengine.common.registry
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.MobCategory
-import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.registry.RegisterEntityAttributesEvent
-import ru.hollowhorizon.hollowengine.common.registry.HollowRegistry
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.entities.SeatEntity
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.registry.RegisterEntityAttributesEvent
 
 object ModEntities : HollowRegistry(HollowEngine.MODID) {
     val NPC_ENTITY: EntityType<NpcEntity> by register("npc_entity") {
@@ -24,10 +23,4 @@ object ModEntities : HollowRegistry(HollowEngine.MODID) {
 fun onRegisterAttributes(event: RegisterEntityAttributesEvent) {
     event.register(ModEntities.NPC_ENTITY, NpcEntity.createAttributes().build())
     event.register(ModEntities.SEAT, LivingEntity.createLivingAttributes().build())
-}
-
-fun main() {
-    val hello = true
-    val world by lazy { false }
-    println("Hello World")
 }

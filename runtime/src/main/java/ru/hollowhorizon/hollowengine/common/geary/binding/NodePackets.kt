@@ -1,8 +1,13 @@
 package ru.hollowhorizon.hollowengine.common.geary.binding
 
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import net.minecraft.client.Minecraft
+import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
@@ -11,7 +16,7 @@ import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForUuid
-import java.util.UUID
+import java.util.*
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
@@ -33,8 +38,19 @@ data class EntitySnapshotPacket(
 ) : HollowPacket {
     override fun handle(player: Player) {
         val level = player.level()
-        val entity = level.getEntity(entityId) ?: return
-        GearyRuntimeState.updateEntitySnapshot(entity, snapshot)
+        val entity = level.getEntity(entityId)
+        if (entity != null) {
+            GearyRuntimeState.updateEntitySnapshot(entity, snapshot)
+        } else {
+            Minecraft.getInstance().coroutineScope.launch {
+                var entity: Entity?
+                do {
+                    delay(50)
+                    entity = level.getEntity(entityId)
+                } while (entity == null)
+                GearyRuntimeState.updateEntitySnapshot(entity, snapshot)
+            }
+        }
     }
 }
 
@@ -86,11 +102,16 @@ data class NodeTransformUpdatePacket(
         if (!player.hasPermissions(PlayerPermissions.GAMEMASTER)) return
         val server = player.server ?: return
         for (level in server.allLevels) {
-            if (NodeRuntimeState.service(level).updateTransform(snapshotId, transform, nodeId = nodeId, syncToClients = true)) {
+            if (NodeRuntimeState.service(level)
+                    .updateTransform(snapshotId, transform, nodeId = nodeId, syncToClients = true)
+            ) {
                 return
             }
         }
-        HollowEngine.LOGGER.warn("NodeTransformUpdatePacket ignored: snapshot {} not found in any server level", snapshotId)
+        HollowEngine.LOGGER.warn(
+            "NodeTransformUpdatePacket ignored: snapshot {} not found in any server level",
+            snapshotId
+        )
     }
 }
 

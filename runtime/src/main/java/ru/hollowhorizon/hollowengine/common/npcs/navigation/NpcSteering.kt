@@ -44,11 +44,6 @@ fun LivingEntity.faceTowards(
     yRot = currentYaw + limitedYawDiff
     xRot = Mth.clamp(xRot + limitedPitchDiff, -90f, 90f)
     yHeadRot = yRot
-    yBodyRot = yRot
-    yRotO = yRot
-    yHeadRotO = yHeadRot
-    yBodyRotO = yBodyRot
-    xRotO = xRot
     if (this is Mob) {
         lookControl.setLookAt(target.x, target.y, target.z, 360f, 360f)
     }
