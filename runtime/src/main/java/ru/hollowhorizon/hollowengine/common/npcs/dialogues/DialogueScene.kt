@@ -15,8 +15,8 @@ class DialogueScene {
     var character = ""
     var text = ""
 
-    val characters = mutableSetOf<@Serializable(ForEntity::class) Entity>()
-    val choices = mutableListOf<DialogChoice>()
+    val characters: MutableSet<@Serializable(ForEntity::class) Entity> = mutableSetOf()
+    val choices: MutableList<DialogChoice> = mutableListOf()
 
     fun sync(vararg players: ServerPlayer) {
         UpdateScenePacket(this).send(*players)
@@ -25,11 +25,25 @@ class DialogueScene {
 
 @Serializable
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-class UpdateScenePacket(val scene: DialogueScene) : HollowPacket {
-    override fun handle(player: Player) {
-        val screen = Minecraft.getInstance().screen as? DialogGui ?: DialogGui().apply { Minecraft.getInstance().setScreen(this) }
+class UpdateScenePacket(
+    val scene: DialogueScene
+) : HollowPacket {
 
-        screen.update(scene)
+    companion object {
+        private const val LATE_INIT_ERROR = "Minecraft instance is not available"
+    }
+
+    override fun handle(player: Player) {
+        val minecraft = Minecraft.getInstance()
+        val dialogGui = when (val currentScreen = minecraft.screen) {
+            is DialogGui -> currentScreen
+            else -> {
+                val newGui = DialogGui()
+                minecraft.setScreen(newGui)
+                newGui
+            }
+        }
+
+        dialogGui.update(scene)
     }
 }
-
