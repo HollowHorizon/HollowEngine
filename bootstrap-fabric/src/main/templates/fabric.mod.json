@@ -9,6 +9,7 @@
   ],
   "license": "${license}",
   "environment": "*",
+  "accessWidener": "${mod_id}.accesswidener",
   "entrypoints": {
     "main": [
       "ru.hollowhorizon.hollowengine.fabric.bootstap.HCFabricBootstrap::onCommonInitialize"
