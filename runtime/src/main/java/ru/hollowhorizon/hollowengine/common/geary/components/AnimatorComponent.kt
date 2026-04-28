@@ -1,14 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.geary.components
 
-import de.fabmax.kool.math.QuatF
-import de.fabmax.kool.math.Vec3f
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.api.Registerable
 import ru.hollowhorizon.hollowengine.api.Syncable
-import ru.hollowhorizon.hollowengine.common.utils.nbt.ForQuatF
-import ru.hollowhorizon.hollowengine.common.utils.nbt.ForVec3f
-import java.util.UUID
+import java.util.*
 
 @Registerable
 @Syncable
@@ -145,13 +141,6 @@ data class AnimationVectorExpression(
         val ONE = AnimationVectorExpression(AnimationExpression.ONE, AnimationExpression.ONE, AnimationExpression.ONE)
     }
 }
-
-@Serializable
-data class AnimationTransform(
-    val translation: @Serializable(ForVec3f::class) Vec3f = Vec3f.ZERO,
-    val rotation: @Serializable(ForQuatF::class) QuatF = QuatF.IDENTITY,
-    val scale: @Serializable(ForVec3f::class) Vec3f = Vec3f.ONES,
-)
 
 enum class LayerBlendMode {
     Additive,

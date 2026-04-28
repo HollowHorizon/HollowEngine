@@ -2,7 +2,6 @@ name: Telegram Notification
 
 on:
   push:
-    branches: [ "main", "dev", "master" ]
 
 jobs:
   notify:
@@ -26,7 +25,22 @@ jobs:
           
           HEADER="<b>⚡️<a href=\"https://github.com/$GITHUB_REPOSITORY/tree/$BRANCH_NAME\">[$REPO_NAME:$BRANCH_NAME]</a></b> $COMMIT_COUNT new commit(s)"
           
-          COMMITS_LIST=$(jq -r '.commits[] | "<code><a href=\"\(.url)\">\(.id[0:7])</a></code> \(.message | split("\n")[0] | gsub("<"; "&lt;") | gsub(">"; "&gt;")) - <a href=\"https://github.com/\(.author.username)\">\(.author.name)</a>"' "$GITHUB_EVENT_PATH")
+          COMMITS_LIST=$(jq -r '
+            [
+              .commits[] | 
+              "<code><a href=\"\(.url)\">\(.id[0:7])</a></code> " +
+              (
+                .message 
+                | gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;") 
+                | gsub("\n\n"; "\n") 
+                | split("\n") 
+                | .[0] |= . + ":" 
+                | join("\n")
+              ) +
+              "\n\nby <a href=\"https://github.com/\(.author.username)\">\(.author.name)</a>" +
+              "\n<a href=\"\(.url)\">View commit →</a>"
+            ] | join("\n\n------------------------------------------------------\n\n")
+          ' "$GITHUB_EVENT_PATH")
           
           FINAL_TEXT="<blockquote>$HEADER"$'\n'"$COMMITS_LIST</blockquote>"
           
