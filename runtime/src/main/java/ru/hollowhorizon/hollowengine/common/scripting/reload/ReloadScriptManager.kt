@@ -4,13 +4,12 @@ import net.minecraft.server.packs.resources.ResourceManager
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.compat.util.currentRecipeManagerOrNull
-import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 
-@SubscribeEvent
+// @SubscribeEvent
 fun registerReloadScriptManager(event: RegisterReloadListenersEvent.Server) {
     event.register(ReloadScriptManager)
 }

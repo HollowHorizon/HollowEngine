@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.bootstrap.mixins.components;
 
-import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
@@ -15,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
 
 import java.util.Set;
@@ -59,12 +59,12 @@ public abstract class EntityMixin {
 
     @Inject(
             method = "teleportTo(Lnet/minecraft/server/level/ServerLevel;DDDLjava/util/Set;FF)Z",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setRemoved(Lnet/minecraft/world/entity/Entity$RemovalReason;)V")
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setRemoved(Lnet/minecraft/world/entity/Entity$RemovalReason;)V"),
+            locals = LocalCapture.CAPTURE_FAILHARD
     )
-    private void onTeleportTo(ServerLevel level, double x, double y, double z, Set<RelativeMovement> relativeMovements, float yRot, float xRot, CallbackInfoReturnable<Boolean> cir, @Local(name = "entity") Entity newEntity) {
+    private void onTeleportTo(ServerLevel level, double x, double y, double z, Set<RelativeMovement> relativeMovements, float yRot, float xRot, CallbackInfoReturnable<Boolean> cir, float clampXRot, Entity newEntity) {
         BootstrapRuntimeManager.bridge().onEntityChangedDimension((Entity) (Object) this, newEntity, ((Entity) (Object) this).level(), level);
     }
-
     @Inject(method = "setRemoved", at = @At("HEAD"))
     private void onRemove(Entity.RemovalReason removalReason, CallbackInfo ci) {
         BootstrapRuntimeManager.bridge().onEntityRemoved((Entity) (Object) this);
