@@ -110,6 +110,9 @@ import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryHelper
 import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryProvider
 import ru.hollowhorizon.hollowengine.common.runtime.EmptyRuntimeAnnotationIndex
 import ru.hollowhorizon.hollowengine.common.runtime.RuntimeAnnotationEnvironment
+import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariClientInputEvent
+import ru.hollowhorizon.hollowengine.common.scripting.katari.KatariInputAction
+import ru.hollowhorizon.hollowengine.common.scripting.katari.toPacket
 import ru.hollowhorizon.hollowengine.common.utils.*
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import ru.hollowhorizon.hollowengine.network.CommonNetworkManager
@@ -758,6 +761,12 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
             org.lwjgl.glfw.GLFW.GLFW_RELEASE -> KeyboardInput.KEY_EV_UP
             else -> -1
         }
+        val inputAction = when (action) {
+            org.lwjgl.glfw.GLFW.GLFW_PRESS -> KatariInputAction.Press
+            org.lwjgl.glfw.GLFW.GLFW_REPEAT -> KatariInputAction.Repeat
+            org.lwjgl.glfw.GLFW.GLFW_RELEASE -> KatariInputAction.Release
+            else -> null
+        }
 
         if (event != -1) {
             val keyCode: KeyCode = KEY_CODE_MAP.getOrDefault(key, UniversalKeyCode(key, null))
@@ -765,6 +774,9 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
                 LocalKeyCode(PointerInputSetup.localCharKeyCodes.getOrDefault(keyCode.code, keyCode.code), null)
             val keyMod = PointerInputSetup.getKeyMod(key, modifiers, event)
             KeyboardInput.handleKeyEvent(KeyEvent(keyCode, localKeyCode, event, keyMod, Character.MIN_VALUE))
+        }
+        if (inputAction != null) {
+            postKatariInput(KatariClientInputEvent.Key(key, scanCode, inputAction, modifiers))
         }
 
         return isAnyFocusNodeInput()
@@ -802,7 +814,16 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         action: Int,
         modifiers: Int,
     ): Boolean {
-        KoolInputBridge.handleMouseButtonEvent(button, action == org.lwjgl.glfw.GLFW.GLFW_PRESS)
+        val pressed = action == org.lwjgl.glfw.GLFW.GLFW_PRESS
+        KoolInputBridge.handleMouseButtonEvent(button, pressed)
+        val inputAction = when (action) {
+            org.lwjgl.glfw.GLFW.GLFW_PRESS -> KatariInputAction.Press
+            org.lwjgl.glfw.GLFW.GLFW_RELEASE -> KatariInputAction.Release
+            else -> null
+        }
+        if (inputAction != null) {
+            postKatariInput(KatariClientInputEvent.MouseButton(x.toDouble(), y.toDouble(), button, inputAction, modifiers))
+        }
         return (isMouseOverDock(x, y) || TransformGizmoEditor.shouldBlockScreenInput(x, y)) && minecraft.screen != null
     }
 
@@ -815,7 +836,15 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         yOffset: Double,
     ): Boolean {
         KoolInputBridge.handleMouseScroll(xOffset.toFloat(), yOffset.toFloat())
+        postKatariInput(KatariClientInputEvent.MouseScroll(x.toDouble(), y.toDouble(), xOffset, yOffset))
         return (isMouseOverDock(x, y) || TransformGizmoEditor.shouldBlockScreenInput(x, y)) && minecraft.screen != null
+    }
+
+    private fun postKatariInput(event: KatariClientInputEvent) {
+        EventBus.post(event)
+        if (Minecraft.getInstance().connection != null) {
+            event.toPacket().send()
+        }
     }
 
     override fun onRenderLevelStage(

@@ -39,6 +39,11 @@ data class KatariPositionSnapshot(
     val dimension: String? = null,
 ) : ValueSnapshot()
 
+data class KatariChatMessage(
+    val player: KatariEntityRef,
+    val message: String,
+)
+
 sealed interface KatariTarget {
     suspend fun position(server: MinecraftServer): Vec3
 }
@@ -121,6 +126,19 @@ fun Entity.toKatariRef(): KatariEntityRef {
         else -> KatariEntityRef(uuid, dimension, position)
     }
 }
+
+fun Entity.toKatariHost(): com.sunnychung.lib.multiplatform.kotlite.katari.KatariValue.HostObject {
+    val ref = toKatariRef()
+    val type = when (ref) {
+        is KatariNpcRef -> "NpcRef"
+        is KatariPlayerRef -> "PlayerRef"
+        else -> "EntityRef"
+    }
+    return com.sunnychung.lib.multiplatform.kotlite.katari.KatariValue.HostObject(type, ref)
+}
+
+fun KatariChatMessage.toKatariHost() =
+    com.sunnychung.lib.multiplatform.kotlite.katari.KatariValue.HostObject("ChatMessage", this)
 
 suspend fun KatariEntityRefSnapshot.restore(context: ValueRestoreContext): KatariEntityRef {
     val ref = when (kind) {

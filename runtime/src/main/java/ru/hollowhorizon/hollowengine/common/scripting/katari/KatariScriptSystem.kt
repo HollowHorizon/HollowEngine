@@ -48,6 +48,7 @@ class KatariScriptSystem(
             program = program,
             initialState = initialState,
             functionRegistry = bindings.functionRegistry,
+            propertyRegistry = bindings.propertyRegistry,
             snapshotCodec = bindings.snapshotCodec,
             coroutineScope = scope,
         )
@@ -161,7 +162,7 @@ class KatariScriptSystem(
             val sourcePlayer = record.sourcePlayer?.let { uuid ->
                 server.playerList.players.firstOrNull { it.uuid.toString() == uuid }
             }
-            val (bindings, host) = createHollowKatariBindings(server, record.id, sourcePlayer, ::markDirty)
+            val (bindings, host) = createHollowKatariBindings(server, record.id, sourcePlayer, ::markDirty, record.sourcePlayer)
             val snapshotTag = record.snapshot ?: error("Saved Katari snapshot is missing")
             val format = NBTFormat(bindings.snapshotCodec.serializersModule())
             val snapshot = format.deserialize(KatariStateSnapshot.serializer(), snapshotTag)
@@ -173,6 +174,7 @@ class KatariScriptSystem(
                 program = program,
                 initialState = state.copy(globals = bindings.globals + state.globals),
                 functionRegistry = bindings.functionRegistry,
+                propertyRegistry = bindings.propertyRegistry,
                 snapshotCodec = bindings.snapshotCodec,
                 coroutineScope = scope,
             )

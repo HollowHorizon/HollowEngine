@@ -30,6 +30,8 @@ class NpcEntity : PathfinderMob {
     constructor(level: Level) : super(ModEntities.NPC_ENTITY, level)
     constructor(type: EntityType<NpcEntity>, world: Level) : super(type, world)
 
+    private var currentHitboxMode: HitboxMode = HitboxMode.PULLING
+
     init {
         moveControl = NpcMoveControl(this)
     }
@@ -70,18 +72,15 @@ class NpcEntity : PathfinderMob {
 
 
     override fun doPush(pEntity: Entity) {
-        super.doPush(pEntity)
-        //if (get<NpcComponent>()?.hitboxMode != HitboxMode.EMPTY) super.doPush(pEntity)
+        if (hitboxMode == HitboxMode.PULLING) super.doPush(pEntity)
     }
 
     override fun isPushable(): Boolean {
-        return super.isPushable()
-        //return super.isPushable() && get<NpcComponent>()?.hitboxMode == HitboxMode.PULLING
+        return super.isPushable() && hitboxMode == HitboxMode.PULLING
     }
 
     override fun canBeCollidedWith(): Boolean {
-        return false
-        //return get<NpcComponent>()?.hitboxMode == HitboxMode.BLOCKING && this.isAlive
+        return hitboxMode == HitboxMode.BLOCKING && isAlive
     }
 
     override fun aiStep() {
@@ -95,9 +94,9 @@ class NpcEntity : PathfinderMob {
     val pickupDistance get() = pickupReach
 
     var hitboxMode: HitboxMode
-        get() = HitboxMode.PULLING // get<NpcComponent>()?.hitboxMode ?: HitboxMode.PULLING
+        get() = currentHitboxMode
         set(value) {
-            //get<NpcComponent>()?.hitboxMode = value
+            currentHitboxMode = value
         }
 
     var name: String
