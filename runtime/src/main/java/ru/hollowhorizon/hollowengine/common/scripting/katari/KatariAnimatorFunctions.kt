@@ -1,6 +1,5 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariCallableSignature
 import com.sunnychung.lib.multiplatform.kotlite.katari.KatariFunctionDefinition
 import com.sunnychung.lib.multiplatform.kotlite.katari.KatariParameterType
 import com.sunnychung.lib.multiplatform.kotlite.katari.KatariTypes
@@ -15,13 +14,19 @@ internal val KATARI_ANIMATOR = KatariParameterType("AnimatorController")
 
 internal fun katariAnimatorFunctions(server: MinecraftServer): List<KatariFunctionDefinition> {
     return listOf(
-        immediate("animatorController", signature = KatariCallableSignature()) {
+        immediate("animatorController", signature = valueSignature().returns(KATARI_ANIMATOR)) {
             KatariAnimatorBuilder().toKatariHost()
         },
-        immediate("animatorController", signature = valueSignature(KatariTypes.Boolean)) { args ->
+        immediate(
+            "animatorController",
+            signature = namedValueSignature(
+                KATARI_ANIMATOR,
+                KatariTypes.Boolean.param("enabled", KatariValue.Bool(true)),
+            ),
+        ) { args ->
             KatariAnimatorBuilder(args.getOrNull(0)?.asBool() ?: true).toKatariHost()
         },
-        immediate("animator", signature = KatariCallableSignature()) {
+        immediate("animator", signature = valueSignature().returns(KATARI_ANIMATOR)) {
             KatariAnimatorBuilder().toKatariHost()
         },
         immediate("setAnimator", signature = memberSignature(KATARI_ENTITY, KATARI_ANIMATOR)) { args ->
@@ -29,15 +34,10 @@ internal fun katariAnimatorFunctions(server: MinecraftServer): List<KatariFuncti
             val builder = args.getOrNull(1).asHost<KatariAnimatorBuilder>("AnimatorController", "setAnimator builder")
             entity.set(builder.build())
         },
-        immediate("clearAnimator", signature = memberSignature(KATARI_ANIMATOR)) { args ->
+        immediate("clearAnimator", signature = memberSignature(KATARI_ANIMATOR).returns(KATARI_ANIMATOR)) { args ->
             args.receiver<KatariAnimatorBuilder>("clearAnimator").clear().toKatariHost()
         },
-        immediate("enabled", signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Boolean)) { args ->
-            args.receiver<KatariAnimatorBuilder>("enabled")
-                .setEnabled(args.getOrNull(1)?.asBool() ?: true)
-                .toKatariHost()
-        },
-        immediate("removeLayer", signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text)) { args ->
+        immediate("removeLayer", signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text).returns(KATARI_ANIMATOR)) { args ->
             args.receiver<KatariAnimatorBuilder>("removeLayer")
                 .removeLayer(args.getOrNull(1)?.asText() ?: error("removeLayer(id) expects id"))
                 .toKatariHost()
@@ -59,7 +59,7 @@ internal fun katariAnimatorFunctions(server: MinecraftServer): List<KatariFuncti
 
 private fun clipFunction() = immediate(
     "clip",
-    signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text, KatariTypes.Text),
+    signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text, KatariTypes.Text).returns(KATARI_ANIMATOR),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("clip")
         .clip(
@@ -82,7 +82,7 @@ private fun clipAdvancedFunction() = immediate(
         KatariTypes.Text,
         KatariTypes.Double,
         KatariTypes.Double,
-    ),
+    ).returns(KATARI_ANIMATOR),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("clip")
         .clip(
@@ -101,20 +101,21 @@ private fun clipAdvancedFunction() = immediate(
 
 private fun clipFullFunction() = immediate(
     "clip",
-    signature = memberSignature(
-        KATARI_ANIMATOR,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Int,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Double,
-        KatariTypes.Double,
-        KatariTypes.Text,
-        KatariTypes.Boolean,
+    signature = namedMemberSignature(
+        receiver = KATARI_ANIMATOR,
+        returnType = KATARI_ANIMATOR,
+        KatariTypes.Text.param("id"),
+        KatariTypes.Text.param("animation"),
+        KatariTypes.Text.param("playMode", KatariValue.Text("once")),
+        KatariTypes.Text.param("speed", KatariValue.Text("1")),
+        KatariTypes.Text.param("weight", KatariValue.Text("1")),
+        KatariTypes.Int.param("priority", KatariValue.Int32(0)),
+        KatariTypes.Text.param("blendMode", KatariValue.Text("override")),
+        KatariTypes.Text.param("mask", KatariValue.Text("")),
+        KatariTypes.Double.param("fadeIn", KatariValue.Float64(0.0)),
+        KatariTypes.Double.param("fadeOut", KatariValue.Float64(0.0)),
+        KatariTypes.Text.param("referencePose", KatariValue.Text("")),
+        KatariTypes.Boolean.param("removeOnEnd", KatariValue.Bool(true)),
     ),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("clip")
@@ -137,7 +138,7 @@ private fun clipFullFunction() = immediate(
 
 private fun controllerFunction() = immediate(
     "controller",
-    signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text, KatariTypes.Text),
+    signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text, KatariTypes.Text).returns(KATARI_ANIMATOR),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("controller")
         .controller(
@@ -149,16 +150,17 @@ private fun controllerFunction() = immediate(
 
 private fun controllerFullFunction() = immediate(
     "controller",
-    signature = memberSignature(
-        KATARI_ANIMATOR,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Int,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Double,
-        KatariTypes.Double,
+    signature = namedMemberSignature(
+        receiver = KATARI_ANIMATOR,
+        returnType = KATARI_ANIMATOR,
+        KatariTypes.Text.param("id"),
+        KatariTypes.Text.param("entryState", KatariValue.Text("")),
+        KatariTypes.Text.param("weight", KatariValue.Text("1")),
+        KatariTypes.Int.param("priority", KatariValue.Int32(0)),
+        KatariTypes.Text.param("blendMode", KatariValue.Text("override")),
+        KatariTypes.Text.param("mask", KatariValue.Text("")),
+        KatariTypes.Double.param("fadeIn", KatariValue.Float64(0.0)),
+        KatariTypes.Double.param("fadeOut", KatariValue.Float64(0.0)),
     ),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("controller")
@@ -177,7 +179,8 @@ private fun controllerFullFunction() = immediate(
 
 private fun stateFunction() = immediate(
     "state",
-    signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text, KatariTypes.Text, KatariTypes.Text, KatariTypes.Text),
+    signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text, KatariTypes.Text, KatariTypes.Text, KatariTypes.Text)
+        .returns(KATARI_ANIMATOR),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("state")
         .state(
@@ -191,14 +194,15 @@ private fun stateFunction() = immediate(
 
 private fun stateFullFunction() = immediate(
     "state",
-    signature = memberSignature(
-        KATARI_ANIMATOR,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Text,
+    signature = namedMemberSignature(
+        receiver = KATARI_ANIMATOR,
+        returnType = KATARI_ANIMATOR,
+        KatariTypes.Text.param("controllerId"),
+        KatariTypes.Text.param("stateId"),
+        KatariTypes.Text.param("animation"),
+        KatariTypes.Text.param("playMode", KatariValue.Text("loop")),
+        KatariTypes.Text.param("speed", KatariValue.Text("1")),
+        KatariTypes.Text.param("referencePose", KatariValue.Text("")),
     ),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("state")
@@ -222,7 +226,7 @@ private fun transitionFunction() = immediate(
         KatariTypes.Text,
         KatariTypes.Text,
         KatariTypes.Text,
-    ),
+    ).returns(KATARI_ANIMATOR),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("transition")
         .transition(
@@ -237,15 +241,16 @@ private fun transitionFunction() = immediate(
 
 private fun transitionFullFunction() = immediate(
     "transition",
-    signature = memberSignature(
-        KATARI_ANIMATOR,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Int,
-        KatariTypes.Double,
+    signature = namedMemberSignature(
+        receiver = KATARI_ANIMATOR,
+        returnType = KATARI_ANIMATOR,
+        KatariTypes.Text.param("controllerId"),
+        KatariTypes.Text.param("from", KatariValue.Text("")),
+        KatariTypes.Text.param("to"),
+        KatariTypes.Text.param("condition", KatariValue.Text("true")),
+        KatariTypes.Text.param("duration", KatariValue.Text("0")),
+        KatariTypes.Int.param("priority", KatariValue.Int32(0)),
+        KatariTypes.Double.param("exitTime", hasDefault = true),
     ),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("transition")
@@ -263,7 +268,7 @@ private fun transitionFullFunction() = immediate(
 
 private fun proceduralFunction() = immediate(
     "procedural",
-    signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text),
+    signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text).returns(KATARI_ANIMATOR),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("procedural")
         .procedural(args.getOrNull(1)?.asText() ?: error("procedural(id) expects id"))
@@ -272,15 +277,16 @@ private fun proceduralFunction() = immediate(
 
 private fun proceduralFullFunction() = immediate(
     "procedural",
-    signature = memberSignature(
-        KATARI_ANIMATOR,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Int,
-        KatariTypes.Text,
-        KatariTypes.Text,
-        KatariTypes.Double,
-        KatariTypes.Double,
+    signature = namedMemberSignature(
+        receiver = KATARI_ANIMATOR,
+        returnType = KATARI_ANIMATOR,
+        KatariTypes.Text.param("id"),
+        KatariTypes.Text.param("weight", KatariValue.Text("1")),
+        KatariTypes.Int.param("priority", KatariValue.Int32(0)),
+        KatariTypes.Text.param("blendMode", KatariValue.Text("additive")),
+        KatariTypes.Text.param("mask", KatariValue.Text("")),
+        KatariTypes.Double.param("fadeIn", KatariValue.Float64(0.0)),
+        KatariTypes.Double.param("fadeOut", KatariValue.Float64(0.0)),
     ),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("procedural")
@@ -311,7 +317,7 @@ private fun boneTransformFunction() = immediate(
         KatariTypes.Text,
         KatariTypes.Text,
         KatariTypes.Text,
-    ),
+    ).returns(KATARI_ANIMATOR),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("boneTransform")
         .boneTransform(

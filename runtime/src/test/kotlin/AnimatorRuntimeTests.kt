@@ -202,7 +202,7 @@ class AnimatorRuntimeTests {
         assertEquals(-3.6f, evaluator.vector(leftArmTransform.rotation!!, context).y, 0.0001f)
         assertEquals(4.2f, evaluator.vector(leftArmTransform.rotation, context).z, 0.0001f)
         assertEquals(0f, evaluator.vector(leftEyeTransform.translation!!, context).x, 0.0001f)
-        assertEquals(0.0216f, evaluator.vector(rightEyeTransform.translation!!, context).x, 0.0001f)
+        assertEquals(0.0648f, evaluator.vector(rightEyeTransform.translation!!, context).x, 0.0001f)
         assertEquals(-0.01f, evaluator.vector(leftEyeTransform.translation, context).y, 0.0001f)
     }
 

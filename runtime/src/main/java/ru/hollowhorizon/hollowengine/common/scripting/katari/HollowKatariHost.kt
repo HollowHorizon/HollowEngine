@@ -86,6 +86,7 @@ fun createHollowKatariBindings(
         registerBuiltinFunctions(host)
         registerHostTypes(server)
         registerContextGlobals(server, sourcePlayer, sourcePlayerId)
+        registerHollowKatariProperties(server)
         register(hollowKatariFunctions(server, sourcePlayer))
     }
     return bindings to host

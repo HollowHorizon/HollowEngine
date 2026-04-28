@@ -1,13 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
-import com.sunnychung.lib.multiplatform.kotlite.katari.FunctionResponse
-import com.sunnychung.lib.multiplatform.kotlite.katari.ImmediateKatariFunctionDefinition
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariCallableSignature
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariFunctionDefinition
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariParameterType
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariTypes
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariValue
-import com.sunnychung.lib.multiplatform.kotlite.katari.SuspendableKatariFunctionDefinition
+import com.sunnychung.lib.multiplatform.kotlite.katari.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -38,8 +31,8 @@ import ru.hollowhorizon.hollowengine.common.geary.components.Model
 import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.rotate
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.execute
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.playSound
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.execute
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.getLevel
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.move
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.npc
@@ -48,6 +41,7 @@ import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
 internal val KATARI_ENTITY = KatariParameterType("EntityRef")
+internal val KATARI_NPC = KatariParameterType("NpcRef")
 internal val KATARI_PLAYER = KatariParameterType("PlayerRef")
 internal val KATARI_POSITION = KatariParameterType("Position")
 internal val KATARI_CHAT_MESSAGE = KatariParameterType("ChatMessage")
@@ -58,11 +52,11 @@ internal fun hollowKatariFunctions(
     sourcePlayer: ServerPlayer?,
 ): List<KatariFunctionDefinition> {
     return katariCoreFunctions(server, sourcePlayer) +
-        katariEntityFunctions(server) +
-        katariTriggerFunctions(server) +
-        katariAnimatorFunctions(server) +
-        katariInputFunctions(server) +
-        katariUtilityFunctions(server, sourcePlayer)
+            katariEntityFunctions(server) +
+            katariTriggerFunctions(server) +
+            katariAnimatorFunctions(server) +
+            katariInputFunctions(server) +
+            katariUtilityFunctions(server, sourcePlayer)
 }
 
 private fun katariCoreFunctions(
@@ -73,18 +67,29 @@ private fun katariCoreFunctions(
         val text = args.singleOrNull()?.asText() ?: error("say(text) expects one argument")
         server.playerList.players.forEach { it.sendSystemMessage(text.literal) }
     },
-    immediate("pos", signature = valueSignature(KatariTypes.Double, KatariTypes.Double, KatariTypes.Double)) { args ->
+    immediate(
+        "pos",
+        signature = namedValueSignature(
+            KATARI_POSITION,
+            KatariTypes.Double.param("x"),
+            KatariTypes.Double.param("y"),
+            KatariTypes.Double.param("z"),
+        ),
+    ) { args ->
         val x = args.getOrNull(0).asDoubleArgument("x")
         val y = args.getOrNull(1).asDoubleArgument("y")
         val z = args.getOrNull(2).asDoubleArgument("z")
         KatariValue.HostObject("Position", Vec3(x, y, z).toPositionRef())
     },
-    immediate("level", signature = valueSignature(KatariTypes.Text)) { args ->
+    immediate("level", signature = valueSignature(KatariTypes.Text).returns(KatariParameterType("Level"))) { args ->
         KatariValue.HostObject("Level", server.getLevel(args.getOrNull(0)?.asText() ?: "minecraft:overworld"))
     },
-    immediate("player", signature = valueSignature(KatariTypes.Text)) { args ->
+    immediate(
+        "player",
+        signature = namedValueSignature(KATARI_PLAYER, KatariTypes.Text.param("name", hasDefault = true)),
+    ) { args ->
         val nameOrUuid = args.getOrNull(0)?.asText()?.takeIf(String::isNotBlank) ?: sourcePlayer?.uuid?.toString()
-            ?: error("player(name) expects player name or uuid when no source player is bound")
+        ?: error("player(name) expects player name or uuid when no source player is bound")
         val player = server.playerList.players.firstOrNull {
             it.gameProfile.name.equals(nameOrUuid, ignoreCase = true) || it.uuid.toString() == nameOrUuid
         } ?: error("Player `$nameOrUuid` is not online")
@@ -99,23 +104,27 @@ private fun katariCoreFunctions(
         val normalizedTarget = targetTime.toLong().floorMod(DAY_TICKS)
         while (server.overworld().dayTime.floorMod(DAY_TICKS) != normalizedTarget) delay(50)
     },
-    suspendable("waitDay", server, signature = KatariCallableSignature()) {
+    suspendable("waitDay", server, signature = valueSignature()) {
         while (!server.overworld().isDay) delay(50)
     },
-    suspendable("waitNight", server, signature = KatariCallableSignature()) {
+    suspendable("waitNight", server, signature = valueSignature()) {
         while (server.overworld().isDay) delay(50)
     },
-    immediate("npc", signature = valueSignature(KATARI_POSITION, KatariTypes.Text, KatariTypes.Text, KatariTypes.Text)) { args ->
+    immediate(
+        "npc",
+        signature = namedValueSignature(
+            KATARI_NPC,
+            KATARI_POSITION.param("pos"),
+            KatariTypes.Text.param("name", KatariValue.Text("NPC")),
+            KatariTypes.Text.param("model", KatariValue.Text("hollowengine:models/entity/player_model.gltf")),
+            KatariTypes.Text.param("world", hasDefault = true),
+        ),
+    ) { args ->
         val pos = args.getOrNull(0).asHost<KatariPositionRef>("Position", "npc pos")
         val name = args.getOrNull(1)?.asText() ?: "NPC"
         val model = args.getOrNull(2)?.asText() ?: "hollowengine:models/entity/player_model.gltf"
         val world = args.getOrNull(3)?.asText() ?: pos.dimension?.toString() ?: "minecraft:overworld"
         npc(pos.value, name = name, model = model, world = world).toKatariHost()
-    },
-    immediate("npc", signature = valueSignature(KATARI_POSITION, KatariTypes.Text)) { args ->
-        val pos = args.getOrNull(0).asHost<KatariPositionRef>("Position", "npc pos")
-        val name = args.getOrNull(1)?.asText() ?: "NPC"
-        npc(pos.value, name = name, world = pos.dimension?.toString() ?: "minecraft:overworld").toKatariHost()
     },
 )
 
@@ -126,7 +135,15 @@ private fun katariEntityFunctions(server: MinecraftServer) = listOf(
         npc.hitboxMode = args.getOrNull(1)?.asText()?.toHitboxMode()
             ?: error("setHitboxMode(mode) expects mode")
     },
-    suspendable("moveTo", server, signature = memberSignature(KATARI_ENTITY, KatariTypes.Any, KatariTypes.Double, KatariTypes.Double)) { args ->
+    suspendable(
+        "moveTo", server, signature = namedMemberSignature(
+            KATARI_ENTITY,
+            KatariTypes.Unit,
+            KatariTypes.Any.param("target"),
+            KatariTypes.Double.param("speed", KatariValue.Float64(1.0)),
+            KatariTypes.Double.param("distance", KatariValue.Float64(0.05))
+        )
+    ) { args ->
         val entity = args.receiver<KatariEntityRef>("moveTo")
         val target = args.getOrNull(1).asHost<Any>("Any", "target")
         val speed = args.getOrNull(2)?.asDouble() ?: 1.0
@@ -139,7 +156,16 @@ private fun katariEntityFunctions(server: MinecraftServer) = listOf(
             else -> error("moveTo is only supported for NPC references")
         }
     },
-    suspendable("lookAt", server, signature = memberSignature(KATARI_ENTITY, KatariTypes.Any, KatariTypes.Int)) { args ->
+    suspendable(
+        "lookAt",
+        server,
+        signature = namedMemberSignature(
+            KATARI_ENTITY,
+            KatariTypes.Unit,
+            KatariTypes.Any.param("target"),
+            KatariTypes.Int.param("duration", KatariValue.Int32(50)),
+        )
+    ) { args ->
         val entity = args.receiver<KatariEntityRef>("lookAt")
         val target = args.getOrNull(1).asHost<Any>("Any", "target")
         val duration = args.getOrNull(2)?.asInt() ?: 1500
@@ -152,15 +178,35 @@ private fun katariEntityFunctions(server: MinecraftServer) = listOf(
         val entity = args.receiver<KatariEntityRef>("teleport").resolve(server)
         val position = args.getOrNull(1).asHost<KatariPositionRef>("Position", "teleport position")
         val level = position.dimension?.let { server.getLevel(it.toString()) } ?: entity.level() as ServerLevel
-        entity.teleportTo(level, position.value.x, position.value.y, position.value.z, emptySet<RelativeMovement>(), entity.yRot, entity.xRot)
+        entity.teleportTo(
+            level,
+            position.value.x,
+            position.value.y,
+            position.value.z,
+            emptySet<RelativeMovement>(),
+            entity.yRot,
+            entity.xRot
+        )
     },
     immediate("teleportTo", signature = memberSignature(KATARI_ENTITY, KATARI_ENTITY)) { args ->
         val entity = args.receiver<KatariEntityRef>("teleportTo").resolve(server)
         val target = args.getOrNull(1).asHost<KatariEntityRef>("EntityRef", "teleport target").resolve(server)
-        entity.teleportTo(target.level() as ServerLevel, target.x, target.y, target.z, emptySet<RelativeMovement>(), target.yRot, target.xRot)
+        entity.teleportTo(
+            target.level() as ServerLevel,
+            target.x,
+            target.y,
+            target.z,
+            emptySet<RelativeMovement>(),
+            target.yRot,
+            target.xRot
+        )
     },
-    immediate("remove", signature = memberSignature(KATARI_ENTITY)) { args -> args.receiver<KatariEntityRef>("remove").resolve(server).discard() },
-    immediate("despawn", signature = memberSignature(KATARI_ENTITY)) { args -> args.receiver<KatariEntityRef>("despawn").resolve(server).discard() },
+    immediate("remove", signature = memberSignature(KATARI_ENTITY)) { args ->
+        args.receiver<KatariEntityRef>("remove").resolve(server).discard()
+    },
+    immediate("despawn", signature = memberSignature(KATARI_ENTITY)) { args ->
+        args.receiver<KatariEntityRef>("despawn").resolve(server).discard()
+    },
     immediate("swing", signature = memberSignature(KATARI_ENTITY)) { args ->
         val entity = args.receiver<KatariEntityRef>("swing").resolve(server) as? LivingEntity
             ?: error("swing receiver must be a living entity")
@@ -176,49 +222,22 @@ private fun katariEntityFunctions(server: MinecraftServer) = listOf(
             ?: error("heal receiver must be a living entity")
         entity.heal(args.getOrNull(1)?.asDouble()?.toFloat() ?: 1f)
     },
-    immediate("name", signature = memberSignature(KATARI_ENTITY)) { args ->
-        KatariValue.Text(args.receiver<KatariEntityRef>("name").resolve(server).name.string)
-    },
-    immediate("setName", signature = memberSignature(KATARI_ENTITY, KatariTypes.Text)) { args ->
-        val entity = args.receiver<KatariEntityRef>("setCustomName").resolve(server)
-        entity.customName = (args.getOrNull(1)?.asText() ?: "").literal
-        entity.isCustomNameVisible = entity.customName?.string?.isNotBlank() == true
-    },
-    immediate("setCustomName", signature = memberSignature(KATARI_ENTITY, KatariTypes.Text)) { args ->
-        val entity = args.receiver<KatariEntityRef>("setCustomName").resolve(server)
-        entity.customName = (args.getOrNull(1)?.asText() ?: "").literal
-        entity.isCustomNameVisible = entity.customName?.string?.isNotBlank() == true
-    },
-    immediate("isAlive", signature = memberSignature(KATARI_ENTITY)) { args ->
-        KatariValue.Bool(args.receiver<KatariEntityRef>("isAlive").resolve(server).isAlive)
-    },
-    immediate("invulnerable", signature = memberSignature(KATARI_ENTITY)) { args ->
-        KatariValue.Bool(args.receiver<KatariEntityRef>("invulnerable").resolve(server).isInvulnerable)
-    },
-    immediate("setInvulnerable", signature = memberSignature(KATARI_ENTITY, KatariTypes.Boolean)) { args ->
-        args.receiver<KatariEntityRef>("setInvulnerable").resolve(server).isInvulnerable =
-            (args.getOrNull(1) as? KatariValue.Bool)?.value ?: error("setInvulnerable(value) expects Boolean")
-    },
-    immediate("sprinting", signature = memberSignature(KATARI_ENTITY)) { args ->
-        KatariValue.Bool(args.receiver<KatariEntityRef>("sprinting").resolve(server).isSprinting)
-    },
-    immediate("setSprinting", signature = memberSignature(KATARI_ENTITY, KatariTypes.Boolean)) { args ->
-        args.receiver<KatariEntityRef>("setSprinting").resolve(server).isSprinting =
-            (args.getOrNull(1) as? KatariValue.Bool)?.value ?: error("setSprinting(value) expects Boolean")
-    },
-    immediate("position", signature = memberSignature(KATARI_ENTITY)) { args ->
-        KatariValue.HostObject("Position", args.receiver<KatariEntityRef>("position").resolve(server).position().toPositionRef())
-    },
-    immediate("dimension", signature = memberSignature(KATARI_ENTITY)) { args ->
-        KatariValue.Text(args.receiver<KatariEntityRef>("dimension").resolve(server).level().dimension().location().toString())
-    },
     immediate("setModel", signature = memberSignature(KATARI_ENTITY, KatariTypes.Text, KatariTypes.Text)) { args ->
         val entity = args.receiver<KatariEntityRef>("setModel").resolve(server)
         val model = args.getOrNull(1)?.asText() ?: error("setModel(model, controller) expects model")
         val controller = args.getOrNull(2)?.asText() ?: "player_model.animation-controller.kts"
         entity.set(Model(model = model, controllerScript = controller))
     },
-    immediate("setTransform", signature = memberSignature(KATARI_ENTITY, KatariTypes.Double, KatariTypes.Double, KatariTypes.Double, KatariTypes.Double)) { args ->
+    immediate(
+        "setTransform",
+        signature = memberSignature(
+            KATARI_ENTITY,
+            KatariTypes.Double,
+            KatariTypes.Double,
+            KatariTypes.Double,
+            KatariTypes.Double
+        )
+    ) { args ->
         val entity = args.receiver<KatariEntityRef>("setTransform").resolve(server)
         entity.set(
             TransformComponent.legacy(
@@ -229,7 +248,17 @@ private fun katariEntityFunctions(server: MinecraftServer) = listOf(
             )
         )
     },
-    immediate("playAnimation", signature = memberSignature(KATARI_ENTITY, KatariTypes.Text, KatariTypes.Text, KatariTypes.Double, KatariTypes.Double, KatariTypes.Double)) { args ->
+    immediate(
+        "playAnimation",
+        signature = namedMemberSignature(
+            KATARI_ENTITY,
+            KatariTypes.Unit,
+            KatariTypes.Text.param("animation"),
+            KatariTypes.Text.param("playMode", KatariValue.Text("once")),
+            KatariTypes.Double.param("fadeIn", KatariValue.Float64(0.33)),
+            KatariTypes.Double.param("fadeOut", KatariValue.Float64(0.33))
+        )
+    ) { args ->
         val entity = args.receiver<KatariEntityRef>("playAnimation").resolve(server)
         NpcAnimationRuntime.apply(
             entity = entity,
@@ -241,7 +270,16 @@ private fun katariEntityFunctions(server: MinecraftServer) = listOf(
             fadeOut = (args.getOrNull(4)?.asDouble() ?: 0.33).toFloat(),
         )
     },
-    immediate("stopAnimation", signature = memberSignature(KATARI_ENTITY, KatariTypes.Text, KatariTypes.Double)) { args ->
+    immediate(
+        "stopAnimation",
+        signature = namedMemberSignature(
+            KATARI_ENTITY, KatariTypes.Unit, KatariTypes.Text.param("animation"),
+            KatariTypes.Double.param(
+                "fadeOut",
+                KatariValue.Float64(0.33)
+            )
+        )
+    ) { args ->
         val entity = args.receiver<KatariEntityRef>("stopAnimation").resolve(server)
         NpcAnimationRuntime.apply(
             entity = entity,
@@ -273,16 +311,14 @@ private fun katariEntityFunctions(server: MinecraftServer) = listOf(
         val attribute = args.getOrNull(1)?.asText()?.attribute()
         KatariValue.Float64(entity.attributes.getInstance(attribute)?.baseValue ?: 0.0)
     },
-    immediate("setAttribute", signature = memberSignature(KATARI_ENTITY, KatariTypes.Text, KatariTypes.Double)) { args ->
+    immediate(
+        "setAttribute",
+        signature = memberSignature(KATARI_ENTITY, KatariTypes.Text, KatariTypes.Double)
+    ) { args ->
         val entity = args.receiver<KatariEntityRef>("setAttribute").resolve(server) as? LivingEntity
             ?: error("setAttribute receiver must be a living entity")
         val attribute = args.getOrNull(1)?.asText()?.attribute()
         entity.attributes.getInstance(attribute)?.baseValue = args.getOrNull(2).asDoubleArgument("value")
-    },
-    immediate("mainHand", signature = memberSignature(KATARI_ENTITY)) { args ->
-        val entity = args.receiver<KatariEntityRef>("mainHand").resolve(server) as? LivingEntity
-            ?: error("mainHand receiver must be a living entity")
-        KatariValue.Text(BuiltInRegistries.ITEM.getKey(entity.mainHandItem.item).toString())
     },
     immediate("give", signature = memberSignature(KATARI_PLAYER, KatariTypes.Text, KatariTypes.Int)) { args ->
         val player = args.receiver<KatariPlayerRef>("give").resolvePlayer(server)
@@ -301,11 +337,20 @@ private fun katariTriggerFunctions(server: MinecraftServer) = listOf(
         val event = await<PlayerInteractEvent.EntityInteract> { it.target.uuid == npc.uuid }
         event.player.toKatariHost()
     },
-    suspendable("waitChat", server, signature = KatariCallableSignature()) {
+    suspendable("waitChat", server, signature = valueSignature().returns(KATARI_CHAT_MESSAGE)) {
         val event = await<ServerChatEvent>()
         KatariChatMessage(event.player.toKatariRef(), event.message.string).toKatariHost()
     },
-    suspendable("waitZone", server, signature = valueSignature(KATARI_PLAYER, KATARI_POSITION, KatariTypes.Double, KatariTypes.Boolean)) { args ->
+    suspendable(
+        "waitZone",
+        server,
+        signature = namedValueSignature(
+            KATARI_PLAYER, KATARI_PLAYER.param("player"), KATARI_POSITION.param("position"), KatariTypes.Double.param(
+                "radius",
+                KatariValue.Float64(1.0)
+            ), KatariTypes.Boolean.param("leave", KatariValue.Bool(false))
+        )
+    ) { args ->
         val player = args.getOrNull(0).asHost<KatariPlayerRef>("PlayerRef", "waitZone player").resolvePlayer(server)
         val pos = args.getOrNull(1).asHost<KatariPositionRef>("Position", "waitZone position").value
         val radius = args.getOrNull(2)?.asDouble() ?: 1.0
@@ -313,26 +358,39 @@ private fun katariTriggerFunctions(server: MinecraftServer) = listOf(
         while ((player.position().distanceTo(pos) <= radius) == leave) delay(50)
         player.toKatariHost()
     },
-    immediate("chatPlayer", signature = memberSignature(KATARI_CHAT_MESSAGE)) { args ->
-        KatariValue.HostObject("PlayerRef", args.receiver<KatariChatMessage>("chatPlayer").player)
-    },
-    immediate("chatText", signature = memberSignature(KATARI_CHAT_MESSAGE)) { args ->
-        KatariValue.Text(args.receiver<KatariChatMessage>("chatText").message)
-    },
 )
 
 private fun katariUtilityFunctions(
     server: MinecraftServer,
     sourcePlayer: ServerPlayer?,
 ) = listOf(
-    immediate("playSound", signature = valueSignature(KatariTypes.Text, KATARI_POSITION, KatariTypes.Double, KatariTypes.Double)) { args ->
+    immediate(
+        "playSound",
+        signature = namedValueSignature(
+            KatariTypes.Unit,
+            KatariTypes.Text.param("sound"),
+            KATARI_POSITION.param("position"),
+            KatariTypes.Double.param("volume", KatariValue.Float64(1.0)),
+            KatariTypes.Double.param("pitch", KatariValue.Float64(1.0))
+        )
+    ) { args ->
         val location = args.getOrNull(0)?.asText() ?: error("playSound(sound, pos) expects sound")
         val pos = args.getOrNull(1).asHost<KatariPositionRef>("Position", "sound position")
         val volume = (args.getOrNull(2)?.asDouble() ?: 1.0).toFloat()
         val pitch = (args.getOrNull(3)?.asDouble() ?: 1.0).toFloat()
-        server.getLevel(pos.dimension?.toString() ?: "minecraft:overworld").playSound(location, volume, pitch, pos.value, null, false)
+        server.getLevel(pos.dimension?.toString() ?: "minecraft:overworld")
+            .playSound(location, volume, pitch, pos.value, null, false)
     },
-    immediate("playSound", signature = memberSignature(KATARI_PLAYER, KatariTypes.Text, KatariTypes.Double, KatariTypes.Double)) { args ->
+    immediate(
+        "playSound",
+        signature = namedValueSignature(
+            KatariTypes.Unit,
+            KATARI_PLAYER.param("player"),
+            KatariTypes.Text.param("sound"),
+            KatariTypes.Double.param("volume", KatariValue.Float64(1.0)),
+            KatariTypes.Double.param("pitch", KatariValue.Float64(1.0))
+        )
+    ) { args ->
         val player = args.receiver<KatariPlayerRef>("playSound").resolvePlayer(server)
         player.playSound(
             args.getOrNull(1)?.asText() ?: error("playSound(sound) expects sound"),
@@ -349,14 +407,44 @@ private fun katariUtilityFunctions(
     },
 )
 
-internal fun valueSignature(vararg types: KatariParameterType) = KatariCallableSignature(valueTypes = types.toList())
+internal fun valueSignature(vararg types: KatariParameterType) = KatariCallableSignature(
+    valueParameters = types.mapIndexed { index, type -> type.asValueParameter("arg$index") },
+    returnType = KatariTypes.Unit,
+)
 
 internal fun memberSignature(receiver: KatariParameterType, vararg types: KatariParameterType) =
-    KatariCallableSignature(dispatchReceiverType = receiver, valueTypes = types.toList())
+    KatariCallableSignature(
+        dispatchReceiverType = receiver,
+        valueParameters = types.mapIndexed { index, type -> type.asValueParameter("arg$index") },
+        returnType = KatariTypes.Unit,
+    )
+
+internal fun namedValueSignature(
+    returnType: KatariParameterType = KatariTypes.Unit,
+    vararg parameters: KatariValueParameter,
+) = KatariCallableSignature(valueParameters = parameters.toList(), returnType = returnType)
+
+internal fun namedMemberSignature(
+    receiver: KatariParameterType,
+    returnType: KatariParameterType = KatariTypes.Unit,
+    vararg parameters: KatariValueParameter,
+) = KatariCallableSignature(
+    dispatchReceiverType = receiver,
+    valueParameters = parameters.toList(),
+    returnType = returnType,
+)
+
+internal fun KatariParameterType.param(
+    name: String,
+    defaultValue: KatariValue? = null,
+    hasDefault: Boolean = defaultValue != null,
+) = asValueParameter(name, defaultValue, hasDefault)
+
+internal fun KatariCallableSignature.returns(returnType: KatariParameterType) = copy(returnType = returnType)
 
 internal fun immediate(
     id: String,
-    signature: KatariCallableSignature = KatariCallableSignature(valueTypes = listOf(KatariTypes.Any.repeated())),
+    signature: KatariCallableSignature = valueSignature(KatariTypes.Any.repeated()),
     block: suspend (List<KatariValue>) -> Any? = { KatariValue.Null },
 ) = ImmediateKatariFunctionDefinition(id = id, signature = signature) { arguments, _ ->
     when (val result = block(arguments)) {
@@ -369,7 +457,7 @@ internal fun immediate(
 internal fun suspendable(
     id: String,
     server: MinecraftServer,
-    signature: KatariCallableSignature = KatariCallableSignature(valueTypes = listOf(KatariTypes.Any.repeated())),
+    signature: KatariCallableSignature = valueSignature(KatariTypes.Any.repeated()),
     block: suspend CoroutineScope.(List<KatariValue>) -> Any?,
 ) = SuspendableKatariFunctionDefinition(
     id = id,
@@ -414,7 +502,7 @@ internal fun KatariValue?.asText(): String = when (this) {
     is KatariValue.Int32 -> value.toString()
     is KatariValue.Float64 -> value.toString()
     is KatariValue.Bool -> value.toString()
-    KatariValue.Null, null -> ""
+    KatariValue.Null, KatariValue.DefaultArgument, null -> ""
     else -> toString()
 }
 

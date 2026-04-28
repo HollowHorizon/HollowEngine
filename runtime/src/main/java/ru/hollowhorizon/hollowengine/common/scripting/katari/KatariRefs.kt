@@ -160,6 +160,9 @@ fun Entity.toKatariHost(): com.sunnychung.lib.multiplatform.kotlite.katari.Katar
 fun KatariChatMessage.toKatariHost() =
     com.sunnychung.lib.multiplatform.kotlite.katari.KatariValue.HostObject("ChatMessage", this)
 
+fun KatariPositionRef.toKatariHost() =
+    com.sunnychung.lib.multiplatform.kotlite.katari.KatariValue.HostObject("Position", this)
+
 suspend fun KatariEntityRefSnapshot.restore(context: ValueRestoreContext): KatariEntityRef {
     val ref = KatariEntityRef(UUID.fromString(uuid), dimension.rl, Vec3(x, y, z))
     val server = (context as? KatariRestoreContext)?.server ?: return ref

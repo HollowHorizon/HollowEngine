@@ -249,13 +249,13 @@ class DialogGui : KoolScreen() {
         }
     }
 
-    private fun UiScope.DialogueType(icon: DialogChoice, progress: Float, scale: Float) {
+    private fun UiScope.DialogueType(choice: DialogChoice, progress: Float, scale: Float) {
         Image("hollowengine:textures/gui/dialogues/invite.png") {
             modifier.size(32.dp * scale, 24.dp * scale)
                 .tint(Color(1f, 1f, 1f, Interpolation.QUAD_IN(progress)))
 
-            icon.apply {
-                icon(scale, progress)
+            choice.apply {
+                buildIcon(scale, progress)
             }
         }
     }
