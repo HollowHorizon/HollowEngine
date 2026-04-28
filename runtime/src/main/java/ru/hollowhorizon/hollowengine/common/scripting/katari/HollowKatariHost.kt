@@ -2,53 +2,15 @@ package ru.hollowhorizon.hollowengine.common.scripting.katari
 
 import com.sunnychung.lib.multiplatform.kotlite.katari.*
 import com.sunnychung.lib.multiplatform.kotlite.stdlib.AllStdLibModules
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import net.minecraft.ChatFormatting
-import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.core.registries.Registries
 import net.minecraft.network.chat.Component
-import net.minecraft.resources.ResourceKey
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
-import net.minecraft.world.InteractionHand
-import net.minecraft.world.entity.Entity
-import net.minecraft.world.entity.LivingEntity
-import net.minecraft.world.entity.Mob
-import net.minecraft.world.entity.RelativeMovement
-import net.minecraft.world.entity.ai.attributes.Attribute
-import net.minecraft.world.entity.player.Inventory
-import net.minecraft.world.entity.player.Player
-import net.minecraft.world.item.ItemStack
-import net.minecraft.world.level.Level
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.NpcAnimationRuntime
-import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.events.await
-import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
-import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
-import ru.hollowhorizon.hollowengine.common.geary.api.set
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
-import ru.hollowhorizon.hollowengine.common.geary.components.Model
-import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
-import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
-import ru.hollowhorizon.hollowengine.common.npcs.navigation.rotate
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.execute
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.getLevel
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.playSound
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.move
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.npc
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.rotation
-import ru.hollowhorizon.hollowengine.common.utils.rl
-import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.utils.colored
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.onClickCommand
 import ru.hollowhorizon.hollowengine.common.utils.onHoverText
-import java.util.UUID
 
 class HollowKatariHost(
     private val server: MinecraftServer,
@@ -151,15 +113,15 @@ private fun NarrativeBindingsBuilder.registerHostTypes(
     )
     registerHostType(
         npcType,
-        KatariEntityRefSnapshot::class,
-        KatariEntityRefSnapshot.serializer(),
+        KatariNpcRefSnapshot::class,
+        KatariNpcRefSnapshot.serializer(),
         serialize = { it.snapshot() },
         deserialize = { snapshot, context -> snapshot.restore(context) as KatariNpcRef },
     )
     registerHostType(
         playerType,
-        KatariEntityRefSnapshot::class,
-        KatariEntityRefSnapshot.serializer(),
+        KatariPlayerRefSnapshot::class,
+        KatariPlayerRefSnapshot.serializer(),
         serialize = { it.snapshot() },
         deserialize = { snapshot, context -> snapshot.restore(context) as KatariPlayerRef },
     )
