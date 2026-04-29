@@ -11,6 +11,12 @@ internal data class ScriptTypeModel(
     val source: KSFile?,
 )
 
+internal data class EnumTypeModel(
+    val typeId: String,
+    val kotlinType: String,
+    val source: KSFile?,
+)
+
 internal data class ParameterModel(
     val name: String,
     val type: TypeModel,
@@ -77,13 +83,15 @@ internal data class TypeModel(
     val katariTypeExpression: String,
     val hostTypeId: String?,
     val converter: String?,
+    val enumTypeId: String?,
     val nullable: Boolean,
 ) {
-    fun returnHostTypeExpression(): String = hostTypeId?.let { "\"$it\"" } ?: "null"
+    fun returnHostTypeExpression(): String = (hostTypeId ?: enumTypeId)?.let { "\"$it\"" } ?: "null"
 
     fun convertExpression(valueExpression: String, name: String): String {
         val nonNull = when {
             hostTypeId != null -> "KatariGeneratedBindingRuntime.asHost<$kotlinType>($valueExpression, \"$hostTypeId\", \"$name\")"
+            enumTypeId != null -> "KatariGeneratedBindingRuntime.asEnum<$kotlinType>($valueExpression, \"$enumTypeId\", \"$name\")"
             converter != null -> "KatariGeneratedBindingRuntime.$converter($valueExpression, \"$name\")"
             kotlinType == "Unit" -> "Unit"
             else -> error("Unsupported type model `$this`")
@@ -108,6 +116,7 @@ internal data class TypeModel(
             katariTypeExpression = if (nullable) "KatariTypes.Unit.nullable()" else "KatariTypes.Unit",
             hostTypeId = null,
             converter = null,
+            enumTypeId = null,
             nullable = nullable,
         )
 
@@ -121,6 +130,7 @@ internal data class TypeModel(
             katariTypeExpression = if (nullable) "$katariTypeExpression.nullable()" else katariTypeExpression,
             hostTypeId = null,
             converter = converter,
+            enumTypeId = null,
             nullable = nullable,
         )
 
@@ -133,6 +143,20 @@ internal data class TypeModel(
             },
             hostTypeId = scriptType.typeId,
             converter = null,
+            enumTypeId = null,
+            nullable = nullable,
+        )
+
+        fun enum(type: KSType, typeId: String, nullable: Boolean = type.isMarkedNullable) = TypeModel(
+            kotlinType = type.declaration.qualifiedName?.asString() ?: type.declaration.simpleName.asString(),
+            katariTypeExpression = if (nullable) {
+                "KatariParameterType(\"$typeId\").nullable()"
+            } else {
+                "KatariParameterType(\"$typeId\")"
+            },
+            hostTypeId = null,
+            converter = null,
+            enumTypeId = typeId,
             nullable = nullable,
         )
     }

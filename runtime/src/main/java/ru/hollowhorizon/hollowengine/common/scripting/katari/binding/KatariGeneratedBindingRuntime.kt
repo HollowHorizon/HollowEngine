@@ -13,6 +13,12 @@ object KatariGeneratedBindingRuntime {
             is Double -> KatariValue.Float64(value)
             is Float -> KatariValue.Float64(value.toDouble())
             is String -> KatariValue.Text(value)
+            is Enum<*> -> KatariValue.EnumValue(
+                typeId = hostTypeId ?: value::class.simpleName
+                ?: error("Missing Katari enum type id for `${value::class.qualifiedName}`"),
+                entryName = value.name,
+                ordinal = value.ordinal,
+            )
             else -> KatariValue.HostObject(
                 typeId = hostTypeId ?: error("Missing Katari host type id for `${value::class.qualifiedName}`"),
                 value = value,
@@ -58,6 +64,12 @@ object KatariGeneratedBindingRuntime {
         val host = value as? KatariValue.HostObject ?: error("$name expects host value `$typeId`")
         if (host.typeId != typeId && host.value !is T) error("$name expects `$typeId`, got `${host.typeId}`")
         return host.value as? T ?: error("$name has unexpected host value `${host.value}`")
+    }
+
+    inline fun <reified T : Enum<T>> asEnum(value: KatariValue?, typeId: String, name: String): T {
+        val katariEnumValue = value as? KatariValue.EnumValue ?: error("$name expects enum value `$typeId`")
+        if (katariEnumValue.typeId != typeId) error("$name expects `$typeId`, got `${katariEnumValue.typeId}`")
+        return enumValueOf<T>(katariEnumValue.entryName)
     }
 
     inline fun <reified T : Any> nullable(

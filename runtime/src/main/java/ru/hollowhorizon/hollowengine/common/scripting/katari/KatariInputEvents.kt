@@ -36,8 +36,8 @@ enum class KatariInputKind {
 @ScriptType("InputEvent")
 data class KatariInputSnapshot @ScriptIgnore constructor(
     @property:ScriptIgnore val playerId: String,
-    @property:ScriptIgnore val kind: KatariInputKind,
-    @property:ScriptIgnore val action: KatariInputAction,
+    val kind: KatariInputKind,
+    val action: KatariInputAction,
     val key: Int = -1,
     val scanCode: Int = -1,
     val button: Int = -1,
@@ -47,12 +47,6 @@ data class KatariInputSnapshot @ScriptIgnore constructor(
     val scrollX: Double = 0.0,
     val scrollY: Double = 0.0,
 ) : ValueSnapshot(), ScriptSnapshot<KatariInputSnapshot> {
-    @ScriptBinding("kind")
-    val scriptKind: String get() = kind.name
-
-    @ScriptBinding("action")
-    val scriptAction: String get() = action.name
-
     @ScriptIgnore
     override suspend fun restore(context: ValueRestoreContext): KatariInputSnapshot {
         return this

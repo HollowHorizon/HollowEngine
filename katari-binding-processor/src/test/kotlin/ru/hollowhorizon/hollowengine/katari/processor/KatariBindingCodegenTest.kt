@@ -18,6 +18,7 @@ class KatariBindingCodegenTest {
             katariTypeExpression = "KatariParameterType(\"Example\")",
             hostTypeId = "Example",
             converter = null,
+            enumTypeId = null,
             nullable = false,
         )
         val textModel = TypeModel(
@@ -25,6 +26,7 @@ class KatariBindingCodegenTest {
             katariTypeExpression = "KatariTypes.Text",
             hostTypeId = null,
             converter = "asString",
+            enumTypeId = null,
             nullable = false,
         )
         val function = FunctionModel(
@@ -80,6 +82,7 @@ class KatariBindingCodegenTest {
             katariTypeExpression = "KatariParameterType(\"Example\")",
             hostTypeId = "Example",
             converter = null,
+            enumTypeId = null,
             nullable = false,
         )
         val textModel = TypeModel(
@@ -87,6 +90,7 @@ class KatariBindingCodegenTest {
             katariTypeExpression = "KatariTypes.Text",
             hostTypeId = null,
             converter = "asString",
+            enumTypeId = null,
             nullable = false,
         )
         val property = PropertyModel(
@@ -121,6 +125,7 @@ class KatariBindingCodegenTest {
             katariTypeExpression = "KatariTypes.Text",
             hostTypeId = null,
             converter = "asString",
+            enumTypeId = null,
             nullable = false,
         )
         val function = FunctionModel(
@@ -146,5 +151,39 @@ class KatariBindingCodegenTest {
         assertContains(code, "test.announce(lines = lines)")
         assertContains(code, "test.announce(prefix = prefix, lines = lines)")
         assertContains(code, "GeneratedKatariValueResponse(it)")
+    }
+
+    @Test
+    fun `generated registrar registers enum types used by functions`() {
+        val enumModel = TypeModel(
+            kotlinType = "test.Mode",
+            katariTypeExpression = "KatariParameterType(\"Mode\")",
+            hostTypeId = null,
+            converter = null,
+            enumTypeId = "Mode",
+            nullable = false,
+        )
+        val function = FunctionModel(
+            scriptName = "mode",
+            receiver = null,
+            parameters = listOf(ParameterModel("value", enumModel, hasDefault = false, isVararg = false)),
+            returnType = enumModel,
+            call = "test.mode(__ARGS__)",
+            isSuspend = false,
+            passesReceiverAsArgument = false,
+            importQualifiedName = null,
+        )
+
+        val code = KatariBindingCodegen(
+            scriptTypes = emptyList(),
+            functions = listOf(function),
+            classes = emptyList(),
+            enumTypes = listOf(EnumTypeModel("Mode", "test.Mode", null)),
+        ).generate()
+
+        assertContains(code, "val generatedEnum0 = test.Mode::class.toKatari(\"Mode\")")
+        assertContains(code, "registerEnum(generatedEnum0, test.Mode::class.java.enumConstants.toList())")
+        assertContains(code, "KatariGeneratedBindingRuntime.asEnum<test.Mode>(valueArgument, \"Mode\", \"value\")")
+        assertContains(code, "KatariGeneratedBindingRuntime.toKatariValue(test.mode(value = value), \"Mode\")")
     }
 }

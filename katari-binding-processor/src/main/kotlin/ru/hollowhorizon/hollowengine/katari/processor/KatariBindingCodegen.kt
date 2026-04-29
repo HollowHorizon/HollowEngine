@@ -5,6 +5,7 @@ internal class KatariBindingCodegen(
     private val functions: List<FunctionModel>,
     private val classes: List<ClassModel>,
     private val properties: List<PropertyModel> = emptyList(),
+    private val enumTypes: List<EnumTypeModel> = emptyList(),
 ) {
     private val callableFunctions = functions + classes.flatMap { it.constructors + it.functions }
     private val importAliases = callableFunctions
@@ -44,9 +45,17 @@ internal class KatariBindingCodegen(
         appendLine("@Suppress(\"UNUSED_PARAMETER\")")
         appendLine("internal fun NarrativeBindingsBuilder.registerGeneratedKatariBindings(server: MinecraftServer) {")
         registerTypes()
+        registerEnums()
         registerFunctions(callableFunctions)
         registerProperties(classes.flatMap { it.properties } + properties)
         appendLine("}")
+    }
+
+    private fun StringBuilder.registerEnums() {
+        enumTypes.sortedBy { it.typeId }.forEachIndexed { index, enumType ->
+            appendLine("    val generatedEnum$index = ${enumType.kotlinType}::class.toKatari(\"${enumType.typeId}\")")
+            appendLine("    registerEnum(generatedEnum$index, ${enumType.kotlinType}::class.java.enumConstants.toList())")
+        }
     }
 
     private fun StringBuilder.registerTypes() {

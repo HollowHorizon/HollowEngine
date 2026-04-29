@@ -23,6 +23,7 @@ import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Origin
 import com.google.devtools.ksp.symbol.Variance
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.validate
 import java.io.OutputStreamWriter
 
@@ -67,8 +68,9 @@ private class KatariBindingProcessor(
             .mapNotNull { classBinding(resolver, it, scriptTypes) }
             .toList()
 
+        val enumTypes = collectEnumTypes(topLevelFunctions, extensionProperties, classBindings)
         validateDuplicates(topLevelFunctions, extensionProperties, classBindings)
-        generate(scriptTypes.values.toList(), topLevelFunctions, extensionProperties, classBindings)
+        generate(scriptTypes.values.toList(), enumTypes, topLevelFunctions, extensionProperties, classBindings)
         generated = true
         return emptyList()
     }
@@ -403,6 +405,9 @@ private class KatariBindingProcessor(
                     logger.error("Generic script binding type `${type.render()}` is not supported in v1", type.declaration)
                     return null
                 }
+                if ((type.declaration as? KSClassDeclaration)?.classKind == ClassKind.ENUM_CLASS) {
+                    return TypeModel.enum(type, qualifiedName.substringAfterLast('.'), nullable)
+                }
                 val scriptType = scriptTypes[qualifiedName]
                 if (scriptType == null) {
                     logger.error("Unsupported script binding type `$qualifiedName`; add @ScriptType snapshot first", type.declaration)
@@ -436,14 +441,38 @@ private class KatariBindingProcessor(
         }
     }
 
+    private fun collectEnumTypes(
+        functions: List<FunctionModel>,
+        properties: List<PropertyModel>,
+        classes: List<ClassModel>,
+    ): List<EnumTypeModel> {
+        val result = linkedMapOf<String, EnumTypeModel>()
+        fun collect(type: TypeModel) {
+            val typeId = type.enumTypeId ?: return
+            result[type.kotlinType] = EnumTypeModel(typeId, type.kotlinType, null)
+        }
+        (functions + classes.flatMap { it.constructors + it.functions }).forEach { function ->
+            function.receiver?.let(::collect)
+            function.parameters.forEach { collect(it.type) }
+            collect(function.returnType)
+        }
+        (properties + classes.flatMap { it.properties }).forEach { property ->
+            collect(property.receiver)
+            collect(property.valueType)
+        }
+        return result.values.toList()
+    }
+
     private fun generate(
         scriptTypes: List<ScriptTypeModel>,
+        enumTypes: List<EnumTypeModel>,
         functions: List<FunctionModel>,
         properties: List<PropertyModel>,
         classes: List<ClassModel>,
     ) {
         val sources = (
                 scriptTypes.mapNotNull { it.source } +
+                        enumTypes.mapNotNull { it.source } +
                         functions.mapNotNull { it.source } +
                         properties.mapNotNull { it.source } +
                         classes.mapNotNull { it.source }
@@ -456,7 +485,7 @@ private class KatariBindingProcessor(
             "GeneratedKatariBindings",
         )
         OutputStreamWriter(file, Charsets.UTF_8).use { writer ->
-            writer.write(KatariBindingCodegen(scriptTypes, functions, classes, properties).generate())
+            writer.write(KatariBindingCodegen(scriptTypes, functions, classes, properties, enumTypes).generate())
         }
     }
 

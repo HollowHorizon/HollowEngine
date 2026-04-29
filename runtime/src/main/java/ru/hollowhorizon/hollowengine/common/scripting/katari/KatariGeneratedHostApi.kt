@@ -93,9 +93,9 @@ fun Player.playSound(
 }
 
 @ScriptBinding
-fun Entity.setHitboxMode(mode: String) {
+fun Entity.setHitboxMode(mode: HitboxMode) {
     val npc = this as? NpcEntity ?: error("setHitboxMode receiver must be an NPC")
-    npc.hitboxMode = mode.toHitboxMode()
+    npc.hitboxMode = mode
 }
 
 @ScriptBinding("teleport")
@@ -165,7 +165,7 @@ fun Entity.setTransform(x: Double, y: Double, z: Double, scale: Double) {
 @ScriptBinding
 fun Entity.playAnimation(
     animation: String,
-    playMode: String = "once",
+    playMode: AnimationPlayMode = AnimationPlayMode.Once,
     fadeIn: Double = 0.33,
     fadeOut: Double = 0.33,
 ) {
@@ -173,7 +173,7 @@ fun Entity.playAnimation(
         entity = this,
         from = null,
         to = animation,
-        playMode = playMode.toAnimationPlayMode(),
+        playMode = playMode,
         duration = 0f,
         fadeIn = fadeIn.toFloat(),
         fadeOut = fadeOut.toFloat(),
@@ -232,18 +232,16 @@ suspend fun Player.waitZone(position: Vec3, radius: Double = 1.0, leave: Boolean
 }
 
 @ScriptBinding
-suspend fun Player.waitKey(key: Int, action: String = "press"): KatariInputSnapshot {
-    val inputAction = action.toInputAction()
+suspend fun Player.waitKey(key: Int, action: KatariInputAction = KatariInputAction.Press): KatariInputSnapshot {
     return awaitInput(uuid.toString()) { input ->
-        input.kind == KatariInputKind.Key && input.key == key && input.action == inputAction
+        input.kind == KatariInputKind.Key && input.key == key && input.action == action
     }
 }
 
 @ScriptBinding
-suspend fun Player.waitClick(button: Int, action: String = "press"): KatariInputSnapshot {
-    val inputAction = action.toInputAction()
+suspend fun Player.waitClick(button: Int, action: KatariInputAction = KatariInputAction.Press): KatariInputSnapshot {
     return awaitInput(uuid.toString()) { input ->
-        input.kind == KatariInputKind.MouseButton && input.button == button && input.action == inputAction
+        input.kind == KatariInputKind.MouseButton && input.button == button && input.action == action
     }
 }
 
@@ -320,13 +318,6 @@ val Vec3.blockY: Int get() = BlockPos.containing(this).y
 val Vec3.blockZ: Int get() = BlockPos.containing(this).z
 
 private fun Long.floorMod(divisor: Long): Long = ((this % divisor) + divisor) % divisor
-
-private fun String.toHitboxMode(): HitboxMode = when (lowercase()) {
-    "pulling", "push", "pushing", "standard" -> HitboxMode.PULLING
-    "empty", "none", "passable" -> HitboxMode.EMPTY
-    "blocking", "block" -> HitboxMode.BLOCKING
-    else -> error("Unknown hitbox mode `$this`")
-}
 
 private fun String.attribute() =
     BuiltInRegistries.ATTRIBUTE.getHolder(rl).orElseThrow { IllegalArgumentException("Unknown attribute `$this`") }

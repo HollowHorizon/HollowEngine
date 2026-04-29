@@ -41,6 +41,17 @@ val position = pos(10.0, 64.0, 100.0)
 | `AnimatorController` | Контроллер анимаций | `animatorController()` |
 | `InputEvent` | Событие ввода | результат `waitKey(...)` |
 
+### Enum-типы
+
+Enum-значения передаются как `Тип.Значение`, не строкой:
+
+| Тип | Где используется | Значения |
+|------|------------------|----------|
+| `HitboxMode` | `entity.setHitboxMode(...)` | `HitboxMode.PULLING`, `HitboxMode.EMPTY`, `HitboxMode.BLOCKING` |
+| `AnimationPlayMode` | `entity.playAnimation(...)` | `AnimationPlayMode.Once`, `AnimationPlayMode.Loop`, `AnimationPlayMode.ClampForever`, `AnimationPlayMode.PingPong` |
+| `KatariInputAction` | `player.waitKey(...)`, `player.waitClick(...)` | `KatariInputAction.Press`, `KatariInputAction.Release`, `KatariInputAction.Repeat`, `KatariInputAction.Scroll` |
+| `KatariInputKind` | `InputEvent.kind` | `KatariInputKind.Key`, `KatariInputKind.MouseButton`, `KatariInputKind.MouseScroll` |
+
 ---
 
 ## Нативные конструкции языка Katari
@@ -242,6 +253,39 @@ say("Hello, world!")
 val p = pos(10.0, 64.0, 100.0)
 ```
 
+### `blockPos(x, y, z)` — создание позиции блока
+
+Именованные параметры: `x`, `y`, `z`.
+
+```
+val p = blockPos(10, 64, 100)
+```
+
+### `item(item, count, nbt)` — создание предмета
+
+Именованные параметры: `item` (обязательный), `count` (по умолч. `1`), `nbt` (по умолч. `null`).
+
+```
+val apple = item("minecraft:apple")
+val sword = item("minecraft:diamond_sword", count = 1, nbt = "{display:{Name:'{\"text\":\"Blade\"}'}}")
+```
+
+### `number.sec` — перевод секунд в тики
+
+```
+wait(10.sec)   // 10 секунд
+wait(1.5.sec)  // 1.5 секунды
+```
+
+### Свойства позиции
+
+```
+val p = pos(10.4, 64.0, 100.8)
+p.blockX  // -> 10
+p.blockY  // -> 64
+p.blockZ  // -> 100
+```
+
 ### `level(name)` — получение уровня по ID
 
 ```
@@ -363,35 +407,36 @@ npc.uuid = "00000000-0000-0000-0000-000000000000"
 
 #### `entity.setHitboxMode(mode)` — режим хитбокса
 
+Тип `mode`: `HitboxMode`.
+
 ```
-npc.setHitboxMode("pulling")   // стандартный (толкает)
-npc.setHitboxMode("empty")     // проходимый
-npc.setHitboxMode("blocking")  // блокирующий
+npc.setHitboxMode(HitboxMode.PULLING)   // стандартный (толкает)
+npc.setHitboxMode(HitboxMode.EMPTY)     // проходимый
+npc.setHitboxMode(HitboxMode.BLOCKING)  // блокирующий
 ```
 
-#### `entity.moveTo(target, speed, distance)` — перемещение к цели
+#### `npc.move(target, dist, speed)` — перемещение к цели
 
-Именованные параметры: `target` (обязательный), `speed` (по умолч. `1.0`), `distance` (по умолч. `0.05`).
+Именованные параметры: `entity` или `pos` (обязательный), `dist` (по умолч. `1.5`), `speed` (по умолч. `1.0`).
 
 ```
 // К позиции
-npc.moveTo(target = pos(100.0, 64.0, 200.0), speed = 1.0, distance = 0.05)
+npc.move(pos = pos(100.0, 64.0, 200.0), dist = 0.5, speed = 1.0)
 
 // К другому NPC или игроку
-npc.moveTo(target = player, speed = 1.2, distance = 0.5)
+npc.move(entity = player, dist = 0.5, speed = 1.2)
 
 // С параметрами по умолчанию
-npc.moveTo(player)
+npc.move(player)
 ```
 
-#### `entity.lookAt(target, duration)` — поворот к цели
+#### `npc.lookAt(target)` — поворот к цели
 
-Именованные параметры: `target` (обязательный), `duration` (по умолч. `50` тиков = 2500 мс).
+Аргументом может быть сущность или позиция.
 
 ```
-npc.lookAt(target = player, duration = 1500)  // поворот к игроку за 1500 мс
-npc.lookAt(target = pos(0.0, 64.0, 0.0), duration = 1000)
-npc.lookAt(player)  // с длительностью по умолчанию
+npc.lookAt(player)
+npc.lookAt(pos(0.0, 64.0, 0.0))
 ```
 
 #### `entity.teleport(position)` — телепортация на позицию
@@ -418,10 +463,34 @@ npc.remove()
 npc.swing()
 ```
 
+#### `npc.useBlock(position)` — использование блока
+
+```
+npc.useBlock(pos(10.0, 64.0, 10.0))
+```
+
+#### `npc.destroyBlock(position)` — разрушение блока
+
+```
+npc.destroyBlock(pos(10.0, 64.0, 10.0))
+```
+
+#### `npc.dropItem(item)` — выброс предмета
+
+```
+npc.dropItem(item("minecraft:apple", count = 3))
+```
+
 #### `entity.heal(amount)` — лечение
 
 ```
 npc.heal(5.0)
+```
+
+#### `entity.setHealth(value)` — установка здоровья
+
+```
+npc.setHealth(20.0)
 ```
 
 #### `entity.setModel(model, controller)` — смена модели
@@ -438,15 +507,15 @@ npc.setTransform(0.0, 0.0, 0.0, 1.0)
 
 #### `entity.playAnimation(animation, playMode, fadeIn, fadeOut)` — проигрывание анимации
 
-Именованные параметры: `animation` (обязательный), `playMode` (по умолч. `"once"`), `fadeIn` (по умолч. `0.33`), `fadeOut` (по умолч. `0.33`).
+Именованные параметры: `animation` (обязательный), `playMode` (по умолч. `AnimationPlayMode.Once`), `fadeIn` (по умолч. `0.33`), `fadeOut` (по умолч. `0.33`).
 
 ```
-npc.playAnimation(animation = "walk", playMode = "loop", fadeIn = 0.33, fadeOut = 0.33)
-npc.playAnimation(animation = "jump", playMode = "once", fadeIn = 0.1, fadeOut = 0.1)
-npc.playAnimation("walk")  // playMode="once", fadeIn=0.33, fadeOut=0.33
+npc.playAnimation(animation = "walk", playMode = AnimationPlayMode.Loop, fadeIn = 0.33, fadeOut = 0.33)
+npc.playAnimation(animation = "jump", playMode = AnimationPlayMode.Once, fadeIn = 0.1, fadeOut = 0.1)
+npc.playAnimation("walk")  // playMode=AnimationPlayMode.Once, fadeIn=0.33, fadeOut=0.33
 ```
 
-Режимы проигрывания: `"once"`, `"loop"`, `"hold"`/`"clamp"`, `"pingpong"`.
+Режимы проигрывания: `AnimationPlayMode.Once`, `AnimationPlayMode.Loop`, `AnimationPlayMode.ClampForever`, `AnimationPlayMode.PingPong`.
 
 #### `entity.stopAnimation(animation, fadeOut)` — остановка анимации
 
@@ -523,19 +592,19 @@ val text = msg.text
 say(who.name + " said: " + text)
 ```
 
-### `waitZone(player, position, radius, leave)` — ожидание входа/выхода из зоны
+### `player.waitZone(position, radius, leave)` — ожидание входа/выхода из зоны
 
-Именованные параметры: `player` (обязательный), `position` (обязательный), `radius` (по умолч. `1.0`), `leave` (по умолч. `false`).
+Именованные параметры: `position` (обязательный), `radius` (по умолч. `1.0`), `leave` (по умолч. `false`).
 
 ```
 // Ожидание входа в зону
-val who = waitZone(player = player, position = pos(10.0, 64.0, 10.0), radius = 5.0, leave = false)
+val who = player.waitZone(position = pos(10.0, 64.0, 10.0), radius = 5.0, leave = false)
 
 // Ожидание выхода из зоны
-val who = waitZone(player = player, position = pos(10.0, 64.0, 10.0), radius = 5.0, leave = true)
+val who = player.waitZone(position = pos(10.0, 64.0, 10.0), radius = 5.0, leave = true)
 
 // С параметрами по умолчанию
-val who = waitZone(player, pos(10.0, 64.0, 10.0))
+val who = player.waitZone(pos(10.0, 64.0, 10.0))
 ```
 
 ### Свойства ChatMessage
@@ -557,13 +626,13 @@ val input = player.waitKey(32)  // пробел (GLFW_KEY_SPACE)
 
 ### `player.waitKey(keyCode, action)` — ожидание действия с клавишей
 
-Именованные параметры: `key` (обязательный), `action` (по умолч. `"press"`).
+Именованные параметры: `key` (обязательный), `action` (по умолч. `KatariInputAction.Press`).
 
 ```
-val input = player.waitKey(key = 32, action = "press")    // нажатие
-val input = player.waitKey(key = 32, action = "release")  // отпускание
-val input = player.waitKey(key = 32, action = "repeat")   // повтор
-val input = player.waitKey(32)  // action="press"
+val input = player.waitKey(key = 32, action = KatariInputAction.Press)    // нажатие
+val input = player.waitKey(key = 32, action = KatariInputAction.Release)  // отпускание
+val input = player.waitKey(key = 32, action = KatariInputAction.Repeat)   // повтор
+val input = player.waitKey(32)  // action=KatariInputAction.Press
 ```
 
 ### `player.waitClick(button)` — ожидание клика мыши
@@ -575,12 +644,12 @@ val input = player.waitClick(1)  // правая кнопка
 
 ### `player.waitClick(button, action)` — ожидание действия с кнопкой мыши
 
-Именованные параметры: `button` (обязательный), `action` (по умолч. `"press"`).
+Именованные параметры: `button` (обязательный), `action` (по умолч. `KatariInputAction.Press`).
 
 ```
-val input = player.waitClick(button = 0, action = "press")
-val input = player.waitClick(button = 0, action = "release")
-val input = player.waitClick(0)  // action="press"
+val input = player.waitClick(button = 0, action = KatariInputAction.Press)
+val input = player.waitClick(button = 0, action = KatariInputAction.Release)
+val input = player.waitClick(0)  // action=KatariInputAction.Press
 ```
 
 ### `player.waitScroll()` — ожидание прокрутки
@@ -594,12 +663,12 @@ val input = player.waitScroll()
 Все свойства — только для чтения (геттеры):
 
 ```
-input.player   // -> PlayerRef (или null)
-input.kind     // -> "Key" | "MouseButton" | "MouseScroll"
-input.action   // -> "Press" | "Release" | "Repeat" | "Scroll"
+input.kind     // -> KatariInputKind.Key | KatariInputKind.MouseButton | KatariInputKind.MouseScroll
+input.action   // -> KatariInputAction.Press | KatariInputAction.Release | KatariInputAction.Repeat | KatariInputAction.Scroll
 input.key      // -> Int (код клавиши)
 input.scanCode // -> Int (скан-код)
 input.button   // -> Int (кнопка мыши)
+input.modifiers // -> Int (модификаторы клавиатуры)
 input.x        // -> Double
 input.y        // -> Double
 input.scrollX  // -> Double
@@ -626,17 +695,19 @@ playSound(
 playSound("minecraft:entity.creeper.primed", pos(10.0, 64.0, 10.0))
 ```
 
-### `playSound(player, sound, volume, pitch)` — проигрывание звука игроку (перегрузка)
+### `player.playSound(sound, volume, pitch)` — проигрывание звука игроку
 
-Именованные параметры: `player` (обязательный), `sound` (обязательный), `volume` (по умолч. `1.0`), `pitch` (по умолч. `1.0`).
+Именованные параметры: `sound` (обязательный), `volume` (по умолч. `1.0`), `pitch` (по умолч. `1.0`).
 
 ```
-playSound(player = player, sound = "minecraft:entity.experience_orb.pickup", volume = 1.0, pitch = 1.0)
+player.playSound(sound = "minecraft:entity.experience_orb.pickup", volume = 1.0, pitch = 1.0)
 ```
 
 ---
 
 ## Анимации (AnimatorController)
+
+Методы `AnimatorController` описывают конфигурацию контроллера и пока используют строковые значения для `playMode` и `blendMode`. Enum `AnimationPlayMode` используется в runtime-вызове `entity.playAnimation(...)`.
 
 ### Создание контроллера
 
@@ -826,7 +897,7 @@ guard.invulnerable = true
 
 // Ждём, пока игрок подойдёт
 val who = guard.waitNpcInteract()
-guard.lookAt(target = who, duration = 500)
+guard.lookAt(who)
 
 // Диалог
 guard.say("Hello, " + who.name + "!")
@@ -856,7 +927,7 @@ anim.clip("dance", "dance_animation", "loop", "1", "1", 0, "override", 0.3, 0.3)
 npc.setAnimator(anim)
 
 wait(100)
-npc.playAnimation(animation = "wave", playMode = "once", fadeIn = 0.2, fadeOut = 0.2)
+npc.playAnimation(animation = "wave", playMode = AnimationPlayMode.Once, fadeIn = 0.2, fadeOut = 0.2)
 ```
 
 ### Пример 4: Ожидание ввода
@@ -888,9 +959,9 @@ anim.transition("movement", "walk", "run", "speed > 2", "0.15")
 anim.transition("movement", "run", "walk", "speed <= 2", "0.2")
 npc.setAnimator(anim)
 
-npc.moveTo(target = pos(50.0, 64.0, 50.0), speed = 1.0, distance = 0.5)
+npc.move(pos = pos(50.0, 64.0, 50.0), speed = 1.0, dist = 0.5)
 wait(100)
-npc.moveTo(target = pos(0.0, 64.0, 0.0), speed = 2.0, distance = 0.5)
+npc.move(pos = pos(0.0, 64.0, 0.0), speed = 2.0, dist = 0.5)
 ```
 
 ### Пример 6: Диалог с выбором и циклическими переходами (checkpoint/jump/choose)
@@ -953,7 +1024,7 @@ if (choice == "Расскажи о себе") {
 val pos = pos(100.0, 64.0, 100.0)
 say("Go to the marked area!")
 
-val who = waitZone(player = player, position = pos, radius = 3.0, leave = false)
+val who = player.waitZone(position = pos, radius = 3.0, leave = false)
 playSound(
     sound = "minecraft:block.note_block.chime",
     position = pos,
