@@ -1,28 +1,22 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariInstance
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariNarrativeProgram
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariState
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariStateSnapshot
-import com.sunnychung.lib.multiplatform.kotlite.katari.TaskState
-import com.sunnychung.lib.multiplatform.kotlite.katari.TaskStatus
+import com.sunnychung.lib.multiplatform.kotlite.katari.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
-import net.minecraft.nbt.StringTag
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
-import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
 import java.io.File
+import java.io.FileNotFoundException
 import java.security.MessageDigest
-import java.util.UUID
+import java.util.*
 
 class KatariScriptSystem(
     private val server: MinecraftServer,
@@ -162,13 +156,19 @@ class KatariScriptSystem(
             val sourcePlayer = record.sourcePlayer?.let { uuid ->
                 server.playerList.players.firstOrNull { it.uuid.toString() == uuid }
             }
-            val (bindings, host) = createHollowKatariBindings(server, record.id, sourcePlayer, ::markDirty, record.sourcePlayer)
+            val (bindings, host) = createHollowKatariBindings(
+                server,
+                record.id,
+                sourcePlayer,
+                ::markDirty,
+                record.sourcePlayer
+            )
             val snapshotTag = record.snapshot ?: error("Saved Katari snapshot is missing")
             val format = NBTFormat(bindings.snapshotCodec.serializersModule())
             val snapshot = format.deserialize(KatariStateSnapshot.serializer(), snapshotTag)
             val state = bindings.snapshotCodec.restore(snapshot, KatariRestoreContext(server))
             val program = programCache.getOrPut(ProgramKey(source.path, source.hash)) {
-                KatariNarrativeProgram(source.path, source.text, bindings)
+                KatariNarrativeProgram(source.path, source.text, bindings, HollowEngineSources(source))
             }
             val instance = KatariInstance(
                 program = program,
@@ -220,6 +220,15 @@ class KatariScriptSystem(
     private fun markDirty() = onDirty()
 }
 
+class HollowEngineSources(val source: CodeSource) : KatariSourceProvider {
+    override fun readSource(request: KatariSourceRequest): KatariSource {
+        val source = this@HollowEngineSources.source.path.fromReadablePath()
+        val file = source.parentFile.resolve(request.path)
+        if (!file.exists()) throw FileNotFoundException(file.toRelativeString(source))
+        return KatariSource(filename = request.path, code = file.readText(), id = request.path)
+    }
+}
+
 data class KatariRunInfo(
     val id: String,
     val path: String,
@@ -247,14 +256,14 @@ private data class KatariRunRecord(
 
 private data class ProgramKey(val path: String, val hash: String)
 
-private data class KatariSource(val path: String, val text: String, val hash: String)
+data class CodeSource(val path: String, val text: String, val hash: String)
 
-private fun loadSource(path: String): KatariSource {
+private fun loadSource(path: String): CodeSource {
     val file = path.fromReadablePath()
     require(file.exists() && file.isFile) { "Katari script not found: $path" }
     require(file.extension == "ktr") { "Katari script must use .ktr extension: $path" }
     val text = file.readText()
-    return KatariSource(file.toReadablePath(), text, text.sha256())
+    return CodeSource(file.toReadablePath(), text, text.sha256())
 }
 
 fun getAvailableKatariScripts(): Collection<String> {
