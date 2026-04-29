@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
+import com.sunnychung.lib.multiplatform.kotlite.katari.ValueRestoreContext
 import com.sunnychung.lib.multiplatform.kotlite.katari.ValueSnapshot
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -10,6 +11,11 @@ import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptIgnore
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshot
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshotFactory
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptType
 
 enum class KatariInputAction {
     Press,
@@ -26,10 +32,12 @@ enum class KatariInputKind {
 
 @Serializable
 @SerialName("hollowengine:katari_input")
-data class KatariInputSnapshot(
-    val playerId: String,
-    val kind: KatariInputKind,
-    val action: KatariInputAction,
+@ScriptBinding("InputEvent")
+@ScriptType("InputEvent")
+data class KatariInputSnapshot @ScriptIgnore constructor(
+    @property:ScriptIgnore val playerId: String,
+    @property:ScriptIgnore val kind: KatariInputKind,
+    @property:ScriptIgnore val action: KatariInputAction,
     val key: Int = -1,
     val scanCode: Int = -1,
     val button: Int = -1,
@@ -38,7 +46,24 @@ data class KatariInputSnapshot(
     val y: Double = 0.0,
     val scrollX: Double = 0.0,
     val scrollY: Double = 0.0,
-) : ValueSnapshot()
+) : ValueSnapshot(), ScriptSnapshot<KatariInputSnapshot> {
+    @ScriptBinding("kind")
+    val scriptKind: String get() = kind.name
+
+    @ScriptBinding("action")
+    val scriptAction: String get() = action.name
+
+    @ScriptIgnore
+    override suspend fun restore(context: ValueRestoreContext): KatariInputSnapshot {
+        return this
+    }
+
+    companion object : ScriptSnapshotFactory<KatariInputSnapshot, KatariInputSnapshot> {
+        override fun capture(value: KatariInputSnapshot): KatariInputSnapshot {
+            return value
+        }
+    }
+}
 
 data class KatariInputEvent(
     val player: ServerPlayer,

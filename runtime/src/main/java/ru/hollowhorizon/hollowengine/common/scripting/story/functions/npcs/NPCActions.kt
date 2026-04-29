@@ -12,10 +12,10 @@ import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ClipContext
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.client.gui.overlay.ChatOverlay
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.moveTowards
 import ru.hollowhorizon.hollowengine.common.npcs.navigation.rotate
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
@@ -26,6 +26,7 @@ import ru.hollowhorizon.hollowengine.common.utils.rl
  * @param dist Минимальное расстояние до сущности, при достижении которого движение прекращается.
  * @param speed Скорость перемещения NPC.
  */
+@ScriptBinding
 suspend fun NpcEntity.move(entity: Entity, dist: Double = 1.5, speed: Double = 1.0) {
     while (distanceTo(entity) > dist) {
         moveTowards(entity, speed, dist)
@@ -39,6 +40,7 @@ suspend fun NpcEntity.move(entity: Entity, dist: Double = 1.5, speed: Double = 1
  *
  * @param mob Сущность, к которой нужно переместиться.
  */
+@ScriptBinding
 suspend infix fun NpcEntity.move(mob: Entity): Unit = move(entity = mob)
 
 /**
@@ -48,6 +50,7 @@ suspend infix fun NpcEntity.move(mob: Entity): Unit = move(entity = mob)
  * @param dist Минимальное расстояние до позиции, при достижении которого движение прекращается.
  * @param speed Скорость перемещения NPC.
  */
+@ScriptBinding
 suspend fun NpcEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
     while (distanceToSqr(pos) > dist * dist || !navigation.isDone) {
         moveTowards(pos, dist, speed)
@@ -62,6 +65,7 @@ suspend fun NpcEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
  *
  * @param position Позиция, к которой нужно переместиться.
  */
+@ScriptBinding
 suspend infix fun NpcEntity.move(position: Vec3): Unit = move(pos = position)
 
 /**
@@ -69,7 +73,8 @@ suspend infix fun NpcEntity.move(position: Vec3): Unit = move(pos = position)
  *
  * @param position Позиция, на которую нужно смотреть.
  */
-suspend infix fun NpcEntity.look(position: Vec3) {
+@ScriptBinding
+suspend infix fun NpcEntity.lookAt(position: Vec3) {
     rotate({ position }, 1500)
 }
 
@@ -78,7 +83,8 @@ suspend infix fun NpcEntity.look(position: Vec3) {
  *
  * @param entity Сущность, на которую нужно смотреть.
  */
-suspend infix fun NpcEntity.look(entity: Entity) {
+@ScriptBinding
+suspend infix fun NpcEntity.lookAt(entity: Entity) {
     rotate({ entity.position() }, 1500)
 }
 
@@ -88,8 +94,9 @@ suspend infix fun NpcEntity.look(entity: Entity) {
  *
  * @param pos Позиция блока, который нужно использовать.
  */
+@ScriptBinding
 suspend infix fun NpcEntity.useBlock(pos: Vec3) {
-    look(pos)
+    lookAt(pos)
     val hit = level().clip(ClipContext(pos, pos, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, this))
     swing(InteractionHand.MAIN_HAND)
     val state = level().getBlockState(hit.blockPos)
@@ -102,9 +109,10 @@ suspend infix fun NpcEntity.useBlock(pos: Vec3) {
  *
  * @param pos Позиция блока, который нужно разрушить.
  */
+@ScriptBinding
 suspend infix fun NpcEntity.destroyBlock(pos: Vec3) {
     move(pos)
-    look(pos)
+    lookAt(pos)
     val manager = fakePlayer.gameMode
 
     manager.destroyBlock(BlockPos(pos.x.toInt(), pos.y.toInt(), pos.z.toInt()))
@@ -116,6 +124,7 @@ suspend infix fun NpcEntity.destroyBlock(pos: Vec3) {
  *
  * @param item Предмет, который нужно выбросить.
  */
+@ScriptBinding
 fun NpcEntity.dropItem(item: ItemStack) {
     val p = position()
     val entityStack = ItemEntity(level(), p.x, p.y + eyeHeight, p.z, item)
@@ -132,6 +141,7 @@ fun NpcEntity.dropItem(item: ItemStack) {
  *
  * @param time Количество тиков для задержки.
  */
+@ScriptBinding
 suspend fun wait(time: Int) {
     delay(time * 50L)
 }
@@ -144,6 +154,7 @@ suspend fun wait(time: Int) {
  * @param nbt Строковое представление NBT-тега.
  * @return ItemStack с заданными параметрами.
  */
+@ScriptBinding
 fun item(item: String, count: Int = 1, nbt: String) = item(item, count, TagParser.parseTag(nbt))
 
 /**
@@ -154,6 +165,7 @@ fun item(item: String, count: Int = 1, nbt: String) = item(item, count, TagParse
  * @param nbt NBT-тег для предмета.
  * @return ItemStack с заданными параметрами.
  */
+@ScriptBinding
 fun item(item: String, count: Int = 1, nbt: CompoundTag? = null) = ItemStack(
     BuiltInRegistries.ITEM.get(item.rl),
     count
@@ -170,20 +182,21 @@ fun item(item: String, count: Int = 1, nbt: CompoundTag? = null) = ItemStack(
  * 10.sec // Переводит 10 секунд в тики (10 * 20 = 200)
  * ```
  */
-val Number.sec get() = (this.toFloat() * 20).toInt()
+@ScriptBinding
+val Int.sec get() = this * 20
+
+@ScriptBinding
+val Double.sec get() = (this * 20).toInt()
 
 /**
  * Заставляет NPC "сказать" текст, отправляя сообщение всем игрокам на сервере.
  *
  * @param text Текст сообщения.
  */
+@ScriptBinding
 infix fun NpcEntity.say(text: String) {
-    ChatOverlay.nickname.set("")
-    ChatOverlay.nickname.set(name)
-    ChatOverlay.message.set(text)
-    return // TODO: Можно будет доработать эту систему
     server?.playerList?.players?.forEach {
-        it.sendSystemMessage("[$name] $text".literal)
+        it.sendSystemMessage("[$name]: $text".literal)
     }
 }
 

@@ -1,7 +1,6 @@
 modLoader = "javafml"
 loaderVersion = "[4,)"
 license = "${license}"
-
 [[mods]]
 modId = "${mod_id}"
 version = "${mod_version}"
@@ -15,7 +14,8 @@ config = "hollowengine.mixins.json"
 config = "hollowengine-neoforge.mixins.json"
 [[mixins]]
 config = "hollowengine.bridge.mixins.json"
-
+[[accessTransformers]]
+file="META-INF/accesstransformer.cfg"
 
 [[dependencies.${mod_id}]]
 modId = "neoforge"

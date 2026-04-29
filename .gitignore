@@ -1,6 +1,7 @@
 # User-specific stuff
 .idea/*
 !.idea/icon.svg
+.idea/liveTemplates/
 
 mc-src/
 *.iml

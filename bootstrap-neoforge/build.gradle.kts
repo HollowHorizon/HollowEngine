@@ -1,3 +1,5 @@
+import java.nio.file.FileSystems
+import java.nio.file.Files
 import java.security.MessageDigest
 
 plugins {
@@ -25,7 +27,6 @@ val embeddedRuntimeDir = layout.buildDirectory.dir("generated/embedded-runtime")
 val generatedMetadataDir = layout.buildDirectory.dir("generated/mod-metadata")
 val mergedRuntimeLangDir = rootProject.layout.projectDirectory.dir("build/runtime/generated/lang/")
 val runtimeMappingAttribute = Attribute.of("hollowengine.runtime.mapping", String::class.java)
-val bootstrapRefmap = "$modId-neoforge.refmap.json"
 
 architectury {
     platformSetupLoomIde()
@@ -39,10 +40,6 @@ loom {
     if (accessWidener.exists()) {
         accessWidenerPath.set(accessWidener)
     }
-
-
-    mixin.useLegacyMixinAp.set(true)
-    mixin.add(sourceSets.named("main").get(), bootstrapRefmap)
 
     runs {
         configureEach {
@@ -203,11 +200,10 @@ tasks.named<ProcessResources>("processResources") {
                 "license" to license,
                 "minecraft_version" to minecraftVersion,
                 "neo_version" to neoForgeVersion,
-                "refmap" to bootstrapRefmap,
+                "refmap" to "disabled"
             )
         )
     }
-    exclude("fabric.mod.json")
 }
 
 tasks.named("classes") {
@@ -219,6 +215,7 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     configurations = listOf(project.configurations.getByName("shadowBundle"))
     archiveClassifier.set("dev-shadow")
+    exclude("hollowengine.bridge.refmap.json")
 }
 
 val bootstrapDevJar = tasks.register<Jar>("bootstrapDevJar") {
@@ -232,11 +229,26 @@ val bootstrapDevJar = tasks.register<Jar>("bootstrapDevJar") {
     archiveClassifier.set("dev")
 
     from(sourceSets.named("main").map { it.output })
-    from({ project.configurations.getByName("shadowBundle").map { zipTree(it) } })
+    from({
+        project.configurations.getByName("shadowBundle")
+            .map { zipTree(it) }
+    })
+
+    doLast {
+        val jarFile = archiveFile.get().asFile
+        if (jarFile.exists()) {
+            val fs = FileSystems.newFileSystem(jarFile.toPath())
+            fs.use {
+                val refmapPath = it.getPath("/hollowengine.bridge.refmap.json")
+                if (Files.exists(refmapPath)) Files.delete(refmapPath)
+            }
+        }
+    }
 }
 
 tasks.named<net.fabricmc.loom.task.RemapJarTask>("remapJar") {
     inputFile.set(bootstrapDevJar.flatMap { it.archiveFile })
+    atAccessWideners.set(listOf("$modId.accesswidener"))
 }
 
 tasks.named<JavaCompile>("compileJava") {

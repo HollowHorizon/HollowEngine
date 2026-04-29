@@ -45,7 +45,7 @@ loom {
     }
 
     mixin.useLegacyMixinAp.set(true)
-    mixin.add(sourceSets.named("main").get(), bootstrapRefmap)
+    mixin.add(sourceSets.named("main").get(), "$modId-fabric.refmap.json")
 
     runs {
         configureEach {

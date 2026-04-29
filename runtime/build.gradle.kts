@@ -11,6 +11,7 @@ plugins {
     id("architectury-plugin")
     id("dev.architectury.loom")
     id("com.github.johnrengelman.shadow")
+    id("com.google.devtools.ksp")
     kotlin("jvm")
     kotlin("plugin.serialization")
 }
@@ -104,6 +105,7 @@ dependencies {
     modImplementation("lib:sodium-fabric:0.6.13+mc1.21.1")
 
     implementation(project(":bridge"))
+    ksp(project(":katari-binding-processor"))
     compileOnly("org.jetbrains:annotations:24.1.0")
 
     addShadow("net.peanuuutz.tomlkt:tomlkt:0.5.0")
@@ -172,6 +174,10 @@ tasks.named<ProcessResources>("processResources") {
 }
 
 tasks.named<KotlinCompile>("compileKotlin") {
+    dependsOn("generateAssets")
+}
+
+tasks.matching { it.name.startsWith("ksp") }.configureEach {
     dependsOn("generateAssets")
 }
 

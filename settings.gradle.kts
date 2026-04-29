@@ -24,6 +24,7 @@ pluginManagement {
         id("dev.architectury.loom") version architecturyLoomVersion
         id("com.github.johnrengelman.shadow") version shadowVersion
         id("me.fallenbreath.yamlang") version yamlangVersion
+        id("com.google.devtools.ksp") version "2.3.0"
     }
 }
 
@@ -35,6 +36,7 @@ include("bootstrap:fabric")
 include("bootstrap:neoforge")
 include("runtime")
 include("bridge")
+include("katari-binding-processor")
 
 project(":bootstrap").buildFileName = "parent.gradle.kts"
 project(":bootstrap:fabric").projectDir = file("bootstrap-fabric")

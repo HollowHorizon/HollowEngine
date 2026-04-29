@@ -2,15 +2,18 @@ package ru.hollowhorizon.hollowengine.common.scripting.katari
 
 import com.sunnychung.lib.multiplatform.kotlite.katari.*
 import com.sunnychung.lib.multiplatform.kotlite.stdlib.AllStdLibModules
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
-import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.colored
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.onClickCommand
 import ru.hollowhorizon.hollowengine.common.utils.onHoverText
+import java.util.*
 
 class HollowKatariHost(
     private val server: MinecraftServer,
@@ -22,13 +25,18 @@ class HollowKatariHost(
     private val pendingInputs = linkedMapOf<String, (String) -> Unit>()
 
     override fun narrate(text: String, resume: () -> Unit) {
-        send(text.literal)
+        send(text.literal.colored(ChatFormatting.GRAY))
         onDirty()
         resume()
     }
 
     override fun choose(options: List<ChoiceOptionSnapshot>, resume: (String) -> Unit) {
-        pendingChoices[runId] = resume
+        pendingChoices[runId] = {
+            server.coroutineScope.launch {
+                delay(50)
+                resume(it)
+            }
+        }
         send("Choose:".literal.colored(ChatFormatting.GOLD))
         options.filter { it.enabled }.forEachIndexed { index, option ->
             val command = "/hollowengine katari choose $runId ${option.id}"
@@ -43,7 +51,12 @@ class HollowKatariHost(
     }
 
     override fun readLine(question: String, resume: (String) -> Unit) {
-        pendingInputs[runId] = resume
+        pendingInputs[runId] = {
+            server.coroutineScope.launch {
+                delay(50)
+                resume(it)
+            }
+        }
         send(question.literal.colored(ChatFormatting.YELLOW))
         send("Type the answer in chat.".literal.colored(ChatFormatting.GRAY))
         onDirty()
@@ -84,55 +97,21 @@ fun createHollowKatariBindings(
     val bindings = NarrativeBindings {
         install(AllStdLibModules { message -> server.playerList.players.forEach { it.sendSystemMessage(message.literal) } })
         registerBuiltinFunctions(host)
-        registerHostTypes(server)
+        registerHostTypes()
         registerContextGlobals(server, sourcePlayer, sourcePlayerId)
-        registerHollowKatariProperties(server)
+        registerHollowKatariProperties()
+        registerGeneratedKatariBindings(server)
         register(hollowKatariFunctions(server, sourcePlayer))
     }
     return bindings to host
 }
 
-private fun NarrativeBindingsBuilder.registerHostTypes(
-    server: MinecraftServer,
-) {
-    val entityType = KatariEntityRef::class.toKatari("EntityRef")
-    val npcType = KatariNpcRef::class.toKatari("NpcRef", superTypes = listOf(entityType))
-    val playerType = KatariPlayerRef::class.toKatari("PlayerRef", superTypes = listOf(entityType))
-    val positionType = KatariPositionRef::class.toKatari("Position")
+private fun NarrativeBindingsBuilder.registerHostTypes() {
     val chatMessageType = KatariChatMessage::class.toKatari("ChatMessage")
     val animatorType = KatariAnimatorBuilder::class.toKatari("AnimatorController")
-    val inputType = KatariInputSnapshot::class.toKatari("InputEvent")
     val serverType = MinecraftServer::class.toKatari("Server")
     val levelType = net.minecraft.server.level.ServerLevel::class.toKatari("Level")
 
-    registerHostType(
-        entityType,
-        KatariEntityRefSnapshot::class,
-        KatariEntityRefSnapshot.serializer(),
-        serialize = { it.snapshot() },
-        deserialize = { snapshot, context -> snapshot.restore(context) },
-    )
-    registerHostType(
-        npcType,
-        KatariNpcRefSnapshot::class,
-        KatariNpcRefSnapshot.serializer(),
-        serialize = { it.snapshot() },
-        deserialize = { snapshot, context -> snapshot.restore(context) as KatariNpcRef },
-    )
-    registerHostType(
-        playerType,
-        KatariPlayerRefSnapshot::class,
-        KatariPlayerRefSnapshot.serializer(),
-        serialize = { it.snapshot() },
-        deserialize = { snapshot, context -> snapshot.restore(context) as KatariPlayerRef },
-    )
-    registerHostType(
-        positionType,
-        KatariPositionSnapshot::class,
-        KatariPositionSnapshot.serializer(),
-        serialize = { it.snapshot() },
-        deserialize = { snapshot, _ -> snapshot.restore() },
-    )
     registerHostType(chatMessageType)
     registerHostType(
         animatorType,
@@ -140,13 +119,6 @@ private fun NarrativeBindingsBuilder.registerHostTypes(
         KatariAnimatorBuilderSnapshot.serializer(),
         serialize = { it.snapshot() },
         deserialize = { snapshot, _ -> snapshot.restore() },
-    )
-    registerHostType(
-        inputType,
-        KatariInputSnapshot::class,
-        KatariInputSnapshot.serializer(),
-        serialize = { it },
-        deserialize = { snapshot, _ -> snapshot },
     )
     registerHostType(serverType)
     registerHostType(levelType)
@@ -157,14 +129,8 @@ private fun NarrativeBindingsBuilder.registerContextGlobals(
     sourcePlayer: ServerPlayer?,
     sourcePlayerId: String?,
 ) {
-    val playerRef = sourcePlayer?.toKatariRef() ?: sourcePlayerId?.let {
-        KatariPlayerRef(
-            uuid = java.util.UUID.fromString(it),
-            dimension = server.overworld().dimension().location(),
-            lastPosition = sourcePlayer?.position() ?: Vec3.ZERO,
-        )
-    }
-    playerRef?.let { global("player", KatariValue.HostObject("PlayerRef", it)) }
+    val playerRef = sourcePlayer ?: sourcePlayerId?.let { server.playerList.getPlayer(UUID.fromString(it)) }
+    playerRef?.let { global("player", KatariValue.HostObject("Player", it)) }
     globalProperty("server", getter = { KatariValue.HostObject("Server", server) })
     globalProperty("level", getter = {
         KatariValue.HostObject("Level", sourcePlayer?.level() ?: server.overworld())

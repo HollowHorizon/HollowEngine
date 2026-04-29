@@ -13,7 +13,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.look
+import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.lookAt
 
 @Serializable
 @SerialName("hollowengine:npc/look")
@@ -28,8 +28,8 @@ class NpcLookBlock : StatementBlock() {
         val target = target()
 
         when (target) {
-            is Vec3 -> npcEntity.look(target)
-            is Entity -> npcEntity.look(target)
+            is Vec3 -> npcEntity.lookAt(target)
+            is Entity -> npcEntity.lookAt(target)
         }
     }
 
