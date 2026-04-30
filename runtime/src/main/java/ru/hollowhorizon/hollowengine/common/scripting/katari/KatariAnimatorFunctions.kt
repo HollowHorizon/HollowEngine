@@ -7,9 +7,12 @@ import com.sunnychung.lib.multiplatform.kotlite.katari.KatariValue
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.common.geary.api.set
+import ru.hollowhorizon.hollowengine.common.geary.binding.EntitySnapshotPacket
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
 import ru.hollowhorizon.hollowengine.common.geary.components.BoneMask
 import ru.hollowhorizon.hollowengine.common.geary.components.LayerBlendMode
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
+import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 
 internal val KATARI_ANIMATOR = KatariParameterType("AnimatorController")
 
@@ -34,6 +37,10 @@ internal fun katariAnimatorFunctions(server: MinecraftServer): List<KatariFuncti
             val entity = args.receiver<Entity>("setAnimator")
             val builder = args.getOrNull(1).asHost<KatariAnimatorBuilder>("AnimatorController", "setAnimator builder")
             entity.set(builder.build())
+            EntitySnapshotPacket(
+                entity.id,
+                snapshotOf(entity),
+            ).sendTrackingEntityAndSelf(entity)
         },
         immediate("clearAnimator", signature = memberSignature(KATARI_ANIMATOR).returns(KATARI_ANIMATOR)) { args ->
             args.receiver<KatariAnimatorBuilder>("clearAnimator").clear().toKatariHost()
