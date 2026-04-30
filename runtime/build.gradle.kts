@@ -43,6 +43,7 @@ val runtimeMappingAttribute = Attribute.of("hollowengine.runtime.mapping", Strin
 val shadowBundle = configurations.create("shadowBundle") {
     isCanBeResolved = true
     isCanBeConsumed = false
+    isTransitive = true
     exclude(group = "org.jetbrains", module = "annotations")
     exclude(group = "org.checkerframework", module = "checker-qual")
     exclude(group = "com.google.code.findbugs", module = "jsr305")
@@ -69,7 +70,6 @@ fun DependencyHandler.addShadow(
 }
 
 repositories {
-    flatDir { dirs(rootProject.file("libs")) }
     mavenCentral()
     maven("https://maven.fabricmc.net/")
     maven("https://maven.architectury.dev/")
@@ -77,7 +77,8 @@ repositories {
     maven("https://maven.blamejared.com/")
     maven("https://jitpack.io")
     maven("https://maven.google.com/")
-    mavenLocal()
+    flatDir { dirs(rootProject.file("libs")) }
+
 }
 
 architectury {
@@ -121,6 +122,12 @@ dependencies {
     addShadow("lib:kermit-core-mcfriendly:2.0.4")
     addShadow("lib:katari-interpreter-jvm:1.1.2")
     addShadow("lib:katari-stdlib-jvm:1.1.0")
+
+    addShadow("androidx.compose.runtime:runtime:1.10.3")
+    addShadow("androidx.collection:collection:1.4.0")
+    addShadow("org.jetbrains.kotlinx:atomicfu:0.30.0-beta")
+    addShadow("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
+    addShadow("org.jetbrains.kotlinx:kotlinx-io-bytestring:0.8.2")
 
     addShadow("de.fabmax.kool:kool-core-desktop:$koolVersion") {
         exclude(group = "org.lwjgl")
