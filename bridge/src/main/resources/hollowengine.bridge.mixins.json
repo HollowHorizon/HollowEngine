@@ -2,7 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "ru.hollowhorizon.hollowengine.bridge.mixins",
-  "refmap": "${refmap}",
+  "refmap": "",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "ListTagAccessor",

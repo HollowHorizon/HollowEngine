@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.gui.timeline
 
 import de.fabmax.kool.math.Easing
+import de.fabmax.kool.modules.ui2.mutableStateListOf
 import de.fabmax.kool.modules.ui2.mutableStateOf
 import de.fabmax.kool.util.Color
 import kotlin.math.abs
@@ -83,7 +84,8 @@ class AnimTrack<T>(
 
 class TrackGroup(
     name: String,
-    val tracks: MutableList<BaseAnimTrack> = mutableListOf()
+    val tracks: MutableList<BaseAnimTrack> = mutableListOf(),
+    val children: MutableList<TrackGroup> = mutableStateListOf(),
 ) {
     val nameState = mutableStateOf(name)
     val isCollapsed = mutableStateOf(false)

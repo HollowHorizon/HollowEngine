@@ -1,18 +1,17 @@
-@file:UseSerializers(Vec3fSerializer::class)
-
 package ru.hollowhorizon.hollowengine.client.models.bedrock
 
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.util.Color
-import kotlinx.serialization.*
+import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.FloatArraySerializer
-import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonContentPolymorphicSerializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import net.minecraft.client.renderer.texture.TextureManager
 import ru.hollowhorizon.hollowengine.client.models.internal.Material
 import ru.hollowhorizon.hollowengine.common.utils.nbt.SnakeAsUpperCaseSerializer
 
@@ -114,15 +113,6 @@ enum class Side(val displayName: String) {
             return null
         }
     }
-}
-
-private class Vec3fSerializer : KSerializer<Vec3f> {
-    private val inner = FloatArraySerializer()
-    override val descriptor = inner.descriptor
-    override fun deserialize(decoder: Decoder): Vec3f =
-        decoder.decodeSerializableValue(inner).let { (x, y, z) -> Vec3f(x, y, z) }
-    override fun serialize(encoder: Encoder, value: Vec3f) =
-        encoder.encodeSerializableValue(inner, floatArrayOf(value.x, value.y, value.z))
 }
 
 private class ColorSerializer: KSerializer<Color> {

@@ -14,8 +14,7 @@ public final class RuntimeClassTransformers {
                 new KoolDragAndDropContextBridgeTransformer(),
                 new KoolUiDockableBridgeTransformer(),
                 new KoolUiNodeBridgeTransformer(),
-                new KoolPlatformInputTransformer(),
-                new KoolLeafSlotsTransformer()
+                new KoolPlatformInputTransformer()
         );
     }
 }

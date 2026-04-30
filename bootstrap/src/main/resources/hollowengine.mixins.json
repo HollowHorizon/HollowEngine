@@ -30,6 +30,7 @@
     "InventoryMixin",
     "LevelRendererMixin",
     "client.EntityRenderDispatcherMixin",
+    "client.GameRendererMixin",
     "client.LayerDefinitionsMixin",
     "client.LevelRendererDirtyMixin",
     "client.MinecraftMixin",

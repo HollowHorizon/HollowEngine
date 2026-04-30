@@ -64,7 +64,7 @@ public class NeoForgeClientEvents {
         forgeBus.addListener(NeoForgeClientEvents::registerClientCommands);
         forgeBus.addListener(NeoForgeClientEvents::onRenderOverlayPre);
         forgeBus.addListener(NeoForgeClientEvents::onRenderOverlayPost);
-        // forgeBus.addListener(NeoForgeClientEvents::onCameraSetup);
+        forgeBus.addListener(NeoForgeClientEvents::onCameraSetup);
 
         modBus.addListener(NeoForgeClientEvents::registerShaders);
         modBus.addListener(NeoForgeClientEvents::registerRenderers);
@@ -120,7 +120,7 @@ public class NeoForgeClientEvents {
     }
 
     private static void onCameraSetup(ViewportEvent.ComputeCameraAngles event) {
-        var setup = bridge.onCameraSetup(event.getRenderer(), event.getCamera(), (float) event.getPartialTick());
+        var setup = bridge.onCameraSetup(event.getRenderer(), event.getCamera(), event.getYaw(), event.getPitch(), event.getRoll(), (float) event.getPartialTick());
         event.setYaw(setup.yaw());
         event.setPitch(setup.pitch());
         event.setRoll(setup.roll());

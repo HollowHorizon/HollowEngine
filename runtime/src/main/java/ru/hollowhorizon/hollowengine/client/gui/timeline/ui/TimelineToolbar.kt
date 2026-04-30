@@ -2,26 +2,22 @@ package ru.hollowhorizon.hollowengine.client.gui.timeline.ui
 
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.clamp
 import de.fabmax.kool.math.deg
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.util.Color
-import ru.hollowhorizon.hollowengine.client.gui.timeline.BaseAnimTrack
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
-import ru.hollowhorizon.hollowengine.client.gui.timeline.PlaybackMode
-import ru.hollowhorizon.hollowengine.client.gui.timeline.TimelineController
-import ru.hollowhorizon.hollowengine.client.gui.timeline.TrackGroup
+import ru.hollowhorizon.hollowengine.client.gui.timeline.*
+import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.ComboBox as ThemeComboBox
 
 private val playbackSpeeds = listOf(0.1f, 0.25f, 0.5f, 1.0f, 2.0f, 5.0f, 10.0f)
 
-fun UiScope.Toolbar(controller: TimelineController) {
-    Row(width = Grow.Std, height = 57.dp) {
+fun UiScope.Toolbar(controller: TimelineController, extraContent: UiScope.() -> Unit = {}) {
+    Row(width = Grow.Std) {
         modifier
-            .border(RectBorder(ColorTheme.UI.BackgroundElements, 1.dp))
             .backgroundColor(ColorTheme.UI.BackgroundSecondary)
-            .padding(start = Dimensions.PaddingHuge, top = 12.dp, end = Dimensions.PaddingHuge, bottom = 12.dp)
+            .padding(start = Dimensions.PaddingHuge, end = Dimensions.PaddingHuge)
             .onClick {
                 controller.selectedKeyframes.clear()
                 controller.isWorkAreaSelected.set(false)
@@ -36,7 +32,7 @@ fun UiScope.Toolbar(controller: TimelineController) {
                 iconSize = 32.dp
             ) {
                 controller.isPlaying.set(false)
-                controller.currentTime.set(0f)
+                controller.setCurrentTime(0f)
             }
 
             Box(width = Dimensions.PaddingMedium) {}
@@ -49,7 +45,7 @@ fun UiScope.Toolbar(controller: TimelineController) {
                 size = 32.dp,
                 iconSize = 16.dp
             ) {
-                controller.isPlaying.set(!controller.isPlaying.value)
+                controller.togglePlayback()
             }
 
             Box(width = Dimensions.PaddingMedium) {}
@@ -59,7 +55,7 @@ fun UiScope.Toolbar(controller: TimelineController) {
                 size = 32.dp,
                 iconSize = 32.dp
             ) {
-                controller.currentTime.set(controller.workAreaEnd.value)
+                controller.setCurrentTime(controller.workAreaEnd.value)
             }
         }
 
@@ -84,8 +80,6 @@ fun UiScope.Toolbar(controller: TimelineController) {
 
             TextField("%.2f".format(controller.currentTime.use())) {
                 modifier
-                    .width(42.dp)
-                    .height(26.dp)
                     .alignY(AlignmentY.Center)
                     .background(RoundRectBackground(ColorTheme.UI.BackgroundGeneral, Dimensions.PaddingNormal))
                     .padding(horizontal = Dimensions.PaddingMedium, vertical = Dimensions.PaddingNormal)
@@ -98,7 +92,7 @@ fun UiScope.Toolbar(controller: TimelineController) {
                     .textAlignX(AlignmentX.Center)
                     .onChange { txt ->
                         txt.toFloatOrNull()?.let {
-                            controller.currentTime.set(it)
+                            controller.setCurrentTime(it)
                         }
                     }
             }
@@ -120,49 +114,6 @@ fun UiScope.Toolbar(controller: TimelineController) {
                 .alignY(AlignmentY.Center)
         }
 
-        Row(height = Grow.Std) {
-            modifier.alignY(AlignmentY.Center)
-
-            Text("Zoom:") {
-                modifier
-                    .alignY(AlignmentY.Center)
-                    .margin(end = Dimensions.PaddingMedium)
-                    .textColor(ColorTheme.UI.WhiteReplacement)
-            }
-
-            ToolbarIconButton(
-                icon = controller.iconZoomOut,
-                size = 28.dp
-            ) {
-                val newZoom = (controller.pixelsPerSecond.value * 0.8f).clamp(10f, 500f)
-                controller.pixelsPerSecond.set(newZoom)
-            }
-
-            Box(width = Dimensions.PaddingMedium) {}
-
-            Slider(controller.pixelsPerSecond.use(), 10f, 500f) {
-                modifier
-                    .width(150.dp)
-                    .alignY(AlignmentY.Center)
-                    .colors(
-                        trackColor = ColorTheme.UI.BackgroundElements,
-                        trackColorActive = ColorTheme.Accents.Main,
-                        knobColor = ColorTheme.Accents.Main
-                    )
-                    .onChange { controller.pixelsPerSecond.set(it) }
-            }
-
-            Box(width = Dimensions.PaddingMedium) {}
-
-            ToolbarIconButton(
-                icon = controller.iconZoomIn,
-                size = 28.dp
-            ) {
-                val newZoom = (controller.pixelsPerSecond.value * 1.2f).clamp(10f, 500f)
-                controller.pixelsPerSecond.set(newZoom)
-            }
-        }
-
         Box(width = sizes.largeGap) {
             modifier
                 .width(1.dp)
@@ -179,13 +130,26 @@ fun UiScope.Toolbar(controller: TimelineController) {
                 .textColor(ColorTheme.UI.WhiteReplacement)
         }
 
-        ComboBox {
-            modifier
-                .width(100.dp)
-                .alignY(AlignmentY.Center)
-                .items(PlaybackMode.entries)
-                .selectedIndex(PlaybackMode.entries.indexOf(controller.playbackMode.use()))
-                .onItemSelected { idx -> controller.playbackMode.set(PlaybackMode.entries[idx]) }
+        val playbackModeIndex = remember(PlaybackMode.entries.indexOf(controller.playbackMode.use()))
+        if (PlaybackMode.entries[playbackModeIndex.use()] != controller.playbackMode.use()) {
+            playbackModeIndex.set(PlaybackMode.entries.indexOf(controller.playbackMode.value))
+        }
+        ThemeComboBox(
+            preview = controller.playbackMode.use().name,
+            items = PlaybackMode.entries.map { mode ->
+                Composable {
+                    Text(mode.name) {
+                        modifier
+                            .alignY(AlignmentY.Center)
+                            .margin(horizontal = Dimensions.PaddingMedium)
+                            .textColor(ColorTheme.UI.WhiteReplacement)
+                    }
+                }
+            },
+            itemIndex = playbackModeIndex,
+        )
+        if (PlaybackMode.entries[playbackModeIndex.use()] != controller.playbackMode.use()) {
+            controller.playbackMode.set(PlaybackMode.entries[playbackModeIndex.value])
         }
 
         Box(width = sizes.largeGap) {
@@ -204,23 +168,70 @@ fun UiScope.Toolbar(controller: TimelineController) {
                 .textColor(ColorTheme.UI.WhiteReplacement)
         }
 
-        ComboBox {
-            val currentSpeed = controller.playbackSpeed.use()
-            var selIndex = playbackSpeeds.indexOfFirst { it == currentSpeed }
-            if (selIndex == -1) selIndex = playbackSpeeds.indexOf(1.0f)
+        val playbackSpeedIndex = remember(playbackSpeeds.indexOf(controller.playbackSpeed.use()).coerceAtLeast(0))
+        val currentSpeed = controller.playbackSpeed.use()
+        val speedIndex = playbackSpeeds.indexOf(currentSpeed)
+        if (speedIndex >= 0 && playbackSpeedIndex.use() != speedIndex) {
+            playbackSpeedIndex.set(speedIndex)
+        }
+        ThemeComboBox(
+            preview = "${controller.playbackSpeed.use()}x",
+            items = playbackSpeeds.map { speed ->
+                Composable {
+                    Text("${speed}x") {
+                        modifier
+                            .alignY(AlignmentY.Center)
+                            .margin(horizontal = Dimensions.PaddingMedium)
+                            .textColor(ColorTheme.UI.WhiteReplacement)
+                    }
+                }
+            },
+            itemIndex = playbackSpeedIndex,
+        )
+        if (playbackSpeeds[playbackSpeedIndex.use()] != controller.playbackSpeed.use()) {
+            controller.playbackSpeed.set(playbackSpeeds[playbackSpeedIndex.value])
+        }
 
+        Box(width = sizes.largeGap) {
             modifier
-                .width(80.dp)
+                .width(1.dp)
+                .height(24.dp)
+                .margin(horizontal = Dimensions.PaddingHuge)
+                .backgroundColor(ColorTheme.UI.BackgroundElements)
                 .alignY(AlignmentY.Center)
-                .items(playbackSpeeds.map { "${it}x" })
-                .selectedIndex(selIndex)
-                .onItemSelected { idx -> controller.playbackSpeed.set(playbackSpeeds[idx]) }
+        }
+
+        Row(height = Grow.Std) {
+            modifier
+                .alignY(AlignmentY.Center)
+                .onClick { controller.setCameraPreviewEnabled(!controller.isCameraPreviewEnabled.value) }
+
+            Checkbox(controller.isCameraPreviewEnabled.use()) {
+                modifier
+                    .alignY(AlignmentY.Center)
+                    .colors(
+                        borderColor = ColorTheme.UI.BackgroundAccent,
+                        backgroundColor = ColorTheme.UI.BackgroundDarker,
+                        fillColor = ColorTheme.UI.BackgroundElements,
+                        checkMarkColor = ColorTheme.Accents.Main
+                    )
+                    .onToggle { controller.setCameraPreviewEnabled(it) }
+            }
+
+            Text("Preview") {
+                modifier
+                    .alignY(AlignmentY.Center)
+                    .margin(start = Dimensions.PaddingMedium)
+                    .textColor(ColorTheme.UI.WhiteReplacement)
+            }
         }
 
         Box(width = Grow.Std) {}
 
         Row(height = Grow.Std) {
             modifier.alignY(AlignmentY.Center)
+
+            extraContent()
 
             ToolbarIconButton(controller.iconPulse) {}
 
@@ -239,7 +250,7 @@ private fun UiScope.ToolbarIconButton(
     icon: Texture2d,
     size: Dp = 28.dp,
     iconSize: Dimension = Grow.Std,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val isHovered = remember(false)
     val hoverAnim = remember { FloatAnimator(0.15f, Easing.smooth) }
@@ -273,7 +284,7 @@ private fun UiScope.ToolbarIconButton(
 
 
 fun UiScope.TrackHeaderList(controller: TimelineController) {
-    Column(width = 300.dp, height = Grow.Std) {
+    Column(width = Dp(controller.trackPanelWidth.use()), height = Grow.Std) {
         modifier
             .zLayer(10)
             .backgroundColor(Color("1B1B1B"))
@@ -307,23 +318,17 @@ fun UiScope.TrackHeaderList(controller: TimelineController) {
                 }
 
                 controller.groups.use().forEach { group ->
-                    GroupHeader(group, controller)
-
-                    if (!group.isCollapsed.use()) {
-                        group.tracks.forEach { track ->
-                            TrackHeader(track, controller)
-                        }
-                    }
+                    GroupHeader(group, controller, 0)
                 }
             }
         }
     }
 }
 
-private fun UiScope.GroupHeader(group: TrackGroup, controller: TimelineController) {
+private fun UiScope.GroupHeader(group: TrackGroup, controller: TimelineController, depth: Int) {
     Row(width = Grow.Std, height = 30.dp) {
         modifier
-            .padding(start = sizes.smallGap, end = sizes.gap)
+            .padding(start = sizes.smallGap + Dp(depth * 14f), end = sizes.gap)
             .border(RectBorder(colors.secondaryVariant.withAlpha(0.2f), 1.dp))
             .backgroundColor(Color("24272E"))
             .onClick {
@@ -386,7 +391,7 @@ private fun UiScope.GroupHeader(group: TrackGroup, controller: TimelineControlle
             iconSize = 22.dp,
             marginEnd = sizes.smallGap,
             onToggle = { isVisible ->
-                group.tracks.forEach { it.isVisible.set(isVisible) }
+                setGroupVisible(group, isVisible)
             },
         )
 
@@ -396,13 +401,22 @@ private fun UiScope.GroupHeader(group: TrackGroup, controller: TimelineControlle
             iconOff = controller.unlocked,
             iconSize = 11.dp,
             onToggle = { isLocked ->
-                group.tracks.forEach { it.isLocked.set(isLocked) }
+                setGroupLocked(group, isLocked)
             },
         )
     }
+
+    if (!group.isCollapsed.use()) {
+        group.children.forEach { child ->
+            GroupHeader(child, controller, depth + 1)
+        }
+        group.tracks.forEach { track ->
+            TrackHeader(track, controller, depth + 1)
+        }
+    }
 }
 
-private fun UiScope.TrackHeader(track: BaseAnimTrack, controller: TimelineController) {
+private fun UiScope.TrackHeader(track: BaseAnimTrack, controller: TimelineController, depth: Int) {
     val isLocked = track.isLocked.use()
     val isVisible = track.isVisible.use()
 
@@ -418,13 +432,19 @@ private fun UiScope.TrackHeader(track: BaseAnimTrack, controller: TimelineContro
         modifier
             .border(RectBorder(colors.secondaryVariant.withAlpha(0.2f), 1.dp))
             .backgroundColor(bgColor)
-            .onClick {
-                controller.selectedKeyframes.clear()
-                controller.isWorkAreaSelected.set(false)
+            .onClick { ev ->
+                if (ev.pointer.isRightButtonClicked && track is AnimTrack<*>) {
+                    controller.trackContextMenuTime = null
+                    controller.onTrackContextMenu?.invoke(ev, track)
+                    ev.pointer.consume()
+                } else {
+                    controller.selectedKeyframes.clear()
+                    controller.isWorkAreaSelected.set(false)
+                }
             }
 
         Row(width = Grow.Std, height = Grow.Std) {
-            modifier.padding(start = sizes.gap, end = sizes.gap)
+            modifier.padding(start = sizes.gap + Dp(depth * 14f), end = sizes.gap)
 
             Box(width = 4.dp, height = 18.dp) {
                 modifier
@@ -460,6 +480,18 @@ private fun UiScope.TrackHeader(track: BaseAnimTrack, controller: TimelineContro
     }
 }
 
+private fun setGroupVisible(group: TrackGroup, isVisible: Boolean) {
+    group.isVisible.set(isVisible)
+    group.tracks.forEach { it.isVisible.set(isVisible) }
+    group.children.forEach { setGroupVisible(it, isVisible) }
+}
+
+private fun setGroupLocked(group: TrackGroup, isLocked: Boolean) {
+    group.isLocked.set(isLocked)
+    group.tracks.forEach { it.isLocked.set(isLocked) }
+    group.children.forEach { setGroupLocked(it, isLocked) }
+}
+
 private fun UiScope.ToggleIcon(
     state: MutableStateValue<Boolean>,
     iconOn: Texture2d,
@@ -467,7 +499,7 @@ private fun UiScope.ToggleIcon(
     iconSize: Dp,
     marginEnd: Dp = Dp.ZERO,
     tint: Color = Color.WHITE,
-    onToggle: ((Boolean) -> Unit)? = null
+    onToggle: ((Boolean) -> Unit)? = null,
 ) {
     val currentIcon = if (state.use()) iconOn else iconOff
 

@@ -1,10 +1,14 @@
 package ru.hollowhorizon.hollowengine.client.gui.timeline
 
+import de.fabmax.kool.input.CursorShape
+import de.fabmax.kool.input.KeyboardInput
+import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.math.MutableVec3f
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 
 private fun UiScope.floatField(
     value: Float,
@@ -35,8 +39,28 @@ private fun UiScope.floatField(
                 .width(width)
                 .height(26.dp)
                 .alignY(AlignmentY.Center)
+                .background(RoundRectBackground(ColorTheme.UI.BackgroundGeneral, sizes.smallGap))
                 .padding(horizontal = 4.dp, vertical = 2.dp)
                 .textAlignX(AlignmentX.End)
+                .colors(
+                    textColor = ColorTheme.UI.WhiteReplacement,
+                    lineColor = Color(0f, 0f, 0f, 0f),
+                    lineColorFocused = ColorTheme.UI.BackgroundAccent,
+                    selectionColor = ColorTheme.UI.BackgroundAccent.withAlpha(0.3f),
+                )
+                .onEnter { PointerInput.cursorShape = CursorShape.RESIZE_E }
+                .onExit { PointerInput.cursorShape = CursorShape.DEFAULT }
+                .onDrag { event ->
+                    val speed = when {
+                        KeyboardInput.isCtrlDown -> 0.25f
+                        KeyboardInput.isShiftDown -> 0.01f
+                        else -> 0.05f
+                    }
+                    val newValue = value + event.pointer.delta.x * speed
+                    text = "%.3f".format(newValue).replace(',', '.')
+                    onValueChange(newValue)
+                    event.pointer.consume()
+                }
                 .onChange {
                     text = it
                     it.toFloatOrNull()?.let { parsed -> onValueChange(parsed) }

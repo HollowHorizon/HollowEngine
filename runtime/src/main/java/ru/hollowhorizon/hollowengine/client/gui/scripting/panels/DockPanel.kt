@@ -1,5 +1,9 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting.panels
 
+import de.fabmax.kool.KoolContext
+import de.fabmax.kool.input.InputStack
+import de.fabmax.kool.input.KeyEvent
+import de.fabmax.kool.input.PointerInput
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dock
 import de.fabmax.kool.modules.ui2.docking.UiDockable
@@ -16,9 +20,27 @@ abstract class DockPanel(final override val name: String, val dock: Dock) : Layo
     var showOnToolbar = true
 
     private var surface: UiSurface? = null
+    private val inputListener = InputStack.InputHandler("$name Input Handler").apply {
+        keyboardListeners += object : InputStack.KeyboardListener {
+            override fun handleKeyboard(keyEvents: List<KeyEvent>, ctx: KoolContext) {
+                val activeSurface = surface ?: return
+                val onTop = dock.isSurfaceOnTop(activeSurface, PointerInput.primaryPointer.pos)
+                if (!onTop) return
+                keyEvents.forEach { onKeyInput(it) }
+            }
+        }
+    }
 
     val isCollapsed = mutableStateOf(false)
     val isDocked: Boolean get() = dockable.dockedTo.value != null
+
+    private fun UiScope.drawPanelHeaderLeft() {
+        drawHeaderLeft()
+    }
+
+    private fun UiScope.drawPanelHeaderRight() {
+        drawHeaderRight()
+    }
 
     private fun UiScope.panelContent() {
         val size = if(isCollapsed.use()) FitContent else Grow.Std
@@ -30,7 +52,14 @@ abstract class DockPanel(final override val name: String, val dock: Dock) : Layo
                 showTabsIfDocked = !showOnToolbar,
                 onCloseAction = {
                     close()
-                })
+                },
+                headerLeft = {
+                    drawPanelHeaderLeft()
+                },
+                headerRight = {
+                    drawPanelHeaderRight()
+                },
+            )
             if(!isCollapsed.use()) this@DockPanel()
         }
     }
@@ -67,6 +96,7 @@ abstract class DockPanel(final override val name: String, val dock: Dock) : Layo
                 panelContent()
             }
         }.also { dock.addDockableSurface(dockable, it) }
+        InputStack.pushBottom(inputListener)
     }
 
     override fun close() {
@@ -74,9 +104,11 @@ abstract class DockPanel(final override val name: String, val dock: Dock) : Layo
             dock.removeDockableSurface(it)
             it.releaseDelayed(1)
         }
+        InputStack.remove(inputListener)
         surface = null
     }
 
     protected open fun UiScope.drawHeaderLeft() {}
     protected open fun UiScope.drawHeaderRight() {}
+    protected open fun onKeyInput(event: KeyEvent) {}
 }

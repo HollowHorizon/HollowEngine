@@ -6,18 +6,14 @@ import de.fabmax.kool.math.deg
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFont
-import ru.hollowhorizon.hollowengine.client.gui.timeline.PropertyDriver
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
-import ru.hollowhorizon.hollowengine.client.gui.timeline.AnimTrack
-import ru.hollowhorizon.hollowengine.client.gui.timeline.Keyframe
-import ru.hollowhorizon.hollowengine.client.gui.timeline.TimelineController
-import ru.hollowhorizon.hollowengine.client.gui.timeline.easingTypes
+import ru.hollowhorizon.hollowengine.client.gui.timeline.*
 
 fun UiScope.PropertiesPanel(controller: TimelineController) {
-    Column(width = 250.dp, height = Grow.Std) {
+    Column(width = Dp(controller.propertiesPanelWidth.use()), height = Grow.Std) {
         modifier
-            .backgroundColor(colors.backgroundVariant)
+            .backgroundColor(ColorTheme.UI.BackgroundDarker)
             .zLayer(20)
             .onClick { it.pointer.consume() }
 
@@ -37,7 +33,8 @@ fun UiScope.PropertiesPanel(controller: TimelineController) {
             width = Grow.Std,
             height = Grow.Std,
             withVerticalScrollbar = true,
-            state = rememberScrollState()
+            state = rememberScrollState(),
+            containerModifier = { it.backgroundColor(ColorTheme.UI.BackgroundSecondary) }
         ) {
             Column(width = Grow.Std) {
                 modifier.padding(start = sizes.gap, end = sizes.gap, top = sizes.gap)
@@ -95,7 +92,7 @@ private fun UiScope.KeyframeProperties(
             val limitMax = controller.workAreaEnd.value
             val clamped = inputTime.coerceIn(0f, limitMax)
             if (key.time != clamped) {
-                key.time = clamped
+                controller.moveKeyframe(track, key, clamped)
                 surface.triggerUpdate()
             }
         }
@@ -108,7 +105,7 @@ private fun UiScope.KeyframeProperties(
             .background(RoundRectBackground(colors.background, sizes.smallGap))
             .padding(sizes.smallGap)
 
-        drawKeyframeValueEditor(key, track)
+        drawKeyframeValueEditor(key, track, controller)
     }
 
     Box(height = sizes.gap) {}
@@ -183,13 +180,15 @@ private fun renderEasingGraph(node: UiNode, easing: Easing.Easing, curveColor: C
 }
 
 @Suppress("UNCHECKED_CAST")
-private fun UiScope.drawKeyframeValueEditor(key: Keyframe<*>, track: AnimTrack<*>) {
+private fun UiScope.drawKeyframeValueEditor(key: Keyframe<*>, track: AnimTrack<*>, controller: TimelineController) {
     val driver = track.driver as PropertyDriver<Any?>
     val typedKey = key as Keyframe<Any?>
 
     with(driver) {
         drawEditor(typedKey.value) { newValue ->
-            typedKey.value = newValue
+            controller.updateSelectedValues("Edit keyframe value") {
+                typedKey.value = newValue
+            }
         }
     }
 }
@@ -300,6 +299,7 @@ private fun UiScope.EasingSelector(
                         EasingButton(category.name, isSelected, sizes) {
                             val defaultVariant = if (category.variants.size > 2) category.variants[2] else category.variants[0]
                             keyframe.easing = defaultVariant.function
+                            controller.onChanged?.invoke()
                             surface.triggerUpdate()
                         }
                         if (index == 0 && rowItems.size > 1) Box(width = sizes.smallGap) {}
@@ -318,6 +318,7 @@ private fun UiScope.EasingSelector(
                             val isVariantSelected = keyframe.easing == variant.function
                             EasingButton(variant.name, isVariantSelected, sizes) {
                                 keyframe.easing = variant.function
+                                controller.onChanged?.invoke()
                                 surface.triggerUpdate()
                             }
                             if (vIndex == 0 && rowVariants.size > 1) Box(width = sizes.smallGap) {}

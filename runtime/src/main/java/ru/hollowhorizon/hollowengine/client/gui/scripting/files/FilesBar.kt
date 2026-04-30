@@ -243,6 +243,8 @@ fun UiScope.FileTitleBar(
     showTabsIfDocked: Boolean = true,
     onCloseAction: ((Dockable) -> Unit)? = null,
     onRightClick: (Dockable, PointerEvent) -> Unit = { dockable, event -> },
+    headerLeft: UiScope.() -> Unit = {},
+    headerRight: UiScope.() -> Unit = {},
 ) {
     val isTabbed = if (showTabsIfDocked) {
         val hasAnyTabs: Boolean
@@ -258,7 +260,16 @@ fun UiScope.FileTitleBar(
         if (windowDockable.floatingWidth.value == FitContent || windowDockable.floatingHeight.value == FitContent) {
             windowDockable.setFloatingBounds(450.dp, 200.dp)
         }
-        FileDockingBar(icon, windowDockable, onCloseAction, onRightClick, minimizeButton, isDraggable)
+        FileDockingBar(
+            icon = icon,
+            windowDockable = windowDockable,
+            onCloseAction = onCloseAction,
+            onRightClick = onRightClick,
+            minimizeButton = minimizeButton,
+            isDraggable = isDraggable,
+            headerLeft = headerLeft,
+            headerRight = headerRight,
+        )
     } else {
         // add an empty row to avoid a hard layout change when the title bar changes visibility
         Row { }
@@ -272,6 +283,8 @@ private fun UiScope.FileDockingBar(
     onRightClick: (Dockable, PointerEvent) -> Unit,
     minimizeButton: MutableStateValue<Boolean>,
     isDraggable: Boolean,
+    headerLeft: UiScope.() -> Unit,
+    headerRight: UiScope.() -> Unit,
 ) {
     Row(if(minimizeButton.use()) FitContent else Grow.Std) {
         if (windowDockable.isDocked.use()) modifier.margin(Dimensions.PaddingNormal)
@@ -289,15 +302,18 @@ private fun UiScope.FileDockingBar(
             }
             .onDrag { PointerInput.cursorShape = CursorShape.HAND }
 
-        Row(Grow.Std) {
+        Box(Grow.Std) {
             val isHovered by modifier.hoverable()
-            val color by animateColorAsState(if(isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary, tween(0.3f, Easing.easeOutQuart))
+            val color by animateColorAsState(
+                if (isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary,
+                tween(0.16f, Easing.easeOutQuart),
+            )
 
-            modifier.background(RoundRectBackground(color, Dimensions.PaddingNormal))
-                .padding(
-                    vertical = Dimensions.PaddingMedium,
-                    horizontal = Dimensions.PaddingMedium + Dimensions.PaddingNormal
-                )
+            modifier
+                .height(FitContent)
+                .background(RoundRectBackground(color, Dimensions.PaddingNormal))
+                .border(RoundRectBorder(ColorTheme.UI.BackgroundElements, Dimensions.PaddingNormal, sizes.borderWidth))
+                .padding(horizontal = Dimensions.PaddingMedium + Dimensions.PaddingNormal)
 
 
             if (isDraggable && !PointerInput.primaryPointer.isMiddleButtonDown && !PointerInput.primaryPointer.isRightButtonDown) {
@@ -306,62 +322,83 @@ private fun UiScope.FileDockingBar(
                 }
             }
 
-            Image(icon) {
-                modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                    .alignY(AlignmentY.Center)
+            Row {
+                Image(icon) {
+                    modifier.size(Dimensions.PaddingLarge, Dimensions.PaddingLarge)
+                        .alignY(AlignmentY.Center)
+                }
+
+                val itemName =
+                    IdeContent.files.values.find { it.dockable == windowDockable }?.filePath?.substringAfterLast('/')
+                        ?: windowDockable.name.lang
+
+                Text(itemName) {
+                    modifier
+                        .margin(horizontal = Dimensions.PaddingMedium)
+                        .font(remember {
+                            MsdfFont(
+                                ColorTheme.Fonts.MONOCRAFT,
+                                Dimensions.FontNormal,
+                                MsdfFont.ITALIC_NONE,
+                                MsdfFont.WEIGHT_EXTRA_BOLD
+                            )
+                        })
+                        .textColor(ColorTheme.UI.WhiteReplacement)
+                        .align(AlignmentX.Start, AlignmentY.Center)
+                }
+
+                headerLeft()
             }
 
-            val itemName =
-                IdeContent.files.values.find { it.dockable == windowDockable }?.filePath?.substringAfterLast('/') ?: windowDockable.name.lang
 
-            Text(itemName) {
-                modifier
-                    .margin(horizontal = Dimensions.PaddingMedium)
-                    .font(remember {
-                        MsdfFont(
-                            ColorTheme.Fonts.MONOCRAFT,
-                            Dimensions.FontNormal,
-                            MsdfFont.ITALIC_NONE,
-                            MsdfFont.WEIGHT_EXTRA_BOLD
-                        )
-                    })
-                    .textColor(ColorTheme.UI.WhiteReplacement)
-                    .align(AlignmentX.Start, AlignmentY.Center)
-            }
+            Row {
+                modifier.align(AlignmentX.End, AlignmentY.Center)
 
-            Box(Grow.Std) {}
+                headerRight()
 
-            onCloseAction?.let { action ->
-                Box {
-                    val background = CloseButtonBackground(
-                        ColorTheme.UI.WhiteReplacement,
-                        Color.WHITE,
-                        ColorTheme.UI.BackgroundSecondary,
-                        ColorTheme.UI.BackgroundSecondary
-                    )
-                    val isHovered by modifier.hoverable()
-                    background.isHovered = isHovered
-                    modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                        .background(background)
-                        .onClick {
-                            if (it.isLeftClick) action(windowDockable)
-                        }
+                onCloseAction?.let { action ->
+                    HeaderIconButton(icons.CLOSE) {
+                        action(windowDockable)
+                    }
                 }
             }
         }
-        Box(height = Grow.Std) {
-            modifier.padding(Dimensions.PaddingMedium)
-                .margin(start = Dimensions.PaddingNormal)
 
-            val isHovered by modifier.hoverable()
-            val color by animateColorAsState(if(isHovered) ColorTheme.UI.BackgroundAccent else ColorTheme.UI.BackgroundSecondary)
-            modifier.background(RoundRectBackground(color, Dimensions.PaddingNormal))
-                .onClick { if(it.pointer.isLeftButtonClicked) minimizeButton.set(!minimizeButton.use()) }
+        Box(width = Dimensions.PaddingNormal) {}
 
-            Image(if(minimizeButton.use()) icons.MAXIMIZE else icons.MINIMIZE) {
-                modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
-                    .align(AlignmentX.Center, AlignmentY.Center)
+        Row(height = Grow.Std) {
+            modifier
+                .alignY(AlignmentY.Center)
+                .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, Dimensions.PaddingNormal))
+                .border(RoundRectBorder(ColorTheme.UI.BackgroundElements, Dimensions.PaddingNormal, sizes.borderWidth))
+                .padding(Dimensions.PaddingMedium)
+
+            HeaderIconButton(if (minimizeButton.use()) icons.MAXIMIZE else icons.MINIMIZE) {
+                minimizeButton.set(!minimizeButton.value)
             }
+        }
+    }
+}
+
+private fun UiScope.HeaderIconButton(icon: ResourceLocation, onClick: () -> Unit) {
+    Box {
+        val isHovered by modifier.hoverable()
+        val color by animateColorAsState(
+            if (isHovered) ColorTheme.UI.BackgroundAccent else ColorTheme.UI.BackgroundElements,
+            tween(0.12f, Easing.easeOutQuart),
+        )
+        modifier
+            .alignY(AlignmentY.Center)
+            .padding(Dimensions.PaddingMedium, Dimensions.PaddingMedium)
+            .background(RoundRectBackground(color, Dimensions.PaddingNormal))
+            .onClick {
+                if (it.isLeftClick) onClick()
+            }
+
+        Image(icon) {
+            modifier
+                .size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
+                .align(AlignmentX.Center, AlignmentY.Center)
         }
     }
 }

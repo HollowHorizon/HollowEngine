@@ -218,7 +218,11 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void onRenderEntityPost(Entity entity, float entityYaw, float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight);
 
-    CameraSetup onCameraSetup(GameRenderer gameRenderer, Camera camera, float partialTick);
+    CameraSetup onCameraSetup(GameRenderer gameRenderer, Camera camera, float yaw, float pitch, float roll, float partialTick);
+
+    CameraOverride getCameraOverride(float partialTick);
+
+    double onCameraFov(GameRenderer gameRenderer, Camera camera, double fov, float partialTick, boolean changingFov);
 
     void onRegisterLayerDefinitions(Map<ModelLayerLocation, Supplier<LayerDefinition>> definitions);
 
@@ -360,6 +364,10 @@ public interface RuntimeBridge extends AutoCloseable {
     }
 
     record CameraSetup(float yaw, float pitch, float roll) {
+    }
+
+    record CameraOverride(boolean active, double x, double y, double z, float yaw, float pitch, float roll, double fov) {
+        public static final CameraOverride NONE = new CameraOverride(false, 0.0D, 0.0D, 0.0D, 0.0F, 0.0F, 0.0F, 70.0D);
     }
 
     record MouseMoveResult(float x, float y, boolean cancel, boolean resetMousePosition) {

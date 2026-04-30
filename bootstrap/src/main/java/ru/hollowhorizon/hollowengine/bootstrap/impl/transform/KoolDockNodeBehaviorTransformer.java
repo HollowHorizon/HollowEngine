@@ -19,7 +19,6 @@ final class KoolDockNodeBehaviorTransformer extends AbstractAsmClassTransformer 
     @Override
     protected void transform(ClassNode classNode) {
         transformReceive(classNode);
-        replaceWithReturn(requireMethod(classNode, "dockPreview", "(Lde/fabmax/kool/modules/ui2/UiScope;Lde/fabmax/kool/modules/ui2/docking/DockNode$SlotPosition;)V"));
     }
 
     private static void transformReceive(ClassNode classNode) {

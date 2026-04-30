@@ -76,7 +76,9 @@ import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.gui.ImageTextButton
 import ru.hollowhorizon.hollowengine.client.gui.scripting.isAnyFocusNodeInput
 import ru.hollowhorizon.hollowengine.client.gui.scripting.isMouseOverDock
+import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneCameraSystem
 import ru.hollowhorizon.hollowengine.client.kool.*
+import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
 import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
 import ru.hollowhorizon.hollowengine.client.render.RenderManager
@@ -514,6 +516,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onClientRenderTickPre(client: Minecraft) {
+        CutsceneCameraSystem.update(client)
         EventBus.post(RenderTickEvent.Pre(client))
     }
 
@@ -630,11 +633,59 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     override fun onCameraSetup(
         gameRenderer: GameRenderer,
         camera: Camera,
+        yaw: Float,
+        pitch: Float,
+        roll: Float,
         partialTick: Float,
     ): RuntimeBridge.CameraSetup {
-        val event = CameraSetupEvent(gameRenderer, camera, partialTick, camera.yRot, camera.xRot, 0f)
+        val pose = CutsceneCameraSystem.currentPose.takeIf { shouldApplyCutsceneCamera() }
+        val event = CameraSetupEvent(
+            gameRenderer = gameRenderer,
+            camera = camera,
+            partialTick = partialTick,
+            yaw = pose?.yaw ?: yaw,
+            pitch = pose?.pitch ?: pitch,
+            roll = pose?.roll ?: roll,
+        )
         EventBus.post(event)
         return RuntimeBridge.CameraSetup(event.yaw, event.pitch, event.roll)
+    }
+
+    override fun getCameraOverride(partialTick: Float): RuntimeBridge.CameraOverride {
+        if (!shouldApplyCutsceneCamera()) return RuntimeBridge.CameraOverride.NONE
+        val pose = CutsceneCameraSystem.currentPose ?: return RuntimeBridge.CameraOverride.NONE
+        return RuntimeBridge.CameraOverride(
+            true,
+            pose.position.x.toDouble(),
+            pose.position.y.toDouble(),
+            pose.position.z.toDouble(),
+            pose.yaw,
+            pose.pitch,
+            pose.roll,
+            pose.fov.toDouble(),
+        )
+    }
+
+    override fun onCameraFov(
+        gameRenderer: GameRenderer,
+        camera: Camera,
+        fov: Double,
+        partialTick: Float,
+        changingFov: Boolean,
+    ): Double {
+        val event = CameraFovEvent(
+            gameRenderer = gameRenderer,
+            camera = camera,
+            partialTick = partialTick,
+            changingFov = changingFov,
+            fov = CutsceneCameraSystem.currentPose?.takeIf { shouldApplyCutsceneCamera() }?.fov?.toDouble() ?: fov,
+        )
+        EventBus.post(event)
+        return event.fov
+    }
+
+    private fun shouldApplyCutsceneCamera(): Boolean {
+        return !IrisHelper.isShadowRendering() && !ClusteredLightingManager.isLocalShadowPassActive()
     }
 
     override fun onRegisterLayerDefinitions(definitions: MutableMap<ModelLayerLocation, java.util.function.Supplier<LayerDefinition>>) {
@@ -799,10 +850,12 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         val convertedY = (yPos * scaleFactor).toFloat()
 
         KoolInputBridge.handleMouseMove(convertedX, convertedY)
-        val shouldCancel = (isMouseOverDock(convertedX, convertedY) || TransformGizmoEditor.shouldBlockScreenInput(
-            convertedX, convertedY
-        )) && minecraft.screen != null
-        return RuntimeBridge.MouseMoveResult(convertedX, convertedY, shouldCancel, shouldCancel)
+        val isScreenOpen = minecraft.screen != null
+        val isOverDock = isMouseOverDock(convertedX, convertedY)
+        val isGizmoBlocking = TransformGizmoEditor.shouldBlockScreenInput(convertedX, convertedY)
+        val shouldCancel = (isOverDock || isGizmoBlocking) && isScreenOpen
+        val shouldResetMousePosition = isGizmoBlocking && isScreenOpen
+        return RuntimeBridge.MouseMoveResult(convertedX, convertedY, shouldCancel, shouldResetMousePosition)
     }
 
     override fun onMousePress(

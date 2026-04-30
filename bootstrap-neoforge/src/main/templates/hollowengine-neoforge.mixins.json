@@ -6,6 +6,7 @@
   "mixins": [
   ],
   "client": [
+    "client.CameraMixin",
     "client.LevelRendererStagesMixin"
   ],
   "injectors": {
