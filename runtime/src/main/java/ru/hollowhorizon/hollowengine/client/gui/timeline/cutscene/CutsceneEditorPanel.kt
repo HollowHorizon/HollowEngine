@@ -1,95 +1,72 @@
 package ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene
 
-import de.fabmax.kool.input.*
-import de.fabmax.kool.modules.ui2.*
+import de.fabmax.kool.input.KeyEvent
+import de.fabmax.kool.modules.ui2.AlignmentY
+import de.fabmax.kool.modules.ui2.Box
+import de.fabmax.kool.modules.ui2.Button
+import de.fabmax.kool.modules.ui2.Column
+import de.fabmax.kool.modules.ui2.Grow
+import de.fabmax.kool.modules.ui2.Text
+import de.fabmax.kool.modules.ui2.UiScope
+import de.fabmax.kool.modules.ui2.alignY
 import de.fabmax.kool.modules.ui2.docking.Dock
+import de.fabmax.kool.modules.ui2.docking.DockNode
+import de.fabmax.kool.modules.ui2.docking.Dockable
+import de.fabmax.kool.modules.ui2.dp
+import de.fabmax.kool.modules.ui2.margin
+import de.fabmax.kool.modules.ui2.onClick
+import de.fabmax.kool.modules.ui2.remember
+import de.fabmax.kool.modules.ui2.textColor
 import de.fabmax.kool.util.Color
-import net.minecraft.client.Minecraft
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.LayoutLoader
+import ru.hollowhorizon.hollowengine.client.gui.scripting.docking.insertItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.DockPanel
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
-import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.timeline.AnimTrack
-import ru.hollowhorizon.hollowengine.client.gui.timeline.TimelineController
-import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.PropertiesPanel
 import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.TimelineArea
 import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.Toolbar
-import ru.hollowhorizon.hollowengine.client.gui.timeline.ui.TrackHeaderList
-import ru.hollowhorizon.hollowengine.client.kool.minecraft.ImageManager
-import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
-import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.generated.Assets
 
-class CutsceneEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.cutscene", dock) {
-    companion object {
-        private val KEY_UNDO = UniversalKeyCode('Z')
-        private val KEY_REDO = UniversalKeyCode('Y')
-        private val KEY_PLAY_PAUSE = UniversalKeyCode(' ')
-    }
-
+class CutsceneEditorPanel(dock: Dock) : DockPanel(MAIN_PANEL_ID, dock) {
     override val icon: ResourceLocation = Assets.Hollowengine.Textures.Gui.Icons.FILM
 
-    private val playback = CutscenePlaybackController()
-    private val timeline = TimelineController()
-    private val status = mutableStateOf("Camera cutscene")
+    private val session = CutsceneEditorSessions.default
 
-    init {
-        loadTimelineIcons()
-        timeline.workAreaEnd.set(playback.duration)
-        timeline.addTrack(listOf("Camera", "Transform"), playback.positionTrack)
-        timeline.addTrack(listOf("Camera", "Transform"), playback.rotationTrack)
-        timeline.addTrack(listOf("Camera", "Lens"), playback.fovTrack)
-        timeline.onChanged = ::syncPlaybackFromTimeline
-        timeline.onTimeChanged = ::syncPlaybackFromTimeline
-        timeline.onPreviewChanged = ::updatePreviewState
+    override fun open() {
+        super.open()
+        CutscenePanelDocking.openAuxiliaryPanels(dockable)
     }
 
     override fun UiScope.drawHeaderLeft() {
-        Toolbar(timeline) {
+        Toolbar(session.timeline) {
             Button("Capture") {
                 modifier
                     .alignY(AlignmentY.Center)
                     .margin(end = sizes.smallGap)
-                    .onClick { captureCurrentCamera() }
+                    .onClick { session.captureCurrentCamera() }
             }
 
             Button("Stop") {
                 modifier
                     .alignY(AlignmentY.Center)
                     .margin(end = sizes.smallGap)
-                    .onClick {
-                        timeline.isPlaying.set(false)
-                        CutsceneCameraSystem.stop()
-                        status.set("Camera preview stopped")
-                    }
+                    .onClick { session.stopPreview() }
             }
         }
     }
 
     override fun UiScope.compose() {
-        val trackMenu = remember { ItemPopupMenu<AnimTrack<*>>("cutscene-track-menu") }
-        timeline.onTrackContextMenu = { event, track ->
-            trackMenu.show(event.screenPosition, buildTrackMenu(trackMenu), track)
+        val trackMenu = remember { ItemPopupMenu<AnimTrack<*>>("cutscene-timeline-track-menu") }
+        session.timeline.onTrackLaneContextMenu = { event, track ->
+            trackMenu.show(event.screenPosition, session.buildTrackMenu(trackMenu), track)
         }
 
         Column(Grow.Std, Grow.Std) {
-
-
-            Row(Grow.Std, Grow.Std) {
-                TrackHeaderList(timeline)
-                Splitter { delta ->
-                    timeline.trackPanelWidth.set((timeline.trackPanelWidth.value + Dp.fromPx(delta).value).coerceIn(180f, 520f))
-                }
-                TimelineArea(timeline)
-                Splitter { delta ->
-                    timeline.propertiesPanelWidth.set((timeline.propertiesPanelWidth.value - Dp.fromPx(delta).value).coerceIn(180f, 460f))
-                }
-                PropertiesPanel(timeline)
-            }
+            TimelineArea(session.timeline)
 
             Box(Grow.Std, 22.dp) {
-                Text(status.use()) {
+                Text(session.status.use()) {
                     modifier
                         .alignY(AlignmentY.Center)
                         .margin(start = sizes.gap)
@@ -99,96 +76,40 @@ class CutsceneEditorPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.cutscene
         }
 
         trackMenu()
-        timeline.onUpdate()
-        syncPlaybackFromTimeline()
+        session.update()
     }
-
-    private fun captureCurrentCamera() {
-        val pose = CutsceneCameraSystem.capturePlayerPose(Minecraft.getInstance()) ?: return
-        val time = timeline.currentTime.value
-
-        timeline.upsertKeyframe(playback.positionTrack, time, pose.position)
-        timeline.upsertKeyframe(playback.rotationTrack, time, pose.rotation)
-        timeline.upsertKeyframe(playback.fovTrack, time, pose.fov)
-        playback.seek(time)
-        status.set("Captured camera at ${"%.2f".format(time)}s")
-        updatePreviewState()
-    }
-
-    private fun syncPlaybackFromTimeline() {
-        playback.setDuration(timeline.workAreaEnd.value)
-        playback.seek(timeline.currentTime.value)
-        updatePreviewState()
-    }
-
-    private fun updatePreviewState() {
-        if (timeline.isCameraPreviewEnabled.value) {
-            CutsceneCameraSystem.preview(playback)
-        } else if (CutsceneCameraSystem.activeController === playback) {
-            CutsceneCameraSystem.stop()
-        }
-    }
-
-    private fun buildTrackMenu(menu: ItemPopupMenu<AnimTrack<*>>): SubMenuItem<AnimTrack<*>> {
-        return SubMenuItem("Track") {
-            item("Add keyframe") { track ->
-                val time = timeline.trackContextMenuTime ?: timeline.currentTime.value
-                timeline.addKeyframe(track, time)
-                menu.hide()
-            }
-            item("Delete selected") {
-                timeline.deleteSelectedKeyframes()
-                menu.hide()
-            }
-        }
-    }
-
-    private fun loadTimelineIcons() {
-        timeline.iconPrev = loadIcon("step_backward.svg")
-        timeline.iconPlay = loadIcon("play.svg")
-        timeline.iconPause = loadIcon("pause.svg")
-        timeline.iconNext = loadIcon("step_forward.svg")
-        timeline.iconZoomOut = loadIcon("zoom_out.svg")
-        timeline.iconZoomIn = loadIcon("zoom_in.svg")
-        timeline.iconPulse = loadIcon("pulse.svg")
-        timeline.iconFilm = loadIcon("film.svg")
-        timeline.iconCompress = loadIcon("compress.svg")
-        timeline.visible = loadIcon("visible.svg")
-        timeline.invisible = loadIcon("invisible.svg")
-        timeline.unlocked = loadIcon("unlocked.svg")
-        timeline.locked = loadIcon("locked.svg")
-        timeline.arrow = loadIcon("arrow.svg")
-    }
-
-    private fun loadIcon(name: String) = ImageManager.load(
-        "hollowengine:textures/gui/icons/$name".rl,
-        SamplerMode.NEAREST,
-    )
 
     override fun onKeyInput(event: KeyEvent) {
-        if (!event.isPressed) return
-
-        when {
-            event.isCtrlDown && event.keyCode == KEY_UNDO -> {
-                if (event.isShiftDown) timeline.redo() else timeline.undo()
-            }
-            event.isCtrlDown && event.keyCode == KEY_REDO -> timeline.redo()
-            event.keyCode == KeyboardInput.KEY_DEL -> timeline.deleteSelectedKeyframes()
-            event.keyCode == KeyboardInput.KEY_ESC -> timeline.clearSelection()
-            event.keyCode == KeyboardInput.KEY_HOME -> timeline.setCurrentTime(0f)
-            event.keyCode == KEY_PLAY_PAUSE -> timeline.togglePlayback()
-        }
+        session.onKeyInput(event)
     }
+}
 
-    private fun UiScope.Splitter(onMove: (Float) -> Unit) {
-        Box(6.dp, Grow.Std) {
-            modifier
-                .backgroundColor(ColorTheme.UI.BackgroundElements)
-                .onHover { PointerInput.cursorShape = CursorShape.RESIZE_E }
-                .onDrag { event ->
-                    onMove(event.pointer.delta.x)
-                    event.pointer.consume()
-                }
+private object CutscenePanelDocking {
+    fun openAuxiliaryPanels(mainDockable: Dockable) {
+        val tracks = LayoutLoader.LAYOUTS[TRACKS_PANEL_ID] ?: return
+        val properties = LayoutLoader.LAYOUTS[PROPERTIES_PANEL_ID] ?: return
+
+        tracks.open()
+        properties.open()
+
+        val mainLeaf = mainDockable.dockedTo.value ?: return
+        val onlyMainInLeaf = mainLeaf.dockedItems.count { !it.isHidden } == 1
+        if (!onlyMainInLeaf) return
+
+        if (tracks.dockable.dockedTo.value == null) {
+            mainLeaf.insertItem(tracks.dockable, DockNode.SlotPosition.Left)
+        }
+
+        val updatedMainLeaf = mainDockable.dockedTo.value ?: return
+        if (properties.dockable.dockedTo.value == null) {
+            updatedMainLeaf.insertItem(
+                properties.dockable,
+                DockNode.SlotPosition.Right,
+            )
         }
     }
 }
+
+const val MAIN_PANEL_ID = "hollowengine.gui.ide.cutscene"
+const val TRACKS_PANEL_ID = "hollowengine.gui.ide.cutscene.tracks"
+const val PROPERTIES_PANEL_ID = "hollowengine.gui.ide.cutscene.properties"

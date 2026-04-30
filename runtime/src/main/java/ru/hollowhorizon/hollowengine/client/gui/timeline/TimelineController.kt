@@ -46,6 +46,8 @@ class TimelineController {
     var onTimeChanged: (() -> Unit)? = null
     var onPreviewChanged: (() -> Unit)? = null
     var onTrackContextMenu: ((PointerEvent, AnimTrack<*>) -> Unit)? = null
+    var onTrackHeaderContextMenu: ((PointerEvent, AnimTrack<*>) -> Unit)? = null
+    var onTrackLaneContextMenu: ((PointerEvent, AnimTrack<*>) -> Unit)? = null
     var trackContextMenuTime: Float? = null
 
     lateinit var iconPrev: Texture2d

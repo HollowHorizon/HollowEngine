@@ -10,8 +10,8 @@ import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.timeline.*
 
-fun UiScope.PropertiesPanel(controller: TimelineController) {
-    Column(width = Dp(controller.propertiesPanelWidth.use()), height = Grow.Std) {
+fun UiScope.PropertiesPanel(controller: TimelineController, width: Dimension? = null) {
+    Column(width = width ?: Dp(controller.propertiesPanelWidth.use()), height = Grow.Std) {
         modifier
             .backgroundColor(ColorTheme.UI.BackgroundDarker)
             .zLayer(20)

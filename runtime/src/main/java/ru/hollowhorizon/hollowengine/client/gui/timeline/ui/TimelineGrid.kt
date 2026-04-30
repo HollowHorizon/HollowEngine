@@ -173,7 +173,7 @@ private fun UiScope.TrackLane(
                     if (ev.pointer.isRightButtonClicked) {
                         controller.trackContextMenuTime = ((ev.position.x - leftPadding.px) / pxPerSec)
                             .coerceIn(0f, controller.workAreaEnd.value)
-                        controller.onTrackContextMenu?.invoke(ev, track)
+                        (controller.onTrackLaneContextMenu ?: controller.onTrackContextMenu)?.invoke(ev, track)
                         ev.pointer.consume()
                     } else if (ev.pointer.leftButtonRepeatedClickCount == 1) {
                         controller.selectedKeyframes.clear()
@@ -283,7 +283,7 @@ private fun UiScope.TimelineKeyframe(
 
                     if (ev.pointer.isRightButtonClicked && track is AnimTrack<*>) {
                         controller.trackContextMenuTime = keyframe.time
-                        controller.onTrackContextMenu?.invoke(ev, track)
+                        (controller.onTrackLaneContextMenu ?: controller.onTrackContextMenu)?.invoke(ev, track)
                     } else if (ev.pointer.leftButtonRepeatedClickCount == 2) {
                         controller.duplicateKeyframe(track, keyframe)
                         surface.triggerUpdate()

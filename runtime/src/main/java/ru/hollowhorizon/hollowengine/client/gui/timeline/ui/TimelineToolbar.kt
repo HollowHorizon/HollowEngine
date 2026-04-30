@@ -283,8 +283,8 @@ private fun UiScope.ToolbarIconButton(
 }
 
 
-fun UiScope.TrackHeaderList(controller: TimelineController) {
-    Column(width = Dp(controller.trackPanelWidth.use()), height = Grow.Std) {
+fun UiScope.TrackHeaderList(controller: TimelineController, width: Dimension? = null) {
+    Column(width = width ?: Dp(controller.trackPanelWidth.use()), height = Grow.Std) {
         modifier
             .zLayer(10)
             .backgroundColor(Color("1B1B1B"))
@@ -435,7 +435,7 @@ private fun UiScope.TrackHeader(track: BaseAnimTrack, controller: TimelineContro
             .onClick { ev ->
                 if (ev.pointer.isRightButtonClicked && track is AnimTrack<*>) {
                     controller.trackContextMenuTime = null
-                    controller.onTrackContextMenu?.invoke(ev, track)
+                    (controller.onTrackHeaderContextMenu ?: controller.onTrackContextMenu)?.invoke(ev, track)
                     ev.pointer.consume()
                 } else {
                     controller.selectedKeyframes.clear()
