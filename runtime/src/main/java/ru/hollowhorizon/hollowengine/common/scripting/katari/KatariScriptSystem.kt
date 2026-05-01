@@ -23,6 +23,9 @@ class KatariScriptSystem(
     private val scope: CoroutineScope,
     private val onDirty: () -> Unit,
 ) {
+    init {
+        HollowEditorAPI.generate()
+    }
     private val records = linkedMapOf<String, KatariRunRecord>()
     private val programCache = linkedMapOf<ProgramKey, com.sunnychung.lib.multiplatform.kotlite.katari.KatariProgram>()
 
@@ -30,6 +33,7 @@ class KatariScriptSystem(
         val source = loadSource(path)
         val runId = UUID.randomUUID().toString()
         val (bindings, host) = createHollowKatariBindings(server, runId, sourcePlayer, ::markDirty)
+
         val program = programCache.getOrPut(ProgramKey(source.path, source.hash)) {
             KatariNarrativeProgram(source.path, source.text, bindings)
         }

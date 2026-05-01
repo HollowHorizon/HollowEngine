@@ -487,6 +487,16 @@ private class KatariBindingProcessor(
         OutputStreamWriter(file, Charsets.UTF_8).use { writer ->
             writer.write(KatariBindingCodegen(scriptTypes, functions, classes, properties, enumTypes).generate())
         }
+
+        val jsonFile = codeGenerator.createNewFile(
+            Dependencies(aggregating = true, sources = sources),
+            "",
+            "katari-bindings",
+            extensionName = "json",
+        )
+        OutputStreamWriter(jsonFile, Charsets.UTF_8).use { writer ->
+            writer.write(KatariBindingsJsonGen(scriptTypes, functions, classes, properties).generate())
+        }
     }
 
     private fun KSAnnotated.hasAnnotation(name: String): Boolean {
