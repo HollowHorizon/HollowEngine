@@ -17,6 +17,7 @@ class CutscenePropertiesPanel(dock: Dock) : DockPanel(PROPERTIES_PANEL_ID, dock)
 
     init {
         dockable.floatingWidth.set(360.dp)
+        session._propertiesSurface = { surface }
     }
 
     override fun UiScope.compose() {

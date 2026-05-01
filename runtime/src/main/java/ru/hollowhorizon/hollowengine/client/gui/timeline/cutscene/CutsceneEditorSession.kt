@@ -3,8 +3,7 @@ package ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene
 import de.fabmax.kool.input.KeyEvent
 import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.UniversalKeyCode
-import de.fabmax.kool.modules.ui2.MutableStateValue
-import de.fabmax.kool.modules.ui2.mutableStateOf
+import de.fabmax.kool.modules.ui2.UiSurface
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.ItemPopupMenu
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
@@ -21,9 +20,10 @@ class CutsceneEditorSession {
         private val KEY_PLAY_PAUSE = UniversalKeyCode(' ')
     }
 
+    var _propertiesSurface: () -> UiSurface? = { null }
+    val propertiesSurface: UiSurface? get() = _propertiesSurface()
     val playback = CutscenePlaybackController()
     val timeline = TimelineController()
-    val status: MutableStateValue<String> = mutableStateOf("Camera cutscene")
 
     init {
         loadTimelineIcons()
@@ -41,22 +41,14 @@ class CutsceneEditorSession {
         syncPlaybackFromTimeline()
     }
 
-    fun captureCurrentCamera() {
+    fun captureFrame(time: Float) {
         val pose = CutsceneCameraSystem.capturePlayerPose(Minecraft.getInstance()) ?: return
-        val time = timeline.currentTime.value
 
         timeline.upsertKeyframe(playback.positionTrack, time, pose.position)
         timeline.upsertKeyframe(playback.rotationTrack, time, pose.rotation)
         timeline.upsertKeyframe(playback.fovTrack, time, pose.fov)
         playback.seek(time)
-        status.set("Captured camera at ${"%.2f".format(time)}s")
         updatePreviewState()
-    }
-
-    fun stopPreview() {
-        timeline.isPlaying.set(false)
-        CutsceneCameraSystem.stop()
-        status.set("Camera preview stopped")
     }
 
     fun buildTrackMenu(menu: ItemPopupMenu<AnimTrack<*>>): SubMenuItem<AnimTrack<*>> {
@@ -65,6 +57,9 @@ class CutsceneEditorSession {
                 val time = timeline.trackContextMenuTime ?: timeline.currentTime.value
                 timeline.addKeyframe(track, time)
                 menu.hide()
+            }
+            item("Capture frame") { track ->
+                captureFrame(timeline.currentTime.value)
             }
             item("Delete selected") {
                 timeline.deleteSelectedKeyframes()

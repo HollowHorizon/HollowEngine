@@ -5,7 +5,6 @@ import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.math.deg
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
-import de.fabmax.kool.util.MsdfFont
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.timeline.*
@@ -17,27 +16,28 @@ fun UiScope.PropertiesPanel(controller: TimelineController, width: Dimension? = 
             .zLayer(20)
             .onClick { it.pointer.consume() }
 
-        Column(width = Grow.Std) {
-            modifier.padding(start = sizes.gap, end = sizes.gap, top = sizes.gap)
-
-            Text("Свойства") { modifier.font(sizes.largeText).margin(bottom = sizes.gap) }
-
-            Box(width = Grow.Std, height = 1.dp) {
-                modifier
-                    .margin(bottom = sizes.gap, start = Dimensions.PaddingSmall, end = Dimensions.PaddingSmall)
-                    .backgroundColor(Color("31343D"))
-            }
-        }
-
         ScrollArea(
             width = Grow.Std,
             height = Grow.Std,
             withVerticalScrollbar = true,
             state = rememberScrollState(),
-            containerModifier = { it.backgroundColor(ColorTheme.UI.BackgroundSecondary) }
+            containerModifier = {
+                it.backgroundColor(ColorTheme.UI.BackgroundSecondary).margin(end = Dimensions.PaddingMedium)
+            },
+            vScrollbarModifier = {
+                it.colors(
+                    trackColor = ColorTheme.UI.BackgroundSecondary,
+                    trackHoverColor = ColorTheme.UI.BackgroundElements,
+                    color = ColorTheme.UI.BackgroundAccent,
+                    hoverColor = ColorTheme.UI.WhiteReplacement
+                )
+            }
         ) {
+            modifier.width(Grow.Std)
+                .margin(end = Dimensions.PaddingMedium)
+
             Column(width = Grow.Std) {
-                modifier.padding(start = sizes.gap, end = sizes.gap, top = sizes.gap)
+                modifier.padding(Dimensions.PaddingSmall)
 
                 if (controller.selectedKeyframes.isNotEmpty()) {
                     val selectedKey = controller.selectedKeyframes.first()
@@ -54,10 +54,10 @@ fun UiScope.PropertiesPanel(controller: TimelineController, width: Dimension? = 
 
                 } else if (controller.isWorkAreaSelected.use()) {
                     Text("Конец рабочей зоны") {
-                        modifier.textColor(colors.primary).margin(bottom = sizes.smallGap)
+                        modifier.textColor(ColorTheme.Accents.Main).margin(bottom = sizes.smallGap)
                     }
 
-                    TimePropertyField("Time:", controller.workAreaEnd.value, colors) { inputTime ->
+                    TimePropertyField("Time:", controller.workAreaEnd.value) { inputTime ->
                         val clamped = inputTime.coerceAtLeast(0.1f)
                         controller.workAreaEnd.set(clamped)
                         if (controller.currentTime.value > clamped) {
@@ -66,7 +66,10 @@ fun UiScope.PropertiesPanel(controller: TimelineController, width: Dimension? = 
                         surface.triggerUpdate()
                     }
                 } else {
-                    Text("Ничего не выбрано") { modifier.textColor(colors.onBackground.withAlpha(0.5f)) }
+                    Text("Ничего не выбрано") {
+                        modifier.textColor(ColorTheme.Accents.Main).margin(Dimensions.PaddingMedium)
+                            .textAlignX(AlignmentX.Center).width(Grow.Std)
+                    }
                 }
             }
         }
@@ -77,18 +80,14 @@ fun UiScope.PropertiesPanel(controller: TimelineController, width: Dimension? = 
 private fun UiScope.KeyframeProperties(
     key: Keyframe<*>,
     track: AnimTrack<*>,
-    controller: TimelineController
+    controller: TimelineController,
 ) {
-    KeyframeCard(key, track.color)
-
-    Box(height = sizes.gap) {}
-
     Column(width = Grow.Std) {
         modifier
-            .background(RoundRectBackground(colors.background, sizes.smallGap))
+            .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, sizes.smallGap))
             .padding(sizes.smallGap)
 
-        TimePropertyField("Time:", key.time, colors) { inputTime ->
+        TimePropertyField("Time:", key.time) { inputTime ->
             val limitMax = controller.workAreaEnd.value
             val clamped = inputTime.coerceIn(0f, limitMax)
             if (key.time != clamped) {
@@ -102,7 +101,7 @@ private fun UiScope.KeyframeProperties(
 
     Column(width = Grow.Std) {
         modifier
-            .background(RoundRectBackground(colors.background, sizes.smallGap))
+            .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, sizes.smallGap))
             .padding(sizes.smallGap)
 
         drawKeyframeValueEditor(key, track, controller)
@@ -110,15 +109,19 @@ private fun UiScope.KeyframeProperties(
 
     Box(height = sizes.gap) {}
 
-    Text("График интерполяция") {
-        modifier.textColor(colors.primary).margin(bottom = sizes.smallGap)
+    Text("График интерполяции") {
+        modifier.textColor(ColorTheme.Accents.Main).margin(bottom = sizes.smallGap)
     }
 
-    Box(width = Grow.Std, height = 80.dp) {
+    val curveWidth = remember(100f)
+
+    Box(width = Grow.Std, height = Dp.fromPx(curveWidth.use() * 0.5625f)) {
         modifier
             .margin(bottom = sizes.gap)
             .background(RoundRectBackground(Color("111111"), sizes.smallGap))
-            .border(RoundRectBorder(colors.secondaryVariant.withAlpha(0.3f), sizes.smallGap, 1.dp))
+            .onMeasured {
+                curveWidth.set(it.widthPx)
+            }
 
         val graphColor = ColorTheme.Accents.Main
         val axisColor = Color.WHITE.withAlpha(0.2f)
@@ -128,7 +131,7 @@ private fun UiScope.KeyframeProperties(
         })
     }
 
-    EasingSelector(key, controller, sizes, colors, surface)
+    EasingSelector(key, controller, sizes, surface)
 
     Box(height = sizes.largeGap) {}
 
@@ -196,8 +199,7 @@ private fun UiScope.drawKeyframeValueEditor(key: Keyframe<*>, track: AnimTrack<*
 private fun UiScope.TimePropertyField(
     label: String,
     value: Float,
-    colors: Colors,
-    onValueChange: (Float) -> Unit
+    onValueChange: (Float) -> Unit,
 ) {
     val formattedValue = "%.3f".format(value).replace(',', '.')
 
@@ -210,7 +212,7 @@ private fun UiScope.TimePropertyField(
             modifier
                 .width(Grow(1f))
                 .alignY(AlignmentY.Center)
-                .textColor(colors.onBackground.withAlpha(0.7f))
+                .textColor(ColorTheme.Accents.Main)
         }
 
         TextField(textState.use()) {
@@ -219,9 +221,9 @@ private fun UiScope.TimePropertyField(
                 .alignY(AlignmentY.Center)
                 .textAlignX(AlignmentX.End)
                 .colors(
-                    lineColorFocused = colors.primary,
-                    selectionColor = colors.primaryAlpha(0.3f),
-                    textColor = colors.onBackground
+                    lineColorFocused = ColorTheme.Accents.Main,
+                    selectionColor = ColorTheme.Accents.Main.withAlpha(0.5f),
+                    textColor = ColorTheme.UI.WhiteReplacement
                 )
                 .onChange { input ->
                     textState.set(input)
@@ -245,8 +247,7 @@ private fun UiScope.EasingSelector(
     keyframe: Keyframe<*>,
     controller: TimelineController,
     sizes: Sizes,
-    colors: Colors,
-    surface: UiSurface
+    surface: UiSurface,
 ) {
     Row(width = Grow.Std) {
         modifier
@@ -265,7 +266,7 @@ private fun UiScope.EasingSelector(
                     node.apply {
                         val imgMesh = surface.getMeshLayer(modifier.zLayer).addImage(controller.arrow)
                         imgMesh.builder.clear()
-                        imgMesh.builder.configured(colors.onBackground.withAlpha(0.7f)) {
+                        imgMesh.builder.configured(ColorTheme.Accents.Main.withAlpha(0.7f)) {
                             val cx = widthPx * 0.5f
                             val cy = heightPx * 0.5f
                             translate(cx, cy, 0f)
@@ -282,7 +283,7 @@ private fun UiScope.EasingSelector(
                 })
         }
         Text("Список функций") {
-            modifier.font(sizes.normalText).textColor(colors.onBackground.withAlpha(0.8f))
+            modifier.font(sizes.normalText).textColor(ColorTheme.Accents.Main.withAlpha(0.8f))
         }
     }
 
@@ -297,7 +298,8 @@ private fun UiScope.EasingSelector(
                     rowItems.forEachIndexed { index, category ->
                         val isSelected = activeCategory == category
                         EasingButton(category.name, isSelected, sizes) {
-                            val defaultVariant = if (category.variants.size > 2) category.variants[2] else category.variants[0]
+                            val defaultVariant =
+                                if (category.variants.size > 2) category.variants[2] else category.variants[0]
                             keyframe.easing = defaultVariant.function
                             controller.onChanged?.invoke()
                             surface.triggerUpdate()
@@ -334,15 +336,14 @@ private fun UiScope.EasingButton(
     text: String,
     isSelected: Boolean,
     sizes: Sizes,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     val isHovered = remember(false)
     val colorNormal = Color.fromHex("31343D")
     val colorHover = Color.fromHex("454850")
-    val colorSelected = ColorTheme.Accents.Main
 
     val targetColor = when {
-        isSelected -> colorSelected
+        isSelected -> ColorTheme.Accents.Main
         isHovered.use() -> colorHover
         else -> colorNormal
     }
@@ -362,48 +363,6 @@ private fun UiScope.EasingButton(
                 .align(AlignmentX.Center, AlignmentY.Center)
                 .font(sizes.normalText)
                 .textColor(textColor)
-        }
-    }
-}
-
-private fun UiScope.KeyframeCard(keyframe: Keyframe<*>, accentColor: Color) {
-    val colorA = accentColor.withAlpha(0.3f)
-    val colorB = accentColor.withAlpha(0.0f)
-
-    val frameNumber = (keyframe.time * 60).toInt()
-
-    Column(width = Grow.Std) {
-        modifier
-            .margin(bottom = sizes.gap)
-            .background(RoundRectGradientBackground(
-                cornerRadius = sizes.gap,
-                colorA = colorA,
-                colorB = colorB,
-                gradientCx = 0.dp,
-                gradientCy = 0.dp,
-                gradientRx = 350.dp,
-                gradientRy = 175.dp
-            ))
-            .border(RoundRectBorder(accentColor, sizes.gap, 1.dp))
-            .padding(sizes.largeGap)
-
-        Text("Выбранный кадр") {
-            modifier
-                .font(sizes.normalText)
-                .textColor(colors.onBackground.withAlpha(0.9f))
-        }
-
-        Text("$frameNumber") {
-            modifier
-                .margin(top = sizes.smallGap, bottom = sizes.smallGap)
-                .font(MsdfFont(sizePts = 48f, weight = 0.2f))
-                .textColor(colors.onBackground)
-        }
-
-        Text("${"%.3f".format(keyframe.time)}s") {
-            modifier
-                .font(sizes.smallText)
-                .textColor(colors.onBackground.withAlpha(0.5f))
         }
     }
 }

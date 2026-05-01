@@ -14,9 +14,9 @@ private fun UiScope.floatField(
     value: Float,
     label: String? = null,
     width: Grow = Grow.Std,
-    onValueChange: (Float) -> Unit
+    onValueChange: (Float) -> Unit,
 ) {
-    Row {
+    Row(Grow.Std) {
         modifier.alignY(AlignmentY.Center)
         if (label != null) {
             Text(label) {
@@ -35,6 +35,8 @@ private fun UiScope.floatField(
         }
 
         TextField(text) {
+            modifier.onClick.clear()
+
             modifier
                 .width(width)
                 .height(26.dp)
@@ -48,9 +50,10 @@ private fun UiScope.floatField(
                     lineColorFocused = ColorTheme.UI.BackgroundAccent,
                     selectionColor = ColorTheme.UI.BackgroundAccent.withAlpha(0.3f),
                 )
-                .onEnter { PointerInput.cursorShape = CursorShape.RESIZE_E }
-                .onExit { PointerInput.cursorShape = CursorShape.DEFAULT }
+                .onHover { PointerInput.cursorShape = CursorShape.RESIZE_E }
                 .onDrag { event ->
+                    modifier.selectionRange(-1, -1)
+
                     val speed = when {
                         KeyboardInput.isCtrlDown -> 0.25f
                         KeyboardInput.isShiftDown -> 0.01f
@@ -65,12 +68,18 @@ private fun UiScope.floatField(
                     text = it
                     it.toFloatOrNull()?.let { parsed -> onValueChange(parsed) }
                 }
+                .onClick {
+                    if (it.pointer.isLeftButtonReleased) {
+                        (uiNode as TextFieldNode).onClick(it)
+                    }
+                }
         }
     }
 }
 
 class FloatPropertyDriver(
-    val onApply: (Float) -> Unit
+    val name: String = "Value",
+    val onApply: (Float) -> Unit,
 ) : PropertyDriver<Float> {
 
     override fun interpolate(start: Float, end: Float, fraction: Float): Float {
@@ -84,7 +93,7 @@ class FloatPropertyDriver(
     override fun UiScope.drawEditor(value: Float, onChange: (Float) -> Unit) {
         Column(width = Grow.Std) {
             modifier.margin(bottom = 8.dp)
-            Text("Value") { modifier.margin(bottom = 4.dp).textColor(colors.primary) }
+            Text(name) { modifier.margin(bottom = 4.dp).textColor(ColorTheme.Accents.Main) }
 
             floatField(value, width = Grow.Std) { newValue ->
                 onChange(newValue)
@@ -94,7 +103,7 @@ class FloatPropertyDriver(
 }
 
 class Vec2PropertyDriver(
-    val onApply: (Vec2f) -> Unit
+    val onApply: (Vec2f) -> Unit,
 ) : PropertyDriver<Vec2f> {
 
     override fun interpolate(start: Vec2f, end: Vec2f, fraction: Float): Vec2f {
@@ -128,7 +137,8 @@ class Vec2PropertyDriver(
 }
 
 class Vec3PropertyDriver(
-    val onApply: (Vec3f) -> Unit
+    val name: String = "Vector",
+    val onApply: (Vec3f) -> Unit,
 ) : PropertyDriver<Vec3f> {
 
     override fun interpolate(start: Vec3f, end: Vec3f, fraction: Float): Vec3f {
@@ -142,23 +152,16 @@ class Vec3PropertyDriver(
     override fun UiScope.drawEditor(value: Vec3f, onChange: (Vec3f) -> Unit) {
         Column(width = Grow.Std) {
             modifier.margin(bottom = 8.dp)
-            Text("Vector 3") { modifier.margin(bottom = 4.dp).textColor(colors.primary) }
+            Text(name) { modifier.margin(bottom = 4.dp).textColor(ColorTheme.Accents.Main) }
 
             Row(width = Grow.Std) {
                 modifier.margin(bottom = 4.dp)
                 floatField(value.x, "X", width = Grow.Std) { newX ->
                     onChange(Vec3f(newX, value.y, value.z))
                 }
-            }
-
-            Row(width = Grow.Std) {
-                modifier.margin(bottom = 4.dp)
                 floatField(value.y, "Y", width = Grow.Std) { newY ->
                     onChange(Vec3f(value.x, newY, value.z))
                 }
-            }
-
-            Row(width = Grow.Std) {
                 floatField(value.z, "Z", width = Grow.Std) { newZ ->
                     onChange(Vec3f(value.x, value.y, newZ))
                 }

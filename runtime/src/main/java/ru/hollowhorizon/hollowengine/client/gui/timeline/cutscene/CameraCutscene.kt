@@ -1,17 +1,12 @@
 package ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene
 
 import de.fabmax.kool.math.Vec3f
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.floatOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import de.fabmax.kool.util.Color
+import kotlinx.serialization.json.*
 import ru.hollowhorizon.hollowengine.client.gui.timeline.AnimTrack
 import ru.hollowhorizon.hollowengine.client.gui.timeline.FloatPropertyDriver
 import ru.hollowhorizon.hollowengine.client.gui.timeline.Keyframe
 import ru.hollowhorizon.hollowengine.client.gui.timeline.Vec3PropertyDriver
-import de.fabmax.kool.util.Color
 import kotlin.math.max
 import kotlin.math.min
 
@@ -34,14 +29,14 @@ class CutscenePlaybackController {
 
     val positionTrack = AnimTrack(
         name = "Position",
-        driver = Vec3PropertyDriver { pose = pose.copy(position = it) },
+        driver = Vec3PropertyDriver("Координаты") { pose = pose.copy(position = it) },
         defaultValue = Vec3f.ZERO,
         trackColor = Color("68C783"),
     )
 
     val rotationTrack = AnimTrack(
         name = "Rotation",
-        driver = Vec3PropertyDriver { pose = pose.copy(rotation = it) },
+        driver = Vec3PropertyDriver("Поворот") { pose = pose.copy(rotation = it) },
         defaultValue = Vec3f.ZERO,
         trackColor = Color("6C8CFF"),
     )
@@ -219,13 +214,26 @@ object CameraCutsceneTracks {
         if (registered) return
         registered = true
         CutsceneTrackRegistry.register(
-            CutsceneTrackType(POSITION_ID, VEC3_VALUE, Vec3f.ZERO, ::Vec3PropertyDriver, Vec3f::toJson, ::vec3FromJson)
+            CutsceneTrackType(
+                POSITION_ID, VEC3_VALUE, Vec3f.ZERO,
+                { Vec3PropertyDriver("Координаты", it) }, Vec3f::toJson, ::vec3FromJson
+            )
         )
         CutsceneTrackRegistry.register(
-            CutsceneTrackType(ROTATION_ID, VEC3_VALUE, Vec3f.ZERO, ::Vec3PropertyDriver, Vec3f::toJson, ::vec3FromJson)
+            CutsceneTrackType(
+                ROTATION_ID, VEC3_VALUE, Vec3f.ZERO,
+                { Vec3PropertyDriver("Поворот", it) }, Vec3f::toJson, ::vec3FromJson
+            )
         )
         CutsceneTrackRegistry.register(
-            CutsceneTrackType(FOV_ID, FLOAT_VALUE, 70f, ::FloatPropertyDriver, { JsonPrimitive(it) }, ::floatFromJson)
+            CutsceneTrackType(
+                FOV_ID,
+                FLOAT_VALUE,
+                70f,
+                { FloatPropertyDriver("Угол обзора", it) },
+                { JsonPrimitive(it) },
+                ::floatFromJson
+            )
         )
     }
 }

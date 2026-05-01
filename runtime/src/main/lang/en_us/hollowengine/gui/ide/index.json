@@ -16,5 +16,6 @@
   "windows": "Windows",
   "gizmo": "Gizmo transform",
   "cutscene": "Cutscene",
+  "viewport": "Viewport",
   "tools": "Tools"
 }

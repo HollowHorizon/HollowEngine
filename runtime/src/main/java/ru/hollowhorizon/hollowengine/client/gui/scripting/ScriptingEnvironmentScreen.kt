@@ -110,6 +110,6 @@ fun isAnyFocusNodeInput(): Boolean {
 }
 
 @SubscribeEvent
-fun onDrawOverlay(event: RenderTickEvent.Post) {
+fun onDrawOverlay(event: RenderTickEvent.Blit) {
     ScriptingEnvironmentOverlay.scene.render()
 }

@@ -295,6 +295,8 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void initRegistryProvider(RegistryProvider<?> provider);
 
+    void onBlitScreen(Minecraft minecraft);
+
     enum OverlayKind {
         VIGNETTE,
         SPYGLASS,

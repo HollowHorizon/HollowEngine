@@ -3,23 +3,17 @@ package ru.hollowhorizon.hollowengine.client.gui.timeline.ui
 import de.fabmax.kool.input.CursorShape
 import de.fabmax.kool.input.KeyboardInput
 import de.fabmax.kool.input.PointerInput
-import de.fabmax.kool.math.Easing
-import de.fabmax.kool.math.Vec2f
-import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.math.clamp
-import de.fabmax.kool.math.deg
+import de.fabmax.kool.math.*
 import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.UiVertexLayout.position
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.set
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import ru.hollowhorizon.hollowengine.client.gui.timeline.BaseAnimTrack
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
-import ru.hollowhorizon.hollowengine.client.gui.timeline.AnimTrack
-import ru.hollowhorizon.hollowengine.client.gui.timeline.Keyframe
-import ru.hollowhorizon.hollowengine.client.gui.timeline.TimelineController
-import ru.hollowhorizon.hollowengine.client.gui.timeline.TrackGroup
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
+import ru.hollowhorizon.hollowengine.client.gui.timeline.*
+import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneEditorSessions
 import kotlin.math.*
 
 fun UiScope.TimelineArea(controller: TimelineController) {
@@ -63,16 +57,13 @@ fun UiScope.TimelineArea(controller: TimelineController) {
                     ev.pointer.consume()
                 }
                 it.onDrag { ev ->
-                    if (ev.pointer.isMiddleButtonDown || ev.pointer.isLeftButtonDown) {
-                        val dx = Dp.fromPx(ev.pointer.delta.x).value
-                        val dy = Dp.fromPx(ev.pointer.delta.y).value
-                        controller.scrollState.scrollDpX(-dx)
-                        controller.scrollState.scrollDpY(-dy)
-                        ev.pointer.consume()
-                    }
+                    val dx = Dp.fromPx(ev.pointer.delta.x).value
+                    val dy = Dp.fromPx(ev.pointer.delta.y).value
+                    controller.scrollState.scrollDpX(-dx)
+                    controller.scrollState.scrollDpY(-dy)
+                    ev.pointer.consume()
                 }
-            }
-        ) {
+            }) {
             val pxPerSec = controller.pixelsPerSecond.use()
             val allTracks = controller.getAllTracks()
 
@@ -91,12 +82,13 @@ fun UiScope.TimelineArea(controller: TimelineController) {
                 TimeRuler(pxPerSec, maxKeyTime, controller, leftPadding)
 
                 controller.groups.use().forEach { group ->
-                    GroupLanes(group, pxPerSec, parentLocked = false, parentVisible = true, controller, leftPadding)
+                    GroupLines(group, pxPerSec, parentLocked = false, parentVisible = true, controller, leftPadding)
                 }
 
                 Box(Grow.Std, Grow.Std) {
                     modifier.onClick {
                         controller.selectedKeyframes.clear()
+                        CutsceneEditorSessions.default.propertiesSurface?.triggerUpdate()
                         controller.isWorkAreaSelected.set(false)
                     }
                 }
@@ -109,7 +101,7 @@ fun UiScope.TimelineArea(controller: TimelineController) {
     }
 }
 
-private fun UiScope.GroupLanes(
+private fun UiScope.GroupLines(
     group: TrackGroup,
     pxPerSec: Float,
     parentLocked: Boolean,
@@ -118,9 +110,8 @@ private fun UiScope.GroupLanes(
     leftPadding: Dp,
 ) {
     Box(width = Grow.Std, height = 30.dp) {
-        modifier
-            .border(RectBorder(colors.secondaryVariant.withAlpha(0.2f), 1.dp))
-            .backgroundColor(Color("24272E"))
+        modifier.backgroundColor(Color("24272E"))
+            .border(RectBorder(ColorTheme.UI.BackgroundElements, Dimensions.PaddingSmall * 0.5f))
     }
 
     if (group.isCollapsed.use()) return
@@ -129,19 +120,19 @@ private fun UiScope.GroupLanes(
     val isGroupVisible = parentVisible && group.isVisible.use()
 
     group.children.forEach { child ->
-        GroupLanes(child, pxPerSec, isGroupLocked, isGroupVisible, controller, leftPadding)
+        GroupLines(child, pxPerSec, isGroupLocked, isGroupVisible, controller, leftPadding)
     }
     group.tracks.forEach { track ->
         if (track is AnimTrack<*>) {
             val isTrackLocked = track.isLocked.use() || isGroupLocked
             val isTrackVisible = track.isVisible.use() && isGroupVisible
-            TrackLane(track, pxPerSec, isTrackLocked, isTrackVisible, controller, leftPadding)
+            TrackLine(track, pxPerSec, isTrackLocked, isTrackVisible, controller, leftPadding)
         }
     }
 }
 
 @Suppress("UNCHECKED_CAST")
-private fun UiScope.TrackLane(
+private fun UiScope.TrackLine(
     track: AnimTrack<*>,
     pxPerSec: Float,
     isLocked: Boolean,
@@ -150,8 +141,11 @@ private fun UiScope.TrackLane(
     leftPadding: Dp,
 ) {
     Box(width = Grow.Std, height = 40.dp) {
-        val borderColor = if (isLocked) Color("764713") else colors.secondaryVariant.withAlpha(0.2f)
-        modifier.border(RectBorder(borderColor, 1.dp))
+        modifier.border(
+            RectBorder(
+                if (isLocked) Color("764713") else ColorTheme.UI.BackgroundElements, Dimensions.PaddingSmall * 0.5f
+            )
+        )
 
         val trackBgColor = when {
             isLocked -> Color("1A1A1D")
@@ -168,44 +162,38 @@ private fun UiScope.TrackLane(
         }
 
         if (!isLocked) {
-            modifier
-                .onClick { ev ->
-                    if (ev.pointer.isRightButtonClicked) {
-                        controller.trackContextMenuTime = ((ev.position.x - leftPadding.px) / pxPerSec)
-                            .coerceIn(0f, controller.workAreaEnd.value)
-                        (controller.onTrackLaneContextMenu ?: controller.onTrackContextMenu)?.invoke(ev, track)
-                        ev.pointer.consume()
-                    } else if (ev.pointer.leftButtonRepeatedClickCount == 1) {
-                        controller.selectedKeyframes.clear()
-                        controller.isWorkAreaSelected.set(false)
-                    }
-                    else if (ev.pointer.leftButtonRepeatedClickCount == 2) {
-                        insertKeyAtPointer(ev)
-                    }
+            modifier.onClick { ev ->
+                if (ev.pointer.isRightButtonClicked) {
+                    controller.trackContextMenuTime =
+                        ((ev.position.x - leftPadding.px) / pxPerSec).coerceIn(0f, controller.workAreaEnd.value)
+                    (controller.onTrackLaneContextMenu ?: controller.onTrackContextMenu)?.invoke(ev, track)
+                    ev.pointer.consume()
+                } else if (ev.pointer.leftButtonRepeatedClickCount == 1) {
+                    controller.selectedKeyframes.clear()
+                    CutsceneEditorSessions.default.propertiesSurface?.triggerUpdate()
+                    controller.isWorkAreaSelected.set(false)
                 }
-                .onDragStart { ev ->
-                    if (ev.pointer.leftButtonRepeatedClickCount == 2 && ev.pointer.isLeftButtonDown) {
-                        val endKey = insertKeyAtPointer(ev)
+            }.onDragStart { ev ->
+                if (KeyboardInput.isCtrlDown && ev.pointer.isLeftButtonDown && controller.selectedKeyframes.size == 1) {
+                    val endKey = insertKeyAtPointer(ev)
 
-                        if (endKey != null) {
-                            controller.activeDragKeyframe = endKey
-                            ev.pointer.consume()
-                        }
-                    } else {
-                        ev.isConsumed = false
-                    }
-                }
-                .onDrag { ev ->
-                    controller.activeDragKeyframe?.let { key ->
-                        val t = ((ev.position.x - leftPadding.px) / pxPerSec).clamp(0f, controller.workAreaEnd.value)
-                        controller.moveKeyframe(track, key, t)
-                        surface.triggerUpdate()
+                    if (endKey != null) {
+                        controller.activeDragKeyframe = endKey
                         ev.pointer.consume()
                     }
+                } else {
+                    ev.isConsumed = false
                 }
-                .onDragEnd {
-                    controller.activeDragKeyframe = null
+            }.onDrag { ev ->
+                controller.activeDragKeyframe?.let { key ->
+                    val t = ((ev.position.x - leftPadding.px) / pxPerSec).clamp(0f, controller.workAreaEnd.value)
+                    controller.moveKeyframe(track, key, t)
+                    surface.triggerUpdate()
+                    ev.pointer.consume()
                 }
+            }.onDragEnd {
+                controller.activeDragKeyframe = null
+            }
         }
 
         modifier.background(UiRenderer { node ->
@@ -232,10 +220,7 @@ private fun UiScope.TrackLane(
 
             if (w > 1f && keyValuesEqual(k1.value, k2.value)) {
                 Box(width = Dp.fromPx(w), height = lineHeight) {
-                    modifier
-                        .margin(start = Dp.fromPx(x1))
-                        .alignY(AlignmentY.Center)
-                        .backgroundColor(connectionColor)
+                    modifier.margin(start = Dp.fromPx(x1)).alignY(AlignmentY.Center).backgroundColor(connectionColor)
                 }
             }
         }
@@ -255,9 +240,9 @@ private fun UiScope.TimelineKeyframe(
     controller: TimelineController,
     leftPadding: Dp,
 ) {
-    val isSelected = keyframe in controller.selectedKeyframes
+    val isSelected = keyframe in controller.selectedKeyframes.use()
     val containerSize = 40.dp
-    val isHovered = remember(false)
+    var isHovered by remember(false)
     val centerPos = keyframe.time * pxPerSec + leftPadding.px
 
     val scale = animateFloatAsState(if (isSelected) 1.28f else 1f, tween(0.08f, Easing.easeOutCubic)).use()
@@ -268,42 +253,39 @@ private fun UiScope.TimelineKeyframe(
     if (centerPos < scrollX - 100 || centerPos > scrollX + viewW + 100) return
 
     Box {
-        modifier
-            .margin(start = Dp.fromPx(centerPos) - containerSize * 0.5f)
-            .alignY(AlignmentY.Center)
-            .size(containerSize, containerSize)
-            .zLayer(if (isSelected) 5 else 0)
+        modifier.margin(start = Dp.fromPx(centerPos) - containerSize * 0.5f).alignY(AlignmentY.Center)
+            .size(containerSize, containerSize).zLayer(if (isSelected) 5 else 0)
 
         if (!isLocked) {
-            modifier
-                .onEnter { isHovered.set(true) }
-                .onExit { isHovered.set(false) }
+            modifier.onEnter { isHovered = true }
+                .onExit { isHovered = false }
                 .onClick { ev ->
                     ev.pointer.consume()
 
                     if (ev.pointer.isRightButtonClicked && track is AnimTrack<*>) {
                         controller.trackContextMenuTime = keyframe.time
                         (controller.onTrackLaneContextMenu ?: controller.onTrackContextMenu)?.invoke(ev, track)
-                    } else if (ev.pointer.leftButtonRepeatedClickCount == 2) {
-                        controller.duplicateKeyframe(track, keyframe)
-                        surface.triggerUpdate()
                     } else {
                         if (KeyboardInput.isCtrlDown) {
-                            if (isSelected) controller.selectedKeyframes.remove(keyframe) else controller.selectedKeyframes.add(keyframe)
+                            if (isSelected) controller.selectedKeyframes.remove(keyframe) else controller.selectedKeyframes.add(
+                                keyframe
+                            )
                         } else {
                             controller.selectedKeyframes.clear()
                             controller.selectedKeyframes.add(keyframe)
                         }
                         controller.isWorkAreaSelected.set(false)
                     }
-                }
-                .onDragStart { ev ->
+                    CutsceneEditorSessions.default.propertiesSurface?.triggerUpdate()
+                }.onDragStart { ev ->
                     ev.pointer.consume()
                     controller.beginHistoryTransaction("Move keyframe")
 
                     if (KeyboardInput.isCtrlDown) {
-                        val targetTime = (keyframe.time + TimelineController.KEYFRAME_TIME_EPSILON * 2f)
-                            .coerceIn(0f, controller.workAreaEnd.value)
+                        val targetTime = (keyframe.time + TimelineController.KEYFRAME_TIME_EPSILON * 2f).coerceIn(
+                            0f,
+                            controller.workAreaEnd.value
+                        )
                         val newKey = controller.duplicateKeyframe(track, keyframe, targetTime)
                         controller.activeDragKeyframe = newKey ?: keyframe
                     } else {
@@ -314,21 +296,25 @@ private fun UiScope.TimelineKeyframe(
                             controller.isWorkAreaSelected.set(false)
                         }
                     }
-                }
-                .onDrag { ev ->
+                }.onDrag { ev ->
                     controller.activeDragKeyframe?.let { k ->
                         val dt = ev.pointer.delta.x / pxPerSec
                         controller.moveKeyframe(track, k, k.time + dt)
                         surface.triggerUpdate()
                     }
-                }
-                .onDragEnd {
+                }.onDragEnd {
                     controller.activeDragKeyframe = null
                     controller.commitHistoryTransaction()
                 }
         }
 
         var bgColor = track.color
+
+        when {
+            isLocked -> bgColor.mix(Color.BLACK, 0.5f)
+            !isVisible -> bgColor.withAlpha(0.5f)
+            isHovered -> bgColor.mix(Color.WHITE, 0.25f)
+        }
 
         if (isLocked) {
             bgColor = bgColor.mix(Color.BLACK, 0.5f)
@@ -402,53 +388,51 @@ private fun UiScope.TimelineKeyframe(
             }
         })
 
-        if (isHovered.use() && !isLocked) {
-            Tooltip("${"%.2f".format(keyframe.time)} s")
+        if (isHovered && !isLocked) {
+            Tooltip("${"%.2f".format(keyframe.time)} s", backgroundColor = ColorTheme.UI.BackgroundDarker, borderColor = ColorTheme.UI.BackgroundAccent)
         }
     }
 }
 
 private fun UiScope.TimeRuler(pxPerSec: Float, maxKeyTime: Float, controller: TimelineController, leftPadding: Dp) {
     Box(width = Grow.Std, height = 30.dp) {
-        modifier
-            .border(RectBorder(colors.secondaryVariant.withAlpha(0.2f), 1.dp))
-            .onDrag {
-                if (!controller.isDraggingWorkAreaEnd) {
+        modifier.onDrag {
+            if (!controller.isDraggingWorkAreaEnd) {
+                controller.seekJob?.cancel()
+                controller.seekJob = null
+
+                val localX = it.position.x
+                val t = ((localX - leftPadding.px) / pxPerSec).coerceAtLeast(0f)
+                controller.setCurrentTime(min(t, controller.workAreaEnd.value))
+            }
+        }.onClick {
+            if (!controller.isDraggingWorkAreaEnd) {
+                val localX = it.position.x
+                val t = ((localX - leftPadding.px) / pxPerSec).coerceAtLeast(0f)
+
+                controller.selectedKeyframes.clear()
+                CutsceneEditorSessions.default.propertiesSurface?.triggerUpdate()
+                controller.isWorkAreaSelected.set(false)
+
+                if (it.pointer.leftButtonRepeatedClickCount == 1) {
+                    controller.seekJob?.cancel()
+                    controller.seekJob = coroutineScope.launch {
+                        delay(250)
+                        controller.setCurrentTime(min(t, controller.workAreaEnd.value))
+                    }
+                } else if (it.pointer.leftButtonRepeatedClickCount == 2) {
                     controller.seekJob?.cancel()
                     controller.seekJob = null
 
-                    val localX = it.position.x
-                    val t = ((localX - leftPadding.px) / pxPerSec).coerceAtLeast(0f)
-                    controller.setCurrentTime(min(t, controller.workAreaEnd.value))
-                }
-            }
-            .onClick {
-                if (!controller.isDraggingWorkAreaEnd) {
-                    val localX = it.position.x
-                    val t = ((localX - leftPadding.px) / pxPerSec).coerceAtLeast(0f)
+                    val newEnd = max(t, maxKeyTime)
+                    controller.workAreaEnd.set(round(newEnd * 10) / 10f)
 
-                    controller.selectedKeyframes.clear()
-                    controller.isWorkAreaSelected.set(false)
-
-                    if (it.pointer.leftButtonRepeatedClickCount == 1) {
-                        controller.seekJob?.cancel()
-                        controller.seekJob = coroutineScope.launch {
-                            delay(250)
-                            controller.setCurrentTime(min(t, controller.workAreaEnd.value))
-                        }
-                    } else if (it.pointer.leftButtonRepeatedClickCount == 2) {
-                        controller.seekJob?.cancel()
-                        controller.seekJob = null
-
-                        val newEnd = max(t, maxKeyTime)
-                        controller.workAreaEnd.set(round(newEnd * 10) / 10f)
-
-                        if (controller.currentTime.value > controller.workAreaEnd.value) {
-                            controller.setCurrentTime(0f)
-                        }
+                    if (controller.currentTime.value > controller.workAreaEnd.value) {
+                        controller.setCurrentTime(0f)
                     }
                 }
             }
+        }
 
         modifier.background(UiRenderer { node ->
             node.apply {
@@ -484,9 +468,7 @@ private fun UiScope.TimeRuler(pxPerSec: Float, maxKeyTime: Float, controller: Ti
         for (i in startSec..endSec step step) {
             if (i >= 0) {
                 Text("$i") {
-                    modifier
-                        .margin(start = Dp.fromPx(i * pxPerSec + leftPadding.px + 4f))
-                        .font(sizes.smallText)
+                    modifier.margin(start = Dp.fromPx(i * pxPerSec + leftPadding.px + 4f)).font(sizes.smallText)
                         .textColor(colors.onBackground.withAlpha(0.7f))
                 }
             }
@@ -497,25 +479,20 @@ private fun UiScope.TimeRuler(pxPerSec: Float, maxKeyTime: Float, controller: Ti
         val isSelected = controller.isWorkAreaSelected.use()
 
         Box {
-            modifier
-                .margin(start = Dp.fromPx(endX) - markerSize * 0.5f)
-                .width(markerSize)
-                .height(Grow.Std)
-                .zLayer(30)
-                .onEnter { PointerInput.cursorShape = CursorShape.RESIZE_E }
-                .onExit { PointerInput.cursorShape = CursorShape.DEFAULT }
+            modifier.margin(start = Dp.fromPx(endX) - markerSize * 0.5f).width(markerSize).height(Grow.Std).zLayer(30)
+                .onHover { PointerInput.cursorShape = CursorShape.RESIZE_E }
                 .onClick {
                     controller.isWorkAreaSelected.set(true)
                     controller.selectedKeyframes.clear()
+                    CutsceneEditorSessions.default.propertiesSurface?.triggerUpdate()
                     it.pointer.consume()
-                }
-                .onDragStart {
+                }.onDragStart {
                     controller.isDraggingWorkAreaEnd = true
                     controller.isWorkAreaSelected.set(true)
                     controller.selectedKeyframes.clear()
+                    CutsceneEditorSessions.default.propertiesSurface?.triggerUpdate()
                     it.pointer.consume()
-                }
-                .onDrag {
+                }.onDrag {
                     val dragDeltaSeconds = Dp.fromPx(it.pointer.delta.x).value / pxPerSec
 
                     var newTime = controller.workAreaEnd.value + dragDeltaSeconds
@@ -529,8 +506,7 @@ private fun UiScope.TimeRuler(pxPerSec: Float, maxKeyTime: Float, controller: Ti
                     }
 
                     it.pointer.consume()
-                }
-                .onDragEnd { controller.isDraggingWorkAreaEnd = false }
+                }.onDragEnd { controller.isDraggingWorkAreaEnd = false }
 
             val markerColor = if (isSelected) Color.WHITE else ColorTheme.UI.BackgroundAccent
             modifier.background(UiRenderer { node ->
@@ -542,12 +518,12 @@ private fun UiScope.TimeRuler(pxPerSec: Float, maxKeyTime: Float, controller: Ti
                     val stroke = 2f
                     draw.configured(markerColor) {
                         line(x, 0f, x, h, stroke)
-                        line(x, stroke/2, x - 6f, stroke/2, stroke)
-                        line(x, h - stroke/2, x - 6f, h - stroke/2, stroke)
+                        line(x, stroke / 2, x - 6f, stroke / 2, stroke)
+                        line(x, h - stroke / 2, x - 6f, h - stroke / 2, stroke)
                     }
                 }
             })
-            Tooltip("${controller.workAreaEnd.value} s")
+            Tooltip("${controller.workAreaEnd.value} s", backgroundColor = ColorTheme.UI.BackgroundDarker, borderColor = ColorTheme.UI.BackgroundAccent)
         }
     }
 }
@@ -557,73 +533,72 @@ private fun UiScope.WorkAreaOverlay(pxPerSec: Float, controller: TimelineControl
     val xPos = end * pxPerSec + leftPadding.px
 
     Box(width = Grow.Std, height = Grow.Std) {
-        modifier
-            .margin(start = Dp.fromPx(xPos))
-            .backgroundColor(ColorTheme.UI.BackgroundGeneral.withAlpha(0.55f))
-            .zLayer(5)
-            .onClick { it.isConsumed = false }
+        modifier.margin(start = Dp.fromPx(xPos)).backgroundColor(ColorTheme.UI.BackgroundGeneral.withAlpha(0.55f))
+            .zLayer(5).onClick { it.isConsumed = false }
     }
 }
 
 
-private fun UiScope.PlayheadOverlay(pxPerSec: Float, scrollState: ScrollState, controller: TimelineController, leftPadding: Dp) {
+private fun UiScope.PlayheadOverlay(
+    pxPerSec: Float,
+    scrollState: ScrollState,
+    controller: TimelineController,
+    leftPadding: Dp,
+) {
     val curT = controller.currentTime.use()
     val scrollXDp = scrollState.xScrollDp.use()
 
     val playheadColor = Color("FF8904")
 
     Box(width = Grow.Std, height = Grow.Std) {
-        modifier
-            .zLayer(UiSurface.LAYER_FLOATING)
-            .background(UiRenderer { node ->
-                val areaHeight = node.heightPx
-                val areaWidth = node.widthPx
+        modifier.zLayer(UiSurface.LAYER_FLOATING).background(UiRenderer { node ->
+            val areaHeight = node.heightPx
+            val areaWidth = node.widthPx
 
-                node.apply {
-                    val draw = getPlainBuilder()
-                    val prim = getUiPrimitives()
+            node.apply {
+                val draw = getPlainBuilder()
+                val prim = getUiPrimitives()
 
-                    val xPos = (curT * pxPerSec + leftPadding.px - scrollXDp.dp.px) + paddingStartPx
+                val xPos = (curT * pxPerSec + leftPadding.px - scrollXDp.dp.px) + paddingStartPx
 
-                    if (xPos < -20f || xPos > areaWidth + 20f) return@apply
+                if (xPos < -20f || xPos > areaWidth + 20f) return@apply
 
-                    prim.localRect(xPos - 0.5f.dp.px, 0f, 1.dp.px, areaHeight, playheadColor)
+                prim.localRect(xPos - 0.5f.dp.px, 0f, 1.dp.px, areaHeight, playheadColor)
 
-                    val glowRadius = 10.dp.px
-                    val coreRadius = 4.dp.px
+                val glowRadius = 10.dp.px
+                val coreRadius = 4.dp.px
 
-                    draw.configured(null, clipped = false) {
-                        translate(xPos, 0f, 0f)
+                draw.configured(null, clipped = false) {
+                    translate(xPos, 0f, 0f)
 
-                        this.color = playheadColor.withAlpha(0.6f)
-                        val centerIdx = vertex { position.set(0f, 0f, 0f) }
+                    this.color = playheadColor.withAlpha(0.6f)
+                    val centerIdx = vertex { position.set(0f, 0f, 0f) }
 
-                        this.color = playheadColor.withAlpha(0f)
-                        val stepsGlow = 20
-                        val firstEdgeIdx = geometry.numVertices
+                    this.color = playheadColor.withAlpha(0f)
+                    val stepsGlow = 20
+                    val firstEdgeIdx = geometry.numVertices
 
-                        for (i in 0..stepsGlow) {
-                            val ang = (i.toFloat() / stepsGlow) * PI.toFloat()
-                            vertex {
-                                position.set(cos(ang) * glowRadius, sin(ang) * glowRadius, 0f)
-                            }
-                        }
-
-                        for (i in 0 until stepsGlow) {
-                            geometry.addTriIndices(centerIdx, firstEdgeIdx + i, firstEdgeIdx + i + 1)
-                        }
-
-                        this.color = playheadColor
-                        circle {
-                            radius = coreRadius
-                            steps = 16
-                            startDeg = 0f
-                            sweepDeg = 180f
+                    for (i in 0..stepsGlow) {
+                        val ang = (i.toFloat() / stepsGlow) * PI.toFloat()
+                        vertex {
+                            position.set(cos(ang) * glowRadius, sin(ang) * glowRadius, 0f)
                         }
                     }
+
+                    for (i in 0 until stepsGlow) {
+                        geometry.addTriIndices(centerIdx, firstEdgeIdx + i, firstEdgeIdx + i + 1)
+                    }
+
+                    this.color = playheadColor
+                    circle {
+                        radius = coreRadius
+                        steps = 16
+                        startDeg = 0f
+                        sweepDeg = 180f
+                    }
                 }
-            })
-            .onClick { it.isConsumed = false }
+            }
+        }).onClick { it.isConsumed = false }
     }
 }
 
@@ -632,11 +607,11 @@ private fun keyValuesEqual(first: Any?, second: Any?): Boolean {
         first is Vec2f && second is Vec2f -> {
             abs(first.x - second.x) <= 0.0001f && abs(first.y - second.y) <= 0.0001f
         }
+
         first is Vec3f && second is Vec3f -> {
-            abs(first.x - second.x) <= 0.0001f &&
-                abs(first.y - second.y) <= 0.0001f &&
-                abs(first.z - second.z) <= 0.0001f
+            abs(first.x - second.x) <= 0.0001f && abs(first.y - second.y) <= 0.0001f && abs(first.z - second.z) <= 0.0001f
         }
+
         first is Float && second is Float -> abs(first - second) <= 0.0001f
         else -> first == second
     }

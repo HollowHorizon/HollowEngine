@@ -104,10 +104,6 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
     inner class GeneralPanel : DockPanel("hollowengine.gui.tool.general", dock) {
         override val icon = Assets.Hollowengine.Textures.Gui.Icons.FILE
 
-        init {
-            showOnToolbar = false
-        }
-
         override fun UiScope.compose() {
             modifier.padding(sizes.smallGap)
             Column(Grow.Std) {
@@ -278,10 +274,6 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
     inner class AttributesPanel : DockPanel("hollowengine.gui.tool.attributes", dock) {
         override val icon = Assets.Hollowengine.Textures.Gui.Icons.FILE
 
-        init {
-            showOnToolbar = false
-        }
-
         override fun UiScope.compose() {
             modifier.padding(sizes.smallGap)
 
@@ -325,10 +317,6 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
 
     inner class EntityPanel : DockPanel("hollowengine.gui.tool.entity", dock) {
         override val icon = Assets.Hollowengine.Textures.Gui.Icons.NPCS
-
-        init {
-            showOnToolbar = false
-        }
 
         override fun UiScope.compose() {
             modifier.padding(sizes.smallGap)

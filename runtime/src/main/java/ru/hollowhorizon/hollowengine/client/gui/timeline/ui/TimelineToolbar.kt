@@ -13,11 +13,10 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.ComboBox as T
 
 private val playbackSpeeds = listOf(0.1f, 0.25f, 0.5f, 1.0f, 2.0f, 5.0f, 10.0f)
 
-fun UiScope.Toolbar(controller: TimelineController, extraContent: UiScope.() -> Unit = {}) {
-    Row(width = Grow.Std) {
+fun UiScope.Toolbar(controller: TimelineController, background: Color, extraContent: UiScope.() -> Unit = {}) {
+    Row(width = Grow.Std, Grow.Std) {
         modifier
-            .backgroundColor(ColorTheme.UI.BackgroundSecondary)
-            .padding(start = Dimensions.PaddingHuge, end = Dimensions.PaddingHuge)
+            .backgroundColor(background)
             .onClick {
                 controller.selectedKeyframes.clear()
                 controller.isWorkAreaSelected.set(false)
@@ -28,8 +27,8 @@ fun UiScope.Toolbar(controller: TimelineController, extraContent: UiScope.() -> 
 
             ToolbarIconButton(
                 icon = controller.iconPrev,
-                size = 32.dp,
-                iconSize = 32.dp
+                padding = 0.dp,
+                size = Dimensions.PaddingLarge
             ) {
                 controller.isPlaying.set(false)
                 controller.setCurrentTime(0f)
@@ -42,8 +41,8 @@ fun UiScope.Toolbar(controller: TimelineController, extraContent: UiScope.() -> 
 
             ToolbarIconButton(
                 icon = playIcon,
-                size = 32.dp,
-                iconSize = 16.dp
+                padding = Dimensions.PaddingSmall,
+                size = Dimensions.PaddingHuge
             ) {
                 controller.togglePlayback()
             }
@@ -52,17 +51,16 @@ fun UiScope.Toolbar(controller: TimelineController, extraContent: UiScope.() -> 
 
             ToolbarIconButton(
                 icon = controller.iconNext,
-                size = 32.dp,
-                iconSize = 32.dp
+                padding = 0.dp,
+                size = Dimensions.PaddingLarge
             ) {
                 controller.setCurrentTime(controller.workAreaEnd.value)
             }
         }
 
-        Box(width = sizes.largeGap) {
+        Box(Dimensions.PaddingLarge, Grow.Std) {
             modifier
-                .width(1.dp)
-                .height(24.dp)
+                .width(Dimensions.PaddingSmall)
                 .margin(horizontal = Dimensions.PaddingHuge)
                 .backgroundColor(ColorTheme.UI.BackgroundElements)
                 .alignY(AlignmentY.Center)
@@ -83,6 +81,7 @@ fun UiScope.Toolbar(controller: TimelineController, extraContent: UiScope.() -> 
                     .alignY(AlignmentY.Center)
                     .background(RoundRectBackground(ColorTheme.UI.BackgroundGeneral, Dimensions.PaddingNormal))
                     .padding(horizontal = Dimensions.PaddingMedium, vertical = Dimensions.PaddingNormal)
+                    .size(FitContent, Dimensions.PaddingNormal + Dimensions.PaddingHuge)
                     .colors(
                         textColor = ColorTheme.UI.WhiteReplacement,
                         lineColor = Color(0f, 0f, 0f, 0f),
@@ -91,7 +90,7 @@ fun UiScope.Toolbar(controller: TimelineController, extraContent: UiScope.() -> 
                     )
                     .textAlignX(AlignmentX.Center)
                     .onChange { txt ->
-                        txt.toFloatOrNull()?.let {
+                        txt.replace(',', '.').toFloatOrNull()?.let {
                             controller.setCurrentTime(it)
                         }
                     }
@@ -105,19 +104,9 @@ fun UiScope.Toolbar(controller: TimelineController, extraContent: UiScope.() -> 
             }
         }
 
-        Box(width = sizes.largeGap) {
+        Box(Dimensions.PaddingLarge, Grow.Std) {
             modifier
-                .width(1.dp)
-                .height(24.dp)
-                .margin(horizontal = Dimensions.PaddingHuge)
-                .backgroundColor(ColorTheme.UI.BackgroundElements)
-                .alignY(AlignmentY.Center)
-        }
-
-        Box(width = sizes.largeGap) {
-            modifier
-                .width(1.dp)
-                .height(24.dp)
+                .width(Dimensions.PaddingSmall)
                 .margin(horizontal = Dimensions.PaddingHuge)
                 .backgroundColor(ColorTheme.UI.BackgroundElements)
                 .alignY(AlignmentY.Center)
@@ -152,50 +141,9 @@ fun UiScope.Toolbar(controller: TimelineController, extraContent: UiScope.() -> 
             controller.playbackMode.set(PlaybackMode.entries[playbackModeIndex.value])
         }
 
-        Box(width = sizes.largeGap) {
+        Box(Dimensions.PaddingLarge, Grow.Std) {
             modifier
-                .width(1.dp)
-                .height(24.dp)
-                .margin(horizontal = Dimensions.PaddingHuge)
-                .backgroundColor(ColorTheme.UI.BackgroundElements)
-                .alignY(AlignmentY.Center)
-        }
-
-        Text("Speed:") {
-            modifier
-                .alignY(AlignmentY.Center)
-                .padding(end = Dimensions.PaddingMedium)
-                .textColor(ColorTheme.UI.WhiteReplacement)
-        }
-
-        val playbackSpeedIndex = remember(playbackSpeeds.indexOf(controller.playbackSpeed.use()).coerceAtLeast(0))
-        val currentSpeed = controller.playbackSpeed.use()
-        val speedIndex = playbackSpeeds.indexOf(currentSpeed)
-        if (speedIndex >= 0 && playbackSpeedIndex.use() != speedIndex) {
-            playbackSpeedIndex.set(speedIndex)
-        }
-        ThemeComboBox(
-            preview = "${controller.playbackSpeed.use()}x",
-            items = playbackSpeeds.map { speed ->
-                Composable {
-                    Text("${speed}x") {
-                        modifier
-                            .alignY(AlignmentY.Center)
-                            .margin(horizontal = Dimensions.PaddingMedium)
-                            .textColor(ColorTheme.UI.WhiteReplacement)
-                    }
-                }
-            },
-            itemIndex = playbackSpeedIndex,
-        )
-        if (playbackSpeeds[playbackSpeedIndex.use()] != controller.playbackSpeed.use()) {
-            controller.playbackSpeed.set(playbackSpeeds[playbackSpeedIndex.value])
-        }
-
-        Box(width = sizes.largeGap) {
-            modifier
-                .width(1.dp)
-                .height(24.dp)
+                .width(Dimensions.PaddingSmall)
                 .margin(horizontal = Dimensions.PaddingHuge)
                 .backgroundColor(ColorTheme.UI.BackgroundElements)
                 .alignY(AlignmentY.Center)
@@ -226,30 +174,14 @@ fun UiScope.Toolbar(controller: TimelineController, extraContent: UiScope.() -> 
             }
         }
 
-        Box(width = Grow.Std) {}
-
-        Row(height = Grow.Std) {
-            modifier.alignY(AlignmentY.Center)
-
-            extraContent()
-
-            ToolbarIconButton(controller.iconPulse) {}
-
-            Box(width = 13.dp) {}
-
-            ToolbarIconButton(controller.iconFilm) {}
-
-            Box(width = 13.dp) {}
-
-            ToolbarIconButton(controller.iconCompress) {}
-        }
+        extraContent()
     }
 }
 
 private fun UiScope.ToolbarIconButton(
     icon: Texture2d,
-    size: Dp = 28.dp,
-    iconSize: Dimension = Grow.Std,
+    padding: Dp = 28.dp,
+    size: Dimension = Grow.Std,
     onClick: () -> Unit,
 ) {
     val isHovered = remember(false)
@@ -266,7 +198,7 @@ private fun UiScope.ToolbarIconButton(
 
     Box {
         modifier
-            .size(size, size)
+            .padding(padding)
             .alignY(AlignmentY.Center)
             .onEnter { isHovered.set(true) }
             .onExit { isHovered.set(false) }
@@ -275,7 +207,7 @@ private fun UiScope.ToolbarIconButton(
 
         Image(icon) {
             modifier
-                .size(iconSize, iconSize)
+                .size(size, size)
                 .align(AlignmentX.Center, AlignmentY.Center)
                 .tint(ColorTheme.UI.WhiteReplacement)
         }
@@ -283,8 +215,8 @@ private fun UiScope.ToolbarIconButton(
 }
 
 
-fun UiScope.TrackHeaderList(controller: TimelineController, width: Dimension? = null) {
-    Column(width = width ?: Dp(controller.trackPanelWidth.use()), height = Grow.Std) {
+fun UiScope.TrackHeaderList(controller: TimelineController) {
+    Column(height = Grow.Std) {
         modifier
             .zLayer(10)
             .backgroundColor(Color("1B1B1B"))
@@ -297,44 +229,43 @@ fun UiScope.TrackHeaderList(controller: TimelineController, width: Dimension? = 
                 ev.pointer.consume()
             }
 
-        Box(width = Grow.Std, height = Grow.Std) {
-            Column(width = Grow.Std, height = FitContent) {
-                modifier.margin(top = Dp(-controller.scrollState.yScrollDp.use()))
+        Column {
+            modifier.margin(top = Dp(-controller.scrollState.yScrollDp.use()))
 
-                Box(width = Grow.Std, height = 30.dp) {
-                    modifier
-                        .border(RectBorder(colors.secondaryVariant.withAlpha(0.5f), 1.dp))
-                        .backgroundColor(ColorTheme.UI.BackgroundSecondary)
-                        .onClick {
-                            controller.selectedKeyframes.clear()
-                            controller.isWorkAreaSelected.set(false)
-                        }
-                    Text("Треки") {
-                        modifier
-                            .align(AlignmentX.Start, AlignmentY.Center)
-                            .padding(start = Dimensions.PaddingMedium)
-                            .textColor(colors.onBackground.withAlpha(0.5f))
+            Box(width = Grow.Std, height = 30.dp) {
+                modifier
+                    .backgroundColor(ColorTheme.UI.BackgroundSecondary)
+                    .onClick {
+                        controller.selectedKeyframes.clear()
+                        controller.isWorkAreaSelected.set(false)
                     }
-                }
 
-                controller.groups.use().forEach { group ->
-                    GroupHeader(group, controller, 0)
+                Text("Треки") {
+                    modifier
+                        .align(AlignmentX.Start, AlignmentY.Center)
+                        .padding(start = Dimensions.PaddingMedium)
+                        .textColor(colors.onBackground.withAlpha(0.5f))
                 }
             }
+
+            controller.groups.use().forEach { group ->
+                GroupHeader(group, controller, 0)
+            }
         }
+
     }
 }
 
 private fun UiScope.GroupHeader(group: TrackGroup, controller: TimelineController, depth: Int) {
-    Row(width = Grow.Std, height = 30.dp) {
+    Row(Grow.Std, height = 30.dp) {
         modifier
-            .padding(start = sizes.smallGap + Dp(depth * 14f), end = sizes.gap)
-            .border(RectBorder(colors.secondaryVariant.withAlpha(0.2f), 1.dp))
             .backgroundColor(Color("24272E"))
             .onClick {
                 controller.selectedKeyframes.clear()
                 controller.isWorkAreaSelected.set(false)
             }
+
+        Box(Dimensions.PaddingNormal + Dp(depth * 14f)) {}
 
         Box(width = 20.dp, height = Grow.Std) {
             modifier
@@ -377,11 +308,9 @@ private fun UiScope.GroupHeader(group: TrackGroup, controller: TimelineControlle
 
         Text(group.nameState.use()) {
             modifier
-                .width(Grow.Std)
+                .padding(start = Dimensions.PaddingMedium)
                 .alignY(AlignmentY.Center)
-                .padding(start = sizes.smallGap)
-                .font(sizes.normalText)
-                .textColor(colors.primary)
+                .textColor(ColorTheme.Accents.Main)
         }
 
         ToggleIcon(
@@ -389,7 +318,7 @@ private fun UiScope.GroupHeader(group: TrackGroup, controller: TimelineControlle
             iconOn = controller.visible,
             iconOff = controller.invisible,
             iconSize = 22.dp,
-            marginEnd = sizes.smallGap,
+            marginEnd = Dimensions.PaddingNormal,
             onToggle = { isVisible ->
                 setGroupVisible(group, isVisible)
             },
@@ -400,6 +329,7 @@ private fun UiScope.GroupHeader(group: TrackGroup, controller: TimelineControlle
             iconOn = controller.locked,
             iconOff = controller.unlocked,
             iconSize = 11.dp,
+            marginEnd = Dimensions.PaddingNormal,
             onToggle = { isLocked ->
                 setGroupLocked(group, isLocked)
             },
@@ -430,7 +360,6 @@ private fun UiScope.TrackHeader(track: BaseAnimTrack, controller: TimelineContro
 
     Box(width = Grow.Std, height = 40.dp) {
         modifier
-            .border(RectBorder(colors.secondaryVariant.withAlpha(0.2f), 1.dp))
             .backgroundColor(bgColor)
             .onClick { ev ->
                 if (ev.pointer.isRightButtonClicked && track is AnimTrack<*>) {
@@ -444,7 +373,8 @@ private fun UiScope.TrackHeader(track: BaseAnimTrack, controller: TimelineContro
             }
 
         Row(width = Grow.Std, height = Grow.Std) {
-            modifier.padding(start = sizes.gap + Dp(depth * 14f), end = sizes.gap)
+            Box(Dimensions.PaddingNormal + Dp((depth + 1) * 14f)) {}
+
 
             Box(width = 4.dp, height = 18.dp) {
                 modifier
@@ -465,7 +395,7 @@ private fun UiScope.TrackHeader(track: BaseAnimTrack, controller: TimelineContro
                 iconOn = controller.visible,
                 iconOff = controller.invisible,
                 iconSize = 22.dp,
-                marginEnd = sizes.smallGap,
+                marginEnd = Dimensions.PaddingNormal,
                 tint = contentColor,
             )
 
@@ -474,6 +404,7 @@ private fun UiScope.TrackHeader(track: BaseAnimTrack, controller: TimelineContro
                 iconOn = controller.locked,
                 iconOff = controller.unlocked,
                 iconSize = 11.dp,
+                marginEnd = Dimensions.PaddingNormal,
                 tint = contentColor,
             )
         }

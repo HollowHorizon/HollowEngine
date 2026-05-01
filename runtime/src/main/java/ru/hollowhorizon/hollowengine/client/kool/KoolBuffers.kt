@@ -9,38 +9,49 @@ import de.fabmax.kool.pipeline.Texture2d
 import de.fabmax.kool.pipeline.backend.gl.GlTexture
 import de.fabmax.kool.pipeline.backend.gl.LoadedTextureGl
 import net.minecraft.client.Minecraft
-import ru.hollowhorizon.hollowengine.HollowCore
-import ru.hollowhorizon.hollowengine.client.HollowCoreClient
 import ru.hollowhorizon.hollowengine.client.kool.gl.MCGlApi
 
 internal val guiFramebuffer = TextureTarget(512, 512, true, Minecraft.ON_OSX)
 
 val WINDOW_BUFFER by lazy { createFramebufferTexture(guiFramebuffer) }
+val CUTSCENE_VIEWPORT by lazy { createFramebufferTexture(Minecraft.getInstance().mainRenderTarget) }
 
 fun createFramebufferTexture(texture: RenderTarget) = Texture2d(
     mipMapping = MipMapping.Off,
     samplerSettings = SamplerSettings().clamped().nearest()
 ).apply {
-    val estSize = Texture.estimatedTexSize(texture.width, texture.height, 1, 1, 4).toLong()
-    gpuTexture = LoadedTextureGl(
-        MCGlApi.TEXTURE_2D,
-        GlTexture(texture.colorTextureId),
-        MCGlApi.backend,
-        this,
-        estSize
-    ).apply {
-        width = texture.width
-        height = texture.height
-    }
+    gpuTexture = createGpuTexture(texture)
+}
+
+private fun Texture2d.createGpuTexture(
+    texture: RenderTarget,
+): LoadedTextureGl = LoadedTextureGl(
+    MCGlApi.TEXTURE_2D,
+    GlTexture(texture.colorTextureId),
+    MCGlApi.backend,
+    this,
+    Texture.estimatedTexSize(texture.width, texture.height, 1, 1, 4).toLong()
+).apply {
+    width = texture.width
+    height = texture.height
 }
 
 fun onResize(width: Int, height: Int) {
-    (WINDOW_BUFFER.gpuTexture as? LoadedTextureGl)?.apply {
-        this.width = width
-        this.height = height
+    WINDOW_BUFFER.resize(width, height)
+    CUTSCENE_VIEWPORT.resize(width, height)
+}
+
+fun Texture2d.resize(width: Int, height: Int) {
+    (gpuTexture as LoadedTextureGl).let {
+        it.width = width
+        it.height = height
     }
-    (HollowCoreClient.img.gpuTexture as? LoadedTextureGl)?.apply {
-        this.width = width
-        this.height = height
+}
+
+fun Texture2d.rebindIfDepth(target: RenderTarget) {
+    (gpuTexture as LoadedTextureGl).let {
+        if (it.glTexture.handle != target.colorTextureId) {
+            gpuTexture = createGpuTexture(target)
+        }
     }
 }

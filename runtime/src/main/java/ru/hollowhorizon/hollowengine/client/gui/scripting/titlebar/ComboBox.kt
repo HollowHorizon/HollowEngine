@@ -60,11 +60,11 @@ object ComboBox {
             }
         }
 
-        Row {
+        Row(height = Dimensions.PaddingHuge + Dimensions.PaddingNormal) {
             val isHovered by modifier.hoverable()
             val color by animateColorAsState(if(isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary, tween(easing = Easing.easeOutQuart))
 
-            modifier.padding(horizontal=Dimensions.PaddingMedium, vertical=Dimensions.PaddingNormal)
+            modifier.padding(Dimensions.PaddingNormal)
                 .alignY(AlignmentY.Center)
             modifier.background(RoundRectBackground(color, sizes.smallGap))
 
@@ -86,15 +86,13 @@ object ComboBox {
             }
 
             Box {
-                modifier.margin(Dimensions.PaddingSmall)
-                    .alignY(AlignmentY.Center)
-                    .padding(Dimensions.PaddingSmall)
+                modifier.alignY(AlignmentY.Center)
 
                 Arrow {
                     modifier.rotation(90f)
                         .colors(ColorTheme.UI.BackgroundAccent, ColorTheme.UI.WhiteReplacement)
                         .align(AlignmentX.Center, AlignmentY.Center)
-                        .size(Dimensions.PaddingMedium, Dimensions.PaddingMedium)
+                        .size(Dimensions.PaddingHuge, Dimensions.PaddingHuge)
                 }
             }
         }

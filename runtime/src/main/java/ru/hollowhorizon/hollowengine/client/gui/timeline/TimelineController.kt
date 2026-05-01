@@ -3,8 +3,8 @@ package ru.hollowhorizon.hollowengine.client.gui.timeline
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec2f
 import de.fabmax.kool.math.Vec3f
-import de.fabmax.kool.modules.ui2.ScrollState
 import de.fabmax.kool.modules.ui2.PointerEvent
+import de.fabmax.kool.modules.ui2.ScrollState
 import de.fabmax.kool.modules.ui2.mutableStateListOf
 import de.fabmax.kool.modules.ui2.mutableStateOf
 import de.fabmax.kool.pipeline.Texture2d
@@ -28,7 +28,6 @@ class TimelineController {
 
     val pixelsPerSecond = mutableStateOf(100f)
     val scrollState = ScrollState()
-    val trackPanelWidth = mutableStateOf(300f)
     val propertiesPanelWidth = mutableStateOf(250f)
 
     val selectedKeyframes = mutableStateListOf<Keyframe<*>>()

@@ -78,8 +78,8 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.isAnyFocusNodeInput
 import ru.hollowhorizon.hollowengine.client.gui.scripting.isMouseOverDock
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneCameraSystem
 import ru.hollowhorizon.hollowengine.client.kool.*
-import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBatchManager
+import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent
 import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
 import ru.hollowhorizon.hollowengine.client.render.RenderManager
 import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
@@ -101,6 +101,7 @@ import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
 import ru.hollowhorizon.hollowengine.common.events.item.ArrowEvent
 import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent
+import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterParticlesEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterTagsEvent
@@ -475,6 +476,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     override fun getOpenGlVersionOverride(): String = HollowCoreLoader.openGlVersion
 
     override fun shouldForceAutoGuiScale(screen: Screen?): Boolean = screen is AutoScaled
+
+    override fun onBlitScreen(minecraft: Minecraft) {
+        RenderTickEvent.Blit(minecraft).post()
+    }
 
     override fun onServerCreated(server: MinecraftServer, serverThread: Thread, levelRoot: Path) {
         currentServer = server

@@ -238,22 +238,18 @@ fun UiScope.FileDockingTabsBar(
 fun UiScope.FileTitleBar(
     icon: ResourceLocation,
     windowDockable: UiDockable,
-    minimizeButton: MutableStateValue<Boolean>,
     isDraggable: Boolean = true,
-    showTabsIfDocked: Boolean = true,
     onCloseAction: ((Dockable) -> Unit)? = null,
     onRightClick: (Dockable, PointerEvent) -> Unit = { dockable, event -> },
-    headerLeft: UiScope.() -> Unit = {},
-    headerRight: UiScope.() -> Unit = {},
+    headerLeft: UiScope.(background: Color) -> Unit = {},
+    headerRight: UiScope.(background: Color) -> Unit = {},
 ) {
-    val isTabbed = if (showTabsIfDocked) {
+    val isTabbed = run {
         val hasAnyTabs: Boolean
         Column(Grow.Std) {
             hasAnyTabs = FileDockingTabsBar(windowDockable, onCloseAction = onCloseAction, onRightClick = onRightClick)
         }
         hasAnyTabs
-    } else {
-        false
     }
 
     if (!isTabbed) {
@@ -265,7 +261,6 @@ fun UiScope.FileTitleBar(
             windowDockable = windowDockable,
             onCloseAction = onCloseAction,
             onRightClick = onRightClick,
-            minimizeButton = minimizeButton,
             isDraggable = isDraggable,
             headerLeft = headerLeft,
             headerRight = headerRight,
@@ -281,12 +276,11 @@ private fun UiScope.FileDockingBar(
     windowDockable: UiDockable,
     onCloseAction: ((Dockable) -> Unit)?,
     onRightClick: (Dockable, PointerEvent) -> Unit,
-    minimizeButton: MutableStateValue<Boolean>,
     isDraggable: Boolean,
-    headerLeft: UiScope.() -> Unit,
-    headerRight: UiScope.() -> Unit,
+    headerLeft: UiScope.(background: Color) -> Unit,
+    headerRight: UiScope.(background: Color) -> Unit,
 ) {
-    Row(if(minimizeButton.use()) FitContent else Grow.Std) {
+    Row(Grow.Std) {
         if (windowDockable.isDocked.use()) modifier.margin(Dimensions.PaddingNormal)
         modifier
             .onClick {
@@ -310,10 +304,10 @@ private fun UiScope.FileDockingBar(
             )
 
             modifier
+                .padding(Dimensions.PaddingNormal)
                 .height(FitContent)
                 .background(RoundRectBackground(color, Dimensions.PaddingNormal))
                 .border(RoundRectBorder(ColorTheme.UI.BackgroundElements, Dimensions.PaddingNormal, sizes.borderWidth))
-                .padding(horizontal = Dimensions.PaddingMedium + Dimensions.PaddingNormal)
 
 
             if (isDraggable && !PointerInput.primaryPointer.isMiddleButtonDown && !PointerInput.primaryPointer.isRightButtonDown) {
@@ -347,34 +341,20 @@ private fun UiScope.FileDockingBar(
                         .align(AlignmentX.Start, AlignmentY.Center)
                 }
 
-                headerLeft()
+                headerLeft(color)
             }
 
 
             Row {
                 modifier.align(AlignmentX.End, AlignmentY.Center)
 
-                headerRight()
+                headerRight(color)
 
                 onCloseAction?.let { action ->
                     HeaderIconButton(icons.CLOSE) {
                         action(windowDockable)
                     }
                 }
-            }
-        }
-
-        Box(width = Dimensions.PaddingNormal) {}
-
-        Row(height = Grow.Std) {
-            modifier
-                .alignY(AlignmentY.Center)
-                .background(RoundRectBackground(ColorTheme.UI.BackgroundSecondary, Dimensions.PaddingNormal))
-                .border(RoundRectBorder(ColorTheme.UI.BackgroundElements, Dimensions.PaddingNormal, sizes.borderWidth))
-                .padding(Dimensions.PaddingMedium)
-
-            HeaderIconButton(if (minimizeButton.use()) icons.MAXIMIZE else icons.MINIMIZE) {
-                minimizeButton.set(!minimizeButton.value)
             }
         }
     }
@@ -389,7 +369,7 @@ private fun UiScope.HeaderIconButton(icon: ResourceLocation, onClick: () -> Unit
         )
         modifier
             .alignY(AlignmentY.Center)
-            .padding(Dimensions.PaddingMedium, Dimensions.PaddingMedium)
+            .padding(Dimensions.PaddingNormal)
             .background(RoundRectBackground(color, Dimensions.PaddingNormal))
             .onClick {
                 if (it.isLeftClick) onClick()

@@ -75,7 +75,7 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
         }
     }
 
-    override fun UiScope.drawHeaderLeft() {
+    override fun UiScope.drawHeaderLeft(color: Color) {
 
         Text("hollowengine.gui.console.level".lang) {
             modifier.alignY(AlignmentY.Center).margin(horizontal = sizes.smallGap)
@@ -113,7 +113,7 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
         }
     }
 
-    override fun UiScope.drawHeaderRight() {
+    override fun UiScope.drawHeaderRight(color: Color) {
         Image("hollowengine:textures/gui/icons/auto_scroll.svg") {
             val isHovered by modifier.hoverable()
             val hoverColor by animateColorAsState(if(isHovered) colors.background else Color.WHITE, tween(easing = Easing.easeOutQuart))

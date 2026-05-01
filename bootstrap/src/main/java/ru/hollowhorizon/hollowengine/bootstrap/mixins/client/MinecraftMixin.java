@@ -30,6 +30,11 @@ public class MinecraftMixin {
         BootstrapRuntimeManager.bridge().onClientRenderTickPost((Minecraft) (Object) this);
     }
 
+    @Inject(method = "runTick", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/pipeline/RenderTarget;blitToScreen(II)V", shift = At.Shift.AFTER))
+    private void beforeBlit(CallbackInfo ci) {
+        BootstrapRuntimeManager.bridge().onBlitScreen((Minecraft) (Object) this);
+    }
+
     @Inject(method = "stop", at = @At("HEAD"))
     private void onStopHead(CallbackInfo ci) {
         BootstrapRuntimeManager.bridge().onClientStopping((Minecraft) (Object) this);

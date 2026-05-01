@@ -10,7 +10,6 @@ public final class RuntimeClassTransformers {
         return List.of(
                 new KoolClipboardTransformer(),
                 new KoolDockNodeBridgeTransformer(),
-                new KoolDockNodeBehaviorTransformer(),
                 new KoolDragAndDropContextBridgeTransformer(),
                 new KoolUiDockableBridgeTransformer(),
                 new KoolUiNodeBridgeTransformer(),
