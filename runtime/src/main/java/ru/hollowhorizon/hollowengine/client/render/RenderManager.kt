@@ -24,6 +24,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBa
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderContext
 import ru.hollowhorizon.hollowengine.client.particles.ParticleVertexConsumerProvider
 import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
@@ -31,6 +32,7 @@ import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import kotlin.math.abs
 
+@ClientOnly
 object RenderManager {
     fun onInitialize() {
         HollowModelManager.initialize()

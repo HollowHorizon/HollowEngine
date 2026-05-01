@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.handlers
 
 import net.minecraft.client.Minecraft
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.common.utils.isLogicalClient
@@ -18,6 +19,7 @@ object TickHandler {
     val time get() = currentTicks + partialTick
 
     @SubscribeEvent
+    @ClientOnly
     fun onClientTick(event: TickEvent.Client) {
         clientTicks++
     }

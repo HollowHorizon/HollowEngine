@@ -13,10 +13,12 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.kool.KoolInitEvent
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
 import ru.hollowhorizon.hollowengine.client.kool.gl.render
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
 
+@ClientOnly
 object ChatOverlay {
     val nickname = mutableStateOf("")
     val message = mutableStateOf("")

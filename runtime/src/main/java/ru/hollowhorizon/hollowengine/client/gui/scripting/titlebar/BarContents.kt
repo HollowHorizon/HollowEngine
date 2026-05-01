@@ -27,6 +27,7 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -40,6 +41,7 @@ import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 @SubscribeEvent
+@ClientOnly
 fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
     modifier.padding(vertical = Dimensions.PaddingNormal)
 
@@ -149,6 +151,7 @@ fun UiScope.TextButton(text: String, onClick: (PointerEvent) -> Unit = {}) {
 }
 
 @SubscribeEvent
+@ClientOnly
 fun rightBarContents(event: TitleBarCreationEvent.End) = event.append {
     if (IdeContent.files.isEmpty() || ScriptingEnvironmentOverlay.isCollapsed) return@append
 

@@ -12,9 +12,11 @@ import org.lwjgl.opengl.GL30
 import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.client.kool.KoolHooks
 import ru.hollowhorizon.hollowengine.client.kool.KoolManager
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
 
+@ClientOnly
 object GlContext {
     private var activeTexture = -1
     private var bindingTexture = -1

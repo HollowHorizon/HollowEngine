@@ -23,6 +23,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelM
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
@@ -327,6 +328,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
     }
 }
 
+@ClientOnly
 @SubscribeEvent(100)
 fun registerNpcOptions(event: NpcOptionsEvent) {
     //event.register(NpcOption("options") { NPCCreatorGui(event.npc, event.npc.id).open() })

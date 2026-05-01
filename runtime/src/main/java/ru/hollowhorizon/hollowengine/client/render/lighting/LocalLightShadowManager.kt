@@ -37,6 +37,7 @@ import ru.hollowhorizon.hollowengine.client.render.RenderManager
 import ru.hollowhorizon.hollowengine.client.utils.popPose
 import ru.hollowhorizon.hollowengine.client.utils.pushPose
 import ru.hollowhorizon.hollowengine.client.utils.setIdentity
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.blocks.BlockEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
@@ -69,6 +70,7 @@ internal data class ShadowFrameState(
     }
 }
 
+@ClientOnly
 internal object LocalLightShadowManager {
     private const val MAX_POINT_FACES = 6
     private const val SHADOW_RECORD_STRIDE = 512

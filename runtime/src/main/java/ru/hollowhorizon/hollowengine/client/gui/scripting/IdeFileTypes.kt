@@ -6,9 +6,11 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.TextFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.animations.AnimationControllerFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.codeblocks.CodeBlocksFile
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.prefabs.GLTFFile
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 
 @SubscribeEvent
+@ClientOnly
 fun registerDefaultFileTypes(event: RegisterFileTypeEvent) {
     event.registerSuffix(
         ".controller.json",

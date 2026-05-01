@@ -51,6 +51,7 @@ import ru.hollowhorizon.hollowengine.client.render.quatFToGizmoRotation
 import ru.hollowhorizon.hollowengine.client.render.resolveNodeTransform
 import ru.hollowhorizon.hollowengine.client.render.worldTransformToComponent
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
@@ -83,6 +84,7 @@ import kotlin.math.max
 import kotlin.math.sin
 import kotlin.math.tan
 
+@ClientOnly
 object TransformGizmoEditor {
     private const val ENABLED_KEY = "hollowengine.transform_gizmo.enabled"
     private const val MODE_KEY = "hollowengine.transform_gizmo.mode"

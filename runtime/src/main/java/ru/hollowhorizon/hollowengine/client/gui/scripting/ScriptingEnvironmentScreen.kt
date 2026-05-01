@@ -18,6 +18,7 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.TitleBarCreationEvent
 import ru.hollowhorizon.hollowengine.client.kool.gl.render
 import ru.hollowhorizon.hollowengine.client.utils.stream
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
 import ru.hollowhorizon.hollowengine.common.events.post
@@ -110,6 +111,7 @@ fun isAnyFocusNodeInput(): Boolean {
 }
 
 @SubscribeEvent
+@ClientOnly
 fun onDrawOverlay(event: RenderTickEvent.Blit) {
     ScriptingEnvironmentOverlay.scene.render()
 }

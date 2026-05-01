@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.network
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
 import net.minecraft.client.Minecraft
-import net.minecraft.client.player.LocalPlayer
 import net.minecraft.network.RegistryFriendlyByteBuf
 import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.protocol.Packet
@@ -13,15 +12,16 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload
 import net.minecraft.server.level.ServerChunkCache
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.api.NetworkManager
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
 import ru.hollowhorizon.hollowengine.common.utils.bytebuf.ByteBufFormat
 import ru.hollowhorizon.hollowengine.common.utils.bytebuf.deserializeNoInline
 import ru.hollowhorizon.hollowengine.common.utils.bytebuf.serializeNoInline
+import ru.hollowhorizon.hollowengine.common.utils.isPhysicalClient
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.util.function.BiConsumer
 
@@ -31,7 +31,7 @@ object CommonNetworkManager : NetworkManager {
     override fun <T : CustomPacketPayload> registerClient(
         type: CustomPacketPayload.Type<T>,
         codec: StreamCodec<RegistryFriendlyByteBuf, T>,
-        consumer: BiConsumer<T, LocalPlayer>,
+        consumer: BiConsumer<T, Player>,
     ) {
         manager.registerClient(type, codec, consumer)
     }
@@ -39,7 +39,7 @@ object CommonNetworkManager : NetworkManager {
     override fun <T : CustomPacketPayload> registerServer(
         type: CustomPacketPayload.Type<T>,
         codec: StreamCodec<RegistryFriendlyByteBuf, T>,
-        consumer: BiConsumer<T, ServerPlayer>,
+        consumer: BiConsumer<T, Player>,
     ) {
         manager.registerServer(type, codec, consumer)
     }
@@ -63,7 +63,7 @@ object CommonNetworkManager : NetworkManager {
 
         when (annotation.toTarget) {
             HollowPacketHandler.Direction.TO_CLIENT -> {
-                if (isClient) registerClient(location, codec, HollowPacket::handle)
+                registerClient(location, codec, HollowPacket::handle)
             }
 
             HollowPacketHandler.Direction.TO_SERVER -> {
@@ -71,7 +71,7 @@ object CommonNetworkManager : NetworkManager {
             }
 
             HollowPacketHandler.Direction.ANY -> {
-                if (isClient) registerClient(location, codec, HollowPacket::handle)
+                registerClient(location, codec, HollowPacket::handle)
                 registerServer(location, codec, HollowPacket::handle)
             }
         }

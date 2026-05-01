@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.manager
 
+import com.mojang.blaze3d.systems.RenderSystem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -7,11 +8,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
 import net.minecraft.client.Minecraft
-import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.renderer.texture.AbstractTexture
 import net.minecraft.resources.ResourceLocation
-import net.minecraft.server.packs.resources.SimplePreparableReloadListener
 import net.minecraft.server.packs.resources.ResourceManager
+import net.minecraft.server.packs.resources.SimplePreparableReloadListener
 import net.minecraft.util.profiling.ProfilerFiller
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL12
@@ -28,6 +28,7 @@ import ru.hollowhorizon.hollowengine.client.textures.GlTexture
 import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.coroutines.scopeAsync
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.utils.rl
@@ -271,6 +272,7 @@ class RegisterModelLoaderEvent(private val loaders: MutableList<ModelLoader>) : 
 }
 
 @SubscribeEvent
+@ClientOnly
 fun registerModelLoaders(event: RegisterModelLoaderEvent) {
     event.register(GltfModelLoader)
     event.register(ObjModelLoader)

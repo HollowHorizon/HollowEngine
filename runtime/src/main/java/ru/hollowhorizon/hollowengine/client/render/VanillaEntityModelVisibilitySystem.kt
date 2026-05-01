@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.render
 
 import net.minecraft.world.entity.Entity
+import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderEntityEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderPlayerEvent
@@ -8,6 +9,7 @@ import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.HideVanillaEntityModelComponent
 
+@ClientOnly
 object VanillaEntityModelVisibilitySystem {
     @SubscribeEvent
     fun onRenderEntity(event: RenderEntityEvent.Pre) {
