@@ -36,7 +36,7 @@ fun UiScope.PropertiesPanel(controller: TimelineController, width: Dimension? = 
             modifier.width(Grow.Std)
                 .margin(end = Dimensions.PaddingMedium)
 
-            Column(width = Grow.Std) {
+            Column(width = Grow.Std, scopeName = "KeyframeProperties") {
                 modifier.padding(Dimensions.PaddingSmall)
 
                 if (controller.selectedKeyframes.isNotEmpty()) {
@@ -82,7 +82,7 @@ private fun UiScope.KeyframeProperties(
     track: AnimTrack<*>,
     controller: TimelineController,
 ) {
-    Column(width = Grow.Std) {
+    Column(width = Grow.Std, scopeName = "TimelineProperties") {
         modifier
             .background(RoundRectBackground(ColorTheme.UI.BackgroundElements, sizes.smallGap))
             .padding(sizes.smallGap)
