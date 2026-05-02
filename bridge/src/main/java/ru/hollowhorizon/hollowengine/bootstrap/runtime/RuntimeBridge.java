@@ -41,10 +41,7 @@ import net.minecraft.tags.TagLoader;
 import net.minecraft.util.Unit;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.AgeableMob;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -135,6 +132,8 @@ public interface RuntimeBridge extends AutoCloseable {
     boolean onScreenRenderPre(Screen screen, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick);
 
     void onScreenRenderPost(Screen screen, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick);
+
+    boolean onRenderArm(PoseStack stack, MultiBufferSource multiBufferSource, int packedLight, AbstractClientPlayer player, HumanoidArm arm);
 
     void onRegisterParticles(ParticleEngine particleEngine);
 

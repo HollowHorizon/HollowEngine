@@ -46,10 +46,7 @@ import net.minecraft.tags.TagLoader
 import net.minecraft.util.Unit
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.damagesource.DamageSource
-import net.minecraft.world.entity.AgeableMob
-import net.minecraft.world.entity.Entity
-import net.minecraft.world.entity.EntityType
-import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.*
 import net.minecraft.world.entity.animal.Animal
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
@@ -352,6 +349,14 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     ) {
         EventBus.post(ScreenEvent.Render.Post(screen, guiGraphics, mouseX, mouseY, partialTick))
     }
+
+    override fun onRenderArm(
+        stack: PoseStack,
+        multiBufferSource: MultiBufferSource,
+        packedLight: Int,
+        player: AbstractClientPlayer,
+        arm: HumanoidArm,
+    ): Boolean = RenderArmEvent(stack, multiBufferSource, packedLight, player, arm).post().isCanceled
 
     override fun onRegisterParticles(particleEngine: ParticleEngine) {
         EventBus.post(RegisterParticlesEvent(particleEngine))
@@ -880,7 +885,15 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
             else -> null
         }
         if (inputAction != null) {
-            postKatariInput(KatariClientInputEvent.MouseButton(x.toDouble(), y.toDouble(), button, inputAction, modifiers))
+            postKatariInput(
+                KatariClientInputEvent.MouseButton(
+                    x.toDouble(),
+                    y.toDouble(),
+                    button,
+                    inputAction,
+                    modifiers
+                )
+            )
         }
         return (isMouseOverDock(x, y) || TransformGizmoEditor.shouldBlockScreenInput(x, y)) && minecraft.screen != null
     }

@@ -7,6 +7,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
+import net.minecraft.world.entity.HumanoidArm;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -22,6 +23,20 @@ public abstract class PlayerRendererMixin extends LivingEntityRenderer<AbstractC
     @Inject(method = "render(Lnet/minecraft/client/player/AbstractClientPlayer;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/LivingEntityRenderer;render(Lnet/minecraft/world/entity/LivingEntity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V"), cancellable = true)
     private void onRenderPlayer(AbstractClientPlayer entity, float entityYaw, float partialTicks, PoseStack poseStack, MultiBufferSource buffer, int packedLight, CallbackInfo ci) {
         if (BootstrapRuntimeManager.bridge().onRenderPlayer(entity, entityYaw, partialTicks, poseStack, buffer, packedLight)) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "renderLeftHand", at = @At("HEAD"), cancellable = true)
+    private void onRenderArmLeft(PoseStack poseStack, MultiBufferSource buffer, int combinedLight, AbstractClientPlayer player, CallbackInfo ci) {
+        if (BootstrapRuntimeManager.bridge().onRenderArm(poseStack, buffer, combinedLight, player, HumanoidArm.LEFT)) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "renderRightHand", at = @At("HEAD"), cancellable = true)
+    private void onRenderArmRight(PoseStack poseStack, MultiBufferSource buffer, int combinedLight, AbstractClientPlayer player, CallbackInfo ci) {
+        if (BootstrapRuntimeManager.bridge().onRenderArm(poseStack, buffer, combinedLight, player, HumanoidArm.RIGHT)) {
             ci.cancel();
         }
     }
