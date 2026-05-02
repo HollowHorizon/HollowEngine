@@ -10,6 +10,8 @@ import de.fabmax.kool.scene.Scene
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.MsdfFontData
 import de.fabmax.kool.util.MsdfMeta
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.ChatScreen
 import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.ScriptingEnvironmentOverlay.dock
@@ -18,6 +20,8 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.theme.IdeTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.TitleBarCreationEvent
 import ru.hollowhorizon.hollowengine.client.kool.gl.render
 import ru.hollowhorizon.hollowengine.client.utils.stream
+import ru.hollowhorizon.hollowengine.common.config.EditMode
+import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
@@ -59,6 +63,10 @@ object ScriptingEnvironmentOverlay {
 
         addPanelSurface(sizes = IdeTheme.sizes, colors = IdeTheme.colors) {
             modifier.size(if (isCollapsed) FitContent else Grow.Std, FitContent)
+
+            val isCollapsed = isCollapsed || HollowEngineConfig.editMode == EditMode.DISABLED ||
+                    HollowEngineConfig.editMode == EditMode.CHAT_ONLY && Minecraft.getInstance().screen !is ChatScreen
+
             if (isCollapsed) modifier.background(null)
             else modifier.backgroundColor(ColorTheme.UI.BackgroundSecondary)
 

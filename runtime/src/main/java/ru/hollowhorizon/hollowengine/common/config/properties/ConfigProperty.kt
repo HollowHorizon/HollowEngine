@@ -5,7 +5,6 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
 import net.peanuuutz.tomlkt.TomlElement
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.config.FloatRange
 import ru.hollowhorizon.hollowengine.common.config.PropertyComment
 import ru.hollowhorizon.hollowengine.common.config.PropertyName
 import ru.hollowhorizon.hollowengine.common.config.PropertyRange
@@ -70,8 +69,12 @@ class ConfigProperty<T>(
             if (value.toFloat() !in range!!) return false
         }
 
-        validValues?.let { if ((value as String) !in it) return false }
-        validator?.let { if (!it(value)) return false }
+        if (validValues != null) {
+            if (value !is String) return false
+            if (value !in validValues!!) return false
+        }
+
+        if (validator != null && !validator(value)) return false
 
         return true
     }
@@ -89,12 +92,22 @@ class ConfigProperty<T>(
         return cachedElement
     }
 
-    fun deserialize(element: TomlElement) {
+    fun deserialize(element: TomlElement): Boolean {
         try {
-            _value = toml.decodeFromTomlElement(serializer, element)
+            val decoded = toml.decodeFromTomlElement(serializer, element)
+            if (!isValid(decoded)) {
+                HollowEngine.LOGGER.warn(
+                    "Invalid value loaded for property '{}': {}. Keeping default: {}",
+                    name, decoded, _value
+                )
+                return false
+            }
+            _value = decoded
             isCacheValid = false
+            return true
         } catch (e: Exception) {
-            HollowEngine.LOGGER.error("Deserialization failed for property: $name", e)
+            HollowEngine.LOGGER.warn("Deserialization failed for property '{}': {}. Value unchanged.", name, e.message)
+            return false
         }
     }
 }

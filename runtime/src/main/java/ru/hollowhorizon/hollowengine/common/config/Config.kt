@@ -1,15 +1,13 @@
-@file:OptIn(InternalSerializationApi::class, ExperimentalAtomicApi::class)
+@file:OptIn(kotlinx.serialization.InternalSerializationApi::class, ExperimentalAtomicApi::class)
 
 package ru.hollowhorizon.hollowengine.common.config
 
 import kotlinx.coroutines.*
-import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.serializer
 import net.peanuuutz.tomlkt.TomlTable
 import org.apache.logging.log4j.LogManager
-import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.config.properties.Properties
 import ru.hollowhorizon.hollowengine.common.utils.ObservableList
 import ru.hollowhorizon.hollowengine.common.utils.ObservableMap
@@ -17,12 +15,14 @@ import ru.hollowhorizon.hollowengine.common.utils.ObservableSet
 import ru.hollowhorizon.hollowengine.common.utils.toml.toml
 import java.nio.file.*
 import java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
-import kotlin.io.path.readText
+import kotlin.io.path.*
 
 open class Config {
     val properties = Properties { markDirty() }
@@ -47,43 +47,48 @@ open class Config {
     private fun loadOrCreateConfig() {
         try {
             if (Files.exists(configFile)) {
-                load()
-                LOGGER.info("Config loaded: ${configFile.fileName}")
+                if (!load()) {
+                    LOGGER.warn("Config loaded with errors, regenerating: {}", configFile.fileName)
+                } else {
+                    LOGGER.info("Config loaded: {}", configFile.fileName)
+                }
             } else {
                 save(force = true)
-                LOGGER.info("Config created: ${configFile.fileName}")
+                LOGGER.info("Config created: {}", configFile.fileName)
             }
         } catch (e: Exception) {
-            LOGGER.error("Failed to load config ${configFile.fileName}", e)
-            createBackupAndRegenerate()
+            LOGGER.error("Failed to load config {}", configFile.fileName, e)
+            createBackupAndRegenerate("errored")
         }
     }
 
-    private fun createBackupAndRegenerate() {
+    private fun backupFile(suffix: String): Path {
+        val timestamp = LocalDateTime.now().format(BACKUP_TIMESTAMP_FORMAT)
+        return configFile.resolveSibling("${configFile.fileName}.${timestamp}_$suffix")
+    }
+
+    private fun createBackupAndRegenerate(suffix: String) {
         try {
             if (Files.exists(configFile)) {
-                val backupFile =
-                    configFile.resolveSibling("${configFile.fileName}.${System.currentTimeMillis()}_backup")
-                Files.copy(configFile, backupFile, StandardCopyOption.REPLACE_EXISTING)
-                LOGGER.warn("Config backup created: $backupFile")
+                val backup = backupFile(suffix)
+                Files.copy(configFile, backup, StandardCopyOption.REPLACE_EXISTING)
+                LOGGER.warn("Config backed up as: $backup")
             }
+            properties.clearOrphanedKeys()
             save(force = true)
-            LOGGER.info("Config regenerated after error")
+            LOGGER.info("Config regenerated after error: {}", configFile.fileName)
         } catch (e: Exception) {
-            LOGGER.error("Critical: Failed to regenerate config", e)
+            LOGGER.error("Critical: Failed to regenerate config {}", configFile.fileName, e)
         }
     }
 
     private fun registerFileWatcher() {
         val parentDir = configFile.parent
         try {
-            val key = parentDir.register(
-                fileWatcher,
-                ENTRY_MODIFY
-            )
-            configRegistrations[key] = FileWatcherEntry(this, configFile.fileName.toString())
+            val key = parentDir.register(fileWatcher, ENTRY_MODIFY)
+            configRegistrations[key] = FileWatcherEntry(this, configFile, configFile.fileName.toString())
         } catch (e: Exception) {
-            LOGGER.warn("Failed to register file watcher for ${configFile.fileName}", e)
+            LOGGER.warn("Failed to register file watcher for {}", configFile.fileName, e)
         }
     }
 
@@ -119,29 +124,29 @@ open class Config {
             try {
                 val table = properties.serialize()
                 val tempFile = configFile.resolveSibling("${configFile.fileName}.tmp")
-
-                // Atomic write
                 Files.write(tempFile, toml.encodeToString(table).toByteArray())
                 Files.move(tempFile, configFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
 
                 lastSaveTime = now
                 LOGGER.debug("Config saved: {}", configFile.fileName)
             } catch (e: Exception) {
-                LOGGER.error("Failed to save config ${configFile.fileName}", e)
-                isDirty.store(true) // Retry later
+                LOGGER.error("Failed to save config {}", configFile.fileName, e)
+                isDirty.store(true)
             }
         }
     }
 
-    open fun load() {
-        try {
-            val content = configFile.readText()
+    open fun load(): Boolean {
+        return try {
+            val content = configFile.readText(Charsets.UTF_8)
             val table = toml.decodeFromString<TomlTable>(content)
             properties.deserialize(table)
-            LOGGER.info("Config reloaded: ${configFile.fileName}")
+            LOGGER.info("Config reloaded: {}", configFile.fileName)
+            true
         } catch (e: Exception) {
-            LOGGER.error("Error loading config ${configFile.fileName}", e)
-            throw e
+            LOGGER.error("Error loading config {}: {}", configFile.fileName, e.message)
+            createBackupAndRegenerate("errored")
+            false
         }
     }
 
@@ -166,6 +171,9 @@ open class Config {
         private val LOGGER = LogManager.getLogger()
         private const val SAVE_DELAY_MS = 2000L
         private const val MIN_SAVE_INTERVAL_MS = 1000L
+        private const val FILE_STABLE_CHECK_INTERVAL_MS = 150L
+        private const val FILE_STABLE_MAX_WAIT_MS = 3000L
+        private val BACKUP_TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss")
 
         val CONFIG_DIR = Paths.get("config")
 
@@ -194,24 +202,49 @@ open class Config {
 
                         key.pollEvents().forEach { event ->
                             if (event.kind() == ENTRY_MODIFY && event.context()?.toString() == entry.fileName) {
-                                try {
-                                    delay(100) // Small delay to ensure file is fully written
-                                    entry.config.load()
-                                } catch (e: Exception) {
-                                    LOGGER.warn("Failed to reload config on file change", e)
-                                }
+                                waitForFileStable(entry)
                             }
                         }
 
                         if (!key.reset()) {
                             configRegistrations.remove(key)
                         }
-                    } catch (e: InterruptedException) {
+                    } catch (_: InterruptedException) {
+                        break
+                    } catch (e: CancellationException) {
                         break
                     } catch (e: Exception) {
                         LOGGER.error("Error in config file watcher", e)
                     }
                 }
+            }
+        }
+
+        private suspend fun waitForFileStable(entry: FileWatcherEntry) {
+            val configPath = entry.configPath
+            val startTime = System.currentTimeMillis()
+
+            delay(FILE_STABLE_CHECK_INTERVAL_MS)
+
+            var lastModified = try {
+                Files.getLastModifiedTime(configPath).toMillis()
+            } catch (_: Exception) {
+                return
+            }
+
+            while (System.currentTimeMillis() - startTime < FILE_STABLE_MAX_WAIT_MS) {
+                delay(FILE_STABLE_CHECK_INTERVAL_MS)
+                val currentModified = try {
+                    Files.getLastModifiedTime(configPath).toMillis()
+                } catch (_: Exception) {
+                    return
+                }
+
+                if (currentModified == lastModified) {
+                    entry.config.load()
+                    return
+                }
+                lastModified = currentModified
             }
         }
 
@@ -222,7 +255,7 @@ open class Config {
         }
     }
 
-    private data class FileWatcherEntry(val config: Config, val fileName: String)
+    private data class FileWatcherEntry(val config: Config, val configPath: Path, val fileName: String)
 }
 
 

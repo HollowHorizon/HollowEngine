@@ -9,7 +9,11 @@ import ru.hollowhorizon.hollowengine.common.utils.nbt.TagModule
 import ru.hollowhorizon.hollowengine.common.utils.serialization.Format
 
 @PublishedApi
-internal val toml = Toml { serializersModule = TagModule }
+internal val toml = Toml {
+    serializersModule = TagModule
+    explicitNulls = true
+    ignoreUnknownKeys = true
+}
 
 object TomlFormat : Format<String> {
     override val serializersModule = toml.serializersModule

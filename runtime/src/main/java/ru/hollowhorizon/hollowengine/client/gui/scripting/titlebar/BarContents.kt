@@ -7,6 +7,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.util.Color
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -27,6 +28,8 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
+import ru.hollowhorizon.hollowengine.common.config.EditMode
+import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -44,6 +47,9 @@ import ru.hollowhorizon.hollowengine.generated.Assets
 @ClientOnly
 fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
     modifier.padding(vertical = Dimensions.PaddingNormal)
+
+    if (HollowEngineConfig.editMode == EditMode.DISABLED) return@append
+    if (HollowEngineConfig.editMode == EditMode.CHAT_ONLY && Minecraft.getInstance().screen !is ChatScreen) return@append
 
     Box(
         Dimensions.PaddingLarge + Dimensions.PaddingSmall + Dimensions.PaddingMedium * 2f,
@@ -96,20 +102,32 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
 }
 
 private fun buildToolsMenu(overlay: ItemPopupMenu<Unit>): SubMenuItem<Unit> = SubMenuItem {
-    item("${if (TransformGizmoEditor.isEnabled) "●" else "○"} " + "hollowengine.gui.ide.gizmo".lang, closeOnClick = false) {
+    item(
+        "${if (TransformGizmoEditor.isEnabled) "●" else "○"} " + "hollowengine.gui.ide.gizmo".lang,
+        closeOnClick = false
+    ) {
         TransformGizmoEditor.toggleEnabled()
         overlay.updateMenu(buildToolsMenu(overlay))
     }
     divider()
-    item("${if (TransformGizmoEditor.mode == GizmoEditMode.TRANSLATE) "●" else "○"} " + "hollowengine.gui.ide.gizmo.translate".lang, closeOnClick = false) {
+    item(
+        "${if (TransformGizmoEditor.mode == GizmoEditMode.TRANSLATE) "●" else "○"} " + "hollowengine.gui.ide.gizmo.translate".lang,
+        closeOnClick = false
+    ) {
         TransformGizmoEditor.setMode(GizmoEditMode.TRANSLATE)
         overlay.updateMenu(buildToolsMenu(overlay))
     }
-    item("${if (TransformGizmoEditor.mode == GizmoEditMode.ROTATE) "●" else "○"} " + "hollowengine.gui.ide.gizmo.rotate".lang, closeOnClick = false) {
+    item(
+        "${if (TransformGizmoEditor.mode == GizmoEditMode.ROTATE) "●" else "○"} " + "hollowengine.gui.ide.gizmo.rotate".lang,
+        closeOnClick = false
+    ) {
         TransformGizmoEditor.setMode(GizmoEditMode.ROTATE)
         overlay.updateMenu(buildToolsMenu(overlay))
     }
-    item("${if (TransformGizmoEditor.mode == GizmoEditMode.SCALE) "●" else "○"} " + "hollowengine.gui.ide.gizmo.scale".lang, closeOnClick = false) {
+    item(
+        "${if (TransformGizmoEditor.mode == GizmoEditMode.SCALE) "●" else "○"} " + "hollowengine.gui.ide.gizmo.scale".lang,
+        closeOnClick = false
+    ) {
         TransformGizmoEditor.setMode(GizmoEditMode.SCALE)
         overlay.updateMenu(buildToolsMenu(overlay))
     }
@@ -119,8 +137,34 @@ fun UiScope.Logo() {
     val isHovered by modifier.hoverable()
     val factor by animateFloatAsState(if (isHovered) 1f else 0f, tween(easing = Easing.easeOutQuart))
     val size = Dimensions.PaddingLarge + Dimensions.PaddingSmall * factor
+
+    val buttonOverlay = remember { ItemPopupMenu<Unit>("Editor-Tools-Overlay") }
+    buttonOverlay()
+
     modifier.onClick {
-        ScriptingEnvironmentOverlay.isCollapsed = !ScriptingEnvironmentOverlay.isCollapsed
+        if (it.isLeftClick) {
+            ScriptingEnvironmentOverlay.isCollapsed = !ScriptingEnvironmentOverlay.isCollapsed
+        } else if (it.isRightClick) {
+            buttonOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
+                item("Show") {
+                    HollowEngineConfig.editMode = EditMode.ENABLED
+                    if (ScriptingEnvironmentOverlay.isCollapsed) {
+                        ScriptingEnvironmentOverlay.isCollapsed = false
+                    }
+                }
+                item("Collapse") {
+                    if (!ScriptingEnvironmentOverlay.isCollapsed) {
+                        ScriptingEnvironmentOverlay.isCollapsed = true
+                    }
+                }
+                item("Hide") {
+                    HollowEngineConfig.editMode = EditMode.DISABLED
+                }
+                item("Show only in chat menu") {
+                    HollowEngineConfig.editMode = EditMode.CHAT_ONLY
+                }
+            }, Unit)
+        }
     }
     Image("hollowengine:textures/gui/logo/logo.svg", SamplerMode.LINEAR) {
         modifier.size(size, size).align(AlignmentX.Center, AlignmentY.Center)

@@ -1,0 +1,207 @@
+package ru.hollowhorizon.hollowengine.common.config
+
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.serializer
+import net.peanuuutz.tomlkt.TomlTable
+import ru.hollowhorizon.hollowengine.common.config.properties.ConfigProperty
+import ru.hollowhorizon.hollowengine.common.config.properties.Properties
+import ru.hollowhorizon.hollowengine.common.utils.toml.toml
+import kotlin.test.*
+
+class ConfigPropertyTests {
+
+    class TestHost {
+        val defaultProp by ConfigProperty(42, {})
+        val rangedProp by ConfigProperty(5.0f, {})
+        val validValuesProp by ConfigProperty("medium", {})
+        val noAnnotation by ConfigProperty("hello", {})
+    }
+
+    @Test
+    fun `get returns initial value`() {
+        val host = TestHost()
+        assertEquals(42, host.defaultProp)
+    }
+
+    @Test
+    fun `set updates value and triggers onChange`() {
+        var changed = false
+        val host = object {
+            var x by ConfigProperty(0, { changed = true })
+        }
+        host.x = 100
+        assertEquals(100, host.x)
+        assertTrue(changed)
+    }
+
+    @Test
+    fun `property name is set via provideDelegate`() {
+        val prop = ConfigProperty("hello", {})
+        prop.provideDelegate(Any(), TestHost::noAnnotation)
+        assertEquals("noAnnotation", prop.name)
+    }
+
+    @Test
+    fun `deserialize with invalid value keeps default`() {
+        val host = TestHost()
+        val prop = ConfigProperty(5.0f, {})
+        prop.provideDelegate(host, TestHost::noAnnotation)
+        prop.name = "ranged"
+        prop.range = 0f..10f
+
+        val invalidToml = toml.encodeToTomlElement(serializer<Float>(), 999.0f)
+        val result = prop.deserialize(invalidToml)
+        assertFalse(result, "deserialize should return false for invalid value")
+        assertEquals(5.0f, prop.getValue(host, TestHost::noAnnotation))
+    }
+
+    @Test
+    fun `deserialize with invalid validValues keeps default`() {
+        val host = TestHost()
+        val prop = ConfigProperty("medium", {})
+        prop.provideDelegate(host, TestHost::noAnnotation)
+        prop.name = "quality"
+        prop.validValues = setOf("low", "medium", "high")
+
+        val invalidToml = toml.encodeToTomlElement(serializer<String>(), "extreme")
+        val result = prop.deserialize(invalidToml)
+        assertFalse(result, "deserialize should return false for invalid validValues")
+        assertEquals("medium", prop.getValue(host, TestHost::noAnnotation))
+    }
+
+    @Test
+    fun `serialize then deserialize roundtrips`() {
+        val host = TestHost()
+        val prop = ConfigProperty("hello", {})
+        prop.provideDelegate(host, TestHost::noAnnotation)
+        prop.name = "testKey"
+
+        val element = prop.serialize()
+        assertNotNull(element)
+
+        val prop2 = ConfigProperty("default", {})
+        prop2.provideDelegate(host, TestHost::noAnnotation)
+        prop2.name = "testKey"
+        prop2.deserialize(element!!)
+        assertEquals("hello", prop2.getValue(host, TestHost::noAnnotation))
+    }
+}
+
+class PropertiesTests {
+
+    class TestHost {
+        var knownKey by ConfigProperty("default", {})
+    }
+
+    @Test
+    fun `add and serialize`() {
+        var changeCount = 0
+        val props = Properties { changeCount++ }
+
+        val prop = props.add("testValue")
+        prop.name = "testKey"
+
+        val table = props.serialize()
+        assertNotNull(table["testKey"])
+    }
+
+    @Test
+    fun `deserialize populates property`() {
+        var changeCount = 0
+        val props = Properties { changeCount++ }
+        val host = TestHost()
+
+        val prop = props.add("default")
+        prop.provideDelegate(host, TestHost::knownKey)
+        prop.name = "knownKey"
+
+        val table = TomlTable(
+            "knownKey" to toml.encodeToTomlElement(serializer<String>(), "loadedValue")
+        )
+        props.deserialize(table)
+        assertEquals("loadedValue", prop.getValue(host, TestHost::knownKey))
+    }
+
+    @Test
+    fun `orphaned keys are preserved in serialize`() {
+        val props = Properties {}
+        val host = TestHost()
+
+        val prop = props.add("myValue")
+        prop.provideDelegate(host, TestHost::knownKey)
+        prop.name = "knownKey"
+
+        val table = TomlTable(
+            "knownKey" to toml.encodeToTomlElement(serializer<String>(), "hello"),
+            "oldKey" to toml.encodeToTomlElement(serializer<Int>(), 42),
+            "removedSetting" to toml.encodeToTomlElement(serializer<Boolean>(), true)
+        )
+        props.deserialize(table)
+        assertTrue(props.hasOrphanedKeys(), "should have orphaned keys after deserializing extra keys")
+
+        val serialized = props.serialize()
+        assertNotNull(serialized["oldKey"], "orphaned key 'oldKey' should be preserved")
+        assertNotNull(serialized["removedSetting"], "orphaned key 'removedSetting' should be preserved")
+        assertNotNull(serialized["knownKey"], "known key should still be present")
+    }
+
+    @Test
+    fun `clearOrphanedKeys removes orphans on next serialize`() {
+        val props = Properties {}
+        val host = TestHost()
+
+        val prop = props.add("myValue")
+        prop.provideDelegate(host, TestHost::knownKey)
+        prop.name = "knownKey"
+
+        val table = TomlTable(
+            "knownKey" to toml.encodeToTomlElement(serializer<String>(), "hello"),
+            "oldKey" to toml.encodeToTomlElement(serializer<Int>(), 42)
+        )
+        props.deserialize(table)
+        assertTrue(props.hasOrphanedKeys())
+
+        props.clearOrphanedKeys()
+        assertFalse(props.hasOrphanedKeys(), "should have no orphaned keys after clearing")
+
+        val serialized = props.serialize()
+        assertNotNull(serialized["knownKey"])
+        assertNull(serialized["oldKey"], "orphaned key should be removed after clearing")
+    }
+
+    @Test
+    fun `deserialize with missing keys leaves defaults`() {
+        val props = Properties {}
+        val host = TestHost()
+
+        val prop = props.add("defaultValue")
+        prop.provideDelegate(host, TestHost::knownKey)
+        prop.name = "knownKey"
+
+        val table = TomlTable()
+        props.deserialize(table)
+        assertEquals("defaultValue", prop.getValue(host, TestHost::knownKey))
+    }
+}
+
+@Serializable
+data class NestedConfigTest(val value: String = "nested")
+
+class ConfigAnnotationTests {
+    @Test
+    fun `annotations are present`() {
+        val name = HollowEngineConfig::class.java.getAnnotation(ConfigName::class.java)
+        assertNotNull(name)
+        assertEquals("hollowcore", name!!.name)
+    }
+
+    @Test
+    fun `float range contains works`() {
+        val range = FloatRange(0f, 10f)
+        assertTrue(5f in range)
+        assertTrue(0f in range)
+        assertTrue(10f in range)
+        assertFalse(11f in range)
+        assertFalse((-1f) in range)
+    }
+}
