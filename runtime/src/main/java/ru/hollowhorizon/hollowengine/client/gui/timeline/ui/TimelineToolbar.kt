@@ -178,7 +178,7 @@ fun UiScope.Toolbar(controller: TimelineController, background: Color, extraCont
     }
 }
 
-private fun UiScope.ToolbarIconButton(
+fun UiScope.ToolbarIconButton(
     icon: Texture2d,
     padding: Dp = 28.dp,
     size: Dimension = Grow.Std,

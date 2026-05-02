@@ -3,6 +3,8 @@ package ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene
 import de.fabmax.kool.math.Vec3f
 import net.minecraft.client.Minecraft
 import net.minecraft.world.phys.Vec3
+import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
+import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
 
 object CutsceneCameraSystem {
     private var controller: CutscenePlaybackController? = null
@@ -59,4 +61,9 @@ object CutsceneCameraSystem {
     }
 
     private fun Vec3.toVec3f(): Vec3f = Vec3f(x.toFloat(), y.toFloat(), z.toFloat())
+
+    @SubscribeEvent
+    fun onRenderOverlays(event: RenderOverlayEvent.Pre) {
+        if (controller?.isPlaying == true) event.isCanceled = true
+    }
 }

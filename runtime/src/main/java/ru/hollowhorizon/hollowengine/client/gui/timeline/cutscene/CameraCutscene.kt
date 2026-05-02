@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene
 
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.util.Color
-import kotlinx.serialization.json.*
 import ru.hollowhorizon.hollowengine.client.gui.timeline.AnimTrack
 import ru.hollowhorizon.hollowengine.client.gui.timeline.FloatPropertyDriver
 import ru.hollowhorizon.hollowengine.client.gui.timeline.Keyframe
@@ -64,15 +63,10 @@ class CutscenePlaybackController {
         currentTime = 0f
         isPlaying = false
 
-        if (data.nodes.isEmpty()) {
-            positionTrack.keyframes.replaceVec3Keyframes(data.positionKeyframes.map { it.toVec3Keyframe() })
-            rotationTrack.keyframes.replaceVec3Keyframes(data.rotationKeyframes.map { it.toVec3Keyframe() })
-            fovTrack.keyframes.replaceFloatKeyframes(data.fovKeyframes.map { it.toFloatKeyframe() })
-        } else {
-            positionTrack.keyframes.replaceVec3Keyframes(data.findVec3Track(CameraCutsceneTracks.POSITION_ID))
-            rotationTrack.keyframes.replaceVec3Keyframes(data.findVec3Track(CameraCutsceneTracks.ROTATION_ID))
-            fovTrack.keyframes.replaceFloatKeyframes(data.findFloatTrack(CameraCutsceneTracks.FOV_ID))
-        }
+        positionTrack.keyframes.replaceVec3Keyframes(data.findVec3Track(CameraCutsceneTracks.POSITION_ID))
+        rotationTrack.keyframes.replaceVec3Keyframes(data.findVec3Track(CameraCutsceneTracks.ROTATION_ID))
+        fovTrack.keyframes.replaceFloatKeyframes(data.findFloatTrack(CameraCutsceneTracks.FOV_ID))
+
         updateTracks()
     }
 
@@ -139,10 +133,7 @@ class CutscenePlaybackController {
                         ),
                     ),
                 ),
-            ),
-            positionKeyframes = positionTrack.keyframes.map { it.toVec3Data() },
-            rotationKeyframes = rotationTrack.keyframes.map { it.toVec3Data() },
-            fovKeyframes = fovTrack.keyframes.map { it.toFloatData() },
+            )
         )
     }
 
@@ -162,14 +153,6 @@ class CutscenePlaybackController {
         addAll(values)
     }
 
-    private fun Keyframe<Vec3f>.toVec3Data(): CutsceneKeyframe<Vec3Serializable> {
-        return CutsceneKeyframe(time, value.toSerializable(), EasingRegistry.nameOf(easing))
-    }
-
-    private fun Keyframe<Float>.toFloatData(): CutsceneKeyframe<FloatSerializable> {
-        return CutsceneKeyframe(time, value.toSerializable(), EasingRegistry.nameOf(easing))
-    }
-
     private fun AnimTrack<Vec3f>.toVec3Node(id: String, trackType: String, valueType: String): CutsceneNodeData {
         return CutsceneNodeData(
             id = id,
@@ -178,7 +161,7 @@ class CutscenePlaybackController {
             track = CutsceneTrackData(
                 type = trackType,
                 valueType = valueType,
-                keyframes = keyframes.map { it.toTrackKeyframeData { value -> value.toJson() } },
+                keyframes = keyframes.map { it.toTrackKeyframeData(KeyframeSnapshot::Vec3fSnapshot) },
             ),
         )
     }
@@ -191,13 +174,13 @@ class CutscenePlaybackController {
             track = CutsceneTrackData(
                 type = trackType,
                 valueType = valueType,
-                keyframes = keyframes.map { it.toTrackKeyframeData { value -> JsonPrimitive(value) } },
+                keyframes = keyframes.map { it.toTrackKeyframeData(KeyframeSnapshot::FloatSnapshot) },
             ),
         )
     }
 
-    private fun <T> Keyframe<T>.toTrackKeyframeData(encode: (T) -> JsonElement): CutsceneTrackKeyframeData {
-        return CutsceneTrackKeyframeData(time, encode(value), EasingRegistry.nameOf(easing))
+    private fun <T : Any> Keyframe<T>.toTrackKeyframeData(snapshot: (T) -> KeyframeSnapshot): CutsceneTrackKeyframeData {
+        return CutsceneTrackKeyframeData(time, snapshot(value), EasingRegistry.nameOf(easing))
     }
 }
 
@@ -213,41 +196,22 @@ object CameraCutsceneTracks {
     fun ensureRegistered() {
         if (registered) return
         registered = true
-        CutsceneTrackRegistry.register(
-            CutsceneTrackType(
-                POSITION_ID, VEC3_VALUE, Vec3f.ZERO,
-                { Vec3PropertyDriver("Координаты", it) }, Vec3f::toJson, ::vec3FromJson
-            )
-        )
-        CutsceneTrackRegistry.register(
-            CutsceneTrackType(
-                ROTATION_ID, VEC3_VALUE, Vec3f.ZERO,
-                { Vec3PropertyDriver("Поворот", it) }, Vec3f::toJson, ::vec3FromJson
-            )
-        )
-        CutsceneTrackRegistry.register(
-            CutsceneTrackType(
-                FOV_ID,
-                FLOAT_VALUE,
-                70f,
-                { FloatPropertyDriver("Угол обзора", it) },
-                { JsonPrimitive(it) },
-                ::floatFromJson
-            )
-        )
+        CutsceneTrackRegistry.register(CutsceneTrackType(POSITION_ID, Vec3f.ZERO))
+        CutsceneTrackRegistry.register(CutsceneTrackType(ROTATION_ID, Vec3f.ZERO))
+        CutsceneTrackRegistry.register(CutsceneTrackType(FOV_ID, 70f))
     }
 }
 
 private fun CutsceneData.findVec3Track(type: String): List<Keyframe<Vec3f>> {
     return findTrack(type)?.keyframes.orEmpty().mapNotNull { frame ->
-        val value = vec3FromJson(frame.value) ?: return@mapNotNull null
+        val value = (frame.value as? KeyframeSnapshot.Vec3fSnapshot)?.vector ?: return@mapNotNull null
         Keyframe(frame.time, value, EasingRegistry.resolve(frame.easing))
     }
 }
 
 private fun CutsceneData.findFloatTrack(type: String): List<Keyframe<Float>> {
     return findTrack(type)?.keyframes.orEmpty().mapNotNull { frame ->
-        val value = floatFromJson(frame.value) ?: return@mapNotNull null
+        val value = (frame.value as? KeyframeSnapshot.FloatSnapshot)?.value ?: return@mapNotNull null
         Keyframe(frame.time, value, EasingRegistry.resolve(frame.easing))
     }
 }
@@ -263,26 +227,4 @@ private fun CutsceneData.findTrack(type: String): CutsceneTrackData? {
     }
 
     return find(nodes)
-}
-
-private fun Vec3f.toJson(): JsonObject {
-    return JsonObject(
-        mapOf(
-            "x" to JsonPrimitive(x),
-            "y" to JsonPrimitive(y),
-            "z" to JsonPrimitive(z),
-        )
-    )
-}
-
-private fun vec3FromJson(element: JsonElement): Vec3f? {
-    val obj = element.jsonObject
-    val x = obj["x"]?.jsonPrimitive?.floatOrNull ?: return null
-    val y = obj["y"]?.jsonPrimitive?.floatOrNull ?: return null
-    val z = obj["z"]?.jsonPrimitive?.floatOrNull ?: return null
-    return Vec3f(x, y, z)
-}
-
-private fun floatFromJson(element: JsonElement): Float? {
-    return element.jsonPrimitive.floatOrNull
 }

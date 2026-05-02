@@ -107,11 +107,28 @@ class CutsceneEditorSession {
         timeline.iconPulse = loadIcon("pulse.svg")
         timeline.iconFilm = loadIcon("film.svg")
         timeline.iconCompress = loadIcon("compress.svg")
+        timeline.iconSave = loadIcon("save.svg")
+        timeline.iconLoad = loadIcon("load.svg")
         timeline.visible = loadIcon("visible.svg")
         timeline.invisible = loadIcon("invisible.svg")
         timeline.unlocked = loadIcon("unlocked.svg")
         timeline.locked = loadIcon("locked.svg")
         timeline.arrow = loadIcon("arrow.svg")
+    }
+
+    fun exportCutscene(path: String, name: String) {
+        CutsceneStorage.save(path, name, playback.toData(name))
+    }
+
+    fun importCutscene(readablePath: String) {
+        val data = CutsceneStorage.load(readablePath)
+        playback.setupTracks(data)
+        timeline.isPlaying.set(false)
+        timeline.workAreaEnd.set(playback.duration)
+        timeline.setCurrentTime(0f)
+        timeline.clearSelection()
+        timeline.clearHistory()
+        updatePreviewState()
     }
 
     private fun loadIcon(name: String) = ImageManager.load(

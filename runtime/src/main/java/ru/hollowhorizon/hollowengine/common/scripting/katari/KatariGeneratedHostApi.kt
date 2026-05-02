@@ -5,6 +5,7 @@ import net.minecraft.ChatFormatting
 import net.minecraft.core.BlockPos
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.server.level.ServerLevel
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.InteractionHand
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
@@ -14,6 +15,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.NpcAnimationRuntime
+import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.PlayCutscenePacket
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
@@ -90,6 +92,20 @@ fun Player.playSound(
     pitch: Double = 1.0,
 ) {
     playSound(sound, volume.toFloat(), pitch.toFloat())
+}
+
+@ScriptBinding
+fun playCutscene(path: String) {
+    currentServer.playerList.players.forEach { player ->
+        PlayCutscenePacket(path).send(player)
+    }
+}
+
+@ScriptBinding
+fun Player.playCutscene(path: String) {
+    val serverPlayer = this as? ServerPlayer
+        ?: error("playCutscene receiver must be a server player")
+    PlayCutscenePacket(path).send(serverPlayer)
 }
 
 @ScriptBinding

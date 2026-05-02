@@ -3,24 +3,13 @@ package ru.hollowhorizon.hollowengine.cutscene
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.modules.ui2.UiScope
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
-import ru.hollowhorizon.hollowengine.client.gui.timeline.AnimTrack
-import ru.hollowhorizon.hollowengine.client.gui.timeline.Keyframe
-import ru.hollowhorizon.hollowengine.client.gui.timeline.PropertyDriver
-import ru.hollowhorizon.hollowengine.client.gui.timeline.TimelineController
-import ru.hollowhorizon.hollowengine.client.gui.timeline.Vec3PropertyDriver
+import ru.hollowhorizon.hollowengine.client.gui.timeline.*
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CameraCutsceneTracks
-import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneData
-import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneKeyframe
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutscenePlaybackController
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.CutsceneTrackRegistry
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.EasingRegistry
-import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.FloatSerializable
-import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.Vec3Serializable
-import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.toSerializable
-import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.toVec3f
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -31,47 +20,6 @@ class CutsceneTest {
         prettyPrint = true
         ignoreUnknownKeys = true
         encodeDefaults = true
-    }
-
-    @Test
-    fun `serialize and deserialize cutscene data`() {
-        val original = CutsceneData(
-            name = "Test Cutscene",
-            duration = 15f,
-            positionKeyframes = listOf(
-                CutsceneKeyframe(0f, Vec3Serializable(0f, 0f, 0f), "linear"),
-                CutsceneKeyframe(5f, Vec3Serializable(10f, 5f, 0f), "easeInOutQuad"),
-                CutsceneKeyframe(10f, Vec3Serializable(20f, 0f, 5f), "easeOutCubic")
-            ),
-            rotationKeyframes = listOf(
-                CutsceneKeyframe(0f, Vec3Serializable(0f, 0f, 0f), "linear"),
-                CutsceneKeyframe(7f, Vec3Serializable(0f, 180f, 0f), "easeInOutSine")
-            ),
-            fovKeyframes = listOf(
-                CutsceneKeyframe(0f, FloatSerializable(70f), "linear"),
-                CutsceneKeyframe(5f, FloatSerializable(30f), "easeInOutExpo")
-            )
-        )
-
-        val json = testJson.encodeToString(CutsceneData.serializer(), original)
-        val deserialized = testJson.decodeFromString(CutsceneData.serializer(), json)
-
-        assertEquals(original.name, deserialized.name)
-        assertEquals(original.duration, deserialized.duration)
-        assertEquals(original.positionKeyframes.size, deserialized.positionKeyframes.size)
-        assertEquals(original.rotationKeyframes.size, deserialized.rotationKeyframes.size)
-        assertEquals(original.fovKeyframes.size, deserialized.fovKeyframes.size)
-
-        val firstPos = deserialized.positionKeyframes[0]
-        assertEquals(0f, firstPos.time)
-        assertEquals(0f, firstPos.value.x)
-        assertEquals("linear", firstPos.easing)
-
-        val midPos = deserialized.positionKeyframes[1]
-        assertEquals(5f, midPos.time)
-        assertEquals(10f, midPos.value.x)
-        assertEquals(5f, midPos.value.y)
-        assertEquals("easeInOutQuad", midPos.easing)
     }
 
     @Test
@@ -117,17 +65,6 @@ class CutsceneTest {
             val mid = easing.eased(0.5f)
             assertTrue(mid >= -0.25f && mid <= 1.25f, "$name at t=0.5 should stay near [0,1], got $mid")
         }
-    }
-
-    @Test
-    fun `vec3 serializable roundtrip`() {
-        val original = Vec3f(3.5f, -2.1f, 7.8f)
-        val serializable = original.toSerializable()
-        val back = serializable.toVec3f()
-
-        assertEquals(original.x, back.x, 0.001f)
-        assertEquals(original.y, back.y, 0.001f)
-        assertEquals(original.z, back.z, 0.001f)
     }
 
     @Test
@@ -189,36 +126,6 @@ class CutsceneTest {
     }
 
     @Test
-    fun `playback controller setup and data extraction`() {
-        val data = CutsceneData(
-            duration = 8f,
-            positionKeyframes = listOf(
-                CutsceneKeyframe(0f, Vec3Serializable(0f, 0f, 0f)),
-                CutsceneKeyframe(4f, Vec3Serializable(10f, 0f, 0f), "easeInOutQuad")
-            ),
-            rotationKeyframes = listOf(
-                CutsceneKeyframe(0f, Vec3Serializable(0f, 0f, 0f)),
-                CutsceneKeyframe(4f, Vec3Serializable(0f, 90f, 0f))
-            ),
-            fovKeyframes = listOf(
-                CutsceneKeyframe(0f, FloatSerializable(70f)),
-                CutsceneKeyframe(4f, FloatSerializable(30f))
-            )
-        )
-
-        val controller = CutscenePlaybackController()
-        controller.setupTracks(data)
-
-        assertEquals(8f, controller.duration)
-
-        val extracted = controller.toData()
-        assertEquals(2, extracted.positionKeyframes.size)
-        assertEquals(2, extracted.rotationKeyframes.size)
-        assertEquals(2, extracted.fovKeyframes.size)
-        assertEquals(1, extracted.nodes.size)
-    }
-
-    @Test
     fun `playback controller reads generic camera tracks`() {
         val source = CutscenePlaybackController()
         source.positionTrack.keyframes.add(Keyframe(0f, Vec3f(1f, 2f, 3f)))
@@ -268,38 +175,5 @@ class CutsceneTest {
         controller.stop()
         assertEquals(false, controller.isPlaying)
         assertEquals(0f, controller.currentTime)
-    }
-
-    @Test
-    fun `playback controller seek`() {
-        val data = CutsceneData(
-            duration = 10f,
-            positionKeyframes = listOf(
-                CutsceneKeyframe(0f, Vec3Serializable(0f, 0f, 0f)),
-                CutsceneKeyframe(5f, Vec3Serializable(10f, 0f, 0f))
-            )
-        )
-
-        val controller = CutscenePlaybackController()
-        controller.setupTracks(data)
-
-        controller.seek(3f)
-        assertEquals(3f, controller.currentTime, 0.01f)
-
-        controller.seek(15f)
-        assertEquals(10f, controller.currentTime, 0.01f)
-
-        controller.seek(-5f)
-        assertEquals(0f, controller.currentTime, 0.01f)
-    }
-
-    @Test
-    fun `cutscene data default values`() {
-        val data = CutsceneData()
-        assertEquals("New Cutscene", data.name)
-        assertEquals(10f, data.duration)
-        assertTrue(data.positionKeyframes.isEmpty())
-        assertTrue(data.rotationKeyframes.isEmpty())
-        assertTrue(data.fovKeyframes.isEmpty())
     }
 }

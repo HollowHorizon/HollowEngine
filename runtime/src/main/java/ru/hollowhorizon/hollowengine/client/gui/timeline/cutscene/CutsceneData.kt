@@ -3,28 +3,6 @@ package ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene
 import de.fabmax.kool.math.Easing
 import de.fabmax.kool.math.Vec3f
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
-import ru.hollowhorizon.hollowengine.client.gui.timeline.Keyframe
-import ru.hollowhorizon.hollowengine.client.gui.timeline.PropertyDriver
-
-@Serializable
-data class Vec3Serializable(
-    val x: Float = 0f,
-    val y: Float = 0f,
-    val z: Float = 0f,
-)
-
-@Serializable
-data class FloatSerializable(
-    val value: Float = 0f,
-)
-
-@Serializable
-data class CutsceneKeyframe<T>(
-    val time: Float,
-    val value: T,
-    val easing: String = "linear",
-)
 
 @Serializable
 enum class CutsceneNodeKind {
@@ -33,9 +11,22 @@ enum class CutsceneNodeKind {
 }
 
 @Serializable
+sealed class KeyframeSnapshot {
+    @Serializable
+    class FloatSnapshot(val value: Float) : KeyframeSnapshot()
+
+    @Serializable
+    class Vec3fSnapshot(val x: Float, val y: Float, val z: Float) : KeyframeSnapshot() {
+        constructor(value: Vec3f) : this(value.x, value.y, value.z)
+        val vector get() = Vec3f(x, y, z)
+    }
+
+}
+
+@Serializable
 data class CutsceneTrackKeyframeData(
     val time: Float,
-    val value: JsonElement,
+    val value: KeyframeSnapshot,
     val easing: String = "linear",
 )
 
@@ -60,18 +51,11 @@ data class CutsceneData(
     val name: String = "New Cutscene",
     val duration: Float = 10f,
     val nodes: List<CutsceneNodeData> = emptyList(),
-    val positionKeyframes: List<CutsceneKeyframe<Vec3Serializable>> = emptyList(),
-    val rotationKeyframes: List<CutsceneKeyframe<Vec3Serializable>> = emptyList(),
-    val fovKeyframes: List<CutsceneKeyframe<FloatSerializable>> = emptyList(),
 )
 
 class CutsceneTrackType<T>(
     val id: String,
-    val valueType: String,
     val defaultValue: T,
-    val driverFactory: ((T) -> Unit) -> PropertyDriver<T>,
-    val encode: (T) -> JsonElement,
-    val decode: (JsonElement) -> T?,
 )
 
 object CutsceneTrackRegistry {
@@ -90,12 +74,6 @@ object CutsceneTrackRegistry {
         return types.values
     }
 }
-
-fun Vec3f.toSerializable(): Vec3Serializable = Vec3Serializable(x, y, z)
-
-fun Vec3Serializable.toVec3f(): Vec3f = Vec3f(x, y, z)
-
-fun Float.toSerializable(): FloatSerializable = FloatSerializable(this)
 
 object EasingRegistry {
     private val easings: Map<String, Easing.Easing> = mapOf(
@@ -136,12 +114,4 @@ object EasingRegistry {
     fun resolve(name: String): Easing.Easing = easings[name] ?: Easing.linear
 
     fun nameOf(easing: Easing.Easing): String = easings.entries.firstOrNull { it.value == easing }?.key ?: "linear"
-}
-
-internal fun CutsceneKeyframe<Vec3Serializable>.toVec3Keyframe(): Keyframe<Vec3f> {
-    return Keyframe(time, value.toVec3f(), EasingRegistry.resolve(easing))
-}
-
-internal fun CutsceneKeyframe<FloatSerializable>.toFloatKeyframe(): Keyframe<Float> {
-    return Keyframe(time, value.value, EasingRegistry.resolve(easing))
 }

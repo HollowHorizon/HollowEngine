@@ -12,8 +12,6 @@ import ru.hollowhorizon.hollowengine.client.render.RenderManager
 import ru.hollowhorizon.hollowengine.client.render.entity.EmptyEntityRenderer
 import ru.hollowhorizon.hollowengine.client.render.lighting.ClusteredLightingManager
 import ru.hollowhorizon.hollowengine.client.utils.HollowPack
-import ru.hollowhorizon.hollowengine.common.config.Config
-import ru.hollowhorizon.hollowengine.common.config.ConfigName
 import ru.hollowhorizon.hollowengine.common.config.HollowCoreConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -62,9 +60,4 @@ object HollowCoreClient {
         if (event.overlay != GuiOverlay.HOTBAR) return
         CompilationStatus.overlay.render()
     }
-}
-
-@ConfigName("gui/example")
-object ExampleConfig: Config() {
-    var switch by property(false)
 }

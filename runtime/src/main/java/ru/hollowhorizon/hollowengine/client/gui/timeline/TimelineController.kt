@@ -58,6 +58,8 @@ class TimelineController {
     lateinit var iconPulse: Texture2d
     lateinit var iconFilm: Texture2d
     lateinit var iconCompress: Texture2d
+    lateinit var iconSave: Texture2d
+    lateinit var iconLoad: Texture2d
     lateinit var visible: Texture2d
     lateinit var invisible: Texture2d
     lateinit var unlocked: Texture2d
@@ -237,6 +239,10 @@ class TimelineController {
         onTimeChanged?.invoke()
     }
 
+    fun clearHistory() {
+        history.clear()
+    }
+
     @Suppress("UNCHECKED_CAST")
     internal fun restoreSnapshot(snapshot: TimelineSnapshot) {
         val tracks = getAnimTracksForSnapshot()
@@ -383,6 +389,12 @@ class TimelineHistory(private val controller: TimelineController) {
         val snapshot = redoStack.removeLastOrNull() ?: return
         undoStack += controller.createSnapshot()
         controller.restoreSnapshot(snapshot)
+    }
+
+    fun clear() {
+        undoStack.clear()
+        redoStack.clear()
+        transactionStart = null
     }
 }
 
