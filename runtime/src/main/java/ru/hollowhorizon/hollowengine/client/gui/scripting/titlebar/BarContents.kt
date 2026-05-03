@@ -41,6 +41,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.compiling.start
 import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.literal
+import ru.hollowhorizon.hollowengine.common.utils.openUrl
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 @SubscribeEvent
@@ -98,6 +99,19 @@ fun leftBarContents(event: TitleBarCreationEvent.Start) = event.append {
         TextButton("hollowengine.gui.ide.tools".lang) {
             toolsOverlay.show(Vec2f(it.screenPosition), buildToolsMenu(toolsOverlay), Unit)
         }
+    }
+
+    val helpOverlay = remember { ItemPopupMenu<Unit>("Title-Help-Overlay") }
+    helpOverlay()
+    TextButton("hollowengine.gui.ide.help".lang) {
+        helpOverlay.show(Vec2f(it.screenPosition), SubMenuItem {
+            item("Telegram".lang, icons.DOCS_SVG) {
+                openUrl("https://t.me/hollowengine")
+            }
+            item("Discord".lang, icons.DOCS_SVG) {
+                openUrl("https://discord.gg/qKpPhkwGCY")
+            }
+        }, Unit)
     }
 }
 

@@ -1,30 +1,8 @@
 package ru.hollowhorizon.hollowengine.katari.processor
 
-import com.google.devtools.ksp.processing.CodeGenerator
-import com.google.devtools.ksp.processing.KSPLogger
-import com.google.devtools.ksp.processing.SymbolProcessor
-import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
-import com.google.devtools.ksp.processing.SymbolProcessorProvider
-import com.google.devtools.ksp.processing.Dependencies
-import com.google.devtools.ksp.getAllSuperTypes
-import com.google.devtools.ksp.getClassDeclarationByName
-import com.google.devtools.ksp.getConstructors
-import com.google.devtools.ksp.getDeclaredFunctions
-import com.google.devtools.ksp.getDeclaredProperties
-import com.google.devtools.ksp.processing.Resolver
-import com.google.devtools.ksp.symbol.KSAnnotated
-import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSDeclaration
-import com.google.devtools.ksp.symbol.KSFile
-import com.google.devtools.ksp.symbol.KSFunctionDeclaration
-import com.google.devtools.ksp.symbol.KSPropertyDeclaration
-import com.google.devtools.ksp.symbol.KSType
-import com.google.devtools.ksp.symbol.KSValueParameter
-import com.google.devtools.ksp.symbol.Modifier
-import com.google.devtools.ksp.symbol.Origin
-import com.google.devtools.ksp.symbol.Variance
-import com.google.devtools.ksp.symbol.ClassKind
-import com.google.devtools.ksp.validate
+import com.google.devtools.ksp.*
+import com.google.devtools.ksp.processing.*
+import com.google.devtools.ksp.symbol.*
 import java.io.OutputStreamWriter
 
 class KatariBindingProcessorProvider : SymbolProcessorProvider {
@@ -39,7 +17,7 @@ private class KatariBindingProcessor(
 ) : SymbolProcessor {
     private var generated = false
 
-    override fun process(resolver: com.google.devtools.ksp.processing.Resolver): List<KSAnnotated> {
+    override fun process(resolver: Resolver): List<KSAnnotated> {
         if (generated) return emptyList()
 
         val scriptTypes = resolver.getSymbolsWithAnnotation(SCRIPT_TYPE)

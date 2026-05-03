@@ -16,7 +16,7 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.util.Node
 
-class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = true) :
+class ItemPopupMenu<T>(scopeName: String, hideOnOutsideClick: Boolean = true) :
     AutoPopup(hideOnOutsideClick = hideOnOutsideClick, scopeName = scopeName) {
 
     private val menu = mutableStateOf<SubMenuItem<T>?>(null)
@@ -188,6 +188,13 @@ class ItemPopupMenu<T : Any?>(scopeName: String, hideOnOutsideClick: Boolean = t
         ScrollArea(containerModifier = {
             it.height(Grow(1f, max = 500.dp))
                 .background(null)
+        }, vScrollbarModifier = {
+            it.colors(
+                trackColor = ColorTheme.UI.BackgroundSecondary,
+                trackHoverColor = ColorTheme.UI.BackgroundElements,
+                color = ColorTheme.UI.BackgroundAccent,
+                hoverColor = ColorTheme.UI.WhiteReplacement
+            )
         }) {
 
             val opacity = rememberAnimatableFloat(0f)

@@ -106,7 +106,7 @@ fun createHollowKatariBindings(
     return bindings to host
 }
 
-private fun NarrativeBindingsBuilder.registerHostTypes() {
+fun NarrativeBindingsBuilder.registerHostTypes() {
     val chatMessageType = KatariChatMessage::class.toKatari("ChatMessage")
     val animatorType = KatariAnimatorBuilder::class.toKatari("AnimatorController")
     val serverType = MinecraftServer::class.toKatari("Server")
@@ -124,7 +124,7 @@ private fun NarrativeBindingsBuilder.registerHostTypes() {
     registerHostType(levelType)
 }
 
-private fun NarrativeBindingsBuilder.registerContextGlobals(
+fun NarrativeBindingsBuilder.registerContextGlobals(
     server: MinecraftServer,
     sourcePlayer: ServerPlayer?,
     sourcePlayerId: String?,

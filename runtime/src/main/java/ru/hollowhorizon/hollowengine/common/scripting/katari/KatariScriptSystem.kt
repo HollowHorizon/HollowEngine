@@ -24,7 +24,7 @@ class KatariScriptSystem(
     private val onDirty: () -> Unit,
 ) {
     private val records = linkedMapOf<String, KatariRunRecord>()
-    private val programCache = linkedMapOf<ProgramKey, com.sunnychung.lib.multiplatform.kotlite.katari.KatariProgram>()
+    private val programCache = linkedMapOf<ProgramKey, KatariProgram>()
 
     fun run(path: String, sourcePlayer: ServerPlayer? = null): Result<String> = runCatching {
         val source = loadSource(path)

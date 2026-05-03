@@ -4,7 +4,6 @@ import net.minecraft.server.packs.resources.ResourceManager
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.events.Event
-import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
@@ -14,7 +13,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
 import java.lang.reflect.ParameterizedType
 import kotlin.reflect.KClass
 
-@SubscribeEvent
+// @SubscribeEvent
 fun onRegisterManagers(event: RegisterReloadListenersEvent.Server) {
     event.register(ComponentReloadManager)
 }

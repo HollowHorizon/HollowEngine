@@ -1,16 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
 import com.sunnychung.lib.multiplatform.kotlite.katari.KatariNarrativeProgram
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Position
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Range
-import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
-import ru.hollowhorizon.hollowengine.common.scripting.ide.SpanStyle
-import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
-import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
-import java.util.Locale
+import ru.hollowhorizon.hollowengine.common.scripting.ide.*
+import java.util.*
 
 object KatariScriptingAnalyzer : ScriptingAnalyzer {
     private val keywords = setOf(
@@ -50,10 +42,12 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
                     spans += line.substring(i) to style(TokenType.COMMENT)
                     break
                 }
+
                 line[i].isWhitespace() -> {
                     while (i < line.length && line[i].isWhitespace()) i++
                     style(TokenType.DEFAULT)
                 }
+
                 line[i] == '"' -> {
                     i++
                     while (i < line.length) {
@@ -62,10 +56,12 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
                     }
                     style(TokenType.STRING)
                 }
+
                 line[i].isDigit() -> {
                     while (i < line.length && (line[i].isDigit() || line[i] == '.')) i++
                     style(TokenType.NUMERIC_LITERAL)
                 }
+
                 line[i].isIdentifierStart() -> {
                     i++
                     while (i < line.length && line[i].isIdentifierPart()) i++
@@ -77,6 +73,7 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
                         else -> style(TokenType.DEFAULT)
                     }
                 }
+
                 else -> {
                     i++
                     style(TokenType.DEFAULT)

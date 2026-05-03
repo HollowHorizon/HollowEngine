@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.utils
 import com.mojang.blaze3d.systems.RenderSystem
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import net.minecraft.ChatFormatting
+import net.minecraft.Util
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
@@ -107,6 +108,8 @@ fun MutableComponent.onHoverEntity(entity: Entity) = this.withStyle {
         )
     )
 }
+
+fun openUrl(url: String) = Util.getPlatform().openUri(url)
 
 /**
  * Memoizes a function, caching its results to improve performance.

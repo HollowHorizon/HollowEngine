@@ -18,7 +18,7 @@ fun registerDefaultFileTypes(event: RegisterFileTypeEvent) {
     )
     
     event.register(
-        listOf(".kts", ".kt"),
+        listOf(".kts", ".kt", ".ktr"),
         { path, bytes -> ScriptFile(path) }
     )
     

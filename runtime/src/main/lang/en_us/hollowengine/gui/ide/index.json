@@ -17,5 +17,6 @@
   "gizmo": "Gizmo transform",
   "cutscene": "Cutscene",
   "viewport": "Viewport",
-  "tools": "Tools"
+  "tools": "Tools",
+  "help": "Help"
 }

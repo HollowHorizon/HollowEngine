@@ -127,8 +127,10 @@ class CompiledFileProvider(
     }
 
     override fun get(index: Int): ScriptTextLine {
-        if (index !in lines.indices) throw IndexOutOfBoundsException("Index $index out of bounds (size: $size)")
-        return lines[index]
+        if (index.coerceAtLeast(0) !in lines.indices) {
+            throw IndexOutOfBoundsException("Index $index out of bounds (size: $size)")
+        }
+        return lines[index.coerceAtLeast(0)]
     }
 
     override fun insertText(line: Int, caret: Int, insertion: String): Vec2i {

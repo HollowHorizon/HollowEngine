@@ -6,7 +6,7 @@ final class KoolDockNodeBridgeTransformer extends AbstractAsmClassTransformer {
     private static final String BRIDGE = "ru/hollowhorizon/hollowengine/runtime/transform/kool/DockNodeInvoker";
 
     KoolDockNodeBridgeTransformer() {
-        super("de.fabmax.kool.modules.ui2.docking.DockNode");
+        super("de.fabmax.kool.modules.ui2.docking.DockNodeLeaf");
     }
 
     @Override

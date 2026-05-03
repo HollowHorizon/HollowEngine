@@ -9,7 +9,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.Compil
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.EditorAnalysisState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextEditorHandler
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.TextLineProvider
-import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
 
 @Serializable
 data class TextEditorConfig(
@@ -54,7 +53,7 @@ class EditorState(
     val language: EditorLanguageService = EditorLanguageService(source.extension),
     val config: TextEditorConfig = TextEditorConfig(),
 ) {
-    val provider: CompiledFileProvider = CompiledFileProvider(source, this, ScriptingEnvironment.INSTANCE.analyzer)
+    val provider: CompiledFileProvider = CompiledFileProvider(source, this, language.analyzer)
 
     val lines: TextLineProvider
         get() = provider

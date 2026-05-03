@@ -66,8 +66,6 @@ open class ScriptTextAreaModifier(surface: UiSurface) : UiModifier(surface) {
     val completions by property(mutableListOf<CompletionItem>())
     val errors by property(mutableListOf<Diagnostic>())
 
-    var errorMessage: String by property("")
-
     var editorConfig: TextEditorConfig by property(TextEditorConfig())
 }
 
@@ -229,32 +227,6 @@ fun UiScope.ScriptTextArea(
             }
         }) {
         this.block()
-
-        val currentError = textArea.modifier.errorMessage
-        if (currentError.isNotEmpty()) {
-            surface.triggerUpdate()
-            val pos = PointerInput.primaryPointer.pos
-            Popup(pos.x, pos.y) {
-                modifier.background(UiRenderer { node ->
-                    node.apply {
-                        getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRoundRect(
-                            0f, 0f, widthPx, heightPx, Dimensions.PaddingNormal.px, colors.background
-                        )
-                        getUiPrimitives(UiSurface.LAYER_BACKGROUND).localRoundRectBorder(
-                            0f, 0f, widthPx, heightPx, Dimensions.PaddingNormal.px, Dimensions.PaddingSmall.px, colors.primaryVariant
-                        )
-                    }
-                }).zLayer(100_000_000)
-
-                modifier.width(Grow(1f, max = FitContent))
-
-                Text(currentError) {
-                    modifier.margin(Dimensions.PaddingNormal).isWrapText(true).width(Grow.Std)
-                }
-            }
-        }
-
-        textArea.modifier.errorMessage = ""
     }
 }
 
@@ -283,7 +255,9 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         isFocused = { isFocused.use() }
     )
 
-    private val completionManager = CompletionManager(modifier, { completionIndex }) { if (this::completionsList.isInitialized) completionsList else null }
+    private val completionManager = CompletionManager(
+        modifier,
+        { completionIndex }) { if (this::completionsList.isInitialized) completionsList else null }
     private val inputController = TextInputController(
         modifier = modifier,
         state = { editorState },
@@ -303,7 +277,6 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         override fun render(ctx: KoolContext) {
             renderCurrentLineBackground()
             super.render(ctx)
-            renderDiagnostics()
             renderIndentGuides()
         }
 
@@ -315,7 +288,28 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             }
         }
 
-        private fun renderDiagnostics() {
+        private fun renderIndentGuides() {
+            val textNode = children.getOrNull(2)
+            if (indents.isEmpty() || textNode == null) return
+
+            val spaceWidth = font.charWidth(' ').dp.px
+            val guideStartX = textNode.leftPx - this.leftPx + textNode.paddingStartPx
+
+            for (i in indents) {
+                val x =
+                    guideStartX + i * spaceWidth - Dimensions.PaddingNormal.px * TextEditorConstants.INDENT_GUIDE_OFFSET
+                val color =
+                    if (selectionController.selectionCaretChar == i && lineIndex == this@TextAreaNode.modifier.selectionCaretLine)
+                        EditorTheme.indentGuide.withAlpha(TextEditorConstants.INDENT_GUIDE_ACTIVE_ALPHA)
+                    else
+                        EditorTheme.indentGuide.withAlpha(TextEditorConstants.INDENT_GUIDE_INACTIVE_ALPHA)
+
+                getUiPrimitives(UiSurface.LAYER_BACKGROUND)
+                    .localRect(x, 0f, Dimensions.PaddingSmall.px, heightPx, color)
+            }
+        }
+
+        fun setupContent() {
             val maxWidth =
                 if (this@TextAreaNode.modifier.editorConfig.showLineNumbers) {
                     font.textDimensions(lineProvider.size.toString()).width.dp + Dimensions.PaddingNormal * 2f
@@ -326,7 +320,10 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             val provider = handler as? CompiledFileProvider
             val errors = provider?.analysisState?.diagnostics ?: this@TextAreaNode.modifier.errors
 
-            errors.filter { lineIndex in it.range.start.line..it.range.end.line }
+            var message by remember("")
+
+            errors.asSequence()
+                .filter { lineIndex in it.range.start.line..it.range.end.line }
                 .forEach { error ->
                     val text = lineProvider[lineIndex].text
                     val (startPos, endPos) = if (text.isEmpty()) {
@@ -367,31 +364,13 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                         val fromX = leftPx + leftPos + startPos
                         val toX = leftPx + leftPos + endPos
                         if (mouse.pos.x in fromX..toX && mouse.pos.y in topPx..bottomPx) {
-                            this@TextAreaNode.modifier.errorMessage = error.message
+                            message = error.message
                         }
                     }
                 }
-        }
 
-        private fun renderIndentGuides() {
-            val textNode = children.getOrNull(2)
-            if (indents.isEmpty() || textNode == null) return
 
-            val spaceWidth = font.charWidth(' ').dp.px
-            val guideStartX = textNode.leftPx - this.leftPx + textNode.paddingStartPx
-
-            for (i in indents) {
-                val x =
-                    guideStartX + i * spaceWidth - Dimensions.PaddingNormal.px * TextEditorConstants.INDENT_GUIDE_OFFSET
-                val color =
-                    if (selectionController.selectionCaretChar == i && lineIndex == this@TextAreaNode.modifier.selectionCaretLine)
-                        EditorTheme.indentGuide.withAlpha(TextEditorConstants.INDENT_GUIDE_ACTIVE_ALPHA)
-                    else
-                        EditorTheme.indentGuide.withAlpha(TextEditorConstants.INDENT_GUIDE_INACTIVE_ALPHA)
-
-                getUiPrimitives(UiSurface.LAYER_BACKGROUND)
-                    .localRect(x, 0f, Dimensions.PaddingSmall.px, heightPx, color)
-            }
+            if (message.isNotEmpty()) Tooltip(message)
         }
     }
 
@@ -472,6 +451,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             indentManager.popToIndent(indentIndex, line.length)
 
             val lineItem = uiNode.createChild(null, LineItem::class, lineItemFactory)
+            lineItem.setupContent()
             lineItem.lineIndex = lineIndex
             lineItem.indents = indentManager.getIndents()
             lineItem.modifier.width(Grow.Std).layout(RowLayout)
@@ -574,9 +554,9 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
         ).apply {
             completionItem = item
         }
-        
+
         CommandRegistry.execute(ApplyCompletionItemCommand.Key, ctx)
-        
+
         modifier.completions.clear()
         (modifier.editorHandler as? CompiledFileProvider)?.analysisState?.completions?.clear()
         surface.requestFocus(this)
