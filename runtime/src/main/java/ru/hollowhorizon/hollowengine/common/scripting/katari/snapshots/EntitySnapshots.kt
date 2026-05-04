@@ -8,9 +8,9 @@ import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityLoadedEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
+import ru.hollowhorizon.hollowengine.common.events.factory.await
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshot
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshotFactory
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptType
@@ -27,7 +27,7 @@ data class NpcEntitySnapshot(
 ) : ValueSnapshot(), ScriptSnapshot<NpcEntity> {
     override suspend fun restore(context: ValueRestoreContext): NpcEntity {
         val event =
-            await<EntityLoadedEvent> { it.entity.uuid == uuid && it.entity.level().dimension().location() == level }
+            EntityLoadedEvent.await { it.entity.uuid == uuid && it.entity.level().dimension().location() == level }
         return event.entity as NpcEntity
     }
 
@@ -47,7 +47,7 @@ data class EntitySnapshot(
 ) : ValueSnapshot(), ScriptSnapshot<Entity> {
     override suspend fun restore(context: ValueRestoreContext): Entity {
         val event =
-            await<EntityLoadedEvent> { it.entity.uuid == uuid && it.entity.level().dimension().location() == level }
+            EntityLoadedEvent.await { it.entity.uuid == uuid && it.entity.level().dimension().location() == level }
         return event.entity
     }
 
@@ -65,8 +65,7 @@ data class PlayerSnapshot(
     val uuid: @Serializable(ForStringUUID::class) UUID,
 ) : ValueSnapshot(), ScriptSnapshot<Player> {
     override suspend fun restore(context: ValueRestoreContext): Player {
-        val event =
-            await<PlayerEvent.Join> { it.player.uuid == uuid }
+        val event = PlayerEvent.Join.await { it.player.uuid == uuid }
         return event.player
     }
 

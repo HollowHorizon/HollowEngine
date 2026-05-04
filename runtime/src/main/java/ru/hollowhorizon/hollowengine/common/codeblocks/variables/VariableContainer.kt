@@ -2,27 +2,18 @@ package ru.hollowhorizon.hollowengine.common.codeblocks.variables
 
 import kotlinx.serialization.serializer
 import net.minecraft.core.registries.Registries
-import net.minecraft.nbt.ByteTag
-import net.minecraft.nbt.CompoundTag
-import net.minecraft.nbt.DoubleTag
-import net.minecraft.nbt.FloatTag
-import net.minecraft.nbt.IntTag
-import net.minecraft.nbt.LongTag
-import net.minecraft.nbt.NumericTag
-import net.minecraft.nbt.ShortTag
-import net.minecraft.nbt.Tag
+import net.minecraft.nbt.*
 import net.minecraft.resources.ResourceKey
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.Entity
-import net.minecraft.world.level.Level
 import ru.hollowhorizon.hollowengine.common.codeblocks.AnyType
 import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.KTypeExpressionType
-import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityLoadedEvent
-import ru.hollowhorizon.hollowengine.common.utils.serialization.serializeNoInline
+import ru.hollowhorizon.hollowengine.common.events.factory.await
 import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
+import ru.hollowhorizon.hollowengine.common.utils.serialization.serializeNoInline
 import kotlin.reflect.KClass
 
 fun serializeVariableValue(value: Any?): Tag? {
@@ -83,7 +74,7 @@ private object EntityVariableContainer {
         val reference = fromTag(rawValue as? CompoundTag) ?: return null
         resolveNow(server, reference, requestedClass)?.let { return it }
 
-        return await<EntityLoadedEvent> { event ->
+        return EntityLoadedEvent.await { event ->
             event.uuid == reference.uuid && requestedClass.java.isInstance(event.entity)
         }.entity
     }

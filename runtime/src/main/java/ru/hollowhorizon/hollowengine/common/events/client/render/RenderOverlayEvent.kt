@@ -3,8 +3,9 @@ package ru.hollowhorizon.hollowengine.common.events.client.render
 import com.mojang.blaze3d.platform.Window
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hollowengine.common.events.Cancelable
+import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
 enum class GuiOverlay(val location: ResourceLocation) {
@@ -53,7 +54,9 @@ abstract class RenderOverlayEvent protected constructor(
         guiGraphics: GuiGraphics,
         partialTick: Float,
         overlay: GuiOverlay,
-    ) : RenderOverlayEvent(window, guiGraphics, partialTick, overlay), Cancelable {
+    ) : RenderOverlayEvent(window, guiGraphics, partialTick, overlay), Cancellable {
+        companion object: EventHandler<Pre>()
+
         override var isCanceled: Boolean = false
     }
 
@@ -62,5 +65,7 @@ abstract class RenderOverlayEvent protected constructor(
         guiGraphics: GuiGraphics,
         partialTick: Float,
         overlay: GuiOverlay,
-    ) : RenderOverlayEvent(window, guiGraphics, partialTick, overlay)
+    ) : RenderOverlayEvent(window, guiGraphics, partialTick, overlay) {
+        companion object: EventHandler<Post>()
+    }
 }

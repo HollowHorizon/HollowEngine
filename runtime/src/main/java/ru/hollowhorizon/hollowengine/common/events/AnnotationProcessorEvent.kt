@@ -1,13 +1,16 @@
 package ru.hollowhorizon.hollowengine.common.events
 
 import ru.hollowhorizon.hollowengine.HollowCore
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import java.lang.reflect.Method
 
 class AnnotationProcessorEvent(
     val getAnnotatedClasses: (Class<*>) -> Set<Class<*>>,
     val getSubTypes: (Class<*>) -> Set<Class<*>>,
-    val getAnnotatedMethods: (Class<*>) -> Set<Method>
-): Event {
+    val getAnnotatedMethods: (Class<*>) -> Set<Method>,
+) : Event {
+    companion object : EventHandler<AnnotationProcessorEvent>()
+
     inline fun <reified T : Annotation> registerClassHandler(noinline task: (Class<*>, T) -> Unit) {
         getAnnotatedClasses(T::class.java).forEach {
             val annotation = it.getAnnotation(T::class.java)

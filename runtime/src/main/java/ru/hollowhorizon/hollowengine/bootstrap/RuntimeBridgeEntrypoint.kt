@@ -85,20 +85,20 @@ import ru.hollowhorizon.hollowengine.common.compat.util.recipeManagerProtected
 import ru.hollowhorizon.hollowengine.common.config.Config
 import ru.hollowhorizon.hollowengine.common.coroutines.RuntimeDispatcherState
 import ru.hollowhorizon.hollowengine.common.coroutines.ServerRuntimeState
-import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.common.events.blocks.BlockEvent
 import ru.hollowhorizon.hollowengine.common.events.brew.BrewPotionEvent
 import ru.hollowhorizon.hollowengine.common.events.brew.BrewedPlayerPotionEvent
 import ru.hollowhorizon.hollowengine.common.events.client.ScreenEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.*
+import ru.hollowhorizon.hollowengine.common.events.entity.BabySpawnEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.ItemEntityEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.LivingEntityDeathEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.events.item.ArrowEvent
 import ru.hollowhorizon.hollowengine.common.events.level.LevelEvent
-import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterParticlesEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterResourcePacksEvent
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterTagsEvent
@@ -154,7 +154,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onPlayerInteractEntity(player: Player, hand: InteractionHand, target: Entity): Boolean {
         val event = PlayerInteractEvent.EntityInteract(player, hand, target)
-        EventBus.post(event)
+        PlayerInteractEvent.EntityInteract.post(event)
         return event.isCanceled
     }
 
@@ -167,7 +167,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         if (dropped == null) return null
 
         val event = ItemEntityEvent.Toss(dropped, player)
-        EventBus.post(event)
+        ItemEntityEvent.Toss.post(event)
         if (event.isCanceled) return null
 
         if (!player.level().isClientSide) {
@@ -178,7 +178,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onBrewedPlayerPotion(player: Player, stack: ItemStack) {
-        EventBus.post(BrewedPlayerPotionEvent(player, stack))
+        BrewedPlayerPotionEvent.post(BrewedPlayerPotionEvent(player, stack))
     }
 
     override fun onBrewPotionPre(stacks: NonNullList<ItemStack>): Boolean {
@@ -186,7 +186,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         for (index in 0 until snapshot.size) snapshot[index] = stacks[index].copy()
 
         val event = BrewPotionEvent.Pre(snapshot)
-        EventBus.post(event)
+        BrewPotionEvent.Pre.post(event)
         if (!event.isCanceled) return false
 
         var changed = false
@@ -200,56 +200,60 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onBrewPotionPost(stacks: NonNullList<ItemStack>) {
-        EventBus.post(BrewPotionEvent.Post(stacks))
+        BrewPotionEvent.Post.post(BrewPotionEvent.Post(stacks))
     }
 
     override fun onAnimalBreed(self: Animal, mate: Animal, child: AgeableMob?): RuntimeBridge.BreedResult {
-        val event = ru.hollowhorizon.hollowengine.common.events.entity.BabySpawnEvent(self, mate, child)
-        EventBus.post(event)
+        val event = BabySpawnEvent(self, mate, child)
+        BabySpawnEvent.post(event)
         return RuntimeBridge.BreedResult(event.child, event.isCanceled)
     }
 
     override fun onLivingEntityTick(entity: LivingEntity) {
-        EventBus.post(TickEvent.Entity(entity))
+        TickEvent.Entity.post(TickEvent.Entity(entity))
     }
 
     override fun onLivingEntityDeath(entity: LivingEntity, damageSource: DamageSource): Boolean {
         val event = LivingEntityDeathEvent(entity, damageSource)
-        EventBus.post(event)
+        LivingEntityDeathEvent.post(event)
         return event.isCanceled
     }
 
     override fun augmentPackRepositorySources(providers: Array<RepositorySource>): Array<RepositorySource> {
-        return (providers.asList() + RepositorySource { source -> EventBus.post(RegisterResourcePacksEvent(source)) }).toTypedArray()
+        return (providers.asList() + RepositorySource { source ->
+            RegisterResourcePacksEvent.post(
+                RegisterResourcePacksEvent(source)
+            )
+        }).toTypedArray()
     }
 
     override fun onPlayerRespawn(original: ServerPlayer, returnFromEnd: Boolean) {
-        EventBus.post(PlayerEvent.Respawn(original, returnFromEnd))
+        PlayerEvent.Respawn.post(PlayerEvent.Respawn(original, returnFromEnd))
     }
 
     override fun onServerChat(player: ServerPlayer, content: Component): RuntimeBridge.ChatResult {
         val event = ServerChatEvent(player, content)
-        EventBus.post(event)
+        ServerChatEvent.post(event)
         return RuntimeBridge.ChatResult(event.message, event.isCanceled)
     }
 
     override fun onServerLevelSave(level: ServerLevel) {
-        EventBus.post(LevelEvent.Save(level))
+        LevelEvent.Save.post(LevelEvent.Save(level))
     }
 
     override fun onServerLevelNeighborNotify(level: ServerLevel, pos: BlockPos, sides: MutableSet<Direction>): Boolean {
         val event = BlockEvent.NeighborNotify(level.getBlockState(pos), pos, EnumSet.copyOf(sides))
-        EventBus.post(event)
+        BlockEvent.NeighborNotify.post(event)
         return event.isCanceled
     }
 
     override fun onPlayerClone(self: ServerPlayer, oldPlayer: ServerPlayer, wasDeath: Boolean) {
-        EventBus.post(PlayerEvent.Clone(self, oldPlayer, wasDeath))
+        PlayerEvent.Clone.post(PlayerEvent.Clone(self, oldPlayer, wasDeath))
     }
 
     override fun onPlayerSleepInBed(player: ServerPlayer, bedPos: BlockPos): Either<Player.BedSleepingProblem, Unit>? {
         val event = PlayerEvent.SleepInBed(player, null, bedPos)
-        EventBus.post(event)
+        PlayerEvent.SleepInBed.post(event)
         return event.problem?.let(Either<Player.BedSleepingProblem, Unit>::left)
     }
 
@@ -258,30 +262,30 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         wakeImmediately: Boolean,
         updateLevelForSleepingPlayers: Boolean,
     ) {
-        EventBus.post(PlayerEvent.Wakeup(player, wakeImmediately, updateLevelForSleepingPlayers))
+        PlayerEvent.Wakeup.post(PlayerEvent.Wakeup(player, wakeImmediately, updateLevelForSleepingPlayers))
     }
 
     override fun onPlayerUseItemOn(player: ServerPlayer, hand: InteractionHand, hitResult: BlockHitResult): Boolean {
         val event = PlayerInteractEvent.BlockInteract(player, hand, hitResult)
-        EventBus.post(event)
+        PlayerInteractEvent.BlockInteract.post(event)
         return event.isCanceled
     }
 
     override fun onPlayerUseItem(player: ServerPlayer, hand: InteractionHand, stack: ItemStack): Boolean {
         val event = PlayerInteractEvent.ItemInteract(player, hand, stack)
-        EventBus.post(event)
+        PlayerInteractEvent.ItemInteract.post(event)
         return event.isCanceled
     }
 
     override fun onBlockPlaced(player: Player, blockState: BlockState, pos: BlockPos): Boolean {
         val event = BlockEvent.Placed(player, blockState, pos)
-        EventBus.post(event)
+        BlockEvent.Placed.post(event)
         return event.isCanceled
     }
 
     override fun onArrowLoose(stack: ItemStack, level: Level, player: Player, charge: Int, hasAmmo: Boolean): Int {
         val event = ArrowEvent.Loose(stack, level, player, charge, hasAmmo)
-        EventBus.post(event)
+        ArrowEvent.Loose.post(event)
         if (event.isCanceled) event.charge = -10
         return BowItem.getPowerForTime(event.charge).let { _ -> event.charge }
     }
@@ -289,12 +293,12 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     override fun onArrowNock(stack: ItemStack, level: Level, player: Player, usedHand: InteractionHand): ItemStack? {
         val hasAmmo = !player.getProjectile(stack).isEmpty
         val event = ArrowEvent.Nock(stack, level, player, usedHand, hasAmmo)
-        EventBus.post(event)
+        ArrowEvent.Nock.post(event)
         return event.stack.takeIf { it != stack }
     }
 
     override fun onRegisterTags(registry: Any, value: Map<ResourceLocation, List<TagLoader.EntryWithSource>>) {
-        @Suppress("UNCHECKED_CAST") EventBus.post(
+        @Suppress("UNCHECKED_CAST") RegisterTagsEvent.post(
             RegisterTagsEvent(
                 registry as net.minecraft.core.Registry<*>,
                 value.mapValuesTo(LinkedHashMap()) { (_, entries) -> entries.toMutableList() },
@@ -304,13 +308,13 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun getSkySunSize(level: ClientLevel, originalSize: Float): Float {
         val event = SkyRenderEvent.SunSize(level, originalSize)
-        EventBus.post(event)
+        SkyRenderEvent.SunSize.post(event)
         return event.sunSize
     }
 
     override fun getSkyMoonSize(level: ClientLevel, originalSize: Float): Float {
         val event = SkyRenderEvent.MoonSize(level, originalSize)
-        EventBus.post(event)
+        SkyRenderEvent.MoonSize.post(event)
         return event.moonSize
     }
 
@@ -320,12 +324,12 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onScreenOpen(screen: Screen): Screen {
         val event = ScreenEvent.Open(screen)
-        EventBus.post(event)
+        ScreenEvent.Open.post(event)
         return event.screen
     }
 
     override fun onScreenClose(screen: Screen) {
-        EventBus.post(ScreenEvent.Close(screen))
+        ScreenEvent.Close.post(ScreenEvent.Close(screen))
     }
 
     override fun onScreenRenderPre(
@@ -336,7 +340,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         partialTick: Float,
     ): Boolean {
         val event = ScreenEvent.Render.Pre(screen, guiGraphics, mouseX, mouseY, partialTick)
-        EventBus.post(event)
+        ScreenEvent.Render.Pre.post(event)
         return event.isCanceled
     }
 
@@ -347,7 +351,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         mouseY: Int,
         partialTick: Float,
     ) {
-        EventBus.post(ScreenEvent.Render.Post(screen, guiGraphics, mouseX, mouseY, partialTick))
+        ScreenEvent.Render.Post.post(ScreenEvent.Render.Post(screen, guiGraphics, mouseX, mouseY, partialTick))
     }
 
     override fun onRenderArm(
@@ -356,27 +360,27 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         packedLight: Int,
         player: AbstractClientPlayer,
         arm: HumanoidArm,
-    ): Boolean = RenderArmEvent(stack, multiBufferSource, packedLight, player, arm).post().isCanceled
+    ): Boolean = RenderArmEvent.post(RenderArmEvent(stack, multiBufferSource, packedLight, player, arm)).isCanceled
 
     override fun onRegisterParticles(particleEngine: ParticleEngine) {
-        EventBus.post(RegisterParticlesEvent(particleEngine))
+        RegisterParticlesEvent.post(RegisterParticlesEvent(particleEngine))
     }
 
     override fun onClientUseItemOn(player: Player, hand: InteractionHand, hitResult: BlockHitResult): Boolean {
         val event = PlayerInteractEvent.BlockInteract(player, hand, hitResult)
-        EventBus.post(event)
+        PlayerInteractEvent.BlockInteract.post(event)
         return event.isCanceled
     }
 
     override fun onClientInteractEntity(player: Player, hand: InteractionHand, target: Entity): Boolean {
         val event = PlayerInteractEvent.EntityInteract(player, hand, target)
-        EventBus.post(event)
+        PlayerInteractEvent.EntityInteract.post(event)
         return event.isCanceled
     }
 
     override fun onClientUseItem(player: Player, hand: InteractionHand, stack: ItemStack): Boolean {
         val event = PlayerInteractEvent.ItemInteract(player, hand, stack)
-        EventBus.post(event)
+        PlayerInteractEvent.ItemInteract.post(event)
         return event.isCanceled
     }
 
@@ -483,7 +487,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     override fun shouldForceAutoGuiScale(screen: Screen?): Boolean = screen is AutoScaled
 
     override fun onBlitScreen(minecraft: Minecraft) {
-        RenderTickEvent.Blit(minecraft).post()
+        RenderTickEvent.Blit.post(RenderTickEvent.Blit(minecraft))
     }
 
     override fun onServerCreated(server: MinecraftServer, serverThread: Thread, levelRoot: Path) {
@@ -494,12 +498,12 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onServerStarting(server: MinecraftServer) {
         currentServer = server
-        EventBus.post(ServerEvent.Starting(server))
+        ServerEvent.Starting.post(ServerEvent.Starting(server))
     }
 
     override fun onServerLevelsCreated(server: MinecraftServer) {
         ServerRuntimeState.load(server)
-        server.allLevels.forEach { level -> EventBus.post(LevelEvent.Load(level)) }
+        server.allLevels.forEach { level -> LevelEvent.Load.post(LevelEvent.Load(level)) }
     }
 
     override fun onServerTick(server: MinecraftServer) {
@@ -509,7 +513,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onServerStopping(server: MinecraftServer) {
         ServerRuntimeState.save(server)
-        EventBus.post(ServerEvent.Stoping(server))
+        ServerEvent.Stoping.post(ServerEvent.Stoping(server))
     }
 
     override fun onServerStopped(server: MinecraftServer) {
@@ -527,11 +531,11 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onClientRenderTickPre(client: Minecraft) {
         CutsceneCameraSystem.update(client)
-        EventBus.post(RenderTickEvent.Pre(client))
+        RenderTickEvent.Pre.post(RenderTickEvent.Pre(client))
     }
 
     override fun onClientRenderTickPost(client: Minecraft) {
-        EventBus.post(RenderTickEvent.Post(client))
+        RenderTickEvent.Post.post(RenderTickEvent.Post(client))
     }
 
     override fun onClientResized(client: Minecraft) {
@@ -550,7 +554,13 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onLevelUpdateNeighbors(level: Level, pos: BlockPos) {
-        EventBus.post(BlockEvent.NeighborNotify(level.getBlockState(pos), pos, EnumSet.allOf(Direction::class.java)))
+        BlockEvent.NeighborNotify.post(
+            BlockEvent.NeighborNotify(
+                level.getBlockState(pos),
+                pos,
+                EnumSet.allOf(Direction::class.java)
+            )
+        )
     }
 
     override fun onClientLevelRendererChanged() {
@@ -582,13 +592,13 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onEntityHurt(entity: Entity, damageSource: DamageSource, amount: Float): Boolean {
         val event = EntityEvent.Hurt(entity, damageSource, amount)
-        EventBus.post(event)
+        EntityEvent.Hurt.post(event)
         return event.isCanceled
     }
 
     override fun onEntityChangedDimension(entity: Entity, resultEntity: Entity?, fromLevel: Level, toLevel: Level) {
         if (resultEntity != null) {
-            EventBus.post(EntityEvent.ChangeDimension(entity, resultEntity, fromLevel, toLevel))
+            EntityEvent.ChangeDimension.post(EntityEvent.ChangeDimension(entity, resultEntity, fromLevel, toLevel))
         }
     }
 
@@ -613,7 +623,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         playerRenderers: MutableMap<String, EntityRenderer<out Player>>,
         context: EntityRendererProvider.Context,
     ) {
-        EventBus.post(AddEntityRendererLayers(renderers, playerRenderers, context))
+        AddEntityRendererLayers.post(AddEntityRendererLayers(renderers, playerRenderers, context))
     }
 
     override fun onRenderEntityPre(
@@ -625,7 +635,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         packedLight: Int,
     ): Boolean {
         val event = RenderEntityEvent.Pre(entity, entityYaw, partialTick, poseStack, buffer, packedLight)
-        EventBus.post(event)
+        RenderEntityEvent.Pre.post(event)
         return event.isCanceled
     }
 
@@ -637,7 +647,16 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         buffer: MultiBufferSource,
         packedLight: Int,
     ) {
-        EventBus.post(RenderEntityEvent.Post(entity, entityYaw, partialTick, poseStack, buffer, packedLight))
+        RenderEntityEvent.Post.post(
+            RenderEntityEvent.Post(
+                entity,
+                entityYaw,
+                partialTick,
+                poseStack,
+                buffer,
+                packedLight
+            )
+        )
     }
 
     override fun onCameraSetup(
@@ -657,7 +676,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
             pitch = pose?.pitch ?: pitch,
             roll = pose?.roll ?: roll,
         )
-        EventBus.post(event)
+        CameraSetupEvent.post(event)
         return RuntimeBridge.CameraSetup(event.yaw, event.pitch, event.roll)
     }
 
@@ -690,7 +709,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
             changingFov = changingFov,
             fov = CutsceneCameraSystem.currentPose?.takeIf { shouldApplyCutsceneCamera() }?.fov?.toDouble() ?: fov,
         )
-        EventBus.post(event)
+        CameraFovEvent.post(event)
         return event.fov
     }
 
@@ -701,7 +720,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     override fun onRegisterLayerDefinitions(definitions: MutableMap<ModelLayerLocation, java.util.function.Supplier<LayerDefinition>>) {
         val eventDefinitions = HashMap<ModelLayerLocation, () -> LayerDefinition>()
         val event = RegisterEntityLayersDefinitions(eventDefinitions)
-        EventBus.post(event)
+        RegisterEntityLayersDefinitions.post(event)
         eventDefinitions.forEach { (location, definition) ->
             definitions[location] = java.util.function.Supplier { definition() }
         }
@@ -711,7 +730,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         builder: ImmutableMap.Builder<SkullBlock.Type, SkullModelBase>,
         entityModelSet: EntityModelSet,
     ) {
-        EventBus.post(CreateEntitySkullModels(builder, entityModelSet))
+        CreateEntitySkullModels.post(CreateEntitySkullModels(builder, entityModelSet))
     }
 
     override fun onRenderPlayer(
@@ -723,7 +742,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         packedLight: Int,
     ): Boolean {
         val event = RenderPlayerEvent(player, entityYaw, partialTicks, poseStack, buffer, packedLight)
-        EventBus.post(event)
+        RenderPlayerEvent.post(event)
         return event.isCanceled
     }
 
@@ -787,7 +806,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         overlayKind: RuntimeBridge.OverlayKind,
     ): Boolean {
         val event = RenderOverlayEvent.Pre(window, guiGraphics, partialTick, overlayKind.toOverlay())
-        EventBus.post(event)
+        RenderOverlayEvent.Pre.post(event)
         return event.isCanceled
     }
 
@@ -797,7 +816,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         partialTick: Float,
         overlayKind: RuntimeBridge.OverlayKind,
     ) {
-        EventBus.post(RenderOverlayEvent.Post(window, guiGraphics, partialTick, overlayKind.toOverlay()))
+        RenderOverlayEvent.Post.post(RenderOverlayEvent.Post(window, guiGraphics, partialTick, overlayKind.toOverlay()))
     }
 
     override fun createInventoryButton(screen: InventoryScreen, x: Int, y: Int): AbstractWidget {
@@ -837,7 +856,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
             KeyboardInput.handleKeyEvent(KeyEvent(keyCode, localKeyCode, event, keyMod, Character.MIN_VALUE))
         }
         if (inputAction != null) {
-            postKatariInput(KatariClientInputEvent.Key(key, scanCode, inputAction, modifiers))
+            postKatariInput(
+                KatariClientInputEvent.Key,
+                KatariClientInputEvent.Key(key, scanCode, inputAction, modifiers)
+            )
         }
 
         return isAnyFocusNodeInput()
@@ -886,6 +908,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         }
         if (inputAction != null) {
             postKatariInput(
+                KatariClientInputEvent.MouseButton,
                 KatariClientInputEvent.MouseButton(
                     x.toDouble(),
                     y.toDouble(),
@@ -907,12 +930,15 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         yOffset: Double,
     ): Boolean {
         KoolInputBridge.handleMouseScroll(xOffset.toFloat(), yOffset.toFloat())
-        postKatariInput(KatariClientInputEvent.MouseScroll(x.toDouble(), y.toDouble(), xOffset, yOffset))
+        postKatariInput(
+            KatariClientInputEvent.MouseScroll,
+            KatariClientInputEvent.MouseScroll(x.toDouble(), y.toDouble(), xOffset, yOffset)
+        )
         return (isMouseOverDock(x, y) || TransformGizmoEditor.shouldBlockScreenInput(x, y)) && minecraft.screen != null
     }
 
-    private fun postKatariInput(event: KatariClientInputEvent) {
-        EventBus.post(event)
+    private fun <T : KatariClientInputEvent> postKatariInput(handler: EventHandler<T>, event: T) {
+        handler.post(event)
         if (Minecraft.getInstance().connection != null) {
             event.toPacket().send()
         }
@@ -928,7 +954,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         frustum: Frustum?,
         stage: RuntimeBridge.RenderLevelStage,
     ) {
-        EventBus.post(
+        RenderLevelStageEvent.post(
             RenderLevelStageEvent(
                 renderer, poseStack, projectionMatrix, ticks, partialTick, camera, frustum, stage.toRenderStage()
             )

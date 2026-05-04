@@ -9,7 +9,7 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
-import ru.hollowhorizon.hollowengine.common.events.await
+import ru.hollowhorizon.hollowengine.common.events.factory.await
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.getLevel
@@ -51,7 +51,7 @@ private fun katariCoreFunctions(
 
 private fun katariChatFunctions(server: MinecraftServer) = listOf(
     suspendable("waitChat", server, signature = valueSignature().returns(KATARI_CHAT_MESSAGE)) {
-        val event = await<ServerChatEvent>()
+        val event = ServerChatEvent.await()
         delay(50)
         val msg = KatariChatMessage(event.player, event.message.string)
         KatariValue.HostObject("ChatMessage", msg)

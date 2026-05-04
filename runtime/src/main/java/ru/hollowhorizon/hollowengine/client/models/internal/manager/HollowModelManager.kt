@@ -30,14 +30,15 @@ import ru.hollowhorizon.hollowengine.common.coroutines.scopeAsync
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.post
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.ConcurrentHashMap
 
 
-object HollowModelManager : SimplePreparableReloadListener<Map<ResourceLocation, PreparedModelUpdate<AnimatedModel>>>() {
+object HollowModelManager :
+    SimplePreparableReloadListener<Map<ResourceLocation, PreparedModelUpdate<AnimatedModel>>>() {
     lateinit var lightTexture: AbstractTexture
     private val models = ConcurrentHashMap<ResourceLocation, MutableStateFlow<AnimatedModel>>()
     private val indexedModels = ConcurrentHashMap.newKeySet<ResourceLocation>()
@@ -45,7 +46,7 @@ object HollowModelManager : SimplePreparableReloadListener<Map<ResourceLocation,
     var glProgramMorphing = -1
 
     private val loaders = mutableListOf<ModelLoader>().apply {
-        RegisterModelLoaderEvent(this).post()
+        RegisterModelLoaderEvent.post(RegisterModelLoaderEvent(this))
     }
 
     private fun loadIntoFlow(location: ResourceLocation, flow: MutableStateFlow<AnimatedModel>) {
@@ -269,6 +270,8 @@ class RegisterModelLoaderEvent(private val loaders: MutableList<ModelLoader>) : 
     }
 
     fun getLoaders(): List<ModelLoader> = loaders.toList()
+
+    companion object : EventHandler<RegisterModelLoaderEvent>()
 }
 
 @SubscribeEvent

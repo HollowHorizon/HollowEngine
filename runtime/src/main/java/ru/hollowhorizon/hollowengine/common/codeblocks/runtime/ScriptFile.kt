@@ -15,10 +15,11 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.BlockModel
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.coroutines.*
 import ru.hollowhorizon.hollowengine.common.events.Event
-import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.common.events.EventListener
-import java.util.UUID
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
+import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.reflect.full.companionObjectInstance
 
 class ScriptFile(
     val system: BlocksSystem,
@@ -99,7 +100,7 @@ class ScriptFile(
     @Suppress("UNCHECKED_CAST")
     private fun <E : Event> registerEventListener(trigger: EventDrivenStartBlock<E>) {
         val listener = object : EventListener<E> {
-            override fun onEvent(event: E) {
+            override fun invoke(event: E) {
                 if (!isEnabled) return
                 if (!trigger.shouldHandle(event)) return
 
@@ -112,7 +113,8 @@ class ScriptFile(
             }
         }
 
-        EventBus.registerNoInline(trigger.eventType as Class<Event>, listener as EventListener<Event>)
+        val handler = trigger.eventType.kotlin.companionObjectInstance as EventHandler<E>
+        handler.register(listener)
         listeners += ListenerBinding(trigger.eventType as Class<Event>, listener as EventListener<Event>)
     }
 
@@ -166,7 +168,8 @@ class ScriptFile(
 
     private fun unregisterEventListeners() {
         listeners.forEach { binding ->
-            EventBus.unregisterNoInline(binding.eventType, binding.listener)
+            val handler = binding.eventType.kotlin.companionObjectInstance as EventHandler<Event>
+            handler.unregister(binding.listener)
         }
         listeners.clear()
     }

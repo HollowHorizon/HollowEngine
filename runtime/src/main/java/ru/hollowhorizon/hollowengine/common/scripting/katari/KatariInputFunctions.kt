@@ -6,13 +6,17 @@ import com.sunnychung.lib.multiplatform.kotlite.katari.KatariTypes
 import com.sunnychung.lib.multiplatform.kotlite.katari.KatariValue
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hollowengine.common.events.await
+import ru.hollowhorizon.hollowengine.common.events.factory.await
 
 internal val KATARI_INPUT = KatariParameterType("InputEvent")
 
 internal fun katariInputFunctions(server: MinecraftServer): List<KatariFunctionDefinition> {
     return listOf(
-        suspendable("waitKey", server, signature = memberSignature(KATARI_PLAYER, KatariTypes.Int).returns(KATARI_INPUT)) { args ->
+        suspendable(
+            "waitKey",
+            server,
+            signature = memberSignature(KATARI_PLAYER, KatariTypes.Int).returns(KATARI_INPUT)
+        ) { args ->
             val player = args.receiver<Player>("waitKey")
             val key = args.getOrNull(1)?.asInt() ?: error("waitKey(key) expects key code")
             awaitInput(player.uuid.toString()) { input ->
@@ -36,13 +40,17 @@ internal fun katariInputFunctions(server: MinecraftServer): List<KatariFunctionD
                 input.kind == KatariInputKind.Key && input.key == key && input.action == action
             }.toKatariHost()
         },
-        suspendable("waitClick", server, signature = memberSignature(KATARI_PLAYER, KatariTypes.Int).returns(KATARI_INPUT)) { args ->
+        suspendable(
+            "waitClick",
+            server,
+            signature = memberSignature(KATARI_PLAYER, KatariTypes.Int).returns(KATARI_INPUT)
+        ) { args ->
             val player = args.receiver<Player>("waitClick")
             val button = args.getOrNull(1)?.asInt() ?: error("waitClick(button) expects mouse button")
             awaitInput(player.uuid.toString()) { input ->
                 input.kind == KatariInputKind.MouseButton &&
-                    input.button == button &&
-                    input.action == KatariInputAction.Press
+                        input.button == button &&
+                        input.action == KatariInputAction.Press
             }.toKatariHost()
         },
         suspendable(
@@ -85,7 +93,7 @@ internal suspend fun awaitInput(
     playerId: String,
     predicate: (KatariInputSnapshot) -> Boolean,
 ): KatariInputSnapshot {
-    return await<KatariInputEvent> { event ->
+    return KatariInputEvent.await { event ->
         event.player.uuid.toString() == playerId && predicate(event.input)
     }.input
 }

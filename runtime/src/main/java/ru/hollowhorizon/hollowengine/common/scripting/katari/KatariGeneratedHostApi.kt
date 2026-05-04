@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
 import kotlinx.coroutines.delay
-import net.minecraft.ChatFormatting
 import net.minecraft.core.BlockPos
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.server.level.ServerLevel
@@ -14,11 +13,11 @@ import net.minecraft.world.entity.RelativeMovement
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec3
-import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.NpcAnimationRuntime
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.PlayCutscenePacket
+import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.NpcAnimationRuntime
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
-import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
+import ru.hollowhorizon.hollowengine.common.events.factory.await
 import ru.hollowhorizon.hollowengine.common.geary.api.set
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
@@ -29,11 +28,10 @@ import ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.pl
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.execute
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.npc
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.npcs.pos
-import ru.hollowhorizon.hollowengine.common.utils.colored
 import ru.hollowhorizon.hollowengine.common.utils.currentServer
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.rl
-import java.util.UUID
+import java.util.*
 
 private const val DAY_TICKS = 24000L
 
@@ -237,7 +235,7 @@ fun Entity.stopNavigation() {
 
 @ScriptBinding
 suspend fun Entity.waitNpcInteract(): Player {
-    val event = await<PlayerInteractEvent.EntityInteract> { it.target.uuid == uuid }
+    val event = PlayerInteractEvent.EntityInteract.await { it.target.uuid == uuid }
     return event.player
 }
 

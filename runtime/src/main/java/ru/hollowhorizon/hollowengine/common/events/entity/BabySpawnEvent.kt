@@ -4,14 +4,16 @@ import net.minecraft.world.entity.AgeableMob
 import net.minecraft.world.entity.Mob
 import net.minecraft.world.entity.animal.Animal
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hollowengine.common.events.Cancelable
+import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 
 class BabySpawnEvent(
     val parentA: Mob,
     val parentB: Mob?,
     var child: AgeableMob?
-): Event, Cancelable {
+): Event, Cancellable {
+    companion object: EventHandler<BabySpawnEvent>()
     val causedByPlayer: Player
 
     init {

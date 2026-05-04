@@ -14,9 +14,9 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.EventDrivenStartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentScriptEvent
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.skipScriptEventExecution
-import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.LivingEntityDeathEvent
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
+import ru.hollowhorizon.hollowengine.common.events.factory.await
 
 @Serializable
 @SerialName("hollowengine:events/player_join")
@@ -29,7 +29,7 @@ class OnPlayerJoinBlock : StartBlock(), EventDrivenStartBlock<PlayerEvent.Join> 
     )
 
     override suspend fun trigger() {
-        val event = currentScriptEvent<PlayerEvent.Join>() ?: await<PlayerEvent.Join>()
+        val event = currentScriptEvent<PlayerEvent.Join>() ?: PlayerEvent.Join.await()
         playerOutput.emit(event.player)
     }
 
@@ -71,7 +71,7 @@ class OnPlayerDeathBlock : StartBlock(), EventDrivenStartBlock<LivingEntityDeath
     )
 
     override suspend fun trigger() {
-        val event = currentScriptEvent<LivingEntityDeathEvent>() ?: await<LivingEntityDeathEvent>()
+        val event = currentScriptEvent<LivingEntityDeathEvent>() ?: LivingEntityDeathEvent.await()
         val player = event.entity as? Player ?: skipScriptEventExecution()
         playerOutput.emit(player)
         sourceOutput.emit(event.source)

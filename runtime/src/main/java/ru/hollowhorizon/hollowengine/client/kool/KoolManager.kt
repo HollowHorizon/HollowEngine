@@ -17,7 +17,7 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.MCAssetLoader
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.SamplerMode
 import ru.hollowhorizon.hollowengine.client.utils.stream
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
-import ru.hollowhorizon.hollowengine.common.events.post
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
@@ -44,7 +44,7 @@ object KoolManager {
         }
         MONOCRAFT = MsdfFontData(msdfMap, fontInfo)
 
-        KoolInitEvent().post()
+        KoolInitEvent.post(KoolInitEvent())
     }
 }
 
@@ -56,4 +56,6 @@ class KoolInitEvent : ClientEvent {
     fun attachScene(scene: Scene) {
         KoolManager.context.scenes.stageAdd(scene, 0)
     }
+
+    companion object : EventHandler<KoolInitEvent>()
 }

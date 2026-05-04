@@ -2,11 +2,8 @@ package ru.hollowhorizon.hollowengine.common.events
 
 interface Event
 
-interface Cancelable {
+interface Cancellable {
     var isCanceled: Boolean
 }
 
 interface ClientEvent : Event
-
-
-fun <T: Event> T.post() = apply { EventBus.post(this) }

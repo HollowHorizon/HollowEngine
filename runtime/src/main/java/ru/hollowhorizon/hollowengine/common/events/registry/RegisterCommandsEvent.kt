@@ -6,14 +6,19 @@ import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.commands.SharedSuggestionProvider
 import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 
 class RegisterCommandsEvent(
     val dispatcher: CommandDispatcher<CommandSourceStack>,
     val registryAccess: CommandBuildContext,
     val environment: Commands.CommandSelection,
-) : Event
+) : Event {
+    companion object : EventHandler<RegisterCommandsEvent>()
+}
 
 class RegisterClientCommandsEvent(
     val dispatcher: CommandDispatcher<SharedSuggestionProvider>,
     val registryAccess: CommandBuildContext,
-) : Event
+) : Event {
+    companion object : EventHandler<RegisterClientCommandsEvent>()
+}

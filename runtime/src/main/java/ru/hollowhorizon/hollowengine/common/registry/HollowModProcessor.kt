@@ -10,6 +10,7 @@ import ru.hollowhorizon.hollowengine.api.utils.Polymorphic
 import ru.hollowhorizon.hollowengine.common.config.Config
 import ru.hollowhorizon.hollowengine.common.config.ConfigName
 import ru.hollowhorizon.hollowengine.common.events.*
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
 import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
@@ -39,10 +40,10 @@ object HollowModProcessor {
                 val obj = method.declaringClass.kotlin.objectInstance ?: return@registerMethodHandler
                 handles.createEventListener(method, obj)
             }
-            EventBus.registerNoInline(method.parameterTypes[0] as Class<Event>, listener)
+            EventHandler.get(method.parameterTypes[0].kotlin as KClass<Event>).register(listener)
         }
 
-        AnnotationProcessorEvent(getAnnotatedClasses, getSubTypes, getAnnotatedMethods).post()
+        AnnotationProcessorEvent.post(AnnotationProcessorEvent(getAnnotatedClasses, getSubTypes, getAnnotatedMethods))
 
         registerClassHandler<ConfigName> { type, _ ->
             (type.kotlin.objectInstance as Config).initialize()
@@ -65,22 +66,22 @@ object HollowModProcessor {
 
             when (listener.side) {
                 Side.CLIENT -> {
-                    if (isPhysicalClient) EventBus.register<RegisterReloadListenersEvent.Client> {
+                    if (isPhysicalClient) RegisterReloadListenersEvent.Client.register {
                         it.register(instance)
                     }
                 }
 
                 Side.SERVER -> {
-                    EventBus.register<RegisterReloadListenersEvent.Server> {
+                    RegisterReloadListenersEvent.Server.register {
                         it.register(instance)
                     }
                 }
 
                 Side.BOTH -> {
-                    EventBus.register<RegisterReloadListenersEvent.Server> {
+                    RegisterReloadListenersEvent.Server.register {
                         it.register(instance)
                     }
-                    if (isPhysicalClient) EventBus.register<RegisterReloadListenersEvent.Client> {
+                    if (isPhysicalClient) RegisterReloadListenersEvent.Client.register {
                         it.register(instance)
                     }
                 }

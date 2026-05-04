@@ -6,13 +6,14 @@ import net.minecraft.world.item.CreativeModeTab.TabVisibility
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.ItemLike
 import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 
 class BuildTabContentsEvent(
     val tab: CreativeModeTab,
     val tabKey: ResourceKey<CreativeModeTab>,
     val parameters: CreativeModeTab.ItemDisplayParameters,
-    private val acceptor: (ItemStack, TabVisibility) -> Unit
-): Event, CreativeModeTab.Output {
+    private val acceptor: (ItemStack, TabVisibility) -> Unit,
+) : Event, CreativeModeTab.Output {
     val flags = this.parameters.enabledFeatures
 
     val hasPermissions = this.parameters.hasPermissions
@@ -58,4 +59,6 @@ class BuildTabContentsEvent(
         if (this.tab != tab) return
         this.acceptAll(stacks)
     }
+
+    companion object : EventHandler<BuildTabContentsEvent>()
 }

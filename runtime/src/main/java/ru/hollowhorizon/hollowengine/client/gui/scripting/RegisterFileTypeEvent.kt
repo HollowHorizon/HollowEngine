@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.EditorFile
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 
 class RegisterFileTypeEvent : ClientEvent {
     private val registry = mutableListOf<FileType>()
@@ -31,4 +32,6 @@ class RegisterFileTypeEvent : ClientEvent {
     }
     
     internal fun getTypes(): List<FileType> = registry.toList()
+
+    companion object: EventHandler<RegisterFileTypeEvent>()
 }

@@ -7,12 +7,15 @@ import net.minecraft.tags.TagKey
 import net.minecraft.tags.TagLoader
 import ru.hollowhorizon.hollowengine.bridge.mixins.tags.TagEntryAccessor
 import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 
 class RegisterTagsEvent(
     val registry: Registry<*>,
     private val tags: MutableMap<ResourceLocation, MutableList<TagLoader.EntryWithSource>>,
 ) : Event {
+    companion object : EventHandler<RegisterTagsEvent>()
+
     fun <T : Any> addToTag(key: TagKey<T>, vararg values: T) {
         tags.getOrPut(key.location(), ::ArrayList).apply {
             values.forEach { value ->

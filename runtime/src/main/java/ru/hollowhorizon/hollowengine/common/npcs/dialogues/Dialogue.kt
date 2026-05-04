@@ -14,7 +14,7 @@ import ru.hollowhorizon.hollowengine.client.kool.Item
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.utils.math.Interpolation
 import ru.hollowhorizon.hollowengine.common.events.Event
-import ru.hollowhorizon.hollowengine.common.events.EventBus
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForCompoundNBT
@@ -23,11 +23,12 @@ import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStack
 @Serializable
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
 class DialogueUpdateEvent(
-    val tag: @Serializable(ForCompoundNBT::class) CompoundTag
+    val tag: @Serializable(ForCompoundNBT::class) CompoundTag,
 ) : HollowPacket, Event {
+    companion object : EventHandler<DialogueUpdateEvent>()
 
     override fun handle(player: Player) {
-        EventBus.post(this)
+        post(this)
     }
 }
 
@@ -51,7 +52,7 @@ interface DialogChoice {
 @Polymorphic(DialogChoice::class)
 class ChoiceIcon(
     override val content: String,
-    val iconPath: String
+    val iconPath: String,
 ) : DialogChoice {
 
     companion object {
@@ -80,7 +81,7 @@ class ChoiceIcon(
 @Polymorphic(DialogChoice::class)
 class ChoiceItem(
     override val content: String,
-    val itemStack: @Serializable(ForItemStack::class) ItemStack
+    val itemStack: @Serializable(ForItemStack::class) ItemStack,
 ) : DialogChoice {
 
     companion object {

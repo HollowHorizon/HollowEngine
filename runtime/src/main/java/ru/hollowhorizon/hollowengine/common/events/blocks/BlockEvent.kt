@@ -5,29 +5,36 @@ import net.minecraft.core.Direction
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.state.BlockState
-import ru.hollowhorizon.hollowengine.common.events.Cancelable
+import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import java.util.*
 
-open class BlockEvent(var state: BlockState, val pos: BlockPos) : Event, Cancelable {
+open class BlockEvent(var state: BlockState, val pos: BlockPos) : Event, Cancellable {
     override var isCanceled = false
 
     class NeighborNotify(
         state: BlockState,
         pos: BlockPos,
         val directions: EnumSet<Direction>,
-    ): BlockEvent(state, pos)
+    ) : BlockEvent(state, pos) {
+        companion object : EventHandler<NeighborNotify>()
+    }
 
     class Break(
         val level: Level,
         pos: BlockPos,
         state: BlockState,
-        val player: Player
-    ): BlockEvent(state, pos)
+        val player: Player,
+    ) : BlockEvent(state, pos) {
+        companion object : EventHandler<Break>()
+    }
 
     class Placed(
         val player: Player,
         state: BlockState,
-        pos: BlockPos
-    ): BlockEvent(state, pos)
+        pos: BlockPos,
+    ) : BlockEvent(state, pos) {
+        companion object : EventHandler<Placed>()
+    }
 }

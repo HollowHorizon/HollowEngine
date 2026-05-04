@@ -2,8 +2,9 @@ package ru.hollowhorizon.hollowengine.common.events.brew
 
 import net.minecraft.core.NonNullList
 import net.minecraft.world.item.ItemStack
-import ru.hollowhorizon.hollowengine.common.events.Cancelable
+import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 
 open class BrewPotionEvent(private val stacks: NonNullList<ItemStack>): Event {
     val size = stacks.size
@@ -18,9 +19,12 @@ open class BrewPotionEvent(private val stacks: NonNullList<ItemStack>): Event {
             stacks[index] = stack
     }
 
-    class Pre(stacks: NonNullList<ItemStack>) : BrewPotionEvent(stacks), Cancelable {
+    class Pre(stacks: NonNullList<ItemStack>) : BrewPotionEvent(stacks), Cancellable {
+        companion object: EventHandler<Pre>()
         override var isCanceled: Boolean = false
     }
 
-    class Post(stacks: NonNullList<ItemStack>) : BrewPotionEvent(stacks)
+    class Post(stacks: NonNullList<ItemStack>) : BrewPotionEvent(stacks) {
+        companion object: EventHandler<Post>()
+    }
 }

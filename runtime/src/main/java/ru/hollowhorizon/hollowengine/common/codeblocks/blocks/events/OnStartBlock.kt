@@ -9,7 +9,7 @@ import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.codeblocks.CodeBlocksColors
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemReloadedEvent
-import ru.hollowhorizon.hollowengine.common.events.await
+import ru.hollowhorizon.hollowengine.common.events.factory.await
 
 @Serializable
 @SerialName("hollowengine:start")
@@ -17,7 +17,7 @@ class OnStartBlock : StartBlock() {
     override val color: Color get() = CodeBlocksColors.EVENTS
 
     override suspend fun trigger() {
-        await<BlocksSystemReloadedEvent>()
+        BlocksSystemReloadedEvent.await()
     }
 
     override fun InputSlotScope.composeContent() {

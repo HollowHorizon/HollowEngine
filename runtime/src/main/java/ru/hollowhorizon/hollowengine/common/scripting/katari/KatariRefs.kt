@@ -6,8 +6,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.player.Player
-import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
+import ru.hollowhorizon.hollowengine.common.events.factory.await
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshot
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshotFactory
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptType
@@ -27,8 +27,7 @@ data class ChatMessageSnapshot(
     val message: String,
 ) : ValueSnapshot(), ScriptSnapshot<KatariChatMessage> {
     override suspend fun restore(context: ValueRestoreContext): KatariChatMessage {
-        val event =
-            await<PlayerEvent.Join> { it.player.uuid == uuid }
+        val event = PlayerEvent.Join.await { it.player.uuid == uuid }
         return KatariChatMessage(event.player, message)
     }
 

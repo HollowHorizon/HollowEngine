@@ -3,8 +3,6 @@ package ru.hollowhorizon.hollowengine.common.scripting.components
 import net.minecraft.server.packs.resources.ResourceManager
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.events.Event
-import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.events.registry.RegisterReloadListenersEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
@@ -32,13 +30,9 @@ object ComponentReloadManager : ResourceManagerReloadListener {
             }
             .map { (path, it) -> path to it.getOrThrow().base }
 
-
-        ScriptComponentsReloadedEvent().post()
     }
 
     private fun getComponentType(script: CompiledScript): KClass<Any> {
         return (((script.type.java.genericSuperclass as Class<*>).genericSuperclass as ParameterizedType).actualTypeArguments[0] as Class<*>).kotlin as KClass<Any>
     }
 }
-
-class ScriptComponentsReloadedEvent: Event

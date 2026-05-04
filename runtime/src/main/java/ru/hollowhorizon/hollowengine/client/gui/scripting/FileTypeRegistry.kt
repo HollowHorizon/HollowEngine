@@ -1,7 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.gui.scripting
 
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.EditorFile
-import ru.hollowhorizon.hollowengine.common.events.post
 
 object FileTypeRegistry {
     private val fileTypes = mutableListOf<FileType>()
@@ -11,24 +10,24 @@ object FileTypeRegistry {
         extensions: List<String>,
         factory: (String, ByteArray) -> EditorFile,
         fallback: FileType? = null,
-        priority: Int = extensions.firstOrNull()?.length ?: 0
+        priority: Int = extensions.firstOrNull()?.length ?: 0,
     ): FileType {
         val fileType = FileType(extensions, factory, fallback, priority)
-        
+
         val insertIndex = fileTypes.indexOfFirst { it.priority < fileType.priority }
         if (insertIndex >= 0) {
             fileTypes.add(insertIndex, fileType)
         } else {
             fileTypes.add(fileType)
         }
-        
+
         return fileType
     }
 
     fun registerExtension(
         extension: String,
         factory: (String, ByteArray) -> EditorFile,
-        fallback: FileType? = null
+        fallback: FileType? = null,
     ): FileType {
         return register(listOf(extension), factory, fallback)
     }
@@ -36,7 +35,7 @@ object FileTypeRegistry {
     fun registerExtensions(
         extensions: List<String>,
         factory: (String, ByteArray) -> EditorFile,
-        fallback: FileType? = null
+        fallback: FileType? = null,
     ): FileType {
         return register(extensions, factory, fallback)
     }
@@ -44,7 +43,7 @@ object FileTypeRegistry {
     fun registerSuffix(
         suffix: String,
         factory: (String, ByteArray) -> EditorFile,
-        fallback: FileType? = null
+        fallback: FileType? = null,
     ): FileType {
         return register(listOf(suffix), factory, fallback, priority = suffix.length * 2)
     }
@@ -54,8 +53,8 @@ object FileTypeRegistry {
         initialized = true
 
         val event = RegisterFileTypeEvent()
-        event.post()
-        
+        RegisterFileTypeEvent.post(event)
+
         event.getTypes().forEach { type ->
             val insertIndex = fileTypes.indexOfFirst { it.priority < type.priority }
             if (insertIndex >= 0) {
@@ -69,6 +68,6 @@ object FileTypeRegistry {
     fun findType(path: String): FileType? {
         return fileTypes.firstOrNull { it.matches(path) }
     }
-    
+
     fun getAllTypes(): List<FileType> = fileTypes.toList()
 }

@@ -4,9 +4,18 @@ import net.minecraft.client.Minecraft
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 
 open class TickEvent : Event {
-    class Server(val server: MinecraftServer) : TickEvent()
-    class Client(val minecraft: Minecraft) : TickEvent(), ClientEvent
-    class Entity(val entity: net.minecraft.world.entity.LivingEntity) : TickEvent()
+    class Server(val server: MinecraftServer) : TickEvent() {
+        companion object : EventHandler<Server>()
+    }
+
+    class Client(val minecraft: Minecraft) : TickEvent(), ClientEvent {
+        companion object : EventHandler<Client>()
+    }
+
+    class Entity(val entity: net.minecraft.world.entity.LivingEntity) : TickEvent() {
+        companion object : EventHandler<Entity>()
+    }
 }

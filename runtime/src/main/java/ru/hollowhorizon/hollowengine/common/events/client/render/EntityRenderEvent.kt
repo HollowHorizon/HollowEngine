@@ -17,12 +17,15 @@ import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.block.SkullBlock
-import ru.hollowhorizon.hollowengine.common.events.Cancelable
+import ru.hollowhorizon.hollowengine.common.events.Cancellable
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 
 class RegisterEntityLayersDefinitions(private val layerDefinitions: Map<ModelLayerLocation, () -> LayerDefinition>) :
     ClientEvent {
+    companion object : EventHandler<RegisterEntityLayersDefinitions>()
+
     fun registerLayerDefinition(location: ModelLayerLocation, layerDefinition: () -> LayerDefinition) {
         (layerDefinitions as MutableMap)[location] = layerDefinition
     }
@@ -33,6 +36,8 @@ class AddEntityRendererLayers(
     val skinMap: MutableMap<String, EntityRenderer<out Player>>,
     val context: EntityRendererProvider.Context,
 ) : ClientEvent {
+    companion object : EventHandler<AddEntityRendererLayers>()
+
     val skins = this.skinMap.keys
 
     fun <R : LivingEntityRenderer<out Player, out EntityModel<out Player>>> getSkin(skin: String): R =
@@ -48,6 +53,8 @@ class CreateEntitySkullModels(
     private val builder: ImmutableMap.Builder<SkullBlock.Type, SkullModelBase>,
     val entityModelSet: EntityModelSet,
 ) : ClientEvent {
+    companion object : EventHandler<CreateEntitySkullModels>()
+
     fun registerSkullModel(type: SkullBlock.Type, model: SkullModelBase) {
         builder.put(type, model)
     }
@@ -60,7 +67,7 @@ open class RenderEntityEvent(
     val poseStack: PoseStack,
     val buffer: MultiBufferSource,
     val packedLight: Int,
-): ClientEvent {
+) : ClientEvent {
 
     class Pre(
         entity: Entity,
@@ -69,7 +76,9 @@ open class RenderEntityEvent(
         poseStack: PoseStack,
         buffer: MultiBufferSource,
         packedLight: Int,
-    ) : RenderEntityEvent(entity, entityYaw, partialTicks, poseStack, buffer, packedLight), Cancelable {
+    ) : RenderEntityEvent(entity, entityYaw, partialTicks, poseStack, buffer, packedLight), Cancellable {
+        companion object : EventHandler<Pre>()
+
         override var isCanceled = false
     }
 
@@ -80,7 +89,9 @@ open class RenderEntityEvent(
         poseStack: PoseStack,
         buffer: MultiBufferSource,
         packedLight: Int,
-    ) : RenderEntityEvent(entity, entityYaw, partialTicks, poseStack, buffer, packedLight)
+    ) : RenderEntityEvent(entity, entityYaw, partialTicks, poseStack, buffer, packedLight) {
+        companion object : EventHandler<Post>()
+    }
 
 }
 
@@ -91,6 +102,8 @@ class RenderPlayerEvent(
     val poseStack: PoseStack,
     val buffer: MultiBufferSource,
     val packedLight: Int,
-) : ClientEvent, Cancelable {
+) : ClientEvent, Cancellable {
+    companion object : EventHandler<RenderPlayerEvent>()
+
     override var isCanceled = false
 }

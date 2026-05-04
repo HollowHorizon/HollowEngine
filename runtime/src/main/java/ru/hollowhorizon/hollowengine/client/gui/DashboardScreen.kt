@@ -8,7 +8,7 @@ import ru.hollowhorizon.hollowengine.client.kool.KoolScreen
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.Event
-import ru.hollowhorizon.hollowengine.common.events.post
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 
 fun interface KoolGui {
     fun Scene.setup()
@@ -18,7 +18,7 @@ class DashBoardScreen : KoolScreen() {
 
     override fun Scene.setup() {
         val modTabs = ArrayList<Tab>()
-        TabEvent(modTabs::add).post()
+        TabEvent.post(TabEvent(modTabs::add))
 
         setupUiScene()
 
@@ -46,5 +46,7 @@ class DashBoardScreen : KoolScreen() {
         fun register(tab: Tab) {
             generator(tab)
         }
+
+        companion object : EventHandler<TabEvent>()
     }
 }

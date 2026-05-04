@@ -5,17 +5,23 @@ import net.minecraft.client.particle.ParticleProvider
 import net.minecraft.core.particles.ParticleOptions
 import net.minecraft.core.particles.ParticleType
 import ru.hollowhorizon.hollowengine.common.events.Event
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 
-class RegisterParticlesEvent(val particleEngine: ParticleEngine): Event {
-    fun <T: ParticleOptions> registerSpecial(type: ParticleType<T>, provider: ParticleProvider<T>) {
+class RegisterParticlesEvent(val particleEngine: ParticleEngine) : Event {
+    companion object : EventHandler<RegisterParticlesEvent>()
+
+    fun <T : ParticleOptions> registerSpecial(type: ParticleType<T>, provider: ParticleProvider<T>) {
         particleEngine.register(type, provider)
     }
 
-    fun <T: ParticleOptions> registerSprite(type: ParticleType<T>, provider: ParticleProvider.Sprite<T>) {
+    fun <T : ParticleOptions> registerSprite(type: ParticleType<T>, provider: ParticleProvider.Sprite<T>) {
         particleEngine.register(type, provider)
     }
 
-    fun <T: ParticleOptions> registerSpriteSet(type: ParticleType<T>, provider: ParticleEngine.SpriteParticleRegistration<T>) {
+    fun <T : ParticleOptions> registerSpriteSet(
+        type: ParticleType<T>,
+        provider: ParticleEngine.SpriteParticleRegistration<T>,
+    ) {
         particleEngine.register(type, provider)
     }
 }

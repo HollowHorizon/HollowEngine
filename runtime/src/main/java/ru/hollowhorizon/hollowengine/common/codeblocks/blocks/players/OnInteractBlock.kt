@@ -22,8 +22,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StatementBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.EventDrivenStartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentScriptEvent
-import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
+import ru.hollowhorizon.hollowengine.common.events.factory.await
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForItemStackJson
 
 @Serializable
@@ -36,7 +36,7 @@ class PlayerInteractWithEntity : StatementBlock() {
 
     override suspend fun execute() {
         while (true) {
-            val event = await<PlayerInteractEvent.EntityInteract>()
+            val event = PlayerInteractEvent.EntityInteract.await()
             if (event.player != player()) continue
             if (event.target != entity()) continue
             return
@@ -44,7 +44,9 @@ class PlayerInteractWithEntity : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("hollowengine.gui.codeblocks.label.player".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player".lang) {
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+        }
         InputSlot(player)
         Text("hollowengine.gui.codeblocks.label.player_interacts_with".lang) {
             modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(start = 5.dp).bold()
@@ -66,7 +68,7 @@ class PlayerInteractWithBlock : StatementBlock() {
 
     override suspend fun execute() {
         while (true) {
-            val event = await<PlayerInteractEvent.BlockInteract>()
+            val event = PlayerInteractEvent.BlockInteract.await()
             if (event.player != player()) continue
             val state = event.player.level().getBlockState(event.state.blockPos)
             // TODO: better block comparison
@@ -75,14 +77,23 @@ class PlayerInteractWithBlock : StatementBlock() {
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("hollowengine.gui.codeblocks.label.player".lang) { modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.player".lang) {
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).bold()
+        }
         InputSlot(player)
         Text("hollowengine.gui.codeblocks.label.player_interacts_with_block".lang) {
-            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center).margin(horizontal = Dimensions.PaddingSmall.scaled()).bold()
+            modifier.textColor(Color.WHITE).alignY(AlignmentY.Center)
+                .margin(horizontal = Dimensions.PaddingSmall.scaled()).bold()
         }
         Box(Dimensions.PaddingLarge.scaled(), Dimensions.PaddingLarge.scaled()) {
             modifier.alignY(AlignmentY.Center)
-                .border(RoundRectBorder(Color.WHITE, Dimensions.PaddingSmall.scaled(), Dimensions.PaddingSmall.scaled()))
+                .border(
+                    RoundRectBorder(
+                        Color.WHITE,
+                        Dimensions.PaddingSmall.scaled(),
+                        Dimensions.PaddingSmall.scaled()
+                    )
+                )
 
             Item(item) {
                 val isHovered by modifier.hoverable()
@@ -125,7 +136,7 @@ class PlayerInteractWithItem : StartBlock(), EventDrivenStartBlock<PlayerInterac
     )
 
     override suspend fun trigger() {
-        val event = currentScriptEvent<PlayerInteractEvent.ItemInteract>() ?: await<PlayerInteractEvent.ItemInteract>()
+        val event = currentScriptEvent<PlayerInteractEvent.ItemInteract>() ?: PlayerInteractEvent.ItemInteract.await()
         playerOutput.emit(event.player)
         itemOutput.emit(event.itemStack)
         handOutput.emit(event.hand)

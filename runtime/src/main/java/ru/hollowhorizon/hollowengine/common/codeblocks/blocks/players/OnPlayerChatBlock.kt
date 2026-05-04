@@ -12,7 +12,7 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.variables.EventOut
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.StartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.EventDrivenStartBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentScriptEvent
-import ru.hollowhorizon.hollowengine.common.events.await
+import ru.hollowhorizon.hollowengine.common.events.factory.await
 import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 
 @Serializable
@@ -33,7 +33,7 @@ class OnPlayerChatBlock : StartBlock(), EventDrivenStartBlock<ServerChatEvent> {
     )
 
     override suspend fun trigger() {
-        val event = currentScriptEvent<ServerChatEvent>() ?: await<ServerChatEvent>()
+        val event = currentScriptEvent<ServerChatEvent>() ?: ServerChatEvent.await()
         playerOutput.emit(event.player)
         messageOutput.emit(event.message.string)
         usernameOutput.emit(event.username)

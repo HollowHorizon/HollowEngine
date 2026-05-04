@@ -4,12 +4,7 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hollowengine.HollowCore
 import ru.hollowhorizon.hollowengine.common.codeblocks.BlockRepository
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.EntityModule
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.GeneratedComponentBlocksModule
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.NPCModule
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.PlayerModule
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.StandardModules
-import ru.hollowhorizon.hollowengine.common.codeblocks.modules.WorldModule
+import ru.hollowhorizon.hollowengine.common.codeblocks.modules.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.recovery.usecase.PersistRecoveredScriptUseCase
 import ru.hollowhorizon.hollowengine.common.codeblocks.serialization.CodeBlockFormat
 import ru.hollowhorizon.hollowengine.common.codeblocks.validation.CodeBlockAnalysisService
@@ -20,7 +15,7 @@ import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.dev.DevLogs
 import ru.hollowhorizon.hollowengine.common.events.Event
-import ru.hollowhorizon.hollowengine.common.events.post
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
 
@@ -60,7 +55,7 @@ class BlocksSystem(val owner: MinecraftServer) {
     }
 
     fun onAttach() {
-        BlocksSystemReloadedEvent().post()
+        BlocksSystemReloadedEvent.post(BlocksSystemReloadedEvent())
     }
 
     fun markDirty() {
@@ -153,7 +148,9 @@ class BlocksSystem(val owner: MinecraftServer) {
     }
 }
 
-class BlocksSystemReloadedEvent : Event
+class BlocksSystemReloadedEvent : Event {
+    companion object : EventHandler<BlocksSystemReloadedEvent>()
+}
 
 fun BlocksSystem.getDevHistory(scriptPath: String) = DevLogs.getHistory(scriptPath)
 fun BlocksSystem.getDevSlow(scriptPath: String) = DevLogs.getSlow(scriptPath)

@@ -25,7 +25,6 @@ import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
-import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.common.utils.json.JsonFormat
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
@@ -53,7 +52,7 @@ object ScriptingEnvironmentOverlay {
     var isCollapsed = true
         set(value) {
             field = value
-            if(value) scene.removeNode(dock)
+            if (value) scene.removeNode(dock)
             else scene.addNode(dock, 0)
         }
 
@@ -71,11 +70,11 @@ object ScriptingEnvironmentOverlay {
             else modifier.backgroundColor(ColorTheme.UI.BackgroundSecondary)
 
             Row(width = if (isCollapsed) FitContent else Grow.Std) {
-                TitleBarCreationEvent.Start(this).post()
+                TitleBarCreationEvent.Start.post(TitleBarCreationEvent.Start(this))
                 Box { modifier.alignX(AlignmentX.Center).width(Grow.Std) }
-                TitleBarCreationEvent.Center(this).post()
+                TitleBarCreationEvent.Center.post(TitleBarCreationEvent.Center(this))
                 Box { modifier.alignX(AlignmentX.End).width(Grow.Std) }
-                TitleBarCreationEvent.End(this).post()
+                TitleBarCreationEvent.End.post(TitleBarCreationEvent.End(this))
             }
 
             modifier.onPositioned {
@@ -110,8 +109,15 @@ object ScriptingEnvironmentOverlay {
 }
 
 fun isMouseOverDock(x: Float, y: Float): Boolean {
-    if(ScriptingEnvironmentOverlay.isCollapsed) return false
-    return (dock.dockables.values.any { it.isInBounds(Vec2f(x, y)) } || y <= ScriptingEnvironmentOverlay.titleBarHeight) && dock.isVisible
+    if (ScriptingEnvironmentOverlay.isCollapsed) return false
+    return (dock.dockables.values.any {
+        it.isInBounds(
+            Vec2f(
+                x,
+                y
+            )
+        )
+    } || y <= ScriptingEnvironmentOverlay.titleBarHeight) && dock.isVisible
 }
 
 fun isAnyFocusNodeInput(): Boolean {

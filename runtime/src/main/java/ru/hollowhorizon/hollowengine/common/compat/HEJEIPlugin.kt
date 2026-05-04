@@ -7,74 +7,104 @@ import mezz.jei.api.registration.*
 import mezz.jei.api.runtime.IJeiRuntime
 import mezz.jei.api.runtime.config.IJeiConfigManager
 import net.minecraft.resources.ResourceLocation
-import ru.hollowhorizon.hollowengine.common.utils.rl
-import ru.hollowhorizon.hollowengine.common.events.post
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.events.ModifyRecipeViewerEvent
+import ru.hollowhorizon.hollowengine.common.utils.rl
 
 @JeiPlugin
-class HEJEIPlugin: IModPlugin {
+class HEJEIPlugin : IModPlugin {
     override fun registerItemSubtypes(registration: ISubtypeRegistration) {
-        ModifyRecipeViewerEvent.RegisterItemSubtypes(registration).post()
+        ModifyRecipeViewerEvent.RegisterItemSubtypes.post(ModifyRecipeViewerEvent.RegisterItemSubtypes(registration))
     }
 
     override fun <T : Any?> registerFluidSubtypes(
         registration: ISubtypeRegistration,
-        platformFluidHelper: IPlatformFluidHelper<T>
+        platformFluidHelper: IPlatformFluidHelper<T>,
     ) {
-        ModifyRecipeViewerEvent.RegisterFluidSubtypes(registration, platformFluidHelper).post()
+        ModifyRecipeViewerEvent.RegisterFluidSubtypes.post(
+            ModifyRecipeViewerEvent.RegisterFluidSubtypes(
+                registration,
+                platformFluidHelper
+            )
+        )
     }
 
     override fun registerIngredients(registration: IModIngredientRegistration) {
-        ModifyRecipeViewerEvent.RegisterIngredients(registration).post()
+        ModifyRecipeViewerEvent.RegisterIngredients.post(ModifyRecipeViewerEvent.RegisterIngredients(registration))
     }
 
     override fun registerExtraIngredients(registration: IExtraIngredientRegistration) {
-        ModifyRecipeViewerEvent.RegisterExtraIngredients(registration).post()
+        ModifyRecipeViewerEvent.RegisterExtraIngredients.post(
+            ModifyRecipeViewerEvent.RegisterExtraIngredients(
+                registration
+            )
+        )
     }
 
     override fun registerIngredientAliases(registration: IIngredientAliasRegistration) {
-        ModifyRecipeViewerEvent.RegisterIngredientAliases(registration).post()
+        ModifyRecipeViewerEvent.RegisterIngredientAliases.post(
+            ModifyRecipeViewerEvent.RegisterIngredientAliases(
+                registration
+            )
+        )
     }
 
     override fun registerCategories(registration: IRecipeCategoryRegistration) {
-        ModifyRecipeViewerEvent.RegisterCategories(registration).post()
+        ModifyRecipeViewerEvent.RegisterCategories.post(ModifyRecipeViewerEvent.RegisterCategories(registration))
     }
 
     override fun registerVanillaCategoryExtensions(registration: IVanillaCategoryExtensionRegistration) {
-        ModifyRecipeViewerEvent.RegisterVanillaCategoryExtensions(registration).post()
+        ModifyRecipeViewerEvent.RegisterVanillaCategoryExtensions.post(
+            ModifyRecipeViewerEvent.RegisterVanillaCategoryExtensions(
+                registration
+            )
+        )
     }
 
     override fun registerRecipes(registration: IRecipeRegistration) {
-        ModifyRecipeViewerEvent.RegisterRecipes(registration).post()
+        ModifyRecipeViewerEvent.RegisterRecipes.post(ModifyRecipeViewerEvent.RegisterRecipes(registration))
     }
 
     override fun registerRecipeTransferHandlers(registration: IRecipeTransferRegistration) {
-        ModifyRecipeViewerEvent.RegisterRecipeTransferHandlers(registration).post()
+        ModifyRecipeViewerEvent.RegisterRecipeTransferHandlers.post(
+            ModifyRecipeViewerEvent.RegisterRecipeTransferHandlers(
+                registration
+            )
+        )
     }
 
     override fun registerRecipeCatalysts(registration: IRecipeCatalystRegistration) {
-        ModifyRecipeViewerEvent.RegisterRecipeCatalysts(registration).post()
+        ModifyRecipeViewerEvent.RegisterRecipeCatalysts.post(
+            ModifyRecipeViewerEvent.RegisterRecipeCatalysts(
+                registration
+            )
+        )
     }
 
     override fun registerGuiHandlers(registration: IGuiHandlerRegistration) {
-        ModifyRecipeViewerEvent.RegisterGuiHandlers(registration).post()
+        ModifyRecipeViewerEvent.RegisterGuiHandlers.post(ModifyRecipeViewerEvent.RegisterGuiHandlers(registration))
     }
 
     override fun registerAdvanced(registration: IAdvancedRegistration) {
-        ModifyRecipeViewerEvent.RegisterAdvanced(registration).post()
+        ModifyRecipeViewerEvent.RegisterAdvanced.post(ModifyRecipeViewerEvent.RegisterAdvanced(registration))
     }
 
     override fun registerRuntime(registration: IRuntimeRegistration) {
-        ModifyRecipeViewerEvent.RegisterRuntime(registration).post()
+        ModifyRecipeViewerEvent.RegisterRuntime.post(ModifyRecipeViewerEvent.RegisterRuntime(registration))
     }
 
     override fun onRuntimeAvailable(jeiRuntime: IJeiRuntime) {
-        ModifyRecipeViewerEvent.RegisterOnRuntimeAvailable(jeiRuntime).post()
+        ModifyRecipeViewerEvent.RegisterOnRuntimeAvailable.post(
+            ModifyRecipeViewerEvent.RegisterOnRuntimeAvailable(jeiRuntime)
+        )
     }
 
     override fun onConfigManagerAvailable(configManager: IJeiConfigManager) {
-        ModifyRecipeViewerEvent.RegisterOnConfigManagerAvailable(configManager).post()
+        ModifyRecipeViewerEvent.RegisterOnConfigManagerAvailable.post(
+            ModifyRecipeViewerEvent.RegisterOnConfigManagerAvailable(
+                configManager
+            )
+        )
     }
 
     override fun getPluginUid(): ResourceLocation = "${HollowEngine.MODID}:he_plugin".rl

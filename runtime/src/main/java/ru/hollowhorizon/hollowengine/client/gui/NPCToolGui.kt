@@ -25,7 +25,7 @@ import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
-import ru.hollowhorizon.hollowengine.common.events.post
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
@@ -41,7 +41,7 @@ class NPCToolGui(val npc: NpcEntity) : KoolScreen() {
 
     override fun Scene.setup() {
         val options = HashSet<NpcOption>()
-        NpcOptionsEvent(options::add, npc).post()
+        NpcOptionsEvent.post(NpcOptionsEvent(options::add, npc))
 
         setupUiScene()
 
@@ -341,6 +341,8 @@ class NpcOptionsEvent(private val generator: (NpcOption) -> Unit, val npc: NpcEn
     fun register(npc: NpcOption) {
         generator(npc)
     }
+
+    companion object : EventHandler<NpcOptionsEvent>()
 }
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)

@@ -16,8 +16,8 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.ExpressionType
 import ru.hollowhorizon.hollowengine.common.codeblocks.model.ExpressionBlock
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.currentServer
 import ru.hollowhorizon.hollowengine.common.codeblocks.typeOf
-import ru.hollowhorizon.hollowengine.common.events.await
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerEvent
+import ru.hollowhorizon.hollowengine.common.events.factory.await
 
 @Serializable
 @SerialName("hollowengine:player/get_by_name")
@@ -30,15 +30,17 @@ class GetPlayerByNameBlock : ExpressionBlock() {
 
     override suspend fun execute(): Any? {
         val name = playerName()
-        val player =  currentServer().playerList?.getPlayerByName(name)
+        val player = currentServer().playerList?.getPlayerByName(name)
 
         if (player != null) return player
 
-        return await<PlayerEvent.Join> { it.player.gameProfile.name == name }.player
+        return PlayerEvent.Join.await { it.player.gameProfile.name == name }.player
     }
 
     override fun InputSlotScope.composeContent() {
-        Text("hollowengine.gui.codeblocks.label.get_player_by_name".lang) { modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold() }
+        Text("hollowengine.gui.codeblocks.label.get_player_by_name".lang) {
+            modifier.textColor(Color.Companion.WHITE).alignY(AlignmentY.Center).bold()
+        }
         InputSlot(playerName)
     }
 }

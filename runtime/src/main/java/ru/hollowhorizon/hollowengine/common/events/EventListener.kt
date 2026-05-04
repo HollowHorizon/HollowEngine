@@ -1,50 +1,27 @@
 package ru.hollowhorizon.hollowengine.common.events
 
-import com.google.common.collect.HashMultimap
 import java.lang.invoke.LambdaMetafactory
 import java.lang.invoke.MethodHandles
 import java.lang.invoke.MethodType
 import java.lang.reflect.Method
-import java.lang.reflect.Modifier
 import java.util.function.Consumer
 
-fun interface EventListener<T : Event> {
+fun interface EventListener<T : Event> : (T) -> Unit {
     val priority: Int get() = 0
 
-    fun onEvent(event: T)
+    override operator fun invoke(event: T)
 }
 
-fun <T: Event> eventListenerOf(priority: Int = 0, handler: (T) -> Unit) = object : EventListener<T> {
+fun <T : Event> eventListenerOf(priority: Int = 0, handler: (T) -> Unit) = object : EventListener<T> {
     override val priority = priority
-    override fun onEvent(event: T) = handler(event)
+    override fun invoke(event: T) = handler(event)
 }
 
-private val EVENTS = HashMultimap.create<Any, EventListener<Event>>()
-
-fun Any.subscribeEvents() {
-    val handles = MethodHandles.lookup()
-    val listeners = this.javaClass.declaredMethods
-        .filter { method -> method.isStatic() }
-        .filter { method -> method.isAnnotationPresent(SubscribeEvent::class.java) }
-        .map { method ->
-            val listener = handles.createStaticEventListener(method)
-            EventBus.registerNoInline(method.parameterTypes[0] as Class<Event>, listener)
-            listener
-        }
-    EVENTS.putAll(this, listeners)
-}
-
-fun Any.unsubscribeEvents() {
-    EVENTS[this].forEach { listener -> EventBus.unregister(listener) }
-    EVENTS.removeAll(this)
-}
-
-private fun Method.isStatic() = Modifier.isStatic(this.modifiers)
 
 @Suppress("UNCHECKED_CAST")
 fun MethodHandles.Lookup.createEventListener(
     method: Method,
-    target: Any
+    target: Any,
 ): EventListener<Event> {
     try {
         val methodHandle = unreflect(method)
@@ -62,7 +39,7 @@ fun MethodHandles.Lookup.createEventListener(
         return object : EventListener<Event> {
             override val priority = priority
 
-            override fun onEvent(event: Event) {
+            override fun invoke(event: Event) {
                 eventHandle.accept(event)
             }
 
@@ -90,7 +67,7 @@ fun MethodHandles.Lookup.createStaticEventListener(method: Method): EventListene
         return object : EventListener<Event> {
             override val priority = priority
 
-            override fun onEvent(event: Event) {
+            override fun invoke(event: Event) {
                 eventHandle.accept(event)
             }
 

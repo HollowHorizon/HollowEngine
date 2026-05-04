@@ -8,14 +8,10 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.events.ClientEvent
 import ru.hollowhorizon.hollowengine.common.events.Event
-import ru.hollowhorizon.hollowengine.common.events.post
+import ru.hollowhorizon.hollowengine.common.events.factory.EventHandler
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptIgnore
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshot
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshotFactory
-import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptType
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.*
 
 enum class KatariInputAction {
     Press,
@@ -62,7 +58,9 @@ data class KatariInputSnapshot @ScriptIgnore constructor(
 data class KatariInputEvent(
     val player: ServerPlayer,
     val input: KatariInputSnapshot,
-) : Event
+) : Event {
+    companion object : EventHandler<KatariInputEvent>()
+}
 
 sealed class KatariClientInputEvent : ClientEvent {
     abstract val action: KatariInputAction
@@ -73,7 +71,9 @@ sealed class KatariClientInputEvent : ClientEvent {
         val scanCode: Int,
         override val action: KatariInputAction,
         override val modifiers: Int,
-    ) : KatariClientInputEvent()
+    ) : KatariClientInputEvent() {
+        companion object : EventHandler<Key>()
+    }
 
     data class MouseButton(
         val x: Double,
@@ -81,7 +81,9 @@ sealed class KatariClientInputEvent : ClientEvent {
         val button: Int,
         override val action: KatariInputAction,
         override val modifiers: Int,
-    ) : KatariClientInputEvent()
+    ) : KatariClientInputEvent() {
+        companion object : EventHandler<MouseButton>()
+    }
 
     data class MouseScroll(
         val x: Double,
@@ -90,7 +92,9 @@ sealed class KatariClientInputEvent : ClientEvent {
         val scrollY: Double,
         override val action: KatariInputAction = KatariInputAction.Scroll,
         override val modifiers: Int = 0,
-    ) : KatariClientInputEvent()
+    ) : KatariClientInputEvent() {
+        companion object : EventHandler<MouseScroll>()
+    }
 }
 
 @HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
@@ -100,7 +104,7 @@ data class KatariInputPacket(
 ) : HollowPacket {
     override fun handle(player: Player) {
         val serverPlayer = player as? ServerPlayer ?: return
-        KatariInputEvent(serverPlayer, input.copy(playerId = serverPlayer.uuid.toString())).post()
+        KatariInputEvent.post(KatariInputEvent(serverPlayer, input.copy(playerId = serverPlayer.uuid.toString())))
     }
 
     internal fun snapshotForTests(): KatariInputSnapshot = input
@@ -116,6 +120,7 @@ internal fun KatariClientInputEvent.toPacket(playerId: String = ""): KatariInput
             scanCode = scanCode,
             modifiers = modifiers,
         )
+
         is KatariClientInputEvent.MouseButton -> KatariInputSnapshot(
             playerId = playerId,
             kind = KatariInputKind.MouseButton,
@@ -125,6 +130,7 @@ internal fun KatariClientInputEvent.toPacket(playerId: String = ""): KatariInput
             x = x,
             y = y,
         )
+
         is KatariClientInputEvent.MouseScroll -> KatariInputSnapshot(
             playerId = playerId,
             kind = KatariInputKind.MouseScroll,

@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.geary.api
 
+import com.google.common.eventbus.EventBus
 import kotlinx.coroutines.cancel
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.nbt.CompoundTag
@@ -13,7 +14,6 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.OwnerScopeRestoredEvent
 import ru.hollowhorizon.hollowengine.common.coroutines.EntityScope
 import ru.hollowhorizon.hollowengine.common.coroutines.SerializableCoroutineScope
-import ru.hollowhorizon.hollowengine.common.events.EventBus
 import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
 import ru.hollowhorizon.hollowengine.common.geary.components.NoAi
@@ -153,7 +153,7 @@ object GearyRuntimeState {
         }
 
         state.coroutineScope.deserialize(tag.getCompound("EntityScope"))
-        EventBus.post(OwnerScopeRestoredEvent(entity))
+        OwnerScopeRestoredEvent.post(OwnerScopeRestoredEvent(entity))
     }
 
     fun onSetLevel(entity: Entity, newLevel: Level) {
