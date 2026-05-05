@@ -15,7 +15,7 @@ class KatariBindingCodegenTest {
         )
         val hostModel = TypeModel(
             kotlinType = "test.Example",
-            katariTypeExpression = "KatariParameterType(\"Example\")",
+            katariTypeExpression = "Example",
             hostTypeId = "Example",
             converter = null,
             enumTypeId = null,
@@ -23,7 +23,7 @@ class KatariBindingCodegenTest {
         )
         val textModel = TypeModel(
             kotlinType = "String",
-            katariTypeExpression = "KatariTypes.Text",
+            katariTypeExpression = "String",
             hostTypeId = null,
             converter = "asString",
             enumTypeId = null,
@@ -57,14 +57,14 @@ class KatariBindingCodegenTest {
         ).generate()
 
         assertContains(code, "registerHostType(")
-        assertContains(code, "test.Example::class.toKatari(\"Example\")")
+        assertContains(code, "test.Example::class,")
         assertContains(code, "test.ExampleSnapshot.serializer()")
-        assertContains(code, "ImmediateKatariFunctionDefinition(")
-        assertContains(code, "id = \"rename\"")
+        assertContains(code, "immediateFunction(")
+        assertContains(code, "\"rename\"")
         assertContains(code, "import test.rename as generatedKatariFunction0")
-        assertContains(code, "dispatchReceiverType = KatariParameterType(\"Example\")")
+        assertContains(code, "receiverType = \"Example\"")
         assertContains(code, "receiver.generatedKatariFunction0(name = name)")
-        assertContains(code, "extensionProperty(")
+        assertContains(code, "registerKotliteExtensionProperty(")
         assertContains(code, "typedReceiver.title = KatariGeneratedBindingRuntime.asString(value, \"title\")")
     }
 
@@ -79,7 +79,7 @@ class KatariBindingCodegenTest {
         )
         val hostModel = TypeModel(
             kotlinType = "test.Example",
-            katariTypeExpression = "KatariParameterType(\"Example\")",
+            katariTypeExpression = "Example",
             hostTypeId = "Example",
             converter = null,
             enumTypeId = null,
@@ -87,7 +87,7 @@ class KatariBindingCodegenTest {
         )
         val textModel = TypeModel(
             kotlinType = "String",
-            katariTypeExpression = "KatariTypes.Text",
+            katariTypeExpression = "String",
             hostTypeId = null,
             converter = "asString",
             enumTypeId = null,
@@ -113,8 +113,8 @@ class KatariBindingCodegenTest {
         ).generate()
 
         assertContains(code, "import test.title as generatedKatariProperty0")
-        assertContains(code, "name = \"displayName\"")
-        assertContains(code, "KatariGeneratedBindingRuntime.toKatariValue(typedReceiver.generatedKatariProperty0, null)")
+        assertContains(code, "declaredName = \"displayName\"")
+        assertContains(code, "KatariGeneratedBindingRuntime.toRuntimeValue(typedReceiver.generatedKatariProperty0, null")
         assertContains(code, "typedReceiver.generatedKatariProperty0 = KatariGeneratedBindingRuntime.asString(value, \"displayName\")")
     }
 
@@ -122,7 +122,7 @@ class KatariBindingCodegenTest {
     fun `generated function supports default vararg and suspend dispatch`() {
         val textModel = TypeModel(
             kotlinType = "String",
-            katariTypeExpression = "KatariTypes.Text",
+            katariTypeExpression = "String",
             hostTypeId = null,
             converter = "asString",
             enumTypeId = null,
@@ -132,7 +132,7 @@ class KatariBindingCodegenTest {
             scriptName = "announce",
             receiver = null,
             parameters = listOf(
-                ParameterModel("prefix", textModel, hasDefault = true, isVararg = false),
+                ParameterModel("prefix", textModel, hasDefault = true, defaultValueExpression = "\"system\"", isVararg = false),
                 ParameterModel("lines", textModel, hasDefault = false, isVararg = true),
             ),
             returnType = TypeModel.unit(),
@@ -144,20 +144,18 @@ class KatariBindingCodegenTest {
 
         val code = KatariBindingCodegen(emptyList(), listOf(function), emptyList()).generate()
 
-        assertContains(code, "SuspendableKatariFunctionDefinition(")
-        assertContains(code, "KatariTypes.Text.asValueParameter(\"prefix\", hasDefault = true)")
-        assertContains(code, "KatariTypes.Text.repeated().asValueParameter(\"lines\", hasDefault = false)")
-        assertContains(code, "prefixArgument == KatariValue.DefaultArgument")
-        assertContains(code, "test.announce(lines = lines)")
+        assertContains(code, "suspendableFunction(")
+        assertContains(code, "CustomFunctionParameter(\"prefix\", \"String\", defaultValueExpression = \"\\\"system\\\"\")")
+        assertContains(code, "CustomFunctionParameter(\"lines\", \"String.repeated()\", modifiers = setOf(\"vararg\"))")
         assertContains(code, "test.announce(prefix = prefix, lines = lines)")
-        assertContains(code, "GeneratedKatariValueResponse(it)")
+        assertContains(code, "GeneratedRuntimeValueResponse(it)")
     }
 
     @Test
     fun `generated registrar registers enum types used by functions`() {
         val enumModel = TypeModel(
             kotlinType = "test.Mode",
-            katariTypeExpression = "KatariParameterType(\"Mode\")",
+            katariTypeExpression = "Mode",
             hostTypeId = null,
             converter = null,
             enumTypeId = "Mode",
@@ -181,9 +179,46 @@ class KatariBindingCodegenTest {
             enumTypes = listOf(EnumTypeModel("Mode", "test.Mode", null)),
         ).generate()
 
-        assertContains(code, "val generatedEnum0 = test.Mode::class.toKatari(\"Mode\")")
-        assertContains(code, "registerEnum(generatedEnum0, test.Mode::class.java.enumConstants.toList())")
+        assertContains(code, "registerEnum(test.Mode::class, \"Mode\", test.Mode::class.java.enumConstants.toList())")
         assertContains(code, "KatariGeneratedBindingRuntime.asEnum<test.Mode>(valueArgument, \"Mode\", \"value\")")
-        assertContains(code, "KatariGeneratedBindingRuntime.toKatariValue(test.mode(value = value), \"Mode\")")
+        assertContains(code, "KatariGeneratedBindingRuntime.toRuntimeValue(test.mode(value = value), \"Mode\"")
+    }
+
+    @Test
+    fun `generated function preserves generic collection signature`() {
+        val generic = TypeModel.generic("T", TypeModel.any(nullable = false), nullable = false)
+        val list = TypeModel.collection("List", "List", listOf(generic), CollectionKind.LIST, nullable = false)
+        val map = TypeModel.collection(
+            "Map",
+            "Map",
+            listOf(
+                TypeModel.primitive("String", "String", "asString", nullable = false),
+                generic,
+            ),
+            CollectionKind.MAP,
+            nullable = false,
+        )
+        val function = FunctionModel(
+            scriptName = "collect",
+            receiver = null,
+            parameters = listOf(
+                ParameterModel("items", list, hasDefault = false, isVararg = false),
+                ParameterModel("named", map, hasDefault = false, isVararg = false),
+            ),
+            returnType = list,
+            typeParameters = listOf(TypeParameterModel("T", TypeModel.any(nullable = false))),
+            call = "test.collect(__ARGS__)",
+            isSuspend = false,
+            passesReceiverAsArgument = false,
+            importQualifiedName = null,
+        )
+
+        val code = KatariBindingCodegen(emptyList(), listOf(function), emptyList()).generate()
+
+        assertContains(code, "TypeParameter(\"T\", \"Any\")")
+        assertContains(code, "CustomFunctionParameter(\"items\", \"List<T>\")")
+        assertContains(code, "CustomFunctionParameter(\"named\", \"Map<String, T>\")")
+        assertContains(code, "KatariGeneratedBindingRuntime.asList(itemsArgument, \"items\")")
+        assertContains(code, "KatariGeneratedBindingRuntime.asMap(namedArgument, \"named\"")
     }
 }

@@ -16,6 +16,7 @@ private class KatariBindingProcessor(
     private val logger: KSPLogger,
 ) : SymbolProcessor {
     private var generated = false
+    private val defaultValueSourceReader = KatariDefaultValueSourceReader()
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
         if (generated) return emptyList()
@@ -223,16 +224,16 @@ private class KatariBindingProcessor(
     ): FunctionModel? {
         if (!validateCallable(constructor)) return null
         val params = constructor.parameters.mapIndexed { index, parameter ->
-            parameterModel(resolver, parameter, "arg$index", scriptTypes) ?: return null
+            parameterModel(resolver, parameter, "arg$index", scriptTypes, emptyMap()) ?: return null
         }
         val scriptName = owner.bindingName().ifBlank { owner.simpleName.asString() }
-        val call = "${owner.qualifiedName?.asString()}(${params.joinToString { it.name }})"
         return FunctionModel(
-            scriptName,
-            null,
-            params,
-            TypeModel.host(owner.asStarProjectedType(), scriptType),
-            "${owner.qualifiedName?.asString()}(__ARGS__)",
+            scriptName = scriptName,
+            receiver = null,
+            parameters = params,
+            returnType = TypeModel.host(owner.asStarProjectedType(), scriptType),
+            typeParameters = emptyList(),
+            call = "${owner.qualifiedName?.asString()}(__ARGS__)",
             isSuspend = false,
             passesReceiverAsArgument = false,
             importQualifiedName = null,
@@ -297,11 +298,13 @@ private class KatariBindingProcessor(
         scriptTypes: Map<String, ScriptTypeModel>,
     ): FunctionModel? {
         if (!validateCallable(declaration)) return null
-        val receiverType = receiver?.let { typeModel(it, scriptTypes) ?: return null }
+        val typeParameters = typeParameterModels(declaration, scriptTypes) ?: return null
+        val typeParameterTypes = typeParameters.associateBy { it.name }
+        val receiverType = receiver?.let { typeModel(it, scriptTypes, typeParameterTypes) ?: return null }
         val params = declaration.parameters.mapIndexed { index, parameter ->
-            parameterModel(resolver, parameter, "arg$index", scriptTypes) ?: return null
+            parameterModel(resolver, parameter, "arg$index", scriptTypes, typeParameterTypes) ?: return null
         }
-        val returnType = declaration.returnType?.resolve()?.let { typeModel(it, scriptTypes) } ?: TypeModel.unit()
+        val returnType = declaration.returnType?.resolve()?.let { typeModel(it, scriptTypes, typeParameterTypes) } ?: TypeModel.unit()
         val callableName = declaration.qualifiedName?.asString() ?: declaration.simpleName.asString()
         val call = explicitReceiverExpression ?: when {
             declaration.parentDeclaration != null -> "receiver.${declaration.simpleName.asString()}(__ARGS__)"
@@ -313,6 +316,7 @@ private class KatariBindingProcessor(
             receiverType,
             params,
             returnType,
+            typeParameters,
             call,
             isSuspend = Modifier.SUSPEND in declaration.modifiers,
             passesReceiverAsArgument = false,
@@ -321,10 +325,6 @@ private class KatariBindingProcessor(
     }
 
     private fun validateCallable(declaration: KSFunctionDeclaration): Boolean {
-        if (declaration.typeParameters.isNotEmpty()) {
-            logger.error("Generic @ScriptBinding callables are not supported in v1", declaration)
-            return false
-        }
         val vararg = declaration.parameters.withIndex().firstOrNull { it.value.isVararg }
         if (vararg != null && vararg.index != declaration.parameters.lastIndex) {
             logger.error("Katari @ScriptBinding supports vararg only as the last parameter", vararg.value)
@@ -342,6 +342,7 @@ private class KatariBindingProcessor(
         parameter: KSValueParameter,
         fallbackName: String,
         scriptTypes: Map<String, ScriptTypeModel>,
+        typeParameters: Map<String, TypeParameterModel>,
     ): ParameterModel? {
         val name = parameter.name?.asString() ?: fallbackName
         val resolvedType = if (parameter.isVararg) {
@@ -352,8 +353,14 @@ private class KatariBindingProcessor(
         } else {
             parameter.type.resolve()
         }
-        val type = typeModel(resolvedType, scriptTypes) ?: return null
-        return ParameterModel(name, type, hasDefault = parameter.hasDefault, isVararg = parameter.isVararg)
+        val type = typeModel(resolvedType, scriptTypes, typeParameters) ?: return null
+        return ParameterModel(
+            name = name,
+            type = type,
+            hasDefault = parameter.hasDefault,
+            defaultValueExpression = defaultValueSourceReader.defaultValueExpression(parameter),
+            isVararg = parameter.isVararg,
+        )
     }
 
     private fun varargElementType(resolver: Resolver, type: KSType): KSType? {
@@ -368,19 +375,61 @@ private class KatariBindingProcessor(
         }
     }
 
-    private fun typeModel(type: KSType, scriptTypes: Map<String, ScriptTypeModel>): TypeModel? {
+    private fun typeParameterModels(
+        declaration: KSFunctionDeclaration,
+        scriptTypes: Map<String, ScriptTypeModel>,
+    ): List<TypeParameterModel>? {
+        return declaration.typeParameters.map { parameter ->
+            val bound = parameter.bounds
+                .map { it.resolve() }
+                .firstOrNull { it.declaration.qualifiedName?.asString() != "kotlin.Any" }
+                ?.let { typeModel(it, scriptTypes, emptyMap()) ?: return null }
+            TypeParameterModel(parameter.name.asString(), bound)
+        }
+    }
+
+    private fun typeModel(
+        type: KSType,
+        scriptTypes: Map<String, ScriptTypeModel>,
+        typeParameters: Map<String, TypeParameterModel> = emptyMap(),
+    ): TypeModel? {
+        (type.declaration as? KSTypeParameter)?.let { parameter ->
+            val name = parameter.name.asString()
+            return TypeModel.generic(name, typeParameters[name]?.upperBound, type.isMarkedNullable)
+        }
         val qualifiedName = type.declaration.qualifiedName?.asString() ?: return null
         val nullable = type.isMarkedNullable
         return when (qualifiedName) {
             "kotlin.Unit" -> TypeModel.unit(nullable)
+            "kotlin.Any" -> TypeModel.any(nullable)
             "kotlin.Boolean" -> TypeModel.primitive("Boolean", "Boolean", "asBoolean", nullable)
             "kotlin.Int" -> TypeModel.primitive("Int", "Int", "asInt", nullable)
             "kotlin.Double" -> TypeModel.primitive("Double", "Double", "asDouble", nullable)
             "kotlin.Float" -> TypeModel.primitive("Float", "Double", "asFloat", nullable)
             "kotlin.String" -> TypeModel.primitive("String", "String", "asString", nullable)
+            "kotlin.collections.List", "kotlin.collections.MutableList" -> collectionTypeModel(
+                type = type,
+                scriptTypes = scriptTypes,
+                typeParameters = typeParameters,
+                kotlinBaseType = if (qualifiedName.endsWith("MutableList")) "MutableList" else "List",
+                katariBaseType = if (qualifiedName.endsWith("MutableList")) "MutableList" else "List",
+                kind = CollectionKind.LIST,
+                expectedArguments = 1,
+            )
+
+            "kotlin.collections.Map", "kotlin.collections.MutableMap" -> collectionTypeModel(
+                type = type,
+                scriptTypes = scriptTypes,
+                typeParameters = typeParameters,
+                kotlinBaseType = if (qualifiedName.endsWith("MutableMap")) "MutableMap" else "Map",
+                katariBaseType = if (qualifiedName.endsWith("MutableMap")) "MutableMap" else "Map",
+                kind = CollectionKind.MAP,
+                expectedArguments = 2,
+            )
+
             else -> {
                 if (type.arguments.isNotEmpty()) {
-                    logger.error("Generic script binding type `${type.render()}` is not supported in v1", type.declaration)
+                    logger.error("Generic script binding type `${type.render()}` is not supported", type.declaration)
                     return null
                 }
                 if ((type.declaration as? KSClassDeclaration)?.classKind == ClassKind.ENUM_CLASS) {
@@ -394,6 +443,33 @@ private class KatariBindingProcessor(
                 TypeModel.host(type, scriptType, nullable)
             }
         }
+    }
+
+    private fun collectionTypeModel(
+        type: KSType,
+        scriptTypes: Map<String, ScriptTypeModel>,
+        typeParameters: Map<String, TypeParameterModel>,
+        kotlinBaseType: String,
+        katariBaseType: String,
+        kind: CollectionKind,
+        expectedArguments: Int,
+    ): TypeModel? {
+        if (type.arguments.size != expectedArguments) {
+            logger.error("Unsupported collection binding type `${type.render()}`", type.declaration)
+            return null
+        }
+        val arguments = type.arguments.map { argument ->
+            if (argument.variance == Variance.STAR) {
+                TypeModel.any(nullable = true)
+            } else {
+                val resolvedArgument = argument.type?.resolve() ?: run {
+                    logger.error("Unsupported collection binding type `${type.render()}`", type.declaration)
+                    return null
+                }
+                typeModel(resolvedArgument, scriptTypes, typeParameters) ?: return null
+            }
+        }
+        return TypeModel.collection(kotlinBaseType, katariBaseType, arguments, kind, type.isMarkedNullable)
     }
 
     private fun validateDuplicates(

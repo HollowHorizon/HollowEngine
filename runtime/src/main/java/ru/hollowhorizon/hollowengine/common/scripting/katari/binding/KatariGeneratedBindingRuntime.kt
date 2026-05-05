@@ -1,16 +1,40 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari.binding
 
-import com.sunnychung.lib.multiplatform.kotlite.model.*
+import com.sunnychung.lib.multiplatform.kotlite.model.BooleanValue
+import com.sunnychung.lib.multiplatform.kotlite.model.ByteValue
+import com.sunnychung.lib.multiplatform.kotlite.model.CharValue
+import com.sunnychung.lib.multiplatform.kotlite.model.DoubleValue
+import com.sunnychung.lib.multiplatform.kotlite.model.FloatValue
+import com.sunnychung.lib.multiplatform.kotlite.model.FunctionResponse
+import com.sunnychung.lib.multiplatform.kotlite.model.IntValue
+import com.sunnychung.lib.multiplatform.kotlite.model.KotlinValueHolder
+import com.sunnychung.lib.multiplatform.kotlite.model.ListValue
+import com.sunnychung.lib.multiplatform.kotlite.model.LongValue
+import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeEnumValue
+import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeHostValue
+import com.sunnychung.lib.multiplatform.kotlite.model.NullValue
+import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeMapEntry
+import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeValue
+import com.sunnychung.lib.multiplatform.kotlite.model.ShortValue
+import com.sunnychung.lib.multiplatform.kotlite.model.StringValue
+import com.sunnychung.lib.multiplatform.kotlite.model.SymbolTable
+import com.sunnychung.lib.multiplatform.kotlite.stdlib.collections.MapValue
 
 object KatariGeneratedBindingRuntime {
     fun toRuntimeValue(value: Any?, hostTypeId: String? = null, symbolTable: SymbolTable): RuntimeValue {
         return when (value) {
             null, Unit -> NullValue
             is RuntimeValue -> value
+            is Map<*, *> -> toRuntimeMapValue(value, symbolTable)
+            is Iterable<*> -> toRuntimeListValue(value, symbolTable)
             is Boolean -> BooleanValue(value, symbolTable)
             is Int -> IntValue(value, symbolTable)
+            is Long -> LongValue(value, symbolTable)
+            is Byte -> ByteValue(value, symbolTable)
+            is Short -> ShortValue(value, symbolTable)
             is Double -> DoubleValue(value, symbolTable)
             is Float -> FloatValue(value, symbolTable)
+            is Char -> CharValue(value, symbolTable)
             is String -> StringValue(value, symbolTable)
             is Enum<*> -> NarrativeEnumValue(
                 typeId = hostTypeId ?: value::class.simpleName
@@ -26,6 +50,24 @@ object KatariGeneratedBindingRuntime {
                 symbolTable = symbolTable
             )
         }
+    }
+
+    private fun toRuntimeListValue(value: Iterable<*>, symbolTable: SymbolTable): RuntimeValue {
+        val elements = value.map { toRuntimeValue(it, symbolTable = symbolTable) }
+        val elementType = elements.firstOrNull()?.type() ?: symbolTable.AnyType
+        return ListValue(elements, elementType, symbolTable)
+    }
+
+    private fun toRuntimeMapValue(value: Map<*, *>, symbolTable: SymbolTable): RuntimeValue {
+        val entries = value.map { (key, mapValue) ->
+            RuntimeMapEntry(
+                toRuntimeValue(key, symbolTable = symbolTable),
+                toRuntimeValue(mapValue, symbolTable = symbolTable),
+            )
+        }
+        val keyType = entries.firstOrNull()?.key?.type() ?: symbolTable.AnyType
+        val valueType = entries.firstOrNull()?.value?.type() ?: symbolTable.AnyType
+        return MapValue(entries.associate { it.key to it.value }, keyType, valueType, symbolTable)
     }
 
     fun asBoolean(value: RuntimeValue?, name: String): Boolean {
@@ -60,6 +102,52 @@ object KatariGeneratedBindingRuntime {
             is BooleanValue -> value.value.toString()
             else -> error("$name expects String")
         }
+    }
+
+    fun asAny(value: RuntimeValue?, name: String): Any? {
+        return when (value) {
+            null, NullValue -> null
+            is BooleanValue -> value.value
+            is IntValue -> value.value
+            is LongValue -> value.value
+            is ByteValue -> value.value
+            is ShortValue -> value.value
+            is DoubleValue -> value.value
+            is FloatValue -> value.value
+            is CharValue -> value.value
+            is StringValue -> value.value
+            is NarrativeHostValue -> value.value
+            is NarrativeEnumValue -> value
+            is KotlinValueHolder<*> -> value.value
+            else -> error("$name has unsupported generic runtime value `${value::class.qualifiedName}`")
+        }
+    }
+
+    fun <T> asList(
+        value: RuntimeValue?,
+        name: String,
+        convertElement: (RuntimeValue, Int) -> T,
+    ): List<T> {
+        val listValue = (value as? KotlinValueHolder<*>)?.value as? List<*>
+            ?: error("$name expects List")
+        return listValue.mapIndexed { index, item ->
+            convertElement(item as? RuntimeValue ?: error("$name[$index] expects runtime value"), index)
+        }
+    }
+
+    fun <K, V> asMap(
+        value: RuntimeValue?,
+        name: String,
+        convertKey: (RuntimeValue, Int) -> K,
+        convertValue: (RuntimeValue, Int) -> V,
+    ): Map<K, V> {
+        val mapValue = (value as? KotlinValueHolder<*>)?.value as? Map<*, *>
+            ?: error("$name expects Map")
+        return mapValue.entries.mapIndexed { index, entry ->
+            val key = entry.key as? RuntimeValue ?: error("$name key[$index] expects runtime value")
+            val itemValue = entry.value as? RuntimeValue ?: error("$name value[$index] expects runtime value")
+            convertKey(key, index) to convertValue(itemValue, index)
+        }.toMap()
     }
 
     inline fun <reified T : Any> asHost(value: RuntimeValue?, typeId: String, name: String): T {

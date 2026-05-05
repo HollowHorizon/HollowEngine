@@ -21,14 +21,26 @@ internal data class ParameterModel(
     val name: String,
     val type: TypeModel,
     val hasDefault: Boolean,
+    val defaultValueExpression: String? = null,
     val isVararg: Boolean,
 )
+
+internal data class TypeParameterModel(
+    val name: String,
+    val upperBound: TypeModel?,
+) {
+    fun definitionExpression(): String {
+        return upperBound?.let { "TypeParameter(\"$name\", \"${it.katariTypeExpression}\")" }
+            ?: "TypeParameter(\"$name\", null)"
+    }
+}
 
 internal data class FunctionModel(
     val scriptName: String,
     val receiver: TypeModel?,
     val parameters: List<ParameterModel>,
     val returnType: TypeModel,
+    val typeParameters: List<TypeParameterModel> = emptyList(),
     val call: String,
     val isSuspend: Boolean,
     val passesReceiverAsArgument: Boolean,
@@ -85,11 +97,19 @@ internal data class TypeModel(
     val converter: String?,
     val enumTypeId: String?,
     val nullable: Boolean,
+    val arguments: List<TypeModel> = emptyList(),
+    val genericName: String? = null,
+    val genericUpperBound: TypeModel? = null,
+    val collectionKind: CollectionKind? = null,
 ) {
     fun returnHostTypeExpression(): String = (hostTypeId ?: enumTypeId)?.let { "\"$it\"" } ?: "null"
 
     fun convertExpression(valueExpression: String, name: String): String {
         val nonNull = when {
+            collectionKind == CollectionKind.LIST -> listConvertExpression(valueExpression, name)
+            collectionKind == CollectionKind.MAP -> mapConvertExpression(valueExpression, name)
+            genericName != null -> genericUpperBound?.convertExpression(valueExpression, name)
+                ?: "KatariGeneratedBindingRuntime.asAny($valueExpression, \"$name\")"
             hostTypeId != null -> "KatariGeneratedBindingRuntime.asHost<$kotlinType>($valueExpression, \"$hostTypeId\", \"$name\")"
             enumTypeId != null -> "KatariGeneratedBindingRuntime.asEnum<$kotlinType>($valueExpression, \"$enumTypeId\", \"$name\")"
             converter != null -> "KatariGeneratedBindingRuntime.$converter($valueExpression, \"$name\")"
@@ -110,6 +130,21 @@ internal data class TypeModel(
         }
     }
 
+    private fun listConvertExpression(valueExpression: String, name: String): String {
+        val element = arguments.single()
+        return "KatariGeneratedBindingRuntime.asList($valueExpression, \"$name\") { item, index -> ${
+            element.convertExpression("item", "$name[\$index]")
+        } }"
+    }
+
+    private fun mapConvertExpression(valueExpression: String, name: String): String {
+        val key = arguments[0]
+        val value = arguments[1]
+        return "KatariGeneratedBindingRuntime.asMap($valueExpression, \"$name\", " +
+                "convertKey = { item, index -> ${key.convertExpression("item", "$name key[\$index]")} }, " +
+                "convertValue = { item, index -> ${value.convertExpression("item", "$name value[\$index]")} })"
+    }
+
     companion object {
         fun unit(nullable: Boolean = false) = TypeModel(
             kotlinType = "Unit",
@@ -118,6 +153,43 @@ internal data class TypeModel(
             converter = null,
             enumTypeId = null,
             nullable = nullable,
+        )
+
+        fun any(nullable: Boolean = true) = TypeModel(
+            kotlinType = if (nullable) "Any?" else "Any",
+            katariTypeExpression = if (nullable) "Any?" else "Any",
+            hostTypeId = null,
+            converter = "asAny",
+            enumTypeId = null,
+            nullable = nullable,
+        )
+
+        fun generic(name: String, upperBound: TypeModel?, nullable: Boolean) = TypeModel(
+            kotlinType = upperBound?.kotlinType ?: if (nullable) "Any?" else "Any",
+            katariTypeExpression = "$name${if (nullable) "?" else ""}",
+            hostTypeId = upperBound?.hostTypeId,
+            converter = upperBound?.converter,
+            enumTypeId = upperBound?.enumTypeId,
+            nullable = nullable,
+            genericName = name,
+            genericUpperBound = upperBound,
+        )
+
+        fun collection(
+            kotlinBaseType: String,
+            katariBaseType: String,
+            arguments: List<TypeModel>,
+            kind: CollectionKind,
+            nullable: Boolean,
+        ) = TypeModel(
+            kotlinType = "$kotlinBaseType<${arguments.joinToString { it.kotlinType }}>",
+            katariTypeExpression = "$katariBaseType<${arguments.joinToString { it.katariTypeExpression }}>${if (nullable) "?" else ""}",
+            hostTypeId = null,
+            converter = null,
+            enumTypeId = null,
+            nullable = nullable,
+            arguments = arguments,
+            collectionKind = kind,
         )
 
         fun primitive(
@@ -160,4 +232,9 @@ internal data class TypeModel(
             nullable = nullable,
         )
     }
+}
+
+internal enum class CollectionKind {
+    LIST,
+    MAP,
 }

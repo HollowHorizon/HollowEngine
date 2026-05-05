@@ -22,9 +22,9 @@ internal class KatariBindingCodegen(
         appendLine()
         appendLine("import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindingsBuilder")
         appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.CustomFunctionParameter")
-        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.DefaultArgumentMarker")
         appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.ExtensionProperty")
         appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.NullValue")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.TypeParameter")
         appendLine("import kotlinx.coroutines.launch")
         appendLine("import net.minecraft.server.MinecraftServer")
         appendLine("import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope")
@@ -145,14 +145,14 @@ internal class KatariBindingCodegen(
             } else {
                 parameter.type.katariTypeExpression
             }
-            appendLine("            CustomFunctionParameter(\"${parameter.name}\", \"$typeExpression\"${if (parameter.isVararg) ", modifiers=setOf(\"vararg\")" else ""}),")
+            appendLine("            ${parameter.parameterExpression(typeExpression)},")
         }
         appendLine("        ),")
         appendLine("        returnType = \"${function.returnType.katariTypeExpression}\",")
-        if (function.parameters.any { it.hasDefault }) {
-            appendLine("        parameterDefaults = listOf(")
-            function.parameters.forEach { parameter ->
-                appendLine("            ${if (parameter.hasDefault) "DefaultArgumentMarker" else "null"},")
+        if (function.typeParameters.isNotEmpty()) {
+            appendLine("        typeParameters = listOf(")
+            function.typeParameters.forEach { typeParameter ->
+                appendLine("            ${typeParameter.definitionExpression()},")
             }
             appendLine("        ),")
         }
@@ -160,6 +160,16 @@ internal class KatariBindingCodegen(
         function.receiver?.let {
             appendLine("            receiverType = \"${it.katariTypeExpression}\",")
         }
+    }
+
+    private fun ParameterModel.parameterExpression(typeExpression: String): String {
+        val arguments = buildList {
+            add("\"$name\"")
+            add("\"$typeExpression\"")
+            defaultValueExpression?.let { add("defaultValueExpression = \"${it.escapeKotlinString()}\"") }
+            if (isVararg) add("modifiers = setOf(\"vararg\")")
+        }
+        return "CustomFunctionParameter(${arguments.joinToString()})"
     }
 
     private fun StringBuilder.appendInvocation(function: FunctionModel, indent: String) {
@@ -172,16 +182,14 @@ internal class KatariBindingCodegen(
         fixedParameters.forEachIndexed { index, parameter ->
             val offset = receiverOffset + index
             appendLine("${indent}val ${parameter.name}Argument = arguments.getOrNull($offset)")
-            if (!parameter.hasDefault) {
-                appendLine(
-                    "${indent}val ${parameter.name} = ${
-                        parameter.type.convertExpression(
-                            "${parameter.name}Argument",
-                            parameter.name
-                        )
-                    }"
-                )
-            }
+            appendLine(
+                "${indent}val ${parameter.name} = ${
+                    parameter.type.convertExpression(
+                        "${parameter.name}Argument",
+                        parameter.name
+                    )
+                }"
+            )
         }
         vararg?.let { parameter ->
             val offset = receiverOffset + fixedParameters.size
@@ -195,60 +203,17 @@ internal class KatariBindingCodegen(
                 }"
             )
         }
-        appendDefaultBranches(function, fixedParameters, vararg, indent)
-    }
-
-    private fun StringBuilder.appendDefaultBranches(
-        function: FunctionModel,
-        fixedParameters: List<ParameterModel>,
-        vararg: ParameterModel?,
-        indent: String,
-    ) {
-        val defaultParameters = fixedParameters.filter { it.hasDefault }
-
-        if (defaultParameters.isEmpty()) {
-            appendReturn(function, callArguments(function, fixedParameters, vararg, emptyList()), indent)
-            return
-        }
-
-        val checkCondition = defaultParameters.joinToString(" || ") { "${it.name}Argument === DefaultArgumentMarker" }
-
-        appendLine("${indent}if ($checkCondition) {")
-
-        val minimalArgs = callArguments(function, fixedParameters, vararg, defaultParameters)
-        appendReturn(function, minimalArgs, indent + "    ")
-
-        appendLine("${indent}} else {")
-
-        appendProvidedDefaultLocals(defaultParameters, indent + "    ")
-        val fullArgs = callArguments(function, fixedParameters, vararg, emptyList())
-        appendReturn(function, fullArgs, indent + "    ")
-
-        appendLine("${indent}}")
-    }
-
-    private fun StringBuilder.appendProvidedDefaultLocals(parameters: List<ParameterModel>, indent: String) {
-        parameters.forEach { parameter ->
-            appendLine(
-                "${indent}val ${parameter.name} = ${
-                    parameter.type.convertExpression(
-                        "${parameter.name}Argument",
-                        parameter.name
-                    )
-                }"
-            )
-        }
+        appendReturn(function, callArguments(function, fixedParameters, vararg), indent)
     }
 
     private fun callArguments(
         function: FunctionModel,
         fixedParameters: List<ParameterModel>,
         vararg: ParameterModel?,
-        omitted: List<ParameterModel>,
     ): List<String> {
         return buildList {
             if (function.passesReceiverAsArgument) add("receiver")
-            fixedParameters.filterNot { it in omitted }.forEach { add("${it.name} = ${it.name}") }
+            fixedParameters.forEach { add("${it.name} = ${it.name}") }
             vararg?.let { add("${it.name} = ${it.name}") }
         }
     }
@@ -262,14 +227,6 @@ internal class KatariBindingCodegen(
         } else {
             appendLine("${indent}KatariGeneratedBindingRuntime.toRuntimeValue($call, ${function.returnType.returnHostTypeExpression()}, symbolTable = context.symbolTable)")
         }
-    }
-
-    private fun defaultCombinations(parameters: List<ParameterModel>): List<List<ParameterModel>> {
-        return parameters.fold(listOf<List<ParameterModel>>(emptyList())) { combinations, parameter ->
-            combinations + combinations.map { it + parameter }
-        }.sortedWith(compareByDescending<List<ParameterModel>> { it.size }.thenBy { list ->
-            list.joinToString { it.name }
-        })
     }
 
     private fun StringBuilder.registerProperties(properties: List<PropertyModel>) {
@@ -323,5 +280,20 @@ internal class KatariBindingCodegen(
 
     private fun PropertyModel.resolvedSetter(): String {
         return setter?.replace("__PROPERTY__", propertyImportAliases[this] ?: scriptName).orEmpty()
+    }
+
+    private fun String.escapeKotlinString(): String {
+        return buildString {
+            this@escapeKotlinString.forEach { char ->
+                when (char) {
+                    '\\' -> append("\\\\")
+                    '"' -> append("\\\"")
+                    '\n' -> append("\\n")
+                    '\r' -> append("\\r")
+                    '\t' -> append("\\t")
+                    else -> append(char)
+                }
+            }
+        }
     }
 }
