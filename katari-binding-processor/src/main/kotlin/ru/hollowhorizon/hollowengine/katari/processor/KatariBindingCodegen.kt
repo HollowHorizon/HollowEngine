@@ -166,7 +166,10 @@ internal class KatariBindingCodegen(
         val arguments = buildList {
             add("\"$name\"")
             add("\"$typeExpression\"")
-            defaultValueExpression?.let { add("defaultValueExpression = \"${it.escapeKotlinString()}\"") }
+            defaultValueExpression
+                // Katari пока не поддерживает Float, используем такой костыль
+                ?.let { it.toFloatOrNull()?.toDouble()?.toString() ?: it }
+                ?.let { add("defaultValueExpression = \"${it.escapeKotlinString()}\"") }
             if (isVararg) add("modifiers = setOf(\"vararg\")")
         }
         return "CustomFunctionParameter(${arguments.joinToString()})"

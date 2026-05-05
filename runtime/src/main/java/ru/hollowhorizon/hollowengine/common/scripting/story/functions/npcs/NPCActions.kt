@@ -40,7 +40,7 @@ suspend fun NpcEntity.move(entity: Entity, dist: Double = 1.5, speed: Double = 1
  *
  * @param mob Сущность, к которой нужно переместиться.
  */
-@ScriptBinding
+// @ScriptBinding
 suspend infix fun NpcEntity.move(mob: Entity): Unit = move(entity = mob)
 
 /**
@@ -65,7 +65,7 @@ suspend fun NpcEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
  *
  * @param position Позиция, к которой нужно переместиться.
  */
-@ScriptBinding
+// @ScriptBinding
 suspend infix fun NpcEntity.move(position: Vec3): Unit = move(pos = position)
 
 /**
