@@ -1,35 +1,27 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerialName
+import com.sunnychung.lib.multiplatform.kotlite.katari.ValueRestoreContext
 import com.sunnychung.lib.multiplatform.kotlite.katari.ValueSnapshot
-import ru.hollowhorizon.hollowengine.common.geary.components.ANY_STATE
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationControllerLayerSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationControllerStateSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationControllerTransitionSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationExpression
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationVectorExpression
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorLayerSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.BoneMask
-import ru.hollowhorizon.hollowengine.common.geary.components.ClipAnimationLayerSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.LayerBlendMode
-import ru.hollowhorizon.hollowengine.common.geary.components.ProceduralBoneTransformSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.ProceduralLayerSpec
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import net.minecraft.world.entity.Entity
+import ru.hollowhorizon.hollowengine.common.geary.api.set
+import ru.hollowhorizon.hollowengine.common.geary.binding.EntitySnapshotPacket
+import ru.hollowhorizon.hollowengine.common.geary.components.*
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
+import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.*
 
-class KatariAnimatorBuilder(
-    enabled: Boolean = true,
-    layers: List<AnimatorLayerSpec> = emptyList(),
+@ScriptBinding
+fun animatorController() = KatariAnimatorBuilder()
+
+@ScriptBinding
+@Serializable
+class KatariAnimatorBuilder @ScriptIgnore constructor(
+    val enabled: Boolean = true,
+    @property:ScriptIgnore
+    val layers: MutableList<AnimatorLayerSpec> = mutableListOf(),
 ) {
-    var enabled: Boolean = enabled
-        private set
-
-    private val layers = layers.toMutableList()
-
-    fun setEnabled(enabled: Boolean): KatariAnimatorBuilder = apply {
-        this.enabled = enabled
-    }
 
     fun clear(): KatariAnimatorBuilder = apply {
         layers.clear()
@@ -122,14 +114,14 @@ class KatariAnimatorBuilder(
     ): KatariAnimatorBuilder = updateController(controllerId) { layer ->
         layer.copy(
             transitions = layer.transitions.filterNot { it.from == from && it.to == to } +
-                AnimationControllerTransitionSpec(
-                    from = from.ifBlank { ANY_STATE },
-                    to = to,
-                    condition = condition.expr(),
-                    duration = duration.expr(),
-                    priority = priority,
-                    exitTime = exitTime,
-                )
+                    AnimationControllerTransitionSpec(
+                        from = from.ifBlank { ANY_STATE },
+                        to = to,
+                        condition = condition.expr(),
+                        duration = duration.expr(),
+                        priority = priority,
+                        exitTime = exitTime,
+                    )
         )
     }
 
@@ -170,9 +162,8 @@ class KatariAnimatorBuilder(
         )
     }
 
+    @ScriptIgnore
     fun build(): AnimatorComponent = AnimatorComponent(enabled = enabled, layers = layers.toList())
-
-    fun snapshot(): KatariAnimatorBuilderSnapshot = KatariAnimatorBuilderSnapshot(build())
 
     private fun replace(layer: AnimatorLayerSpec): KatariAnimatorBuilder = apply {
         layers.removeAll { it.id == layer.id }
@@ -201,12 +192,30 @@ class KatariAnimatorBuilder(
     }
 }
 
+@ScriptBinding
+fun Entity.setAnimator(builder: KatariAnimatorBuilder) {
+    set(builder.build())
+    EntitySnapshotPacket(
+        id,
+        snapshotOf(this),
+    ).sendTrackingEntityAndSelf(this)
+}
+
 @Serializable
 @SerialName("hollowengine:katari_animator")
+@ScriptType("Animator")
 data class KatariAnimatorBuilderSnapshot(
-    val component: AnimatorComponent,
-) : ValueSnapshot() {
-    fun restore(): KatariAnimatorBuilder = KatariAnimatorBuilder(component.enabled, component.layers)
+    val component: KatariAnimatorBuilder,
+) : ValueSnapshot(), ScriptSnapshot<KatariAnimatorBuilder> {
+    override suspend fun restore(context: ValueRestoreContext): KatariAnimatorBuilder {
+        return KatariAnimatorBuilder(component.enabled, component.layers.toMutableList())
+    }
+
+    companion object : ScriptSnapshotFactory<KatariAnimatorBuilder, KatariAnimatorBuilderSnapshot> {
+        override fun capture(value: KatariAnimatorBuilder): KatariAnimatorBuilderSnapshot {
+            return KatariAnimatorBuilderSnapshot(value)
+        }
+    }
 }
 
 internal fun vectorExpression(x: String, y: String, z: String) =

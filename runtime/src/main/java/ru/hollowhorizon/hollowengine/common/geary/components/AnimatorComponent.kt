@@ -1,9 +1,14 @@
 package ru.hollowhorizon.hollowengine.common.geary.components
 
+import com.sunnychung.lib.multiplatform.kotlite.katari.ValueRestoreContext
+import com.sunnychung.lib.multiplatform.kotlite.katari.ValueSnapshot
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import ru.hollowhorizon.hollowengine.api.Registerable
 import ru.hollowhorizon.hollowengine.api.Syncable
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshot
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptSnapshotFactory
+import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptType
 import java.util.*
 
 @Registerable
@@ -119,6 +124,22 @@ data class BoneMask(
 }
 
 @Serializable
+@SerialName("hollowengine:katari/bone_mask")
+@ScriptType("BoneMask")
+class BoneMaskSnapshot(val mask: BoneMask) : ValueSnapshot(), ScriptSnapshot<BoneMask> {
+    override suspend fun restore(context: ValueRestoreContext): BoneMask {
+        return mask
+    }
+
+    companion object : ScriptSnapshotFactory<BoneMask, BoneMaskSnapshot> {
+        override fun capture(value: BoneMask): BoneMaskSnapshot {
+            return BoneMaskSnapshot(value)
+        }
+
+    }
+}
+
+@Serializable
 data class AnimationExpression(
     val source: String = "0",
 ) {
@@ -139,6 +160,22 @@ data class AnimationVectorExpression(
     companion object {
         val ZERO = AnimationVectorExpression()
         val ONE = AnimationVectorExpression(AnimationExpression.ONE, AnimationExpression.ONE, AnimationExpression.ONE)
+    }
+}
+
+@Serializable
+@SerialName("hollowengine:katari/animations/vector_expression")
+@ScriptType("AnimationVectorExpression")
+class AnimationVectorExpressionSnapshot(val expression: AnimationVectorExpression) : ValueSnapshot(), ScriptSnapshot<AnimationVectorExpression> {
+    override suspend fun restore(context: ValueRestoreContext): AnimationVectorExpression {
+        return expression
+    }
+
+    companion object : ScriptSnapshotFactory<AnimationVectorExpression, AnimationVectorExpressionSnapshot> {
+        override fun capture(value: AnimationVectorExpression): AnimationVectorExpressionSnapshot {
+            return AnimationVectorExpressionSnapshot(value)
+        }
+
     }
 }
 

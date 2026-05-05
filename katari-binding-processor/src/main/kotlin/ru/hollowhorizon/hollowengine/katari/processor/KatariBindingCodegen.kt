@@ -55,8 +55,9 @@ internal class KatariBindingCodegen(
 
     private fun StringBuilder.registerTypes() {
         val orderedTypes = orderedScriptTypes()
+        val types = orderedTypes.associate { it.targetType to it.typeId }
         orderedTypes.forEach { scriptType ->
-            val superTypes = scriptType.superTypes
+            val superTypes = scriptType.superTypes.map { types[it] ?: error("Snapshot for $it not found!") }
             val superTypesArgument = if (superTypes.isEmpty()) {
                 "emptyList()"
             } else {
@@ -204,26 +205,26 @@ internal class KatariBindingCodegen(
         indent: String,
     ) {
         val defaultParameters = fixedParameters.filter { it.hasDefault }
+
         if (defaultParameters.isEmpty()) {
             appendReturn(function, callArguments(function, fixedParameters, vararg, emptyList()), indent)
             return
         }
-        // TODO: Вот этот кошмар нужно будет оптимизировать
-        val combinations = defaultCombinations(defaultParameters)
-        appendLine("${indent}when {")
-        combinations.dropLast(1).forEach { omitted ->
-            val condition = omitted.joinToString(" && ") { "${it.name}Argument === DefaultArgumentMarker" }
-            appendLine("$indent    $condition -> {")
-            appendProvidedDefaultLocals(defaultParameters - omitted.toSet(), indent + "        ")
-            val args = callArguments(function, fixedParameters, vararg, omitted)
-            appendReturn(function, args, indent + "        ")
-            appendLine("$indent    }")
-        }
-        appendLine("${indent}    else -> {")
-        appendProvidedDefaultLocals(defaultParameters, indent + "        ")
-        appendReturn(function, callArguments(function, fixedParameters, vararg, emptyList()), indent + "        ")
-        appendLine("${indent}    }")
-        appendLine("$indent}")
+
+        val checkCondition = defaultParameters.joinToString(" || ") { "${it.name}Argument === DefaultArgumentMarker" }
+
+        appendLine("${indent}if ($checkCondition) {")
+
+        val minimalArgs = callArguments(function, fixedParameters, vararg, defaultParameters)
+        appendReturn(function, minimalArgs, indent + "    ")
+
+        appendLine("${indent}} else {")
+
+        appendProvidedDefaultLocals(defaultParameters, indent + "    ")
+        val fullArgs = callArguments(function, fixedParameters, vararg, emptyList())
+        appendReturn(function, fullArgs, indent + "    ")
+
+        appendLine("${indent}}")
     }
 
     private fun StringBuilder.appendProvidedDefaultLocals(parameters: List<ParameterModel>, indent: String) {

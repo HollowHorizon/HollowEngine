@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
 import com.sunnychung.lib.multiplatform.kotlite.katari.*
+import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeHostValue
 import com.sunnychung.lib.multiplatform.kotlite.stdlib.AllStdLibModules
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -100,25 +101,14 @@ fun createHollowKatariBindings(
         install(AllStdLibModules { message -> server.playerList.players.forEach { it.sendSystemMessage(message.literal) } })
         registerBuiltinFunctions(host)
         registerHostTypes()
-        registerContextGlobals(server, sourcePlayer, sourcePlayerId)
-        registerHollowKatariProperties()
         registerGeneratedKatariBindings(server)
-        hollowKatariFunctions(server, sourcePlayer)
+        registerContextGlobals(server, sourcePlayer, sourcePlayerId)
     }
     return bindings to host
 }
 
 fun NarrativeBindingsBuilder.registerHostTypes() {
     registerHostType(KatariChatMessage::class, "ChatMessage")
-    registerHostType(
-        KatariAnimatorBuilder::class,
-        "AnimatorController",
-        emptyList(),
-        KatariAnimatorBuilderSnapshot::class,
-        KatariAnimatorBuilderSnapshot.serializer(),
-        serialize = { it.snapshot() },
-        deserialize = { snapshot, _ -> snapshot.restore() },
-    )
     registerHostType(MinecraftServer::class, "Server")
     registerHostType(ServerLevel::class, "Level")
 }
@@ -129,7 +119,7 @@ fun NarrativeBindingsBuilder.registerContextGlobals(
     sourcePlayerId: String?,
 ) {
     val playerRef: Player? = sourcePlayer ?: sourcePlayerId?.let { server.playerList.getPlayer(UUID.fromString(it)) }
-    playerRef?.let { global("player", it) }
-    global("server", server)
-    global("level", sourcePlayer?.level() ?: server.overworld())
+    playerRef?.let { global("player", NarrativeHostValue("Player", it, symbolTable)) }
+    global("server", NarrativeHostValue("Server", server, symbolTable))
+    global("level", NarrativeHostValue("Level", sourcePlayer?.level() ?: server.overworld(), symbolTable))
 }
