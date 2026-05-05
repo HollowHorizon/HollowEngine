@@ -20,20 +20,16 @@ internal class KatariBindingCodegen(
     fun generate(): String = buildString {
         appendLine("package ru.hollowhorizon.hollowengine.common.scripting.katari")
         appendLine()
-        appendLine("import com.sunnychung.lib.multiplatform.kotlite.katari.ImmediateKatariFunctionDefinition")
-        appendLine("import com.sunnychung.lib.multiplatform.kotlite.katari.KatariCallableSignature")
-        appendLine("import com.sunnychung.lib.multiplatform.kotlite.katari.KatariParameterType")
-        appendLine("import com.sunnychung.lib.multiplatform.kotlite.katari.KatariTypes")
-        appendLine("import com.sunnychung.lib.multiplatform.kotlite.katari.KatariValue")
         appendLine("import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindingsBuilder")
-        appendLine("import com.sunnychung.lib.multiplatform.kotlite.katari.SuspendableKatariFunctionDefinition")
-        appendLine("import com.sunnychung.lib.multiplatform.kotlite.katari.asValueParameter")
-        appendLine("import com.sunnychung.lib.multiplatform.kotlite.katari.toKatari")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.CustomFunctionParameter")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.DefaultArgumentMarker")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.ExtensionProperty")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.NullValue")
         appendLine("import kotlinx.coroutines.launch")
         appendLine("import net.minecraft.server.MinecraftServer")
         appendLine("import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope")
         appendLine("import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.GeneratedKatariErrorResponse")
-        appendLine("import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.GeneratedKatariValueResponse")
+        appendLine("import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.GeneratedRuntimeValueResponse")
         appendLine("import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.KatariGeneratedBindingRuntime")
         importAliases.forEach { (function, alias) ->
             appendLine("import ${function.importQualifiedName} as $alias")
@@ -52,25 +48,24 @@ internal class KatariBindingCodegen(
     }
 
     private fun StringBuilder.registerEnums() {
-        enumTypes.sortedBy { it.typeId }.forEachIndexed { index, enumType ->
-            appendLine("    val generatedEnum$index = ${enumType.kotlinType}::class.toKatari(\"${enumType.typeId}\")")
-            appendLine("    registerEnum(generatedEnum$index, ${enumType.kotlinType}::class.java.enumConstants.toList())")
+        enumTypes.sortedBy { it.typeId }.forEach { enumType ->
+            appendLine("    registerEnum(${enumType.kotlinType}::class, \"${enumType.typeId}\", ${enumType.kotlinType}::class.java.enumConstants.toList())")
         }
     }
 
     private fun StringBuilder.registerTypes() {
         val orderedTypes = orderedScriptTypes()
-        val variables = orderedTypes.withIndex().associate { (index, type) -> type.targetType to "generatedType$index" }
-        orderedTypes.forEachIndexed { index, scriptType ->
-            val superTypes = scriptType.superTypes.mapNotNull(variables::get)
+        orderedTypes.forEach { scriptType ->
+            val superTypes = scriptType.superTypes
             val superTypesArgument = if (superTypes.isEmpty()) {
-                ""
+                "emptyList()"
             } else {
-                ", superTypes = listOf(${superTypes.joinToString()})"
+                "listOf(${superTypes.joinToString(prefix = "\"", postfix = "\"")})"
             }
-            appendLine("    val generatedType$index = ${scriptType.targetType}::class.toKatari(\"${scriptType.typeId}\"$superTypesArgument)")
             appendLine("    registerHostType(")
-            appendLine("        generatedType$index,")
+            appendLine("        ${scriptType.targetType}::class,")
+            appendLine("        \"${scriptType.typeId}\",")
+            appendLine("        $superTypesArgument,")
             appendLine("        ${scriptType.snapshotType}::class,")
             appendLine("        ${scriptType.snapshotType}.serializer(),")
             appendLine("        serialize = { ${scriptType.snapshotType}.capture(it) },")
@@ -100,68 +95,70 @@ internal class KatariBindingCodegen(
 
     private fun StringBuilder.registerFunctions(functions: List<FunctionModel>) {
         if (functions.isEmpty()) return
-        appendLine("    register(")
-        appendLine("        listOf(")
         functions.forEach { function ->
             if (function.isSuspend) appendSuspendableFunction(function) else appendImmediateFunction(function)
         }
-        appendLine("        )")
-        appendLine("    )")
     }
 
     private fun StringBuilder.appendImmediateFunction(function: FunctionModel) {
-        appendLine("            ImmediateKatariFunctionDefinition(")
-        appendLine("                id = \"${function.scriptName}\",")
+        appendLine("    immediateFunction(")
+        appendLine("        \"${function.scriptName}\",")
         appendSignature(function)
-        appendLine("            ) { arguments, _ ->")
-        appendInvocation(function, indent = "                ")
-        appendLine("            },")
+        appendLine("    ) { arguments, context ->")
+        appendInvocation(function, indent = "            ")
+        appendLine("    }")
     }
 
     private fun StringBuilder.appendSuspendableFunction(function: FunctionModel) {
-        appendLine("            SuspendableKatariFunctionDefinition(")
-        appendLine("                id = \"${function.scriptName}\",")
+        appendLine("    suspendableFunction(")
+        appendLine("        \"${function.scriptName}\",")
         appendSignature(function)
-        appendLine("                onDispatch = { arguments, _, resume ->")
-        appendLine("                    server.coroutineScope.launch {")
-        appendLine("                        val result = runCatching {")
-        appendInvocation(function, indent = "                            ")
-        appendLine("                        }")
-        appendLine("                        resume(")
-        appendLine("                            result.fold(")
-        appendLine("                                onSuccess = { GeneratedKatariValueResponse(it) },")
-        appendLine("                                onFailure = { GeneratedKatariErrorResponse(it.message ?: it::class.java.simpleName) },")
-        appendLine("                            )")
-        appendLine("                        )")
-        appendLine("                    }")
-        appendLine("                },")
-        appendLine("                onResume = { _, response, _ ->")
-        appendLine("                    when (response) {")
-        appendLine("                        is GeneratedKatariValueResponse -> response.value")
-        appendLine("                        is GeneratedKatariErrorResponse -> error(response.message)")
-        appendLine("                        else -> KatariValue.Null")
-        appendLine("                    }")
-        appendLine("                },")
-        appendLine("            ),")
+        appendLine("    onDispatch = { arguments, context, resume ->")
+        appendLine("        server.coroutineScope.launch {")
+        appendLine("            val result = runCatching {")
+        appendInvocation(function, indent = "                ")
+        appendLine("            }")
+        appendLine("            resume(")
+        appendLine("                result.fold(")
+        appendLine("                    onSuccess = { GeneratedRuntimeValueResponse(it) },")
+        appendLine("                    onFailure = { GeneratedKatariErrorResponse(it.message ?: it::class.java.simpleName) },")
+        appendLine("                )")
+        appendLine("            )")
+        appendLine("        }")
+        appendLine("    },")
+        appendLine("    onResume = { arguments, response, resume ->")
+        appendLine("        when (response) {")
+        appendLine("            is GeneratedRuntimeValueResponse -> response.value")
+        appendLine("            is GeneratedKatariErrorResponse -> error(response.message)")
+        appendLine("            else -> NullValue")
+        appendLine("        }")
+        appendLine("    },")
+        appendLine(")")
     }
 
     private fun StringBuilder.appendSignature(function: FunctionModel) {
-        appendLine("                signature = KatariCallableSignature(")
-            function.receiver?.let {
-                appendLine("                    dispatchReceiverType = ${it.katariTypeExpression},")
+        appendLine("        listOf(")
+        function.parameters.forEach { parameter ->
+            val typeExpression = if (parameter.isVararg) {
+                "${parameter.type.katariTypeExpression}.repeated()"
+            } else {
+                parameter.type.katariTypeExpression
             }
-            appendLine("                    valueParameters = listOf(")
+            appendLine("            CustomFunctionParameter(\"${parameter.name}\", \"$typeExpression\"${if (parameter.isVararg) ", modifiers=setOf(\"vararg\")" else ""}),")
+        }
+        appendLine("        ),")
+        appendLine("        returnType = \"${function.returnType.katariTypeExpression}\",")
+        if (function.parameters.any { it.hasDefault }) {
+            appendLine("        parameterDefaults = listOf(")
             function.parameters.forEach { parameter ->
-                val typeExpression = if (parameter.isVararg) {
-                    "${parameter.type.katariTypeExpression}.repeated()"
-                } else {
-                    parameter.type.katariTypeExpression
-                }
-                appendLine("                        $typeExpression.asValueParameter(\"${parameter.name}\", hasDefault = ${parameter.hasDefault}),")
+                appendLine("            ${if (parameter.hasDefault) "DefaultArgumentMarker" else "null"},")
             }
-            appendLine("                    ),")
-            appendLine("                    returnType = ${function.returnType.katariTypeExpression},")
-            appendLine("                ),")
+            appendLine("        ),")
+        }
+
+        function.receiver?.let {
+            appendLine("            receiverType = \"${it.katariTypeExpression}\",")
+        }
     }
 
     private fun StringBuilder.appendInvocation(function: FunctionModel, indent: String) {
@@ -175,13 +172,27 @@ internal class KatariBindingCodegen(
             val offset = receiverOffset + index
             appendLine("${indent}val ${parameter.name}Argument = arguments.getOrNull($offset)")
             if (!parameter.hasDefault) {
-                appendLine("${indent}val ${parameter.name} = ${parameter.type.convertExpression("${parameter.name}Argument", parameter.name)}")
+                appendLine(
+                    "${indent}val ${parameter.name} = ${
+                        parameter.type.convertExpression(
+                            "${parameter.name}Argument",
+                            parameter.name
+                        )
+                    }"
+                )
             }
         }
         vararg?.let { parameter ->
             val offset = receiverOffset + fixedParameters.size
             appendLine("${indent}val ${parameter.name}Arguments = arguments.drop($offset)")
-            appendLine("${indent}val ${parameter.name} = ${parameter.type.varargArrayExpression("${parameter.name}Arguments", parameter.name)}")
+            appendLine(
+                "${indent}val ${parameter.name} = ${
+                    parameter.type.varargArrayExpression(
+                        "${parameter.name}Arguments",
+                        parameter.name
+                    )
+                }"
+            )
         }
         appendDefaultBranches(function, fixedParameters, vararg, indent)
     }
@@ -197,10 +208,11 @@ internal class KatariBindingCodegen(
             appendReturn(function, callArguments(function, fixedParameters, vararg, emptyList()), indent)
             return
         }
+        // TODO: Вот этот кошмар нужно будет оптимизировать
         val combinations = defaultCombinations(defaultParameters)
         appendLine("${indent}when {")
         combinations.dropLast(1).forEach { omitted ->
-            val condition = omitted.joinToString(" && ") { "${it.name}Argument == KatariValue.DefaultArgument" }
+            val condition = omitted.joinToString(" && ") { "${it.name}Argument === DefaultArgumentMarker" }
             appendLine("$indent    $condition -> {")
             appendProvidedDefaultLocals(defaultParameters - omitted.toSet(), indent + "        ")
             val args = callArguments(function, fixedParameters, vararg, omitted)
@@ -216,7 +228,14 @@ internal class KatariBindingCodegen(
 
     private fun StringBuilder.appendProvidedDefaultLocals(parameters: List<ParameterModel>, indent: String) {
         parameters.forEach { parameter ->
-            appendLine("${indent}val ${parameter.name} = ${parameter.type.convertExpression("${parameter.name}Argument", parameter.name)}")
+            appendLine(
+                "${indent}val ${parameter.name} = ${
+                    parameter.type.convertExpression(
+                        "${parameter.name}Argument",
+                        parameter.name
+                    )
+                }"
+            )
         }
     }
 
@@ -238,9 +257,9 @@ internal class KatariBindingCodegen(
         val call = aliasedCall.replace("__ARGS__", arguments.joinToString())
         if (function.returnType.kotlinType == "Unit") {
             appendLine("$indent$call")
-            appendLine("${indent}KatariGeneratedBindingRuntime.toKatariValue(Unit)")
+            appendLine("${indent}KatariGeneratedBindingRuntime.toRuntimeValue(Unit, symbolTable = context.symbolTable)")
         } else {
-            appendLine("${indent}KatariGeneratedBindingRuntime.toKatariValue($call, ${function.returnType.returnHostTypeExpression()})")
+            appendLine("${indent}KatariGeneratedBindingRuntime.toRuntimeValue($call, ${function.returnType.returnHostTypeExpression()}, symbolTable = context.symbolTable)")
         }
     }
 
@@ -255,21 +274,44 @@ internal class KatariBindingCodegen(
     private fun StringBuilder.registerProperties(properties: List<PropertyModel>) {
         properties.forEach { property ->
             val getter = property.resolvedGetter()
-            appendLine("    extensionProperty(")
-            appendLine("        name = \"${property.scriptName}\",")
-            appendLine("        receiver = ${property.receiver.katariTypeExpression},")
-            appendLine("        valueType = ${property.valueType.katariTypeExpression},")
-            appendLine("        getter = { receiver, _ ->")
-            appendLine("            val typedReceiver = ${property.receiver.convertExpression("receiver", "${property.scriptName} receiver")}")
-            appendLine("            KatariGeneratedBindingRuntime.toKatariValue($getter, ${property.valueType.returnHostTypeExpression()})")
-            appendLine("        },")
+            appendLine("    registerKotliteExtensionProperty(")
+            appendLine("        ExtensionProperty(")
+            appendLine("            declaredName = \"${property.scriptName}\",")
+            appendLine("            receiver = \"${property.receiver.katariTypeExpression}\",")
+            appendLine("            type = \"${property.valueType.katariTypeExpression}\",")
+            appendLine("            getter = { interpreter, receiver, _ ->")
+            appendLine(
+                "                val typedReceiver = ${
+                    property.receiver.convertExpression(
+                        "receiver",
+                        "${property.scriptName} receiver"
+                    )
+                }"
+            )
+            appendLine("                KatariGeneratedBindingRuntime.toRuntimeValue($getter, ${property.valueType.returnHostTypeExpression()}, interpreter.symbolTable())")
+            appendLine("            },")
             if (property.writable && property.setter != null) {
                 val setter = property.resolvedSetter()
-                appendLine("        setter = { receiver, value, _ ->")
-                appendLine("            val typedReceiver = ${property.receiver.convertExpression("receiver", "${property.scriptName} receiver")}")
-                appendLine("            $setter = ${property.valueType.convertExpression("value", property.scriptName)}")
+                appendLine("        setter = { interpreter, receiver, value, _ ->")
+                appendLine(
+                    "            val typedReceiver = ${
+                        property.receiver.convertExpression(
+                            "receiver",
+                            "${property.scriptName} receiver"
+                        )
+                    }"
+                )
+                appendLine(
+                    "            $setter = ${
+                        property.valueType.convertExpression(
+                            "value",
+                            property.scriptName
+                        )
+                    }"
+                )
                 appendLine("        },")
             }
+            appendLine("        )")
             appendLine("    )")
         }
     }

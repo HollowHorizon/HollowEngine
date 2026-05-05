@@ -7,7 +7,9 @@ import kotlinx.coroutines.launch
 import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
+import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.utils.colored
 import ru.hollowhorizon.hollowengine.common.utils.literal
@@ -101,27 +103,24 @@ fun createHollowKatariBindings(
         registerContextGlobals(server, sourcePlayer, sourcePlayerId)
         registerHollowKatariProperties()
         registerGeneratedKatariBindings(server)
-        register(hollowKatariFunctions(server, sourcePlayer))
+        hollowKatariFunctions(server, sourcePlayer)
     }
     return bindings to host
 }
 
 fun NarrativeBindingsBuilder.registerHostTypes() {
-    val chatMessageType = KatariChatMessage::class.toKatari("ChatMessage")
-    val animatorType = KatariAnimatorBuilder::class.toKatari("AnimatorController")
-    val serverType = MinecraftServer::class.toKatari("Server")
-    val levelType = net.minecraft.server.level.ServerLevel::class.toKatari("Level")
-
-    registerHostType(chatMessageType)
+    registerHostType(KatariChatMessage::class, "ChatMessage")
     registerHostType(
-        animatorType,
+        KatariAnimatorBuilder::class,
+        "AnimatorController",
+        emptyList(),
         KatariAnimatorBuilderSnapshot::class,
         KatariAnimatorBuilderSnapshot.serializer(),
         serialize = { it.snapshot() },
         deserialize = { snapshot, _ -> snapshot.restore() },
     )
-    registerHostType(serverType)
-    registerHostType(levelType)
+    registerHostType(MinecraftServer::class, "Server")
+    registerHostType(ServerLevel::class, "Level")
 }
 
 fun NarrativeBindingsBuilder.registerContextGlobals(
@@ -129,10 +128,8 @@ fun NarrativeBindingsBuilder.registerContextGlobals(
     sourcePlayer: ServerPlayer?,
     sourcePlayerId: String?,
 ) {
-    val playerRef = sourcePlayer ?: sourcePlayerId?.let { server.playerList.getPlayer(UUID.fromString(it)) }
-    playerRef?.let { global("player", KatariValue.HostObject("Player", it)) }
-    globalProperty("server", getter = { KatariValue.HostObject("Server", server) })
-    globalProperty("level", getter = {
-        KatariValue.HostObject("Level", sourcePlayer?.level() ?: server.overworld())
-    })
+    val playerRef: Player? = sourcePlayer ?: sourcePlayerId?.let { server.playerList.getPlayer(UUID.fromString(it)) }
+    playerRef?.let { global("player", it) }
+    global("server", server)
+    global("level", sourcePlayer?.level() ?: server.overworld())
 }

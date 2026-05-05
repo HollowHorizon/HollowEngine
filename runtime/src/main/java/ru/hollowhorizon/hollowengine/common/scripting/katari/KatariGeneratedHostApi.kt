@@ -15,6 +15,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.client.gui.timeline.cutscene.PlayCutscenePacket
 import ru.hollowhorizon.hollowengine.common.codeblocks.blocks.npc.NpcAnimationRuntime
+import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
 import ru.hollowhorizon.hollowengine.common.events.factory.await
@@ -56,6 +57,11 @@ fun createKatariNpc(
 
 @ScriptBinding("command")
 fun executeKatariCommand(command: String): Int = execute(command)
+
+@ScriptBinding
+fun Player.runScript(path: String) {
+    currentServer.runtimeContext.katari.run(path, this as ServerPlayer).getOrThrow()
+}
 
 @ScriptBinding
 suspend fun waitTime(timeOfDay: Int) {

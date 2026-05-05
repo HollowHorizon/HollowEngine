@@ -373,11 +373,11 @@ private class KatariBindingProcessor(
         val nullable = type.isMarkedNullable
         return when (qualifiedName) {
             "kotlin.Unit" -> TypeModel.unit(nullable)
-            "kotlin.Boolean" -> TypeModel.primitive("Boolean", "KatariTypes.Boolean", "asBoolean", nullable)
-            "kotlin.Int" -> TypeModel.primitive("Int", "KatariTypes.Int", "asInt", nullable)
-            "kotlin.Double" -> TypeModel.primitive("Double", "KatariTypes.Double", "asDouble", nullable)
-            "kotlin.Float" -> TypeModel.primitive("Float", "KatariTypes.Double", "asFloat", nullable)
-            "kotlin.String" -> TypeModel.primitive("String", "KatariTypes.Text", "asString", nullable)
+            "kotlin.Boolean" -> TypeModel.primitive("Boolean", "Boolean", "asBoolean", nullable)
+            "kotlin.Int" -> TypeModel.primitive("Int", "Int", "asInt", nullable)
+            "kotlin.Double" -> TypeModel.primitive("Double", "Double", "asDouble", nullable)
+            "kotlin.Float" -> TypeModel.primitive("Float", "Double", "asFloat", nullable)
+            "kotlin.String" -> TypeModel.primitive("String", "String", "asString", nullable)
             else -> {
                 if (type.arguments.isNotEmpty()) {
                     logger.error("Generic script binding type `${type.render()}` is not supported in v1", type.declaration)

@@ -1,9 +1,6 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariFunctionDefinition
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariParameterType
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariTypes
-import com.sunnychung.lib.multiplatform.kotlite.katari.KatariValue
+import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.common.geary.api.set
@@ -14,7 +11,6 @@ import ru.hollowhorizon.hollowengine.common.geary.components.LayerBlendMode
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
 import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 
-internal val KATARI_ANIMATOR = KatariParameterType("AnimatorController")
 
 internal fun katariAnimatorFunctions(server: MinecraftServer): List<KatariFunctionDefinition> {
     return listOf(
@@ -33,7 +29,7 @@ internal fun katariAnimatorFunctions(server: MinecraftServer): List<KatariFuncti
         immediate("animator", signature = valueSignature().returns(KATARI_ANIMATOR)) {
             KatariAnimatorBuilder().toKatariHost()
         },
-        immediate("setAnimator", signature = memberSignature(KATARI_ENTITY, KATARI_ANIMATOR)) { args ->
+        immediate("setAnimator", signature = HtmlStyle.memberSignature(KATARI_ENTITY, KATARI_ANIMATOR)) { args ->
             val entity = args.receiver<Entity>("setAnimator")
             val builder = args.getOrNull(1).asHost<KatariAnimatorBuilder>("AnimatorController", "setAnimator builder")
             entity.set(builder.build())
@@ -42,10 +38,12 @@ internal fun katariAnimatorFunctions(server: MinecraftServer): List<KatariFuncti
                 snapshotOf(entity),
             ).sendTrackingEntityAndSelf(entity)
         },
-        immediate("clearAnimator", signature = memberSignature(KATARI_ANIMATOR).returns(KATARI_ANIMATOR)) { args ->
+        immediate("clearAnimator", signature = HtmlStyle.memberSignature(KATARI_ANIMATOR)
+            .returns(KATARI_ANIMATOR)) { args ->
             args.receiver<KatariAnimatorBuilder>("clearAnimator").clear().toKatariHost()
         },
-        immediate("removeLayer", signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text).returns(KATARI_ANIMATOR)) { args ->
+        immediate("removeLayer", signature = HtmlStyle.memberSignature(KATARI_ANIMATOR, KatariTypes.Text)
+            .returns(KATARI_ANIMATOR)) { args ->
             args.receiver<KatariAnimatorBuilder>("removeLayer")
                 .removeLayer(args.getOrNull(1)?.asText() ?: error("removeLayer(id) expects id"))
                 .toKatariHost()
@@ -67,7 +65,7 @@ internal fun katariAnimatorFunctions(server: MinecraftServer): List<KatariFuncti
 
 private fun clipFunction() = immediate(
     "clip",
-    signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text, KatariTypes.Text).returns(KATARI_ANIMATOR),
+    signature = HtmlStyle.memberSignature(KATARI_ANIMATOR, KatariTypes.Text, KatariTypes.Text).returns(KATARI_ANIMATOR),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("clip")
         .clip(
@@ -79,7 +77,7 @@ private fun clipFunction() = immediate(
 
 private fun clipAdvancedFunction() = immediate(
     "clip",
-    signature = memberSignature(
+    signature = HtmlStyle.memberSignature(
         KATARI_ANIMATOR,
         KatariTypes.Text,
         KatariTypes.Text,
@@ -146,7 +144,7 @@ private fun clipFullFunction() = immediate(
 
 private fun controllerFunction() = immediate(
     "controller",
-    signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text, KatariTypes.Text).returns(KATARI_ANIMATOR),
+    signature = HtmlStyle.memberSignature(KATARI_ANIMATOR, KatariTypes.Text, KatariTypes.Text).returns(KATARI_ANIMATOR),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("controller")
         .controller(
@@ -187,7 +185,13 @@ private fun controllerFullFunction() = immediate(
 
 private fun stateFunction() = immediate(
     "state",
-    signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text, KatariTypes.Text, KatariTypes.Text, KatariTypes.Text)
+    signature = HtmlStyle.memberSignature(
+        KATARI_ANIMATOR,
+        KatariTypes.Text,
+        KatariTypes.Text,
+        KatariTypes.Text,
+        KatariTypes.Text
+    )
         .returns(KATARI_ANIMATOR),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("state")
@@ -227,7 +231,7 @@ private fun stateFullFunction() = immediate(
 
 private fun transitionFunction() = immediate(
     "transition",
-    signature = memberSignature(
+    signature = HtmlStyle.memberSignature(
         KATARI_ANIMATOR,
         KatariTypes.Text,
         KatariTypes.Text,
@@ -276,7 +280,7 @@ private fun transitionFullFunction() = immediate(
 
 private fun proceduralFunction() = immediate(
     "procedural",
-    signature = memberSignature(KATARI_ANIMATOR, KatariTypes.Text).returns(KATARI_ANIMATOR),
+    signature = HtmlStyle.memberSignature(KATARI_ANIMATOR, KatariTypes.Text).returns(KATARI_ANIMATOR),
 ) { args ->
     args.receiver<KatariAnimatorBuilder>("procedural")
         .procedural(args.getOrNull(1)?.asText() ?: error("procedural(id) expects id"))
@@ -312,7 +316,7 @@ private fun proceduralFullFunction() = immediate(
 
 private fun boneTransformFunction() = immediate(
     "boneTransform",
-    signature = memberSignature(
+    signature = HtmlStyle.memberSignature(
         KATARI_ANIMATOR,
         KatariTypes.Text,
         KatariTypes.Text,

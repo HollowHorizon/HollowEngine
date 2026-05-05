@@ -113,7 +113,7 @@ internal data class TypeModel(
     companion object {
         fun unit(nullable: Boolean = false) = TypeModel(
             kotlinType = "Unit",
-            katariTypeExpression = if (nullable) "KatariTypes.Unit.nullable()" else "KatariTypes.Unit",
+            katariTypeExpression = if (nullable) "Unit?" else "Unit",
             hostTypeId = null,
             converter = null,
             enumTypeId = null,
@@ -127,7 +127,7 @@ internal data class TypeModel(
             nullable: Boolean,
         ) = TypeModel(
             kotlinType = kotlinType,
-            katariTypeExpression = if (nullable) "$katariTypeExpression.nullable()" else katariTypeExpression,
+            katariTypeExpression = if (nullable) "$katariTypeExpression?" else katariTypeExpression,
             hostTypeId = null,
             converter = converter,
             enumTypeId = null,
@@ -137,9 +137,9 @@ internal data class TypeModel(
         fun host(type: KSType, scriptType: ScriptTypeModel, nullable: Boolean = type.isMarkedNullable) = TypeModel(
             kotlinType = type.declaration.qualifiedName?.asString() ?: type.declaration.simpleName.asString(),
             katariTypeExpression = if (nullable) {
-                "KatariParameterType(\"${scriptType.typeId}\").nullable()"
+                "${scriptType.typeId}?"
             } else {
-                "KatariParameterType(\"${scriptType.typeId}\")"
+                scriptType.typeId
             },
             hostTypeId = scriptType.typeId,
             converter = null,
@@ -150,9 +150,9 @@ internal data class TypeModel(
         fun enum(type: KSType, typeId: String, nullable: Boolean = type.isMarkedNullable) = TypeModel(
             kotlinType = type.declaration.qualifiedName?.asString() ?: type.declaration.simpleName.asString(),
             katariTypeExpression = if (nullable) {
-                "KatariParameterType(\"$typeId\").nullable()"
+                "$typeId?"
             } else {
-                "KatariParameterType(\"$typeId\")"
+                typeId
             },
             hostTypeId = null,
             converter = null,

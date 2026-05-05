@@ -120,8 +120,8 @@ dependencies {
     addShadow("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
     addShadow("io.github.classgraph:classgraph:4.8.173")
     addShadow("lib:kermit-core-mcfriendly:2.0.4")
-    addShadow("lib:katari-interpreter-jvm:1.1.2")
-    addShadow("lib:katari-stdlib-jvm:1.1.0")
+    addShadow("lib:katari-jvm:1.2.0")
+    addShadow("lib:katari-stdlib-jvm:1.2.0")
 
     addShadow("androidx.compose.runtime:runtime:1.10.3")
     addShadow("androidx.collection:collection:1.4.0")

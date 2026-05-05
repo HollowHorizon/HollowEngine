@@ -41,8 +41,7 @@ class KatariScriptSystem(
         val instance = KatariInstance(
             program = program,
             initialState = initialState,
-            functionRegistry = bindings.functionRegistry,
-            propertyRegistry = bindings.propertyRegistry,
+            executionEnvironment = bindings.executionEnvironment,
             snapshotCodec = bindings.snapshotCodec,
             coroutineScope = scope,
         )
@@ -173,8 +172,7 @@ class KatariScriptSystem(
             val instance = KatariInstance(
                 program = program,
                 initialState = state.copy(globals = bindings.globals + state.globals),
-                functionRegistry = bindings.functionRegistry,
-                propertyRegistry = bindings.propertyRegistry,
+                executionEnvironment = bindings.executionEnvironment,
                 snapshotCodec = bindings.snapshotCodec,
                 coroutineScope = scope,
             )
