@@ -1,7 +1,15 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
-import com.sunnychung.lib.multiplatform.kotlite.katari.*
+import com.sunnychung.lib.multiplatform.kotlite.katari.ChoiceOptionSnapshot
+import com.sunnychung.lib.multiplatform.kotlite.katari.KatariBindings
+import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindings
+import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindingsBuilder
+import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeHost
+import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeNoOpHost
 import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeHostValue
+import com.sunnychung.lib.multiplatform.kotlite.model.GlobalProperty
+import com.sunnychung.lib.multiplatform.kotlite.model.NullValue
+import com.sunnychung.lib.multiplatform.kotlite.model.SourcePosition
 import com.sunnychung.lib.multiplatform.kotlite.stdlib.AllStdLibModules
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -16,7 +24,13 @@ import ru.hollowhorizon.hollowengine.common.utils.colored
 import ru.hollowhorizon.hollowengine.common.utils.literal
 import ru.hollowhorizon.hollowengine.common.utils.onClickCommand
 import ru.hollowhorizon.hollowengine.common.utils.onHoverText
-import java.util.*
+import java.util.UUID
+
+val KatariEditorContextGlobalTypes = linkedMapOf(
+    "player" to "Player",
+    "server" to "Server",
+    "level" to "Level",
+)
 
 class HollowKatariHost(
     private val server: MinecraftServer,
@@ -119,7 +133,33 @@ fun NarrativeBindingsBuilder.registerContextGlobals(
     sourcePlayerId: String?,
 ) {
     val playerRef: Player? = sourcePlayer ?: sourcePlayerId?.let { server.playerList.getPlayer(UUID.fromString(it)) }
-    playerRef?.let { global("player", NarrativeHostValue("Player", it, symbolTable)) }
+    playerRef?.let { global("player", NarrativeHostValue("Player", it, symbolTable), persistent = true) }
     global("server", NarrativeHostValue("Server", server, symbolTable))
     global("level", NarrativeHostValue("Level", sourcePlayer?.level() ?: server.overworld(), symbolTable))
+}
+
+fun createHollowKatariEditorBindings(): KatariBindings {
+    return NarrativeBindings {
+        install(AllStdLibModules())
+        registerBuiltinFunctions(NarrativeNoOpHost)
+        registerHostTypes()
+        registerGeneratedKatariBindings()
+        registerContextGlobalTypes()
+    }
+}
+
+fun NarrativeBindingsBuilder.registerContextGlobalTypes() {
+    KatariEditorContextGlobalTypes.forEach { (name, type) -> registerGlobalType(name, type) }
+}
+
+private fun NarrativeBindingsBuilder.registerGlobalType(name: String, type: String) {
+    registerKotliteGlobalProperty(
+        GlobalProperty(
+            position = SourcePosition.BUILTIN,
+            declaredName = name,
+            type = type,
+            isMutable = false,
+            getter = { NullValue },
+        )
+    )
 }

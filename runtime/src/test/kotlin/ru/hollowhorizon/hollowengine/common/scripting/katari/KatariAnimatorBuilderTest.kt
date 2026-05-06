@@ -1,12 +1,12 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationControllerLayerSpec
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
 import ru.hollowhorizon.hollowengine.common.geary.components.ClipAnimationLayerSpec
 import ru.hollowhorizon.hollowengine.common.geary.components.ProceduralLayerSpec
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class KatariAnimatorBuilderTest {
     @Test
@@ -42,11 +42,8 @@ class KatariAnimatorBuilderTest {
 
     @Test
     fun `snapshot restores configured layers`() {
-        val restored = KatariAnimatorBuilder()
-            .setEnabled(false)
+        val restored = KatariAnimatorBuilder(false)
             .clip("idle", "hollowengine:idle")
-            .snapshot()
-            .restore()
             .build()
 
         assertEquals(false, restored.enabled)

@@ -39,12 +39,26 @@ internal class KatariBindingCodegen(
         }
         appendLine()
         appendLine("@Suppress(\"UNUSED_PARAMETER\")")
-        appendLine("internal fun NarrativeBindingsBuilder.registerGeneratedKatariBindings(server: MinecraftServer) {")
+        appendLine("internal fun NarrativeBindingsBuilder.registerGeneratedKatariBindings(server: MinecraftServer? = null) {")
         registerTypes()
         registerEnums()
         registerFunctions(callableFunctions)
         registerProperties(classes.flatMap { it.properties } + properties)
         appendLine("}")
+        appendLine()
+        appendLine("internal fun generatedKatariTypeSuperTypes(): Map<String, Set<String>> = mapOf(")
+        appendGeneratedTypeSuperTypes()
+        appendLine(")")
+    }
+
+    private fun StringBuilder.appendGeneratedTypeSuperTypes() {
+        val orderedTypes = orderedScriptTypes()
+        val types = orderedTypes.associate { it.targetType to it.typeId }
+        orderedTypes.forEach { scriptType ->
+            val superTypes = scriptType.superTypes.map { types[it] ?: error("Snapshot for $it not found!") }
+            if (superTypes.isEmpty()) return@forEach
+            appendLine("    \"${scriptType.typeId}\" to setOf(${superTypes.joinToString { "\"$it\"" }}),")
+        }
     }
 
     private fun StringBuilder.registerEnums() {
@@ -111,6 +125,9 @@ internal class KatariBindingCodegen(
     }
 
     private fun StringBuilder.appendSuspendableFunction(function: FunctionModel) {
+        appendLine("    if (server == null) {")
+        appendSemanticOnlyFunction(function)
+        appendLine("    } else {")
         appendLine("    suspendableFunction(")
         appendLine("        \"${function.scriptName}\",")
         appendSignature(function)
@@ -135,6 +152,16 @@ internal class KatariBindingCodegen(
         appendLine("        }")
         appendLine("    },")
         appendLine(")")
+        appendLine("    }")
+    }
+
+    private fun StringBuilder.appendSemanticOnlyFunction(function: FunctionModel) {
+        appendLine("        immediateFunction(")
+        appendLine("            \"${function.scriptName}\",")
+        appendSignature(function)
+        appendLine("        ) { _, _ ->")
+        appendLine("            NullValue")
+        appendLine("        }")
     }
 
     private fun StringBuilder.appendSignature(function: FunctionModel) {

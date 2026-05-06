@@ -320,7 +320,7 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
             val provider = handler as? CompiledFileProvider
             val errors = provider?.analysisState?.diagnostics ?: this@TextAreaNode.modifier.errors
 
-            var message by remember("")
+            var hoveredMessage: String? = null
 
             errors.asSequence()
                 .filter { lineIndex in it.range.start.line..it.range.end.line }
@@ -364,13 +364,28 @@ open class TextAreaNode(parent: UiNode?, surface: UiSurface) : BoxNode(parent, s
                         val fromX = leftPx + leftPos + startPos
                         val toX = leftPx + leftPos + endPos
                         if (mouse.pos.x in fromX..toX && mouse.pos.y in topPx..bottomPx) {
-                            message = error.message
+                            hoveredMessage = error.message
                         }
                     }
                 }
 
 
-            if (message.isNotEmpty()) Tooltip(message)
+            hoveredMessage?.let { message ->
+                val mouse = PointerInput.primaryPointer
+                Popup(mouse.pos.x + Dimensions.PaddingHuge.px, mouse.pos.y + Dimensions.PaddingHuge.px) {
+                    modifier
+                        .background(RoundRectBackground(EditorTheme.Popup.bg, Dimensions.PaddingSmall))
+                        .border(RoundRectBorder(EditorTheme.Popup.border, Dimensions.PaddingSmall, Dimensions.PaddingSmall))
+                        .padding(Dimensions.PaddingMedium)
+                        .zLayer(100_000_001)
+
+                    Text(message) {
+                        modifier
+                            .font(font.derive(14f))
+                            .textColor(EditorTheme.Popup.textPrimary)
+                    }
+                }
+            }
         }
     }
 

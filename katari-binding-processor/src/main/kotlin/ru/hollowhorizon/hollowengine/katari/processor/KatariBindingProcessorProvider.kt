@@ -48,6 +48,12 @@ private class KatariBindingProcessor(
             .toList()
 
         val enumTypes = collectEnumTypes(topLevelFunctions, extensionProperties, classBindings)
+        if (scriptTypes.isEmpty() && enumTypes.isEmpty() && topLevelFunctions.isEmpty() &&
+            extensionProperties.isEmpty() && classBindings.isEmpty()
+        ) {
+            generated = true
+            return emptyList()
+        }
         validateDuplicates(topLevelFunctions, extensionProperties, classBindings)
         generate(scriptTypes.values.toList(), enumTypes, topLevelFunctions, extensionProperties, classBindings)
         generated = true
