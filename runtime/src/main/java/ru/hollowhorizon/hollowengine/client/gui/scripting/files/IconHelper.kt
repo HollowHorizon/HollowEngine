@@ -35,7 +35,7 @@ object IconHelper {
                     "bc" -> Icons.FILE_CODEBLOCKS
                     "zip", "rar", "jar" -> Icons.FILE_ZIP
                     "gltf", "glb", "fbx", "geo.json", "obj" -> Icons.FILE_MODEL
-                    "kts", "kt" -> Icons.FILE_KTS
+                    "kts", "kt", "ktr" -> Icons.FILE_KTS
                     "png", "jpg", "jpeg", "gif" -> Icons.FILE_IMAGE
                     "ogg", "mp3", "wav" -> Icons.FILE_SOUND
                     else -> Icons.FILE

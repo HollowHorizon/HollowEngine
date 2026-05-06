@@ -7,6 +7,10 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.Script
 
 interface ScriptingAnalyzer {
     fun highlight(name: String, text: String, offset: Int): List<TextLine>
+    fun lightweightHighlightLine(name: String, line: String): TextLine {
+        return TextLine(listOf(line to SpanStyle(TokenType.DEFAULT, italic = false, bold = false, highlight = false)), ArrayList())
+    }
+
     fun completions(name: String, text: String, offset: Int): List<CompletionItem>
     fun diagnostic(name: String, text: String): List<Diagnostic>
 }

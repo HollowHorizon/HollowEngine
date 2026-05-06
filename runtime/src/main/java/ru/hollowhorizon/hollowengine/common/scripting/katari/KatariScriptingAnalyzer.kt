@@ -2,59 +2,11 @@ package ru.hollowhorizon.hollowengine.common.scripting.katari
 
 import com.sunnychung.lib.multiplatform.kotlite.katari.KatariNarrativeAnalysis
 import com.sunnychung.lib.multiplatform.kotlite.katari.analyzeKatariNarrativeScript
-import com.sunnychung.lib.multiplatform.kotlite.model.ASTNode
-import com.sunnychung.lib.multiplatform.kotlite.model.AssignmentNode
-import com.sunnychung.lib.multiplatform.kotlite.model.BinaryOpNode
-import com.sunnychung.lib.multiplatform.kotlite.model.BlockNode
-import com.sunnychung.lib.multiplatform.kotlite.model.CatchNode
-import com.sunnychung.lib.multiplatform.kotlite.model.ClassDeclarationNode
-import com.sunnychung.lib.multiplatform.kotlite.model.ClassMemberReferenceNode
-import com.sunnychung.lib.multiplatform.kotlite.model.ElvisOpNode
-import com.sunnychung.lib.multiplatform.kotlite.model.ForNode
-import com.sunnychung.lib.multiplatform.kotlite.model.FunctionCallArgumentNode
-import com.sunnychung.lib.multiplatform.kotlite.model.FunctionCallNode
-import com.sunnychung.lib.multiplatform.kotlite.model.FunctionDeclarationNode
-import com.sunnychung.lib.multiplatform.kotlite.model.FunctionValueParameterNode
-import com.sunnychung.lib.multiplatform.kotlite.model.IfNode
-import com.sunnychung.lib.multiplatform.kotlite.model.IndexOpNode
-import com.sunnychung.lib.multiplatform.kotlite.model.InfixFunctionCallNode
-import com.sunnychung.lib.multiplatform.kotlite.model.LambdaLiteralNode
-import com.sunnychung.lib.multiplatform.kotlite.model.NavigationNode
-import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeAsyncNode
-import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeChooseEntryNode
-import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeChooseNode
-import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeRaceEntryNode
-import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeRaceNode
-import com.sunnychung.lib.multiplatform.kotlite.model.PropertyDeclarationNode
-import com.sunnychung.lib.multiplatform.kotlite.model.ReturnNode
-import com.sunnychung.lib.multiplatform.kotlite.model.ScriptNode
-import com.sunnychung.lib.multiplatform.kotlite.model.SourcePosition
-import com.sunnychung.lib.multiplatform.kotlite.model.StringNode
-import com.sunnychung.lib.multiplatform.kotlite.model.ThrowNode
-import com.sunnychung.lib.multiplatform.kotlite.model.TryNode
-import com.sunnychung.lib.multiplatform.kotlite.model.TypeNode
-import com.sunnychung.lib.multiplatform.kotlite.model.UnaryOpNode
-import com.sunnychung.lib.multiplatform.kotlite.model.ValueParameterDeclarationNode
-import com.sunnychung.lib.multiplatform.kotlite.model.VariableReferenceNode
-import com.sunnychung.lib.multiplatform.kotlite.model.WhenConditionNode
-import com.sunnychung.lib.multiplatform.kotlite.model.WhenEntryNode
-import com.sunnychung.lib.multiplatform.kotlite.model.WhenNode
-import com.sunnychung.lib.multiplatform.kotlite.model.WhenSubjectNode
-import com.sunnychung.lib.multiplatform.kotlite.model.WhileNode
+import com.sunnychung.lib.multiplatform.kotlite.model.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.InlayHint
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItem
-import ru.hollowhorizon.hollowengine.common.scripting.ide.CompletionItemTag
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Diagnostic
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Position
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Range
-import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptingAnalyzer
-import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
-import ru.hollowhorizon.hollowengine.common.scripting.ide.SpanStyle
-import ru.hollowhorizon.hollowengine.common.scripting.ide.TextLine
+import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
-import ru.hollowhorizon.hollowengine.common.scripting.ide.declarationCompletionItem
-import ru.hollowhorizon.hollowengine.common.scripting.ide.keywordCompletionItem
-import java.util.Locale
+import java.util.*
 
 private val keywords = setOf(
     "as", "async", "break", "checkpoint", "choose", "class", "continue", "disableIf",
@@ -73,21 +25,27 @@ private val editorSymbols: KatariSymbols by lazy {
 }
 
 object KatariScriptingAnalyzer : ScriptingAnalyzer {
+    val bindings = createHollowKatariEditorBindings()
+
     @Volatile
     private var cached: CachedAnalysis? = null
 
     override fun highlight(name: String, text: String, offset: Int): List<TextLine> {
         val analysis = analyze(name, text)
-        val semanticRanges = analysis.result.getOrNull()?.let { semanticRanges(it.analysis) }.orEmpty()
+        val semanticRanges = analysis.result.getOrNull()?.let { semanticRanges(text, it.analysis) }.orEmpty()
+        val occurrenceRanges = matchingIdentifierRanges(text, offset, semanticRanges)
         val bracketRanges = matchingBracketRanges(text, offset)
-        val lineHints = analysis.result.getOrNull()?.let { inlayHints(it.analysis) }.orEmpty()
-        return buildHighlightedLines(text, semanticRanges + bracketRanges, lineHints)
+        val lineHints = analysis.result.getOrNull()?.let { inlayHints(text, it.analysis) }.orEmpty()
+        return buildHighlightedLines(text, semanticRanges + occurrenceRanges + bracketRanges, lineHints)
+    }
+
+    override fun lightweightHighlightLine(name: String, line: String): TextLine {
+        return TextLine(spansFor(line, tokenize(line)), ArrayList())
     }
 
     override fun completions(name: String, text: String, offset: Int): List<CompletionItem> {
-        val snapshot = analyze(name, text).result.getOrNull()
         val context = CompletionContext.from(text, offset)
-        val symbols = snapshot?.symbols ?: editorSymbols
+        val symbols = completionSymbols(name, text, offset, context)
         val candidates = if (context.receiverName == null) {
             buildList {
                 addAll(keywordCompletions)
@@ -122,7 +80,6 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         return synchronized(this) {
             cached?.takeIf { it.name == name && it.text == text } ?: run {
                 val result = runCatching {
-                    val bindings = createHollowKatariEditorBindings()
                     val analysis = analyzeKatariNarrativeScript(name, text, bindings)
                     AnalysisSnapshot(analysis, KatariSymbols.from(analysis))
                 }
@@ -130,23 +87,37 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
             }
         }
     }
+
+    private fun completionSymbols(name: String, text: String, offset: Int, context: CompletionContext): KatariSymbols {
+        analyze(name, text).result.getOrNull()?.let { return it.symbols }
+        completionAnalysisTexts(text, offset, context).forEach { candidate ->
+            analyze("$name<completion>", candidate).result.getOrNull()?.let { return it.symbols }
+        }
+        return editorSymbols
+    }
 }
 
-    private fun semanticRanges(analysis: KatariNarrativeAnalysis): List<StyledRange> {
+    private fun semanticRanges(text: String, analysis: KatariNarrativeAnalysis): List<StyledRange> {
         val ranges = mutableListOf<StyledRange>()
+        val lines = text.lines()
         analysis.semanticScript.walk { node, parent ->
             when (node) {
                 is PropertyDeclarationNode -> {
-                    ranges += StyledRange.identifier(node.position, node.name, TokenType.PROPERTY_IDENTIFIER)
+                    ranges += StyledRange.identifier(lines, node.position, node.name, TokenType.PROPERTY_IDENTIFIER)
                 }
                 is FunctionDeclarationNode -> {
-                    ranges += StyledRange.identifier(node.position, node.name, TokenType.FUNCTION, bold = true)
+                    ranges += StyledRange.identifier(lines, node.position, node.name, TokenType.FUNCTION, bold = true)
                 }
                 is FunctionValueParameterNode -> {
-                    ranges += StyledRange.identifier(node.position, node.name, TokenType.PARAMETER)
+                    ranges += StyledRange.identifier(lines, node.position, node.name, TokenType.PARAMETER)
                 }
                 is ValueParameterDeclarationNode -> {
-                    ranges += StyledRange.identifier(node.position, node.name, TokenType.PARAMETER)
+                    ranges += StyledRange.identifier(lines, node.position, node.name, TokenType.PARAMETER)
+                }
+                is FunctionCallArgumentNode -> {
+                    node.name?.let {
+                        ranges += StyledRange.identifier(lines, node.position, it, TokenType.VALUE_ARGUMENT_NAME)
+                    }
                 }
                 is VariableReferenceNode -> {
                     val type = when {
@@ -154,7 +125,7 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
                         node.variableName.firstOrNull()?.isUpperCase() == true -> TokenType.CLASS
                         else -> TokenType.VARIABLE
                     }
-                    ranges += StyledRange.identifier(node.position, node.variableName, type)
+                    ranges += StyledRange.identifier(lines, node.position, node.variableName, type)
                 }
                 is ClassMemberReferenceNode -> {
                     val token = if (parent is NavigationNode && parent.isCallTarget(analysis.semanticScript)) {
@@ -162,10 +133,10 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
                     } else {
                         TokenType.FIELD
                     }
-                    ranges += StyledRange.identifier(node.position, node.name, token)
+                    ranges += StyledRange.identifier(lines, node.position, node.name, token)
                 }
                 is ClassDeclarationNode -> {
-                    ranges += StyledRange.identifier(node.position, node.name, TokenType.ENUM, bold = true)
+                    ranges += StyledRange.identifier(lines, node.position, node.name, TokenType.ENUM, bold = true)
                 }
                 else -> Unit
             }
@@ -173,26 +144,27 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         return ranges
     }
 
-    private fun inlayHints(analysis: KatariNarrativeAnalysis): Map<Int, List<InlayHint>> {
+    private fun inlayHints(text: String, analysis: KatariNarrativeAnalysis): Map<Int, List<InlayHint>> {
         val hintsByLine = linkedMapOf<Int, MutableList<InlayHint>>()
+        val lines = text.lines()
         analysis.semanticScript.walk { node, _ ->
             when (node) {
                 is PropertyDeclarationNode -> {
                     if (node.declaredType == null) {
                         val type = node.inferredType?.descriptiveName() ?: return@walk
-                        hintsByLine.add(node.position, node.name.length, ": $type")
+                        hintsByLine.add(lines, node.position, node.name, ": $type")
                     }
                 }
                 is FunctionValueParameterNode -> {
                     if (node.declaredType == null) {
                         val type = node.inferredType?.descriptiveName() ?: return@walk
-                        hintsByLine.add(node.position, node.name.length, ": $type")
+                        hintsByLine.add(lines, node.position, node.name, ": $type")
                     }
                 }
                 is ValueParameterDeclarationNode -> {
                     if (node.declaredType == null) {
                         val type = node.inferredType?.descriptiveName() ?: return@walk
-                        hintsByLine.add(node.position, node.name.length, ": $type")
+                        hintsByLine.add(lines, node.position, node.name, ": $type")
                     }
                 }
                 else -> Unit
@@ -201,9 +173,11 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         return hintsByLine
     }
 
-    private fun MutableMap<Int, MutableList<InlayHint>>.add(position: SourcePosition, nameLength: Int, text: String) {
+    private fun MutableMap<Int, MutableList<InlayHint>>.add(lines: List<String>, position: SourcePosition, name: String, text: String) {
         if (position.lineNum <= 0 || position.col <= 0) return
-        getOrPut(position.lineNum - 1) { mutableListOf() } += InlayHint(position.col - 1 + nameLength, text)
+        val line = position.lineNum - 1
+        val start = identifierStart(lines, position, name) ?: return
+        getOrPut(line) { mutableListOf() } += InlayHint(start + name.length, text)
     }
 
     private fun membersForReceiver(symbols: KatariSymbols, receiverType: String?): List<CompletionItem> {
@@ -248,41 +222,58 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
     ): List<TextLine> {
         val byLine = semanticRanges.groupBy { it.line }
         return text.lines().mapIndexed { lineIndex, line ->
-        val lexical = tokenize(line)
-        val ranges = byLine[lineIndex].orEmpty()
-            .sortedWith(compareBy<StyledRange> { it.start }.thenBy { -it.end }) +
-                lexical.sortedWith(compareBy<StyledRange> { it.start }.thenBy { -it.end })
-        TextLine(spansFor(line, ranges), ArrayList(hints[lineIndex].orEmpty()))
-    }
+            val lexical = tokenize(line)
+            val semantic = byLine[lineIndex].orEmpty()
+            val ranges = lexical.sortedWith(compareBy<StyledRange> { it.start }.thenBy { -it.end }) +
+                    semantic.sortedWith(compareBy<StyledRange> { it.start }.thenBy { -it.end })
+            TextLine(spansFor(line, ranges), ArrayList(hints[lineIndex].orEmpty()))
+        }
     }
 
-    private fun tokenize(line: String): List<StyledRange> {
+    private fun tokenize(line: String, baseOffset: Int = 0): List<StyledRange> {
         val ranges = mutableListOf<StyledRange>()
         var i = 0
         while (i < line.length) {
             val start = i
             when {
                 line.startsWith("//", i) -> {
-                    ranges += StyledRange(0, i, line.length, style(TokenType.COMMENT))
+                    ranges += StyledRange(0, baseOffset + i, baseOffset + line.length, style(TokenType.COMMENT), priority = 4)
                     break
                 }
                 line[i] == '"' || line[i] == '\'' -> {
                     val quote = line[i++]
+                    val templates = mutableListOf<StyledRange>()
                     while (i < line.length) {
-                        if (line[i] == '\\' && i + 1 < line.length) i += 2
-                        else if (line[i++] == quote) break
+                        when {
+                            line[i] == '\\' && i + 1 < line.length -> i += 2
+                            quote == '"' && line[i] == '$' && i + 1 < line.length && line[i + 1] == '{' -> {
+                                val templateStart = i
+                                val expressionStart = i + 2
+                                val expressionEnd = findTemplateExpressionEnd(line, expressionStart)
+                                templates += StyledRange(0, baseOffset + templateStart, baseOffset + expressionStart, style(TokenType.KEYWORD), priority = 5)
+                                if (expressionEnd >= expressionStart) {
+                                    templates += tokenizeTemplateExpression(line.substring(expressionStart, expressionEnd), baseOffset + expressionStart)
+                                    templates += StyledRange(0, baseOffset + expressionEnd, baseOffset + expressionEnd + 1, style(TokenType.KEYWORD), priority = 5)
+                                    i = expressionEnd + 1
+                                } else {
+                                    i = expressionStart
+                                }
+                            }
+                            line[i++] == quote -> break
+                        }
                     }
-                    ranges += StyledRange(0, start, i, style(TokenType.STRING))
+                    ranges += StyledRange(0, baseOffset + start, baseOffset + i, style(TokenType.STRING), priority = 4)
+                    ranges += templates
                 }
                 line[i].isDigit() -> {
                     while (i < line.length && (line[i].isDigit() || line[i] == '.')) i++
-                    ranges += StyledRange(0, start, i, style(TokenType.NUMERIC_LITERAL))
+                    ranges += StyledRange(0, baseOffset + start, baseOffset + i, style(TokenType.NUMERIC_LITERAL), priority = 1)
                 }
                 line[i].isIdentifierStart() -> {
                     i++
                     while (i < line.length && line[i].isIdentifierPart()) i++
                     val word = line.substring(start, i)
-                    if (word in keywords) ranges += StyledRange(0, start, i, style(TokenType.KEYWORD))
+                    if (word in keywords) ranges += StyledRange(0, baseOffset + start, baseOffset + i, style(TokenType.KEYWORD), priority = 1)
                 }
                 else -> i++
             }
@@ -290,10 +281,64 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         return ranges
     }
 
+    private fun tokenizeTemplateExpression(expression: String, baseOffset: Int): List<StyledRange> {
+        val ranges = mutableListOf<StyledRange>()
+        var index = 0
+        var afterDot = false
+        while (index < expression.length) {
+            val start = index
+            when {
+                expression[index].isDigit() -> {
+                    while (index < expression.length && (expression[index].isDigit() || expression[index] == '.')) index++
+                    ranges += StyledRange(0, baseOffset + start, baseOffset + index, style(TokenType.NUMERIC_LITERAL), priority = 5)
+                    afterDot = false
+                }
+                expression[index].isIdentifierStart() -> {
+                    index++
+                    while (index < expression.length && expression[index].isIdentifierPart()) index++
+                    val word = expression.substring(start, index)
+                    val token = when {
+                        word in keywords -> TokenType.KEYWORD
+                        afterDot -> TokenType.FIELD
+                        word.firstOrNull()?.isUpperCase() == true -> TokenType.CLASS
+                        else -> TokenType.VARIABLE
+                    }
+                    ranges += StyledRange(0, baseOffset + start, baseOffset + index, style(token), priority = 5)
+                    afterDot = false
+                }
+                expression[index] == '.' -> {
+                    afterDot = true
+                    index++
+                }
+                else -> {
+                    afterDot = false
+                    index++
+                }
+            }
+        }
+        return ranges
+    }
+
+    private fun findTemplateExpressionEnd(line: String, start: Int): Int {
+        var index = start
+        var depth = 1
+        while (index < line.length) {
+            when (line[index]) {
+                '{' -> depth++
+                '}' -> {
+                    depth--
+                    if (depth == 0) return index
+                }
+            }
+            index++
+        }
+        return -1
+    }
+
     private fun spansFor(line: String, ranges: List<StyledRange>): List<Pair<String, SpanStyle>> {
         if (line.isEmpty()) return listOf("" to style(TokenType.DEFAULT))
         val styles = Array(line.length) { style(TokenType.DEFAULT) }
-        ranges.forEach { range ->
+        ranges.sortedBy { it.priority }.forEach { range ->
             val start = range.start.coerceIn(0, line.length)
             val end = range.end.coerceIn(start, line.length)
             for (index in start until end) styles[index] = range.style
@@ -327,12 +372,38 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
             if (depth == 0 && i != index) {
                 return listOf(index, i).mapNotNull { absolute ->
                     val pos = absolutePosition(text, absolute)
-                    StyledRange(pos.line, pos.column, pos.column + 1, style(TokenType.DEFAULT, highlight = true, bold = true))
+                    StyledRange(pos.line, pos.column, pos.column + 1, style(TokenType.DEFAULT, highlight = true, bold = true), priority = 6)
                 }
             }
             i += direction
         }
         return emptyList()
+    }
+
+    private fun matchingIdentifierRanges(text: String, offset: Int, semanticRanges: List<StyledRange>): List<StyledRange> {
+        val selected = identifierAt(text, offset) ?: return emptyList()
+        val lines = text.lines()
+        return semanticRanges.mapNotNull { range ->
+            val line = lines.getOrNull(range.line) ?: return@mapNotNull null
+            val token = line.substring(range.start.coerceIn(0, line.length), range.end.coerceIn(0, line.length))
+            if (token != selected || !range.style.color.isIdentifierToken()) return@mapNotNull null
+            range.copy(style = range.style.copy(highlight = true), priority = 7)
+        }
+    }
+
+    private fun identifierAt(text: String, offset: Int): String? {
+        if (text.isEmpty()) return null
+        val safeOffset = offset.coerceIn(0, text.length)
+        val probe = when {
+            safeOffset < text.length && text[safeOffset].isIdentifierPart() -> safeOffset
+            safeOffset > 0 && text[safeOffset - 1].isIdentifierPart() -> safeOffset - 1
+            else -> return null
+        }
+        var start = probe
+        while (start > 0 && text[start - 1].isIdentifierPart()) start--
+        var end = probe + 1
+        while (end < text.length && text[end].isIdentifierPart()) end++
+        return text.substring(start, end).takeIf { it.firstOrNull()?.isIdentifierStart() == true }
     }
 
     private fun Throwable.toDiagnostic(): Diagnostic {
@@ -362,6 +433,20 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
     private fun Char.isIdentifierStart() = this == '_' || isLetter()
     private fun Char.isIdentifierPart() = this == '_' || isLetterOrDigit()
 
+    private fun TokenType.isIdentifierToken(): Boolean {
+        return when (this) {
+            TokenType.PROPERTY_IDENTIFIER,
+            TokenType.FIELD,
+            TokenType.VARIABLE,
+            TokenType.EXTENSION_RECEIVER,
+            TokenType.VALUE_ARGUMENT_NAME,
+            TokenType.PARAMETER,
+            TokenType.NAME_REFERENCE,
+            TokenType.TOP_LEVEL -> true
+            else -> false
+        }
+    }
+
     private data class CachedAnalysis(
         val name: String,
         val text: String,
@@ -378,10 +463,13 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         val start: Int,
         val end: Int,
         val style: SpanStyle,
+        val priority: Int = 0,
     ) {
         companion object {
-            fun identifier(position: SourcePosition, text: String, token: TokenType, bold: Boolean = false): StyledRange {
-                return StyledRange(position.lineNum - 1, position.col - 1, position.col - 1 + text.length, style(token, bold = bold))
+            fun identifier(lines: List<String>, position: SourcePosition, text: String, token: TokenType, bold: Boolean = false): StyledRange {
+                val line = position.lineNum - 1
+                val start = identifierStart(lines, position, text) ?: (position.col - 1).coerceAtLeast(0)
+                return StyledRange(line, start, start + text.length, style(token, bold = bold), priority = 2)
             }
         }
     }
@@ -607,8 +695,35 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         return enumDefinitions.mapValues { (_, definition) -> definition.entries.map { it.entryName } }
     }
 
+    private fun completionAnalysisTexts(text: String, offset: Int, context: CompletionContext): List<String> {
+        val safeOffset = offset.coerceIn(0, text.length)
+        val prefixStart = safeOffset - context.prefix.length
+        val variants = linkedSetOf<String>()
+
+        if (context.receiverName != null && context.receiverStart in 0..safeOffset) {
+            variants += text.replaceRange(context.receiverStart, safeOffset, context.receiverName)
+        }
+        if (prefixStart in 0..safeOffset) {
+            variants += text.replaceRange(prefixStart, safeOffset, "")
+            variants += text.replaceRange(prefixStart, safeOffset, "null")
+            val lineStart = text.lastIndexOf('\n', (prefixStart - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+            val lineEnd = text.indexOf('\n', safeOffset).let { if (it < 0) text.length else it }
+            variants += text.replaceRange(lineStart, lineEnd, "")
+        }
+        return variants.filter { it != text }
+    }
+
     private fun String.cleanType(): String {
         return removeSuffix("?").substringBefore('<')
+    }
+
+    private fun identifierStart(lines: List<String>, position: SourcePosition, name: String): Int? {
+        val line = lines.getOrNull(position.lineNum - 1) ?: return null
+        val searchStart = (position.col - 1).coerceIn(0, line.length)
+        val direct = line.indexOf(name, searchStart)
+        if (direct >= 0) return direct
+        val before = line.lastIndexOf(name, searchStart)
+        return before.takeIf { it >= 0 }
     }
 
     private fun absolutePosition(text: String, offset: Int): Position {

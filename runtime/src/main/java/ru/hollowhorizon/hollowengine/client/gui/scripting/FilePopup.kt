@@ -71,15 +71,7 @@ class FilePopup : Composable {
                     if (node.treePath.startsWith("scripts")) {
                         subMenu(ACTIONS("create.script"), icons.CREATE_FILE) {
                             item("hollowengine.gui.ide.actions.create.script.simple".lang, icons.FILE_KTS) {
-                                fileExtension = ".kts"
-                                createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
-                            }
-                            item("Reload script", icons.FILE_KTS) {
-                                fileExtension = ".reload.kts"
-                                createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
-                            }
-                            item("hollowengine.gui.ide.actions.create.script.codeblocks".lang, icons.FILE_CODEBLOCKS) {
-                                fileExtension = ".bc"
+                                fileExtension = ".ktr"
                                 createFilePopup.show(Vec2f.ZERO, SubMenuItem {}, node)
                             }
                         }

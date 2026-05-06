@@ -12,7 +12,6 @@ import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
-import ru.hollowhorizon.hollowengine.client.utils.offset
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
@@ -70,13 +69,6 @@ class ScriptFile(path: String) : EditorFile(path) {
                 modifier.completions.addAll(editorState.analysis.completions)
 
                 installSelectionHandler(editorState.provider) { startLine, caretLine, startChar, caretChar ->
-                    editorState.provider.lines.clear()
-                    val code = editorState.language.analyzer.highlight(
-                        name,
-                        editorState.provider.currentText,
-                        offset(editorState.provider.currentText, startLine, startChar)
-                    )
-                    editorState.provider.lines.addAll(code.map { it.toKool(editorState.provider.font) })
                 }
 
                 modifier.editorHandler(editorState.editor)

@@ -161,13 +161,29 @@ class CompiledFileProvider(
         val oldLinesList = (safeStartLine..safeEndLine).map { lines[it] }
         val numLinesToRemove = safeEndLine - safeStartLine + 1
 
-        val newTextLines = newLinesRaw.map {
-            ScriptTextLine(listOf(it to TextAttributes(font, Color.WHITE)))
+        val newTextLines = newLinesRaw.mapIndexed { index, line ->
+            val highlighted = analyzer.lightweightHighlightLine(source.name, line).toKool(font)
+            if (oldLinesList.size == 1 && newLinesRaw.size == 1 && index == 0) {
+                highlighted.copy(
+                    inlayHints = shiftedInlayHints(
+                        oldLinesList.single().inlayHints,
+                        safeStartChar,
+                        safeEndChar,
+                        replacement.length,
+                        line.length,
+                    )
+                )
+            } else {
+                highlighted
+            }
         }
 
         lines.subList(safeStartLine, safeStartLine + numLinesToRemove).clear()
         lines.addAll(safeStartLine, newTextLines)
-        currentText = lines.joinToString("\n") { it.text }.replace("\r\n", "\n")
+        val textBeforeEdit = currentText
+        val startOffset = offset(textBeforeEdit, safeStartLine, safeStartChar)
+        val endOffset = offset(textBeforeEdit, safeEndLine, safeEndChar)
+        currentText = textBeforeEdit.replaceRange(startOffset, endOffset, replacement).replace("\r\n", "\n")
 
         val newCaretLine = safeStartLine + newLinesRaw.lastIndex
         val newCaretChar = newLinesRaw.last().length - lineAfter.length
@@ -179,7 +195,7 @@ class CompiledFileProvider(
             replacement, currentTime
         )
 
-        requestAnalysis(safeStartLine, safeStartChar)
+        requestAnalysis(newCaretLine, newCaretChar)
 
         return Vec2i(newCaretChar, newCaretLine)
     }
@@ -225,6 +241,24 @@ class CompiledFileProvider(
         lastEditTime = currentTime
     }
 
+    private fun shiftedInlayHints(
+        hints: List<InlayHint>,
+        editStart: Int,
+        editEnd: Int,
+        replacementLength: Int,
+        newLineLength: Int,
+    ): List<InlayHint> {
+        val delta = replacementLength - (editEnd - editStart)
+        return hints.mapNotNull { hint ->
+            val shiftedIndex = when {
+                hint.index <= editStart -> hint.index
+                hint.index >= editEnd -> hint.index + delta
+                else -> return@mapNotNull null
+            }.coerceIn(0, newLineLength)
+            hint.copy(index = shiftedIndex)
+        }
+    }
+
     private fun requestAnalysis(line: Int, char: Int) {
         val textSnapshot = currentText
         val safeLine = line.coerceIn(0, textSnapshot.lines().lastIndex.coerceAtLeast(0))
@@ -234,9 +268,6 @@ class CompiledFileProvider(
         }.getOrDefault(0)
 
         scope.launch {
-            withContext(Dispatchers.IO) {
-                analyzer.highlightCode(textSnapshot, safeLine, safeChar)
-            }
             analysisRequest.emit(AnalysisParams(textSnapshot, safeLine, safeChar))
         }
     }
@@ -251,12 +282,27 @@ class CompiledFileProvider(
             }.getOrDefault(0)
 
             val offset = offset(txt, safeLine, safeChar)
-            val completions = analyzer.completions(source.name, txt, offset)
             val diagnostics = analyzer.diagnostic(source.name, txt)
+            val completions = analyzer.completions(source.name, txt, offset)
+            val coloredLines = if (diagnostics.isEmpty()) {
+                analyzer.highlight(source.name, txt, offset).map { it.toKool(font) }
+            } else {
+                null
+            }
 
             withContext(KoolDispatchers.Frontend) {
-                val currentTextSnapshot = lines.joinToString("\n") { it.text }
-                if (currentTextSnapshot != txt) return@withContext
+                if (currentText != txt) return@withContext
+
+                if (coloredLines != null) {
+                    if (coloredLines.size == lines.size) {
+                        for (i in coloredLines.indices) {
+                            if (lines[i] != coloredLines[i]) lines[i] = coloredLines[i]
+                        }
+                    } else {
+                        lines.clear()
+                        lines.addAll(coloredLines)
+                    }
+                }
 
                 analysisState.completions.clear()
                 val safeLineText = txt.lines().getOrNull(safeLine) ?: ""
@@ -269,33 +315,6 @@ class CompiledFileProvider(
             }
         } catch (e: Exception) {
             logD { "Analysis failed: ${e.stackTraceToString()}" }
-        }
-    }
-
-    private suspend fun ScriptingAnalyzer.highlightCode(
-        textSnapshot: String,
-        selectionStartLine: Int,
-        selectionStartChar: Int,
-    ) {
-        try {
-            val off = offset(textSnapshot, selectionStartLine, selectionStartChar)
-            val colored = highlight(source.name, textSnapshot, off)
-
-            withContext(KoolDispatchers.Frontend) {
-                val currentTextSnapshot = lines.joinToString("\n") { it.text }
-                if (currentTextSnapshot != textSnapshot) return@withContext
-
-                if (colored.size == lines.size) {
-                    for (i in colored.indices) {
-                        lines[i] = colored[i].toKool(font)
-                    }
-                } else {
-                    lines.clear()
-                    lines.addAll(colored.map { it.toKool(font) })
-                }
-            }
-        } catch (_: Exception) {
-            // Fallback if highlighting crashes
         }
     }
 
