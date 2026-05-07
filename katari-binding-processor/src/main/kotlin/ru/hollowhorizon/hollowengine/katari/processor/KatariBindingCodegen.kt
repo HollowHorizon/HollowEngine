@@ -21,9 +21,19 @@ internal class KatariBindingCodegen(
         appendLine("package ru.hollowhorizon.hollowengine.common.scripting.katari")
         appendLine()
         appendLine("import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindingsBuilder")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.CustomFunctionDefinition")
         appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.CustomFunctionParameter")
         appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.ExtensionProperty")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.FunctionBodyFormat")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.FunctionModifier")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.FunctionResponse")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeCallContext")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeCallDispatchContext")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeCallResult")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeCallable")
         appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.NullValue")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeValue")
+        appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.SourcePosition")
         appendLine("import com.sunnychung.lib.multiplatform.kotlite.model.TypeParameter")
         appendLine("import kotlinx.coroutines.launch")
         appendLine("import net.minecraft.server.MinecraftServer")
@@ -86,6 +96,11 @@ internal class KatariBindingCodegen(
             appendLine("        serialize = { ${scriptType.snapshotType}.capture(it) },")
             appendLine("        deserialize = { snapshot, context -> snapshot.restore(context) },")
             appendLine("    )")
+            appendLine("    KatariGeneratedBindingRuntime.registerHostType(")
+            appendLine("        ${scriptType.targetType}::class,")
+            appendLine("        \"${scriptType.typeId}\",")
+            appendLine("        $superTypesArgument,")
+            appendLine("    )")
         }
     }
 
@@ -111,8 +126,50 @@ internal class KatariBindingCodegen(
     private fun StringBuilder.registerFunctions(functions: List<FunctionModel>) {
         if (functions.isEmpty()) return
         functions.forEach { function ->
-            if (function.isSuspend) appendSuspendableFunction(function) else appendImmediateFunction(function)
+            when {
+                function.inlineBody != null -> appendInlineFunction(function)
+                function.isSuspend -> appendSuspendableFunction(function)
+                else -> appendImmediateFunction(function)
+            }
         }
+    }
+
+    private fun StringBuilder.appendInlineFunction(function: FunctionModel) {
+        appendLine("    register(object : NarrativeCallable {")
+        appendLine("        override val id: String = \"${function.scriptName}\"")
+        appendLine("        override val receiverType: String? = ${function.receiver?.katariTypeExpression?.let { "\"$it\"" } ?: "null"}")
+        appendLine("        override val returnType: String = \"${function.returnType.katariTypeExpression}\"")
+        appendLine("        override val typeParameters: List<TypeParameter> = ${function.typeParameterListExpression()}")
+        appendLine("        override val valueParameters: List<CustomFunctionParameter> = listOf(")
+        function.parameters.forEach { parameter ->
+            val typeExpression = if (parameter.isVararg) {
+                "${parameter.type.katariTypeExpression}.repeated()"
+            } else {
+                parameter.type.katariTypeExpression
+            }
+            appendLine("            ${parameter.parameterExpression(typeExpression)},")
+        }
+        appendLine("        )")
+        appendLine("        override val semanticFunctionDefinition: CustomFunctionDefinition = CustomFunctionDefinition(")
+        appendLine("            position = SourcePosition.BUILTIN,")
+        appendLine("            receiverType = receiverType,")
+        appendLine("            functionName = id,")
+        appendLine("            returnType = returnType,")
+        appendLine("            typeParameters = typeParameters,")
+        appendLine("            parameterTypes = valueParameters,")
+        appendLine("            modifiers = setOf(FunctionModifier.inline),")
+        appendLine("            inlineFunctionBody = \"${function.parserInlineBody().escapeKotlinString()}\",")
+        appendLine("            inlineFunctionBodyFormat = FunctionBodyFormat.${function.inlineBodyFormat.name},")
+        appendLine("            executable = { _, _, _, _ -> error(\"Inline Katari binding `${function.scriptName}` must be compiled before execution\") },")
+        appendLine("        )")
+        appendLine("        override suspend fun startCall(arguments: List<RuntimeValue>, context: NarrativeCallContext): NarrativeCallResult =")
+        appendLine("            error(\"Inline Katari binding `${function.scriptName}` must be compiled before execution\")")
+        appendLine("        override suspend fun resumeCall(arguments: List<RuntimeValue>, response: FunctionResponse?, context: NarrativeCallContext): NarrativeCallResult =")
+        appendLine("            error(\"Inline Katari binding `${function.scriptName}` cannot be resumed\")")
+        appendLine("        override fun dispatch(arguments: List<RuntimeValue>, context: NarrativeCallDispatchContext, resume: (FunctionResponse?) -> Unit) {")
+        appendLine("            error(\"Inline Katari binding `${function.scriptName}` cannot be dispatched\")")
+        appendLine("        }")
+        appendLine("    })")
     }
 
     private fun StringBuilder.appendImmediateFunction(function: FunctionModel) {
@@ -177,11 +234,7 @@ internal class KatariBindingCodegen(
         appendLine("        ),")
         appendLine("        returnType = \"${function.returnType.katariTypeExpression}\",")
         if (function.typeParameters.isNotEmpty()) {
-            appendLine("        typeParameters = listOf(")
-            function.typeParameters.forEach { typeParameter ->
-                appendLine("            ${typeParameter.definitionExpression()},")
-            }
-            appendLine("        ),")
+            appendLine("        typeParameters = ${function.typeParameterListExpression()},")
         }
 
         function.receiver?.let {
@@ -249,7 +302,9 @@ internal class KatariBindingCodegen(
     }
 
     private fun StringBuilder.appendReturn(function: FunctionModel, arguments: List<String>, indent: String) {
-        val aliasedCall = importAliases[function]?.let { function.call.replace("__CALL__", it) } ?: function.call
+        val aliasedCall = importAliases[function]?.let {
+            function.call.replace("__CALL__", it + function.kotlinTypeArguments())
+        } ?: function.call
         val call = aliasedCall.replace("__ARGS__", arguments.joinToString())
         if (function.returnType.kotlinType == "Unit") {
             appendLine("$indent$call")
@@ -257,6 +312,26 @@ internal class KatariBindingCodegen(
         } else {
             appendLine("${indent}KatariGeneratedBindingRuntime.toRuntimeValue($call, ${function.returnType.returnHostTypeExpression()}, symbolTable = context.symbolTable)")
         }
+    }
+
+    private fun FunctionModel.kotlinTypeArguments(): String {
+        if (typeParameters.isEmpty()) return ""
+        return typeParameters.joinToString(prefix = "<", postfix = ">") { parameter ->
+            parameter.upperBound?.kotlinType ?: "Any?"
+        }
+    }
+
+    private fun FunctionModel.parserInlineBody(): String {
+        val body = inlineBody.orEmpty()
+        return when (inlineBodyFormat) {
+            InlineBodyFormat.Expression -> "= $body"
+            else -> body
+        }
+    }
+
+    private fun FunctionModel.typeParameterListExpression(): String {
+        if (typeParameters.isEmpty()) return "emptyList()"
+        return typeParameters.joinToString(prefix = "listOf(", postfix = ")") { it.definitionExpression() }
     }
 
     private fun StringBuilder.registerProperties(properties: List<PropertyModel>) {

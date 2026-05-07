@@ -12,13 +12,7 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.pipeline.ClearColorDontCare
 import de.fabmax.kool.pipeline.ClearDepthDontCare
 import de.fabmax.kool.pipeline.DepthMode
-import de.fabmax.kool.scene.CustomLineMesh
-import de.fabmax.kool.scene.LineMesh
-import de.fabmax.kool.scene.Node
-import de.fabmax.kool.scene.Scene
-import de.fabmax.kool.scene.TrsTransformD
-import de.fabmax.kool.scene.TrsTransformF
-import de.fabmax.kool.scene.VertexLayouts
+import de.fabmax.kool.scene.*
 import de.fabmax.kool.scene.geometry.IndexedVertexList
 import de.fabmax.kool.scene.geometry.PrimitiveType
 import de.fabmax.kool.util.Color
@@ -44,12 +38,7 @@ import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.MinecraftCamera
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.mcCamera
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.syncFromMinecraft
-import ru.hollowhorizon.hollowengine.client.render.ResolvedNodeTransform
-import ru.hollowhorizon.hollowengine.client.render.buildNodeRenderBounds
-import ru.hollowhorizon.hollowengine.client.render.gizmoRotationToQuatF
-import ru.hollowhorizon.hollowengine.client.render.quatFToGizmoRotation
-import ru.hollowhorizon.hollowengine.client.render.resolveNodeTransform
-import ru.hollowhorizon.hollowengine.client.render.worldTransformToComponent
+import ru.hollowhorizon.hollowengine.client.render.*
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -57,32 +46,15 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.GuiOverlay
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderLevelStageEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderOverlayEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
-import ru.hollowhorizon.hollowengine.common.geary.binding.EntitySnapshotUpdatePacket
-import ru.hollowhorizon.hollowengine.common.geary.binding.NodeTransformUpdatePacket
-import ru.hollowhorizon.hollowengine.common.geary.binding.NodeRuntimeState
-import ru.hollowhorizon.hollowengine.common.geary.binding.lightNodes
-import ru.hollowhorizon.hollowengine.common.geary.binding.modelNodes
-import ru.hollowhorizon.hollowengine.common.geary.binding.nodeByIdOrNull
-import ru.hollowhorizon.hollowengine.common.geary.binding.hostEntityUuidOrNull
-import ru.hollowhorizon.hollowengine.common.geary.binding.snapshotIdOrNull
-import ru.hollowhorizon.hollowengine.common.geary.binding.withOrReplace
-import ru.hollowhorizon.hollowengine.common.geary.binding.withWorldBinding
-import ru.hollowhorizon.hollowengine.common.geary.components.LightComponent
+import ru.hollowhorizon.hollowengine.common.geary.binding.*
+import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.geary.components.Model
-import ru.hollowhorizon.hollowengine.common.geary.components.PointLightComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.SpotLightComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.LevelSnapshot
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.Snapshot
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.rl
-import java.util.UUID
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.max
-import kotlin.math.sin
-import kotlin.math.tan
+import java.util.*
+import kotlin.math.*
 
 @ClientOnly
 object TransformGizmoEditor {
@@ -401,7 +373,7 @@ object TransformGizmoEditor {
             val claimedNodes = hashSetOf<java.util.UUID>()
             snapshot.modelNodes().forEach { modelNode ->
                 val resolved = resolveNodeTransform(level, hostEntityUuid, modelNode.transform, partialTick) ?: return@forEach
-                val bounds = buildNodeRenderBounds(modelNode.model, resolved.transform, modelNode.model.scale)
+                val bounds = buildNodeRenderBounds(modelNode.model, resolved.transform)
                 val visible = frustum?.isVisible(bounds) ?: true
                 val entryId = GizmoEntryId(record.snapshotId, modelNode.nodeId)
                 val entry = entries.getOrPut(entryId) {
@@ -478,7 +450,7 @@ object TransformGizmoEditor {
         model: Model?,
     ): AABB = when (target.type) {
         TransformGizmoTargetType.MODEL -> {
-            if (model != null) buildNodeRenderBounds(model, resolved.transform, model.scale)
+            if (model != null) buildNodeRenderBounds(model, resolved.transform)
             else buildGenericBounds(resolved.transform)
         }
 

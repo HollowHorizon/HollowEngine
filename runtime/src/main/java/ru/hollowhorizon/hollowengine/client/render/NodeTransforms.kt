@@ -69,10 +69,9 @@ fun resolveNodeTransform(
     )
 }
 
-fun buildNodeRenderBounds(model: Model, transform: TrsTransformF, modelScale: Float): AABB {
+fun buildNodeRenderBounds(model: Model, transform: TrsTransformF): AABB {
     val localBounds = model.attachment.calculateBounds()
     val worldTransform = TrsTransformF().set(transform)
-    worldTransform.scale(Vec3f(modelScale, modelScale, modelScale))
 
     if (localBounds == null) {
         val maxAxis = max(max(abs(worldTransform.scale.x), abs(worldTransform.scale.y)), abs(worldTransform.scale.z)).toDouble()

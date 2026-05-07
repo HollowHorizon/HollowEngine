@@ -45,9 +45,10 @@ internal data class FunctionModel(
     val isSuspend: Boolean,
     val passesReceiverAsArgument: Boolean,
     val importQualifiedName: String?,
+    val inlineBody: String? = null,
+    val inlineBodyFormat: InlineBodyFormat = InlineBodyFormat.Block,
+    val source: KSFile? = null,
 ) {
-    val source: KSFile? = null
-
     fun signatureKey(): String {
         return buildString {
             append(scriptName)
@@ -101,6 +102,8 @@ internal data class TypeModel(
     val genericName: String? = null,
     val genericUpperBound: TypeModel? = null,
     val collectionKind: CollectionKind? = null,
+    val functionParameterTypes: List<TypeModel>? = null,
+    val functionReturnType: TypeModel? = null,
 ) {
     fun returnHostTypeExpression(): String = (hostTypeId ?: enumTypeId)?.let { "\"$it\"" } ?: "null"
 
@@ -108,6 +111,7 @@ internal data class TypeModel(
         val nonNull = when {
             collectionKind == CollectionKind.LIST -> listConvertExpression(valueExpression, name)
             collectionKind == CollectionKind.MAP -> mapConvertExpression(valueExpression, name)
+            functionParameterTypes != null -> error("Function type binding parameter `$name` is supported only by inline @ScriptBinding functions")
             genericName != null -> genericUpperBound?.convertExpression(valueExpression, name)
                 ?: "KatariGeneratedBindingRuntime.asAny($valueExpression, \"$name\")"
             hostTypeId != null -> "KatariGeneratedBindingRuntime.asHost<$kotlinType>($valueExpression, \"$hostTypeId\", \"$name\")"
@@ -192,6 +196,26 @@ internal data class TypeModel(
             collectionKind = kind,
         )
 
+        fun function(
+            parameterTypes: List<TypeModel>,
+            returnType: TypeModel,
+            nullable: Boolean,
+        ) = TypeModel(
+            kotlinType = "Function${parameterTypes.size}<${(parameterTypes + returnType).joinToString { it.kotlinType }}>",
+            katariTypeExpression = buildString {
+                append(parameterTypes.joinToString(prefix = "(", postfix = ")") { it.katariTypeExpression })
+                append(" -> ")
+                append(returnType.katariTypeExpression)
+                if (nullable) append("?")
+            },
+            hostTypeId = null,
+            converter = null,
+            enumTypeId = null,
+            nullable = nullable,
+            functionParameterTypes = parameterTypes,
+            functionReturnType = returnType,
+        )
+
         fun primitive(
             kotlinType: String,
             katariTypeExpression: String,
@@ -237,4 +261,11 @@ internal data class TypeModel(
 internal enum class CollectionKind {
     LIST,
     MAP,
+}
+
+internal enum class InlineBodyFormat {
+    Expression,
+    Block,
+    Lambda,
+    Statement,
 }

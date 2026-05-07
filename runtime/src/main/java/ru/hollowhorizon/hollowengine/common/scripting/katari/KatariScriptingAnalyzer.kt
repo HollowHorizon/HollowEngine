@@ -17,6 +17,7 @@ private val keywords = setOf(
 private val keywordCompletions = keywords.map { keywordCompletionItem(it) }
 private val brackets = mapOf('(' to ')', '[' to ']', '{' to '}')
 private const val MAX_COMPLETIONS = 80
+private const val MIN_TOP_LEVEL_COMPLETION_PREFIX = 2
 private val editorSymbols: KatariSymbols by lazy {
     runCatching {
         val bindings = createHollowKatariEditorBindings()
@@ -45,6 +46,7 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
 
     override fun completions(name: String, text: String, offset: Int): List<CompletionItem> {
         val context = CompletionContext.from(text, offset)
+        if (!context.shouldOfferCompletions(text, offset)) return emptyList()
         val symbols = completionSymbols(name, text, offset, context)
         val candidates = if (context.receiverName == null) {
             buildList {
@@ -63,7 +65,7 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         }
         return candidates
             .filter { it.name.startsWith(context.prefix, ignoreCase = true) }
-            .distinctBy { it.name to it.show to it.tag }
+            .distinctBy { it.completionIdentity() }
             .sortedWith(compareBy<CompletionItem> { it.tag.ordinal }.thenBy { it.name })
             .take(MAX_COMPLETIONS)
     }
@@ -423,6 +425,13 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         return filter { it.name.startsWith(prefix, ignoreCase = true) }
     }
 
+    private fun CompletionItem.completionIdentity(): List<String?> {
+        return when (this) {
+            is CompletionItem.Declaration -> listOf(name, show, tag.name, middle, tail)
+            is CompletionItem.Keyword -> listOf(name, show, tag.name)
+        }
+    }
+
     private fun style(
         token: TokenType,
         italic: Boolean = false,
@@ -493,21 +502,31 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
     private data class FunctionEntry(
         val name: String,
         val receiverType: String?,
+        val typeParameters: List<TypeParameterEntry>,
         val parameters: List<ParameterEntry>,
         val returnType: String?,
     ) {
         fun toCompletion(): CompletionItem.Declaration {
-            val insertText = if (parameters.isEmpty()) "$name()" else "$name(${parameters.joinToString { it.name + " = " }})"
+            val insertText = "${this@FunctionEntry.name}()"
             return declarationCompletionItem {
                 show = this@FunctionEntry.name
                 insert = insertText
                 this.name = this@FunctionEntry.name
                 tag = CompletionItemTag.FUNCTION
-                middle = parameters.joinToString(prefix = "(", postfix = ")") { it.display() }
+                middle = typeParameters.display() + parameters.joinToString(prefix = "(", postfix = ")") { it.display() }
                 returnType?.let { tail = it }
-                moveCaret = if (parameters.isEmpty()) -1 else -1
+                moveCaret = if (parameters.isEmpty()) 0 else -1
             }
         }
+    }
+
+    private data class TypeParameterEntry(val name: String, val upperBound: String?) {
+        fun display(): String = upperBound?.let { "$name : $it" } ?: name
+    }
+
+    private fun List<TypeParameterEntry>.display(): String {
+        if (isEmpty()) return ""
+        return joinToString(prefix = "<", postfix = ">") { it.display() }
     }
 
     private data class ParameterEntry(val name: String, val type: String?) {
@@ -592,6 +611,9 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
                     FunctionEntry(
                         name = it.name,
                         receiverType = it.receiver?.descriptiveName(),
+                        typeParameters = it.typeParameters.map { parameter ->
+                            TypeParameterEntry(parameter.name, parameter.typeUpperBound?.descriptiveName())
+                        },
                         parameters = it.valueParameters.map { parameter ->
                             ParameterEntry(parameter.name, parameter.declaredType?.descriptiveName())
                         },
@@ -667,7 +689,14 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
         val prefix: String,
         val receiverName: String?,
         val receiverStart: Int,
+        val prefixStart: Int,
     ) {
+        fun shouldOfferCompletions(text: String, offset: Int): Boolean {
+            if (isInsideSuppressedText(text, offset)) return false
+            if (receiverName != null) return true
+            return prefix.length >= MIN_TOP_LEVEL_COMPLETION_PREFIX
+        }
+
         companion object {
             fun from(text: String, offset: Int): CompletionContext {
                 val safeOffset = offset.coerceIn(0, text.length)
@@ -678,9 +707,9 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
                     val receiverEnd = dot
                     val receiverStart = scanIdentifierStart(text, receiverEnd)
                     val receiver = text.substring(receiverStart, receiverEnd)
-                    return CompletionContext(prefix, receiver.takeIf { it.isNotBlank() }, receiverStart)
+                    return CompletionContext(prefix, receiver.takeIf { it.isNotBlank() }, receiverStart, prefixStart)
                 }
-                return CompletionContext(prefix, null, -1)
+                return CompletionContext(prefix, null, -1, prefixStart)
             }
 
             private fun scanIdentifierStart(text: String, offset: Int): Int {
@@ -689,6 +718,51 @@ object KatariScriptingAnalyzer : ScriptingAnalyzer {
                 return index
             }
         }
+    }
+
+    private fun isInsideSuppressedText(text: String, offset: Int): Boolean {
+        val safeOffset = offset.coerceIn(0, text.length)
+        val lineStart = text.lastIndexOf('\n', (safeOffset - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+        var index = lineStart
+        var inSingleQuote = false
+        var inDoubleQuote = false
+        var escaped = false
+        var templateDepth = 0
+
+        while (index < safeOffset) {
+            val char = text[index]
+            val next = text.getOrNull(index + 1)
+
+            when {
+                inSingleQuote -> {
+                    if (!escaped && char == '\'') inSingleQuote = false
+                    escaped = !escaped && char == '\\'
+                }
+                inDoubleQuote && templateDepth == 0 -> {
+                    when {
+                        escaped -> escaped = false
+                        char == '\\' -> escaped = true
+                        char == '$' && next == '{' -> {
+                            templateDepth = 1
+                            index++
+                        }
+                        char == '"' -> inDoubleQuote = false
+                    }
+                }
+                inDoubleQuote -> {
+                    when (char) {
+                        '{' -> templateDepth++
+                        '}' -> templateDepth = (templateDepth - 1).coerceAtLeast(0)
+                    }
+                }
+                char == '/' && next == '/' -> return true
+                char == '\'' -> inSingleQuote = true
+                char == '"' -> inDoubleQuote = true
+            }
+            index++
+        }
+
+        return inSingleQuote || (inDoubleQuote && templateDepth == 0)
     }
 
     private fun KatariNarrativeAnalysis.analysisEnumEntries(): Map<String, List<String>> {

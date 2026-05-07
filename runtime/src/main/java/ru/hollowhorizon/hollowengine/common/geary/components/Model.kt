@@ -14,13 +14,7 @@ import ru.hollowhorizon.hollowengine.generated.Assets
 @EditorIcon("hollowengine:textures/gui/icons/eye.svg")
 data class Model(
     @EditorName("Модель")
-    val model: String = "hollowengine:models/entity/player_model.gltf",
-    @EditorName("Контроллер анимаций")
-    val controllerScript: String = "player_model.animation-controller.kts",
-    @EditorRange(min = 0f, max = 100f)
-    val scale: Float = 1f,
-    @EditorName("Включить анимации")
-    val enableAnimations: Boolean = true,
+    val model: String = "hollowengine:models/entity/player_model.gltf"
 ) {
 
     val attachment by lazy {

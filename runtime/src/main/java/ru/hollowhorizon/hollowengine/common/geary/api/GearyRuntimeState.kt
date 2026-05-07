@@ -126,13 +126,19 @@ object GearyRuntimeState {
 
     fun saveEntity(entity: Entity, tag: CompoundTag) {
         val state = stateOrNull(entity.level(), entity.uuid)
-        if (state?.snapshot == null) {
+        if (state == null) {
             tag.remove(ENTITY_SNAPSHOT_NBT)
+            tag.remove("EntityScope")
             return
         }
 
         try {
-            tag.put(ENTITY_SNAPSHOT_NBT, EntitySerialization.serializeToNbt(state.snapshot!!))
+            val snapshot = state.snapshot
+            if (snapshot == null) {
+                tag.remove(ENTITY_SNAPSHOT_NBT)
+            } else {
+                tag.put(ENTITY_SNAPSHOT_NBT, EntitySerialization.serializeToNbt(snapshot))
+            }
 
             val scopeTag = CompoundTag()
             state.coroutineScope.serialize(scopeTag)

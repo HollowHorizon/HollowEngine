@@ -19,8 +19,21 @@ import com.sunnychung.lib.multiplatform.kotlite.model.ShortValue
 import com.sunnychung.lib.multiplatform.kotlite.model.StringValue
 import com.sunnychung.lib.multiplatform.kotlite.model.SymbolTable
 import com.sunnychung.lib.multiplatform.kotlite.stdlib.collections.MapValue
+import kotlin.reflect.KClass
 
 object KatariGeneratedBindingRuntime {
+    private val hostTypes = linkedMapOf<String, HostTypeRegistration>()
+    private val hostTypeIdsByClass = linkedMapOf<KClass<*>, String>()
+
+    fun registerHostType(
+        typeClass: KClass<*>,
+        typeId: String,
+        superTypeIds: List<String>,
+    ) {
+        hostTypes[typeId] = HostTypeRegistration(typeId, typeClass, superTypeIds.toSet())
+        hostTypeIdsByClass[typeClass] = typeId
+    }
+
     fun toRuntimeValue(value: Any?, hostTypeId: String? = null, symbolTable: SymbolTable): RuntimeValue {
         return when (value) {
             null, Unit -> NullValue
@@ -45,7 +58,7 @@ object KatariGeneratedBindingRuntime {
             )
 
             else -> NarrativeHostValue(
-                typeId = hostTypeId ?: error("Missing Katari host type id for `${value::class.qualifiedName}`"),
+                typeId = resolveHostTypeId(value, hostTypeId),
                 value = value,
                 symbolTable = symbolTable
             )
@@ -169,8 +182,49 @@ object KatariGeneratedBindingRuntime {
         if (value == null || value == NullValue) return null
         return convert(value)
     }
+
+    private fun resolveHostTypeId(value: Any, expectedTypeId: String?): String {
+        val candidates = hostTypes.values
+            .filter { it.typeClass.isInstance(value) }
+            .filter { expectedTypeId == null || it.typeId == expectedTypeId || hasSuperType(it.typeId, expectedTypeId) }
+        val best = candidates.maxWithOrNull(
+            compareBy<HostTypeRegistration> { hostTypeDistance(it.typeId) }
+                .thenBy { if (it.typeClass == value::class) 1 else 0 }
+        )
+        if (best != null) return best.typeId
+
+        if (expectedTypeId != null) {
+            val expected = hostTypes[expectedTypeId]
+            if (expected == null || expected.typeClass.isInstance(value)) return expectedTypeId
+        }
+
+        return hostTypeIdsByClass[value::class]
+            ?: error("Missing Katari host type id for `${value::class.qualifiedName}`")
+    }
+
+    private fun hasSuperType(typeId: String, expectedSuperTypeId: String): Boolean {
+        val visited = mutableSetOf<String>()
+        fun visit(current: String): Boolean {
+            if (!visited.add(current)) return false
+            val type = hostTypes[current] ?: return false
+            if (expectedSuperTypeId in type.superTypeIds) return true
+            return type.superTypeIds.any(::visit)
+        }
+        return visit(typeId)
+    }
+
+    private fun hostTypeDistance(typeId: String): Int {
+        val type = hostTypes[typeId] ?: return 0
+        return type.superTypeIds.maxOfOrNull { hostTypeDistance(it) + 1 } ?: 0
+    }
 }
 
 data class GeneratedRuntimeValueResponse(val value: RuntimeValue) : FunctionResponse
 
 data class GeneratedKatariErrorResponse(val message: String) : FunctionResponse
+
+private data class HostTypeRegistration(
+    val typeId: String,
+    val typeClass: KClass<*>,
+    val superTypeIds: Set<String>,
+)

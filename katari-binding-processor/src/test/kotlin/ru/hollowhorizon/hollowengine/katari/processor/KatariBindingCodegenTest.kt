@@ -221,4 +221,47 @@ class KatariBindingCodegenTest {
         assertContains(code, "KatariGeneratedBindingRuntime.asList(itemsArgument, \"items\")")
         assertContains(code, "KatariGeneratedBindingRuntime.asMap(namedArgument, \"named\"")
     }
+
+    @Test
+    fun `generated inline function preserves generic function parameter signature`() {
+        val generic = TypeModel.generic("T", null, nullable = false)
+        val defaultValue = TypeModel.function(
+            parameterTypes = emptyList(),
+            returnType = TypeModel.any(nullable = true),
+            nullable = false,
+        )
+        val function = FunctionModel(
+            scriptName = "getOrCreate",
+            receiver = TypeModel(
+                kotlinType = "test.Store",
+                katariTypeExpression = "Store",
+                hostTypeId = "Store",
+                converter = null,
+                enumTypeId = null,
+                nullable = false,
+            ),
+            parameters = listOf(
+                ParameterModel("key", TypeModel.primitive("String", "String", "asString", nullable = false), hasDefault = false, isVararg = false),
+                ParameterModel("defaultValue", defaultValue, hasDefault = false, isVararg = false),
+            ),
+            returnType = generic,
+            typeParameters = listOf(TypeParameterModel("T", null)),
+            call = "receiver.__CALL__(__ARGS__)",
+            isSuspend = false,
+            passesReceiverAsArgument = false,
+            importQualifiedName = "test.getOrCreate",
+            inlineBody = "{ return defaultValue() }",
+            inlineBodyFormat = InlineBodyFormat.Block,
+        )
+
+        val code = KatariBindingCodegen(emptyList(), listOf(function), emptyList()).generate()
+
+        assertContains(code, "register(object : NarrativeCallable")
+        assertContains(code, "override val id: String = \"getOrCreate\"")
+        assertContains(code, "override val receiverType: String? = \"Store\"")
+        assertContains(code, "override val returnType: String = \"T\"")
+        assertContains(code, "CustomFunctionParameter(\"defaultValue\", \"() -> Any?\")")
+        assertContains(code, "modifiers = setOf(FunctionModifier.inline)")
+        assertContains(code, "inlineFunctionBody = \"{ return defaultValue() }\"")
+    }
 }

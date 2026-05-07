@@ -6,6 +6,7 @@ import ru.hollowhorizon.hollowengine.common.events.Event
 import ru.hollowhorizon.hollowengine.common.events.EventListener
 import ru.hollowhorizon.hollowengine.common.events.eventListenerOf
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 import kotlin.reflect.KClass
 import kotlin.reflect.full.companionObjectInstance
@@ -69,18 +70,24 @@ suspend inline fun <reified T : Event> EventHandler<T>.await(
     priority: Int = 0,
     crossinline filter: (T) -> Boolean = { true },
 ): T = suspendCancellableCoroutine { continuation ->
-    val listener: (T) -> Unit = object : EventListener<T> {
+    val isDone = AtomicBoolean(false)
+
+    val listener = object : EventListener<T> {
+        override val priority = priority
+
         override fun invoke(event: T) {
-            if (filter(event)) {
+            if (filter(event) && isDone.compareAndSet(false, true)) {
                 unregister(this)
                 continuation.resume(event)
             }
         }
     }
 
-    register(priority, listener)
+    register(listener)
 
     continuation.invokeOnCancellation {
-        unregister(listener)
+        if (isDone.compareAndSet(false, true)) {
+            unregister(listener)
+        }
     }
 }

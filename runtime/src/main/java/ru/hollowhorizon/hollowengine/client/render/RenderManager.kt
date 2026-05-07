@@ -268,7 +268,7 @@ object RenderManager {
             val resolved = resolveNodeTransform(level, record.hostEntityUuid, transform, partialTick)
                 ?: return@forEachModelNodeRecord
 
-            val bounds = buildNodeRenderBounds(model, resolved.transform, model.scale)
+            val bounds = buildNodeRenderBounds(model, resolved.transform)
             if (frustum != null && !frustum.isVisible(bounds)) return@forEachModelNodeRecord
 
             poseStack.pushPose()
@@ -286,9 +286,9 @@ object RenderManager {
                 )
             )
             poseStack.scale(
-                model.scale * resolved.transform.scale.x,
-                model.scale * resolved.transform.scale.y,
-                model.scale * resolved.transform.scale.z,
+                resolved.transform.scale.x,
+                resolved.transform.scale.y,
+                resolved.transform.scale.z,
             )
             model.attachment.configureAnimator(
                 animator = node.animator,

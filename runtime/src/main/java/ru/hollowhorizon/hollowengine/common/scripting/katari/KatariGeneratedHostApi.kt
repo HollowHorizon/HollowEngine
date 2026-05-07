@@ -173,8 +173,8 @@ fun Entity.heal(value: Double = 1.0) {
 }
 
 @ScriptBinding
-fun Entity.setModel(model: String, controller: String = "player_model.animation-controller.kts") {
-    set(Model(model = model, controllerScript = controller))
+fun Entity.setModel(model: String) {
+    set(Model(model = model))
 }
 
 @ScriptBinding

@@ -192,7 +192,7 @@ class ConfigAnnotationTests {
     fun `annotations are present`() {
         val name = HollowEngineConfig::class.java.getAnnotation(ConfigName::class.java)
         assertNotNull(name)
-        assertEquals("hollowcore", name!!.name)
+        assertEquals("hollowengine", name!!.name)
     }
 
     @Test

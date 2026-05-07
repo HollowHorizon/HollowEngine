@@ -6,8 +6,8 @@ import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindings
 import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeBindingsBuilder
 import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeHost
 import com.sunnychung.lib.multiplatform.kotlite.katari.NarrativeNoOpHost
-import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeHostValue
 import com.sunnychung.lib.multiplatform.kotlite.model.GlobalProperty
+import com.sunnychung.lib.multiplatform.kotlite.model.NarrativeHostValue
 import com.sunnychung.lib.multiplatform.kotlite.model.NullValue
 import com.sunnychung.lib.multiplatform.kotlite.model.SourcePosition
 import com.sunnychung.lib.multiplatform.kotlite.stdlib.AllStdLibModules
@@ -16,7 +16,6 @@ import kotlinx.coroutines.launch
 import net.minecraft.ChatFormatting
 import net.minecraft.network.chat.Component
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
@@ -29,7 +28,7 @@ import java.util.UUID
 val KatariEditorContextGlobalTypes = linkedMapOf(
     "player" to "Player",
     "server" to "Server",
-    "level" to "Level",
+    "overworld" to "Level",
 )
 
 class HollowKatariHost(
@@ -111,20 +110,16 @@ fun createHollowKatariBindings(
     sourcePlayerId: String? = sourcePlayer?.uuid?.toString(),
 ): Pair<KatariBindings, HollowKatariHost> {
     val host = HollowKatariHost(server, runId, sourcePlayer, onDirty)
+    val savedVariables = KatariSavedVariables(server)
     val bindings = NarrativeBindings {
         install(AllStdLibModules { message -> server.playerList.players.forEach { it.sendSystemMessage(message.literal) } })
         registerBuiltinFunctions(host)
-        registerHostTypes()
+        registerSavedVariableBindings(savedVariables)
         registerGeneratedKatariBindings(server)
         registerContextGlobals(server, sourcePlayer, sourcePlayerId)
     }
+    savedVariables.snapshotCodec = bindings.snapshotCodec
     return bindings to host
-}
-
-fun NarrativeBindingsBuilder.registerHostTypes() {
-    registerHostType(KatariChatMessage::class, "ChatMessage")
-    registerHostType(MinecraftServer::class, "Server")
-    registerHostType(ServerLevel::class, "Level")
 }
 
 fun NarrativeBindingsBuilder.registerContextGlobals(
@@ -135,14 +130,14 @@ fun NarrativeBindingsBuilder.registerContextGlobals(
     val playerRef: Player? = sourcePlayer ?: sourcePlayerId?.let { server.playerList.getPlayer(UUID.fromString(it)) }
     playerRef?.let { global("player", NarrativeHostValue("Player", it, symbolTable), persistent = true) }
     global("server", NarrativeHostValue("Server", server, symbolTable))
-    global("level", NarrativeHostValue("Level", sourcePlayer?.level() ?: server.overworld(), symbolTable))
+    global("overworld", NarrativeHostValue("Level", server.overworld(), symbolTable))
 }
 
 fun createHollowKatariEditorBindings(): KatariBindings {
     return NarrativeBindings {
         install(AllStdLibModules())
         registerBuiltinFunctions(NarrativeNoOpHost)
-        registerHostTypes()
+        registerSavedVariableBindings(null)
         registerGeneratedKatariBindings()
         registerContextGlobalTypes()
     }

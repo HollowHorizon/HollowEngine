@@ -243,6 +243,8 @@ private class KatariBindingProcessor(
             isSuspend = false,
             passesReceiverAsArgument = false,
             importQualifiedName = null,
+            inlineBody = null,
+            inlineBodyFormat = InlineBodyFormat.Block,
         )
     }
 
@@ -312,6 +314,14 @@ private class KatariBindingProcessor(
         }
         val returnType = declaration.returnType?.resolve()?.let { typeModel(it, scriptTypes, typeParameterTypes) } ?: TypeModel.unit()
         val callableName = declaration.qualifiedName?.asString() ?: declaration.simpleName.asString()
+        val inlineBody = if (Modifier.INLINE in declaration.modifiers) {
+            defaultValueSourceReader.functionBody(declaration) ?: run {
+                logger.error("Katari inline @ScriptBinding function body cannot be read from source", declaration)
+                return null
+            }
+        } else {
+            null
+        }
         val call = explicitReceiverExpression ?: when {
             declaration.parentDeclaration != null -> "receiver.${declaration.simpleName.asString()}(__ARGS__)"
             declaration.extensionReceiver != null -> "receiver.__CALL__(__ARGS__)"
@@ -327,6 +337,9 @@ private class KatariBindingProcessor(
             isSuspend = Modifier.SUSPEND in declaration.modifiers,
             passesReceiverAsArgument = false,
             importQualifiedName = callableName.takeIf { declaration.parentDeclaration == null },
+            inlineBody = inlineBody?.body,
+            inlineBodyFormat = inlineBody?.format ?: InlineBodyFormat.Block,
+            source = declaration.containingFile,
         )
     }
 
@@ -434,6 +447,9 @@ private class KatariBindingProcessor(
             )
 
             else -> {
+                if (qualifiedName.startsWith("kotlin.Function")) {
+                    return functionTypeModel(type, scriptTypes, typeParameters)
+                }
                 if (type.arguments.isNotEmpty()) {
                     logger.error("Generic script binding type `${type.render()}` is not supported", type.declaration)
                     return null
@@ -476,6 +492,29 @@ private class KatariBindingProcessor(
             }
         }
         return TypeModel.collection(kotlinBaseType, katariBaseType, arguments, kind, type.isMarkedNullable)
+    }
+
+    private fun functionTypeModel(
+        type: KSType,
+        scriptTypes: Map<String, ScriptTypeModel>,
+        typeParameters: Map<String, TypeParameterModel>,
+    ): TypeModel? {
+        val arguments = type.arguments.map { argument ->
+            val resolvedArgument = argument.type?.resolve() ?: run {
+                logger.error("Unsupported function binding type `${type.render()}`", type.declaration)
+                return null
+            }
+            typeModel(resolvedArgument, scriptTypes, typeParameters) ?: return null
+        }
+        if (arguments.isEmpty()) {
+            logger.error("Unsupported function binding type `${type.render()}`", type.declaration)
+            return null
+        }
+        return TypeModel.function(
+            parameterTypes = arguments.dropLast(1),
+            returnType = arguments.last(),
+            nullable = type.isMarkedNullable,
+        )
     }
 
     private fun validateDuplicates(
@@ -556,7 +595,9 @@ private class KatariBindingProcessor(
     private fun KSAnnotated.annotationValue(annotationName: String, argumentName: String): String {
         return annotations.firstOrNull {
             it.annotationType.resolve().declaration.qualifiedName?.asString() == annotationName
-        }?.arguments?.firstOrNull { it.name?.asString() == argumentName || it.name?.asString() == "value" }
+        }?.arguments?.firstOrNull {
+            it.name?.asString() == argumentName || argumentName == "value" && it.name?.asString() == "value"
+        }
             ?.value as? String ?: ""
     }
 
