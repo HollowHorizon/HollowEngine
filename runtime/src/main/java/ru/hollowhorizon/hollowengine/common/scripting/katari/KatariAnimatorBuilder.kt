@@ -145,6 +145,22 @@ class KatariAnimatorBuilder @ScriptIgnore constructor(
         )
     )
 
+    fun materialOverride(
+        id: String,
+        overrides: Map<Int, String>,
+        priority: Int = 0,
+        fadeIn: Float = 0f,
+        fadeOut: Float = 0f,
+    ): KatariAnimatorBuilder = replace(
+        MaterialOverrideLayerSpec(
+            id = id,
+            overrides = overrides.map { (index, texture) -> MaterialTextureOverride(index, texture) },
+            priority = priority,
+            fadeIn = fadeIn,
+            fadeOut = fadeOut,
+        )
+    )
+
     fun boneTransform(
         layerId: String,
         bone: String,

@@ -106,6 +106,9 @@ import ru.hollowhorizon.hollowengine.common.events.server.ServerChatEvent
 import ru.hollowhorizon.hollowengine.common.events.server.ServerEvent
 import ru.hollowhorizon.hollowengine.common.events.tick.TickEvent
 import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
+import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
+import ru.hollowhorizon.hollowengine.common.geary.components.SkinComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.SkinModel
 import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryHelper
 import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryProvider
 import ru.hollowhorizon.hollowengine.common.runtime.EmptyRuntimeAnnotationIndex
@@ -744,6 +747,20 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         val event = RenderPlayerEvent(player, entityYaw, partialTicks, poseStack, buffer, packedLight)
         RenderPlayerEvent.post(event)
         return event.isCanceled
+    }
+
+    override fun getCustomPlayerSkinTexture(player: AbstractClientPlayer): ResourceLocation? =
+        skinComponent(player)?.texture?.takeIf(String::isNotBlank)?.let { it.rl }
+
+    override fun getCustomPlayerSkinCape(player: AbstractClientPlayer): ResourceLocation? =
+        skinComponent(player)?.cape?.takeIf(String::isNotBlank)?.let { it.rl }
+
+    override fun isCustomPlayerSkinSlim(player: AbstractClientPlayer): Boolean =
+        skinComponent(player)?.model == SkinModel.SLIM
+
+    private fun skinComponent(player: AbstractClientPlayer): SkinComponent? {
+        val componentId = ComponentDescriptorRegistry.idFor(SkinComponent::class) ?: return null
+        return GearyRuntimeState.componentsById(player)[componentId] as? SkinComponent
     }
 
     override fun onIrisPipelineDestroyed() {

@@ -19,10 +19,12 @@ import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.events.entity.player.PlayerInteractEvent
 import ru.hollowhorizon.hollowengine.common.events.factory.await
+import ru.hollowhorizon.hollowengine.common.geary.api.GearyRuntimeState
 import ru.hollowhorizon.hollowengine.common.geary.api.set
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
-import ru.hollowhorizon.hollowengine.common.geary.components.Model
-import ru.hollowhorizon.hollowengine.common.geary.components.TransformComponent
+import ru.hollowhorizon.hollowengine.common.geary.binding.EntitySnapshotPacket
+import ru.hollowhorizon.hollowengine.common.geary.components.*
+import ru.hollowhorizon.hollowengine.common.geary.snapshot.snapshotOf
+import ru.hollowhorizon.hollowengine.common.network.sendTrackingEntityAndSelf
 import ru.hollowhorizon.hollowengine.common.npcs.HitboxMode
 import ru.hollowhorizon.hollowengine.common.scripting.katari.binding.ScriptBinding
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.effects.playSound
@@ -326,6 +328,59 @@ val Entity.scriptMainHand: String
     get() {
         val stack = (this as? LivingEntity)?.mainHandItem ?: ItemStack.EMPTY
         return if (stack.isEmpty) "" else BuiltInRegistries.ITEM.getKey(stack.item).toString()
+    }
+
+@ScriptBinding
+fun Entity.setSkin(texture: String, model: String = "wide", cape: String = "") {
+    val skinModel = if (model == "slim") SkinModel.SLIM else SkinModel.WIDE
+    set(SkinComponent(texture = texture, model = skinModel, cape = cape))
+    EntitySnapshotPacket(id, snapshotOf(this)).sendTrackingEntityAndSelf(this)
+}
+
+@ScriptBinding
+fun Entity.clearSkin() {
+    val componentId = ComponentDescriptorRegistry.idFor(SkinComponent::class) ?: return
+    val components = GearyRuntimeState.componentsById(this)
+    if (components.remove(componentId) != null) {
+        GearyRuntimeState.markDirty(this)
+        EntitySnapshotPacket(id, snapshotOf(this)).sendTrackingEntityAndSelf(this)
+    }
+}
+
+@ScriptBinding("skin")
+var Entity.scriptSkin: String
+    get() {
+        val componentId = ComponentDescriptorRegistry.idFor(SkinComponent::class) ?: return ""
+        return (GearyRuntimeState.componentsById(this)[componentId] as? SkinComponent)?.texture ?: ""
+    }
+    set(value) {
+        set(SkinComponent(texture = value))
+    }
+
+@ScriptBinding("skinModel")
+var Entity.scriptSkinModel: String
+    get() {
+        val componentId = ComponentDescriptorRegistry.idFor(SkinComponent::class) ?: return "wide"
+        val component = GearyRuntimeState.componentsById(this)[componentId] as? SkinComponent ?: return "wide"
+        return if (component.model == SkinModel.SLIM) "slim" else "wide"
+    }
+    set(value) {
+        val componentId = ComponentDescriptorRegistry.idFor(SkinComponent::class) ?: return
+        val current = GearyRuntimeState.componentsById(this)[componentId] as? SkinComponent ?: SkinComponent()
+        val skinModel = if (value == "slim") SkinModel.SLIM else SkinModel.WIDE
+        set(current.copy(model = skinModel))
+    }
+
+@ScriptBinding("skinCape")
+var Entity.scriptSkinCape: String
+    get() {
+        val componentId = ComponentDescriptorRegistry.idFor(SkinComponent::class) ?: return ""
+        return (GearyRuntimeState.componentsById(this)[componentId] as? SkinComponent)?.cape ?: ""
+    }
+    set(value) {
+        val componentId = ComponentDescriptorRegistry.idFor(SkinComponent::class) ?: return
+        val current = GearyRuntimeState.componentsById(this)[componentId] as? SkinComponent ?: SkinComponent()
+        set(current.copy(cape = value))
     }
 
 @ScriptBinding("blockX")

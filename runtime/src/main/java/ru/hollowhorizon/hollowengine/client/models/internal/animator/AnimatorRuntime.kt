@@ -15,6 +15,7 @@ import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorLayerSpec
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorComponent
 import ru.hollowhorizon.hollowengine.common.geary.components.BoneMask
 import ru.hollowhorizon.hollowengine.common.geary.components.ClipAnimationLayerSpec
+import ru.hollowhorizon.hollowengine.common.geary.components.MaterialOverrideLayerSpec
 import ru.hollowhorizon.hollowengine.common.geary.components.ProceduralLayerSpec
 
 class AnimatorRuntime {
@@ -72,6 +73,7 @@ class AnimatorRuntime {
                     )
 
                     is ProceduralLayerSpec -> LayerSample(sampleProceduralLayer(layer, rootNodes, allowedNodes, layerContext))
+                    is MaterialOverrideLayerSpec -> null
                 } ?: return@forEach
                 val finalWeight = weight * sample.weightScale
                 if (finalWeight <= 0f) return@forEach

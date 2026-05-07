@@ -22,6 +22,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRender
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
 import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorComponent
+import ru.hollowhorizon.hollowengine.common.geary.components.MaterialOverrideLayerSpec
 import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.fabric.internal.IrisHelper
 import kotlin.math.max
@@ -34,6 +35,7 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
     private var runtimeNodes: List<RuntimeNode> = emptyList()
     private var runtimeAnimations: Animations = Animations(emptyMap())
     private var runtimeMaterials: Set<Material> = emptySet()
+    private var runtimeMaterialsList: List<Material> = emptyList()
     private var nodeIdToNode: Map<Int, RuntimeNode> = emptyMap()
     private var nodeIdToTransform = emptyMap<Int, TrsTransformF>()
     private val localAnimatorRuntime = AnimatorRuntime()
@@ -110,6 +112,7 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
             runtimeNodes = model.scenes.getOrNull(model.scene)?.nodes?.map { RuntimeNode(it, this) } ?: emptyList()
             runtimeAnimations = Animations(model.animations.associate { it.name to AnimationInstance(it) })
             runtimeMaterials = model.materials
+            runtimeMaterialsList = model.materials.toList()
             nodeIdToNode = runtimeNodes.flatMap { it.walk() }.associateBy { it.definition.index }
             nodeIdToTransform = nodeIdToNode.mapValues { it.value.transform }
             renderPipeline = ListRenderPipeline().apply(this@ModelAttachment::collectCommands)
@@ -162,6 +165,20 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
         } else {
             for (animation in currentAnimations) {
                 animation.update(transforms, dt)
+            }
+        }
+
+        val materialOverrides = currentAnimator?.layers
+            ?.filterIsInstance<MaterialOverrideLayerSpec>()
+            .orEmpty()
+        if (materialOverrides.isNotEmpty()) {
+            val materialsList = runtimeMaterialsList
+            materialOverrides.forEach { layer ->
+                layer.overrides.forEach { override ->
+                    if (override.materialIndex in materialsList.indices) {
+                        materialsList[override.materialIndex].texture = override.texture.rl
+                    }
+                }
             }
         }
 

@@ -229,6 +229,12 @@ public interface RuntimeBridge extends AutoCloseable {
 
     boolean onRenderPlayer(AbstractClientPlayer player, float entityYaw, float partialTicks, PoseStack poseStack, MultiBufferSource buffer, int packedLight);
 
+    @Nullable ResourceLocation getCustomPlayerSkinTexture(AbstractClientPlayer player);
+
+    @Nullable ResourceLocation getCustomPlayerSkinCape(AbstractClientPlayer player);
+
+    boolean isCustomPlayerSkinSlim(AbstractClientPlayer player);
+
     void onIrisPipelineDestroyed();
 
     void onIrisAddDynamicUniforms(Object uniforms);

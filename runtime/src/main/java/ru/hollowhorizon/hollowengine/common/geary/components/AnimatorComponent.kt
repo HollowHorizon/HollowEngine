@@ -79,6 +79,25 @@ data class ProceduralLayerSpec(
 ) : AnimatorLayerSpec()
 
 @Serializable
+@SerialName("hollowengine:animator/material_override")
+data class MaterialOverrideLayerSpec(
+    override val id: String = newAnimationLayerId("material_override"),
+    val overrides: List<MaterialTextureOverride> = emptyList(),
+    override val weight: AnimationExpression = AnimationExpression.ONE,
+    override val priority: Int = 0,
+    override val blendMode: LayerBlendMode = LayerBlendMode.Override,
+    override val mask: BoneMask = BoneMask.full(),
+    override val fadeIn: Float = 0f,
+    override val fadeOut: Float = 0f,
+) : AnimatorLayerSpec()
+
+@Serializable
+data class MaterialTextureOverride(
+    val materialIndex: Int,
+    val texture: String,
+)
+
+@Serializable
 data class AnimationControllerStateSpec(
     val id: String,
     val animation: String,
