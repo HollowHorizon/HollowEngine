@@ -133,6 +133,7 @@ class ScriptFile(path: String) : EditorFile(path) {
             )
 
             modifier.padding(Dimensions.PaddingNormal)
+                .margin(end = Dimensions.PaddingNormal)
                 .background(RoundRectBackground(color, Dimensions.PaddingSmall))
                 .onClick {
                     StartScriptPacket(filePath).send()
