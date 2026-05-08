@@ -18,11 +18,15 @@ import ru.hollowhorizon.hollowengine.common.objects.items.CreativeTab
 import ru.hollowhorizon.hollowengine.common.registry.ModItems
 import ru.hollowhorizon.hollowengine.common.registry.ModTabs
 import ru.hollowhorizon.hollowengine.common.scripting.story.functions.player.send
+import ru.hollowhorizon.hollowengine.common.utils.literal
 
 
 class NpcTool : Item(Properties().stacksTo(1)), CreativeTab {
 
     override fun use(pLevel: Level, player: Player, pUsedHand: InteractionHand): InteractionResultHolder<ItemStack> {
+        player.sendSystemMessage("Ахтунг, брось нпс-палку, я её ещё не доделал".literal)
+        return super.use(pLevel, player, pUsedHand)
+
         if (pLevel.isClientSide && pUsedHand == InteractionHand.MAIN_HAND && player.isShiftKeyDown) {
             EntityEditorScreen(player).open()
             return InteractionResultHolder.success(player.getItemInHand(pUsedHand))

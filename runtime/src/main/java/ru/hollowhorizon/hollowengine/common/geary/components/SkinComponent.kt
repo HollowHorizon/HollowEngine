@@ -12,7 +12,7 @@ enum class SkinModel { WIDE, SLIM }
 @Syncable
 @Serializable
 @SerialName("hollowengine:skin")
-@EditorIcon("hollowengine:textures/gui/icons/color_picker.png")
+@EditorIcon("hollowengine:textures/gui/icons/eye.png")
 data class SkinComponent(
     val texture: String = "",
     val model: SkinModel = SkinModel.WIDE,
