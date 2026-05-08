@@ -10,12 +10,13 @@ import org.joml.Quaternionf
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.RenderPipeline
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix3f
 import ru.hollowhorizon.hollowengine.client.utils.math.asMatrix4f
-import ru.hollowhorizon.hollowengine.client.utils.*
+import ru.hollowhorizon.hollowengine.client.utils.mulPoseMatrix
 
-class ItemNode(val entity: LivingEntity, val slot: EquipmentSlot, parent: Attachment?): Attachment(parent) {
+class ItemNode(val entity: () -> LivingEntity?, val slot: EquipmentSlot, parent: Attachment?): Attachment(parent) {
     override fun collectCommands(pipeline: RenderPipeline) {
         super.collectCommands(pipeline)
         pipeline.addBatchedRenderable {
+            val entity = entity() ?: return@addBatchedRenderable
             stack.pushPose()
 
             stack.mulPoseMatrix(globalMatrix.asMatrix4f())

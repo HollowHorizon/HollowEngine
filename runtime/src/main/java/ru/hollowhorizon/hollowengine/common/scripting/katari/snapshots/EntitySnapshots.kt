@@ -8,6 +8,7 @@ import net.minecraft.core.registries.Registries
 import net.minecraft.resources.ResourceKey
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
 import ru.hollowhorizon.hollowengine.common.events.entity.EntityLoadedEvent
@@ -23,7 +24,7 @@ import java.util.*
 
 @Serializable
 @SerialName("hollowengine:katari/npc")
-@ScriptType("NpcEntity", Entity::class)
+@ScriptType("NpcEntity", LivingEntity::class)
 data class NpcEntitySnapshot(
     val uuid: @Serializable(ForStringUUID::class) UUID,
     val level: @Serializable(ForResourceLocation::class) ResourceLocation,
@@ -72,8 +73,33 @@ data class EntitySnapshot(
 }
 
 @Serializable
+@SerialName("hollowengine:katari/living_entity")
+@ScriptType("LivingEntity", Entity::class)
+data class LivingEntitySnapshot(
+    val uuid: @Serializable(ForStringUUID::class) UUID,
+    val level: @Serializable(ForResourceLocation::class) ResourceLocation,
+) : ValueSnapshot(), ScriptSnapshot<LivingEntity> {
+    override suspend fun restore(context: ValueRestoreContext): LivingEntity {
+        val server = (context as KatariRestoreContext).server
+        val world = server.getLevel(ResourceKey.create(Registries.DIMENSION, level))
+
+        world?.getEntity(uuid)?.let { return it as LivingEntity }
+
+        val event =
+            EntityLoadedEvent.await { it.entity.uuid == uuid && it.entity.level().dimension().location() == level }
+        return event.entity as LivingEntity
+    }
+
+    companion object : ScriptSnapshotFactory<LivingEntity, LivingEntitySnapshot> {
+        override fun capture(value: LivingEntity): LivingEntitySnapshot {
+            return LivingEntitySnapshot(value.uuid, value.level().dimension().location())
+        }
+    }
+}
+
+@Serializable
 @SerialName("hollowengine:katari/player")
-@ScriptType("Player", Entity::class)
+@ScriptType("Player", LivingEntity::class)
 data class PlayerSnapshot(
     val uuid: @Serializable(ForStringUUID::class) UUID,
 ) : ValueSnapshot(), ScriptSnapshot<Player> {

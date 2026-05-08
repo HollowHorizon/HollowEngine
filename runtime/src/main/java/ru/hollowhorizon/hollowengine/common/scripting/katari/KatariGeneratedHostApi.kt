@@ -324,10 +324,17 @@ val Entity.scriptPosition: Vec3 get() = position()
 val Entity.scriptDimension: String get() = level().dimension().location().toString()
 
 @ScriptBinding("mainHand")
-val Entity.scriptMainHand: String
-    get() {
-        val stack = (this as? LivingEntity)?.mainHandItem ?: ItemStack.EMPTY
-        return if (stack.isEmpty) "" else BuiltInRegistries.ITEM.getKey(stack.item).toString()
+var LivingEntity.scriptMainHand: ItemStack
+    get() = this.mainHandItem ?: ItemStack.EMPTY
+    set(value) {
+        setItemInHand(InteractionHand.MAIN_HAND, value)
+    }
+
+@ScriptBinding("offHand")
+var LivingEntity.scriptOffHand: ItemStack
+    get() = this.offhandItem ?: ItemStack.EMPTY
+    set(value) {
+        setItemInHand(InteractionHand.OFF_HAND, value)
     }
 
 @ScriptBinding

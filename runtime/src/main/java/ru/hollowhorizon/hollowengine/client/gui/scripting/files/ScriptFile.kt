@@ -5,16 +5,20 @@ import de.fabmax.kool.modules.ui2.*
 import de.fabmax.kool.modules.ui2.docking.Dockable
 import de.fabmax.kool.util.Color
 import de.fabmax.kool.util.logE
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
+import ru.hollowhorizon.hollowengine.client.gui.colors.Dimensions
 import ru.hollowhorizon.hollowengine.client.gui.scripting.EditorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.EditorState
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.components.TextSource
 import ru.hollowhorizon.hollowengine.client.gui.scripting.files.text.util.*
 import ru.hollowhorizon.hollowengine.client.gui.scripting.popup.SubMenuItem
+import ru.hollowhorizon.hollowengine.client.gui.scripting.titlebar.StartScriptPacket
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
 import ru.hollowhorizon.hollowengine.client.kool.minecraft.Image
 import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.scripting.ide.Severity
+import ru.hollowhorizon.hollowengine.generated.Assets
 
 class ScriptFile(path: String) : EditorFile(path) {
 
@@ -116,6 +120,26 @@ class ScriptFile(path: String) : EditorFile(path) {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    override fun UiScope.drawHeaderRight(color: Color) {
+        Box {
+            val isHovered by modifier.hoverable()
+            val color by animateColorAsState(
+                if (isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary,
+                tween(easing = Easing.easeOutQuart)
+            )
+
+            modifier.padding(Dimensions.PaddingNormal)
+                .background(RoundRectBackground(color, Dimensions.PaddingSmall))
+                .onClick {
+                    StartScriptPacket(filePath).send()
+                }
+
+            Image(Assets.Hollowengine.Textures.Gui.Icons.PLAY) {
+                modifier.size(Dimensions.PaddingHuge, Dimensions.PaddingHuge).alignY(AlignmentY.Center)
             }
         }
     }

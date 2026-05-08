@@ -9,13 +9,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import net.minecraft.client.Minecraft
+import net.minecraft.world.entity.EquipmentSlot
+import net.minecraft.world.entity.LivingEntity
+import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
+import ru.hollowhorizon.hollowengine.client.models.internal.Material
+import ru.hollowhorizon.hollowengine.client.models.internal.Primitive
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntime
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeKey
 import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntimeRegistry
-import ru.hollowhorizon.hollowengine.client.models.internal.AnimatedModel
-import ru.hollowhorizon.hollowengine.client.models.internal.Material
-import ru.hollowhorizon.hollowengine.client.models.internal.Primitive
 import ru.hollowhorizon.hollowengine.client.models.internal.controller.AnimationInstance
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.models.internal.rendering.ListRenderPipeline
@@ -29,7 +31,8 @@ import kotlin.math.max
 import kotlin.math.min
 
 fun ModelAttachment(model: String) = ModelAttachment(HollowModelManager.getOrCreate(model.rl), null)
-class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) : Attachment(parent) {
+class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?, var entity: LivingEntity? = null) :
+    Attachment(parent) {
     private val rebuildLock = Any()
     private var modelState: AnimatedModel = flow.value
     private var runtimeNodes: List<RuntimeNode> = emptyList()
@@ -42,12 +45,16 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
     private var animatorComponent: AnimatorComponent? = null
     private var animatorRuntimeKey: AnimatorRuntimeKey? = null
     private var animatorContext: AnimatorEvaluationContext = AnimatorEvaluationContext(0f, 0f)
+
     @Volatile
     private var compiledFor: AnimatedModel? = null
+
     @Volatile
     private var renderPipeline: ListRenderPipeline = ListRenderPipeline()
+
     @Volatile
     private var cachedBounds: Pair<Vec3f, Vec3f>? = null
+
     @Volatile
     private var cachedBoundsFrame = Int.MIN_VALUE
 
@@ -66,15 +73,17 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
         flow.onEach { ensureCompiled(it) }.launchIn(Minecraft.getInstance().coroutineScope)
     }
 
-    val triangles get() =
-        model.walkNodes().sumOf {
-            it.mesh?.primitives?.sumOf { it.positionsCount / 3 } ?: 0
-        }
+    val triangles
+        get() =
+            model.walkNodes().sumOf {
+                it.mesh?.primitives?.sumOf { it.positionsCount / 3 } ?: 0
+            }
 
-    val shapekeys get() =
-        model.walkNodes().sumOf {
-            it.mesh?.primitives?.sumOf { it.morphTargets.size } ?: 0
-        }
+    val shapekeys
+        get() =
+            model.walkNodes().sumOf {
+                it.mesh?.primitives?.sumOf { it.morphTargets.size } ?: 0
+            }
 
     private val onUpdates = mutableListOf<ModelAttachment.() -> Unit>()
     private val onPostUpdates = mutableListOf<ModelAttachment.() -> Unit>()
@@ -114,11 +123,19 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
             runtimeMaterials = model.materials
             runtimeMaterialsList = model.materials.toList()
             nodeIdToNode = runtimeNodes.flatMap { it.walk() }.associateBy { it.definition.index }
+            nodeIdToNode.values.forEach(::customizeNode)
             nodeIdToTransform = nodeIdToNode.mapValues { it.value.transform }
             renderPipeline = ListRenderPipeline().apply(this@ModelAttachment::collectCommands)
             cachedBounds = null
             cachedBoundsFrame = Int.MIN_VALUE
             compiledFor = animated
+        }
+    }
+
+    fun customizeNode(node: RuntimeNode) {
+        when (node.name) {
+            "RightHandItem" -> node.attachments.add(ItemNode({ entity }, EquipmentSlot.MAINHAND, node))
+            "LeftHandItem" -> node.attachments.add(ItemNode({ entity }, EquipmentSlot.OFFHAND, node))
         }
     }
 
@@ -132,12 +149,13 @@ class ModelAttachment(val flow: StateFlow<AnimatedModel>, parent: Attachment?) :
         val totalCubeCount = staticPrimitives.sumOf(Primitive::estimatedCubeCount)
         val averageCubesPerPrimitive = totalCubeCount.toFloat() / primitiveCount.toFloat()
         val preferBatching = primitiveCount >= MODEL_BATCHING_PRIMITIVE_THRESHOLD ||
-            (primitiveCount >= MODEL_BATCHING_DENSE_PRIMITIVE_THRESHOLD && averageCubesPerPrimitive <= MODEL_BATCHING_DENSE_AVERAGE_CUBES) ||
-            (primitiveCount >= MODEL_BATCHING_MIXED_PRIMITIVE_THRESHOLD &&
-                totalCubeCount >= MODEL_BATCHING_TOTAL_CUBE_THRESHOLD &&
-                averageCubesPerPrimitive <= MODEL_BATCHING_MIXED_AVERAGE_CUBES)
+                (primitiveCount >= MODEL_BATCHING_DENSE_PRIMITIVE_THRESHOLD && averageCubesPerPrimitive <= MODEL_BATCHING_DENSE_AVERAGE_CUBES) ||
+                (primitiveCount >= MODEL_BATCHING_MIXED_PRIMITIVE_THRESHOLD &&
+                        totalCubeCount >= MODEL_BATCHING_TOTAL_CUBE_THRESHOLD &&
+                        averageCubesPerPrimitive <= MODEL_BATCHING_MIXED_AVERAGE_CUBES)
 
-        val renderPath = if (preferBatching) Primitive.StaticRenderPath.BATCHING else Primitive.StaticRenderPath.PIPELINE
+        val renderPath =
+            if (preferBatching) Primitive.StaticRenderPath.BATCHING else Primitive.StaticRenderPath.PIPELINE
         staticPrimitives.forEach { it.setStaticRenderPath(renderPath) }
     }
 

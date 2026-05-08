@@ -9,6 +9,7 @@ import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.resources.ResourceLocation
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.editor.GizmoEditMode
@@ -30,14 +31,13 @@ import ru.hollowhorizon.hollowengine.common.codeblocks.modules.icons
 import ru.hollowhorizon.hollowengine.common.codeblocks.runtime.BlocksSystemSavedData
 import ru.hollowhorizon.hollowengine.common.config.EditMode
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
+import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.network.HollowPacket
 import ru.hollowhorizon.hollowengine.common.network.HollowPacketHandler
-import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
-import ru.hollowhorizon.hollowengine.common.scripting.compiling.start
 import ru.hollowhorizon.hollowengine.common.util.DesktopUtil
 import ru.hollowhorizon.hollowengine.common.util.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.literal
@@ -277,9 +277,9 @@ class StartScriptPacket(val path: String) : HollowPacket {
             return
         } else {
             val file = path.fromReadablePath()
+            val server = player.server ?: return
 
             if (file.name.endsWith(".bc")) {
-                val server = player.server ?: return
                 val blocksSystem = BlocksSystemSavedData.get(server)
                 blocksSystem.reloadScripts()
 
@@ -287,12 +287,14 @@ class StartScriptPacket(val path: String) : HollowPacket {
                 if (script != null) {
                     script.setEnabled(true)
                 }
-            } else {
-                val result = ScriptingEnvironment.INSTANCE.compiler.compile(file)
-                if (result.isFailure) {
-                    HollowEngine.LOGGER.info(result.exceptionOrNull())
+            } else if(file.name.endsWith(".ktr")) {
+                val result = server.runtimeContext.katari.run(path, player as ServerPlayer)
+                if (result.isSuccess) {
+                    player.sendSystemMessage("Katari script started: $path (${result.getOrThrow()})".literal)
                 } else {
-                    result.getOrThrow().start()
+                    val error = result.exceptionOrNull()
+                    HollowEngine.LOGGER.error("Katari script start failed", error)
+                    player.sendSystemMessage("Katari script start failed: ${error?.message ?: "Unknown error"}".literal)
                 }
             }
         }

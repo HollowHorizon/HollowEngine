@@ -1,17 +1,11 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.animator
 
-import com.sunnychung.lib.multiplatform.kotlite.KotliteInterpreter
 import com.sunnychung.lib.multiplatform.kotlite.Interpreter
-import com.sunnychung.lib.multiplatform.kotlite.model.BooleanValue
-import com.sunnychung.lib.multiplatform.kotlite.model.DoubleValue
-import com.sunnychung.lib.multiplatform.kotlite.model.ExecutionEnvironment
-import com.sunnychung.lib.multiplatform.kotlite.model.GlobalProperty
-import com.sunnychung.lib.multiplatform.kotlite.model.IntValue
-import com.sunnychung.lib.multiplatform.kotlite.model.LongValue
-import com.sunnychung.lib.multiplatform.kotlite.model.RuntimeValue
-import com.sunnychung.lib.multiplatform.kotlite.model.SourcePosition
+import com.sunnychung.lib.multiplatform.kotlite.KotliteInterpreter
+import com.sunnychung.lib.multiplatform.kotlite.model.*
 import com.sunnychung.lib.multiplatform.kotlite.stdlib.AllStdLibModules
 import de.fabmax.kool.math.Vec3f
+import net.minecraft.world.entity.LivingEntity
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationExpression
 import ru.hollowhorizon.hollowengine.common.geary.components.AnimationVectorExpression

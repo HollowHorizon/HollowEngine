@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.MultiBufferSource
 import net.minecraft.client.renderer.culling.Frustum
+import net.minecraft.client.renderer.entity.LivingEntityRenderer
 import net.minecraft.client.renderer.texture.OverlayTexture
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.Entity
@@ -290,6 +291,7 @@ object RenderManager {
                 resolved.transform.scale.y,
                 resolved.transform.scale.z,
             )
+            model.attachment.entity = record.hostEntity as? LivingEntity
             model.attachment.configureAnimator(
                 animator = node.animator,
                 key = AnimatorRuntimeKey(record.snapshotId, node.nodeId, model.model),
@@ -300,7 +302,8 @@ object RenderManager {
                     poseStack,
                     bufferSource,
                     if (packedLight >= 0) packedLight else resolved.light,
-                    OverlayTexture.NO_OVERLAY,
+                    (record.hostEntity as? LivingEntity)?.let { LivingEntityRenderer.getOverlayCoords(it, 0f) }
+                        ?: OverlayTexture.NO_OVERLAY,
                     allowInstancing = allowInstancing,
                     openedBatchedRenderTypes = openedBatchedRenderTypes,
                 )

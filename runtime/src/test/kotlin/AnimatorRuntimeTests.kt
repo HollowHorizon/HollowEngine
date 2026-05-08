@@ -1,39 +1,20 @@
+
 import de.fabmax.kool.math.Vec3f
 import de.fabmax.kool.scene.TrsTransformF
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import ru.hollowhorizon.hollowengine.client.models.internal.NodeDefinition
-import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimationExpressionEvaluator
-import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorEvaluationContext
-import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimationPose
-import ru.hollowhorizon.hollowengine.client.models.internal.animator.AnimatorRuntime
-import ru.hollowhorizon.hollowengine.client.models.internal.animator.LayerRuntimeState
-import ru.hollowhorizon.hollowengine.client.models.internal.animator.applyAnimationPose
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.Animation
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.AnimationData
 import ru.hollowhorizon.hollowengine.client.models.internal.animations.interpolations.Interpolator
+import ru.hollowhorizon.hollowengine.client.models.internal.animator.*
 import ru.hollowhorizon.hollowengine.client.models.internal.v2.RuntimeNode
-import ru.hollowhorizon.hollowengine.common.geary.components.ANY_STATE
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationExpression
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationControllerLayerSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationControllerStateSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationControllerTransitionSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimationPlayMode
-import ru.hollowhorizon.hollowengine.common.geary.components.AnimatorComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.ClipAnimationLayerSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptor
-import ru.hollowhorizon.hollowengine.common.geary.components.ComponentDescriptorRegistry
-import ru.hollowhorizon.hollowengine.common.geary.components.HideVanillaEntityModelComponent
-import ru.hollowhorizon.hollowengine.common.geary.components.LayerBlendMode
-import ru.hollowhorizon.hollowengine.common.geary.components.ProceduralLayerSpec
-import ru.hollowhorizon.hollowengine.common.geary.components.StandardPlayerAnimatorPreset
-import ru.hollowhorizon.hollowengine.common.geary.components.withLayer
-import ru.hollowhorizon.hollowengine.common.geary.components.withoutClip
+import ru.hollowhorizon.hollowengine.common.geary.components.*
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySerialization
 import ru.hollowhorizon.hollowengine.common.geary.snapshot.EntitySnapshot
 import ru.hollowhorizon.hollowengine.common.models.ServerModelAnimationMetadata
-import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.common.utils.molang.runtime.MolangContext
+import ru.hollowhorizon.hollowengine.common.utils.rl
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -311,13 +292,13 @@ class AnimatorRuntimeTests {
         assertTrue(
             evaluator.boolean(
                 expression,
-                AnimatorEvaluationContext(0.05f, 1f, mapOf("horizontal_speed" to 0.12f, "is_sprinting" to 1f)),
+                AnimatorEvaluationContext( 0.05f, 1f, mapOf("horizontal_speed" to 0.12f, "is_sprinting" to 1f)),
             )
         )
         assertFalse(
             evaluator.boolean(
                 expression,
-                AnimatorEvaluationContext(0.05f, 2f, mapOf("horizontal_speed" to 0.0f, "is_sprinting" to 1f)),
+                AnimatorEvaluationContext( 0.05f, 2f, mapOf("horizontal_speed" to 0.0f, "is_sprinting" to 1f)),
             )
         )
     }
@@ -329,7 +310,7 @@ class AnimatorRuntimeTests {
 
         assertEquals(
             0.5f,
-            evaluator.float(expression, AnimatorEvaluationContext(0.05f, 1f, mapOf("game_time" to 30f))),
+            evaluator.float(expression, AnimatorEvaluationContext( 0.05f, 1f, mapOf("game_time" to 30f))),
             0.0001f,
         )
     }
