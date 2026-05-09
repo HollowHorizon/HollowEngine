@@ -54,8 +54,14 @@ object RenderManager {
     @SubscribeEvent
     fun onRenderInstanced(event: RenderLevelStageEvent) {
         when (event.stage) {
-            RenderStage.AFTER_ENTITIES -> InstanceBatchManager.flush()
-            RenderStage.AFTER_LEVEL -> InstanceBatchManager.clear()
+            RenderStage.AFTER_ENTITIES -> {
+                InstanceBatchManager.flush()
+                InstanceBatchManager.clear()
+            }
+            RenderStage.AFTER_LEVEL -> {
+                InstanceBatchManager.flush()
+                InstanceBatchManager.clear()
+            }
             else -> {}
         }
     }
