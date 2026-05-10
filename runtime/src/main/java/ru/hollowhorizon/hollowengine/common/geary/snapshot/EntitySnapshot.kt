@@ -3,8 +3,10 @@ package ru.hollowhorizon.hollowengine.common.geary.snapshot
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.encoding.encodeCollection
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.HollowEngine
@@ -47,26 +49,56 @@ data class EntitySnapshot(
 }
 
 object ComponentListSerializer : KSerializer<List<Component>> {
-    private val delegate = ListSerializer(PolymorphicSerializer(Component::class))
+    private val componentSerializer = PolymorphicSerializer(Component::class)
 
-    override val descriptor: SerialDescriptor = delegate.descriptor
+    override val descriptor: SerialDescriptor =
+        ListSerializer(componentSerializer).descriptor
 
     override fun serialize(encoder: Encoder, value: List<Component>) {
-        delegate.serialize(encoder, value)
+        encoder.encodeCollection(descriptor, value.size) {
+            value.forEachIndexed { index, component ->
+                encodeSerializableElement(
+                    descriptor,
+                    index,
+                    componentSerializer,
+                    component
+                )
+            }
+        }
     }
 
     override fun deserialize(decoder: Decoder): List<Component> {
         val result = mutableListOf<Component>()
         val composite = decoder.beginStructure(descriptor)
 
-        val size = composite.decodeCollectionSize(descriptor)
-        for (i in 0 until size) {
+        fun decodeComponent(index: Int) {
             try {
-                result.add(composite.decodeSerializableElement(descriptor, i, PolymorphicSerializer(Component::class)))
+                val component = composite.decodeSerializableElement(
+                    descriptor,
+                    index,
+                    PolymorphicSerializer(Component::class)
+                )
+                result += component
             } catch (e: Exception) {
-                HollowEngine.LOGGER.info("Missing component: ${e.message}")
+                HollowEngine.LOGGER.warn(
+                    "Failed to deserialize component at index $index: ${e.message}",
+                    e
+                )
             }
         }
+
+        val size = composite.decodeCollectionSize(descriptor)
+
+        if (size >= 0) {
+            for (index in 0 until size) decodeComponent(index)
+        } else {
+            while (true) {
+                val index = composite.decodeElementIndex(descriptor)
+                if (index == CompositeDecoder.DECODE_DONE) break
+                decodeComponent(index)
+            }
+        }
+
         composite.endStructure(descriptor)
         return result
     }

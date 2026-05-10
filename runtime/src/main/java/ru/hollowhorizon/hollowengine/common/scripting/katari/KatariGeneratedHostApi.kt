@@ -1,5 +1,8 @@
 package ru.hollowhorizon.hollowengine.common.scripting.katari
 
+import de.fabmax.kool.math.MutableQuatF
+import de.fabmax.kool.math.Vec3f
+import de.fabmax.kool.math.rotateByEulers
 import kotlinx.coroutines.delay
 import net.minecraft.core.BlockPos
 import net.minecraft.core.registries.BuiltInRegistries
@@ -180,8 +183,19 @@ fun Entity.setModel(model: String) {
 }
 
 @ScriptBinding
-fun Entity.setTransform(x: Double, y: Double, z: Double, scale: Double) {
-    set(TransformComponent.legacy(x.toFloat(), y.toFloat(), z.toFloat(), scale.toFloat()))
+fun Entity.setTransform(
+    x: Double = 0.0, y: Double = 0.0, z: Double = 0.0,
+    rotX: Double = 0.0, rotY: Double = 0.0, rotZ: Double = 0.0,
+    scale: Double,
+) {
+    val rot = MutableQuatF().rotateByEulers(Vec3f(rotX.toFloat(), rotY.toFloat(), rotZ.toFloat()))
+    set(
+        TransformComponent(
+            Vec3f(x.toFloat(), y.toFloat(), z.toFloat()),
+            rot,
+            Vec3f(scale.toFloat()),
+        )
+    )
 }
 
 @ScriptBinding

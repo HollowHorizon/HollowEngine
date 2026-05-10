@@ -83,6 +83,8 @@ object CommonNetworkManager : NetworkManager {
     }
 
     fun sendToClient(player: ServerPlayer, packet: HollowPacket) {
+        if (player.hasDisconnected()) return
+
         player.server.coroutineScope.launch {
             while (player.connection == null && !player.hasDisconnected()) {
                 yield() // Если пакет отправляется до инициализации, то ждём каждый тик

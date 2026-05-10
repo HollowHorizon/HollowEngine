@@ -13,8 +13,6 @@ import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.api.Registerable
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForQuatF
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForVec3f
-import ru.hollowhorizon.hollowengine.common.utils.nbt.NBTFormat
-import ru.hollowhorizon.hollowengine.common.utils.serialization.serialize
 
 @Registerable
 @Serializable
@@ -153,8 +151,4 @@ object TRSTransformSerializer : KSerializer<TrsTransformF> {
             scale(scale3d ?: Vec3f.ONES)
         }
     }
-}
-
-fun main() {
-    println(NBTFormat.serialize(TransformComponent()))
 }
