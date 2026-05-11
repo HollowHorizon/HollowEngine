@@ -53,7 +53,7 @@ suspend infix fun NpcEntity.move(mob: Entity): Unit = move(entity = mob)
 @ScriptBinding
 suspend fun NpcEntity.move(pos: Vec3, dist: Double = 1.5, speed: Double = 1.0) {
     while (distanceToSqr(pos) > dist * dist || !navigation.isDone) {
-        moveTowards(pos, dist, speed)
+        moveTowards(pos, speed, dist)
         delay(50)
     }
 
