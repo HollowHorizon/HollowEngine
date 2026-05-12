@@ -129,6 +129,8 @@ dependencies {
     addShadow("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
     addShadow("org.jetbrains.kotlinx:kotlinx-io-bytestring:0.8.2")
 
+    addShadow("dev.vfyjxf:taffy:1.1.4")
+
     addShadow("de.fabmax.kool:kool-core-desktop:$koolVersion") {
         exclude(group = "org.lwjgl")
         exclude(group = "org.lwjglx")

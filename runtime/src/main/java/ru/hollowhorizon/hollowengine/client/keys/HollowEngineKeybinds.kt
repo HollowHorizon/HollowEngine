@@ -4,6 +4,7 @@ package ru.hollowhorizon.hollowengine.client.keys
 
 import net.minecraft.client.KeyMapping
 import org.lwjgl.glfw.GLFW
+import ru.hollowhorizon.hollowengine.client.ui.screen.HollowUiDemoScreen
 import ru.hollowhorizon.hollowengine.client.utils.open
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -19,7 +20,7 @@ fun onRegisterKeys(event: RegisterKeyBindingsEvent) {
 
 @SubscribeEvent
 fun onTick(event: TickEvent.Client) {
-    if (HOLLOW_ENGINE_KEY.isDown) {
-
+    while (HOLLOW_ENGINE_KEY.consumeClick()) {
+        HollowUiDemoScreen().open()
     }
 }
