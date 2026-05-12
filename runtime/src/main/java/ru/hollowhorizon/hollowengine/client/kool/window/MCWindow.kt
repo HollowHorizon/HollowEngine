@@ -18,7 +18,7 @@ class MCWindow(val ctx: MCKoolContext) : KoolWindow {
         }
     override var renderResolutionFactor: Float = 1f
 
-    override var positionInScreen: Vec2i
+    override var positionOnScreen: Vec2i
         get() = Vec2i(Minecraft.getInstance().window.x, Minecraft.getInstance().window.y)
         set(value) { /* MC управляет окном */ }
 

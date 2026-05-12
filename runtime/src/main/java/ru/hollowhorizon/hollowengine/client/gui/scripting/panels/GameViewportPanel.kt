@@ -48,7 +48,7 @@ class GameViewportPanel(dock: Dock) : DockPanel("hollowengine.gui.ide.viewport",
 }
 
 class ViewportImageShader : KslShader(Model(), pipelineConfig) {
-    var image by texture2d("uImageTex")
+    var image by bindTexture2d("uImageTex")
 
     private class Model : KslProgram("UI2 viewport image shader") {
         init {

@@ -276,6 +276,7 @@ object TransformGizmoEditor {
     private fun isWorldInputEnabled(): Boolean {
         if (!isEditorAvailable()) return false
         val minecraft = Minecraft.getInstance()
+        if (minecraft.screen != null && minecraft.screen !is ChatScreen) return false
         return minecraft.screen is ChatScreen || !ScriptingEnvironmentOverlay.isCollapsed
     }
 
@@ -842,7 +843,7 @@ object TransformGizmoEditor {
                 gizmoRotation,
                 gizmoScale,
             )
-            gizmo.updateModelMatRecursive()
+            gizmo.updateModelMatRecursiveDown()
         }
 
         fun updatePresentation(isHovered: Boolean, isActive: Boolean) {
@@ -881,7 +882,7 @@ object TransformGizmoEditor {
                 Vec3f(sizeX, sizeY, sizeZ),
             )
             boundsShader.color = color
-            boundsMesh.updateModelMatRecursive()
+            boundsMesh.updateModelMatRecursiveDown()
             lastBounds = bounds
             lastBoundsColor = color
         }
@@ -939,7 +940,7 @@ object TransformGizmoEditor {
                     spotOuterMesh.isVisible = false
                     spotInnerMesh.isVisible = false
                     lightVisual.isVisible = true
-                    lightVisual.updateModelMatRecursive()
+                    lightVisual.updateModelMatRecursiveDown()
                 }
 
                 is SpotLightComponent -> {
@@ -967,7 +968,7 @@ object TransformGizmoEditor {
                     spotOuterMesh.isVisible = true
                     spotInnerMesh.isVisible = light.innerAngle > 0.01f
                     lightVisual.isVisible = true
-                    lightVisual.updateModelMatRecursive()
+                    lightVisual.updateModelMatRecursiveDown()
                 }
             }
         }

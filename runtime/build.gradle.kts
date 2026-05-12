@@ -125,7 +125,7 @@ dependencies {
 
     addShadow("androidx.compose.runtime:runtime:1.10.3")
     addShadow("androidx.collection:collection:1.4.0")
-    addShadow("org.jetbrains.kotlinx:atomicfu:0.30.0-beta")
+    addShadow("org.jetbrains.kotlinx:atomicfu:0.32.1")
     addShadow("org.jetbrains.kotlinx:kotlinx-io-core:0.8.2")
     addShadow("org.jetbrains.kotlinx:kotlinx-io-bytestring:0.8.2")
 
@@ -250,5 +250,6 @@ tasks.withType<Test>().configureEach {
 kotlin {
     compilerOptions {
         freeCompilerArgs.add("-Xcontext-parameters")
+        freeCompilerArgs.add("-Xskip-prerelease-check")
     }
 }

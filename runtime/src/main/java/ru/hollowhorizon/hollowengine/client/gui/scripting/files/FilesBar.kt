@@ -128,8 +128,7 @@ fun UiScope.FileDockingTabsBar(
                 isScrollByDrag = true,
                 withHorizontalScrollbar = true,
                 containerModifier = {
-                    it.background(null).margin(bottom = 0.dp)
-
+                    it.background(null)
                 },
                 hScrollbarModifier = {
                     it.height(sizes.smallGap).margin(top = sizes.gap * 3f, bottom = sizes.borderWidth)
@@ -152,8 +151,8 @@ fun UiScope.FileDockingTabsBar(
                                 }
                             }
 
-                        val bgColor = colors.background.mix(Color("394450FF"), factor)
-                        val borderColor = Color("3C3C4AFF").mix(Color("586D84FF"), factor)
+                        val bgColor = ColorTheme.UI.BackgroundSecondary.mix(ColorTheme.UI.BackgroundElements, factor)
+                        val borderColor = ColorTheme.UI.BackgroundElements.mix(ColorTheme.UI.BackgroundAccent, factor)
 
                         modifier
                             .background(RoundRectBackground(bgColor, sizes.smallGap))
@@ -166,6 +165,7 @@ fun UiScope.FileDockingTabsBar(
                             modifier.textAlign(AlignmentX.Start, AlignmentY.Center)
                                 .margin(horizontal = sizes.gap, vertical = sizes.smallGap * 0.5f)
                                 .font(sizes.normalText)
+                                .textColor(ColorTheme.UI.WhiteReplacement)
                         }
 
                         if (isDragToUndock) {

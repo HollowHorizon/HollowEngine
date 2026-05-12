@@ -12,6 +12,7 @@ import org.apache.logging.log4j.spi.StandardLevel
 import ru.hollowhorizon.hollowengine.ConsoleAppender.Companion.filteredLogMessages
 import ru.hollowhorizon.hollowengine.ConsoleAppender.Companion.logLock
 import ru.hollowhorizon.hollowengine.ConsoleAppender.Companion.logMessages
+import ru.hollowhorizon.hollowengine.client.gui.colors.ColorTheme
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console.ConsoleSuggestionProvider
 import ru.hollowhorizon.hollowengine.client.gui.scripting.panels.console.LogMessage
 import ru.hollowhorizon.hollowengine.client.gui.scripting.tools.hoverable
@@ -63,7 +64,13 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
                     Button("hollowengine.gui.console.execute".lang) {
                         modifier.margin(
                             start = sizes.gap, end = sizes.gap, top = sizes.smallGap, bottom = sizes.smallGap
-                        ).alignY(AlignmentY.Center).colors(textColor = Color.WHITE, textHoverColor = Color.WHITE)
+                        ).alignY(AlignmentY.Center)
+                            .colors(
+                                textColor = ColorTheme.UI.WhiteReplacement,
+                                textHoverColor = ColorTheme.UI.WhiteReplacement,
+                                buttonColor = ColorTheme.UI.BackgroundElements,
+                                buttonHoverColor = ColorTheme.UI.BackgroundAccent
+                            )
                             .onClick {
                                 executeCommand(commandInput)
                                 commandInput = ""
@@ -186,7 +193,10 @@ class ConsolePanel(dock: Dock) : DockPanel("hollowengine.gui.ide.console", dock)
                 items(suggestions) { resource ->
                     Box(Grow.Std) {
                         val isHovered by modifier.hoverable()
-                        val hoverColor by animateColorAsState(if(isHovered) Color("1B1E23FF") else Color("252930FF"), tween(easing = Easing.easeOutQuart))
+                        val hoverColor by animateColorAsState(
+                            if(isHovered) ColorTheme.UI.BackgroundElements else ColorTheme.UI.BackgroundSecondary,
+                            tween(easing = Easing.easeOutQuart)
+                        )
 
                         modifier.backgroundColor(hoverColor).padding(sizes.smallGap).onClick {
                             commandInput = resource.apply(commandInput)
